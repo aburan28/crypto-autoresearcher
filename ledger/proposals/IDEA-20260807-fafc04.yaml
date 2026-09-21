@@ -1,0 +1,724 @@
+idea:
+  id: IDEA-20260807-fafc04
+  question_id: RQ-EQLA-0d3f40
+  added: '2026-08-07'
+  title: >-
+    IS THE SAVING FREE OR DOES IT COST A BASIS CHANGE? Equivariance forces the
+    minimal polynomial of the relation operator to be the lcm of its g isotypic
+    blocks, so Wiedemann's iteration count drops by g ONLY IF those blocks share
+    factors - measure the degree of the minimal polynomial and the linear
+    complexity of the Krylov sequence directly, with and without the isotypic
+    fold, and settle whether a solver that knows nothing about phi gets anything
+    for nothing
+
+  class: algorithm
+
+  claim: >-
+    (A) THE QUESTION, SHARPENED. Wiedemann's method solves M x = b using
+    2 * deg(minpoly(M)) matrix-vector products, recovered from the Krylov
+    sequence u^T M^i v by Berlekamp-Massey. Every cost statement about the
+    linear-algebra stage of index calculus is therefore a statement about
+    deg(minpoly). If M commutes with the phi-permutation Sigma of order g, then
+    M preserves each of the g isotypic components and
+      minpoly(M) = lcm_{j=0..g-1} minpoly(M_j),  each deg(M_j) <= B/g.
+    So there are exactly two possibilities and they have opposite operational
+    consequences:
+      CASE COPRIME - the g block minimal polynomials are pairwise coprime, the
+        lcm has degree about B, and a solver that does not perform the isotypic
+        change of basis gets NOTHING from equivariance. The g-fold saving must
+        be bought by an explicit fold.
+      CASE SHARED - the blocks share most of their factors, the lcm has degree
+        about B/g, and PLAIN WIEDEMANN ON THE UNCHANGED MATRIX terminates g times
+        sooner with no knowledge of phi whatsoever. That would be a free saving
+        and would be worth knowing.
+    No record in this repository has ever computed deg(minpoly) of a relation
+    matrix, equivariant or otherwise.
+
+    (B) THE PREDICTION, WITH ITS REASON. CASE COPRIME. Over F_N the g-th roots of
+    unity are present (lambda has order g mod N, so g | N - 1), so the isotypic
+    projection is defined over F_N and there is NO Galois action relating the
+    blocks: M_j = sum_k zeta^{jk} A_k for the g circulant components A_k of M,
+    and distinct j give genuinely different matrices. Over Q the nontrivial
+    blocks WOULD be conjugate under zeta -> zeta^{-1}, so the rational
+    characteristic polynomial is char(M_0) times a norm - but that conjugacy is
+    destroyed by reduction into F_N, where zeta lives. Expected measurement:
+    deg(minpoly(M)) / B close to 1 on the equivariant arm AND on a matched
+    non-equivariant null, i.e. equivariance buys nothing for free.
+
+    (C) WHAT IS THEREFORE THE RIGHT ALGORITHM, AND ITS EXACT COST. Fold first.
+      plain Wiedemann on the closed B x B system: 2B matvecs at nnz each
+        = 2 B nnz.
+      Wiedemann on the single informative block (IDEA-20260807-0e4d83):
+        2 (B/g) matvecs at nnz_lambda <= nnz/g each = 2 B nnz / g^2.
+      The fold itself: nnz field multiplications, i.e. negligible, and it is
+      done ONCE.
+    So the honest recommendation is a factor g^2 = 9 in linear-algebra
+    operations for a preprocessing step costing one pass over the matrix - and
+    the entire content of this record is that the g^2 is NOT free, it is bought
+    by a basis change, and a solver that does not perform it pays the full
+    2 B nnz. This is a CONSTANT FACTOR. This record claims nothing more than a
+    constant factor and identifies no source of anything more.
+
+    (D) THE SECOND, SEPARABLE QUESTION: BLOCK WIEDEMANN'S BERLEKAMP-MASSEY
+    STAGE. Coppersmith's block Wiedemann with blocking factor n uses n
+    projection vectors, reduces the sequence length to about B/n, and requires a
+    MATRIX Berlekamp-Massey on n x n matrix coefficients. If the blocking
+    vectors are chosen to be the g isotypic projections, the Krylov sequence
+    DECOUPLES EXACTLY: the cross terms vanish because M preserves each component,
+    so the matrix sequence is diagonal and matrix BM degenerates into g
+    independent SCALAR Berlekamp-Masseys. Predicted effect: the BM stage cost
+    falls from the matrix-BM cost at blocking factor g to g times the scalar-BM
+    cost, a factor of about g^{omega - 1} where omega is the matrix
+    multiplication exponent used inside matrix BM - again a constant, again on a
+    stage that is not the dominant one, and stated here because it is a genuine
+    structural consequence of equivariance that is separable from the block
+    split and has never been measured in this program.
+
+    (E) LANCZOS INHERITS THE STRUCTURE, WHICH IS WORTH ONE LINE AND NO MORE.
+    Sigma is a permutation matrix, hence orthogonal, so M Sigma = Sigma M implies
+    M^T Sigma = Sigma M^T and therefore M^T M commutes with Sigma. The
+    symmetrised operator that block Lanczos runs on is equivariant too, and
+    splits into the same g blocks. Same constants, same conclusion; recorded so
+    that nobody re-derives it as a new result.
+
+    (F) THE TWO OUTCOMES, BOTH DELIVERABLES.
+      OUTCOME 1 (predicted) - CASE COPRIME confirmed: deg(minpoly)/B near 1 on
+        both arms. The g^2 saving is real but must be bought; the lane's cost
+        model is fixed at 2 B nnz / g^2 with a one-pass preprocessing charge;
+        and any claim of a free saving is excluded with a measured number.
+      OUTCOME 2 - CASE SHARED: deg(minpoly)/B near 1/g on the equivariant arm
+        and near 1 on the null. Plain Wiedemann terminates g times sooner
+        without knowing anything about the curve. That is a genuine free
+        constant, it would apply to any solver anyone already runs, and it would
+        need independent review before interpretation.
+
+  resource_label: >-
+    R1 + R3. R3 supplies the Z[phi]-module structure that makes M commute with
+    Sigma; R1 is what makes Sigma buildable at all, since the orbit is generated
+    by multiplying x-coordinates by zeta in F_p.
+
+  admissibility: admissible
+
+  admissibility_argument: >-
+    Admissible on the same narrow ground as the rest of the lane: the object
+    measured is the minimal polynomial over F_N of a matrix of field data, and
+    the equivariance is produced by a field operation on x-coordinates rather
+    than by group-oracle outputs. The ceiling is stated with the admissibility:
+    the informational content of the equivariance is generic-group simulable
+    (KN-FIND-b7e091 Oracle D), so no exponent can come from here and none is
+    claimed. What is genuinely non-generic and genuinely useful is only the
+    ability to build the orbit for one field multiplication instead of about
+    log N group operations - a log-factor on a preprocessing step.
+
+  discriminated_from:
+    - >-
+      H-STR-002's cost prediction (structured solve alpha^2 B log B versus
+      Wiedemann 2 B^2). That is a claim about a superfast displacement-based
+      solver, which IDEA-20260807-9ecc6f argues is unavailable for a
+      finite-order operator. THIS record does not use displacement rank at all:
+      it measures deg(minpoly) and Krylov linear complexity, which are
+      solver-defining quantities with unambiguous meaning, and it compares only
+      cost models that correspond to algorithms anyone can actually run.
+    - >-
+      IDEA-20260807-9ecc6f, which prices the block split algebraically and
+      concludes g and g^2. This record asks a question that argument does not
+      answer: whether the saving is available WITHOUT the change of basis. The
+      algebra says the blocks exist; it does not say whether their minimal
+      polynomials overlap, and that is an arithmetic fact about the specific
+      matrices which must be measured.
+    - >-
+      IDEA-20260727-001's "quotient Wiedemann 2 (B/r)^2" cost line. That record
+      counts operations for a quotient solve as a model comparison. This record
+      measures the quantity those models assume - the iteration count - and adds
+      the block-Berlekamp-Massey decoupling of (D), which appears in no record.
+    - >-
+      EV-EQJ-001, which measured that for the S_3 summand action "every
+      surviving block has r_lambda = r_full" - a RANK statement about a group
+      that does not act as a scalar on G. This record measures a MINIMAL
+      POLYNOMIAL statement about a group that does. The two are different
+      quantities about different actions and must not be read as versions of one
+      another.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE LINEAR COMPLEXITY OF THE KRYLOV SEQUENCE: the least d such that the
+      scalar sequence s_i = u^T M^i v satisfies a linear recurrence of order d,
+      tracked as a function of the projection vectors u, v and of whether the
+      fold has been applied.
+    lossiness: >-
+      GENUINELY LOSSY, and severely: the whole B x B matrix collapses to one
+      integer per (u, v) pair. M is not recoverable from d - many matrices share
+      a linear complexity. It passes the section-2 test in the direction that
+      matters, and it also passes in the direction that bites: what is discarded
+      is discarded COMPATIBLY, because the recurrence order of the sequence is
+      determined by which invariant factors of M the vectors u and v actually
+      touch, and equivariance controls exactly that - if v lies in one isotypic
+      component, the sequence never leaves it and d <= B/g deterministically.
+      That is the one-step propagation rule and it is what makes the object
+      testable rather than decorative.
+    propagation: >-
+      One step: s_{i+1} = u^T M^{i+1} v, and if v is in the lambda-component then
+      so is M^i v for every i, because M preserves components. So the
+      propagation rule is "stay in your component", which is exactly the
+      equivariance, and it is checkable per step by projecting M^i v and
+      confirming the other components are zero.
+    survival_score: >-
+      Survives: sparsity, arity, factor-base rule, curve inside the family,
+      and any preconditioner that is itself equivariant. Dies at: a random
+      (non-equivariant) preconditioner, which is the standard fix for Wiedemann's
+      failure modes and which would destroy the block structure entirely - a
+      real and underappreciated tension, since Wiedemann implementations
+      routinely precondition, and that is recorded in the confounders rather
+      than discovered later.
+
+  mechanism: >-
+    STEP 1. Build the equivariant square system honestly. Harvest R >= B base
+    relations WITH right-hand sides, close under sigma, and form the B x B
+    system. EV-STR-003 O-9 records that no arm of the lane's history ever
+    assembled a linear system with a right-hand side; this record cannot proceed
+    without one and says so up front.
+
+    STEP 2. Verify equivariance exactly: assert M Sigma = Sigma M entrywise over
+    F_N. This is a hard gate. EV-STR-002's commutation check was a single-row
+    heuristic ("take first relation, shift it, check the shifted row exists"),
+    which is not the same statement.
+
+    STEP 3. Compute deg(minpoly(M)) exactly at toy B by the Krylov/Berlekamp-
+    Massey route with several random (u, v), taking the maximum, and CONFIRM it
+    independently against the characteristic polynomial computed by a different
+    method (e.g. Hessenberg or the Frobenius normal form at small B). Two
+    independent computations, because a single implementation of a quantity
+    nobody in the lane has computed before is not a measurement.
+
+    STEP 4. Compute deg(minpoly(M_j)) for each isotypic block, and the pairwise
+    gcds of the block minimal polynomials. Report
+      overlap_j,k := deg gcd(minpoly(M_j), minpoly(M_k)) / min(deg_j, deg_k).
+    CASE COPRIME predicts overlap near 0; CASE SHARED predicts overlap near 1.
+    This single number decides the record.
+
+    STEP 5. Measure the actual iteration counts: number of matvecs to
+    termination for (a) plain Wiedemann on M, (b) Wiedemann on the informative
+    block after folding, (c) block Wiedemann with g random blocking vectors,
+    (d) block Wiedemann with the g isotypic projections as blocking vectors.
+    Report matvecs AND field operations AND wall time AND peak memory for each.
+    For (c) versus (d), report the Berlekamp-Massey stage cost separately, since
+    (D) is a claim about that stage specifically.
+
+    STEP 6. The null: repeat everything on a matched non-equivariant matrix of
+    identical shape, density and column-orbit partition, and on a matched
+    SYNTHETIC equivariant matrix with no curve behind it. deg(minpoly)/B is
+    predicted identical on all three, which is the controlled null and the
+    expected result.
+
+    STEP 7. The preconditioner tension. Re-run (a) with a standard random
+    diagonal preconditioner and confirm that equivariance is destroyed
+    (M Sigma != Sigma M after preconditioning) and that the block route is then
+    unavailable. Then construct an EQUIVARIANT preconditioner - a diagonal that
+    is constant on orbits - and measure whether it fixes Wiedemann's failure
+    modes as well as a random one does. This is a small, genuinely constructive
+    piece of the record: if equivariant preconditioning works, the block route
+    and the preconditioner can coexist; if it does not, they cannot, and that is
+    a real limitation of the whole lane that nobody has stated.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Ripgrep over the whole repository on 2026-08-07:
+      "Wiedemann|Lanczos"; "minimal polynomial|minpoly"; "Krylov";
+      "Berlekamp-Massey|Berlekamp"; "linear complexity"; "preconditioner|
+      precondition"; "block Wiedemann|Coppersmith". Full reads of H-STR-002,
+      EV-STR-001 (its 25 verified Wiedemann solves), EV-STR-002, EV-STR-003
+      (RT-CM-1..6), IDEA-20260726-002, IDEA-20260727-001.
+    results: >-
+      "Wiedemann" appears in 40+ files but always as a COST MODEL TERM
+      (2 B^2, 2 B^2 m) and never as a measured iteration count, except
+      EV-STR-001's "25 verified Wiedemann solves on equal AP square matrices
+      (0.4-6.5 ms, toy)", which reports wall time and not iterations or minimal
+      polynomial degree. "minimal polynomial", "Krylov", "linear complexity" and
+      "Berlekamp" return ZERO ECDLP-relevant hits. "preconditioner" returns no
+      hits in the ECDLP lanes. The interaction between equivariance and
+      preconditioning appears nowhere. The isotypic-blocking decoupling of
+      matrix Berlekamp-Massey appears nowhere.
+    verdict: >-
+      ADAPTATION. Wiedemann, Coppersmith's block variant, the lcm-of-blocks
+      identity for a commuting decomposition, and the equivariance of M^T M under
+      an orthogonal Sigma are all standard and none is claimed as new. New to
+      this corpus: measuring deg(minpoly) at all; the coprime-versus-shared
+      dichotomy as the exact condition for a free saving; the isotypic-blocking
+      Berlekamp-Massey decoupling; and the preconditioner-versus-equivariance
+      tension. No novelty is claimed against the external literature and a
+      Stage-0 check for a published treatment of equivariant block Wiedemann is
+      part of the design - a positive hit is an ingredient.
+
+  null_object_control: >-
+    MANDATORY AND BLOCKING.
+    NULL 1 - MATCHED NON-EQUIVARIANT MATRIX: identical shape, density,
+    row-weight law and column-orbit partition, but rows NOT closed under sigma.
+    PREDICTED: deg(minpoly)/B near 1, identical to the equivariant arm. If the
+    equivariant arm matches the null, CASE COPRIME is confirmed and the saving
+    is not free - the controlled null IS the result.
+    NULL 2 - MATCHED SYNTHETIC EQUIVARIANT MATRIX with no curve behind it, from
+    the generator of IDEA-20260807-1e673d. PREDICTED: identical block overlap
+    and identical deg(minpoly)/B to the curve arm, establishing that whatever is
+    measured is a property of equivariance and not of elliptic curves.
+    DECAY PARAMETER: the orbit closure fraction c. Every quantity claimed to
+    follow from equivariance - block overlap, the exactness of the isotypic
+    decoupling in (D), the vanishing of cross terms in the block Krylov sequence
+    - must degrade monotonically as c falls from 1 to 0, and must be
+    indistinguishable from NULL 1 at c = 0. A quantity that survives c = 0 is
+    not measuring equivariance.
+    PLANTED POSITIVE: a synthetic equivariant matrix built so that its g blocks
+    SHARE a declared common factor of declared degree. deg(minpoly) must come
+    out short by exactly that degree. If the instrument cannot detect a planted
+    shared factor it cannot detect CASE SHARED and every CASE COPRIME verdict it
+    returns is void.
+
+  assumptions:
+    - >-
+      gcd(g, N) = 1 and F_N contains a primitive g-th root of unity, both forced
+      and both verified per instance.
+    - >-
+      The system is square and has a right-hand side. This requires a driver
+      change relative to everything committed in the lane (EV-STR-003 O-9), and
+      that change is declared here rather than discovered during execution.
+    - >-
+      The matrix has full informative rank, or the deficiency is measured and
+      reported alongside. EV-STR-003 O-9 measured rank deficiencies of 4, 6, 30
+      and 67 on the phi arm at B = 27, 55, 204, 397; on a deficient matrix
+      Wiedemann does not terminate in the usual sense and the minimal polynomial
+      picks up the nilpotent structure. Deficiency must be handled explicitly,
+      not averaged over.
+    - >-
+      Toy B, where an independent characteristic-polynomial computation is
+      feasible for cross-checking. That caps B at a few hundred for the
+      cross-check even if the Krylov route runs further, and the cross-checked
+      and uncross-checked cells must be labelled distinctly.
+
+  proof_search_map:
+    bottleneck: >-
+      The exact step is the block-overlap computation: deg gcd of the g block
+      minimal polynomials. That single number decides between CASE COPRIME and
+      CASE SHARED and hence decides whether the g-fold saving requires the fold.
+    baseline_embedding:
+      parameter_slice: >-
+        g = 1 (no group). Then there is one block, minpoly(M) = minpoly(M_0),
+        every cost model must collapse to plain Wiedemann at 2 B nnz, and the
+        fold must be the identity map. This is the exact old-method boundary and
+        it must be reproduced symbolically and numerically.
+      reproduction_check: >-
+        Frozen fixture: a small non-equivariant random sparse matrix over F_N
+        with a known minimal polynomial degree (constructed by companion-matrix
+        assembly), run through the whole pipeline. Exact integer agreement
+        required before any equivariant number is reported.
+    observation_collision:
+      observable: >-
+        The integer deg(minpoly(M)), and the block-overlap ratio.
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED. NULL 1 (non-equivariant) and the
+        equivariant arm are predicted to give the same deg(minpoly)/B. That is a
+        deliberate collision and it is the point: the observable does not
+        identify equivariance, so a small deg(minpoly) may never be cited as
+        evidence of structure. The separating observable, if any, is the block
+        OVERLAP, which is undefined for a non-equivariant matrix - so the
+        separation, if it exists, is categorical rather than numerical, and that
+        must be stated wherever the numbers are used.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Move "does equivariance reduce iteration count" into the exact
+          condition deg lcm_j minpoly(M_j) < B - g + 1, a polynomial-degree
+          condition over F_N. Encoding: the g blocks; completeness: the lcm
+          identity; soundness: Wiedemann terminates at 2 deg(minpoly);
+          transfer: matvec counts are what the solver pays; cost-loss: the fold
+          costs nnz multiplications.
+        predicted_gain: >-
+          Replaces an assumed cost model with a measured one and makes the
+          "free versus bought" question decidable by one gcd computation.
+      - transform: specialization_pack
+        proposed_object: >-
+          Use the isotypic projections as Coppersmith blocking vectors, which
+          decouples the block Krylov sequence exactly and reduces matrix
+          Berlekamp-Massey to g scalar ones. The blocks are proved disjoint (they
+          are distinct isotypic components), so the charges add over
+          proved-disjoint pieces rather than being estimated.
+        predicted_gain: >-
+          About g^{omega-1} on the Berlekamp-Massey stage. A constant, on a
+          sub-stage of a stage that is itself 0.4-3% of the charged total, and
+          labelled as such.
+    quantifier_order: >-
+      Intended: FORALL equivariant M over F_N with Sigma of order g and
+      g | N - 1, minpoly(M) = lcm_j minpoly(M_j) - the decomposition is uniform
+      in M. The CONTINGENT part, which is where the record's content lives and
+      which is explicitly NOT uniform: whether those lcm factors overlap depends
+      on the particular M, so the claim "deg(minpoly) is about B" is a claim
+      about the DISTRIBUTION of relation matrices and not a theorem. Stating
+      this order matters because CASE SHARED could hold for a structured
+      sub-family while failing generically, and a per-instance witness would not
+      establish a uniform conclusion.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "For equivariant relation matrices in this toy family, the minimal
+        polynomial degree is (or is not) reduced by equivariance, and the
+        blockwise solve costs 2 B nnz / g^2 against 2 B nnz for the unfolded
+        one." It can NEVER certify anything about relation collection, about
+        crypto-scale matrices, about non-abelian equivariance, or about the
+        ECDLP.
+      nearby_object_control: >-
+        The nearby object where the hoped-for conclusion fails: a matrix that is
+        equivariant under a group acting with NON-FREE orbits (some columns
+        fixed by sigma - e.g. the x = 0 column of IDEA-20260807-61049d). There
+        the isotypic components have unequal dimensions, the blocks are not all
+        B/g, and the clean g^2 accounting fails. A method that reported g^2 there
+        would not have identified the load-bearing structure, which is FREENESS
+        of the action.
+    proof_obligations:
+      - claim: minpoly(M) = lcm of the block minimal polynomials.
+        responsibility: correctness
+      - claim: M^T M commutes with Sigma when M does and Sigma is a permutation.
+        responsibility: correctness
+      - claim: >-
+          Isotypic blocking vectors make the block Krylov sequence exactly
+          diagonal.
+        responsibility: correctness
+      - claim: Wiedemann terminates in 2 deg(minpoly) matvecs.
+        responsibility: runtime
+      - claim: The planted shared factor is detected exactly.
+        responsibility: soundness
+      - claim: The g = 1 slice reproduces plain Wiedemann exactly.
+        responsibility: baseline
+      - claim: Rank-deficient instances are reported, not averaged.
+        responsibility: scope
+
+  heuristic_assumptions:
+    - id: HEUR-L5-9
+      statement: >-
+        For relation matrices arising from Semaev decompositions over a
+        phi-stable factor base, the g isotypic block minimal polynomials are
+        pairwise coprime with probability 1 - O(g^2 / N), so
+        deg(minpoly(M)) = B - O(1).
+      rigorous_support: >-
+        Imitates the classical fact that a uniformly random matrix over F_q has
+        minimal polynomial equal to its characteristic polynomial with
+        probability 1 - O(1/q), and that two independent random monic
+        polynomials of degree d over F_q are coprime with probability
+        1 - O(1/q). The blocks here are NOT independent - they are the g DFT
+        evaluations of one integer matrix - so the independence is exactly the
+        heuristic and it is the one that could fail.
+      validation_plan: >-
+        Measure the pairwise block-overlap ratio directly at every cell rather
+        than assuming it; compare its distribution against the predicted
+        coprimality law for independent random polynomials over F_N of degree
+        B/g. Tail check: the maximum overlap over all instances and all pairs.
+        Cross-check on the matched synthetic equivariant null, where the blocks
+        are genuinely independent by construction - if the curve arm shows
+        systematically higher overlap than the synthetic arm, the blocks are
+        correlated by the curve and CASE SHARED is live. TOY SCALE ONLY, and
+        this is precisely the kind of statement that a toy-scale measurement
+        cannot extrapolate: at B = 200 and N about 2^17, O(g^2/N) is far below
+        resolution.
+    - id: HEUR-L5-10
+      statement: >-
+        Random projection vectors (u, v) reveal the full minimal polynomial
+        degree with probability at least 1 - B/N per trial, so the maximum over
+        a few random trials is the true degree.
+      rigorous_support: >-
+        This is Wiedemann's own analysis: the probability that a random vector
+        fails to generate the full invariant-factor structure is bounded by
+        deg/|field|. Rigorous as a bound; the number of trials needed at toy N
+        is the heuristic part, since N is small (about 2^17) and B/N is not
+        negligible at B = 200.
+      validation_plan: >-
+        Take the maximum over at least 20 random (u, v) pairs at every cell and
+        report the full distribution of observed degrees, not only the maximum;
+        cross-check the maximum against the independently computed
+        characteristic polynomial at every cell where that is feasible.
+        A cell where the maximum over 20 trials is below the independent
+        cross-check is a measured instance of HEUR-L5-10 failing at toy N, and
+        is reported as such rather than smoothed.
+
+  predictions:
+    - metric: deg(minpoly(M)) / B on the equivariant arm
+      direction: different
+      minimum_effect: >-
+        PREDICTED at least 0.9 (CASE COPRIME). A measured value below 1/g + 0.1,
+        i.e. below about 0.43 for g = 3, is CASE SHARED and is the interesting
+        outcome: it would mean plain Wiedemann gets a g-fold saving for free.
+        Values between are inconclusive and are declared so in advance so that
+        neither branch is reachable by rounding.
+    - metric: >-
+        deg(minpoly(M)) / B, equivariant arm minus matched non-equivariant null
+      direction: different
+      minimum_effect: >-
+        PREDICTED within 0.05, i.e. no separation. A separation exceeding 3
+        pooled seed-to-seed sigma is the signature of CASE SHARED and requires
+        independent review.
+    - metric: pairwise block overlap deg gcd / min deg
+      direction: lower
+      minimum_effect: >-
+        PREDICTED below 0.1 for every pair at every cell. This is the single
+        number that decides the record and it is predicted with no free
+        parameters.
+    - metric: >-
+        measured matvecs for Wiedemann on the informative block, divided by
+        measured matvecs for plain Wiedemann on the closed system
+      direction: lower
+      minimum_effect: >-
+        PREDICTED in [0.8/g^2, 1.2/g^2], about 1/9 for g = 3, and this is the
+        honest headline constant. It must be reported together with the
+        preprocessing charge for the fold (nnz multiplications) and with the
+        interpretation limit that the stage is 0.4-3% of the charged total.
+    - metric: >-
+        Berlekamp-Massey stage cost, isotypic blocking versus random blocking at
+        the same blocking factor g
+      direction: lower
+      minimum_effect: >-
+        At least a factor 2 at g = 3 (predicted about g^{omega-1}). A ratio near
+        1 means the decoupling is not being exploited by the implementation,
+        which is an implementation finding and not a mathematical one.
+    - metric: >-
+        cross-term magnitude in the block Krylov sequence with isotypic blocking
+      direction: lower
+      minimum_effect: >-
+        EXACTLY ZERO at c = 1 (the off-diagonal entries of the matrix sequence
+        must vanish identically over F_N), rising monotonically as c falls.
+        A nonzero cross term at c = 1 falsifies the decoupling claim of (D).
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute): literature check for equivariant / block-circulant
+      Wiedemann treatments. A positive hit is an ingredient.
+      STAGE 1 (minutes, HARD GATE): the g = 1 fixture - companion matrix of
+      known minimal polynomial degree through the whole pipeline, exact integer
+      agreement.
+      STAGE 2 (minutes, HARD GATE): the planted-shared-factor positive control.
+      If a planted overlap is not detected, halt.
+      STAGE 3 (minutes): assemble the square equivariant system with right-hand
+      sides; assert M Sigma = Sigma M entrywise.
+      STAGE 4 (minutes at toy B): deg(minpoly) by Krylov/BM over 20 random
+      (u, v), cross-checked against an independent characteristic-polynomial
+      computation; block minimal polynomials; pairwise overlaps.
+      STAGE 5 (minutes): the four solver variants of STEP 5, with matvecs, field
+      operations, wall time and peak memory each.
+      STAGE 6 (minutes): NULL 1, NULL 2, and the c-sweep using the generator of
+      IDEA-20260807-1e673d.
+      STAGE 7 (an hour): the preconditioner tension experiment of STEP 7.
+      All of it is toy-scale numpy and sympy; the binding constraint is the
+      independent characteristic-polynomial cross-check, which caps the
+      cross-checked cells at a few hundred columns.
+    controls:
+      - NULL 1 - matched non-equivariant matrix, identical shape, density and
+        column-orbit partition
+      - NULL 2 - matched synthetic equivariant matrix with no curve behind it
+      - planted shared factor of declared degree - must be detected exactly
+      - g = 1 companion-matrix fixture of known minimal polynomial degree
+      - c-sweep as the decay test for every equivariance-derived quantity
+      - non-free-action control (a column fixed by sigma), where the clean g^2
+        accounting must fail
+      - >-
+        matched Pollard rho with negation and BSGS in group operations for the
+        Pareto row
+    required_metrics:
+      - deg(minpoly(M)) per cell, per arm, with the full 20-trial distribution
+      - deg(minpoly(M_j)) for each block and all pairwise gcd degrees
+      - matvecs, field operations, wall time and peak memory for all four solver
+        variants
+      - Berlekamp-Massey stage cost separately for random and isotypic blocking
+      - cross-term magnitudes in the block Krylov sequence
+      - entrywise equivariance assertion result
+      - rank and rank deficiency of every system solved
+      - c-sweep curves for every equivariance-derived quantity
+      - matched rho and BSGS group-operation counts and BSGS memory
+
+  falsification_conditions:
+    - >-
+      The g = 1 fixture disagrees with its known minimal polynomial degree.
+      Implementation failure; halt; report as infrastructure under AGENTS.md
+      rule 5 and never as mathematical evidence.
+    - >-
+      The planted shared factor is not detected. The instrument cannot see CASE
+      SHARED and every CASE COPRIME verdict is void.
+    - >-
+      M Sigma != Sigma M entrywise at c = 1. The system is not equivariant and
+      nothing downstream means what it claims - the row closure or the column
+      permutation is wrong.
+    - >-
+      deg(minpoly)/B lands below 0.43 on the equivariant arm and near 1 on the
+      null. CASE SHARED; this record's prediction is wrong; plain Wiedemann gets
+      a free g-fold saving; independent review before any interpretation. This
+      is the outcome the record would most like to be wrong about.
+    - >-
+      Cross terms in the isotypic-blocked Krylov sequence are nonzero at c = 1.
+      The decoupling claim (D) is false as stated and the Berlekamp-Massey
+      prediction is withdrawn.
+    - >-
+      The equivariant preconditioner fails to fix Wiedemann's failure modes
+      while a random one succeeds. Then equivariance and preconditioning are
+      incompatible in practice, the whole block route is unavailable to any
+      production solver, and that is a real limitation of the lane which must be
+      recorded prominently rather than buried.
+
+  confounders:
+    - >-
+      RANK DEFICIENCY. EV-STR-003 O-9 measured deficiencies 4, 6, 30, 67 on the
+      phi arm. On a singular matrix minpoly acquires a factor t^k and Wiedemann's
+      termination criterion changes; conflating a deficiency-driven degree with
+      a structure-driven one would produce a spurious CASE SHARED. Deficiency
+      must be reported per cell and deficient cells analysed separately.
+    - >-
+      SMALL N. At N about 2^17 and B about 200, Wiedemann's failure probability
+      B/N is about 1/650 per trial - small but not negligible over hundreds of
+      cells. The 20-trial maximum and the independent cross-check exist for this.
+    - >-
+      PRECONDITIONING DESTROYS EQUIVARIANCE. Standard Wiedemann practice
+      multiplies by a random diagonal; that breaks M Sigma = Sigma M. Any
+      wall-clock comparison against a production solver is comparing a
+      preconditioned solver with an unpreconditioned one unless the equivariant
+      preconditioner of STEP 7 works.
+    - >-
+      NON-FREE ORBITS. The point with x = 0 is fixed by phi. If it enters the
+      factor base the action is not free, block dimensions are unequal, and the
+      g^2 accounting is wrong. It must be excluded and the exclusion recorded.
+    - >-
+      MODEL VERSUS MEASURED OPERATIONS. EV-STR-003 recorded RT-CM-6
+      (non-comparable units) as OPEN. Matvecs, field operations and wall time
+      are three different things and all three are required here precisely so
+      that no comparison silently mixes them.
+
+  interpretation_limits:
+    - >-
+      THE LINEAR-ALGEBRA STAGE IS NOT THE DOMINANT COST OF PRIME-FIELD INDEX
+      CALCULUS - RELATION COLLECTION IS. EV-STR-001 measured the linear-algebra
+      share at 0.4% to 3% of the charged total at p = 211, 1009 and 4099. The
+      factor g^2 = 9 this record prices applies to that share; the Berlekamp-
+      Massey factor g^{omega-1} applies to a sub-stage of it. Nothing here can
+      change a charged total by more than about 3%, and any summary omitting
+      that is overclaiming.
+    - >-
+      Toy tier only, claim tier `toy`. HEUR-L5-9's failure probability O(g^2/N)
+      is far below toy resolution, so a toy-scale CASE COPRIME verdict does NOT
+      establish CASE COPRIME at crypto scale and the record does not license
+      that reading.
+    - >-
+      OUTCOME 2 (CASE SHARED) would be a free constant factor, not an exponent,
+      and not an attack. It would apply to any solver already in use and would be
+      worth an implementation note; it would not move any hardness claim.
+    - >-
+      Nothing here touches H-STR-002's status in either direction, and this
+      record has no authority to move it.
+
+  reachability_gate: >-
+    T5's isogeny-walk form does not apply: one curve, no movement. T4 binds:
+    equivariance of order 3 requires D_0 = -3 and of order 2 (on x-coordinates)
+    requires D_0 = -4, both class-determined and unreachable from a generic
+    curve at any cost, so on a generic prime-field curve g = 1 and this record's
+    entire content reduces to its own baseline slice. Within the D_0 = -3 family
+    the object is free: the fold costs nnz field multiplications, once. SCOPE
+    NOTE, not an attack claim: secp256k1 has a = 0 and lies in the family.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT MOVES AND NONE IS CLAIMED. The claim is a constant factor and
+      the record is explicit about it: at most g^2 = 9 in linear-algebra
+      operations for the fold-first solver, plus about g^{omega-1} on the
+      Berlekamp-Massey sub-stage, both on a stage worth 0.4-3% of the charged
+      total. The only place anything more could come from is CASE SHARED, which
+      would still be a constant g and is predicted not to hold. There is no
+      mechanism in this record that could produce a super-constant effect and
+      none is asserted.
+    memory_exponent: >-
+      Constant factor: the informative block is (B/g) x (B/g), so g^2 = 9 less
+      memory at the solve, and the Krylov sequence is 2B/g terms instead of 2B,
+      a factor g. Wiedemann's memory is dominated by the matrix and the sequence,
+      both of which shrink by these constants. No exponent moves.
+    best_known: >-
+      Sparse Wiedemann at 2 B nnz field operations with O(nnz) memory is the
+      incumbent for this stage; Coppersmith block Wiedemann is the incumbent for
+      the parallel setting; block Lanczos is the incumbent where a symmetric form
+      is available. For the ECDLP overall: parallel rho at 0.886 sqrt(N) and
+      O(1) memory (KN-TECH-001, KN-TECH-006), automorphism-discounted rho at
+      about 0.36 sqrt(N) on j = 0 (KN-TECH-018), BSGS at 2 sqrt(N) time and
+      sqrt(N) memory (KN-TECH-031). None of these moves.
+    hidden_overhead: >-
+      No o(1) since no asymptotic claim. Disclosed instead: (i) the g^2 requires
+      the fold, which requires knowing lambda and sigma, which requires the curve
+      to be in the D_0 = -3 family; (ii) the fold is incompatible with random
+      preconditioning unless STEP 7 succeeds, which is untested; (iii) the g-fold
+      relation-count saving that would accompany it is contingent on the density
+      penalty, measured at 2-3x in EV-STR-002, which could cancel it entirely.
+    tradeoff_note: >-
+      The g-fold split is embarrassingly parallel, but Coppersmith block
+      Wiedemann already parallelises the unsplit problem, so the marginal
+      parallel gain is a constant too. The isotypic blocking of (D) is the one
+      place where the structure gives something the random blocking does not -
+      exact decoupling of the Berlekamp-Massey stage - and that is worth
+      recording precisely because it is small, real and previously unstated.
+
+  dominated_by: >-
+    CHECKED ROW BY ROW ACROSS TIME, MEMORY AND DATA/QUERIES, and not null. As an
+    attack: none is mounted, so dominated on every axis by parallel rho
+    (0.886 sqrt(N) time, O(1) memory, KN-TECH-001/KN-TECH-006), by
+    automorphism-discounted rho on exactly these curves (about 0.36 sqrt(N),
+    KN-TECH-018), and by BSGS (2 sqrt(N) time, sqrt(N) memory, KN-TECH-031). As
+    a LINEAR-ALGEBRA METHOD for the index-calculus stage: dominated on
+    generality by plain sparse Wiedemann, which works for every curve and needs
+    no CM structure; dominated on maturity by Coppersmith block Wiedemann, which
+    is the standard parallel method; and it dominates neither, since it produces
+    the SAME cost as the orbit-quotient route of IDEA-20260727-001 (the two are
+    the same map, per IDEA-20260807-0e4d83) - so it is Pareto-incomparable there
+    and strictly worse on implementation simplicity.
+  sota_delta: >-
+    Zero speedup against any attack baseline. Quantitatively: prices the
+    fold-first solver at 2 B nnz / g^2 = 2 B nnz / 9 against plain Wiedemann's
+    2 B nnz, on a stage measured at 0.4% to 3% of the charged total, giving a
+    ceiling under 3% on the total; adds a predicted factor of about g^{omega-1}
+    (at least 2 at g = 3) on the Berlekamp-Massey sub-stage from isotypic
+    blocking; and produces the first measurement of deg(minpoly) for any
+    relation matrix in this program, a quantity every existing cost model in the
+    lane assumes and none has measured.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.85 that CASE COPRIME is confirmed (deg(minpoly)/B at least 0.9), because
+    the blocks are distinct DFT evaluations and there is no Galois relation over
+    F_N to force sharing. 0.9 that the measured fold-first ratio lands at
+    1/g^2 within 20%. 0.7 that the isotypic Berlekamp-Massey decoupling is exact
+    at c = 1 and gives at least a factor 2 - the risk is implementation, since a
+    generic matrix-BM routine will not notice that its input is diagonal. 0.4
+    that the equivariant preconditioner works as well as a random one, which is
+    the record's genuinely open sub-question and the one whose negative answer
+    would matter most, because it would make the whole block route unavailable to
+    a production solver.
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json;
+    all 126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-EQLA-0d3f40
+    - IDEA-20260807-0e4d83
+    - IDEA-20260807-9ecc6f
+    - IDEA-20260807-1e673d
+    - H-STR-002
+    - EV-STR-001
+    - EV-STR-002
+    - EV-STR-003
+    - EV-EQJ-001
+    - KN-FIND-b7e091
+    - KN-TECH-001
+    - KN-TECH-006
+    - KN-TECH-018
+    - KN-TECH-031
+    - IDEA-20260726-002
+    - IDEA-20260727-001
+    - harness/endomorphism_la.py
+    - analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md

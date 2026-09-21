@@ -1,0 +1,74 @@
+hypothesis:
+  id: H-FCP-001
+  question_id: RQ-ECDLP-001
+  statement: >-
+    Over toy prime fields of 16-28 bits, with factor base B=14 and m=2
+    (S_3 decomposition), the ratio of factor-base construction time to
+    Groebner solve time (precompute_seconds / groebner_seconds) increases
+    with field bit size, and with K=5 targets per curve, the amortized
+    per-target cost ratio (fixed_total / naive_total) drops below 0.95 at
+    bit sizes >= 20.
+  mechanism: >-
+    Factor-base construction performs B quadratic-residuosity tests, each
+    costing O(log^2 p) via modular exponentiation. Groebner solving performs
+    a fixed number of polynomial operations (degree bounded by B and the
+    Semaev degree, independent of p) with O(log p) coefficient arithmetic.
+    Therefore the construction/solve ratio grows with p, making
+    preprocessing amortization increasingly valuable at larger field sizes.
+    With K targets, the fixed-mode savings are (K-1)/K * rebuild/(rebuild +
+    groebner), which becomes measurable when rebuild/groebner exceeds ~0.06
+    at K=5.
+  assumptions:
+    - sympy grevlex Groebner is a faithful (if unoptimized) solver at toy scale
+    - factor-base construction time grows with field size (larger modular exponentiations)
+    - Groebner solve time grows sub-linearly relative to construction time
+    - the factor base is target-independent (no target-derived material in preprocessing)
+    - wall-time ratios on the same machine are valid comparisons
+  predictions:
+    - metric: precompute_to_groebner_ratio
+      direction: higher
+      minimum_effect: >-
+        precompute_seconds / mean_groebner_seconds increases monotonically
+        across bit sizes 16, 20, 24, 28
+    - metric: amortized_cost_ratio
+      direction: lower
+      minimum_effect: >-
+        (precompute + K * mean_groebner_fixed) / (K * (mean_rebuild +
+        mean_groebner_naive)) < 0.95 at bit sizes >= 20 for at least 2 of
+        3 seeds
+    - metric: savings_fraction
+      direction: higher
+      minimum_effect: >-
+        1 - amortized_cost_ratio correlates positively with
+        precompute/groebner ratio (Spearman |rho_s| >= 0.6 across bit sizes)
+  test_boundary:
+    instances:
+      - seeds 1, 2, 3
+      - bit sizes 16, 20, 24, 28
+      - 5 targets per (bits, seed) curve
+    parameters:
+      factor_base_size: 14
+      decomposition_length: 2
+      targets_per_curve: 5
+    implementation: harness/fixed_curve_preprocessing.py at the recorded commit
+    budget:
+      wall_clock_seconds_per_run: 120
+      total_wall_clock_seconds: 3600
+  falsification_conditions:
+    - >-
+      amortized_cost_ratio >= 0.95 at ALL tested bit sizes for all seeds,
+      meaning fixed-curve preprocessing provides no measurable advantage
+      even at 28-bit fields with K=5 targets
+    - >-
+      precompute/groebner ratio does NOT increase with bit size (construction
+      cost stays negligible relative to Groebner solving)
+    - >-
+      The savings fraction shows no positive correlation with the
+      precompute/groebner ratio (|rho_s| < 0.3)
+  interpretation_limits:
+    - toy prime fields only (max 28 bits); says nothing about medium or crypto scale
+    - absolute timings are sympy-bound and macOS-arm64-bound; only within-machine ratios are comparable
+    - B=14, m=2 only; different factor-base sizes or arities may behave differently
+    - at bit sizes >= 20, no decompositions are expected (B^2/N << 1); the experiment measures Groebner solve cost on trivial ideals, which may underestimate cost for non-trivial systems
+  status: analyzed
+  proposed_by: coordinator

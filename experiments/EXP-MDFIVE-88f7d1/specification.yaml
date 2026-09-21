@@ -1,0 +1,227 @@
+experiment:
+  id: EXP-MDFIVE-88f7d1
+  hypothesis_id: H-MDFIVE-bf7767
+  version: 1
+  title: >-
+    Round-1-restricted, two-free-word splice-and-cut MITM instrument against
+    MD4 (control) with paired H1 heuristic validation, plus a conditionally
+    authorized identically-bounded MD5 nearby-object run
+  status: approved
+  objective: >-
+    Drive the frozen bounded MITM/splice-and-cut instrument to a literal,
+    independently-reverifiable certificate against MD4's Round 1 at the
+    declared 20-bit, two-free-word slice; validate heuristic HEUR-H1
+    (matching-window collision statistics) by sampling; and, ONLY under the
+    MD5 authorization in this contract, run the IDENTICAL instrument against
+    MD5's own Round-1 shift/constant table as a pre-declared null-hypothesis
+    nearby-object control. Never claims execution at literature-scale
+    complexity (2^96/2^102/2^116.9/2^123.4).
+  inputs:
+    rfc_specifications:
+      md5: "RFC 1321 Appendix A.3, local pinned copy, sha256 284a79d148400d9cd2a423211d1103b5cef0fb9256a4cbe6d7ebe5197c3149dd"
+      md4: >-
+        RFC 1320 (WebFetch-acquired transcript this batch, NOT
+        sha256-pinnable from that acquisition -- Executor MUST fetch and pin
+        the raw text with Bash/network tools before citing it as a frozen
+        input in the run manifest; see H-MDFIVE-bf7767 structural_ingredients)
+    seeds: [20260821, 8975313, 8975314, 8975315, 8975316, 8975317]
+    parameters: {S: 9, k1: 10, k2: 10, m: 12, k: 20}
+  controls:
+    - >-
+      Brute-force-equality control (k1=k2=6, seed 8975316): the MITM
+      hash-table search's result set must be IDENTICAL to the naive
+      all-pairs search's result set on this fully brute-forceable subset.
+    - >-
+      H2 backward-inversion regression fixture (seed 8975317, >=10,000
+      tuples): forward_step/backward_step composition must be an exact
+      identity on every sample; a single failure invalidates all downstream
+      results (correctness gate, checked before any search result is
+      trusted).
+    - >-
+      MD4-vs-MD5 nearby-object control (KN-TECH-080 audit 4), executed ONLY
+      under this contract's md5_run_authorization below, at the identical
+      bounded scale, never larger.
+  independent_variables:
+    - "free word8 (chunk1), 10-bit window, per-target"
+    - "free word9 (chunk2), 10-bit window, per-target"
+    - "target primitive: md4 | md5 (md5 arm gated, see below)"
+  metrics:
+    primary:
+      - "chunk-evaluation count to first full-20-bit-target match (MITM vs naive)"
+      - "matching-window (12-bit) collision count per target"
+      - "full-target (20-bit) hit count per target"
+    secondary:
+      - "wrapper-measured wall-clock seconds per run"
+      - "peak memory (bytes)"
+      - "MD5/MD4 cost-success ratio R (conditional arm only)"
+      - "brute-force-vs-MITM result-set equality (boolean, k1=k2=6 control)"
+  heuristic_under_test: HEUR-H1
+  preregistered_prediction:
+    quantity: >-
+      Distribution of the matching-window (12-bit) collision count across N
+      independently-drawn targets at k1=k2=10, m=12.
+    formula: "Poisson(lambda = 2^{k1+k2-m}) = Poisson(lambda = 2^8 = 256)"
+    source: >-
+      H-MDFIVE-bf7767 HEUR-H1, extrapolating RFC 1321 section 3.4's
+      single-step F-balance property to the iterated 9-step composition (the
+      classical birthday-argument move, unproved here and exactly what this
+      run tests).
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Round-1-restricted (16 of 48/64 total steps), 2 of 16 message words
+      free, 20-bit target window -- a deliberately tiny, self-contained
+      model problem. No transfer or extrapolation to the full 128-bit
+      primitive is claimed; see H-MDFIVE-bf7767 interpretation_limits.
+    correspondence: null
+  tail_checks:
+    - >-
+      Compare the single largest observed matching-window-collision count
+      across the N sampled targets against the Poisson(lambda=256) tail
+      probability (explicit p-value), reported for both the MD4 arm and (if
+      run) the MD5 arm.
+  replication:
+    seeds: [20260821, 8975313, 8975314, 8975315, 8975316, 8975317]
+    independent_instances: 1
+  budget:
+    wall_clock_seconds_per_run: 300
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 4
+    maximum_runs: 4
+  stopping_rules:
+    - >-
+      Each of the three search-type runs (MD4 primary certificate run, MD4
+      H1 heuristic-validation sampling run, conditional MD5 nearby-object
+      run) halts truthfully at its independent 300 s wall-clock ceiling
+      regardless of completion state. A halt before finding a match, or
+      before completing the declared target count, is a budget/infrastructure
+      outcome (AGENTS.md rule 3), never a negative mathematical result, and
+      is reported as such with the achieved progress (e.g. targets
+      completed, best matching-window count observed).
+    - >-
+      Implementation/build (MD4+MD5 Round-1 module, MITM search, H2
+      fixture) is budgeted separately at up to 900 s and is engineering
+      time, not a scored run.
+    - >-
+      Total TASK-20260821-de817d wall-clock may not exceed 1800 s
+      (batch.yaml de817d_sub_budget: 900 build + 300 MD4 primary + 300 H1
+      validation + 300 conditional MD5 = 1800 exactly). maximum_runs: 4
+      (build/self-test pass, MD4 primary run, H1 validation run, conditional
+      MD5 run).
+  invalidation_rules:
+    - >-
+      Any addition or rotation in the Round-1 step arithmetic performed
+      without explicit `& 0xFFFFFFFF` masking (checked by the H2 regression
+      fixture; a single failure invalidates the run).
+    - >-
+      The 14 fixed words, or the high-order bits of word8/word9, generated
+      by any procedure other than the exact deterministic seed/procedure
+      frozen in H-MDFIVE-bf7767.test_boundary.parameters.fixed_word_generation
+      (seed 20260821). This field and its seeds are immutable once this
+      contract is frozen (fixed_before_acquisition discipline).
+    - >-
+      An MD5-side run executed without this contract's explicit
+      md5_run_authorization below, or executed at any scale, split point,
+      seed, or parameter different from the declared identical values --
+      out of GOAL-MD5-001's next_action scope and invalid regardless of
+      outcome.
+    - >-
+      Any read of, or derivation from,
+      coordination/goals/GOAL-MD5-001/quarantine/MD5-COLLISION-PATH-WANG-2004-199.yaml
+      (the quarantined differential-collision payload). This instrument is
+      structurally unrelated (Round-1 MITM/preimage, not a differential
+      collision path); the contamination firewall is carried forward
+      unchanged from BATCH-1f30fe/BCP-2, and any consumption finding
+      invalidates the run regardless of outcome.
+    - >-
+      The declared search space (2^10 x 2^10 over words 8 and 9) failing to
+      contain the true (word8, word9) pair for a given target, per a bug in
+      the target-generation procedure -- invalidates that target's result
+      (feasibility proof obligation).
+  success_criterion: >-
+    (1) MD4 primary run finds a full-20-bit-target match via the MITM
+    instrument using fewer than 2^18 chunk evaluations (>=4x below the
+    naive O(2^20) baseline), independently re-verified identical to the
+    brute-force result set on the k1=k2=6 control. (2) H2 regression fixture
+    passes exactly on every sampled tuple (>=10,000). (3) H1
+    heuristic-validation run reports the chi-square goodness-of-fit
+    statistic and the largest-collision tail p-value for the MD4 arm,
+    whatever their value (a chi-square deviation below the alpha=0.05
+    critical value is HEUR-H1 holding at this scale; a value above it is
+    HEUR-H1 falsified at this scale -- both are valid, reportable outcomes
+    per H-MDFIVE-bf7767 falsification_conditions). (4) IF the MD5 arm runs
+    under md5_run_authorization: the identical H1-style statistics are
+    reported for MD5-Round-1 and R (MD5/MD4 cost-success ratio) is computed
+    and reported honestly, whatever its value.
+  falsification_criterion: >-
+    Per H-MDFIVE-bf7767.falsification_conditions verbatim: (a) MITM/brute-force
+    result-set mismatch on the k1=k2=6 control; (b) a reproducible (>=3
+    independent target draws), non-shrinking heavier-than-Poisson tail in
+    the matching-window collision distribution; (c) the declared search
+    space failing to contain the true solution for the target-generation
+    protocol used; (d) any H2 regression-fixture failure; (e) R falling
+    outside [0.5,2.0] and surviving a future null-constant control (a
+    reportable finding about MD4/MD5 divergence, not a defect).
+  required_artifacts:
+    - harness/run_md4_ceiling.py (standalone module, MD4 core + MD5 Round-1
+      substitution mode + MITM instrument + brute-force control + H2 fixture
+      + H1 sampling harness; no hashlib in the solver core)
+    - tests/test_harness.py additions (additive only)
+    - "run manifests for each executed run: wrapper-measured wall-clock, seed,
+      declared parameters, certificate (MD4 primary run), H1 statistics
+      (validation run and, if authorized and run, MD5 run)"
+    - a measured (not modeled) cost-scaling table entry for this batch's
+      actual instrument, labeled `measured` throughout, distinct from
+      IDEA-20260821-e46061's `modeled` cost-scaling sketch
+  assigned_to: executor
+  approved_by: coordinator (DEC-20260821-b1a7b4)
+
+  # ===================================================================
+  # MD5-SIDE RUN AUTHORIZATION -- Coordinator gate decision, this contract
+  # ===================================================================
+  md5_run_authorization:
+    authorized: true
+    basis: >-
+      IDEA-20260821-e46061 explicitly NAMES this step
+      (md5_specific_step_decision.decision: NAMED) and the Coordinator gate
+      (DEC-20260821-b1a7b4, TASK-20260821-a288f8) concurs it is a legitimate,
+      correctly bounded nearby-object control under GOAL-MD5-001's
+      next_action restriction and KN-TECH-080 audit 4.
+    exact_parameters_identical_to_md4_run:
+      S: 9
+      k1: 10
+      k2: 10
+      m: 12
+      k: 20
+      fixed_words: >-
+        SAME 14 fixed-word values and word8/word9 high-order bits as the MD4
+        arm (fixed_word_generation, seed 20260821) -- byte-identical message
+        inputs, so the shift-amount and additive-constant substitution is
+        the ONLY structural difference between the MD4 and MD5 arms.
+      target_generation: >-
+        Independent target draws (seed 8975315, same N intent and halt
+        discipline as the MD4 H1 validation run, seed 8975314) -- a
+        distributional comparison of cost/success RATE, not a replay of the
+        MD4 arm's specific targets.
+      wall_clock_ceiling_seconds: 300
+      never_larger_than_md4_arm: >-
+        No parameter, split point, seed convention, target count budget, or
+        wall-clock ceiling in this MD5 arm may exceed the MD4 arm's declared
+        values. Any Executor deviation, even upward in only one field,
+        invalidates the run under invalidation_rules above.
+    framing: >-
+      This run is a PRE-DECLARED NULL-HYPOTHESIS CONTROL, not an attack
+      attempt: the expected, unsurprising outcome (stated in advance, per
+      H-MDFIVE-bf7767's statement and predictions) is R in [0.5, 2.0]
+      (statistically indistinguishable MD4/MD5 cost-success rates at this
+      bounded scale), to be recorded as a controlled null
+      (docs/inventor-protocol.md section 3) if it occurs -- never spun as a
+      "ceiling" finding. A surprising result (R outside [0.5,2.0]) is a
+      reportable finding that requires a null-constant-control replication
+      (NOT part of this contract's scope or budget) before being credited.
+    explicitly_out_of_scope_this_contract: >-
+      The null-constant-control replication (both primitives' constants
+      replaced by the same BCP-2-style shifted variant) is NOT authorized or
+      budgeted by this contract. If the MD5 arm's R is surprising, that
+      replication is a future batch's decision, not something the Executor
+      may execute under this ceiling.

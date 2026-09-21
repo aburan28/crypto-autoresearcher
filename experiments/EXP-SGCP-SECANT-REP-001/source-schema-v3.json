@@ -1,0 +1,634 @@
+{
+  "source_schema": {
+    "accounting": {
+      "aggregate_equations": [
+        "observed_totals = componentwise_sum(supervisor.observed_counters, attempt.observed_counters for every attempt)",
+        "charged_totals = componentwise_sum(supervisor.charged_counters, attempt.charged_counters for every attempt)",
+        "failed_attempt_totals = componentwise_sum(attempt.charged_counters for attempts with failure.status != success)",
+        "logical_artifact_bytes = sum(storage_artifact.logical_bytes for every logical artifact)",
+        "physical_artifact_bytes = sum(one allocated_bytes value per distinct (st_dev,st_ino))",
+        "final_retained_allocated_bytes = sum(allocated_bytes for retained distinct physical artifacts)",
+        "peak_live_temporary_allocated_bytes is the maximum sampled live allocated total, not a sum over samples",
+        "campaign_storage_charge = peak_live_temporary_allocated_bytes + final_retained_allocated_bytes",
+        "cpu totals are sums; wall_makespan_ns is max(end)-min(start); peak RSS is max, never sum"
+      ],
+      "attempt_exact_keys": [
+        "schema",
+        "protocol_version",
+        "scope",
+        "evidence_eligible",
+        "run_id",
+        "attempt_id",
+        "retry_of",
+        "development_invocation_id",
+        "development_order",
+        "role",
+        "identity",
+        "cell",
+        "process",
+        "fresh_state",
+        "work",
+        "io",
+        "resources",
+        "storage",
+        "failure",
+        "integrity",
+        "actual_work_complete",
+        "partial_counter_lower_bounds",
+        "observed_counters",
+        "charged_counters",
+        "budget_consumed"
+      ],
+      "attempt_field_rules": {
+        "budget_consumed": "literal true",
+        "cell": "literal null for development controls",
+        "development_invocation_id": "D01..D13 for development controls",
+        "development_order": "integer 1..13 matching the invocation ID",
+        "evidence_eligible": "literal false for development controls",
+        "protocol_version": "literal 6",
+        "retry_of": "literal null",
+        "schema": "literal sgcp-secant-accounting-v3",
+        "scope": "literal development_control"
+      },
+      "counter_vector_rule": "A counter vector is a closed flattened object containing every work counter plus cpu_user_ns,cpu_system_ns,wall_elapsed_ns,kernel_peak_rss_bytes,sampled_peak_rss_bytes,read_bytes,write_bytes,disk_read_bytes,disk_written_bytes,final_logical_bytes,final_allocated_bytes,retained_advice_bytes,temporary_logical_bytes_created,peak_live_temporary_bytes. Unknown or missing counters fail.",
+      "development_ceilings": {
+        "campaign_storage_bytes": 67108864,
+        "child_count": 13,
+        "cpu_ns_per_child": 60000000000,
+        "io_bytes_per_child": 268435456,
+        "optimizer_node_cap": 2000000,
+        "parallelism": 1,
+        "rss_bytes_per_child": 536870912,
+        "storage_bytes_per_child": 67108864,
+        "verifier_independent_node_cap": 5000000,
+        "wall_ns_per_child": 60000000000,
+        "work_counter_per_child": 1000000000000
+      },
+      "development_identity_rule": "development_invocation_id and development_order are exactly D01..D13 and 1..13 from process-accounting-v2; canonical attempts use null for both.",
+      "development_invocation_ids": [
+        "D01-PRODUCER-HAPPY",
+        "D02-OPTIMIZER-HAPPY",
+        "D03-VERIFIER-HAPPY",
+        "D04-OPTIMIZER-FRESH-REPEAT",
+        "D05-VERIFIER-FRESH-REPEAT",
+        "D06-REENTRY-REFUSAL",
+        "D07-PRODUCER-FAILURE",
+        "D08-OPTIMIZER-TIMEOUT",
+        "D09-VERIFIER-MISMATCH",
+        "D10-PUBLISH-HAPPY",
+        "D11-OVERWRITE-REFUSAL",
+        "D12-IO-FAILURE",
+        "D13-RSS-LIMIT"
+      ],
+      "failure_charge_rule": "For success, charged counters equal observed exact counters. For abnormal termination, operation counters charge 10^12 each, optimizer/verifier nodes charge their cap, CPU/wall/RSS/I/O/storage charge the exact development ceiling. Observed lower bounds remain separate.",
+      "integrity_exact_keys": [
+        "artifact_sha256_match",
+        "counter_monotonic",
+        "final_frame_seen",
+        "manifest_sha256_match",
+        "publication_exclusive",
+        "source_sha256_match"
+      ],
+      "io_exact_keys": [
+        "open_calls",
+        "close_calls",
+        "stat_calls",
+        "read_calls",
+        "read_bytes",
+        "write_calls",
+        "write_bytes",
+        "fsync_calls",
+        "rename_calls",
+        "link_calls",
+        "unlink_calls",
+        "disk_read_bytes",
+        "disk_written_bytes",
+        "disk_counter_source"
+      ],
+      "measurement_methods": {
+        "allocated_storage": "st_blocks*512; physical totals deduplicate (st_dev,st_ino)",
+        "disk_io": "macOS proc_pid_rusage RUSAGE_INFO_V4 ri_diskio_bytesread and ri_diskio_byteswritten before wait/reap; unavailable fails",
+        "kernel_peak_rss": "wait4 ru_maxrss in bytes on the frozen macOS platform",
+        "logical_io": "all source-owned open,close,stat,read,write,fsync,rename,link,unlink wrappers increment calls and exact byte counts",
+        "sampled_rss": "parent proc_pid_rusage physical footprint every 10ms"
+      },
+      "optimizer_conservation": [
+        "push_calls = frontier_pushes + push_terminal_leaves + push_pruned_cap + push_pruned_bound",
+        "frontier_pops = nodes_started + pop_pruned_bound",
+        "nodes_completed = nodes_started on success",
+        "branch_children_generated = 2*nodes_completed",
+        "optimizer_include_branches = optimizer_exclude_branches = nodes_completed",
+        "frontier_pushes = frontier_pops + remaining_frontier_nodes + final_filter_discards",
+        "bound_calls = frontier_pushes + push_pruned_bound",
+        "metric_cache_lookups = metric_cache_hits + metric_cache_misses",
+        "metric_cache_misses = metric_cache_inserts = metric_cache_final_entries",
+        "metric_cache_peak_entries >= metric_cache_final_entries",
+        "full_model_cache_lookups = full_model_cache_hits + full_model_cache_misses",
+        "full_model_cache_misses = full_model_cache_inserts = full_model_cache_final_entries",
+        "full_model_cache_peak_entries >= full_model_cache_final_entries",
+        "retained_model_calls = full_model_cache_misses",
+        "retained_model_cells = sum(event.formal_family_count for every retained-model miss event)",
+        "frontier_serialized_entries = remaining_frontier_nodes",
+        "frontier_serialized_bytes = byte_length(canonical_json(frontier_states))",
+        "frontier_peak_entries >= remaining_frontier_nodes",
+        "nodes_pruned_conflict = 0 for the pinned optimizer",
+        "conflict_vertices_removed = exact sum of include-branch removed available vertices",
+        "full_objective_exact iff remaining_frontier_nodes=0, absolute_gap=0, and lower_bound=upper_bound"
+      ],
+      "resource_exact_keys": [
+        "cpu_user_ns",
+        "cpu_system_ns",
+        "wall_elapsed_ns",
+        "kernel_peak_rss_bytes",
+        "sampled_peak_rss_bytes",
+        "rss_platform",
+        "hard_cpu_limit_ns",
+        "hard_wall_limit_ns",
+        "hard_rss_limit_bytes",
+        "hard_io_limit_bytes",
+        "hard_storage_limit_bytes",
+        "charged_cpu_ns",
+        "charged_wall_ns",
+        "charged_rss_bytes",
+        "charged_io_bytes",
+        "charged_storage_bytes"
+      ],
+      "storage_exact_keys": [
+        "artifact_count",
+        "final_logical_bytes",
+        "final_allocated_bytes",
+        "final_retained_allocated_bytes",
+        "retained_advice_bytes",
+        "temporary_logical_bytes_created",
+        "peak_live_temporary_bytes",
+        "peak_live_temporary_allocated_bytes",
+        "stdout_bytes",
+        "stderr_bytes",
+        "artifacts"
+      ],
+      "supervisor_exact_keys": [
+        "role",
+        "identity",
+        "process",
+        "observed_counters",
+        "charged_counters",
+        "io",
+        "resources",
+        "storage",
+        "integrity"
+      ],
+      "supervisor_field_rules": {
+        "charged_counters": "equals observed_counters because the supervisor is not kill-billed as a child",
+        "role": "literal supervisor"
+      },
+      "supervisor_role": "supervisor",
+      "telemetry": "The two-pipe, fsync-before-ack protocol and exact frame keys from process-accounting-v2 remain binding."
+    },
+    "authority": {
+      "canonical_ceilings": {
+        "cpu_ns_per_child": null,
+        "io_bytes_per_child": null,
+        "rss_bytes_per_child": null,
+        "storage_bytes_per_child": null,
+        "wall_ns_per_child": null
+      },
+      "canonical_construction_authorized": false,
+      "canonical_schema_preview_only": true,
+      "current_emittable_variants": [
+        "development_control"
+      ],
+      "development_execution_authorized": false,
+      "launch_amendment_sha256": null,
+      "maximum_runs": 0,
+      "registered_seed_access": false,
+      "source_authority_literal": "CONTROLS_ONLY_ZERO_RUN_V3"
+    },
+    "binding_imports": {
+      "control_amendment_v2_sha256": "1c7320b06f63ec32e9dc4558800803bf21c9f188ab04ef5ed5bc74bc472c5a6b",
+      "control_manifest_v1_sha256": "5de731078e7dcdbe0e9cb3c64d7065a3dccf10978151c08673784885e434bd88",
+      "derivation_amendment_v3": "hash bound by consistency-v3",
+      "derivation_manifest_v2_sha256": "1158a3044b47ccce2865191b146eafee50be3be79d629fd6f1fea1934aee24a3",
+      "mutation_amendment_v2_sha256": "5283610cec0652d01bae99d1eab240859a257ff933bf5a33c22f6f22ee2a345e",
+      "mutation_manifest_v1_sha256": "c50c6b52161078f6612d283f432421b109728412c2d8b8ca0d2f9a722f9f370d",
+      "process_plan_v2_sha256": "3389a31a1af3185f3f98117421626f7968fa74641a4defab45627b25ccd1f0f5",
+      "process_plan_imported_fields": [
+        "canonical_process_dag",
+        "development_invocations",
+        "failure_telemetry"
+      ]
+    },
+    "closed_record_keys": {
+      "accounting": [
+        "supervisor",
+        "attempts",
+        "observed_totals",
+        "charged_totals",
+        "failed_attempt_totals",
+        "logical_artifact_bytes",
+        "physical_artifact_bytes",
+        "final_retained_allocated_bytes",
+        "peak_live_temporary_allocated_bytes",
+        "campaign_storage_charge",
+        "wall_makespan_ns",
+        "maximum_concurrency"
+      ],
+      "authority_result": [
+        "source_authority",
+        "maximum_runs",
+        "registered_seed_access",
+        "canonical_construction_authorized",
+        "launch_amendment_sha256"
+      ],
+      "bindings": [
+        "commit_sha",
+        "tree_sha",
+        "contract_v3_sha256",
+        "source_schema_v3_sha256",
+        "derivation_manifest_v2_sha256",
+        "derivation_amendment_v3_sha256",
+        "control_manifest_v1_sha256",
+        "control_amendment_v2_sha256",
+        "mutation_manifest_v1_sha256",
+        "mutation_amendment_v2_sha256",
+        "producer_sha256",
+        "worker_sha256",
+        "verifier_sha256",
+        "tests_sha256"
+      ],
+      "control_result": [
+        "id",
+        "input_sha256",
+        "expected_sha256",
+        "passed",
+        "details_sha256"
+      ],
+      "failure": [
+        "status",
+        "reason_code",
+        "failed_phase",
+        "last_completed_phase",
+        "signal"
+      ],
+      "fresh_state": [
+        "state_nonce",
+        "declared_input_paths_sha256",
+        "checkpoint_reads",
+        "undeclared_open_fds",
+        "startup_replay_cache_entries",
+        "startup_primary_cache_entries",
+        "startup_metric_cache_entries",
+        "startup_full_model_cache_entries",
+        "startup_incumbent",
+        "startup_frontier_sha256",
+        "branch_order_sha256",
+        "shutdown_state_closed"
+      ],
+      "mutation_result": [
+        "id",
+        "artifact_sha256",
+        "detector",
+        "rejected",
+        "reason_code"
+      ],
+      "process": [
+        "pid",
+        "parent_pid",
+        "process_start_ns",
+        "process_end_ns",
+        "spawn_method",
+        "exit_code",
+        "signal",
+        "maximum_concurrent_processes"
+      ],
+      "process_identity": [
+        "commit_sha",
+        "tree_sha",
+        "executable_sha256",
+        "argv_sha256",
+        "environment_sha256",
+        "input_sha256"
+      ],
+      "storage_artifact": [
+        "relative_path",
+        "kind",
+        "sha256",
+        "logical_bytes",
+        "allocated_bytes",
+        "retained",
+        "producer_attempt_id",
+        "st_dev",
+        "st_ino"
+      ],
+      "terminal": [
+        "classification",
+        "decision_tree_version",
+        "precedence_replayed",
+        "reason_codes",
+        "errors"
+      ]
+    },
+    "canonical_preview": {
+      "activation_rule": "A later reviewed source change must supply a nonnull launch amendment, nonnull canonical ceilings, positive maximum_runs, new source hashes, and an explicit coordinator decision.",
+      "complete_matrix": {
+        "fixture_count": 36,
+        "tag": "complete",
+        "terminal_values": [
+          "SCOPED_NEGATIVE_VACUOUS",
+          "PASS_PROMOTE",
+          "SCOPED_NEGATIVE_CHART",
+          "SCOPED_NEGATIVE_MECHANISM",
+          "SCOPED_NEGATIVE_NO_SIGNAL"
+        ]
+      },
+      "partial_matrix": {
+        "completed_cells": "list of unique closed cell records, length 0..4608",
+        "derivation_streams": "list of accepted_stream or exhausted_stream records",
+        "missing_cells": "sorted unique list of cell identities plus reason code",
+        "tag": "partial",
+        "terminal_values": [
+          "INVALID",
+          "INCONCLUSIVE"
+        ]
+      }
+    },
+    "claim_status_by_variant": {
+      "canonical_complete": [
+        "HYPOTHESIS",
+        "MODEL-BOUND",
+        "TOY-EVIDENCE",
+        "NOVELTY-UNVERIFIED"
+      ],
+      "canonical_partial": [
+        "HYPOTHESIS",
+        "MODEL-BOUND",
+        "NOVELTY-UNVERIFIED"
+      ],
+      "development_control": [
+        "HYPOTHESIS",
+        "MODEL-BOUND",
+        "NOVELTY-UNVERIFIED"
+      ]
+    },
+    "development_result": {
+      "exact_top_level_keys": [
+        "schema",
+        "protocol_version",
+        "experiment_id",
+        "variant",
+        "authority",
+        "claim_status",
+        "bindings",
+        "execution",
+        "controls",
+        "accounting",
+        "payload",
+        "terminal",
+        "result_sha256"
+      ],
+      "execution_exact_values": {
+        "breakthrough_claim": false,
+        "canonical": false,
+        "ecdlp_solved": false,
+        "evidence_eligible": false,
+        "maximum_runs": 0,
+        "rho_comparison": "not_applicable",
+        "scope": "development_control"
+      },
+      "matrix_key": "forbidden",
+      "payload_exact_keys": [
+        "development_invocations",
+        "mutation_results"
+      ],
+      "payload_rules": {
+        "development_invocations": "exactly 13 attempt IDs D01..D13 in order",
+        "mutation_results": "closed mutation_result records in mutation-manifest/amendment order"
+      },
+      "terminal_exact_values": {
+        "classification": "DEVELOPMENT_CONTROL_ONLY",
+        "decision_tree_version": "v6",
+        "errors": [],
+        "precedence_replayed": true,
+        "reason_codes": []
+      },
+      "variant": "development_control"
+    },
+    "development_top_level_field_rules": {
+      "authority": "closed authority_result record with literal zero-run values",
+      "bindings": "closed bindings record",
+      "claim_status": "exact development_control list",
+      "controls": "list of closed control_result records",
+      "experiment_id": "literal EXP-SGCP-SECANT-REP-001",
+      "protocol_version": "literal 6",
+      "result_sha256": "lowercase sha256 satisfying result_sha256_rule",
+      "schema": "literal sgcp-secant-source-result-v3"
+    },
+    "embedding_verification_exact_keys": [
+      "arithmetic_match",
+      "semantic_match",
+      "injective_evaluation",
+      "associativity",
+      "unique_prime_multiset_factorization",
+      "acyclic_by_formal_degree",
+      "direct_final_edge_excluded",
+      "witness_lift",
+      "source_recovery",
+      "source_permutation_equivariance",
+      "chart_equivariance",
+      "accounting_match",
+      "optimizer_replay_match",
+      "independent_primary_exact"
+    ],
+    "experiment_id": "EXP-SGCP-SECANT-REP-001",
+    "id": "EXP-SGCP-SECANT-REP-001-SOURCE-SCHEMA-V3",
+    "optimizer_counter_keys": [
+      "push_calls",
+      "frontier_pushes",
+      "frontier_pops",
+      "push_terminal_leaves",
+      "push_pruned_cap",
+      "push_pruned_bound",
+      "pop_pruned_bound",
+      "final_filter_discards",
+      "nodes_started",
+      "nodes_completed",
+      "nodes_pruned_conflict",
+      "conflict_vertices_removed",
+      "branch_children_generated",
+      "bound_calls",
+      "feasibility_calls",
+      "objective_comparisons",
+      "incumbent_updates",
+      "optimizer_include_branches",
+      "optimizer_exclude_branches",
+      "metric_cache_lookups",
+      "metric_cache_hits",
+      "metric_cache_misses",
+      "metric_cache_inserts",
+      "metric_cache_final_entries",
+      "metric_cache_peak_entries",
+      "full_model_cache_lookups",
+      "full_model_cache_hits",
+      "full_model_cache_misses",
+      "full_model_cache_inserts",
+      "full_model_cache_final_entries",
+      "full_model_cache_peak_entries",
+      "retained_model_calls",
+      "retained_model_cells",
+      "remaining_frontier_nodes",
+      "frontier_serialized_entries",
+      "frontier_serialized_bytes"
+    ],
+    "protocol_version": 6,
+    "result_sha256_rule": "SHA256(canonical JSON top-level object with result_sha256 omitted)",
+    "status": "review_required",
+    "stream_unions": {
+      "accepted_stream_exact_keys": [
+        "tag",
+        "attempt_cap",
+        "attempts",
+        "accepted_attempt",
+        "accepted_value"
+      ],
+      "accepted_stream_rules": [
+        "tag=accepted",
+        "attempts contiguous from 0 through accepted_attempt",
+        "all earlier attempts rejected",
+        "accepted_attempt accepted",
+        "no later attempt"
+      ],
+      "exhausted_stream_exact_keys": [
+        "tag",
+        "attempt_cap",
+        "attempts",
+        "terminal_reason"
+      ],
+      "exhausted_stream_rules": [
+        "tag=exhausted",
+        "attempts contiguous from 0 through attempt_cap-1",
+        "every attempt rejected",
+        "terminal_reason=ATTEMPT_CAP_EXHAUSTED"
+      ]
+    },
+    "type_rules": {
+      "all_objects_closed": true,
+      "booleans_are_not_integers": true,
+      "canonical_json": "ASCII, sorted keys, separators comma/colon, no floats or NaN, one terminal newline in files; value digests exclude newline",
+      "counter_range": "0..2^63-1",
+      "duplicate_keys": "rejected",
+      "unknown_keys": "rejected"
+    },
+    "version": 3,
+    "work_counter_groups": {
+      "compiler": [
+        "representative_selections",
+        "flattened_parent_pairs",
+        "flattened_multiset_cells",
+        "dedup_lookups",
+        "dedup_inserts",
+        "duplicate_collapses",
+        "eligible_vertex_checks",
+        "conflict_pair_checks",
+        "conflict_edges",
+        "pair_output_cells",
+        "final_pair_cells"
+      ],
+      "ec": [
+        "additions_general",
+        "doublings",
+        "identity_shortcuts",
+        "inverse_vertical_pairs",
+        "membership_checks",
+        "points_enumerated"
+      ],
+      "field_composites": [
+        "pow_calls",
+        "pow_squarings",
+        "pow_multiplications",
+        "legendre_calls",
+        "sqrt_calls",
+        "primality_tests"
+      ],
+      "field_primitives": [
+        "additions",
+        "subtractions",
+        "negations",
+        "multiplications",
+        "squarings",
+        "inversions",
+        "comparisons",
+        "canonical_reductions"
+      ],
+      "generation": [
+        "curve_attempts_started",
+        "curve_attempts_accepted",
+        "curve_attempts_rejected",
+        "factor_base_attempts_started",
+        "factor_base_attempts_accepted",
+        "factor_base_attempts_rejected",
+        "random_words",
+        "random_bytes",
+        "x_candidates",
+        "accepted_x",
+        "chart_coefficient_transforms",
+        "chart_point_transforms",
+        "pair_candidates",
+        "pair_additions",
+        "nonidentity_witnesses",
+        "fiber_lookups",
+        "fiber_inserts",
+        "fiber_sort_keys",
+        "slope_ties",
+        "factor_base_digest_calls",
+        "control_hash_calls",
+        "hash_input_bytes"
+      ],
+      "optimizer": "exactly optimizer_counter_keys",
+      "sort_branch": [
+        "curve_acceptance_branches",
+        "factor_acceptance_branches",
+        "identity_branches",
+        "inverse_vertical_branches",
+        "tangent_branches",
+        "secant_branches",
+        "sort_invocations",
+        "sort_items",
+        "sort_key_evaluations",
+        "sort_comparisons"
+      ],
+      "verifier": [
+        "input_schema_nodes",
+        "input_artifact_hashes",
+        "shared_packet_reconstructions",
+        "compiler_packet_reconstructions",
+        "arithmetic_checks",
+        "semantic_checks",
+        "embedding_checks",
+        "accounting_checks",
+        "objective_checks",
+        "replay_nodes",
+        "replay_bound_calls",
+        "replay_cache_hits",
+        "replay_cache_misses",
+        "replay_cache_inserts",
+        "independent_primary_nodes",
+        "primary_support_cache_inserts",
+        "primary_constrained_cache_inserts",
+        "retained_model_calls",
+        "retained_model_cells",
+        "mismatches",
+        "bounded_diagnostics_emitted",
+        "diagnostic_bytes"
+      ]
+    },
+    "work_record_exact_keys": [
+      "field_primitives",
+      "field_composites",
+      "ec",
+      "generation",
+      "compiler",
+      "optimizer",
+      "verifier",
+      "sort_branch"
+    ]
+  }
+}

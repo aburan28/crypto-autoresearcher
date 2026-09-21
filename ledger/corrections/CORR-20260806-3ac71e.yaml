@@ -1,0 +1,154 @@
+correction:
+  id: CORR-20260806-3ac71e
+  recorded_at: '2026-08-06'
+  recorded_by: dispatching-session
+  type: cost_model_correction
+  supersedes: []
+  corrects:
+  - experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-001/execution_report.yaml
+  - experiments/EXP-WESOVOW-001/specification.yaml
+  authority:
+    resolved_from: >-
+      The frozen primary source, quoted verbatim rather than paraphrased:
+      inputs/P13-WESOLOWSKI-2026/paper_fulltext.md line 39, as already transcribed in
+      knowledge/techniques/KN-TECH-058.md lines 112-125.
+    quoted_source: >-
+      "The time-memory tradeoff of van Oorschot-Wiener [43] solves a claw-finding problem
+      of this size in time essentially sqrt(N^3/w) = p^{1/2+o(1)}/w^{1/2} with memory w.
+      This allows one to interpolate between the p^{1/3+o(1)} high-memory algorithm
+      presented here and the classic p^{1/2+o(1)} algorithms with polynomial memory."
+    independently_verified_by: >-
+      dispatching-session, at source. The disagreement was first surfaced by catalogue
+      entry C2-1 (ideas/catalogue-20260805/C2-ssiq-search-memory.md) and independently
+      confirmed by two of three adversarial lenses during SCREENING.md, one of which
+      pinned this same frozen-source form.
+  summary: >-
+    THREE COMMITTED ARTIFACTS STATE THREE DIFFERENT FUNCTIONS FOR T(w), AND THE PRIMARY
+    SOURCE SETTLES THE SHAPE. The disagreement is NOT an arithmetic error: it is a NAMING
+    COLLISION on the symbol T_full, compounded by one report formula that matches neither
+    reading. The source gives T(w) = sqrt(N^3/w) = p^{1/2+o(1)} / w^{1/2}, i.e. time
+    scales as w^{-1/2} below the cap - slope -0.5 bits of time per bit of memory in log2.
+    That is cost_model.py's SHAPE and it is NOT the execution report's shape.
+  the_three_readings:
+  - id: R1
+    artifact: experiments/EXP-WESOVOW-001/cost_model.py line 270
+    text: 'log2Tw = log2Tfull - 0.5 * min(lw, log2M) + overhead_bits'
+    means: T(w) = T_full / sqrt(min(w, M)); slope -0.5 in log2 w below M, flat above.
+    verdict: >-
+      SHAPE CORRECT per the primary source. Below the cap this is T_full / sqrt(w), which
+      is the source's w^{-1/2}. Correct ONLY under the reading T_full := time at w = 1,
+      i.e. the pure-time p^{1/2+o(1)} endpoint.
+  - id: R2
+    artifact: experiments/EXP-WESOVOW-001/specification.yaml lines 146-149 (control C4)
+    text: >-
+      "T(w) must equal T_full for w >= M" and "At w = M, vOW time must equal T_full
+      exactly (cap check)".
+    means: T(M) = T_full exactly.
+    verdict: >-
+      A NORMALISATION STATEMENT, NOT A RIVAL FORMULA, and it is true only under the OTHER
+      reading T_full := time at w = M, the high-memory p^{1/3+o(1)} endpoint. Under R1's
+      reading T(M) = T_full / sqrt(M), which at M >= 2^93.3 differs by about 2^46.6. The
+      two artifacts use the same symbol for two different quantities.
+  - id: R3
+    artifact: experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-001/execution_report.yaml line 53
+    text: 'C4_vow_asymptote: "PASS (by construction) - T(w) = T_full * min(1, sqrt(M/w))"'
+    means: T(w) = T_full for w <= M (FLAT), decreasing only above M.
+    verdict: >-
+      REFUTED BY THE PRIMARY SOURCE. It is flat exactly where the source says time falls
+      as w^{-1/2}, so it has the wrong shape in the whole sub-cap regime, and it is
+      monotone in the wrong region. It matches neither R1's formula nor R2's convention.
+      This is the reading that must not be carried forward.
+  why_it_went_unnoticed: >-
+    The same execution report marks C4 "PASS (by construction)" while stating in the same
+    line that "all tested budgets 2^30..2^80 are below M (>= 2^93.3), so the cap branch is
+    not exercised by the tested grid". A PASS BY CONSTRUCTION ON A BRANCH THE GRID NEVER
+    EXERCISES IS NOT A CHECK. This is the same defect class recorded in
+    DEC-20260805-cc2b32 (EXP-SDEG-f7faa8's G2 and G5 were candidate-independent conjuncts
+    that could not fail) and in CORR-20260805-9d2e17. It has now been observed three times
+    in this campaign and is generalised as screen criterion 2 in
+    ideas/catalogue-20260805/INDEX.md: A GATE MUST BE EVALUATED SOMEWHERE THE CANDIDATE
+    READINGS ACTUALLY DISAGREE.
+  magnitude:
+    statement: >-
+      R1 and R3 disagree by 0.5 * log2(w) bits throughout the sub-cap regime, which is
+      exactly the regime GOAL-SSI-001 BATCH-047 was opened to interrogate.
+    table: >-
+      log2 w = 40 -> 20.0 bits; 50 -> 25.0; 60 -> 30.0; 80 -> 40.0; 93.3 -> 46.6.
+    why_it_matters: >-
+      GOAL-SSI-001 BATCH-047's recorded question is a THRESHOLD test - "at practical memory
+      budgets (2^{40-60}), what is the time cost? If time exceeds 2^{128}: theoretical-only.
+      If below: parameter concern." A 20-to-30 bit ambiguity in that exact range straddles
+      the threshold, so the question is not answerable from the committed artifacts while
+      all three readings stand.
+  corroboration_from_a_live_batch:
+    statement: >-
+      GOAL-SSI-001 BATCH-047's in-flight time_memory_tradeoff.md, produced independently by
+      another session, tabulates a B-reoptimised tradeoff curve whose measured slope
+      asymptotes to -0.47 to -0.52 bits per bit of memory in the high-memory regime.
+    reading: >-
+      THAT MATCHES R1's -0.5 AND EXCLUDES R3's FLAT SHAPE. It is independent corroboration
+      that the operative model in live work is R1's, and it was produced without reference
+      to this correction.
+    scope: >-
+      This is corroboration of the SHAPE only. It is NOT an endorsement of that batch's
+      numbers, conclusion, or completion-criterion assessment, none of which this record
+      reviews, and its files are not touched by this record.
+  resolution:
+    binding_form: >-
+      T(w) = p^{1/2+o(1)} / w^{1/2} for w <= M, capped at the high-memory endpoint for
+      w >= M, with the o(1) overhead superpolynomial and carried explicitly. Slope -0.5
+      bits of time per bit of memory below the cap.
+    required_disambiguation: >-
+      EVERY FUTURE USE MUST STATE WHICH ENDPOINT T_full DENOTES - w = 1 or w = M - because
+      the two differ by sqrt(M), about 2^46.6 at M >= 2^93.3. The symbol is not safe to use
+      unqualified, and the two committed artifacts prove it.
+    what_must_not_be_carried_forward: >-
+      R3's T_full * min(1, sqrt(M/w)) and any margin, crossover, or tradeoff row derived
+      from it in the sub-cap regime.
+  what_this_does_not_do:
+  - >-
+    It does NOT edit cost_model.py, the specification, or the execution report. Corrections
+    supersede, never overwrite (AGENTS.md rule 4). The artifacts stay exactly as committed.
+  - >-
+    It does NOT re-run or re-derive any margin, crossover or concrete-cost number, and it
+    asserts no value for any of them.
+  - >-
+    It does NOT review GOAL-SSI-001 BATCH-047, endorse or dispute its conclusion, or touch
+    its write scope. That batch is live under another session.
+  - >-
+    It does NOT establish which reading of T_full the specification's author intended; it
+    establishes only that the two artifacts use the symbol differently and that R3's shape
+    is refuted by the source.
+  - >-
+    It moves no exponent and no claim tier. p^{1/3+o(1)} and p^{1/2+o(1)} are the source's
+    own endpoints, quoted, not results of this record. sota_delta zero on every axis.
+  - >-
+    IDEA-20260803-48e258's gate defect is NOT repaired by this record. Its known-answer
+    gate sits at w = 2^30, inside the sub-cap regime where R1 and R3 disagree by 15 bits;
+    resolving which reading is correct does not give that gate discriminating power, since
+    it was never evaluated where the readings were compared.
+  refs:
+  - inputs/P13-WESOLOWSKI-2026/paper_fulltext.md
+  - knowledge/techniques/KN-TECH-058.md
+  - experiments/EXP-WESOVOW-001/cost_model.py
+  - experiments/EXP-WESOVOW-001/specification.yaml
+  - experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-001/execution_report.yaml
+  - ideas/catalogue-20260805/C2-ssiq-search-memory.md
+  - ideas/catalogue-20260805/SCREENING.md
+  - ideas/catalogue-20260805/INDEX.md
+  - ledger/decisions/DEC-20260805-cc2b32.yaml
+  - ledger/corrections/CORR-20260805-9d2e17.yaml
+  inference:
+    requested_policy: coordination
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml. Recorded, never silently substituted
+      (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session.

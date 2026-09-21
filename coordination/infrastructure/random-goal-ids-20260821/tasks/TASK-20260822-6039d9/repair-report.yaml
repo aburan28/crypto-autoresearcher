@@ -1,0 +1,78 @@
+repair_report:
+  task_id: TASK-20260822-6039d9
+  role: executor
+  status: completed
+  recorded_at: '2026-08-22T07:22:38Z'
+  handoff_commit: b2fdcb42ef59cb5e00d99ba393bdbbb64849327c
+  authoritative_base:
+    ref: origin/main
+    commit: 76b860c1ba1364b6a74695a09d1ae995a6ba8ebe
+  inference:
+    requested_policy: executor-implementation
+    fallback_allowed: false
+    degraded_allowed: false
+    runtime: native_codex_executor_subagent
+    bedrock_used: false
+  repairs:
+    B1:
+      finding: tracked sharded-goal symlink bypass
+      implementation:
+        - Merge hygiene lstat-checks every component of each tracked path below
+          ledger/goals and reports the first symlink without opening it.
+        - Conflict-marker, parseability, and collision checks skip a rejected
+          goal symlink, preventing a later check from following its target.
+        - Ledger goal loading uses symlink-safe scandir and lstat enumeration
+          for flat heads, sharded directories, goal heads, checkpoint
+          directories, and checkpoint files.
+        - Ledger symlink discovery uses an explicit scandir stack, checks
+          is_symlink before directory classification, and never traverses a
+          symlink target.
+      compatibility:
+        ordinary_flat_goals: preserved
+        ordinary_sharded_goals: preserved
+        ordinary_checkpoint_shards: preserved
+        flat_to_sharded_existing_legacy_migration: preserved
+      target_interpretation: >-
+        Tests place syntactically valid research_goal and batch_checkpoint YAML
+        behind symlinks and prove that the target goal ID and checkpoint
+        sentinel are not registered or merged.
+    N1:
+      finding: prospective check accepted a free legacy GOAL candidate
+      implementation: >-
+        `well_formed` and whole-tree validation continue accepting legacy
+        three-digit GOAL IDs, while `--check` refuses a well-formed legacy GOAL
+        only when it is free and therefore would represent new minting.
+      compatibility:
+        existing_legacy_records_validate: true
+        existing_legacy_ids_remain_unavailable: true
+        free_random_goal_check_passes: true
+    N2:
+      finding: goal allocator accepted ambiguous or date scope selection
+      implementation: >-
+        `--next goal` now requires a nonempty `--area` and rejects any `--date`,
+        including simultaneous area and date. The guard is goal-specific.
+      compatibility:
+        unrelated_area_scoped_types: preserved
+        unrelated_date_scoped_types: preserved
+        unrelated_simultaneous_scope_precedence: preserved
+  exact_source_and_test_paths:
+    - tools/check_merge_hygiene.py
+    - tools/validate_ledger.py
+    - tools/allocate_id.py
+    - tools/test_goal_id_random_suffix.py
+    - tools/test_allocate_id.py
+  scope_accounting:
+    declared_source_and_test_paths: 5
+    modified_source_and_test_paths: 5
+    additional_source_or_test_paths: []
+    documentation_changed: false
+    downstream_consumers_changed: false
+    research_records_changed: false
+    erank_record_created: false
+  protocol_deviations: []
+  experiments_run: 0
+  scientific_claim_effect: none
+  interpretation: >-
+    This repairs infrastructure admission and filesystem-safety behavior only.
+    It neither creates an elliptic-rank goal nor provides evidence about an
+    elliptic curve's rank.

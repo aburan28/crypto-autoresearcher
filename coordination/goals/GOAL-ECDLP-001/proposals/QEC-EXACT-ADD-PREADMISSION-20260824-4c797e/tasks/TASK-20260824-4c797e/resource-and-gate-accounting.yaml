@@ -1,0 +1,72 @@
+schema: crypto.autoresearch.resource_gate_accounting.v1
+task_id: TASK-20260824-4c797e
+protocol_version: 2
+accounting_kind: symbolic_plus_exact_high_level_calls
+registers:
+  persistent_source:
+  - {name: ctrl_or_enable, width: 1, provenance: upstream}
+  - {name: X, width: n, provenance: upstream}
+  - {name: Y, width: n, provenance: upstream}
+  - {name: A_shared_work, width: n, provenance: upstream}
+  - {name: S_shared_arithmetic, width: 'O(log n)', provenance: upstream}
+  added:
+  - {name: exception_flags, width: 4, lifetime: 'pre-comparisons through exceptional maps and e uncompute'}
+  - {name: effective_enable, width: 1, lifetime: 'before generic core through before flag cleanup'}
+  - {name: zero_flag_z, width: 1, lifetime: 'reused separately around IDiv and IMul'}
+  - {name: equality_ephemeral, width: '0 or 1', lifetime: 'one streamed coordinate equality; synthesis-dependent'}
+  not_added:
+  - 'No persistent n-bit history or second addend coordinate register is introduced.'
+streaming_schedule:
+- {step: 1, event: 'load selected/derived exception coordinate through A_shared_work; compare; unload', live_added: 5, n_bit_registers: 'X,Y,A only'}
+- {step: 2, event: 'compute effective_enable from enable and four flags', live_added: 6, n_bit_registers: 'X,Y,A only'}
+- {step: 3, event: 'reuse clean z for Total-IDiv, then clear z', live_added: 6, n_bit_registers: 'X,Y,A only'}
+- {step: 4, event: 'source square-minus and controlled constant stages', live_added: 5, n_bit_registers: 'X,Y,A only'}
+- {step: 5, event: 'reuse clean z for Total-IMul, then clear z', live_added: 6, n_bit_registers: 'X,Y,A only'}
+- {step: 6, event: 'stream exception XOR masks, uncompute e, then post-output comparisons clear flags', live_added: 6, n_bit_registers: 'X,Y,A only'}
+- {step: 7, event: 'unload qROM/address-conditioned constant target', live_added: 0, n_bit_registers: 'X,Y,A only'}
+peak:
+  added_persistent_bits: 6
+  optional_ephemeral_bits: 1
+  expression: '3n + |S_source(n)| + source_control + 6 + epsilon_eq, epsilon_eq in {0,1}'
+  observation: 'The schedule introduces no fourth n-bit live register.'
+  allowed_claim: 'leading width 3n+O(log n) only'
+  forbidden_exact_values: ['835 qubits', '3n+6 floor(log2 n)+O(1)', 'any exact logarithmic coefficient']
+exact_high_level_calls_per_fixed_add:
+  zero_predicate_compute_or_uncompute: 4
+  totalized_promised_primitives: {IDiv: 1, IMul: 1}
+  pre_exception_pair_equalities: 4
+  post_exception_pair_equalities: 4
+  exception_flag_bits: 4
+  effective_enable_compute_or_uncompute: 2
+  exceptional_pair_xor_masks: 4
+  controlled_generic_coordinate_updates: 5
+  unconditional_x_center_or_uncenter: 2
+  address_sign_enable_preserved: true
+signed_window_symbolic_calls:
+  qrom_coordinate_loads: 'L_pre + L_core + L_mask + L_cleanup'
+  qrom_coordinate_unloads: 'same as loads; every target must return to zero'
+  address_conditioned_equalities: 8
+  address_conditioned_exception_masks: 4
+  address_conditioned_constant_arithmetic: 'C_add(a_h,b_h), source-backend dependent'
+  note: >-
+    A production qROM schedule is not present in the pinned source. These terms
+    are deliberately not assigned a Toffoli or depth coefficient. The upstream
+    patch exposes their integration interface and refuses an exact count.
+primitive_cost_symbols:
+  ZEQ_n: 'cost of reversible n-bit zero predicate including uncompute'
+  EQ2_n: 'cost of reversible equality of two n-bit coordinates including streamed qROM work'
+  MC_k: 'cost of k-way Boolean combine under selected synthesis'
+  QROM_L_n: 'cost per address-conditioned n-bit load or unload'
+  XOR_n: 'Hamming-weight-dependent controlled XOR mask cost'
+  source_arithmetic: 'unchanged promised Fig.14 arithmetic cost plus control wiring'
+reuse_proof: >-
+  z is zero before and after each total wrapper. A_shared_work is used for
+  sequential qROM comparison only outside each wrapped arithmetic call and is
+  unloaded first. The four flags and e are scalar bits and may cross the source
+  arithmetic peak. No reuse assertion relies on overlapping live values.
+unmeasured:
+- Primitive-expanded Toffoli/T-depth delta.
+- Exact secp256k1 peak after backend decomposition.
+- qROM table-pass constant and signed-window end-to-end cost.
+- Any practical runtime or speedup.
+

@@ -1,0 +1,1362 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style type=text/css>
+body{font-family:sans-serif;font-size:1em}
+h1{font-size:1.7em;}
+h2{font-size:1.4em;}
+h3{font-size:1.1em;}
+p{font-size:0.8em;line-height:1.5em;}
+blockquote{font-size:0.8em;line-height:1.5em;}
+ul{font-size:0.8em;line-height:1.5em;}
+ol{font-size:0.8em;line-height:1.5em;}
+pre{font-family:monospace,monospace;font-size:0.8em;}
+tt{font-family:monospace,monospace;font-size:1em;}
+</style>
+<title>
+SafeCurves:
+Introduction
+</title>
+</head>
+<body>
+<table width="100%">
+  <tr valign=top width=100%>
+    <td align=left><h1>SafeCurves:<br>choosing safe curves for elliptic-curve cryptography</h1></td>
+  </tr>
+</table>
+<hr>
+<table width="100%"><tr>
+<td width="12%" align=left valign=top><table border width="100%" bgcolor="#aaaaff"><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#ffff80"><font size=2 color="#000000">Introduction</font></td></tr>
+</table></td></tr><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><font size=2 color="#000000"><b>Curve parameters:</b></font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="field.html" style="text-decoration:none"><font size=2 color="#000080">Fields</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="equation.html" style="text-decoration:none"><font size=2 color="#000080">Equations</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="base.html" style="text-decoration:none"><font size=2 color="#000080">Base points</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="primeproofs.html" style="text-decoration:none"><font size=2 color="#000080">Prime proofs</font></a></td></tr>
+</table></td></tr><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><font size=2 color="#000000"><b>ECDLP security:</b></font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="rho.html" style="text-decoration:none"><font size=2 color="#000080">Rho</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="transfer.html" style="text-decoration:none"><font size=2 color="#000080">Transfers</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="disc.html" style="text-decoration:none"><font size=2 color="#000080">Discriminants</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="rigid.html" style="text-decoration:none"><font size=2 color="#000080">Rigidity</font></a></td></tr>
+</table></td></tr><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><font size=2 color="#000000"><b>ECC security:</b></font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="ladder.html" style="text-decoration:none"><font size=2 color="#000080">Ladders</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="twist.html" style="text-decoration:none"><font size=2 color="#000080">Twists</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="complete.html" style="text-decoration:none"><font size=2 color="#000080">Completeness</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="ind.html" style="text-decoration:none"><font size=2 color="#000080">Indistinguishability</font></a></td></tr>
+</table></td></tr><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><font size=2 color="#000000"><b>More information:</b></font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="refs.html" style="text-decoration:none"><font size=2 color="#000080">References</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="verify.html" style="text-decoration:none"><font size=2 color="#000080">Verification</font></a></td></tr>
+</table></td></tr></table>
+</td><td align=left valign=top>
+<h2>Introduction</h2>
+<p>
+There are several different standards
+covering selection of curves for use in elliptic-curve cryptography (ECC):
+<ul>
+<li><a href="refs.html#1999/ansi-x962">ANSI X9.62</a> (1999).
+<li><a href="refs.html#2000/ieee-p1363">IEEE P1363</a> (2000).
+<li><a href="refs.html#2010/certicom-sec2">SEC 2</a> (2000).
+<li><a href="refs.html#2000/nist-fips1862">NIST FIPS 186-2</a> (2000).
+<li><a href="refs.html#1999/ansi-x963">ANSI X9.63</a> (2001).
+<li><a href="refs.html#2005/brainpool">Brainpool</a> (2005).
+<li><a href="refs.html#2012/cnss-suiteb">NSA Suite B</a> (2005).
+<li><a href="refs.html#2011/anssi-courbe">ANSSI FRP256V1</a> (2011).
+</ul>
+<p>
+Each of these standards tries to ensure that the
+<b>elliptic-curve discrete-logarithm problem</b> (ECDLP) is difficult.
+ECDLP is the problem of finding an ECC user's secret key,
+given the user's public key.
+<p>
+Unfortunately,
+there is a gap between ECDLP difficulty and ECC security.
+None of these standards do a good job of ensuring ECC security.
+There are many attacks that break real-world ECC without solving ECDLP.
+The core problem is that
+<b>if you implement the standard curves, chances are you're doing it wrong</b>:
+<ul>
+<li>Your implementation produces incorrect results for some rare curve points.
+<li>Your implementation leaks secret data when the input isn't a curve point.
+<li>Your implementation leaks secret data through branch timing.
+<li>Your implementation leaks secret data through cache timing.
+</ul>
+<p>
+These problems are exploitable by real attackers,
+taking advantage of the gaps between ECDLP and real-world ECC:
+<ul>
+<li>ECDLP is non-interactive. Real-world ECC handles attacker-controlled input.
+<li>ECDLP reveals only nP. Real-world ECC also reveals timing
+(and, in some situations, much more side-channel information).
+<li>ECDLP always computes nP correctly. Real-world ECC has failure cases.
+</ul>
+<p>
+Secure implementations of the standard curves
+are theoretically possible but very hard.
+<p>
+Most of these attacks would have been ruled out by better choices of curves
+that allow <i>simple</i> implementations to be <i>secure</i> implementations.
+This is the primary motivation for SafeCurves.
+<b>The SafeCurves criteria are designed to ensure ECC security,
+not just ECDLP security.</b>
+<p>
+Other attacks would have been ruled out by better choices
+at higher levels of ECC protocols.
+For example,
+deterministic nonces were proposed in 1997,
+are integrated into modern signature mechanisms such as
+<a href="https://ed25519.cr.yp.to">EdDSA</a>,
+and would have prevented the <a href="https://events.ccc.de/congress/2010/Fahrplan/events/4087.en.html">2010 Sony PlayStation ECDSA security disaster</a>.
+However,
+this security issue does not interact with curve choices,
+so it is outside the scope of SafeCurves.
+<h3>Efficiency</h3>
+<p>
+All of the standards listed above add further constraints
+for the sake of efficiency.
+For example, the NIST P-256 curve
+<ul>
+<li>uses a prime 2^256-2^224+2^192+2^96-1 chosen for efficiency
+("modular multiplication can be carried out more efficiently than in general"),
+<li>uses curve shape y^2=x^3-3x+b "for reasons of efficiency"
+(similarly, <a href="refs.html#2000/ieee-p1363">IEEE P1363</a> claims that this curve shape
+provides "the fastest arithmetic on elliptic curves"); and
+<li>takes cofactor "as small as possible"
+for "efficiency reasons".
+</ul>
+<p>
+Subsequent research (and to some extent previous research)
+showed that essentially all of these efficiency-related decisions
+were suboptimal,
+that many of them actively damaged efficiency,
+and that some of them were bad for security.
+<p>
+SafeCurves does not attempt to correct
+the erroneous efficiency claims in the standards listed above.
+SafeCurves does not consider efficiency issues,
+except to the extent that they interact with security issues.
+<h3>Evaluation targets</h3>
+<p>
+The SafeCurves web site
+reports security assessments of various specific curves.
+Some of the curves listed on this site
+are deployed or have been proposed for deployment.
+Some of the curves are merely toy examples
+meant to illustrate how curves can fail to meet various security criteria.
+<p>
+"Safe" in the following table means that a curve meets all SafeCurves requirements.
+The curves are sorted in increasing order of
+<a href="base.html">the prime &#x2113;</a>.
+<table border>
+<tr>
+<th><p>Curve</p></th>
+<th><p>Safe?</p></th>
+<th><p>Details</p></th>
+</tr>
+<tr>
+<td><p>
+Anomalous
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>+15347898055371580590890576721314318823207531963035637503096292x<wbr>+7444386449934505970367865204569124728350661870959593404279615
+<br>
+modulo p = 17676318486848893030961583018778670610489016512983351739677143
+</font><br>
+Created as an illustration of additive transfer and small discriminant.
+</p></td>
+</tr>
+<tr>
+<td><p>
+M-221
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>+117050x^2+x
+<br>
+modulo p = 2^221 - 3
+</font><br>
+<a href="refs.html#2013/aranha">2013 Aranha&ndash;Barreto&ndash;Pereira&ndash;Ricardini</a>
+(formerly named Curve2213)
+</p></td>
+</tr>
+<tr>
+<td><p>
+E-222
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p><font size=1>
+x^2+y^2 = 1+160102x^2y^2
+<br>
+modulo p = 2^222 - 117
+</font><br>
+<a href="refs.html#2013/aranha">2013 Aranha&ndash;Barreto&ndash;Pereira&ndash;Ricardini</a>
+</p></td>
+</tr>
+<tr>
+<td><p>
+NIST P-224
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>-3x<wbr>+18958286285566608000408668544493926415504680968679321075787234672564
+<br>
+modulo p = 2^224 - 2^96 + 1
+</font><br>
+<a href="refs.html#2000/nist-fips1862">2000 NIST</a>; also in 
+<a href="refs.html#2000/certicom-sec2">SEC 2</a>
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve1174
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p><font size=1>
+x^2+y^2 = 1-1174x^2y^2
+<br>
+modulo p = 2^251 - 9
+</font><br>
+<a href="refs.html#2013/bernstein-elligator">2013 Bernstein&ndash;Hamburg&ndash;Krasnova&ndash;Lange</a>
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve25519
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>+486662x^2+x
+<br>
+modulo p = 2^255 - 19
+</font><br>
+<a href="refs.html#2006/bernstein-curve25519">2006 Bernstein</a>
+</p></td>
+</tr>
+<tr>
+<td><p>
+BN(2,254)
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>+0x<wbr>+2
+<br>
+modulo p = 16798108731015832284940804142231733909889187121439069848933715426072753864723
+</font><br>
+<a href="refs.html#2011/pereira">2011 Pereira&ndash;Simplicio&ndash;Naehrig&ndash;Barreto</a>
+pairing-friendly curve.
+Included as an illustration of multiplicative transfer and small discriminant.
+</p></td>
+</tr>
+<tr>
+<td><p>
+brainpoolP256t1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>-3x<wbr>+46214326585032579593829631435610129746736367449296220983687490401182983727876
+<br>
+modulo p = 76884956397045344220809746629001649093037950200943055203735601445031516197751
+</font><br>
+<a href="refs.html#2005/brainpool">2005 Brainpool</a>
+</p></td>
+</tr>
+<tr>
+<td><p>
+ANSSI FRP256v1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>-3x<wbr>+107744541122042688792155207242782455150382764043089114141096634497567301547839
+<br>
+modulo p = 109454571331697278617670725030735128145969349647868738157201323556196022393859
+</font><br>
+<a href="refs.html#2011/anssi-courbe">2011 ANSSI</a>
+</p></td>
+</tr>
+<tr>
+<td><p>
+NIST P-256
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>-3x<wbr>+41058363725152142129326129780047268409114441015993725554835256314039467401291
+<br>
+modulo p = 2^256 - 2^224 + 2^192 + 2^96 - 1
+</font><br>
+<a href="refs.html#2000/nist-fips1862">2000 NIST</a>; also in 
+<a href="refs.html#2000/certicom-sec2">SEC 2</a> and 
+<a href="refs.html#2012/cnss-suiteb">NSA Suite B</a>
+</p></td>
+</tr>
+<tr>
+<td><p>
+secp256k1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>+0x<wbr>+7
+<br>
+modulo p = 2^256 - 2^32 - 977
+</font><br>
+<a href="refs.html#2000/certicom-sec2">SEC2</a>
+</p></td>
+</tr>
+<tr>
+<td><p>
+E-382
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p><font size=1>
+x^2+y^2 = 1-67254x^2y^2
+<br>
+modulo p = 2^382 - 105
+</font><br>
+<a href="refs.html#2013/aranha">2013 Aranha&ndash;Barreto&ndash;Pereira&ndash;Ricardini</a>
+</p></td>
+</tr>
+<tr>
+<td><p>
+M-383
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>+2065150x^2+x
+<br>
+modulo p = 2^383 - 187
+</font><br>
+<a href="refs.html#2013/aranha">2013 Aranha&ndash;Barreto&ndash;Pereira&ndash;Ricardini</a>
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve383187
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>+229969x^2+x
+<br>
+modulo p = 2^383 - 187
+</font><br>
+<a href="refs.html#2013/aranha">2013 Aranha&ndash;Barreto&ndash;Pereira&ndash;Ricardini</a>;
+authors subsequently recommended switching to M-383
+</p></td>
+</tr>
+<tr>
+<td><p>
+brainpoolP384t1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>-3x<wbr>+19596161053329239268181228455226581162286252326261019516900162717091837027531392576647644262320816848087868142547438
+<br>
+modulo p = 21659270770119316173069236842332604979796116387017648600081618503821089934025961822236561982844534088440708417973331
+</font><br>
+<a href="refs.html#2005/brainpool">2005 Brainpool</a> 
+</p></td>
+</tr>
+<tr>
+<td><p>
+NIST P-384
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>-3x<wbr>+27580193559959705877849011840389048093056905856361568521428707301988689241309860865136260764883745107765439761230575
+<br>
+modulo p = 2^384 - 2^128 - 2^96 + 2^32 - 1
+</font><br>
+<a href="refs.html#2000/nist-fips1862">2000 NIST</a>; also in 
+<a href="refs.html#2000/certicom-sec2">SEC 2</a> and 
+<a href="refs.html#2012/cnss-suiteb">NSA Suite B</a>
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve41417
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p><font size=1>
+x^2+y^2 = 1+3617x^2y^2
+<br>
+modulo p = 2^414 - 17
+</font><br>
+<a href="refs.html#2013/bernstein-ECC-rump">2013 Bernstein&ndash;Lange</a>
+(formerly named Curve3617)
+</p></td>
+</tr>
+<tr>
+<td><p>
+Ed448-Goldilocks
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p><font size=1>
+x^2+y^2 = 1-39081x^2y^2
+<br>
+modulo p = 2^448 - 2^224 - 1
+</font><br>
+2014 Hamburg
+</p></td>
+</tr>
+<tr>
+<td><p>
+M-511
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p><font size=1>
+y^2 = x^3<wbr>+530438x^2+x
+<br>
+modulo p = 2^511 - 187
+</font><br>
+<a href="refs.html#2013/aranha">2013 Aranha&ndash;Barreto&ndash;Pereira&ndash;Ricardini</a>
+(formerly named Curve511187)
+</p></td>
+</tr>
+<tr>
+<td><p>
+E-521
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p><font size=1>
+x^2+y^2 = 1-376014x^2y^2
+<br>
+modulo p = 2^521 - 1
+</font><br>
+2013 Bernstein&ndash;Lange;
+independently 2013 Hamburg;
+independently <a href="refs.html#2013/aranha">2013 Aranha&ndash;Barreto&ndash;Pereira&ndash;Ricardini</a>
+</p></td>
+</tr>
+</table>
+<p>
+The following table splits the SafeCurves requirements
+into
+(1) basic parameter requirements,
+(2) ECDLP security requirements, and
+(3) ECC security requirements beyond ECDLP security:
+<table border>
+<tr>
+<th></th>
+<th></th>
+<th colspan=3><p>Parameters:</p></th>
+<th colspan=4><p>ECDLP security:</p></th>
+<th colspan=4><p>ECC security:</p></th>
+<tr>
+<th><p>Curve</p></th>
+<th><p>Safe?</p></th>
+<th><p><a href="field.html">field</a></p></th>
+<th><p><a href="equation.html">equation</a></p></th>
+<th><p><a href="base.html">base</a></p></th>
+<th><p><a href="rho.html">rho</a></p></th>
+<th><p><a href="transfer.html">transfer</a></p></th>
+<th><p><a href="disc.html">disc</a></p></th>
+<th><p><a href="rigid.html">rigid</a></p></th>
+<th><p><a href="ladder.html">ladder</a></p></th>
+<th><p><a href="twist.html">twist</a></p></th>
+<th><p><a href="complete.html">complete</a></p></th>
+<th><p><a href="ind.html">ind</a></p></th>
+</tr>
+<tr>
+<td><p>
+Anomalous
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+M-221
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+E-222
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+NIST P-224
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve1174
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve25519
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+BN(2,254)
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+brainpoolP256t1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+ANSSI FRP256v1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+NIST P-256
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+secp256k1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+E-382
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+M-383
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve383187
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+brainpoolP384t1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+NIST P-384
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve41417
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+Ed448-Goldilocks
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+M-511
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+</tr>
+<tr>
+<td><p>
+E-521
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+</tr>
+</table>
+<h3>Contributors</h3>
+<p>
+SafeCurves is joint work by the following authors (alphabetical order):
+<ul>
+<li>
+<a href="https://cr.yp.to/djb.html">Daniel J. Bernstein</a>,
+University of Illinois at Chicago, USA,
+and Technische Universiteit Eindhoven, Netherlands
+<li>
+<a href="https://hyperelliptic.org/tanja/">Tanja Lange</a>,
+Technische Universiteit Eindhoven, Netherlands
+</ul>
+<p>
+SafeCurves should be cited as follows:
+<ul>
+    Daniel J. Bernstein and Tanja Lange.
+    SafeCurves: choosing safe curves for elliptic-curve cryptography.
+    https://safecurves.cr.yp.to, accessed 1 December 2014.
+</ul>
+<p>
+Replace 1 December 2014 by your download date.
+<h3>Acknowledgments</h3>
+<p>
+This work was supported
+by the U.S. National Science Foundation under grant 1018836.
+"Any opinions, findings, and conclusions or recommendations
+expressed in this material are those of the author(s)
+and do not necessarily reflect the views of the National Science Foundation."
+<p>
+This work was supported by the Netherlands Organisation for Scientific Research (NWO)
+under grant 639.073.005.
+<p>
+Many calculations used the 
+<a href="refs.html#2013/stein-sage">Sage</a> computer-algebra system.
+The most difficult factorizations were completed with CADO-NFS.
+<hr><font size=1><b>Version:</b>
+This is version 2017.01.22 of the index.html web page.
+</td></tr></table>
+</body>
+</html>

@@ -1,0 +1,540 @@
+validation_report:
+  id: VAL-20260830-mono3
+  task_id: validator-mono3-a20e48
+  experiment_id: EXP-MONO-a20e48
+  hypothesis_id: H-MONO-59f6a6
+  scope_note: >-
+    This report covers J1 (correctness) only, per the review plan
+    communicated in the dispatch task. J2 (adversarial verification,
+    including a second independent attack on the disclosed bug and the
+    N1-no-drop finding's robustness) is owned by a concurrent, independent
+    Red Team session under a different task; this report does not read or
+    rely on any sibling review artifact.
+  run_ids: [RUN-MONO-a20e48-1, RUN-MONO-a20e48-2]
+
+  snapshot_verification:
+    commit_validated: 1bd4cf9d0f314b447da87841683a0256c9e6b2b7
+    commit_message: >-
+      snapshot(TASK-20260830-cfbb85): bind EXP-MONO-a20e48 execution (2 runs,
+      base-change ladder battery, N1 held at 8) before independent review
+    working_tree_clean_at_experiment_path: true
+    verification_method: >-
+      `git status --short experiments/EXP-MONO-a20e48/` and
+      `git diff --stat HEAD -- experiments/EXP-MONO-a20e48/` both empty at
+      task start; `git log -1 -- experiments/EXP-MONO-a20e48/specification.yaml`
+      resolves to a separate, earlier frozen-and-approved commit
+      (17a6da70c) than the execution snapshot, confirming the contract was
+      frozen before this execution was committed. Refused to validate
+      anything not reachable from this committed snapshot.
+    implementation_commit_cited_by_run: e7f5f623b2ce42f6f56e37365ea27f2586fbab9c
+    implementation_commit_is_ancestor_of_head: true
+    tower_py_git_history: >-
+      `git log --oneline --follow -- experiments/EXP-MONO-a20e48/implementation/tower.py`
+      returns exactly ONE commit (the snapshot commit itself). tower.py was
+      never committed in a prior, buggy state anywhere in this repository's
+      history; the disclosed pre-run bug existed only in an uncommitted
+      working-tree state before the snapshot.
+
+  artifact_checks:
+    - artifact: specification.yaml (frozen contract)
+      present: true
+      frozen_and_execution_authorized: true
+      note: approved_by coordinator, 2026-08-30, separate earlier commit.
+    - artifact: execution_report.yaml
+      present: true
+    - artifact: implementation.md
+      present: true
+      discloses_pre_run_bug: true
+    - artifact: "implementation/{fieldext,polymod_fp,tower,fieldpoly,seed,battery,run_experiment}.py"
+      present: true
+      stdlib_only_confirmed: true
+      stdlib_only_note: "json, math, sys, time, hashlib, contextlib, os, resource, __future__ only; independently grepped"
+    - artifact: "runs/RUN-MONO-a20e48-{1,2}/{manifest.yaml,command.txt,environment.json,raw-result.json,stdout.log,stderr.log,.started_at,.finished_at,per_base_point_log/*}"
+      present: true
+      note: all cells present for both runs
+    - artifact: "manifest command/revision/dirty-tree/seed/environment/resources"
+      present: true
+      dirty_tree_disclosed: true
+      dirty_tree_assessment: >-
+        Both manifests record `dirty: true` with a note that the dirty
+        paths are unrelated concurrent-session files outside this task's
+        write_scope. Independently confirmed: the committed snapshot commit
+        itself touches only experiments/EXP-MONO-a20e48/ paths and the task's
+        own receipt; this is consistent with the disclosure.
+      seeds_recorded: [20260830, 20260831]
+      seeds_note: "distinct per run, matching contract's master_seeds"
+      certificate_kind: none
+      certificate_note: "correctly declared; no ECDLP solve/relation claimed anywhere in this record"
+
+  independent_recomputations:
+    - check: "1(a) Bug mechanism and observable failure mode"
+      method: >-
+        Derived algebraically (freshman's-dream identity for the q0-power
+        Frobenius on a degree-4 tower over F0=F_{p^k}) that the disclosed bug
+        (using L1's own order q1=q0^2 in the exponent, instead of the ladder
+        step's base-field order q0, when computing
+        s=e^{(q0-1)/2} for tower.Level2.frob) forces
+        conj(s)*s = e^{(q1-1)/2} = -1 identically (Euler's criterion on the
+        nonsquare e, order q1), making the resulting map's SQUARE equal the
+        identity -- i.e. an order-2 map where an order-4 field automorphism
+        is required. Then EMPIRICALLY reproduced this: patched a throwaway
+        copy of tower.py with the exact described bug
+        (self.s = L1.pow(self.e, (self.q1 - 1) // 2)) and reran
+        (a) a property probe -- confirmed frob^2==identity (order divides 2)
+        on the patched Level2, versus order-4 on the unpatched code; and
+        (b) N1's actual k=1 exhaustive census through the patched code --
+        it does NOT silently produce a wrong-but-plausible histogram; it
+        raises `RuntimeError: N1: Frobenius image of point 0 matched no
+        labelled point (e1=0, e2=9, k=1)` on the FIRST base point in the
+        44521-point exhaustive census that needs level-2 (Fp4-analogue)
+        arithmetic, because a fake order-2 "Frobenius" is not the genuine
+        field automorphism the point-matching step requires. Answers the
+        task's "work out which one and what wrong value" with a stronger
+        finding than a wrong value: the bug, if reintroduced, would CRASH
+        N1's k=1 census outright, not silently misreport it.
+      verdict: holds
+    - check: "1(b) Self-test presence and regression protection"
+      method: >-
+        Grepped implementation/*.py for `assert|Level2|ring.hom|order.4|
+        frob.*order|homomorphism|selftest`. FINDING: no dedicated,
+        standalone regression test for tower.Level2's homomorphism/order
+        property exists anywhere in the committed implementation. The one
+        artifact that could be mistaken for it,
+        `stage0.frobenius_two_ways_cross_check` in run_experiment.py, tests
+        `fieldext.FpK.frob_iter` vs `frob_direct` -- both methods of the flat
+        FpK class, which NEVER exercises tower.py at all (FpK has no
+        Level1/Level2 dependency). implementation.md's claim of "the required
+        ring-homomorphism self-test" is therefore not literally a committed,
+        runnable artifact; the docstring in tower.py records the derivation
+        of the fix in prose, not as an executable check.
+        HOWEVER, an adequate (if undocumented as such) safety net does exist:
+        N1's own classify_point routine raises RuntimeError whenever a
+        Frobenius-mapped point fails to match one of the four labelled fibre
+        points -- and I confirmed empirically above that this fires
+        immediately when the bug is reintroduced, on the very first
+        level-2-requiring point of the 44521-point exhaustive k=1 census. So
+        the regression protection that exists is real and is very likely to
+        catch this exact defect FOR THIS BATTERY (because N1 is the only
+        member whose classification ever reaches tower.Level2 -- N2/N2-twin
+        only ever escalate to Level1, and N4 bypasses the tower entirely,
+        using FpK.frob_direct directly), but it is an emergent property of
+        N1's design, not the dedicated, named regression artifact
+        implementation.md describes. This is a disclosure-precision gap, not
+        a correctness gap.
+      verdict: holds with a disclosed finding (see limitations)
+    - check: "1(c) No archived run used the buggy code"
+      method: >-
+        `git log --oneline --follow -- .../implementation/tower.py` returns
+        exactly one commit (the snapshot commit itself, 1bd4cf9d0). Both
+        RUN-MONO-a20e48-1 and -2 manifests cite
+        `implementation_commit: e7f5f623b2ce42f6f56e37365ea27f2586fbab9c`,
+        an ancestor of that same snapshot commit and part of the identical
+        tree. Since only ONE version of tower.py has ever existed in
+        committed history, and that version is the one I verified correct
+        (see 1(a)/2 below), neither archived run could have executed the
+        buggy exponent.
+      verdict: holds
+    - check: "2(a) m_k(x) irreducibility, independent method"
+      method: >-
+        Verified via sympy's `Poly(...).factor_list()` over `GF(211)`
+        (a library and algorithm wholly independent of this contract's own
+        Rabin's-test code in fieldext.py) that x^2-2, x^3-2, and x^4-x-7 are
+        each irreducible over F_211 -- matching exactly the m_2, m_3, m_4
+        winning candidates recorded in both runs' stage0.m_k_search
+        transcripts.
+      verdict: holds
+    - check: "2(a) Stage-0 number-theoretic facts, independent method"
+      method: >-
+        Independently confirmed via sympy/direct computation: 211 is prime;
+        211 mod 3 = 1; 2 is a quadratic non-residue mod 211
+        (is_quad_residue(2,211)=False); 2^70 mod 211 = 196 (!= 1, non-cube);
+        2^105 mod 211 = 210 (= p-1, confirming non-residue via Euler's
+        criterion). All match the run's own Stage-0 transcript exactly.
+      verdict: holds
+    - check: "2(b) F_{211^2}, F_{211^3}, F_{211^4} multiplication and Frobenius, own script"
+      method: >-
+        Wrote a from-scratch F_{p^k} implementation (indep_fpk.py) using
+        sympy's Poly/GF machinery only (no import of fieldext.py/tower.py/
+        polymod_fp.py), using the SAME m_k(x) the run found. For 3 random
+        elements each at k=2,3,4, computed multiplication and x^{p},x^{p^2}
+        (Frobenius) independently, then imported the actual
+        `fieldext.FpK` class and compared: ALL 9 test cases (mul, frob1,
+        frob2) matched exactly between the independent script and the
+        Executor's code.
+      verdict: holds
+    - check: "2(b) tower.Level1/Level2 ring-homomorphism and order property, all four ladder steps"
+      method: >-
+        For k=1,2,3,4, instantiated the ACTUAL tower.Level1/Level2 classes
+        (post-fix) and checked, on 5 random elements per level per k: (i)
+        Level1.conj is additive and multiplicative, order exactly 2
+        (conj(conj(x))=x, conj(x)!=x on a generic element), and fixes F0;
+        (ii) Level2.frob is additive and multiplicative, and has order
+        EXACTLY 4 (frob^4(x)=x, frob^2(x)!=x on a generic element) -- not
+        order 2, confirming the fix holds at every ladder step, not just k=1.
+      verdict: holds
+    - check: "3/4 N4 hand derivation and R_k, independent code"
+      method: >-
+        Gal(F_{211^3}/F_211) = Z/3 (prime order, generated by Frob_211).
+        R_k = order of subgroup generated by Frob_211^k inside Z/3 = 3 if
+        3 does not divide k, else 1. This gives (3,3,1,3) for k=1..4 by pure
+        group theory, no computation needed. Independently re-verified
+        computationally too: wrote a fresh sympy-based script finding the
+        three roots of Y^3-2 in F_{211^3} (the class of x itself, since
+        m_3(x)=x^3-2 IS literally Y^3-2, times the three cube roots of unity
+        mod 211 = {1,14,196}, independently found by brute force and
+        verified to cube to 1), computed Frobenius^k on each labelled root
+        via the independent field script, and got R_k=(3,3,1,3) exactly,
+        matching the run and the hand derivation.
+      verdict: holds
+    - check: "3 N2 inertia-bound re-derivation, independent algebra"
+      method: >-
+        Re-derived the local-monodromy argument from scratch. At e=0
+        (local coordinate e=s^2): sqrt(e)=s, sqrt(2e)=sqrt(2)*s (sqrt(2) a
+        genuine constant ratio, single-valued near e=0) -- both flip sign
+        together as s -> -s, giving ONLY the diagonal generator sigma_1
+        sigma_2, never an individual sigma_i. Symmetric argument at
+        e=infinity. So the GEOMETRIC inertia group (which is what a tame
+        cover's monodromy is generated by, HEUR-AG-1) is <sigma_1 sigma_2> =
+        Z/2, order 2 -- confirms L_geom=2 independently.
+        Separately found a cleaner, purely elementary confirmation of why
+        R_1=4 specifically: since c=2 is a FIXED quadratic non-residue mod
+        211, for every e != 0, legendre(e)*legendre(2e) =
+        legendre(e)*legendre(2)*legendre(e) = legendre(2) = -1 always --
+        i.e. EXACTLY ONE of {e, 2e} is a square mod 211, NEVER both, NEVER
+        neither. This means the k=1 (F_p-rational) Frobenius realizes
+        EXACTLY the individual generators sigma_1-only (when e is a QR) or
+        sigma_2-only (when e is a non-residue), and BOTH occur as e ranges
+        over F_211^*, so together they generate the FULL (Z/2)^2 = order 4 --
+        an independent, purely number-theoretic route to R_1=4 that does not
+        rely on the inertia/branch-divisor framing at all, and that
+        correctly predicts the diagonal generator becomes the ONLY one
+        realized once sqrt(2) is adjoined (k=2), because then a(e) and b(e)
+        always require exactly the same field level.
+      verdict: holds
+    - check: "4 N2 R_1 and R_2 spot-check, own code"
+      method: >-
+        Wrote independent sqrt-mod-p (via sympy's sqrt_mod) and a
+        hand-rolled complex-method F_{211^2} sqrt (fresh code, not importing
+        tower.py), sampled e in F_211 (k=1, 3000 draws) and in F_{211^2}
+        (k=2, 150 draws), computed the realized Frobenius permutations of
+        the 4-point fibre and their generated subgroup order.
+        RESULT: k=1 -> order 4 (observed generators: sigma_i-only and
+        sigma_1-only, matching the elementary QR argument above exactly,
+        never the diagonal alone and never identity); k=2 -> order 2
+        (observed generators: identity and the diagonal sigma_1 sigma_2
+        ONLY -- no individual generator ever appears at k=2). Matches the
+        contract's forced R_1=4, R_2=2 exactly, via code that shares no
+        lines with battery.py/tower.py.
+      verdict: holds
+    - check: "5 N1 reproduction control genuineness"
+      method: >-
+        Recomputed the class histogram DIRECTLY from
+        EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/per_base_point_log/
+        p211_A1_B1.ndjson's own `arm_a_class` field (2,010 lines had a
+        differently-named `class` field that is null throughout -- the real
+        label lives in `arm_a_class`, a naming difference between the two
+        contracts' logs that I resolved by inspection): got
+        {block_swap_involution: 11100, sigma_i: 11100, four_cycle: 11055,
+        identity: 6105, sigma1_sigma2: 4950, None(ramified): 211}. Then
+        independently recomputed the SAME histogram directly from THIS
+        contract's own raw per-point log
+        (runs/RUN-MONO-a20e48-1/per_base_point_log/N1_k1_exhaustive.jsonl)
+        using its own `class` field: identical counts, exactly. This
+        confirms the reproduction control is genuine (the reference value
+        really is read off the sibling's own committed artifact, not
+        fabricated or freshly recomputed and mislabelled as historical), by
+        comparing the two runs' raw per-point logs directly rather than
+        trusting either report's summary claim.
+        SHARED-BUG MITIGATION: additionally wrote a THIRD, wholly
+        independent implementation of N1's classification
+        (indep_n1.py -- fresh sqrt_mod via sympy, a hand-rolled Fp2/Fp4
+        complex-method tower written from the spec, never importing
+        fp_common.py, tower.py, fieldext.py, arm_a.py, or battery.py) and
+        spot-checked 10 base points spanning all five outcome classes
+        (identity x4, sigma_i x2, block_swap_involution x2,
+        sigma1_sigma2 x2), reading both the CLASS LABEL and the FULL
+        PERMUTATION TUPLE off the Executor's own per-point log for
+        comparison. All 10 matched exactly, including permutation tuples
+        element-by-element (e.g. e1=142,e2=38 -> perm=(1,0,3,2) in both).
+        This is a materially different implementation of the same classical
+        algorithm (complex-method sqrt, freshman's-dream Frobenius), so an
+        exact match on all 10 diverse points is real evidence against a
+        shared-bug false-positive, though it is not an exhaustive
+        44521-point re-run (infeasible within the time budget).
+      verdict: holds
+    - check: "6 Determinism: exact/exhaustive members bit-identical, sampled members vary"
+      method: >-
+        Directly diffed raw-result.json between RUN-1 and RUN-2. Exact/
+        exhaustive: N1 k1_exhaustive_histogram, N1 k1_group, N4
+        R_k_ascending/roots, N2 k1(exhaustive), N2-twin k1 -- ALL
+        byte-identical across both runs, as required (these are seed-free by
+        construction). Sampled: N1 k=2,3,4 class_histogram, N3 histograms at
+        every k -- ALL differ between the two runs (different draws under
+        different master-seed domain suffixes), while N1's group_order (the
+        R_k value that matters) agrees at every k between the two runs
+        despite the differing raw draws. This is exactly the seed-invariance
+        pattern the contract specifies.
+      verdict: holds
+    - check: "7 Labelling control: alternate convention gives same abstract group order"
+      method: >-
+        Read `labelling_control_k1`/`R_k_descending` directly from
+        raw-result.json (not the execution_report summary): N1 reverse-lex
+        group order 8 (= primary 8); N2 reverse-lex group order 4 (= primary
+        4); N2-twin reverse-lex group order 4 (= primary 4); N4 descending
+        labelling gives R_k=(3,3,1,3) (= ascending's (3,3,1,3)), with the
+        underlying permutations being the group-theoretically expected
+        inverses of the ascending-labelling permutations (consistent with
+        reversing a cyclic labelling reversing the direction of the induced
+        action while preserving order). All four members agree.
+      verdict: holds
+
+  control_checks:
+    - control: identical_object_null (N3, seed-parity split halves)
+      status: confirmed
+      note: >-
+        Both halves independently match S_4 densities within 3 s.e. in both
+        runs per raw-result.json's N3.identical_object_null_control; no
+        separation between draws from the same distribution.
+    - control: true_z2z2_control (N2-twin)
+      status: confirmed, R_k=4 constant, independently re-derived (see above).
+    - control: sample_size_control (N2, exhaustive vs S=1000 vs S=100000)
+      status: confirmed, R_1=4 identically across all three, both runs.
+    - control: labelling_control
+      status: confirmed independently (see check 7 above).
+    - control: reproduction_control (N1 vs EXP-MONO-4c7479)
+      status: confirmed independently from both sides' raw logs (see check 5 above).
+    - control: N5 nearby-object / refusal control
+      status: >-
+        Confirmed from raw-result.json: N5's Step-5 verdict is UNDECIDED at
+        every k in both runs (U=120, L=1 reported unconditionally), and this
+        is NOT contingent on density-match quality -- the code
+        (run_experiment.py) hardcodes verdict/U/L for N5 regardless of the
+        computed density_vs_S5 report, which is the correct behaviour per
+        the contract (a DECIDED verdict here would be an automatic
+        falsifier). Verified by reading the code path directly: N5's
+        "verdict"/"U"/"L" keys are set to fixed literals inside the k-loop,
+        never conditioned on the histogram.
+
+  heuristic_validation_checks:
+    - item: pre-registered prediction
+      status: >-
+        Confirmed: specification.yaml's `preregistered_prediction` block and
+        H-MONO-59f6a6's `predictions`/`falsification_conditions` are dated
+        and committed (commit 17a6da70c) strictly before the execution
+        snapshot (commit 1bd4cf9d0). No post-hoc fitting is possible; the
+        forced values were fixed before any code ran.
+    - item: sample integrity
+      status: >-
+        Sample sizes (S=10,000 for N1/N2/N2-twin k>=2; S=2,000 for N3/N5;
+        1,000/100,000 for the N2 sample-size control), seeds
+        (20260830/20260831), and the SHA256 domain-string sampling procedure
+        are all recorded in seed.py and the manifests. Empirical
+        class_histograms and density reports were recomputed by me directly
+        from raw per-point logs where feasible (N1 k=1 exhaustive; N3
+        identical_object_null_control cross-checked against raw-result.json
+        counts) and matched the reports.
+    - item: correspondence validity
+      status: not_applicable. This record uses no substitute-sampling
+        correspondence (e.g. no Deuring correspondence); it is a direct
+        Frobenius census on explicit toy objects. N5's scoping-down (a
+        generic quintic standing in for the idea's literal degree-100
+        object) is a disclosed test_boundary substitution, not a
+        distributional correspondence, and is honestly labelled as such in
+        both the hypothesis and the contract (never silently substituted).
+    - item: scale binding
+      status: >-
+        p=211 only, degrees at most 5, groups of order at most 120; declared
+        explicitly as `scale_relevance.tier: toy` in the contract and
+        repeated in every interpretation_limits/claim_ceiling block. No
+        transfer or extrapolation claim is made anywhere in the hypothesis,
+        contract, or execution report.
+    - item: cost-unit honesty / cost bookkeeping
+      status: >-
+        Not directly applicable in the target-result-profile sense (this
+        record makes no cryptographic-scale cost claim, no asymptotic
+        exponent, and no per-attempt-cost x inverse-success-probability
+        bookkeeping is claimed or required -- `asymptotic_claim: null`
+        throughout). The one cost figure present (cost_note's operation-
+        count estimate) is disclosed as REVISED against measured wall-clock
+        (~450-460s vs the contract's "seconds to low tens of seconds"
+        estimate) in execution_report.protocol_deviations, correctly
+        reported as a measured fact rather than silently absorbed, and the
+        actual run stayed within its 1800s/1GB budget caps in both runs
+        (manifest `within_budget: true`).
+
+  n1_no_drop_finding_assessment: >-
+    HIGH CONFIDENCE THIS IS NOT A FALSE NEGATIVE MASKING A REAL DROP. Basis:
+    (1) the specific mechanism that WOULD produce a false "no drop" reading
+    on N1 -- a broken Level2 Frobenius that is nonetheless still a
+    self-consistent permutation of SOME kind -- was tested directly by
+    reintroducing the disclosed bug, and it does not produce a plausible
+    wrong-but-stable D_4 reading; it crashes the census outright on the
+    first level-2-requiring point, which is a much easier failure to notice
+    than a silent wrong stabilisation, and rules out this exact class of
+    regression as the source of an artifactually-stable R_k=8; (2) the fixed
+    Level2.frob was independently verified, via a property check sharing no
+    code with the Executor's implementation, to be a genuine order-4 ring
+    automorphism at ALL FOUR ladder steps (k=1..4), not just the one level
+    where the bug happened to be caught; (3) the N1 k=1 histogram (which
+    already exercises the tower through level 2 on a large fraction of the
+    44,521-point exhaustive base) reproduces EXP-MONO-4c7479's own
+    independently-computed, previously-committed histogram exactly, and a
+    THIRD from-scratch implementation of the same k=1 census (mine)
+    reproduces the same permutations on 10 spot-checked points spanning
+    every outcome class; (4) both runs (different seeds, independent
+    samples at k>=2) report R_k=8 at every k with no discrepancy, and the
+    labelling control agrees. The one caveat: the k=2,3,4 cells for N1 are
+    SAMPLED (S=10,000), not exhaustive, so a hypothetical drop confined to a
+    class of density below roughly 1/8000 could in principle go unseen;
+    this is exactly the coupon-collector margin HEUR-AG-2 discloses and
+    budgets for (10,000/8 ~= 1,250 expected hits for the rarest class at
+    U=8), and it is a disclosed, bounded, low-probability gap rather than an
+    unexamined one.
+
+  procedure_deviations_from_frozen_contract_disclosed_by_executor:
+    - >-
+      m_4(x) required the fallback branch. Independently confirmed via
+      sympy this fallback polynomial (x^4-x-7) is genuinely irreducible, and
+      spot-checked (a=2,3,5,7,11 via sympy factor_list) that several of the
+      50 binomial candidates a=2..51 genuinely fail, consistent with "a is a
+      4th power or -4c^4-type obstruction" being common at k=4.
+    - >-
+      Per-ladder-step tower composition resolution (documented, not
+      contract-verbatim): read and found consistent with
+      embeddings_between_levels' stated "no cross-level embedding needed."
+    - >-
+      Measured wall-clock (~450-460s) exceeds the contract's cost_note
+      estimate but remains far inside the 1800s budget cap; reported as a
+      measured fact, not a violation. No stopping rule was triggered.
+
+  limitations:
+    - >-
+      implementation.md's characterization of "the required ring-
+      homomorphism self-test" as the artifact that caught and would catch a
+      regression of the disclosed bug is not literally accurate: no such
+      dedicated, standalone test exists in the committed implementation. The
+      actual regression protection is an emergent, undocumented-as-such
+      property of N1's own Frobenius-image point-matching logic (which
+      raises RuntimeError on a mismatch), and I confirmed empirically that
+      this specific safety net does fire immediately when the bug is
+      reintroduced. This is a disclosure-precision finding, not a
+      correctness finding -- the current code is independently verified
+      correct -- but a future battery revision that dropped N1 (the only
+      member touching tower.Level2) would lose this protection silently.
+    - >-
+      My from-scratch spot-check of N1's classification (check 5) covered
+      10 of 44,521 k=1 base points, not an exhaustive re-run; this is a
+      time-budget constraint, disclosed rather than hidden. The 10 points
+      were deliberately chosen to span every one of the five outcome
+      classes (identity, sigma_i, sigma1_sigma2, block_swap_involution,
+      four_cycle), which is the dimension of variation most likely to expose
+      a classification-logic defect.
+    - >-
+      This report does not re-verify N1's underlying D_4 structural
+      upper/inertia lower bound derivation itself (imported verbatim from
+      H-MONO-0b3def per the contract, explicitly "not re-derived here"); it
+      verifies that the run's MACHINERY correctly measures and reproduces
+      that already-established result, which is the scope this record
+      claims.
+    - This is a toy-scale (p=211, degree <=5) record; no claim beyond that
+      scope is validated or should be read into this report.
+    - I did not read any sibling review directory, per the task's blindness
+      instruction; J2 is out of scope for this report entirely.
+
+  proof_architecture_checks: >-
+    not_applicable -- not a proof-oriented dispatch per
+    docs/inventor-protocol.md section 8; this is a toy instrument-validation
+    experiment.
+  cost_model_checks: >-
+    not_applicable -- asymptotic_claim is null; no cryptographic-scale cost
+    table is presented or required.
+
+  verdict: holds
+  verdict_scope: >-
+    J1 (correctness) only. The frozen contract's stated computations were
+    executed as specified, the reported R_k values and Step-5 verdicts
+    recompute correctly from raw data, the disclosed pre-run implementation
+    bug is real, was genuinely fixed before any archived run (no archived
+    run could have used the buggy code), and its fix is independently
+    verified correct at all four ladder steps. All seven assigned checks
+    hold, with one disclosed process-documentation finding (self-test
+    characterization) that does not change the correctness conclusion. This
+    verdict does NOT extend to J2, does not authorize promotion, does not
+    support any ECDLP claim, and does not itself change H-MONO-59f6a6's
+    status (Coordinator authority alone, AGENTS.md rule 1).
+
+  artifact_paths:
+    - experiments/EXP-MONO-a20e48/specification.yaml
+    - experiments/EXP-MONO-a20e48/execution_report.yaml
+    - experiments/EXP-MONO-a20e48/implementation.md
+    - experiments/EXP-MONO-a20e48/implementation/fieldext.py
+    - experiments/EXP-MONO-a20e48/implementation/polymod_fp.py
+    - experiments/EXP-MONO-a20e48/implementation/tower.py
+    - experiments/EXP-MONO-a20e48/implementation/fieldpoly.py
+    - experiments/EXP-MONO-a20e48/implementation/seed.py
+    - experiments/EXP-MONO-a20e48/implementation/battery.py
+    - experiments/EXP-MONO-a20e48/implementation/run_experiment.py
+    - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/
+    - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-2/
+    - ledger/hypotheses/H-MONO-59f6a6.yaml
+    - ledger/hypotheses/H-MONO-0b3def.yaml
+    - experiments/EXP-MONO-4c7479/implementation/fp_common.py
+    - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/per_base_point_log/p211_A1_B1.ndjson
+    - experiments/EXP-MONO-a20e48/reviews/validator/runtime-session-receipt.json
+
+  review_attestation:
+    task_id: validator-mono3-a20e48
+    role: validator
+    verdict: holds
+    joints_owned: [J1-correctness]
+    blindness:
+      read_sibling_reports: false
+      note: >-
+        Did not look for, open, or read any file under a sibling
+        red-team/other-reviewer directory for this experiment. Only
+        experiments/EXP-MONO-a20e48/reviews/validator/ was written to.
+    sources_read:
+      - AGENTS.md
+      - agents/validator.md
+      - ledger/hypotheses/H-MONO-59f6a6.yaml
+      - ledger/hypotheses/H-MONO-0b3def.yaml (referenced only, imported D_4 result)
+      - experiments/EXP-MONO-a20e48/specification.yaml
+      - experiments/EXP-MONO-a20e48/execution_report.yaml
+      - experiments/EXP-MONO-a20e48/implementation.md
+      - experiments/EXP-MONO-a20e48/implementation/fieldext.py
+      - experiments/EXP-MONO-a20e48/implementation/tower.py
+      - experiments/EXP-MONO-a20e48/implementation/polymod_fp.py
+      - experiments/EXP-MONO-a20e48/implementation/fieldpoly.py
+      - experiments/EXP-MONO-a20e48/implementation/seed.py
+      - experiments/EXP-MONO-a20e48/implementation/battery.py
+      - experiments/EXP-MONO-a20e48/implementation/run_experiment.py
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/manifest.yaml
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/command.txt
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/environment.json
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/stdout.log
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/raw-result.json
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-1/per_base_point_log/N1_k1_exhaustive.jsonl
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-2/manifest.yaml
+      - experiments/EXP-MONO-a20e48/runs/RUN-MONO-a20e48-2/raw-result.json
+      - ledger/hypotheses/H-MONO-0b3def.yaml
+      - experiments/EXP-MONO-4c7479/implementation/fp_common.py
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/raw-result.json
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/per_base_point_log/p211_A1_B1.ndjson
+    read_sibling_reports: false
+    independent_scripts_written:
+      - /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad/indep_fpk.py
+      - /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad/indep_n4_n2.py
+      - /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad/indep_n1.py
+      - /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad/buggy_replay/ (bug-reintroduction test, copy of implementation/ with tower.py patched)
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    model_verified_note: >-
+      No `python3 -m orchestration.adapter doctor --probe` was run in this
+      session; resolved_model_id is stated per this runtime's own
+      self-report (system context: "You are powered by the model named
+      Sonnet 5. The exact model ID is claude-sonnet-5."), not
+      probe-verified. Flagging per AGENTS.md's "unverified configuration"
+      rule rather than asserting verification I did not perform.
+    independent_session: true

@@ -1,0 +1,77 @@
+protocol_amendment:
+  id: PA-OIFP-0ca0c9-v2-rc58
+  experiment_id: EXP-OIFP-0ca0c9
+  hypothesis_id: H-OIFP-097d1a
+  goal_id: GOAL-ECDLP-001
+  batch: BATCH-058
+  review_cycle_id: RC-58
+  authoring_task: TASK-20260804-042
+  amendment_type: repair_overlay
+  from_version: 1
+  to_version: 2
+  supersedes_overlay: null
+  closes_issues:
+    - OBJ-1: selection bias toward class_size=2
+    - OBJ-2: BFS MITM total cost O(sqrt(p)) = L[1/2]
+    - RN-001 through RN-003 from VAL-20260804-e6cca0
+
+  changes:
+    - id: C-1
+      subject: Replace random curve sampling with CM-targeted curve selection
+      from: "Generate random prime p at bit size; find random prime-order E/F_p"
+      to: >-
+        Use CM theory to generate prime p with GUARANTEED class number h(D) >= 200.
+        Method: (a) pick random imaginary quadratic discriminant D with |D| in [100, 4*p] and
+        h(D) >= 200 (verify via Cornacchia or CM class polynomial); (b) generate a prime p
+        such that p = (t^2-D)/4 for some integer t (the CM construction); (c) construct
+        an elliptic curve E/F_p with trace t, verified prime order N.
+        Record h(D), class_size_actual, and discriminant D in the manifest.
+        Skip discriminants where h(D) < 200.
+
+    - id: C-2
+      subject: Replace BFS MITM with Pollard-rho distinguished-point random-walk MITM
+      from: "BFS MITM: enumerate all curves in the class before MITM"
+      to: >-
+        Pollard-rho distinguished-point MITM:
+        - Distinguished point criterion: j-invariant has last K=5 bits equal to 0
+        - Two parallel random walks (one from E, one from E'):
+          * At each step: pick a random Elkies ell-isogeny neighbor (ell=3)
+          * If current j is distinguished: record (j, path_length, direction)
+          * Check for collisions between forward and backward distinguished-point lists
+        - Count total isogeny evaluations (not just collision steps)
+        - This achieves O(p^{1/4}) TOTAL cost including path finding (no class enumeration)
+
+    - id: C-3
+      subject: Add end-to-end cost measurement
+      from: "measure collision_steps only"
+      to: >-
+        Measure both:
+        (a) total_isogeny_evals: total isogeny evaluations from start to first distinguished-point collision
+        (b) path_reconstruction_cost: isogeny evals needed to extract the actual path from E to E'
+        Record: total_cost = total_isogeny_evals + path_reconstruction_cost
+
+    - id: C-4
+      subject: Add random-expander null control
+      from: "CTRL-RANDOM-WALK-BASELINE: random walk on same-size graph"
+      to: >-
+        CTRL-RANDOM-EXPANDER: replace isogeny neighbors with random neighbors in a
+        RANDOM 4-regular graph on h(D) nodes (same size, same degree). Measure
+        distinguished-point collision cost. If same as isogeny MITM: isogeny structure
+        provides no advantage. If faster: isogeny structure IS special.
+
+    - id: C-5
+      subject: Increase budget and add bits=40 support
+      from: "300s per rep, 2 CPU-hours total"
+      to: "600s per rep, 4 CPU-hours total. At bits=40 with class h(D)>=200: should complete in < 600s."
+
+  predictions_under_amendment:
+    - >-
+      With h(D) >= 200 curves and Pollard-rho MITM: mean total_isogeny_evals < 4 * sqrt(h(D))
+      (birthday paradox). At bits=20 with h(D)=200: sqrt(200)~14, threshold=56. At bits=40
+      with h(D)~1000: sqrt(1000)~32, threshold=128.
+    - >-
+      CTRL-RANDOM-EXPANDER: same birthday cost as isogeny MITM (expected ~ 2*sqrt(h(D))).
+      If isogeny MITM is faster: structural advantage of isogeny graph (novel finding).
+
+  claim_ceiling: toy (unchanged)
+  no_hypothesis_status_change: true

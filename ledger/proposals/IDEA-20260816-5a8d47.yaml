@@ -1,0 +1,259 @@
+idea:
+  id: IDEA-20260816-5a8d47
+  question_id: RQ-POLYMAC-7c89e4
+  added: '2026-08-16'
+  title: 'Measure the nonce-misuse cliff as a candidate-set collapse curve rather than as a warning:
+    count how many authentication-key candidates survive after r repeated-nonce pairs, exhaustively
+    and in both fields, under a self-supplied misuse model with self-generated keys and traffic only'
+  class: measurement
+  claim: '(A) Repeating a nonce in a polynomial-evaluation MAC yields an equation whose unknown is
+    the authentication key, and the set of keys consistent with the observed transcript shrinks as
+    more repeated-nonce pairs are collected. The claim is that this shrinkage is a CURVE - the expected
+    number of surviving candidates as a function of the number of repeated-nonce pairs r and of the
+    message length L - and that the curve is exactly computable at scaled-down parameters by intersecting
+    root sets over the entire key space. (B) The claim is further that the curve''s shape is determined
+    by two competing quantities that can be separated: the degree ceiling, which bounds how many candidates
+    one pair can leave, and the intersection rate, which governs how fast successive pairs cut the
+    survivor set. Reporting the curve rather than a single adjective converts a known-catastrophic
+    failure into a number that has a shape. (C) The paired claim: the curve is computed in both fields
+    under matched conditions and the two curves are compared at matched log-cardinality. The specific
+    structural asymmetry to be exposed is that one construction''s authentication key is fixed across
+    all nonces under a given key while the other''s is derived per nonce - so a repeated nonce means
+    different things in the two, and the contract measures both the like-for-like comparison (same
+    misuse model, both fields) and the structural comparison (per-nonce refresh on and off). (D) WHAT
+    IS NOT CLAIMED: this is not an attack on AES-GCM or ChaCha20-Poly1305, which are not being misused
+    by anybody here; the misuse model is supplied by this experiment to itself by construction, with
+    self-generated keys and self-generated traffic exclusively and no third-party material of any
+    kind, per the anchor question''s constraint. No deployed system is analysed, no capture is taken,
+    and no claim about the cost of key recovery at deployed parameters is made or projected. (E) A
+    curve at toy width is a curve at toy width.'
+  mechanism: 'STAGE 1 fixes the misuse model explicitly and narrowly: the experiment generates its
+    own key, generates r message pairs that share a nonce, and hands the transcript to a solver. Nothing
+    else. STAGE 2 defines the surviving-candidate set as the intersection over the r pairs of the
+    root sets of their difference polynomials, which is exactly the set of keys consistent with the
+    transcript at the hash layer. Because the key space is enumerable at the tested widths, this intersection
+    is computed by bitmap AND over the whole space - exhaustive, not sampled. STAGE 3 sweeps r from
+    1 to the point where the survivor count reaches 1 or stops decreasing, at each L, in both fields,
+    over many independently generated transcripts, and reports the distribution of survivor counts
+    rather than only its mean. STAGE 4 adds the structural arm: a variant of each construction where
+    the authentication key is refreshed per nonce, which makes repeated nonces informative about different
+    keys and should flatten the curve entirely - that arm is the direct test of whether the collapse
+    is a property of the polynomial structure or of key persistence. STAGE 5 runs the null: transcripts
+    generated under a random-function digest, where the survivor set should shrink at the generic
+    rate with no degree ceiling, calibrating what the algebraic structure contributes. Refutation:
+    if the measured survivor curve matches the null''s generic curve within the resolution floor,
+    the collapse is not algebraically driven at these parameters.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Greps for POLYMAC, GHASH, Poly1305 as recorded for this batch; targeted greps for nonce,
+      nonce reuse, nonce-misuse, repeated nonce and key recovery across ledger/proposals, ledger/hypotheses
+      and ledger/questions; read RQ-POLYMAC-7c89e4's nonce-misuse target paragraph and its constraint
+      forbidding third-party traffic; read RQ-ECDSA-87625f's title to confirm the blacklisted nonce
+      work is a different object.
+    results: RQ-POLYMAC-7c89e4 names the nonce-misuse cliff as a target and asks for it as a cost
+      rather than an adjective, and GOAL-POLYMAC-001 repeats that. No proposal, hypothesis, evidence
+      record or experiment directory in the repository contains any nonce-misuse measurement for a
+      polynomial MAC. The blacklisted nonce work (RQ-ECDSA-87625f, 12 proposals on deterministic nonce
+      generators and bias window shape) concerns ECDSA signature nonces and lattice recovery - a different
+      object, a different equation, and no polynomial evaluation. IDEA-20260809-3a39bc mentions the
+      mask being keystream-derived but does not measure anything about nonce repetition.
+    verdict: 'UNVERIFIED. No claim is made about external literature, and the general fact that nonce
+      reuse permits authentication-key recovery is treated by the anchor record itself as standing
+      knowledge to be located and filed rather than as a result on record here. What is claimed new
+      WITHIN THIS REPOSITORY: the survivor-count CURVE with its distribution rather than its mean,
+      and the key-persistence arm that separates the polynomial structure from the persistence of
+      the authentication key across nonces. What is assembled from known parts: the root-set intersection
+      machinery is this batch''s shared module; the observation that repeated nonces cancel the mask
+      is elementary.'
+  object_first_candidate:
+    tracked_object: The SURVIVING CANDIDATE SET - the subset of the authentication-key space consistent
+      with the observed transcript - carried through the accumulation of repeated-nonce pairs as a
+      shrinking sequence of nested sets.
+    lossiness: 'Lossy. It discards the messages, the nonces, the tags, the order in which pairs were
+      observed, and the identity of the true key, retaining only a subset of the key space and its
+      cardinality. This is compatible with the target operation because each pair''s information about
+      the key is exactly the vanishing of a difference polynomial, so the transcript''s total information
+      is the intersection and nothing else is available at the hash layer. It is not a change of coordinates:
+      many transcripts give the same surviving set, and the true key is by construction one anonymous
+      member of it, which is why survivor cardinality rather than key identity is the right coordinate.'
+    propagation: One additional repeated-nonce pair acts on the tracked object by INTERSECTION with
+      a new root set of size at most the difference polynomial's degree. So the sequence of survivor
+      sets is nested and non-increasing, and the expected shrinkage per step is governed by how much
+      of the current survivor set the new root set covers. When the current survivor set is already
+      small relative to the field, a new root set of bounded degree typically either contains the
+      true key alone or fails to cut at all, so the curve should show a fast initial collapse followed
+      by a long flat tail at cardinality one - and the shape of that transition is the measured object.
+    survival_score: 'The object survives every accumulation step exactly, at every tested parameter,
+      and reaches its terminal state (cardinality one) within a small number of pairs at the tested
+      widths. It DISSOLVES in three named places: when the mask is not perfectly cancelled by the
+      repetition, which is a modelling detail this contract fixes by construction and which is where
+      a real construction may differ; when the key is refreshed per nonce, at which point the sets
+      are not nested and the object is not a shrinking sequence at all - which is exactly why that
+      arm is included; and above the enumerable width, where the intersection cannot be computed exhaustively
+      and the curve would have to be estimated rather than counted.'
+  null_object_control: 'The generic null runs in the same invocation: transcripts generated under
+    a random-function digest of the same output width, where each pair is consistent with a uniformly
+    random subset of keys of the expected generic size, and the survivor set shrinks at a rate with
+    no degree ceiling. For the signal arm to mean anything, the null must show the generic shrinkage
+    rate and must NOT show the degree-ceiling plateau; if the null also plateaus, the plateau is an
+    artifact of the intersection code rather than of polynomial structure. The second control is the
+    key-refresh arm, which is a null for persistence specifically: with a fresh key per nonce the
+    survivor curve must be FLAT at the full key space, and any shrinkage there is a leak in the experiment''s
+    own construction that would invalidate every signal number.'
+  discriminated_from:
+  - 'RQ-ECDSA-87625f''s 12 nonce proposals (blacklisted): those concern deterministic nonce generation
+    and bias windows for ECDSA and are solved by lattice methods on a different equation. Here the
+    equation is a polynomial over a field whose unknown is the evaluation point, and the method is
+    exhaustive set intersection.'
+  - 'IDEA-20260809-3a39bc: notes that one construction''s mask is keystream-derived, in the context
+    of commitment-certificate cost. This record measures survivor-set cardinality under repeated nonces
+    and constructs no certificate.'
+  - 'The ratio-surface entry in this batch: that measures a forger''s best chance against an honest
+    transcript. This measures how a transcript that violates the mode''s own precondition reveals
+    the key, which is a different question about a different adversary.'
+  - 'The weak-key counting entry in this batch: that counts keys with algebraic structure. This counts
+    keys consistent with data, and the two counts can be cross-tabulated as a secondary output.'
+  - 'A general statement that nonce reuse is catastrophic: an adjective. The content here is a distribution
+    of survivor counts as a function of r and L, with a persistence arm and a generic null.'
+  assumptions:
+  - The repeated-nonce difference cancels the mask exactly in the toy construction, as it does by
+    construction here. Whether it does so in the full constructions is a specification question the
+    Coordinator must settle and is a declared derivation gap.
+  - Self-generated keys and self-generated traffic are the only inputs; this is enforced by the code
+    path and is a hard constraint from the anchor record.
+  - The survivor set at the hash layer is the whole of what the transcript reveals about the key.
+    Anything the full mode leaks beyond the hash layer is outside this contract and is not modelled.
+  - Enumerable widths make the curve exact; all reported spread is across transcripts, not from sampling
+    the key space.
+  predictions:
+  - metric: key-refresh arm survivor-set cardinality as a function of r
+    direction: different
+    minimum_effect: exactly flat at the full key space for all r; any decrease indicates a leak in
+      the experimental construction and halts the run
+  - metric: null-arm survivor curve plateau
+    direction: different
+    minimum_effect: the null must show no degree-ceiling plateau; the presence of one indicates an
+      intersection-code artifact
+  - metric: number of repeated-nonce pairs r at which the median survivor count reaches 1, both fields
+      at L = 4
+    direction: different
+    minimum_effect: 'no pre-commitment on the cross-field difference. Reason: the two arms'' achievable
+      difference polynomials differ because of padding before any field effect enters, so a pre-committed
+      number would confound two causes.'
+  - metric: survivor count after r = 1 versus the difference polynomial degree
+    direction: different
+    minimum_effect: the survivor count after one pair must be at most the degree, exactly, in both
+      field arms; a violation is a code fault
+  minimal_test:
+    design: Fix n = 12 and n = 16, L in {2, 4, 8}, and generate 2000 independent transcripts per (field,
+      L), each with up to r = 8 repeated-nonce pairs, all keys and messages self-generated inside
+      the run. For each transcript, compute the nested survivor sets by bitmap intersection over the
+      full key space and record the cardinality after each r. Emit the median and the full distribution
+      of survivor counts against r, per field and per L, plus the key-refresh arm and the generic
+      null on the same axes. This is seconds to minutes in pure Python at these widths. The discrimination
+      is the shape of three curves on one plot. If the key-refresh arm is flat and the null shows
+      generic shrinkage without a plateau, the signal curves are interpretable and their r-to-uniqueness
+      values are the deliverable. If the key-refresh arm shrinks at all, the experiment leaks and
+      nothing is read. If the signal curves coincide with the null, the collapse at these parameters
+      is not distinguishable from generic information accumulation, which is a clean measured statement
+      and removes the algebraic explanation at this scale.
+    controls:
+    - 'Key-refresh arm: authentication key redrawn per nonce, survivor curve must be exactly flat.'
+    - 'Generic null: random-function digest, transcripts generated identically, no degree ceiling
+      expected.'
+    - 'Degree assertion after r = 1: survivor count at most the difference polynomial degree in every
+      field-arm transcript.'
+    - 'Self-generation assertion: the run records that no input file, network fetch or external key
+      material was read, and the code path has no such capability.'
+    - Both fields through one code path with the field as a parameter, so the persistence arm and
+      the field arm cannot be confounded by implementation.
+    required_metrics:
+    - survivor-set cardinality after each r, per transcript
+    - median and full distribution of survivor counts against r, per (field, L)
+    - value of r at which the median survivor count reaches 1
+    - key-refresh arm survivor curve
+    - null-arm survivor curve
+    - fraction of transcripts in which the true key is in the final survivor set (must be 1 exactly)
+  falsification_conditions:
+  - The key-refresh arm shows any shrinkage, indicating a leak in the experimental construction.
+  - The true key is absent from any survivor set, which is impossible and indicates an intersection
+    bug.
+  - Any survivor count after one pair exceeds the difference polynomial degree in a field arm.
+  - The generic null shows a degree-ceiling plateau, indicating the plateau is a code artifact.
+  - The signal curves coincide with the null within the resolution floor, refuting the algebraic-collapse
+    framing at these parameters and standing as the measured result.
+  - Any evidence of external input to the transcript generator, which is a hard constraint violation
+    and voids the run.
+  confounders:
+  - Padding differences between the arms change the achievable difference polynomials before any field
+    effect, so a cross-field curve difference is not attributable to the field without the padding
+    entry's result.
+  - Message length and degree are coupled, so the r-to-uniqueness value moves with L for a reason
+    that has nothing to do with nonce misuse per se.
+  - 'Transcript generation randomness: with 2000 transcripts the tail of the survivor distribution
+    is thinly sampled, and the r-to-uniqueness median may be stable while the tail is not.'
+  - At small width the key space is small enough that generic intersection alone reaches uniqueness
+    quickly, compressing the difference between signal and null.
+  - The persistence arm changes two things at once if implemented carelessly - the key and the mask
+    - and must refresh only the authentication key.
+  interpretation_limits:
+  - The misuse model is supplied by this experiment to itself. Nothing here describes any deployed
+    system, any real traffic, or any actual failure, and no cost of key recovery at deployed parameters
+    is measured or projected.
+  - The curve is at toy widths with an idealised mask; the deployed constructions are not modelled
+    above the hash layer.
+  - A single-field run would leave persistence and field confounded, since the two deployed constructions
+    differ in both at once - which is precisely why the persistence arm is constructed explicitly
+    rather than inherited from the deployed pair.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement costs O(T * r * 2^n) bit operations
+      for T transcripts, trivially bounded at the tested widths. No claim is made about the cost of
+      key recovery at any other parameters.
+    memory_exponent: No attack memory exponent is claimed. One 2^n-bit bitmap per active transcript,
+      kilobytes to megabytes.
+    best_known: The incumbent is the standing description of nonce reuse as catastrophic, which the
+      anchor record itself flags as knowledge to be located and filed rather than as a result on record.
+      No repository record holds a survivor curve.
+    hidden_overhead: 'The honesty overhead dominates: keeping the misuse model self-supplied, keeping
+      every sentence from drifting into a claim about deployed systems, and making the persistence
+      arm refresh exactly one thing. Compute is negligible; the review burden is not.'
+  dominated_by: 'n/a (no result claimed). The Pareto check covered every polymac-relevant record this
+    repository holds (KN-LIT-4060, KN-LIT-5652, KN-LIT-7035, KN-LIT-1337, KN-LIT-4188, KN-LIT-1445)
+    and the nine RQ-AEADC-8db132 proposals, plus RQ-ECDSA-87625f''s nonce family for method overlap:
+    none states a survivor-count curve, none is an algorithm this competes with on time, memory or
+    queries, and no attack is claimed here at any parameters.'
+  sota_delta: No attack; measurement contribution only. Delta is from an adjective (catastrophic)
+    with no number attached anywhere in the repository, to a distribution of survivor counts against
+    r at three lengths in two fields with a persistence arm and a generic null.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'By part. That the survivor curves are exactly computable and the key-refresh
+    arm comes out flat: about 0.9, since both are direct consequences of the construction if implemented
+    correctly. That the signal curves separate measurably from the generic null: about 0.65, because
+    the degree ceiling is a real constraint that the null lacks, though at small widths the two may
+    converge. That the two fields'' curves differ after controlling for padding: about 0.35, and the
+    honest reading is that most of any observed difference will turn out to be encoding rather than
+    field. That the record survives red team without a single sentence that reads as a claim about
+    deployed nonce misuse: about 0.55 - this is the entry in the bucket where that risk is highest,
+    and the claim ceiling and interpretation limits are doing heavy work.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-POLYMAC-7c89e4
+  - GOAL-POLYMAC-001
+  - RQ-ECDSA-87625f
+  - IDEA-20260809-3a39bc
+  - RQ-AEADC-8db132
+  - KN-LIT-7035
+  - KN-LIT-4060
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-POLYMAC-3939d7

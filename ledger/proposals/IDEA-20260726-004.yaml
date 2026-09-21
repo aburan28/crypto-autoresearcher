@@ -1,0 +1,186 @@
+idea:
+  id: IDEA-20260726-004
+  title: Machine-checkable GGM simulability certificate for augmented ECDLP oracles
+  class: control
+  claim: >-
+    For an augmented ECDLP oracle O that supplements the standard group-operation
+    oracle with extra information (jet data, elliptic-net values, incidence
+    reports, endomorphism images, etc.), there exists a formal simulability
+    test that is machine-checkable and decides, given the oracle's
+    input-output specification, whether O can be simulated by a generic-group
+    algorithm using only the standard group-operation oracle and equality
+    tests with O(1) overhead per query. If the test proves simulability, the
+    candidate is closed at exponent 1/2 by the Shoup/Corrigan-Gibbs-Kogan
+    lower bound (KN-TECH-005, KN-LIT-013). If the test fails (exhibits a
+    non-simulable query), the candidate provides genuinely k-dependent
+    relations below the birthday bound and is a non-generic signal requiring
+    independent review. The test discriminates between "the augmented oracle
+    is a relabeling of generic group data" and "the augmented oracle carries
+    non-generic, k-dependent structure."
+  mechanism: >-
+    The generic group model (KN-TECH-005) treats group elements as opaque
+    random labels accessible only via the group-operation oracle and equality
+    tests. An augmented oracle O provides additional information per query.
+    The simulability test formalizes the following question: for each query
+    type q that O answers, can a generic-group algorithm compute the same
+    answer using O(1) group-operation queries and equality tests, without
+    access to the concrete group encoding? The test operates as follows:
+    (1) Parse the oracle specification into a list of query types
+    {q_1, ..., q_t} with their input/output formats. (2) For each query type
+    q_i, construct a generic-group simulator S_i that attempts to answer
+    q_i using only group operations and equality tests. (3) If S_i succeeds
+    with O(1) overhead, q_i is simulable. (4) If S_i fails — meaning the
+    answer depends on the concrete encoding (e.g., the x-coordinate, the
+    jet data, the elliptic-net value) in a way that cannot be reconstructed
+    from group operations alone — q_i is non-simulable, and the test
+    outputs a witness: a pair of group encodings that give different O-answers
+    but are indistinguishable in the generic model. (5) If all query types
+    are simulable, the oracle is GGM-simulable and the candidate is closed.
+    (6) If any query type is non-simulable, the test outputs the
+    non-simulable query and the encoding pair as a falsification witness.
+    The test is applied to the jet oracle (F_p[eps]/eps^2 data, ECDLP-IDEA-004),
+    the elliptic-net oracle (Somos values, ECDLP-IDEA-006), the incidence
+    oracle (chord/secant relations, ECDLP-IDEA-001/012), and the
+    endomorphism oracle (phi-images, relevant to IDEA-20260726-002).
+  novelty_status: unverified
+  assumptions:
+    - >-
+      The augmented oracle's query types can be formally specified as
+      functions from group-element tuples (plus public curve data) to output
+      values, with well-defined input-output formats.
+    - >-
+      A generic-group simulator can be constructed algorithmically from the
+      oracle specification, at least for the specific oracles listed (jets,
+      elliptic nets, incidence, endomorphism).
+    - >-
+      The O(1) overhead bound is decidable: the simulator either uses a
+      bounded number of group operations per query (simulable) or requires
+      unbounded access to the encoding (non-simulable).
+    - >-
+      The test is sound: a simulability proof from the test implies the
+      Shoup lower bound applies, and a non-simulability witness implies the
+      oracle provides genuinely non-generic information.
+  predictions:
+    - metric: simulability_verdict_per_oracle
+      direction: different
+      minimum_effect: >-
+        For each tested oracle, the test outputs either SIMULABLE (closed at
+        1/2) or NON-SIMULABLE (non-generic signal). The expected outcome for
+        jets and elliptic nets is SIMULABLE, based on the obstructions noted
+        in KN-OPEN-005 (jet data determined by zeroth-order solution; Somos
+        identities universal). The expected outcome for the endomorphism
+        oracle is SIMULABLE (endomorphism is public and computable from the
+        curve, hence in the generic model's public setup). A NON-SIMULABLE
+        verdict for any oracle would be a surprising non-generic signal.
+    - metric: simulator_overhead_per_query
+      direction: lower
+      minimum_effect: >-
+        For simulable oracles, the simulator uses at most C group operations
+        per oracle query, with C <= 10. If C grows with the group order N,
+        the oracle is effectively non-simulable (the overhead is not O(1)).
+    - metric: non_simulable_witness_quality
+      direction: different
+      minimum_effect: >-
+        For non-simulable oracles, the test outputs an explicit encoding pair
+        (E_1, E_2) that are generic-model-indistinguishable but give different
+        oracle answers. The witness must be checkable: a third party can
+        verify that E_1 and E_2 are generic-indistinguishable and that O(E_1)
+        != O(E_2).
+  minimal_test:
+    design: >-
+      Implement the simulability test as a Python/Sage module that takes an
+      oracle specification (query types, input/output formats, computational
+      procedure) and outputs a verdict. Apply to four oracles:
+      (1) Jet oracle: query type = (P, Q) -> (P+Q, eps*(P+Q)) in F_p[eps]/eps^2;
+      (2) Elliptic-net oracle: query type = (a, b) -> W(a, b) (Somos value);
+      (3) Incidence oracle: query type = (R, factor_base) -> list of
+      decompositions R = P_i1 + ... + P_im;
+      (4) Endomorphism oracle: query type = P -> phi(P).
+      For each oracle, attempt to construct a generic-group simulator. If the
+      simulator succeeds, record the overhead C. If it fails, output the
+      non-simulable witness. Verify the witness on toy curves (8-16 bit) by
+      exhibiting two encodings that are generic-indistinguishable but give
+      different oracle answers.
+    controls:
+      - >-
+        Pure generic oracle: the standard group-operation oracle itself.
+        The test must output SIMULABLE with C = 1 (trivially simulable).
+      - >-
+        Known non-generic oracle: a discrete-log oracle (query = P -> log_P(Q)).
+        The test must output NON-SIMULABLE (the answer is the DLP itself,
+        which is not computable from group operations alone). This is the
+        positive correctness control.
+      - >-
+        Public-curve oracle: query = () -> curve parameters (a, b, p, N).
+        The test must output SIMULABLE with C = 0 (the curve is public data,
+        not group-encoding data).
+      - >-
+        Encoding oracle: query = P -> x-coordinate of P. The test must output
+        NON-SIMULABLE (the x-coordinate is concrete encoding data, not
+        reconstructable from generic group operations). This confirms the test
+        catches encoding-dependent oracles.
+    required_metrics:
+      - simulability verdict (SIMULABLE / NON-SIMULABLE) for each oracle
+      - simulator overhead C (group operations per query) for simulable oracles
+      - non-simulable witness (encoding pair + divergent oracle answer) for
+        non-simulable oracles
+      - witness checkability — third-party verification that the encoding pair
+        is generic-indistinguishable
+  falsification_conditions:
+    - >-
+      The test outputs SIMULABLE for the discrete-log oracle (the known
+      non-generic oracle), meaning the test is unsound — it fails to detect
+      non-generic information.
+    - >-
+      The test outputs NON-SIMULABLE for the pure generic oracle or the
+      public-curve oracle, meaning the test is unsound — it produces false
+      positives.
+    - >-
+      The test cannot produce a checkable witness for a non-simulable oracle,
+      meaning the non-simulability claim is unverifiable.
+    - >-
+      The simulator overhead C grows with N for an oracle that is expected to
+      be O(1)-simulable (e.g., the endomorphism oracle), meaning the oracle
+      is effectively non-simulable despite the test's verdict.
+  confounders:
+    - >-
+      The formal specification of an oracle may be ambiguous: the jet oracle
+      can be specified as "return the eps-coefficient of P+Q" (which depends
+      on the encoding) or as "return the derivative of the addition map"
+      (which is a universal identity, not encoding-dependent). The test's
+      verdict depends on the specification.
+    - >-
+      The generic-group model has variants (Shoup's original, the structured
+      GGM of Corrigan-Gibbs et al.) that differ in what counts as "public
+      data." The test must use a consistent model definition.
+    - >-
+      A SIMULABLE verdict closes the candidate only if the simulator's O(1)
+      overhead is tight; a loose overhead (C = O(log N)) may leave room for
+      a sub-birthday advantage.
+    - >-
+      A NON-SIMULABLE verdict does not imply a useful attack; the oracle may
+      carry non-generic information that is still insufficient to beat the
+      birthday bound.
+  interpretation_limits:
+    - >-
+      A SIMULABLE verdict is a clean negative: the candidate is closed at
+      exponent 1/2 by theorem (KN-TECH-005). This is a mathematical result,
+      not a toy-scale measurement.
+    - >-
+      A NON-SIMULABLE verdict is a non-generic signal but NOT a breakthrough.
+      It identifies that the oracle carries structure the GGM excludes, but
+      exploiting that structure to beat the birthday bound requires a
+      separate attack construction.
+    - >-
+      The test applies to oracle specifications, not implementations. An
+      oracle that is simulable in principle may have an implementation that
+      leaks timing or side-channel information, which is outside the GGM
+      framework.
+    - >-
+      The test does not settle KN-OPEN-001 (whether index calculus beats rho
+      for prime-field ECDLP); it settles KN-OPEN-005 (whether specific
+      augmented representations are GGM-simulable) for the tested oracles.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high

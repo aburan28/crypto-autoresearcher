@@ -1,0 +1,559 @@
+experiment:
+  id: EXP-ICINV-4d33aa
+  hypothesis_id: H-ICINV-6c7920
+  question_id: RQ-ICINV-475b5e
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-aa267f
+  version: 1
+  status: approved
+  retrospective: false
+  retrospective_note: THIS IS A PRE-REGISTRATION. Nothing in this file was written after seeing a
+    result; no run of EXP-ICINV-4d33aa exists at the time of writing, and the runs/ directory is empty.
+    This is the contract CORR-20260807-3ee25d defect D4 and DEC-20260807-41c173 next action N6 both
+    say the campaign's prior three experiments lacked. Every threshold below is frozen before execution
+    and may be changed only by a versioned protocol_amendment under experiments/EXP-ICINV-4d33aa/amendments/.
+  title: 'Does the within-class m=3 decomposition-rate over-dispersion of EV-ENDO-10109d survive a
+    certified full-group target sampler, and does it stratify by r = #{x in F_p : x^3+ax+b = 0}? A
+    two-sampler, r-stratified, density-swept replication built to be capable of overturning this campaign''s
+    own published finding.'
+  objective: 'EV-ENDO-10109d reports, at strength `replicated` and after an independent Validator
+    pass, that the within-class m = 3 decomposition-rate over-dispersion is real and density-independent:
+    NULL-B variance ratio in [1.3, 3.6] at every factor-base density from 0.024 to 0.97, at p = 4001
+    and p = 6007, with monotonic_decay False at both. DEC-20260807-41c173 makes finding its cause
+    (N8) the campaign''s highest-priority open question and names as one candidate "`targets_uniform`''s
+    non-cyclic-subgroup limitation ... restricting samples to a proper subgroup rather than the full
+    group on non-cyclic curves".
+
+    THIS EXPERIMENT DISCHARGES N8 BY TESTING THAT CANDIDATE TO DESTRUCTION. It measures the identical
+    quantity, on the identical classes, factor bases, densities and seeds, changing ONE thing: the
+    target sampler. Arm A is the committed single-generator sampler, whose support is a cyclic subgroup
+    of index n1. Arm B is a two-generator sampler whose support is certified BY ENUMERATION to be
+    the whole group. Every arm is stratified by r = #{x : x^3+ax+b = 0}, which is exactly the invariant
+    that decides n1''s parity: r = 3 <=> E[2] subset E(F_p) <=> n1 even <=> the cyclic sampler reaches
+    at most half the group.
+
+    The experiment is designed so that the campaign''s own headline finding can LOSE. That is its
+    purpose, and a result in which nothing can be overturned is a failed design.'
+  inputs:
+    implementation:
+      new_module: harness/exp_icinv_fullgroup.py
+      new_driver: harness/run_fullgroup.py
+      reused_unmodified:
+      - harness/exp_icinv.py
+      - harness/isogeny_class.py
+      - harness/toycurve.py
+      - harness/runner.py
+      edit_prohibition: harness/exp_icinv.py MUST NOT BE EDITED by this experiment. Arm A0 obtains
+        its targets by CALLING the committed exp_icinv.targets_uniform, so the baseline is bit-exact
+        and every already-committed run remains reproducible against the same file. New behaviour
+        goes in the new module only.
+    class_selection_rule_frozen:
+      primary_class: 'The largest ordinary class at p: maximum member count; ties broken by smallest
+        |t|, then smallest t. IDENTICAL to harness/run_saturation.py:run, so Arm A0 measures the same
+        object EV-ENDO-10109d measured. Selection is on class SIZE only and never on any measured
+        rate or variance, which would be circular.'
+      null_r_class: 'The largest ordinary class at p with #E = 2 mod 4 (hence 4 does not divide #E,
+        hence r = 1 on EVERY member) and >= 30 members. If no such class exists at a prime, substitute
+        the largest ordinary ODD-order class (r = 0 throughout) and DECLARE the substitution in the
+        run record. Selection is on #E mod 4 and member count only.'
+      secondary_class: 'Used only if the primary class has fewer than 20 members in either r stratum:
+        the largest ordinary class with >= 20 members in each of r = 1 and r = 3. Then persistence
+        is computed on the PRIMARY class (to keep the baseline comparison exact) and stratification
+        on the SECONDARY, and the split is declared. Selection is on r-stratum sizes only.'
+      completeness_gate: 'isogeny_class.class_census(p, classes) must return agrees: true for every
+        ordinary class used. Any disagreement makes the run INVALID.'
+    parameters:
+      primes_required:
+      - 2003
+      - 4001
+      - 6007
+      primes_stretch_optional:
+      - 10007
+      factor_base_rule: exp_icinv.factor_base_fixed_size (first `size` liftable x from 0)
+      factor_base_sizes:
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+      - 9
+      - 10
+      - 11
+      - 12
+      - 13
+      - 15
+      - 18
+      - 22
+      target_counts:
+      - 100
+      - 400
+      - 1600
+      target_count_primary: 400
+      seeds:
+      - 20260807
+      - 20260808
+      - 11235813
+      arity: 3
+      operating_density_target: 0.16666666
+      stratum_floor_for_verdict: 20
+      stratum_floor_for_reporting: 8
+      null_statistic: exp_icinv.binomial_null_verdict (NULL-B), applied per class per stratum
+      forbidden_statistic: exp_icinv.permutation_null (NULL-C) may NOT be used anywhere in this experiment.
+        Per DEC-20260807-41c173 / EV-ENDO-10109d observation N2 it is a BETWEEN-class mean detector
+        only and must never be read as evidence about within-class structure in either direction.
+    arms_frozen:
+      A0_cyclic_bitexact: 'Targets from the COMMITTED exp_icinv.targets_uniform(E, order, T, seed);
+        rate denominator = the REQUESTED T, exactly as run_saturation.measure_at_ density does. Purpose:
+        bit-exact reproduction of EV-ENDO-10109d. This arm deliberately retains the two known defects
+        (identity-draw loss and the requested-count denominator) so the baseline is the true baseline.'
+      A1_cyclic_denominator_corrected: 'Same single-generator support as A0, but rejection-sampled
+        to exactly T distinct-draw non-identity targets and with the denominator equal to the number
+        of targets actually used. Purpose: ISOLATE the denominator defect from the coverage defect.
+        The A0 -> A1 delta is the denominator defect''s entire contribution; the A1 -> B delta is
+        the coverage defect''s.'
+      B_fullgroup: Targets [u]P + [v]G2 with u uniform on [0, n1), v uniform on [0, n2), G2 of exact
+        order n2 = group exponent and P generating the cyclic quotient E/<G2>; rejection-sampled to
+        exactly T non-identity targets; per-curve denominator. Support certified equal to E(F_p) by
+        enumeration.
+      C_planted_index2: 'Targets uniform on [2]E(F_p), the unique index-2 subgroup of an r = 1 curve
+        with even order. Applied ONLY to an arbitrary declared half of the NULL-R class''s members.
+        Purpose: PLANTED SIGNAL. A coverage split of exactly the postulated shape is imposed on a
+        class where r does not vary, and the instrument must detect it.'
+    sampler_construction_frozen: "For E(F_p) ~= Z/n1 x Z/n2 with n1 | n2:\n  (1) #E = p + 1 - t from\
+      \ isogeny_class.trace_of_frobenius (exact character\n      sum), and t from the certified class.\n\
+      \  (2) n2 = the group exponent. PROPOSE it cheaply as the lcm of the exact\n      orders (exp_icinv._point_order)\
+      \ of the first 40 liftable points; set\n      n1 = #E / n2. This proposal is NOT trusted --\
+      \ step (5) certifies it.\n  (3) G2 := any measured point of exact order n2 (the first found).\n\
+      \  (4) If n1 = 1 the group is cyclic: set P := the identity, and Arm B\n      degenerates to\
+      \ [v]G2 over the whole group. THE ARMS MUST THEN AGREE\n      EXACTLY ON THAT CURVE up to the\
+      \ target-stream difference, which is a\n      required internal consistency check.\n      If\
+      \ n1 > 1: build S := <G2> as an explicit set (n2 points, one addition\n      each). Scan liftable\
+      \ x; for each lift Q compute the order of Q's image\n      in E/S by testing [i]Q in S for i\
+      \ = 1..n1; keep the first Q whose image\n      order is exactly n1 and set P := Q.\n  (5) EXACT\
+      \ SUPPORT CERTIFICATE, MANDATORY, PER CURVE PER ARM. Enumerate the\n      arm's support: for\
+      \ Arm B, all n1*n2 points [u]P + [v]G2 (computed\n      incrementally, #E additions total);\
+      \ for Arm A, <G>; for Arm C, [2]E.\n      Independently enumerate E(F_p) by lifting every x\
+      \ in F_p. Record\n      support_size, coverage_fraction = support_size / #E, and\n      support_equals_predicted\
+      \ (set equality against the predicted subgroup,\n      and for Arm B against the full enumerated\
+      \ point set). ANY FALSE MAKES\n      THE RUN INVALID. This replaces a birthday-style approximation\
+      \ with an\n      exact certificate, which toy scale makes affordable.\n  (6) UNIFORMITY OF THE\
+      \ INDEX STREAM. u and v come from\n      int(sha256(f\"{seed}:fg1:{i}\"),16) mod n1 and ...\"\
+      :fg2:{i}\" mod n2. The\n      modular reduction of a 256-bit hash by a modulus below 2^14 is\n\
+      \      non-uniform by under 2^-240; this is DECLARED, not hidden, and is\n      orders below\
+      \ every threshold in this contract."
+    cost_sharing_requirement: 'The exact m = 3 sum set is a function of (curve, fb_size) ALONE --
+      it does not depend on the arm, the seed, or T. It MUST be computed once per (curve, fb_size)
+      and reused for every arm, seed and target count. This is a contract requirement, not an optimisation:
+      it is what makes three seeds and three target counts nearly free, AND it guarantees that the
+      arms differ in the sampler and in nothing else. An implementation that recomputes sum sets per
+      arm is a defect even if its numbers agree.'
+  controls:
+  - NULL-B (exp_icinv.binomial_null_verdict) per class PER STRATUM PER ARM PER DENSITY, with the chi-square
+    dispersion test and its Wilson-Hilferty 95% acceptance band. The band widens as the stratum shrinks
+    (about [0.78, 1.25] at n = 138, [0.69, 1.36] at n = 69, [0.47, 1.73] at n = 20), so the band must
+    be recomputed per cell from that cell's own df and reported with every ratio.
+  - 'COVERAGE CONTROL, BLOCKING. The exact support certificate of every curve in every arm. Predicted:
+    Arm A coverage exactly 1.0 on r = 1 and exactly 1/n1 (predicted 0.5 where n1 = 2) on r = 3; Arm
+    B coverage exactly 1.0 on every curve; Arm C coverage exactly 0.5. This is the control that proves
+    the full-group sampler actually reaches ~100% on r = 3 curves, and it is exact rather than statistical.'
+  - 'MATCHED NULL, RUN AND READ FIRST. The NULL-R class under Arm B: r constant, coverage complete,
+    everything else identical. Its verdict is computed and written to the run record BEFORE the primary
+    class''s Arm B verdict is read (null-first, docs/inventor-protocol.md "controls before belief").'
+  - PLANTED SIGNAL, TWO-DIRECTIONAL INSTRUMENT CHECK (GOAL-ENDO-001 criterion C4). Arm C on an arbitrary
+    declared half of the NULL-R class. The instrument must DETECT this planted coverage split. Failing
+    to detect it does not invalidate the run; it refutes HEUR-CVAR-2 and withdraws H1's mechanism
+    attribution.
+  - 'BASELINE-REPRODUCTION CONTROL, BLOCKING. Arm A0 against the committed EV-ENDO-10109d numbers:
+    pooled variance ratio in [1.3, 3.6] at every density row at p = 4001 and p = 6007; monotonic_decay
+    False at both; operating-density row within +-0.25 of 1.918 (p = 4001) and 1.591 (p = 6007). Failure
+    makes the arm contrast uninterpretable and the run INVALID.'
+  - CYCLIC-CURVE IDENTITY CONTROL. On every curve with n1 = 1 the Arm A and Arm B supports must be
+    the SAME SET. Any disagreement is an implementation defect.
+  - VARIANCE-DECOMPOSITION IDENTITY CHECK. The measured VR_pooled must equal [(n1c-1)VR_1 + (n3c-1)VR_3]/(n-1)
+    + n*w*(1-w)*(mu_1-mu_3)^2/((n-1)*v) to 1e-9 relative. This is an algebraic identity; a mismatch
+    is a code defect.
+  - T-SCALING CONTROL. Variance ratio at T in {100, 400, 1600} on the same sum sets. A genuine per-curve
+    rate difference gives a ratio growing linearly in T; a flat profile means NULL-B is not measuring
+    what both this contract and EV-ENDO-10109d assume it measures.
+  - 'CERTIFICATE/CENSUS RULE (campaign standing rule). class_census agrees: true on every class used;
+    any certificate or census failure makes the run INVALID and never negative evidence.'
+  independent_variables:
+  - sampler arm (A0, A1, B, C) -- THE VARIABLE OF INTEREST
+  - factor-base size, hence m=3 sum-set density |3V|/#E (13 levels)
+  - r stratum (r = 1, r = 3, pooled)
+  - prime p (2003, 4001, 6007; 10007 optional)
+  - target count T (100, 400, 1600)
+  - seed (20260807, 20260808, 11235813)
+  - class role (primary, NULL-R, secondary if triggered)
+  metrics:
+    primary:
+    - variance_ratio_pooled[arm][prime][class][density][seed] -- observed per-curve rate variance
+      divided by the NULL-B binomial null variance mubar(1-mubar)/T, with the chi-square verdict and
+      the cell's own Wilson-Hilferty acceptance band.
+    - variance_ratio_by_r_stratum[arm][prime][class][density][r] for r in {1, 3}, with per-stratum
+      n, verdict and band. THE r=1 vs r=3 CONTRAST UNDER ARM A IS THE HYPOTHESIS'S SHARPEST TEST (prediction
+      P2).
+    - variance_ratio_within_strata_pooled[arm][prime][class][density] -- the residual over-dispersion
+      AFTER removing the r split, i.e. the within-stratum pooled variance over the same null, at df
+      = n-2.
+    - 'sampler_coverage_fraction[arm][prime][curve] = certified support size / #E, with support_equals_predicted,
+      summarised by r stratum (mean, min, max, variance). BLOCKING CONTROL.'
+    - mean_rate_by_r_stratum[arm][prime][class][density][r] and the difference delta_mu = mu_1 - mu_3
+      with its standard error sqrt(v*(1/n1c + 1/n3c)), v = mubar(1-mubar)/T.
+    - persistence_fraction F_p[prime] = fraction of density rows (over rows whose NULL-B verdict is
+      not "inconclusive") at which Arm B's VR_pooled > 1.3 AND the verdict is "over-dispersed"; and
+      the per-prime binary PERSISTS/COLLAPSES and the three-prime majority.
+    - stratification_verdict S (POSITIVE/NEGATIVE) and which of S1, S2, S3 fired, per density row
+      per prime, plus the aggregate.
+    - terminal_state in {INVALID, PREMISE-FAILED, OUTCOME-A, OUTCOME-B, OUTCOME-C} as computed by
+      the frozen decision rule below, emitted by the run itself.
+    secondary:
+    - decomposition_efficiency[arm][prime][curve][density] = rate * order / exp_icinv.max_sums(fb_size,
+      3), and its own NULL-B ratio. The dimensionless additive-collision statistic; reported per stratum.
+    - 'residual_after_3V_prediction[arm][...] -- per-curve rate minus that curve''s own |3V|/#E, its
+      variance, and its ratio to the binomial null (the statistic run_saturation.measure_at_density
+      reports). NOTE AND REPORT: on Arm A''s r = 3 curves the measured rate estimates |3V ^ H|/|H|
+      while |3V|/#E is computed on the FULL group, so this residual is systematically mis-centred
+      on exactly the stratum at issue -- a defect of the committed statistic that this experiment
+      must surface rather than inherit.'
+    - sum_set_size |3V| and density |3V|/#E per curve, r-stratified
+    - variance_ratio_vs_T at T in {100, 400, 1600} with the fitted slope of VR(T) - 1 against T and
+      the implied per-curve rate sd sigma
+    - group structure (n1, n2) per curve (proposed cheaply, CERTIFIED by the support enumeration),
+      r per curve via exp_icinv.two_torsion_x_count, and the cross-tabulation of r against n1 mod
+      2
+    - 'mechanism_accounting: the fraction of the pooled excess VR_pooled(A) - 1 attributable to each
+      of the three terms of the variance-decomposition identity, at every density row'
+    - 'NULL-R class results: Arm B (matched null) and Arm C (planted signal) pooled ratios and verdicts,
+      reported before the primary class''s Arm B verdict'
+    - 'arm deltas: A0 -> A1 (denominator defect) and A1 -> B (coverage defect), per density row, as
+      ratios and as absolute variance differences'
+    - 'baseline reproduction deltas: Arm A0''s numbers minus the committed EV-ENDO-10109d values,
+      per density row, at p = 4001 and p = 6007'
+    - per-curve targets requested, returned, distinct, and the birthday approximation |S|(1 - (1 -
+      1/|S|)^T) with a +-4 sigma band -- a SECONDARY empirical uniformity check behind the exact certificate
+    - m = 2 decomposition rate and its NULL-B ratio, recorded free from the same sum sets, reported
+      and never used to select a verdict
+    - wall clock, peak RSS, and point-addition counts per stage
+  heuristic_under_test: HEUR-COV-1
+  heuristic_under_test_note: Stage 1 validates HEUR-COV-1 (the committed sampler's support is a cyclic
+    subgroup of index exactly n1, and r fixes n1's parity) and can terminate the experiment on its
+    own. Stage 2's planted arm validates HEUR-CVAR-2 (an index-2 coverage split of the postulated
+    size is DETECTABLE at these parameters). The experiment also tests the main claim H1, so the single-id
+    schema field names only the heuristic that gates everything else.
+  preregistered_prediction:
+    quantity: The NULL-B variance ratio of the m = 3 decomposition rate, decomposed by sampler arm
+      and by r stratum, at the density row nearest |3V|/#E = 1/3!.
+    formula: "VR_pooled = [(n1c-1)VR_1 + (n3c-1)VR_3]/(n-1)\n            + n*w*(1-w)*(mu_1-mu_3)^2\
+      \ / ((n-1)*v),  v = mubar(1-mubar)/T,\n            w = n3c/n     [EXACT IDENTITY, used as an\
+      \ implementation check]\nCoverage:   gen_order/#E = 1/n1;  r = 3 => n1 even   [IDENTITY] Mechanism:\
+      \  density_H = 1 - exp(-lambda(1+delta^3)) ~= mubar\n                       + lambda*exp(-lambda)*delta^3,\n\
+      \            lambda = -ln(1 - mubar), delta = (k'-l')/s the coset imbalance of\n           \
+      \ the s antipodal factor-base pairs  [APPROXIMATION, DECLARED]\nT-scaling:  VR(T) ~= 1 + T*sigma^2/(mubar(1-mubar))\
+      \ FORCED VALUES, COMPUTED NOW, BEFORE ANY RUN. At mubar = 0.167 and T = 400, v = 3.478e-4 and\
+      \ sqrt(v) = 0.0186. To account for the committed excesses (VR - 1) = 0.918 at p = 4001 and 0.591\
+      \ at p = 6007 through a MEAN split alone at w = 1/2 would require |mu_1 - mu_3| = 0.0357 and\
+      \ 0.0287 respectively -- 21% and 17% of the mean rate. The mechanism of H-ICINV-6c7920 STEP\
+      \ 3 predicts a mean split an order of magnitude SMALLER than that, and predicts the excess to\
+      \ sit in the WITHIN-r=3 variance instead (an r=3 rate spread of order 0.021 at the operating\
+      \ density against a binomial sd of 0.0186). SO THE PREDICTED SIGNATURE IS VR_3 >> VR_1 ~= 1\
+      \ WITH A SMALL MEAN SPLIT, and an observed LARGE mean split with equal stratum variances would\
+      \ refute the stated mechanism even while confirming that r matters."
+    source: Derived in ledger/hypotheses/H-ICINV-6c7920.yaml, mechanism STEPS 1-3, from the committed
+      harness source (harness/exp_icinv.py:targets_uniform, _point_order, decomposition_rate_m3, max_sums,
+      binomial_null_verdict) and elementary finite-abelian-group structure. NO EXTERNAL CITATION IS
+      ASSERTED for any formula above. The Lenstra structure theorem is referenced in the hypothesis
+      ONLY as explanatory background and carries its "citation to be re-verified" qualifier from IDEA-20260807-0a3272
+      unchanged; no number in this contract depends on it.
+  frozen_decision_rule:
+    evaluation_order: 'Terminal states are evaluated STRICTLY IN THIS ORDER and the first that fires
+      is the run''s verdict. The set is EXHAUSTIVE and DISJOINT by construction: no configuration
+      of results leaves every state unfired, and no configuration fires two.'
+    state_0_INVALID:
+      fires_when: Any invalidation rule below fires; or fewer than two primes yield a persistence
+        verdict (see state_2).
+      meaning: Not evidence. Returns to the Executor with the concrete defects listed.
+    state_1_PREMISE_FAILED:
+      fires_when: 'Stage 1''s exact coverage certificate does not stratify by r: some r = 1 member
+        has coverage != 1.0, or some r = 3 member has coverage = 1.0, or a certified coverage fraction
+        differs from 1/n1 for the certified (n1, n2).'
+      meaning: The measured fact this experiment is built on does not reproduce at these primes and
+        classes. H1 is withdrawn as MIS-SPECIFIED, not refuted, and EV-ENDO-10109d is untouched in
+        either direction. Costs minutes; runs before any sweep.
+    state_2_persistence_statistic:
+      per_prime: 'F_p := (number of density rows at which Arm B''s VR_pooled > 1.3 AND the NULL-B
+        verdict is "over-dispersed") / (number of density rows whose NULL-B verdict is not "inconclusive").
+        Rows returning "inconclusive" (degenerate null: mean rate 0 or 1, which the saturated end
+        of the grid can produce) are excluded from BOTH numerator and denominator and are reported.
+        If more than 1/3 of a prime''s rows are inconclusive, that prime yields NO persistence verdict
+        and is excluded.'
+      per_prime_binary: PERSISTS iff F_p >= 1/2; COLLAPSES iff F_p < 1/2.
+      aggregate: 'MAJORITY over the three required primes. With three primes and a binary per prime
+        the majority is ALWAYS defined, which is why three primes are required and not two: a two-prime
+        design admits a 1-1 split with no verdict, and this contract must not contain such a gap.
+        If only two primes yield a verdict and they disagree, the terminal state is INVALID (insufficient
+        measurement) and the run returns for the third prime -- an incompleteness, never a result.'
+      threshold_1_3_rationale: 1.3 is the FLOOR of the range EV-ENDO-10109d reports ([1.3, 3.6]).
+        Requiring Arm B to fall below the entire committed range, not merely below its middle, is
+        what makes OUTCOME A a claim that the finding is gone rather than attenuated. It is frozen
+        here and is not tunable after the data.
+    state_2_OUTCOME_A_sampler_artifact:
+      fires_when: aggregate persistence verdict is COLLAPSES.
+      meaning: Under a certified full-group sampler the within-class over-dispersion falls to the
+        binomial null across the density sweep. EV-ENDO-10109d's headline is then an ARTIFACT of the
+        single-generator sampler and MUST BE SUPERSEDED by a new evidence record; the density-independence
+        result is reinterpreted as a property of the instrument, since a coverage split does not decay
+        with sum-set size.
+      mandatory_qualifications_reported_with_it: (i) whether P2 held (over-dispersion confined to
+        the r = 3 stratum under Arm A) -- if the r = 1 stratum was ALSO over-dispersed, the collapse
+        is not explained by coverage and must be labelled UNEXPLAINED; (ii) whether P4 held (planted
+        control detected) -- a collapse with a failed planted control is likewise UNEXPLAINED; (iii)
+        the mechanism_accounting fraction (P6); (iv) the A0->A1 vs A1->B split, so the denominator
+        defect is not credited with the coverage defect's work.
+    state_3_stratification_statistic:
+      evaluated_only_if: aggregate persistence verdict is PERSISTS.
+      S_POSITIVE_iff: At >= 1/2 of the (non-inconclusive) density rows at >= 2 of the 3 primes, at
+        least one of S1, S2, S3 holds on ARM B, computed only on cells where BOTH r strata have >=
+        20 curves (cells with 8-19 are reported as weak_stratum and excluded from the verdict; cells
+        below 8 are reported as insufficient_stratum and excluded).
+      S1_mean_split: '|mu_1 - mu_3| >= 3 * sqrt(v * (1/n1c + 1/n3c)), v = mubar(1-mubar)/T.'
+      S2_variance_accounted: VR_within(B) <= 0.6 * VR_pooled(B) AND VR_within(B) lies inside its own
+        chi-square acceptance band at df = n-2 -- i.e. removing the r split accounts for the majority
+        of the excess and what remains is binomial.
+      S3_stratum_specific_dispersion: max(VR(B,r=1), VR(B,r=3)) >= 2 * min(VR(B,r=1), VR(B,r=3)).
+        The factor 2 is set above the widest acceptance band this design admits at the n = 20 floor
+        ([0.47, 1.73], a span of 3.7x on the ratio scale is NOT reached by a factor 2 comparison of
+        two independent estimates, so the threshold is deliberately conservative against band width).
+    state_3_OUTCOME_B_real_r_effect:
+      fires_when: PERSISTS and S is POSITIVE.
+      meaning: 'The over-dispersion survives certified full-group sampling AND stratifies by r. r
+        is then a genuine class-varying functional affecting a toy relation-collection statistic.
+        H1 IS REFUTED (the effect is not a sampler artifact) while IDEA-20260807-0a3272''s tracked
+        object is vindicated. STILL TOY SCALE, STILL NO ATTACK, STILL sota_delta ZERO: this would
+        be a statement about an exact-enumeration statistic on curves with p <= 6007, and KN-TECH-030
+        keeps the 2-part irrelevant to the ECDLP in the prime-order subgroup.'
+    state_4_OUTCOME_C_neither:
+      fires_when: PERSISTS and S is NEGATIVE.
+      meaning: The over-dispersion survives full-group sampling and does NOT stratify by r. Both named
+        explanations are eliminated -- saturation by EXP-ICINV-55c2d8, and sampler coverage here --
+        and the cause remains unknown. EV-ENDO-10109d's headline is STRENGTHENED by surviving a targeted,
+        mechanistically specific attack. This is a real and likely outcome and is not a failure; under
+        falsification condition F8 the batch must still deliver the r-stratified variance decomposition,
+        the NULL-R verdict, the T-scaling fit, and a named successor cause with its cost.
+    evidence_strength_calibration_frozen: A 3-0 majority on the persistence verdict permits an evidence
+      record of strength `replicated`. A 2-1 majority CAPS the resulting evidence record at `preliminary`
+      and the dissenting prime must be named in the record's observations. This is fixed before execution
+      so that strength cannot be chosen after seeing which way the majority went.
+  scale_relevance:
+    tier: toy
+    justification: 'p in {2003, 4001, 6007} (10007 optional). Complete isogeny-class enumeration is
+      O(p^2) and the exact m = 3 sum set is enumerated point by point, so this is a measurement instrument
+      and not an algorithm at any scale. NO CONCLUSION TRANSFERS TO CRYPTOGRAPHIC SCALE AND NONE IS
+      OFFERED. Every resulting evidence record is capped at claim_tier: toy. sota_delta is ZERO: nothing
+      here produces or claims a speedup against Pollard rho at 0.886 sqrt(N) (KN-TECH-001, KN-TECH-006),
+      the automorphism-discounted variant (KN-TECH-018), or BSGS (KN-TECH-031), and the ECDLP in the
+      prime-order subgroup is untouched because r is a 2-part invariant (KN-TECH-030).'
+    correspondence: null
+    correspondence_note: No sampling correspondence is used and none is available. Targets are drawn
+      DIRECTLY and uniformly from the group of each toy curve; the whole point of the experiment is
+      that the direct sampler must be certified rather than assumed. There is therefore no isometry
+      claim to state and no citation to make, which is why this field is explicitly null rather than
+      absent.
+  tail_checks:
+  - EXTREME-CURVE CHECK. At every (arm, prime, density) report the 3 curves with the largest and the
+    3 with the smallest measured rate, with their (a, b), r, (n1, n2), coverage fraction and |3V|.
+    If the pooled over-dispersion is driven by a handful of curves, the identity of those curves is
+    the finding; a variance ratio quoted without its tail is not interpretable. This is the check
+    that caught CORR-20260807-9f83be (an impossible rate on one curve) and it is made mandatory here
+    rather than incidental.
+  - DEGENERATE-RATE CHECK. Report every (curve, arm, density) with rate exactly 0.0 or exactly 1.0
+    and its |3V|/#E. Such a value against a non-extreme density is the signature of a collapsed sampler
+    and must be explained, not absorbed.
+  - COVERAGE TAIL. Report the minimum and maximum coverage fraction over all curves per arm per prime,
+    and every curve whose n1 > 2 (coverage below 0.5 on the cyclic arm), which the hypothesis does
+    not predict and which would extend rather than contradict the mechanism.
+  - CHI-SQUARE TAIL. Report the exact chi-square statistic and both Wilson-Hilferty bounds for every
+    cell alongside the ratio, so a verdict near the band edge is visible as such and is never presented
+    as decisive.
+  - T-SCALING TAIL. Report VR at T = 1600 against the linear prediction from the T = 100 and T = 400
+    points; a strong departure indicates the per-curve rates are not fixed across draws, which would
+    undermine NULL-B for every record in this campaign.
+  replication:
+    seeds:
+    - 20260807
+    - 20260808
+    - 11235813
+    independent_instances: 3
+    replication_note: Three independent primes (2003, 4001, 6007), each with a complete certified
+      class enumeration, are the replication units; 20260807 is the seed of the committed runs and
+      is required for the bit-exact baseline, the other two are independent. Seed replication is nearly
+      free because the sum sets are seed-independent and are reused (see inputs.cost_sharing_requirement).
+      Every threshold in the frozen decision rule aggregates over primes by majority and over density
+      rows by fraction, so no single seed, prime or row can carry a verdict.
+  budget:
+    wall_clock_seconds_per_run: 14400
+    total_cpu_hours: 12
+    maximum_memory_gb: 4
+    maximum_runs: 18
+    budget_note: 'One run record per (prime, class role): 3 primes x {Stage-1 premise check, primary
+      class, NULL-R class} = 9 core runs, plus up to 3 secondary-class runs if the stratum floor triggers,
+      plus headroom for re-runs, plus the optional p = 10007 stretch. Dominant cost is exact m = 3
+      sum-set enumeration, roughly 4*s^3 point additions per (curve, fb_size), about 1.1e5 additions
+      per curve over the whole fb grid; at ~200 curves per class that is ~2.3e7 additions per class,
+      minutes to low tens of minutes in Python. The support certificate adds ~#E point operations
+      per curve per arm. NO FIELD HERE IS NULL: an unbudgeted task is one this Coordinator must reject
+      under its own operating rules.'
+  stopping_rules:
+  - 'SR1 STAGE GATE. Stage 1 (coverage certificate, all three primes, no sweep) runs FIRST and costs
+    minutes. If PREMISE-FAILED fires, STOP: report, and do not evaluate OUTCOME A/B/C at all.'
+  - 'SR2 NULL FIRST. Stage 2 (NULL-R class: Arm B matched null and Arm C planted signal) runs and
+    is WRITTEN TO THE RUN RECORD before Stage 3''s primary-class Arm B verdict is read. The null-first
+    ordering is part of the protocol, not a convenience.'
+  - SR3 BASELINE GATE. Stage 3 begins with Arm A0 at p = 4001 and p = 6007. If the baseline-reproduction
+    control fails, STOP and return the defect; do not run Arm B, whose contrast would be meaningless.
+  - SR4 FROZEN GRID. Stop at the declared primes, factor-base sizes, target counts and seeds. NO extension,
+    no additional density row, no additional prime and no additional seed without a versioned protocol_amendment
+    filed under experiments/EXP-ICINV-4d33aa/amendments/ BEFORE the extra data is generated.
+  - SR5 BUDGET. On exceeding wall_clock_seconds_per_run, stop that run and record status failed_infrastructure
+    with the partial artifacts retained. Per AGENTS.md rule 5 this is never negative mathematical
+    evidence and never a verdict.
+  - SR6 NO OUTCOME SHOPPING. The terminal state is computed by the frozen decision rule inside the
+    run and written to the run record. It is not selected by a human afterwards, and the set of reported
+    metrics does not depend on which state fired.
+  invalidation_rules:
+  - 'class_census returns agrees: false for any class used -> INVALID (enumeration incomplete).'
+  - 'Any curve''s exact support certificate fails: support_equals_predicted false, or Arm B coverage_fraction
+    != 1.0, or Arm A coverage_fraction != 1/n1 for the certified (n1, n2) -> INVALID. A sampler whose
+    support is not what it claims cannot be compared to one that is.'
+  - The arms are not measured on identical curve sets, factor bases, factor-base sizes, target counts
+    or seed values -> INVALID. The design's entire claim is that ONE thing changed.
+  - Sum sets are recomputed per arm rather than shared per (curve, fb_size) -> INVALID, even if the
+    numbers happen to agree; the shared computation is what guarantees arm comparability.
+  - Arm A0 fails the baseline-reproduction control -> INVALID.
+  - The variance-decomposition identity check fails beyond 1e-9 relative -> INVALID (code defect).
+  - Fewer than the full declared curve set is measured in any (arm, density) cell, or curves are dropped
+    silently for any reason -> INVALID. A dropped curve is recorded with its reason and the cell is
+    marked, never quietly omitted.
+  - Fewer than two primes yield a persistence verdict, or exactly two yield verdicts that disagree
+    -> INVALID (insufficient measurement), returned for the missing prime.
+  - exp_icinv.permutation_null (NULL-C) is used anywhere in the analysis -> INVALID; it is a between-class
+    mean detector and this experiment is within-class throughout.
+  - harness/exp_icinv.py is modified by this experiment -> INVALID; the committed baseline must remain
+    callable and byte-identical.
+  - A timeout, crash, OOM, or dependency failure -> status failed_infrastructure, NOT invalid and
+    NOT negative evidence (AGENTS.md rule 5). Partial artifacts are retained and the run is resumed
+    or re-dispatched.
+  success_criterion: "The experiment SUCCEEDS iff ALL of the following hold, and it can plainly fail:\n\
+    \  (S-a) every class used is certified complete (class_census agrees: true);\n  (S-b) every curve\
+    \ in every arm carries a passing exact support certificate,\n        with Arm B coverage exactly\
+    \ 1.0 on every measured curve -- the positive\n        demonstration that the full-group sampler\
+    \ reaches 100% on r = 3 curves\n        where the cyclic sampler reaches 1/n1;\n  (S-c) Arm A0\
+    \ reproduces the committed EV-ENDO-10109d numbers within the\n        declared tolerance (ratio\
+    \ in [1.3, 3.6] at every density row,\n        monotonic_decay False, operating row within +-0.25\
+    \ of 1.918 at p = 4001\n        and 1.591 at p = 6007);\n  (S-d) the variance-decomposition identity\
+    \ check passes at every cell;\n  (S-e) the NULL-R matched null and the planted-signal arm are\
+    \ both measured and\n        reported BEFORE the primary Arm B verdict is read;\n  (S-f) the frozen\
+    \ decision rule terminates in EXACTLY ONE of OUTCOME-A,\n        OUTCOME-B, OUTCOME-C, with the\
+    \ persistence and stratification statistics\n        and all tail checks reported;\n  (S-g) at\
+    \ least two of the three required primes yield a persistence verdict.\nNEGATIVES THIS CRITERION\
+    \ ADMITS, EXPLICITLY. Success is NOT a particular outcome. OUTCOME-C -- the over-dispersion persists\
+    \ and r does not explain it, refuting H1 and strengthening the finding this experiment was built\
+    \ to attack -- fully satisfies the criterion. So does OUTCOME-B. The criterion FAILS on INVALID,\
+    \ on PREMISE-FAILED, on a failed baseline reproduction, on a failed support certificate, and on\
+    \ an insufficient number of primes. A contract in which no result counts as a failure would be\
+    \ rejected by this Coordinator, and this one is not such a contract."
+  falsification_criterion: "H-ICINV-6c7920 IS REFUTED, and the refutation is recorded as such rather\
+    \ than softened, if ANY of the following holds on a valid run:\n  (F-i)  the frozen persistence\
+    \ verdict is PERSISTS -- the over-dispersion\n         survives a certified full-group sampler,\
+    \ so it is not a coverage\n         artifact (this is OUTCOME-B or OUTCOME-C and is the single\
+    \ most likely\n         refutation route);\n  (F-ii) the r = 1 stratum -- covered completely by\
+    \ BOTH samplers -- is itself\n         over-dispersed under Arm A at >= 2/3 of density rows at\
+    \ >= 2 primes\n         (prediction P2 fails), in which case the coverage split cannot be the\n\
+    \         whole cause EVEN IF the pooled ratio collapses under Arm B, and the\n         collapse\
+    \ must be reported as UNEXPLAINED;\n  (F-iii) the NULL-R class is over-dispersed under Arm B (prediction\
+    \ P5 fails):\n         the effect exists where r is constant and coverage complete;\n  (F-iv)\
+    \ the planted index-2 restriction produces no detectable over-dispersion\n         (prediction\
+    \ P4 fails, HEUR-CVAR-2 refuted): the postulated mechanism is\n         too small to matter at\
+    \ these parameters, and no collapse may be\n         attributed to it;\n  (F-v)  the variance\
+    \ ratio is FLAT in T (prediction P7 fails): NULL-B is not\n         measuring a per-curve rate\
+    \ difference, and the deliverable is that\n         instrument finding, which would bear on EV-ENDO-10109d\
+    \ and on every\n         other NULL-B verdict in this campaign.\nSeparately, PREMISE-FAILED (the\
+    \ coverage certificate does not stratify by r) WITHDRAWS the hypothesis as mis-specified rather\
+    \ than refuting it, and leaves EV-ENDO-10109d untouched in either direction."
+  required_artifacts:
+  - experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/manifest.yaml
+  - experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/raw-result.json
+  - experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/command.txt
+  - experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/environment.json
+  - experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/stdout.log
+  - experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/stderr.log
+  - 'experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/coverage-certificates.json -- per curve per arm: (a,
+    b), r, certified (n1, n2), support_size, coverage_fraction, support_equals_predicted. BLOCKING
+    artifact.'
+  - experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/per-curve-measurements.json -- the full per (curve,
+    arm, fb_size, seed, T) table, so every aggregate in this contract is recomputable by a reviewer
+    without rerunning anything.
+  - experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/decision-rule-evaluation.json -- the frozen rule's
+    inputs, per-prime F_p, per-row S1/S2/S3, and the emitted terminal_state.
+  - experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/baseline-reproduction.json -- Arm A0 against the committed
+    EV-ENDO-10109d values, row by row.
+  - experiments/EXP-ICINV-4d33aa/runs/<RUN-ID>/tail-checks.json -- all five tail checks of the tail_checks
+    block.
+  - harness/exp_icinv_fullgroup.py
+  - harness/run_fullgroup.py
+  - A run manifest inference block recording requested_policy from the handoff, the resolved model
+    id, fallback_used and model_verified (AGENTS.md artifact policy and the CLAUDE.md model policy
+    note).
+  assigned_to: executor
+  approved_by: coordinator
+  approved_by_note: |-
+    SUPERSEDED BY THE APPROVAL RECORDED BELOW; THE ORIGINAL TEXT IS RETAINED
+    RATHER THAN DELETED. Written by the DRAFTING Coordinator while this contract
+    stood at status review_required, it read, verbatim:
+
+      "NOT APPROVED, DELIBERATELY. Status is review_required. Under AGENTS.md
+       rule 1 only a Coordinator approves an experiment, and under this
+       engagement's terms approval is the user's decision at step 4 of
+       /design-experiment. The Coordinator that wrote this contract has NOT
+       approved it and must not: a contract approved by its own author in the
+       same act is not a reviewed contract. No run may be executed against this
+       file until approved_by is filled by an approval decision record."
+
+    That condition is DISCHARGED, not waived. The contract was presented in full
+    at /design-experiment step 4; the user reviewed both frozen contracts and
+    answered "Yes both". Approval is a separate act from drafting, is recorded in
+    approved_at and approval_note above, and is dispatched by the handoff
+    TASK-20260807-3414fc. The pre-approval text is kept so this file's earlier
+    state stays readable (AGENTS.md rule 4: supersede, never overwrite).
+  provenance:
+    parent_idea_id: IDEA-20260807-0a3272
+    discharges: DEC-20260807-41c173 next action N8 (highest-priority open question)
+    supersession_candidate: If the terminal state is OUTCOME-A, EV-ENDO-10109d's headline finding
+      (the density-independent within-class over-dispersion) must be SUPERSEDED by a new evidence
+      record under a new id. AGENTS.md rule 4 forbids editing it; the correction path is a new record,
+      and only a Coordinator ledger archive may make that transition.
+    id_allocation_provenance: H-ICINV-6c7920, EXP-ICINV-4d33aa and BATCH-aa267f were supplied to this
+      record already allocated by the coordinating session that dispatched it, which states it minted
+      them with tools/allocate_id.py and confirmed them free with --check (AGENTS.md rule 14). This
+      record did not itself run the allocator; what it verified before writing is that no file or
+      record bearing any of the three tokens exists in the working tree. No identifier here was obtained
+      by scanning committed state for a maximum.
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: This Claude Code harness cannot resolve the policy aliases in orchestration/model-policies.yaml;
+      every alias falls back to the one model the session runs on. Recorded, never silently substituted
+      (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: No adapter probe receipt exists for this session; `python3 -m orchestration.adapter
+      doctor --probe` was not run.
+  approved_at: '2026-08-07'
+  approval_note: 'Approved by the Coordinator at /design-experiment step 4 after the user reviewed
+    both frozen contracts and answered ''Yes both''. The protocol is FROZEN from this point: any later
+    change requires a versioned protocol_amendment under this experiment''s amendments/ directory
+    and never an edit of this file (AGENTS.md rule 4). Runs already executed are never silently re-scored
+    against a changed prediction.'

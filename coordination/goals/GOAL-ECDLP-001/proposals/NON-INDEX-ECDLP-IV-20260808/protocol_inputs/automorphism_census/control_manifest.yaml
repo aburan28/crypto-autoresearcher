@@ -1,0 +1,46 @@
+schema: crypto.autoresearch.ecdlp.endo_control_schedule.v2
+status: frozen_control_schedule
+matching_keys: [p, N_subgroup, P, Q, field_bits, seed, trial_index, max_steps, max_restarts, success_definition]
+same_instance_requirement: >-
+  Every control in a row uses the source row's generated public instance and
+  the same trial/restart schedule unless the control definition explicitly
+  replaces the curve or labels while preserving the matching keys.
+controls:
+  C-BASE:
+    kind: ordinary_baseline
+    curve_source: source_instance
+    policy: ordinary
+  C-NEG:
+    kind: negation_baseline
+    curve_source: source_instance
+    policy: negation
+  C-RAND:
+    kind: same_order_random_curve_null
+    seed_derivation: sha256(seed || "C-RAND" || field_bits || row_id)
+    candidate_scan: ascending_candidate_index
+    acceptance: ordinary_curve_and_valid_N_subgroup_certificate
+    rejection_cap: 64
+    rejection_receipt: required
+    policy: [ordinary, negation, full]
+  C-RELABEL:
+    kind: action_destroying_relabel_null
+    permutation_derivation: sha256(seed || "C-RELABEL" || field_bits || row_id)
+    construction: fisher_yates_over_canonical_point_labels
+    preserve: [p, N_subgroup, P, Q, transition_count, serialization_length]
+    destroy: candidate_automorphism_action
+    policy: [ordinary, negation, full]
+  C-POS:
+    kind: excluded_positive_calibration
+    construction: predeclared_anomalous_or_small_embedding_case
+    primary_table: excluded
+    refusal_or_receipt: required
+expected_null_interpretation:
+  C-RAND: >-
+    A special-family policy reduction is interpretable only if the matched
+    random ordinary curve has a valid receipt and does not reproduce the
+    policy-specific reduction.
+  C-RELABEL: >-
+    A reduction that survives action-destroying relabeling is an artifact or a
+    generic walk effect until independently explained.
+  missing_control: refusal_table_entry_before_comparison
+post_observation_rule: no_threshold_or_control_definition_changes

@@ -1,0 +1,519 @@
+validation_report:
+  id: VAL-20260831-monob1423c
+  task_id: validator-mono-b1423c
+  experiment_id: EXP-MONO-b1423c
+  hypothesis_id: H-MONO-663fb4
+  snapshot_receipt: coordination/tasks/TASK-20260831-cca2c8/snapshot-receipt.json
+  snapshot_commit_verified: >-
+    8e8edf2d473e3f51f715580e137f3b0f5a54bf15 (git rev-parse HEAD on branch
+    ideas-ecdlp-20260830 matches exactly; parent commit is
+    9e786d21d60506b69fc6ecfe0620925ceece5130, matching the receipt's own
+    `parent_sha` field exactly, confirmed via `git rev-parse 8e8edf2d4^`).
+    `git status --short -- experiments/EXP-MONO-b1423c/
+    ledger/corrections/CORR-20260831-817847.yaml` is clean: no
+    working-tree-only artifact is being reviewed here, only a genuinely
+    committed, reachable snapshot.
+  run_ids: [RUN-MONO-b1423c-1]
+
+  review_plan_copy: >-
+    PRIOR (Coordinator, as stated in this task's assignment): EXP-MONO-b1423c
+    correctly reconstructed EXP-MONO-c819ba's own archived RO3 subgroup
+    positive control (exact C/F=1.0) and confirmed it lands exactly at the
+    permutation-test floor -- a genuine, maximally-extreme outlier -- but
+    found EXP-MONO-b19c6b's Fisher-combined statistic FAILS to reject when
+    this outlier is mixed into a ~49-curve background panel (combined p in
+    [0.47, 0.52]). The Coordinator believes this is a genuine, informative
+    negative finding about Fisher's method's known dilution property, not a
+    bug, and computed the extreme cell's own chi-squared contribution
+    (~19.8) as comparable in magnitude to the panel's own natural
+    fluctuation (df=98, sd~14). TASK (mine, joint J1-correctness): ATTACK
+    THIS. Verify the run executed as its frozen contract specifies;
+    independently re-derive the RO3 reconstruction, S5 (known-positive raw
+    p-values), and S1-S4 (Fisher-combined results) directly from
+    RUN-MONO-b1423c-1/raw-result.json and the implementation/ source (never
+    from Coordinator/correction prose); independently check whether the
+    Coordinator's mathematical dilution explanation is actually a correctly
+    computed, known statistical property here, or masks an implementation
+    bug, a non-representative background panel, or a construction error in
+    the positive control. Blindness: dispatched fresh and concurrently with
+    an independent Red Team session; do not read anything under
+    experiments/EXP-MONO-b1423c/reviews/red-team/ or any red-team-labeled
+    path, and disclose any sibling artifact observed. Also required:
+    independently assess whether this is the RIGHT KIND of positive control
+    for what H-MONO-663fb4 actually predicts (a mild, diffuse deviation
+    spread across many curves, not a single extreme outlier).
+
+  read_sibling_reports: false
+  read_sibling_reports_note: >-
+    `experiments/EXP-MONO-b1423c/reviews/` did not exist at all at task
+    start (confirmed via `find experiments/EXP-MONO-b1423c -type d`, which
+    showed only `implementation/` and `runs/RUN-MONO-b1423c-1/`); no
+    `red-team`-labeled path existed anywhere in the repository for this
+    experiment at any point during this review's analysis, recomputation,
+    or drafting. I created `reviews/validator/` myself only when writing
+    this report. No sibling review artifact of any kind was observed,
+    listed, or read at any point.
+
+  artifact_checks:
+    - check: >-
+        All 17 `archive_artifact_paths` in the snapshot receipt exist and
+        their content matches `path_sha256` exactly, verified against the
+        committed git blob at commit 8e8edf2d4 (not the working tree),
+        computed independently via `git show 8e8edf2d4:<path> | sha256`
+        for every path.
+      result: "PASS -- 17/17 match, 0 mismatches."
+    - check: >-
+        `code.commit` in manifest.yaml (af5528b494b1ef9486ba69f0f458e16e95bb748e)
+        is the design/approval commit the run actually executed against,
+        NOT the out-of-band-edited on-disk specification.yaml text (commit
+        9e786d21d, CORR-20260831-817847).
+      result: >-
+        PASS, independently confirmed by git-graph reasoning rather than
+        trusting the correction's prose: `git rev-parse 9e786d21d^` equals
+        af5528b494b1ef9486ba69f0f458e16e95bb748e exactly -- i.e. the
+        tampering commit's own PARENT is the commit the run was executed
+        at. `git show 9e786d21d --stat` touches exactly three files
+        (experiments/EXP-MONO-b1423c/specification.yaml,
+        ledger/handoffs/TASK-20260831-4876e6.yaml, and a different task's
+        snapshot-receipt.json), zero implementation files -- matching
+        CORR-20260831-817847's disclosure and ruling out any possibility
+        the executed code itself was altered by that commit.
+    - check: >-
+        `subgroup_control` in this contract's controls.py is genuinely
+        VERBATIM (byte-for-byte), not a reimplementation, against
+        EXP-MONO-c819ba's own source.
+      result: >-
+        PASS. Regex-extracted the function body from both files and
+        compared with Python string equality (`==`) directly, independent
+        of and in addition to run.py's own self-check
+        (`verify_subgroup_control_source_verbatim`): identical, character
+        for character.
+    - check: >-
+        `fields.py`, `curve.py`, `conv.py`, `groupstate.py`, `stats.py` are
+        byte-identical to EXP-MONO-b19c6b's own (twice-previously-reviewed)
+        sources, per the contract's reuse requirement.
+      result: "PASS -- `diff` against all five EXP-MONO-b19c6b sources produced zero output on every file."
+    - check: >-
+        manifest.yaml binds git commit, dirty-tree state, seed, environment,
+        resources, budget, and certificate discipline.
+      result: >-
+        PASS. commit af5528b49, dirty:true with a disclosed note (~23
+        unrelated paths elsewhere, none under experiments/EXP-MONO-b1423c/
+        -- spot-checked plausible against this session's own observed
+        concurrent-worktree activity), seed 20260901, python 3.13.1, numpy
+        2.4.0, darwin arm64, peak_rss 40124416 bytes, wall 4.518s (budget
+        600s/0.5GB, budget_breach:false), certificate {kind: none} --
+        correctly reflects no DLOG/relation claim, consistent with
+        AGENTS.md's claim-tier discipline and this record's own toy
+        `claim_ceiling`.
+
+  metric_recomputations:
+    - id: RECOMP-1
+      metric: RO3 group structure (independent of groupstate.py)
+      method: >-
+        Brute-force point count over F_307 for y^2=x^3+269x+6 via Legendre
+        symbol, plus an independently-written elliptic-curve group-law
+        implementation (add/double/negate) used to enumerate all points and
+        sample element orders, written from scratch without reading
+        groupstate.py's own algorithm.
+      result: >-
+        N=288 exactly (independent point count); a randomly sampled point
+        of order 96 confirms n2=96, giving n1=N/n2=3 -- matches the
+        contract's declared and archived (p=307,A=269,B=6,N=288,n1=3,n2=96)
+        exactly, WITHOUT relying on the reused CurveState implementation at
+        all.
+    - id: RECOMP-2
+      metric: Var_real for both known-positive cells (independent of conv.py)
+      method: >-
+        Applied H-MONO-663fb4's own mechanism step (5) directly: for FB = H
+        <= G of order h, Var_R N_m(R) = (N/h - 1) * h^(2m) / N^2 (subgroup
+        spectrum, m=4), computed from scratch in Python with no reference to
+        conv.py's algorithm.
+      result: >-
+        h=144: (288/144-1)*144^8/288^2 = 2229025112064.0. h=72:
+        (288/72-1)*72^8/288^2 = 26121388032.0. BIT-IDENTICAL to
+        raw-result.json's var_real for both cells. C/F = h/h = 1.0 in both
+        cases, matching C_over_F_real exactly. This independently confirms
+        conv.py's numeric output via an entirely separate closed-form
+        derivation and implementation, not merely a source diff.
+    - id: RECOMP-3
+      metric: Archived comparison values for RO3's subgroup arms
+      method: Read EXP-MONO-c819ba/execution_report.yaml's L4_positive_control_1_subgroup block directly.
+      result: >-
+        RO3_h=N/2: forced=1.0, measured=1.0, C/F=1.0. RO3_h=N/4: forced=3.0,
+        measured=3.0, C/F=1.0. Exact match to EXP-MONO-b1423c's own
+        reconstruction_verification block and to
+        `matches_c819ba_archived_exact_values: true` on both cells.
+    - id: RECOMP-4
+      metric: Background panel genuine, unmodified reuse
+      method: >-
+        Loaded EXP-MONO-b19c6b/runs/RUN-MONO-b19c6b-1/raw-result.json
+        directly, extracted stage3_per_curve_raw_pvalues.random-ordinary (48
+        curves), and independently computed
+        sha256(json.dumps(obj,sort_keys=True,default=str)) exactly as
+        run.py's own `sha256_of` does.
+      result: >-
+        Computed hash 530403e17b9d4870a21abe1ea1e1bcdb698e05a0916b4380725b9ae18fb0b23b
+        matches `background_panel_sha256` in RUN-MONO-b1423c-1's raw-result.json
+        exactly. The background panel is provably the genuine archived data,
+        not a reconstruction, recomputation, or alteration.
+    - id: RECOMP-5
+      metric: S1-S4 Fisher-combined mixed-panel p-values
+      method: >-
+        Wrote an independent, from-scratch Python implementation of Fisher's
+        method (statistic = -2*sum(ln p_i), df=2k) and the closed-form
+        even-df chi-squared survival function, cross-checked against
+        scipy.stats.chi2.sf; applied it to [S5 floor p-value] + [48
+        background p_var_raw or p_cf_raw values, read directly from
+        EXP-MONO-b19c6b's own raw-result.json].
+      result: >-
+        S1=S2 (Var) = 0.5197796626550032 (fisher_stat 96.64413440048166,
+        df=98). S3=S4 (C/F) = 0.47085766077181307 (fisher_stat
+        98.3572413619046, df=98). BIT-IDENTICAL to raw-result.json's S1-S4
+        and cross-checked against scipy.stats.chi2.sf to full agreement
+        (0.5197796626550051 / 0.47085766077180663, differing only in the
+        16th significant digit from floating-point summation order).
+    - id: RECOMP-6
+      metric: >-
+        Background-matching correctness (the concern the disclosed
+        out-of-band commit 9e786d21d / CORR-20260831-817847 raised).
+      method: >-
+        Read experiments/EXP-MONO-b1423c/implementation/run.py directly
+        (lines 169-171, 252-256), not the correction's prose.
+      result: >-
+        CONFIRMED CORRECT, independent of and in addition to
+        CORR-20260831-817847's own check: `background_p_var` (from
+        `p_var_raw`) is pooled ONLY into the Var Fisher panels
+        (`mixed_var`), and `background_p_cf` (from `p_cf_raw`) is pooled
+        ONLY into the C/F Fisher panels (`mixed_cf`), at every call site, no
+        exception. The ambiguity in the original frozen prose was never
+        exploited in the actually-executed code.
+    - id: RECOMP-7
+      metric: >-
+        THE CORE MATHEMATICAL-EXPLANATION CHECK (task item 4) -- is the
+        Coordinator's dilution explanation for S1-S4's non-rejection
+        correctly computed, and is it the actual reason?
+      method: >-
+        Independently computed, from the archived raw p-values and from
+        first principles (not from the Coordinator's commit message or any
+        prose): the extreme cell's own chi-sq contribution
+        (-2*ln(4.999750012499375e-05)); the chi2(df=98) null distribution's
+        mean/sd; the actual alpha=0.05 rejection threshold via
+        scipy.stats.chi2.ppf(0.95,98); the 48-curve background panel's own
+        realized chi-sq sum (excluding the injected cell) for both
+        statistics; and, going beyond what the archived record states, the
+        number of null draws that would be required to close the gap by
+        raising n_null_draws alone.
+      result: >-
+        Extreme-cell contribution: 19.80707510257234 -- matches the
+        Coordinator's commit-message figure "~19.8" exactly. chi2(df=98):
+        mean=98.0, sd=sqrt(196)=14.0 exactly -- matches "sd~14" exactly.
+        BUT the "comparable in magnitude" framing, while directionally
+        correct, understates the picture; sharper numbers: the alpha=0.05
+        rejection threshold is 122.108 (1.722 sd above the mean, not 1 sd).
+        The 48-curve background's OWN realized sum (excluding the injected
+        cell) is 76.837 (Var) / 78.550 (C/F) -- both chi2(df=96)-typical,
+        sitting ~1.4 sd BELOW their own null mean of 96 (unremarkable
+        fluctuation, not an anomalously quiet panel). Adding the injected
+        cell's 19.807 gives totals of 96.644 / 98.357 -- landing almost
+        EXACTLY at the FULL PANEL's null mean of 98, i.e. statistically
+        indistinguishable from a 49-value panel with NO injected signal at
+        all. The shortfall to the rejection threshold is 45.27 (Var) / 43.56
+        (C/F) chi-sq units -- more than DOUBLE the injected cell's
+        contribution. GOING BEYOND THE ARCHIVED RECORD: because S5 is a
+        PERMUTATION p-value with a hard floor of 1/(n_null_draws+1), the
+        maximum possible chi-sq contribution ANY single injected cell of
+        this construction could EVER supply is capped at
+        -2*ln(1/(n+1)), independent of how much more extreme the true
+        underlying deviation actually is -- at n=20000 that cap is exactly
+        19.807, already realized here (both cells hit count=0). Closing the
+        ~44-45-unit gap by raising n_null_draws alone would require ~467,000
+        draws even under the generous assumption that the background sat
+        exactly at its own theoretical mean, and ~2.9-6.8 BILLION draws
+        given the actually-realized background level -- computationally
+        infeasible at this panel size. CONCLUSION: the Coordinator's
+        explanation is CONFIRMED CORRECT and is not an artifact of an
+        unrepresentative background sample (the realized background level
+        is unremarkable) or of an implementation defect (dual-path control
+        is exact; S1-S4 independently reproduce bit-for-bit). It is in fact
+        a STRUCTURAL property of this exact configuration (one
+        floor-capped, permutation-derived p-value pooled unweighted into a
+        k=49 Fisher panel), not merely an unlucky draw -- no realistically
+        achievable increase in null-draw count could have flipped this
+        specific outcome for a single-cell-injection positive control of
+        this type.
+
+  control_checks:
+    - check: Reconstruction verification gates before any S1-S5 compute (stopping_rules).
+      result: >-
+        PASS, confirmed by reading run.py's control flow directly: the
+        all_verified check (lines ~111-161) executes and can halt as
+        `failed_infrastructure` strictly BEFORE the background panel is
+        loaded (line 163) or any null draw is performed -- matches both the
+        contract's stopping_rules and the execution_report's claimed
+        ordering.
+    - check: invalidation_rules compliance (no recomputation of the background panel; no modification of reused implementation files; S5 always reported alongside S1-S4).
+      result: >-
+        PASS on all three, confirmed by direct source reading and the byte-
+        identical diffs above. Background panel is loaded via a single
+        `json.load` plus field extraction, with no transformation.
+    - check: Dual-path control (route1 direct convolution vs route2 FFT) on both known-positive cells.
+      result: >-
+        PASS -- exact 0.0 relative difference on both cells, reconfirmed
+        both from the archived raw-result.json and from this review's own
+        full re-execution (below).
+    - check: >-
+        FULL INDEPENDENT RE-EXECUTION of the archived pipeline from a clean
+        scratch copy (implementation/ plus sibling EXP-MONO-b19c6b and
+        EXP-MONO-c819ba directories, laid out to mirror the repository's
+        relative-path structure, executed with zero modification).
+      result: >-
+        PASS -- reproduced S1, S2, S3, S4, reconstruction_verified,
+        dual_path_control_all_within_1e-9, outcome_label_per_spec_outcomes_block,
+        and background_panel_sha256 EXACTLY (bit-identical) to the archived
+        raw-result.json. Confirms the command/commit/seed as recorded
+        genuinely and deterministically reproduce the claimed evidence.
+    - check: >-
+        K5 positive control itself (the object of this whole experiment):
+        is the injected cell actually a genuine, maximally-extreme outlier,
+        independent of the S5 summary field?
+      result: >-
+        CONFIRMED. var_real (2,229,025,112,064.0 at h=144;
+        26,121,388,032.0 at h=72) exceeds EVERY ONE of the 20,000 null
+        draws (null_var_max 350,614,929.97 / 106,536,134.76 respectively) by
+        6.4x and 245x -- count=0 of 20000 is the only possible outcome, so
+        landing exactly at the 1/20001 floor on both statistics, both cells,
+        is forced by the construction and independently confirmed from the
+        raw null_distribution_summary fields, not merely asserted.
+    - check: >-
+        Negative/scope control -- does the record over-claim beyond its own
+        stated claim_ceiling anywhere in execution_report.yaml or
+        implementation.md?
+      result: >-
+        PASS. Both artifacts explicitly and repeatedly refuse to license any
+        claim about H-MONO-663fb4's own hypothesized "mild, diffuse"
+        deviation, any change to any ledger status, or any claim about a
+        different panel size or combining rule. No overclaim found anywhere
+        in the archived text.
+
+  heuristic_validation_checks:
+    not_applicable: true
+    reason: >-
+      This is a toy-scale statistical-machinery sensitivity check (does an
+      already-implemented test statistic reject a synthetic positive
+      control), not a heuristic distributional validation against a
+      pre-registered theoretical CDF (docs/target-result-profile.md's
+      Dickman-de-Bruijn-style profile). No such check applies; recorded
+      explicitly per agents/validator.md rather than silently omitted.
+
+  cost_model_checks:
+    not_applicable: true
+    reason: >-
+      No cost, exponent, or attack-cost claim appears anywhere in this
+      record (asymptotic_claim: null throughout H-MONO-663fb4's lane;
+      explicitly restated in this contract's claim_ceiling and this run's
+      execution_report). Confirmed absent by direct reading, not merely
+      assumed.
+
+  proof_architecture_checks:
+    not_applicable: true
+    reason: >-
+      Toy-scale empirical statistical check of an already-derived
+      unconditional identity's positive control, not a new proof-oriented
+      theorem, bound, or reduction. Section 8's portfolio does not apply
+      beyond what H-MONO-663fb4's own frozen proof_search_map already
+      discharges; this record does not reopen or extend that map.
+
+  is_this_the_right_kind_of_positive_control:
+    task_item_6_analysis: >-
+      NO, and the record's own claim_ceiling already says so correctly --
+      this independent review confirms that scoping is both accurate and,
+      per RECOMP-7, even more sharply true than stated. This experiment
+      establishes exactly one thing: an unweighted Fisher combination of one
+      permutation-floor-capped extreme p-value with 48 background p-values
+      does not reject at k=49. It establishes NOTHING about H-MONO-663fb4's
+      actually-hypothesized regime -- a MILD, DIFFUSE character-bias shift
+      spread across MANY curves, where many of the 49 p-values would each be
+      modestly (not maximally) shifted away from uniform. Those are
+      different statistical regimes: Fisher's method is the classical tool
+      of choice specifically for diffuse, many-small-effects signals (its
+      textbook comparative weakness is exactly the single-extreme-outlier
+      case this experiment tests), so a "sensitivity gap" here is close to
+      the LEAST informative case one could have chosen about the scenario
+      H-MONO-663fb4 predicts, though it remains a valid, honestly-scoped
+      finding about the specific configuration tested. RECOMP-7's floor
+      argument sharpens this further: because ANY single-cell-injection
+      design of this type is capped by the permutation floor's contribution
+      ceiling, no single-outlier positive control built this way (at any
+      practically reachable n_null_draws) could ever discharge K5 for the
+      Fisher-combined statistic at this panel size -- a DIFFERENT positive
+      control (e.g. several curves each carrying a modest, non-extreme
+      p-value shift, matching the mild/diffuse hypothesis's own shape) would
+      be needed to test the regime that actually matters to H-MONO-663fb4,
+      and this record correctly does not claim to have done so.
+
+  other_correctness_issues_checked:
+    - >-
+      S1=S2 and S3=S4 exactly: verified this is a forced mathematical
+      identity, not a bug -- both cells' own S5 raw p-values are identical
+      (both hit the same permutation floor), so the two "mixed panels" are
+      literally the same 49-element multiset under a relabeling, and
+      Fisher's statistic (a sum) is invariant to which element is called
+      "the treatment." No defect.
+    - >-
+      Independence assumption behind pooling: the 48 background p-values
+      (distinct curves, EXP-MONO-b19c6b's own random-ordinary family) and
+      the 1 injected p-value (a distinct curve, RO3, under this contract's
+      own independently-keyed seed_derivation_rule, domain
+      "EXP-MONO-b1423c/v1" vs "EXP-MONO-b19c6b/v1") are constructed from
+      disjoint seed derivations and disjoint curves; no shared-randomness
+      channel was found. The known p_var_raw/p_cf_raw within-curve
+      correlation the Red Team flagged in EXP-MONO-b19c6b (rho=0.727) does
+      not apply here because Var and C/F panels are never mixed with each
+      other in this contract (S1/S2 use only p_var_raw values; S3/S4 use
+      only p_cf_raw values).
+    - >-
+      background_panel_curve_ordinals correctly omits ordinals 24 and 44 (48
+      of a possible ~50): this is a property of which curves EXP-MONO-b19c6b's
+      OWN panel construction admitted as random-ordinary, inherited
+      unmodified by direct reuse, not a new construction defect introduced
+      here.
+
+  verdict: passed
+  j1_attack_verdict: holds
+  finding_summary: >-
+    Full bit-for-bit re-execution from a clean scratch copy reproduces every
+    reported number exactly. RO3's group structure, the subgroup positive
+    control's Var/C-F values, the background panel's exact identity, and
+    S1-S4's Fisher-combined values were ALL independently re-derived from
+    first principles and/or from-scratch reimplementation -- not merely by
+    re-running the producer's own code -- and every one matches the archived
+    record bit-for-bit or to full float precision. The out-of-band commit's
+    concern about background-panel/statistic matching is independently
+    confirmed never to have been a live defect in the executed code. The
+    Coordinator's dilution explanation for S1-S4's non-rejection is
+    confirmed mathematically correct and sharpened: it is not an artifact of
+    an unrepresentative background sample or an implementation bug, but a
+    structural consequence of pairing a floor-capped permutation p-value
+    with an unweighted Fisher combination at k=49 -- a genuinely informative
+    negative finding about this specific statistic's practical sensitivity
+    to a single extreme outlier at this panel size, and (as the record
+    itself already discloses, correctly) says nothing about the mild,
+    diffuse deviation regime H-MONO-663fb4 actually predicts.
+
+  limitations:
+    - >-
+      Toy scale only (single fixed curve RO3, N=288); no claim about
+      cryptographic scale, a different panel size, or a different combining
+      rule (weighted/rank-based Fisher variants remain untested).
+    - >-
+      This record's "sensitivity_gap_confirmed" outcome is scoped strictly
+      to a SINGLE-extreme-outlier positive control pooled via unweighted
+      Fisher combination at k=49; per task item 6 above, it establishes
+      nothing about the Fisher-combined statistic's sensitivity to the
+      mild, diffuse deviation H-MONO-663fb4 actually hypothesizes, and must
+      not be cited as if it did.
+    - >-
+      This report does not itself authorize any change to H-MONO-663fb4's
+      status, EXP-MONO-b19c6b's disposition, or GOAL-MONO-001's status
+      (AGENTS.md rule 1) -- that composition is the Coordinator's, informed
+      by this report and its Red Team counterpart.
+    - >-
+      Model-correlation note (inherited from this lane's prior records):
+      this review's resolved model is recorded in the runtime receipt;
+      readers should track this lane's ongoing model-correlation confound
+      across its reviews.
+
+  artifact_paths:
+    - experiments/EXP-MONO-b1423c/execution_report.yaml
+    - experiments/EXP-MONO-b1423c/implementation.md
+    - experiments/EXP-MONO-b1423c/implementation/controls.py
+    - experiments/EXP-MONO-b1423c/implementation/conv.py
+    - experiments/EXP-MONO-b1423c/implementation/curve.py
+    - experiments/EXP-MONO-b1423c/implementation/fields.py
+    - experiments/EXP-MONO-b1423c/implementation/groupstate.py
+    - experiments/EXP-MONO-b1423c/implementation/run.py
+    - experiments/EXP-MONO-b1423c/implementation/seed.py
+    - experiments/EXP-MONO-b1423c/implementation/stats.py
+    - experiments/EXP-MONO-b1423c/runs/RUN-MONO-b1423c-1/manifest.yaml
+    - experiments/EXP-MONO-b1423c/runs/RUN-MONO-b1423c-1/raw-result.json
+    - ledger/corrections/CORR-20260831-817847.yaml
+    - coordination/tasks/TASK-20260831-cca2c8/snapshot-receipt.json
+    - experiments/EXP-MONO-b1423c/reviews/validator/validation-report.yaml
+    - experiments/EXP-MONO-b1423c/reviews/validator/runtime-session-receipt.json
+
+  review_attestation:
+    task_id: validator-mono-b1423c
+    role: validator
+    joints_owned: [J1-correctness]
+    verdict: holds
+    read_sibling_reports: false
+    sources_read:
+      - CLAUDE.md
+      - AGENTS.md
+      - agents/validator.md
+      - docs/inventor-protocol.md (sections 3 and 6, referenced)
+      - ledger/hypotheses/H-MONO-663fb4.yaml
+      - ledger/evidence/EV-MONO-04d447.yaml
+      - ledger/decisions/DEC-20260831-fccd7e.yaml
+      - experiments/EXP-MONO-b19c6b/reviews/red-team/red-team-report.yaml
+      - experiments/EXP-MONO-b1423c/specification.yaml (on-disk, post-out-of-band-edit text)
+      - experiments/EXP-MONO-b1423c/execution_report.yaml
+      - experiments/EXP-MONO-b1423c/implementation.md
+      - experiments/EXP-MONO-b1423c/implementation/run.py
+      - experiments/EXP-MONO-b1423c/implementation/controls.py
+      - experiments/EXP-MONO-b1423c/implementation/stats.py
+      - experiments/EXP-MONO-c819ba/implementation/controls.py
+      - experiments/EXP-MONO-c819ba/execution_report.yaml (L4_positive_control_1_subgroup block)
+      - experiments/EXP-MONO-b1423c/runs/RUN-MONO-b1423c-1/raw-result.json
+      - experiments/EXP-MONO-b1423c/runs/RUN-MONO-b1423c-1/manifest.yaml
+      - experiments/EXP-MONO-b1423c/runs/RUN-MONO-b1423c-1/command.txt
+      - experiments/EXP-MONO-b1423c/runs/RUN-MONO-b1423c-1/environment.json
+      - experiments/EXP-MONO-b19c6b/runs/RUN-MONO-b19c6b-1/raw-result.json
+      - ledger/corrections/CORR-20260831-817847.yaml
+      - coordination/tasks/TASK-20260831-cca2c8/snapshot-receipt.json
+      - ledger/handoffs/TASK-20260831-4876e6.yaml (git show, for git-forensics diffstat)
+      - experiments/EXP-MONO-b19c6b/reviews/validator/validation-report.yaml (format reference only, per task instructions)
+      - experiments/EXP-MONO-b19c6b/reviews/validator/runtime-session-receipt.json (format reference only, per task instructions)
+    sources_not_read_and_why: >-
+      experiments/EXP-MONO-b1423c/reviews/red-team/ -- deliberately not
+      read, per this task's blindness requirement; confirmed not to exist
+      at any point during this review. knowledge/open-problems/KN-OPEN-009.md
+      and the original proposal chain were not re-read: this joint's
+      assigned attack surface (reconstruction fidelity, S5, S1-S4, and the
+      Fisher-dilution mathematics) does not turn on their text, and
+      H-MONO-663fb4's own mechanism block already restates their relevant
+      content.
+    independent_computations_performed:
+      - "Brute-force independent point count and group-structure recovery for RO3 (p=307,A=269,B=6) from scratch, bypassing groupstate.py entirely (RECOMP-1)."
+      - "Closed-form independent re-derivation of Var_real for both known-positive cells from H-MONO-663fb4's own mechanism formula, bypassing conv.py entirely (RECOMP-2)."
+      - "Independent sha256 recomputation of the background panel against EXP-MONO-b19c6b's own archived raw-result.json (RECOMP-4)."
+      - "From-scratch reimplementation of Fisher's combined-probability test and the even-df chi-squared survival function, cross-checked against scipy.stats.chi2.sf, applied to the raw background and injected p-values to reproduce S1-S4 (RECOMP-5)."
+      - "Full independent re-execution of run.py from a clean scratch directory mirroring the repository's relative-path layout, with zero modification to the archived implementation."
+      - "Computed the chi2(df=98) rejection threshold (scipy.stats.chi2.ppf(0.95,98)), the background-only chi-sq sums, and the null-draw counts required to close the observed gap by increasing n_null_draws alone (RECOMP-7)."
+      - "Programmatic byte-for-byte comparison of subgroup_control against EXP-MONO-c819ba's source and of fields/curve/conv/groupstate/stats.py against EXP-MONO-b19c6b's sources."
+      - "Verified all 17 snapshot-receipt path_sha256 entries against `git show 8e8edf2d4:<path>` directly."
+    environment:
+      python: "3.13.7 (session tool environment; independent of the archived run's own recorded 3.13.1)"
+      scipy: available in session environment, used for cross-checks only
+      platform: darwin (session host)
+      network: none used
+      scratch_location: "$TMPDIR/validator_rerun (session scratchpad only)"
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    model_verified_reason: "No adapter probe receipt exists for this session; the resolved id is self-reported by the runtime binding described in CLAUDE.md."
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; reasoning effort is bound per
+      subagent via agent-file frontmatter, model selection is not.
+      Recorded, never silently substituted.
+    status_changes_made: none
+    ledger_writes_made: none
+    commits_made: none
+    write_scope_respected: true
+    files_written:
+      - experiments/EXP-MONO-b1423c/reviews/validator/validation-report.yaml
+      - experiments/EXP-MONO-b1423c/reviews/validator/runtime-session-receipt.json

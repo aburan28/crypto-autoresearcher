@@ -1,0 +1,230 @@
+idea:
+  id: IDEA-20260831-bd0356
+  question_id: RQ-AUXIN-f8d8c0
+  goal_id: GOAL-AUXIN-a93442
+  title: >-
+    Reproduce Cheon's sqrt(d) win at toy scale on planted-divisor curves, with a
+    no-divisor null control, and certify every recovered scalar
+  class: mechanism
+
+  claim: >-
+    On a synthetic curve whose order r is chosen so that r-1 carries a planted
+    divisor d, an implementation of Cheon's algorithm given (P, [x]P, [x^d]P)
+    recovers x in measured work scaling as sqrt(r/d) + sqrt(d), certified by
+    recomputing [x]P; and on a matched curve of the same size whose r-1 carries
+    no divisor in the useful range, the SAME implementation given the same shape
+    of input does not beat rho. The pair is the claim. Either half alone proves
+    nothing: the positive alone could be an implementation reading the answer
+    out of its own setup, and the negative alone could be a broken solver.
+
+  mechanism: >-
+    Cheon's algorithm turns the auxiliary point into a two-stage baby-step
+    giant-step over a subgroup of Z/rZ^*: with d | (r-1) and a generator whose
+    order structure exposes a size-d subgroup, one stage searches
+    (r-1)/d cosets and the other searches within a coset, giving
+    sqrt((r-1)/d) + sqrt(d) group operations rather than sqrt(r).
+
+    This program has never run it. It has REASONED about it twice --
+    DEC-20260802-204 reclassifying APR-206 as a rediscovery, DEC-20260802-206
+    retaining it as a prior-art baseline -- both times from the literature's
+    stated cost rather than from a measurement. A baseline this program cites in
+    decisions but has never executed is exactly the kind of inherited number the
+    inventor protocol says to reproduce before building on it. The reproduction
+    also gives the goal something the arithmetic census cannot: a working
+    implementation against which any future auxiliary-input claim can be gated.
+
+  tracked_object: >-
+    Measured group-operation count to recover x, as a function of the planted
+    divisor d, on curves of fixed size.
+
+  lossy_projection_test: >-
+    PASSES. The projection (curve, auxiliary input) -> (operation count to
+    recover x) discards everything except the one number the cost model
+    predicts. It is compatible with the operations the experiment performs --
+    varying d moves the predicted count deterministically -- and is
+    non-injective in the way that matters: many different curves with the same
+    (r, d) shape should give the same count, which is itself a testable
+    prediction and is tested by replicating across seeds.
+
+  novelty_status: known
+  novelty_note: >-
+    The algorithm is known prior art, classified as such by DEC-20260802-208
+    with a filed primary source. NOTHING about this reproduction is novel and no
+    record under it may claim otherwise. Its value is baseline hygiene: it
+    converts a cited cost into a measured one and produces a certified,
+    null-controlled implementation this program currently lacks.
+
+  citations:
+    - ref: ledger/decisions/DEC-20260802-206.yaml
+      provenance: internal
+      claim: >-
+        Component B033-C5 `cheon_auxiliary_input_route`, disposition
+        `retain_as_known_prior_art_baseline`, with input "G, alpha*G, alpha^d*G",
+        time "O(sqrt((r-1)/d)+sqrt(d))", balanced_time_exponent 0.25, and
+        novelty "known_prior_art". Relied on for the exact baseline this
+        reproduction measures and for the prohibition on claiming novelty.
+      verified_by: >-
+        session for RQ-AUXIN-f8d8c0, 2026-08-31 -- record read directly in the
+        working tree (no TASK id issued)
+    - ref: "Kozaki-Kutsuma-Matsuo, Pairing 2007; Sakemi et al. (experimental DLPwAI solves)"
+      provenance: recalled
+      claim: >-
+        RELAYED, NOT READ. The 2026-08-31 external coverage-gap input document
+        cites KKM for speedups and Sakemi et al. for experimental solves (a
+        128-bit-order DLPwAI in roughly 45 hours on one PC; 1314 core-days at
+        160-bit order). These numbers are NOT verified by this program and must
+        not be used as a comparison target until the sources are read and filed.
+        Listed only so the reproduction's scale can be sanity-checked later.
+      verified_by: null
+
+  assumptions:
+    - >-
+      Curve construction with a planted divisor of r-1 is feasible at toy sizes
+      by searching curve parameters until the order has the wanted structure.
+      This is a search cost, not a mathematical obstacle, but it is the step
+      most likely to blow the budget and must be bounded in the contract.
+    - >-
+      The matched no-divisor control curve is the same bit size and differs only
+      in the divisor structure of r-1. If the control differs in size too, the
+      comparison is confounded and worthless.
+
+  predictions:
+    - metric: >-
+        measured group operations to recover x, vs the predicted
+        sqrt((r-1)/d) + sqrt(d)
+      direction: different
+      minimum_effect: >-
+        Measured count within a constant factor (target: within 4x) of predicted
+        across at least three planted d values spanning small, balanced and
+        large. Systematic deviation is a finding about the implementation or the
+        cost model and is reported as such.
+    - metric: >-
+        operations on the matched no-divisor control
+      direction: higher
+      minimum_effect: >-
+        No better than the measured rho baseline on the same curve. A control
+        curve that "wins" indicates the harness is leaking the answer.
+    - metric: certificate verification rate
+      direction: different
+      minimum_effect: >-
+        100 percent. Every claimed recovery recomputes [x]P and compares to the
+        input. A single unverified claimed solve invalidates the run under
+        docs/claims-and-verification.md.
+
+  minimal_test:
+    design: >-
+      (1) Construct toy curves (16-40 bit orders) with planted divisors d of
+      r-1 at three sizes: d small, d near sqrt(r), d large.
+      (2) Construct matched control curves of identical bit size whose r-1 has
+      no divisor within the useful band.
+      (3) Implement Cheon's two-stage search; instrument group operations
+      through the existing abstract-machine metering so the count is comparable
+      to the program's rho baseline.
+      (4) Recover x on every instance; recompute [x]P and verify.
+      (5) Run the identical code path on the control curves.
+      (6) Replicate across seeds; report per-seed counts, not just means.
+    controls:
+      - >-
+        POSITIVE: planted d near sqrt(r) must reach approximately r^{1/4}
+        operations. Failure means the implementation does not realize the
+        algorithm and no control result may be interpreted.
+      - >-
+        NULL OBJECT: matched curve with no useful divisor of r-1, same size,
+        same input shape, same code path. Must not beat rho.
+      - >-
+        CERTIFICATE: every recovered x recomputed as [x]P and compared. Runs
+        that claim a discrete log without a verified certificate are invalid --
+        this is the exact failure the repository's own validator flags on
+        EXP-ISOU runs today, and this experiment must not add to it.
+      - >-
+        BUDGET/INFRA: a timeout or crash is recorded as an infrastructure
+        outcome and is never reported as evidence about the algorithm.
+    required_metrics:
+      - group operations per instance, per seed, per planted d
+      - measured rho baseline on the identical curves at identical accounting
+      - certificate verification outcome per claimed solve
+      - curve-construction search cost, reported separately from attack cost
+      - wall clock, and any budget exhaustion
+
+  falsification_conditions:
+    - >-
+      Planted d near sqrt(r) does not produce approximately r^{1/4} scaling. The
+      implementation is wrong; nothing else in the run may be interpreted.
+    - >-
+      The no-divisor control is solved faster than rho. The harness is leaking
+      the scalar and every number in the run is void.
+    - >-
+      Any claimed recovery fails certificate verification.
+
+  confounders:
+    - >-
+      Toy sizes are constant-dominated. An exponent read off 16-40 bit curves is
+      not an asymptotic measurement, and the report must give the fitted
+      exponent WITH its constant and its range rather than a bare slope.
+    - >-
+      Curve-construction cost is not attack cost. Planting a divisor requires
+      searching curve parameters; folding that into the attack cost would
+      understate the attack and folding it in the other direction would
+      overstate it. It is reported as its own line.
+    - >-
+      The auxiliary point is supplied by the harness. That is the definition of
+      the problem, not a shortcut -- but it means the measurement says nothing
+      about ordinary ECDLP, and every artifact must state that in the same
+      breath as the result.
+
+  interpretation_limits:
+    - >-
+      This reproduces known prior art at toy scale. It establishes no novelty,
+      no ordinary-ECDLP result, and nothing about deployed curves.
+    - >-
+      A successful reproduction means the program owns a working baseline. It
+      does not mean the attack is relevant anywhere: relevance is decided by
+      IDEA-20260831-df4197 (does a real curve have the divisor) and
+      IDEA-20260831-ccb587 (does a real protocol supply the point).
+    - >-
+      Sequenced AFTER the divisor census. If no deployed curve has a useful
+      divisor, this reproduction is still worth having as a baseline, but its
+      priority drops sharply and the contract should say so rather than running
+      it out of momentum.
+
+  heuristic_assumptions: []
+  heuristic_assumptions_note: >-
+    None mathematical. The only inference beyond measurement is the fit of an
+    exponent to toy-scale counts, which is reported as a fit with its range and
+    is never extrapolated to cryptographic size.
+
+  target_complexity:
+    time_exponent: >-
+      r^{1/4} at the balanced divisor, r^{1/2} on the control. Toy sizes
+      throughout; total compute small.
+    memory_exponent: >-
+      sqrt(d) for the table stage in the naive form; the low-memory
+      distinguished-point variant noted in DEC-20260802-204 is a follow-on, not
+      part of this reproduction.
+    best_known: >-
+      Cheon's own analysis. This measures against it; it does not compete with it.
+    hidden_overhead: >-
+      Curve construction with planted divisors dominates setup and is the most
+      likely budget failure.
+    tradeoff_note: >-
+      The naive form trades sqrt(d) memory for its time win; reporting time
+      without charging that memory would flatter the baseline this program
+      intends to cite later.
+
+  null_object_control: >-
+    Matched same-size curve whose r-1 has no divisor in the useful band, run
+    through the identical code path with the identical input shape. Required
+    before any positive is believed.
+
+  dominated_by: >-
+    Cheon's published algorithm, entirely. This is a reproduction of it and
+    claims no improvement on any axis.
+  sota_delta: >-
+    Zero by construction. No speedup, no new bound, no novelty. The deliverable
+    is a certified, null-controlled implementation and a measured baseline
+    replacing a cited one.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium

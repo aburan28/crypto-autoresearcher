@@ -1,0 +1,120 @@
+coordinator_decision:
+  id: DEC-20260904-67cde4
+  context: >-
+    Superseding decision for GOAL-MONO-001. Supersedes DEC-20260904-0f525b
+    (resume-for-review) ON ITS RESUMPTION LEG ONLY: that decision approved
+    resumption conditioned on review-breakthrough resolving undegraded at max
+    on a credentialed backend. It did resolve to a credentialed backend, but
+    the max-effort requirement specifically is now shown unservable by direct
+    API evidence recorded below. The goal therefore STAYS paused,
+    blocked-on-review, with a refined pause reason and precise unblock
+    conditions. Nothing in DEC-20260810-2f86db is altered; no review was
+    obtained; NO ATTESTATION, VERDICT OR REVIEW IS RECORDED, BECAUSE NONE WAS
+    OBTAINED.
+  decision: pause
+  target_ids: [GOAL-MONO-001, DEC-20260904-0f525b, DEC-20260810-2f86db]
+  rationale:
+    - id: R-1
+      text: >-
+        WHAT CHANGED SINCE D-8 OF DEC-20260810-2f86db. Credentials now exist
+        for fireworks, fireworks-anthropic, openai, zai and zai-anthropic
+        (`orchestration.adapter doctor --probe`, 2026-09-04, config digest
+        sha256:2046985c9f823b44c219420ef7f65f2a); openai verifiably serves
+        gpt-5.6-luna/sol/terra. The blocker is no longer "no credentialed API
+        backend". It is narrower: no reachable configuration can serve
+        review-breakthrough AT MAX, verified.
+    - id: R-2
+      text: >-
+        OPENAI CANNOT REACH MAX ON THIS WIRE. The openai binding for
+        review-breakthrough (gpt-5.6-sol, effort_map max->max) fails at the
+        API: chat completions returns HTTP 400, "Unsupported value:
+        'reasoning_effort' does not support 'max' with this model. Supported
+        values are: 'none', 'low', 'medium', 'high', and 'xhigh'." The API's
+        own ceiling (xhigh) is below the policy tier max in the adapter's
+        effort order, so mapping max->xhigh would be a recorded downgrade -
+        forbidden for review-breakthrough (degradable: false). The declared
+        max_reasoning_effort: max on that binding is accordingly corrected to
+        xhigh in model-bindings.yaml on this branch, WITH this evidence, so
+        the resolver reports DEGR instead of a false OK. Correcting a declared
+        ceiling DOWN to the API-observed value is the opposite of the
+        inflation the docs call an evidence-integrity failure; it makes the
+        unreachability machine-checked.
+    - id: R-3
+      text: >-
+        THE CODEX DIRECT ROUTE RUNS AT MAX BUT CANNOT BE VERIFIED ON THIS CLI
+        VERSION. `codex exec --json --sandbox read-only --model gpt-5.6-sol
+        --config model_reasoning_effort=max` exits 0 and returns the probe
+        output (observed three times, 2026-09-04 17:22-17:35Z, codex-cli
+        0.153.0) - so the Responses path accepts the max tier that chat
+        completions rejects. But `orchestration.adapter probe-codex-session`
+        fails on every attempt (state_row_missing / state_db_read_failed):
+        codex 0.153.0 no longer writes `threads` rows at exec time
+        (~/.codex/state_5.sqlite last row 2026-09-03 23:48:56Z, mtime Sep 3
+        19:27; sessions run today wrote nothing there). Without the
+        state-row binding the receipt cannot assert model/effort/provider for
+        the session, and an UNVERIFIED session is not "a backend that can
+        reach max" in the sense rule 12 and the model-policy docs use. Two
+        auxiliary fixes recorded on this branch made the diagnosis possible
+        and remain valid: the openai wire now sends max_completion_tokens
+        (gpt-5 family rejects max_tokens) and omits temperature when a
+        reasoning_effort is set (orchestration/adapter/transport.py +
+        providers.yaml max_tokens_param), and the codex state-row reader opens
+        the DB with immutable=1 because macOS com.apple.provenance breaks
+        mode=ro opens of ~/.codex databases (orchestration/adapter/
+        codex_runtime.py).
+    - id: R-4
+      text: >-
+        ALL OTHER BACKENDS ARE BELOW THE TIER OR UNBOUND. fireworks glm-5p3:
+        declared ceiling high. zai / zai-anthropic glm-5.2: declared ceiling
+        high (adapter matrix reports DEGR for review-breakthrough: "policy
+        requires max, binding ceiling is high"). fireworks-anthropic and
+        openrouter: unbound. local: down (connection refused) and
+        open-weight-ceiling. anthropic: the one binding recorded
+        runtime-verified AT MAX for review-breakthrough (claude-opus-5,
+        thinking budget 48000) - and $ANTHROPIC_API_KEY is unset. No
+        substitution, no silent downgrade, no attestation in absence.
+    - id: R-5
+      text: >-
+        THE REVIEW TASK ITSELF NEVER RAN. BATCH-5abf72's reviewer task
+        TASK-20260904-91ab5b was claimed by this session and released
+        abandoned after the api_direct runtime refused the role name and the
+        backend attempts above; its handoff (TASK-20260904-50755f, successor
+        to TASK-20260904-91ab5b for role-name repair) and the full review_plan
+        with the Coordinator prior remain COMMITTED and UNRUN, and are the
+        ready-to-dispatch artifact for whichever unblock condition lands
+        first. The claim was released abandoned; no report, verdict or
+        attestation exists.
+  evidence_refs: [DEC-20260810-2f86db, DEC-20260904-0f525b]
+  limitations:
+    - >-
+        This is an infrastructure decision, not a cryptanalytic one. Claim
+        tier stays toy; no hypothesis status changes; nothing here is
+        admissible toward any closure quorum. The API-observed effort ceiling
+        is a fact about the openai chat-completions surface on 2026-09-04 and
+        may change with API or model versions; it is re-checkable from the
+        recorded error.
+  next_actions:
+    - >-
+        GOAL-MONO-001 stays paused, blocked-on-review, with the refined reason
+        recorded here. Dispatch NOTHING under it until one of the unblock
+        conditions in R-6 holds.
+    - id: R-6
+      text: >-
+        UNBLOCK CONDITIONS (any one suffices; the committed handoff
+        TASK-20260904-50755f and BATCH-5abf72 queue are then dispatchable as
+        they stand): (a) $ANTHROPIC_API_KEY is set in the harness environment
+        - the anthropic binding is already runtime-verified at max for
+        review-breakthrough; (b) the codex CLI version on the harness again
+        writes `threads` rows at exec time so probe-codex-session can bind a
+        max-effort session (re-test with the recorded probe command); (c) the
+        program revisits the max-vs-xhigh tier asymmetry itself - a program
+        -level decision, not a Coordinator one, and this record deliberately
+        does not make it.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      Infrastructure finding only; no research claim resulted. The transport
+      and probe fixes live in code on this branch and are described here;
+      they are not knowledge-corpus material.
+  decided_by: coordinator
+  decided_at: '2026-09-04'

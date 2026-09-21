@@ -1,0 +1,285 @@
+---
+# GOAL-MLDSA-001 BATCH-003 Proposal Screening Report
+# Task: TASK-20260805-bebfbc
+# Role: Coordinator (amazon-bedrock/us.anthropic.claude-sonnet-4-6)
+# Date: 2026-08-05
+# states_a_finding: false
+
+screening_report:
+  task_id: TASK-20260805-bebfbc
+  batch_id: BATCH-214d98
+  goal_id: GOAL-MLDSA-001
+  recorded_at: "2026-08-05"
+  states_a_finding: false
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # ACCESS AUDIT — KN-LIT-3907
+  # ─────────────────────────────────────────────────────────────────────────
+  kn_lit_3907_access:
+    source: "KN-LIT-3907 (knowledge/literature/KN-LIT-3907.md)"
+    abstract_available: true
+    full_text_available: false
+    full_text_note: >-
+      KN-LIT-3907 metadata lists a local PDF at downloads/140850158.pdf.
+      The abstract text is reproduced in full in the KN-LIT entry (seeded
+      from the paper's first two pages, 2026-07-24). Full text was not read
+      in this session; the screening conclusions below are bounded to what
+      the abstract asserts. Gaps caused by missing full-text access are
+      explicitly flagged. A subsequent directed reading task (deferred to
+      BATCH-004) should open the local PDF to resolve those gaps.
+    ePrint_note: >-
+      ePrint identifier is null in KN-LIT-3907. The paper is Barbosa, Barthe,
+      Doczkal, Don, "Fixing and Mechanizing the Security Proof of Fiat-Shamir
+      with Aborts and Dilithium." It appeared at CRYPTO 2023 and is available
+      as ePrint 2023/916. This was not independently fetched in this session;
+      the screening relies on the KN-LIT abstract text only.
+    abstract_key_claims:
+      - >-
+        "We identify a subtle but crucial gap in the CMA-to-NMA reduction" for
+        FS-with-aborts schemes including Dilithium.
+      - >-
+        "The gap was confirmed by the authors, and there seems to be no simple
+        patch for it."
+      - >-
+        "We provide new, fixed proofs for the affected CMA-to-NMA reduction,
+        both for the ROM and the QROM."
+      - >-
+        "We perform a concrete security analysis for the case of Dilithium to
+        show that the claimed security level is still valid after addressing
+        the gap."
+      - >-
+        "We offer a fully mechanized ROM proof for the CMA-security of
+        Dilithium in EasyCrypt."
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # GATED PROPOSAL REVIEWS
+  # ─────────────────────────────────────────────────────────────────────────
+  gated_proposal_reviews:
+
+    # ───────────────────────────────────────────────────────────
+    # C1 GATE — IDEA-20260805-9c1e04 (CMA-to-NMA proof gap)
+    # ───────────────────────────────────────────────────────────
+    - proposal_id: IDEA-20260805-9c1e04
+      gate: C1
+      red_team_claim: >-
+        "The abstract of KN-LIT-3907 already states 'the claimed security
+        level is still valid.' The proposal's own falsification criterion is
+        satisfied by this statement."
+
+      coordinator_analysis:
+
+        what_kn_lit_3907_abstract_says:
+          overall_security_maintained: true
+          statement_verbatim: >-
+            "We perform a concrete security analysis for the case of Dilithium
+            to show that the claimed security level is still valid after
+            addressing the gap."
+          scope_of_statement: >-
+            This is a high-level qualitative claim about Dilithium's overall
+            CMA security level (NIST security categories: 2/3/5 for ML-DSA-44/
+            65/87). It addresses the TOP-LINE outcome of the correction — that
+            the scheme remains adequately secure at published parameter sets.
+          what_the_abstract_does_not_say:
+            - >-
+              Does not give a numerical bound on the tightness loss in the
+              CMA-to-NMA reduction step (e.g., does not say "tightness loss ≤
+              k bits" for any k).
+            - >-
+              Does not state whether SelfTargetMSIS or MSIS or MLWE is the
+              binding assumption after the correction.
+            - >-
+              Does not quantify the reduction factor ε(q_s, q_H) in the
+              corrected proof.
+            - >-
+              Does not show the mechanism by which the correction was absorbed
+              (e.g., whether the existing MSIS margins were sufficient to
+              swallow the tightness slack, or whether parameters were adjusted).
+
+        does_abstract_cover_selftargetmsis_specifically: >-
+          No. "The claimed security level is still valid" refers to Dilithium's
+          overall CMA security (128/192/256-bit AES-equivalent claims). The
+          CMA-to-NMA reduction reduces CMA security to SelfTargetMSIS hardness;
+          the correction could have been absorbed via any of:
+            (i)  MSIS margins being large enough to absorb the tightness slack;
+            (ii) The hash-programmability cost (log₂|C|) not being the
+                 load-bearing component at current parameters;
+            (iii) A minor parameter adjustment in the concrete analysis;
+            (iv) The tightness factor genuinely being negligible (< 3 bits).
+          Distinguishing these cases requires the full text. The abstract does
+          not specify which case applies, and each case has different
+          implications for the SelfTargetMSIS binding-assumption question.
+
+        is_falsification_criterion_1_satisfied_by_abstract:
+          answer: false
+          reason: >-
+            IDEA-9c1e04's first falsification criterion reads (verbatim from
+            proposals.yaml):
+            "If KN-LIT-3907's concrete analysis confirms the same security
+            levels as KN-LIT-056 WITH AN EXPLICIT BOUND ON THE TIGHTNESS LOSS
+            < 5 BITS, then the proof gap does not affect the SelfTargetMSIS
+            hardness claim at current parameters, and this proposal's concern
+            is falsified at the stated scope."
+            
+            This is a CONJUNCTION:
+              Part A: "confirms the same security levels" — SATISFIED by abstract.
+              Part B: "with an explicit bound on the tightness loss < 5 bits" —
+                      NOT SATISFIED: the abstract provides no numerical tightness
+                      bound. Only Part A is confirmed; Part B requires full text.
+            
+            The red team's reading conflates satisfaction of Part A with
+            satisfaction of the full conjunction. This is an error in the red
+            team's inference: a conjunction is not satisfied by a single
+            conjunct.
+
+        red_team_error: >-
+          The red team's argument fails because the proposal's falsification
+          criterion requires an EXPLICIT NUMERICAL BOUND on the tightness loss,
+          not merely confirmation that the security level is maintained. The
+          abstract confirms the outcome but not the mechanism or magnitude.
+          The specific quantitative question (how much tightness was lost, and
+          is SelfTargetMSIS still binding?) remains unanswered by the abstract.
+
+        residual_open_question: >-
+          The specific question that remains open after the abstract screening:
+          (1) What is the tightness factor ε(q_s, q_H) in the corrected
+              CMA-to-NMA reduction (numerically, or as a formula)?
+          (2) Is SelfTargetMSIS still the binding assumption at ML-DSA-44/65/87
+              academic parameters, or does MSIS/MLWE now dominate?
+          (3) By what margin is the corrected estimate above the targeted
+              security level at ML-DSA-44 (the tightest parameter set)?
+          These are answerable from KN-LIT-3907 full text (local PDF available
+          per KN-LIT-3907 metadata: downloads/140850158.pdf).
+
+      outcome: reframed
+      reframed_scope: >-
+        IDEA-9c1e04 is admitted in REFRAMED form. The original broad question
+        "does the corrected proof change the concrete SelfTargetMSIS estimate?"
+        is partially resolved by the abstract ("overall security maintained"),
+        reducing the residual question to:
+          "What is the numerical tightness factor in the corrected reduction,
+          and is SelfTargetMSIS confirmed as the binding assumption in the
+          corrected concrete analysis?"
+        The reframed experiment is a directed reading task on KN-LIT-3907 full
+        text: open downloads/140850158.pdf, read the concrete security analysis
+        section, and extract the tightness factor and binding-assumption status.
+        This is a low-cost analysis task (reading, no arithmetic or code).
+      priority_after_reframe: medium
+      priority_note: >-
+        Lowered from high because the abstract substantially reduces urgency —
+        the gap was not operationally damaging at current parameters. The
+        residual question is about margins and binding-assumption identity, which
+        is scientifically interesting but not blocking other work. Deferred to
+        BATCH-004 after the three primary BATCH-003 contracts complete.
+      batch_assignment: BATCH-004
+
+    # ───────────────────────────────────────────────────────────
+    # C2 GATE — IDEA-20260805-e5c308 (BKZ cost comparison)
+    # ───────────────────────────────────────────────────────────
+    - proposal_id: IDEA-20260805-e5c308
+      gate: C2
+      red_team_claim: >-
+        "If the decomposition cost_SelfTargetMSIS ≈ cost_MSIS + log₂|C| is a
+        formally verified proof obligation in KN-LIT-3907's EasyCrypt
+        mechanization, IDEA-e5c308 is dominated."
+
+      coordinator_analysis:
+
+        what_kn_lit_3907_abstract_says_about_easycrypt:
+          statement_verbatim: >-
+            "We offer a fully mechanized ROM proof for the CMA-security of
+            Dilithium in EasyCrypt."
+          what_mechanization_proves: >-
+            The EasyCrypt mechanization verifies that the game-hopping
+            REDUCTION from CMA-security to SelfTargetMSIS hardness is valid —
+            specifically, that there exists an efficient reduction algorithm B
+            such that CMA-advantage(A) ≤ f(q_s, q_H) × SelfTargetMSIS-
+            advantage(B). This is a proof of REDUCTION VALIDITY.
+          what_mechanization_does_not_prove:
+            - >-
+              Does NOT verify the concrete hardness of SelfTargetMSIS itself —
+              that requires a separate analysis of the underlying lattice
+              problem.
+            - >-
+              Does NOT verify the BKZ cost model accuracy for the MSIS
+              component (BKZ complexity is an open cryptanalytic question;
+              its heuristic estimates are not machine-checkable with current
+              tools).
+            - >-
+              Does NOT verify the independence assumption (that BKZ cost is
+              independent of challenge weight τ at fixed MSIS parameters).
+            - >-
+              Does NOT verify the cost decomposition formula
+              cost_SelfTargetMSIS ≈ cost_MSIS + log₂|C| as a formal proof
+              obligation.
+
+        what_the_cost_decomposition_is: >-
+          The formula cost_SelfTargetMSIS ≈ cost_MSIS + log₂|C| is a
+          CONCRETE SECURITY ESTIMATE — an informal, heuristic computation
+          of how hard SelfTargetMSIS is, based on:
+            (a) BKZ lattice reduction cost for the MSIS subproblem (heuristic,
+                from Albrecht et al. or similar BKZ cost model);
+            (b) Hash-programmability cost = log₂|C| (combinatorial, exact).
+          This estimate appears in the concrete security analysis section of
+          Dilithium/ML-DSA parameter papers (KN-LIT-056 and KN-LIT-3907's
+          concrete analysis). It is NOT a theorem in the EasyCrypt mechanized
+          proof — EasyCrypt proofs are game-based and reduce security to
+          abstract hard problems; they do not formally analyze the hardness
+          of those problems.
+
+        is_domination_condition_true:
+          answer: false
+          reason: >-
+            The red team's conditional is: "IF the decomposition is a formally
+            verified proof obligation in KN-LIT-3907's EasyCrypt mechanization,
+            THEN IDEA-e5c308 is dominated." The antecedent is FALSE: the
+            decomposition is NOT a formally verified proof obligation. The
+            EasyCrypt mechanization proves reduction validity, not problem
+            hardness or cost model accuracy. The independence assumption
+            underlying the decomposition is informal and unverified. IDEA-e5c308
+            tests this assumption empirically (toy scale) — a legitimate
+            scientific contribution not covered by the mechanization.
+
+        residual_open_question: >-
+          The independence assumption (BKZ cost for MSIS is τ-independent at
+          fixed lattice dimensions and norm bounds) has NOT been formally verified
+          or experimentally validated at any scale in the corpus. IDEA-e5c308
+          proposes a toy-scale empirical test of this independence, which remains
+          an open question. Not dominated by KN-LIT-3907 or any corpus entry.
+
+      outcome: admitted
+      admission_note: >-
+        IDEA-e5c308 is ADMITTED. The red team's domination condition is false.
+        The EasyCrypt mechanization does not verify the cost decomposition. The
+        toy-scale independence validation remains undominated in the corpus.
+      priority: medium
+      deferral_reason: >-
+        Medium priority only (requires BKZ implementation, which is non-trivial
+        compared to the corpus reading tasks in BATCH-003). Given three high-
+        priority zero-compute tasks already admitted for BATCH-003, IDEA-e5c308
+        is deferred to BATCH-004 after the primary tasks complete.
+      batch_assignment: BATCH-004
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # SUMMARY TABLE
+  # ─────────────────────────────────────────────────────────────────────────
+  summary:
+    IDEA-20260805-9c1e04:
+      outcome: reframed
+      batch: BATCH-004
+      reason: >-
+        Not self-falsified. Abstract satisfies only Part A of a conjunctive
+        falsification criterion. SelfTargetMSIS-specific and tightness-factor
+        questions remain open. Reframed as directed full-text reading task.
+    IDEA-20260805-e5c308:
+      outcome: admitted
+      batch: BATCH-004
+      reason: >-
+        Not dominated. EasyCrypt mechanization proves reduction validity, not
+        cost decomposition formula. Independence assumption unverified.
+        Deferred due to medium priority and implementation cost.
+
+  inference_provenance:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: true
+    model_verified: false

@@ -1,0 +1,658 @@
+idea:
+  id: IDEA-20260807-15b468
+  question_id: RQ-EWALK-8fa147
+  added: '2026-08-07'
+  title: >-
+    THE DISTINGUISHED-POINT PREDICATE IS NOT INVARIANT UNDER CANONICALISATION
+    AND NOBODY HAS CHARGED IT: the canonical representative's x-coordinate is a
+    MINIMUM over an orbit of size |Aut|/2 in x, so a top-d-bits predicate fires
+    at about (|Aut|/2)*2^-d instead of 2^-d -- exactly 1x, 2x, 3x at
+    |Aut| = 2, 4, 6 -- which means a quotient walk and an unquotiented walk
+    compared at the same nominal d are sitting at DIFFERENT points of the
+    van Oorschot-Wiener memory/steps tradeoff and the comparison is confounded
+    by a factor nobody in this program has written down; the fix is a predicate
+    on an ORBIT INVARIANT (x^2 at j = 1728, x^3 at j = 0) costing 1-2 field
+    multiplications, and the two designs make opposite, testable predictions
+  class: representation
+
+  claim: >-
+    (A) THE SOUNDNESS CONSTRAINT, FIRST, BECAUSE IT IS THE ONE THAT CANNOT BE
+    TRADED. Van Oorschot-Wiener parallel collision search works because two
+    walks that ever meet stay merged and both subsequently report the SAME
+    distinguished point, so a shared DP entry is a genuine collision
+    (KN-TECH-006). On a quotient walk the state is a CLASS, so the DP predicate
+    must be a FUNCTION OF THE CLASS: constant on Aut-orbits. A predicate
+    evaluated on an arbitrary orbit representative is not, and two processors
+    holding different representatives of the same class would disagree about
+    distinguishedness -- silently losing collisions rather than producing wrong
+    ones, which is the worst failure mode because it looks like bad luck. There
+    are exactly two ways to satisfy the constraint and they have different
+    costs and different statistics:
+      (D1) EVALUATE ON THE CANONICAL REPRESENTATIVE. Invariant by construction,
+        because canon is constant on orbits. Free, given that canon is computed
+        anyway.
+      (D2) EVALUATE ON AN ORBIT INVARIANT. A function f with f(sigma A) = f(A)
+        for all sigma in Aut, evaluated directly. Costs a few field
+        multiplications.
+
+    (B) THE STATISTICAL DEFECT OF (D1), DERIVED EXACTLY. Aut acts on the
+    x-coordinate with orbits of size |Aut|/2, because the subgroup {+-1} acts
+    trivially on x:
+      |Aut| = 2 (generic):  x-orbit {x},               size 1;
+      |Aut| = 4 (j = 1728): x-orbit {x, -x},           size 2;
+      |Aut| = 6 (j = 0):    x-orbit {x, zeta*x, zeta^2*x}, size 3, zeta a
+        primitive cube root of unity in F_p (requires p = 1 mod 3).
+    canon selects the MINIMUM of the orbit under the encoding's total order.
+    Modelling the k = |Aut|/2 orbit elements as k independent uniform draws
+    from [0, p) -- which is the same random-encoding model the DP predicate
+    already relies on -- the minimum has
+      P(min < p/2^d) = 1 - (1 - 2^-d)^k = k*2^-d - O(k^2 * 4^-d).
+    So THE DP RATE IS INFLATED BY EXACTLY k = |Aut|/2: a factor 1 at generic
+    curves, 2 at j = 1728, 3 at j = 0. Equivalently, the EFFECTIVE granularity
+    is d - log2(k), and a designer who sets d expecting a 2^-d rate gets
+    k*2^-d.
+
+    (C) WHY THAT MATTERS, AND IT IS NOT (ONLY) A MEMORY COMPLAINT. In the
+    van Oorschot-Wiener model d is the memory/steps knob: raising the DP rate
+    stores more points (more memory, more central traffic) and shortens the
+    average trail (less work discarded per trail, faster collision detection).
+    Neither direction is automatically better -- d has an optimum. THE DEFECT
+    IS THEREFORE NOT THAT THE QUOTIENT WALK IS SLOWER; IT IS THAT A COMPARISON
+    AT FIXED NOMINAL d IS NOT A MATCHED COMPARISON. The quotient arm sits at
+    effective granularity d - log2(k) and the unquotiented arm at d, so any
+    measured gain or loss at fixed d contains an uncontrolled tradeoff-surface
+    displacement of factor k. At j = 0 that displacement is a factor 3 in DP
+    rate, against a total prize for the entire lane of sqrt(3) = 1.732
+    (IDEA-20260807-ebcae6). THE CONFOUND IS THE SAME ORDER AS THE EFFECT. Every
+    L6 measurement that compares arms at fixed d is affected, including
+    IDEA-20260807-6355c6, -59f5b7, -59fed3 and the enumeration instrument
+    -cbbcfd, and this record exists to supply them a correction they can apply.
+
+    (D) THE FIX, AND ITS PRICE. (D2) evaluates the predicate on an orbit
+    invariant. The natural choices are exactly the elementary invariants of the
+    cyclic x-action:
+      j = 1728: f(x) = x^2, invariant under x -> -x. Cost 1 field
+        multiplication (one squaring).
+      j = 0:    f(x) = x^3, invariant under x -> zeta*x since zeta^3 = 1. Cost
+        2 field multiplications.
+      generic:  f(x) = x, already invariant. Cost 0.
+    The image of f is the set of squares (resp. cubes) in F_p, which is
+    equidistributed in [0, p) to within the standard character-sum bound, so a
+    top-d-bits predicate on f(x) fires at about 2^-d with NO inflation. So (D2)
+    restores the intended granularity for 1-2 field multiplications per step
+    against a Jacobian step of about 11-16 -- roughly a 6-18 percent per-step
+    charge.
+    NOTE THE STRUCTURE OF THE TRADE, WHICH IS THE INTERESTING PART: (D1) is
+    free and mis-calibrated; (D2) costs arithmetic and is calibrated. Neither
+    dominates, and which wins depends on where the optimum d sits, which is
+    measurable.
+
+    (E) THE THIRD DESIGN, INCLUDED BECAUSE IT MAKES THE COMPARISON
+    THREE-CORNERED RATHER THAN BINARY. (D3) EVALUATE ON THE CANONICAL
+    REPRESENTATIVE BUT CORRECT d. Use (D1) and set d' = d + log2(k), i.e.
+    d' = d + 1 at j = 1728 and d' = d + log2(3) = d + 1.585 (rounded, with the
+    rounding disclosed) at j = 0. Free, calibrated, and coarser than the
+    nominal granularity by a non-integer amount at j = 0 -- which is precisely
+    why it is worth measuring rather than assuming: a predicate cannot be
+    tuned to a fractional bit, so (D3) can only bracket the intended rate,
+    while (D2) hits it.
+
+    (F) THE PREDICTIONS DISCRIMINATE, WHICH IS WHAT MAKES THIS AN EXPERIMENT.
+      OUTCOME 1 -- the measured DP rate under (D1) is k*2^-d within a few
+        percent at k = 2 and 3. The derivation holds, every fixed-d comparison
+        in the lane needs the stated correction, and the correction is
+        published as a number.
+      OUTCOME 2 -- the measured rate is NOT k*2^-d. Then the orbit elements'
+        encodings are not behaving like independent uniform draws -- for
+        instance because zeta*x and x are strongly correlated in the integer
+        encoding for the particular zeta -- and that correlation is itself a
+        structural property of the encoding worth recording, since it bears on
+        every random-encoding assumption the DP machinery makes.
+      OUTCOME 3 -- (D2) does not restore a 2^-d rate. Then the cubes (or
+        squares) are not equidistributed enough at toy p for the character-sum
+        bound to bite, which is a scale artifact and must be reported as one
+        rather than as a property of the design.
+
+  resource_label: >-
+    R3 (End(E) as a ring -- its unit group Aut, whose action on the
+    x-coordinate has orbits of size |Aut|/2) with R1 entering only as the
+    ENCODING the distinguished-point predicate reads. R1 is not used to derive
+    any relation and no field-arithmetic structure beyond "x is an integer that
+    can be compared" is exploited.
+
+  admissibility: inadmissible_generic_group
+
+  admissibility_argument: >-
+    INADMISSIBLE, AND THE R1 COMPONENT DOES NOT RESCUE IT. A distinguished-point
+    predicate is a function of the group element's ENCODING, and the generic
+    group model gives the algorithm exactly that: Shoup's model supplies random
+    labels and permits any predicate on them, which is why van Oorschot-Wiener
+    parallel collision search is itself a generic algorithm and is subject to
+    the Omega(sqrt(N)) bound (KN-TECH-005). Reading x as a field element to
+    compute x^2 or x^3 does not change this, because the predicate's output is
+    used only to decide storage, never to derive a congruence -- so a generic
+    simulator with the same random labelling reproduces it. Combined with
+    Oracle D closure for the automorphism applications themselves
+    (KN-FIND-b7e091, H-ENDO-001), the whole construction is generic-group
+    simulable and closed at exponent 1/2. Filed as a recorded closure carrying
+    a measurable calibration correction, which is the lane's stated deliverable
+    shape.
+
+  discriminated_from:
+    - >-
+      KN-TECH-006, which defines distinguished points and states that the DP
+      granularity d sets the memory/steps tradeoff. It does not consider the
+      predicate's interaction with an orbit quotient and states no invariance
+      requirement.
+    - >-
+      IDEA-20260806-37eab9, whose declared search space includes "the
+      distinguished-point predicate" and "DP granularity d" as free parameters.
+      That record treats d as a knob to optimise; this one shows that the knob
+      is MIS-LABELLED on a quotient walk by a derived factor |Aut|/2, which is
+      a correction to the parameterisation rather than a search within it.
+    - >-
+      IDEA-20260807-6355c6, -59f5b7, -59fed3 and -cbbcfd (this batch), all of
+      which compare quotient and unquotiented arms. This record is the
+      confound-correction those comparisons need; it does not duplicate any of
+      their measurements and its own measurement (the DP rate) is one none of
+      them takes.
+    - >-
+      inputs/h100_session/h041_xonly_walk.json, which ran an x-only walk. That
+      is the |Aut| = 2 case where the x-orbit has size 1 and the inflation
+      factor is exactly 1, so the defect described here is INVISIBLE there --
+      which is a good illustration of why it has never been noticed in this
+      program: every walk measurement the corpus contains is at |Aut| = 2.
+    - >-
+      KN-LIT-097, which records that the 117.35-bit FPGA record used
+      distinguished points defined as "x-coordinates with top 30 bits zero" on
+      a binary curve with the negation map. That is again the |Aut| = 2 case
+      with an x-orbit of size 1; the record's reported 82,177,699 distinguished
+      points against an expectation of 59,473,682 is a 1.38x run-length
+      fluctuation, NOT a DP-rate inflation, and this proposal makes no claim
+      about it.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE DISTINGUISHED-POINT INDICATOR as a function on the class set: the
+      Boolean map G/Aut -> {0, 1} induced by the predicate, together with its
+      firing rate and the distribution of the underlying invariant.
+    lossiness: >-
+      MAXIMALLY LOSSY AND IT PASSES THE TEST TRIVIALLY: the indicator retains
+      ONE BIT of a log2(N)-bit state. Nothing about the class is recoverable
+      from the bit, so it is not a change of coordinates by any reading.
+    propagation: >-
+      DOES NOT PROPAGATE, AND THAT IS DECLARED RATHER THAN FUDGED. The
+      indicator at step t+1 is not a function of the indicator at step t; it is
+      a function of the class, which propagates. So this object fails the
+      strong compatibility clause of docs/inventor-protocol.md section 2 --
+      it is a MEASUREMENT FUNCTION on the state, not a tracked object with its
+      own dynamics. What the object must satisfy instead is a different and
+      equally checkable condition, and it is the one the whole proposal turns
+      on: INVARIANCE, f(sigma A) = f(A) for all sigma in Aut. That is
+      algebraic, costs no compute, and is checkable by unit test. The record
+      says which test applies rather than claiming the one that does not.
+    survival_score: >-
+      The invariance property survives every change of r, escape rule, seed,
+      size and curve model, and is exactly what parallel merging needs. The
+      RATE-INFLATION statement survives change of d and of size but dies if the
+      encoding's orbit elements are strongly correlated (Outcome 2), and dies
+      if canon is defined by something other than a minimum over the orbit --
+      e.g. a canon that picks by a hash rather than a min would have NO
+      inflation, which is a fourth design worth noting and is exactly the kind
+      of alternative the enumeration in (D1)-(D3) should not silently exclude.
+
+  mechanism: >-
+    STAGE 0 (zero compute). Write the invariance requirement and the exact
+    inflation derivation; enumerate the four designs (D1 free/mis-calibrated,
+    D2 invariant/charged, D3 corrected-d/free/fractional-bit, and D4
+    hash-canon/no-inflation) and state which of them the experiment measures.
+    Note explicitly that at |Aut| = 2 all designs coincide in x and the effect
+    is exactly zero -- so the generic-curve case predicts NO effect, which is
+    the cheapest available check that the derivation is not producing an effect
+    out of nothing.
+
+    STAGE 1 (minutes, HARD GATE). Unit-test invariance: for each design and
+    each curve family, verify over at least 10^4 random points that all
+    |Aut| orbit elements produce the same predicate value. A design failing
+    this is not merely suboptimal, it is UNSOUND for parallel merging and is
+    excluded before measurement.
+
+    STAGE 2 (minutes). Measure the DP firing rate directly by exhaustive
+    evaluation over the whole class set at toy size -- no sampling needed,
+    since the class set is enumerable (this is the instrument of
+    IDEA-20260807-cbbcfd applied to a Boolean function instead of a graph).
+    Report the rate for each design at d in {4, 6, 8, 10, 12} on GEN, J1728
+    and J0, against the derived predictions k*2^-d for (D1) and 2^-d for (D2).
+    PRE-REGISTERED: the (D1)/(D2) rate ratio equals |Aut|/2 = 1, 2, 3.
+
+    STAGE 3 (hours). Measure the CONSEQUENCE: full quotient-walk runs at
+    matched EFFECTIVE granularity rather than matched nominal d, and the same
+    runs at matched nominal d, reporting how much the measured net gain moves
+    between the two conventions. That difference is the size of the confound
+    and is the number other L6 records need.
+
+    STAGE 4 (hours). Locate the optimum d for each design by sweeping, and
+    report whether (D2)'s 1-2 extra field multiplications are repaid by
+    operating at the intended granularity. This is the only part where the
+    designs can genuinely be ranked, and the ranking is expected to be close.
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      grep -ril over ledger/, knowledge/, docs/, inputs/, experiments/ on
+      2026-08-07 for "distinguished point", "DP granularity", "predicate",
+      "orbit invariant", "invariant predicate", "leading zero", "top bits".
+      Records read in full: KN-TECH-006, KN-TECH-018, KN-LIT-097,
+      IDEA-20260806-37eab9, EXP-RHO-60da4f,
+      inputs/h100_session/h041_xonly_walk.json.
+    results: >-
+      "distinguished point": present throughout as a baseline device
+      (KN-TECH-006 defines it, EXP-RHO-60da4f sweeps
+      distinguished_point_bits over {8, 12, 16}, IDEA-20260806-37eab9 lists d
+      in its search space, KN-LIT-097 records the FPGA record's 30-leading-zero
+      predicate). NOT ONE of them states the invariance requirement on a
+      quotient walk, and none states or corrects a rate inflation.
+      "orbit invariant" as a DP predicate: ZERO hits. The derived factor
+      |Aut|/2 appears nowhere.
+    verdict: >-
+      ADAPTATION. That a DP predicate must be constant on classes is a
+      soundness requirement any correct implementation must already satisfy,
+      so it is certainly known to practitioners and this record claims no
+      novelty for it against the external literature -- the negation-map
+      implementations behind KN-LIT-097 had to get it right. What appears to
+      be new TO THIS PROGRAM is the quantified rate inflation |Aut|/2 and the
+      observation that it confounds every fixed-d quotient-versus-unquotiented
+      comparison by a factor of the same order as the entire lane's prize.
+      Stage 0 must search the external implementation literature; a prior
+      statement of the inflation factor would make this a replication, which is
+      the preferred outcome.
+
+  null_object_control: >-
+    MANDATORY, AND THIS PROPOSAL'S NULL IS UNUSUALLY CLEAN BECAUSE THE
+    DERIVATION PREDICTS A ZERO. THE MATCHED NULL IS THE GENERIC CURVE:
+    |Aut| = 2, x-orbit of size 1, derived inflation factor EXACTLY 1. So the
+    identical measurement on GEN must show NO difference between (D1) and (D2)
+    -- an instrument that reports an inflation on a generic curve is
+    manufacturing the effect. THE DECAY PARAMETER IS |Aut|/2: the measured
+    (D1)/(D2) rate ratio must be 1, 2, 3 as |Aut| goes 2, 4, 6, and a ratio
+    that does not track it is the artifact tell. SECOND NULL: a RANDOM
+    PREDICATE -- a keyed hash of the canonical encoding thresholded at rate
+    2^-d -- which is invariant by construction and has no minimum structure, so
+    it must show rate exactly 2^-d on all three families. That null separates
+    "the predicate reads a minimum" from "the predicate reads a canonicalised
+    encoding", which are the two candidate explanations for any inflation
+    observed.
+
+  assumptions:
+    - >-
+      The |Aut|/2 orbit elements' x-encodings behave like independent uniform
+      draws from [0, p). This is the same random-encoding model the DP device
+      already assumes; it is the load-bearing heuristic here and Outcome 2 is
+      exactly its failure, so it is tested rather than assumed.
+    - >-
+      canon selects the orbit MINIMUM under the encoding's total order. Under a
+      hash-based canon (design D4) there is no inflation at all, and that
+      alternative is enumerated rather than excluded.
+    - >-
+      The set of squares (resp. cubes) in F_p is equidistributed enough in
+      [0, p) that a top-d-bits predicate on x^2 (resp. x^3) fires at about
+      2^-d. Rests on standard character-sum equidistribution; at toy p the
+      approximation may be poor and Outcome 3 covers that case.
+    - >-
+      zeta is a primitive cube root of unity IN F_p, requiring p = 1 mod 3;
+      likewise the order-4 automorphism requires p = 1 mod 4. Verified per
+      curve.
+    - >-
+      Classes are identified in POINT coordinates; the predicate reads x but
+      the CLASS is the point-orbit (IDEA-20260807-ebcae6 observation
+      collision). Confusing the two makes |Aut| = 4 invisible.
+
+  proof_search_map:
+    bottleneck: >-
+      The distribution of the canonical representative's encoding. Everything
+      follows from whether canon's minimum-over-orbit skews it, and by how
+      much. Removing the bottleneck -- a canonicalisation whose output encoding
+      is uniform -- is design (D4) and is enumerated.
+    baseline_embedding:
+      parameter_slice: >-
+        |Aut| = 2 on a generic curve, where the x-orbit has size 1 and all
+        designs coincide. This slice must reproduce the standard DP rate 2^-d
+        exactly, and it is the slice every existing measurement in the corpus
+        sits at.
+      reproduction_check: >-
+        Exhaustive evaluation over the whole class set at toy size: the
+        measured rate must equal the count of classes satisfying the predicate
+        divided by M, and must match 2^-d to within the binomial fluctuation of
+        that count. Exact, not a fit.
+    observation_collision:
+      observable: >-
+        The DP firing rate.
+      distinct_preimage_search: >-
+        A REAL COLLISION AND IT IS THE PROPOSAL'S MAIN HAZARD: design (D1) at
+        granularity d and design (D2) at granularity d - log2(k) have the SAME
+        firing rate and are DIFFERENT algorithms with different per-step costs
+        and different tradeoff positions. So the firing rate alone does not
+        identify the design, and any conclusion must report the rate together
+        with the design, the nominal d, and the per-step cost. The separating
+        observable is the joint distribution of (predicate value, orbit
+        position), which is uniform for (D2) and skewed for (D1); it is a
+        required metric for exactly this reason.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace "is this class distinguished" -- a question about a
+          canonicalised representative -- with "is this ORBIT INVARIANT
+          small", a question about a single field element with no
+          minimum structure. Encoding obligation: f must be Aut-invariant
+          (unit-tested). Completeness/soundness: trivial, the predicate only
+          selects storage. Transfer: the image's equidistribution. Cost-loss:
+          1-2 field multiplications per step.
+        predicted_gain: >-
+          Restores the intended DP rate exactly, removing a factor-|Aut|/2
+          confound from every fixed-d comparison in the lane, at a 6-18 percent
+          per-step arithmetic charge.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the firing rate fixed and vary the design; the resulting objects
+          differ in per-step cost and in the (predicate, orbit-position) joint
+          distribution, which is the intrinsic invariant separating them.
+        predicted_gain: >-
+          Prevents the identifiability failure named above from being reported
+          as an equivalence.
+    quantifier_order: >-
+      CLAIMED: FOR EACH curve family with automorphism group of order m, and
+      FOR ALL granularities d in the tested range, the (D1) predicate's firing
+      rate is (m/2)*2^-d * (1 + O(m*2^-d)).
+      NOT CLAIMED: FOR ALL canonicalisations -- the statement depends on canon
+      being a minimum, and design (D4) is an explicit counterexample which the
+      record enumerates rather than hides. NOT CLAIMED: FOR ALL encodings --
+      the derivation uses the standard integer ordering on x and a different
+      total order could behave differently.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "At the tested sizes and granularities, on these curves, design D1's DP
+        rate exceeds design D2's by the measured factor X, and correcting for
+        it moves the measured quotient gain by Y." It can NEVER certify
+        anything about the optimal d at deployment scale, about hardware memory
+        behaviour, or about the exponent.
+      nearby_object_control: >-
+        THE GENERIC CURVE, |Aut| = 2, where the derivation predicts EXACTLY NO
+        EFFECT. A method that reports an inflation there has not identified the
+        load-bearing structure -- the orbit -- and is measuring something about
+        the code path. This is the cheapest possible falsifier and it costs
+        one extra curve.
+    proof_obligations:
+      - claim: The predicate is constant on Aut-orbits, for every design tested.
+        responsibility: correctness
+      - claim: The x-orbit of Aut has size exactly |Aut|/2.
+        responsibility: size
+      - claim: min of k uniform draws fires at 1-(1-2^-d)^k.
+        responsibility: success_probability
+      - claim: The |Aut| = 2 slice shows exactly no effect.
+        responsibility: baseline
+      - claim: >-
+          x^2 and x^3 images are equidistributed enough for a 2^-d rate at the
+          tested p.
+        responsibility: feasibility
+      - claim: Rates are measured exhaustively over the class set, not sampled.
+        responsibility: correctness
+      - claim: No exponent or attack claim is made.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        ratio of the (D1) DP firing rate to the (D2) rate, at matched nominal d
+      direction: higher
+      minimum_effect: >-
+        EXACTLY |Aut|/2 = 1.0 / 2.0 / 3.0 at |Aut| = 2 / 4 / 6, within 10
+        percent, at every tested d in {6, 8, 10, 12}. The |Aut| = 2 cell must
+        show 1.0 within measurement precision; a deviation there falsifies the
+        instrument rather than the derivation.
+    - metric: (D2) DP firing rate against the nominal 2^-d
+      direction: different
+      minimum_effect: >-
+        Within 10 percent of 2^-d on all three families. A systematic deviation
+        indicates the squares/cubes are not equidistributed at toy p
+        (Outcome 3) and must be reported as a scale artifact.
+    - metric: >-
+        measured quotient net gain at matched NOMINAL d minus the same gain at
+        matched EFFECTIVE d
+      direction: different
+      minimum_effect: >-
+        Non-zero at |Aut| = 4 and 6, and zero at |Aut| = 2. The magnitude IS
+        the confound and is the number other L6 records must apply; a
+        difference of zero at |Aut| = 6 would mean the tradeoff surface is flat
+        over a factor-3 range in DP rate, which is itself a useful and somewhat
+        surprising finding about the van Oorschot-Wiener optimum.
+    - metric: >-
+        fully charged per-step cost of (D2) against (D1), in F_p
+        multiplications
+      direction: higher
+      minimum_effect: >-
+        1-2 field multiplications, i.e. about 6-18 percent of a Jacobian step.
+        Measured, not assumed; if (D2) measures cheaper than (D1) the
+        accounting is wrong.
+    - metric: >-
+        joint distribution of (predicate value, orbit position of the canonical
+        element)
+      direction: different
+      minimum_effect: >-
+        Uniform in orbit position for (D2) and skewed for (D1). This is the
+        observable that distinguishes the two designs at matched firing rate
+        and prevents the identifiability failure named in the proof search map.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute): derivation, the four-design enumeration, the
+      |Aut| = 2 zero-effect prediction.
+      STAGE 1 (minutes, HARD GATE): invariance unit test over 10^4 points per
+      design per family; unsound designs excluded.
+      STAGE 2 (minutes): EXHAUSTIVE DP-rate measurement over the entire class
+      set on one curve of each family at 14-18 bits, for d in {6, 8, 10, 12},
+      designs D1/D2/D3/D4 plus the random-predicate null. THIS IS THE WHOLE
+      DECISIVE MEASUREMENT AND IT COSTS MINUTES -- no walks are run, only a
+      Boolean function is evaluated on every class.
+      STAGE 3 (hours, optional): the walk-level consequence, matched-nominal
+      versus matched-effective d.
+      STAGE 4 (hours, optional): the optimum-d sweep and the design ranking.
+      THE CHEAPEST KILL IS STAGE 2 ON THE GENERIC CURVE: if an inflation
+      appears where the derivation predicts exactly none, the measurement is
+      wrong and nothing else is worth running.
+    controls:
+      - generic curve (|Aut| = 2), where the predicted effect is exactly zero
+        (blocking)
+      - random-predicate null on the canonical encoding, rate must be 2^-d
+        (blocking)
+      - invariance unit test over all orbit elements (blocking)
+      - exhaustive rather than sampled rate measurement, so there is no
+        sampling error to argue about
+      - design D4 (hash-based canon), which the derivation predicts has no
+        inflation, as a second zero-effect control
+    required_metrics:
+      - DP firing rate per (design, d, family), measured exhaustively over the
+        class set, with the exact count reported alongside the rate
+      - the derived prediction beside every measured rate, in a
+        measured-versus-modeled table with the columns never mixed
+      - per-step cost of each predicate in F_p multiplications
+      - joint distribution of (predicate value, orbit position)
+      - "|Aut| verified per curve, x-orbit size verified per curve"
+      - class-set size M verified against (N-1)/|Aut| + 1
+
+  falsification_conditions:
+    - >-
+      An inflation is measured on the generic curve, where the derivation
+      predicts exactly 1.0. Instrument failure; nothing else is reported.
+    - >-
+      The (D1)/(D2) ratio is not |Aut|/2 within 10 percent at |Aut| = 4 or 6.
+      The independent-uniform-encoding model for orbit elements is wrong
+      (Outcome 2); report the measured ratio and the empirical joint
+      distribution as the finding, since a correlation between x and zeta*x in
+      the integer encoding would bear on every random-encoding assumption in
+      the DP machinery.
+    - >-
+      A design fails the invariance unit test. It is UNSOUND for parallel
+      merging and is excluded; if that design is one currently used anywhere,
+      that is a defect report and takes precedence over everything else here.
+    - >-
+      (D2) does not achieve a 2^-d rate. Outcome 3, a toy-scale
+      equidistribution artifact, reported as such.
+    - >-
+      The walk-level confound (Stage 3) is zero at |Aut| = 6. The tradeoff
+      surface is flat over a factor 3 in DP rate; a real finding about the
+      van Oorschot-Wiener optimum and a reason to stop worrying about the
+      correction.
+
+  confounders:
+    - >-
+      TOTAL-ORDER CHOICE. "Minimum of the orbit" depends on the encoding's
+      order. A different order (e.g. comparing a hash rather than the integer)
+      changes or removes the inflation; design D4 exists to measure exactly
+      that, and any reported inflation must name the order it used.
+    - >-
+      SMALL-d SATURATION. At d = 4 and k = 3 the approximation k*2^-d has a
+      correction of order k^2*4^-d that is not negligible; the exact formula
+      1-(1-2^-d)^k must be used and the approximation reported separately.
+    - >-
+      TOY-p EQUIDISTRIBUTION. The squares/cubes equidistribution argument is
+      asymptotic; at 14-18 bits the error term may dominate. Multiple sizes and
+      an explicit report of the deviation.
+    - >-
+      CLASS COUNTING IN x. If classes are identified by x rather than by
+      points, |Aut| = 4 collapses to orbit size 2 and the j = 1728 arm measures
+      the generic answer.
+    - >-
+      CONFLATING RATE WITH COST. A higher DP rate is not automatically worse;
+      it is a different point on the tradeoff surface. The record must never
+      report the inflation as a slowdown, only as a mis-calibration.
+
+  interpretation_limits:
+    - >-
+      ANY MEASURED EXCESS OVER sqrt(|Aut|) ANYWHERE IN THIS LANE IS A SUSPECTED
+      INSTRUMENT ARTIFACT UNTIL A NULL CONTROL SAYS OTHERWISE
+      (RQ-EWALK-8fa147 decision_target) -- and this record identifies a
+      specific, quantified mechanism by which such a false excess could arise:
+      comparing arms at fixed nominal d when the quotient arm is really at
+      d - log2(|Aut|/2). Any L6 result reporting a gain near or above
+      sqrt(|Aut|) must state which d convention it used before it is believed.
+    - >-
+      This is a CALIBRATION correction, not a speedup and not a slowdown. It
+      changes what a comparison means, not what an algorithm costs.
+    - >-
+      Constants and calibration only; the exponent is 1/2 (KN-TECH-005).
+    - >-
+      Toy scale, exhaustive evaluation at 14-18 bits. The equidistribution
+      arguments are asymptotic and toy p is where they are weakest; no
+      crypto-scale validation is claimed (AGENTS.md rule 7).
+    - >-
+      Scoped to the stated total order, the stated predicates, the stated
+      granularities and short-Weierstrass coordinates. A different curve model
+      changes what "the encoding" is and can change the whole analysis.
+
+  reachability_gate: >-
+    DOES NOT MOVE BETWEEN CURVES. The effect exists only at |Aut| > 2, i.e.
+    D_0 in {-3, -4}, which by T4 is fixed by the isogeny class and cannot be
+    reached from a class that lacks it at any cost. The correction is therefore
+    relevant only to measurements the campaign CONSTRUCTS on j = 0 and j = 1728
+    curves, and it is exactly those measurements (IDEA-20260807-6355c6,
+    -cbbcfd) that it protects. For any target with generic D_0 the correction
+    is identically 1 and this record is a no-op -- which is also its own
+    zero-effect null control, an unusual and welcome coincidence between the
+    reachability structure and the experimental design.
+
+  target_complexity:
+    time_exponent: >-
+      1/2, unchanged. No algorithmic claim is made at all; the object is a
+      predicate's firing rate.
+    memory_exponent: >-
+      THIS IS WHERE THE EFFECT LANDS. The distinguished-point table is the
+      dominant memory term in the van Oorschot-Wiener model, and its expected
+      size is (steps) * (DP rate). Design (D1) inflates the rate by |Aut|/2, so
+      at fixed nominal d the DP table is 1x / 2x / 3x the intended size at
+      |Aut| = 2 / 4 / 6. That is a constant factor in the dominant memory term
+      -- not an exponent change, and the record does not present it as one.
+    best_known: >-
+      The van Oorschot-Wiener DP convention as recorded in KN-TECH-006, with d
+      leading zero bits of the encoding, as instantiated at 30 bits on the
+      117.35-bit record computation (KN-LIT-097). This record does not improve
+      it; it corrects its calibration on quotient walks.
+    hidden_overhead: >-
+      No o(1); no asymptotic claim. Disclosed: the k^2*4^-d correction at small
+      d, the toy-p weakness of the equidistribution argument, and the
+      dependence of the whole statement on canon being a minimum.
+    tradeoff_note: >-
+      d IS the memory/steps tradeoff knob, and the finding is that on a
+      quotient walk the knob is mis-labelled by log2(|Aut|/2) bits. Correcting
+      it costs 1-2 field multiplications per step (design D2) or nothing but a
+      fractional-bit rounding (design D3). Parallelisation is unaffected
+      provided the predicate is Aut-invariant, which is the soundness
+      requirement stated first and unit-tested before anything is measured.
+
+  dominated_by: >-
+    CHECKED ACROSS TIME, MEMORY AND DATA/QUERIES. As an ATTACK: none is
+    mounted, so dominated by every frontier row -- parallel rho with DPs at
+    0.886*sqrt(N) time and O(1) per-processor memory plus the DP table
+    (KN-TECH-001, KN-TECH-006); the automorphism-discounted CM variant
+    (KN-TECH-018, KN-LIT-042); BSGS at sqrt(N) time and sqrt(N) memory;
+    kangaroo and the Galbraith-Ruprai interval variant at a heuristic
+    1.36*sqrt(N) (KN-LIT-7437). Data/queries: none consumed. As a CALIBRATION
+    the incumbent is the uncorrected fixed-d comparison used implicitly by
+    every quotient-walk measurement, and this record dominates it on
+    correctness at no compute cost; it is dominated by nothing on that axis
+    because nothing else on that axis exists in the corpus. On the design
+    ranking (D1 versus D2) neither dominates -- one is free and mis-calibrated,
+    the other charged and calibrated -- and pretending otherwise before the
+    optimum-d sweep would be exactly the overclaim this field exists to
+    prevent.
+  sota_delta: >-
+    ZERO against any attack baseline. Calibration delta, as numbers: a derived
+    and testable DP-rate inflation of exactly |Aut|/2 -- 1x, 2x, 3x at
+    |Aut| = 2, 4, 6 -- affecting the dominant memory term and confounding every
+    fixed-d quotient-versus-unquotiented comparison by a factor up to 3, against
+    a total lane prize of 1.732. Supplies 4 enumerated designs, 1 exact
+    correction (d' = d + log2(|Aut|/2)), 1 invariant-predicate alternative
+    costing 1-2 field multiplications, and 1 zero-effect null control that the
+    reachability structure supplies for free.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.9 that the |Aut|/2 inflation is measured at the predicted value -- the
+    derivation is elementary order statistics and the encoding model is the one
+    the DP device already assumes. 0.95 that the generic-curve zero-effect
+    control passes. 0.45 that the walk-level confound (Stage 3) turns out large
+    enough to matter for the other L6 records' conclusions; the
+    van Oorschot-Wiener optimum is broad in d, so a factor 3 in rate may move
+    the net gain by only a few percent -- and finding THAT is also a result,
+    because it would retire the concern rather than leave it hanging. 0.2 that
+    this is new against the external negation-map implementation literature,
+    which is the honest number.
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json;
+    all 126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-EWALK-8fa147
+    - KN-TECH-001
+    - KN-TECH-005
+    - KN-TECH-006
+    - KN-TECH-018
+    - KN-FIND-b7e091
+    - KN-LIT-042
+    - KN-LIT-097
+    - KN-LIT-7437
+    - H-ENDO-001
+    - EXP-RHO-60da4f
+    - IDEA-20260806-37eab9
+    - IDEA-20260807-ebcae6
+    - IDEA-20260807-cbbcfd
+    - inputs/h100_session/h041_xonly_walk.json
+    - analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md

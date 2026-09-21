@@ -1,0 +1,474 @@
+red_team_report:
+  id: RT-20260908-5d29c2
+  task_id: TASK-20260908-5d29c2
+  joint: J1_closure_interpretation_and_receipt_admissibility
+  run_under_review: RUN-HZM-001-c-primary-gate-only
+  reviewed_snapshot_commit: 3794391b647d1558da97a6eebd3a97bda72ef3ec
+  experiment_id: EXP-HZM-001
+  hypothesis_id: H-HZM-001
+  reviewed_at: '2026-09-08'
+  scope_note: >-
+    This is a joint-scoped red-team report on J1 (closure interpretation and
+    receipt admissibility) of REVIEW-PLAN-BATCH-98edec. It is a verdict on
+    this joint only, not a whole-claim verdict; the Coordinator composes it
+    with J2 (blind re-derivation) and the inherited validator review
+    VAL-20260907-612101. Per the plan's blindness declaration, the
+    coordinator_prior block of review-plan.yaml was NOT read (only the claim
+    block and the joints/proves_too_much/blindness declarations), and the
+    sibling J2 report directory (TASK-20260908-422afa) was NOT read.
+
+  A1_lower_bound_direction:
+    method: >-
+      Read experiments/EXP-HZM-001/implementation/cost_ledger.py in full
+      (module docstring, ChargedCostModel dataclass, model_charged_cost body
+      lines 58-98) and specification.yaml inputs.frozen_cost_ledger
+      (charged_stages, frozen_rho_bound, conversion_rule). Grepped
+      cost_ledger.py for each of the nine frozen stage names to locate every
+      occurrence. Re-executed model_charged_cost(4096,12,1) and
+      model_charged_cost(65536,16,1) read-only in a fresh process.
+    finding: >-
+      (1) The ONLY arithmetic in model_charged_cost is: M = binom(L+d, d);
+      H = binom(L+d, d-1); q = 1.0 - (1.0 - 1.0/N)**M;
+      charged_expected_signatures = H/q (inf fallback if q<=0);
+      rho_bound = math.isqrt(N-1)+1 = ceil(sqrt(N)); survives =
+      charged_expected_signatures < rho_bound. The eight omitted stage names
+      (sampled_point_generation, evaluation_matrix_construction,
+      left_kernel_and_reductions, defect_loop, duplicate_storage_or_streaming,
+      failed_outer_restrictions, zero_minor_reconstruction,
+      final_group_equality_verification) appear in cost_ledger.py ONLY in the
+      module docstring (lines 5-9) and in the optimistic_assumptions
+      disclosure text -- never in the computation. charged_expected_signatures
+      = H/q only: confirmed against the source, not merely the docstring.
+      (2) Lower-bound direction: the spec's own preregistered_prediction
+      states "charged expected per-target work >= H/q + setup +
+      reconstruction + verification". Each of the eight omitted stages is a
+      non-negative per-trial or per-target cost in the frozen ledger, so the
+      true fully-charged cost = H/q + (omitted stages) >= H/q at both gate
+      sizes; every omitted stage can only ADD cost, never subtract it. The
+      function's own optimistic_assumptions[0] and the run manifest's
+      required_disclosure_hq_bottleneck_term both state this verbatim, and
+      both were verified true against the source. (3) Per-target units: H is
+      the per-attempt cost (H signature constructions per outer trial) and q
+      is the per-trial success probability, so expected trials per solved
+      target = 1/q and expected signature constructions per solved target =
+      H * (1/q) = H/q -- the standard per-attempt-cost x inverse-success-
+      probability bookkeeping, with the probability taken from the pinned
+      occupancy law, not recomputed as if success were certain. (4)
+      Re-execution reproduced the committed figures bit-for-bit:
+      (4096,12,1) charged=315.5387244911908 vs rho_bound=64,
+      survives_rho_gate=False; (65536,16,1) charged=3855.5294333064226 vs
+      rho_bound=256, survives_rho_gate=False. Failure at the bottleneck term
+      therefore implies failure of the fully charged cost: if H/q >=
+      rho_bound, then fully-charged >= H/q >= rho_bound.
+    verdict: holds
+
+  A2_formula_fidelity:
+    method: >-
+      Compared the implementation's q, M, H line-by-line against the spec's
+      pinned language (preregistered_prediction.formula and objective:
+      q(N,L,d) = 1-(1-1/N)^M; M = binom(L+d, d); H = binom(L+d, d-1) =
+      M*d/(L+1)). Verified the identity H = M*d/(L+1) by exact computation at
+      both points. Ran a route-favorable robustness probe: recomputed with M
+      taken at base 2L (the l=2*l' manuscript-base reading, the most
+      generous-to-route variant) to test whether any legitimate base reading
+      of the pinned model could rescue survival.
+    finding: >-
+      (1) Formula fidelity is EXACT: implementation M = binom(L+d, d),
+      H = binom(L+d, d-1), q = 1.0 - (1.0 - 1.0/N)**M match the spec's pinned
+      language term-for-term; no extra factor, no rounding, no substitution.
+      (2) The identity H = M*d/(L+1) holds exactly at both points (H=1,
+      M*d/(L+1)=1.0), so the spec's two forms of H are consistent. (3)
+      q-direction: charged = H/q is strictly DECREASING in q. The pinned q =
+      1-(1-1/N)^M is the exact occupancy probability under the pinned model
+      (M independent uniform draws into N bins, per HEUR-001). Any deviation
+      of the true model that reduces effective independence makes q SMALLER,
+      which ENLARGES charged (worse for the route); the spec's own bound
+      q <= min(1, M/N) is an upper bound on q, and the exact pinned formula
+      is the value the model asserts. The only way to obtain a LARGER q
+      (smaller charged) is a larger M or a smaller N -- both outside the
+      pinned model. Hence no q overestimate within the pinned model can
+      rescue survival, and any smaller q only enlarges the charged figure.
+      (4) Robustness probe (base-2L reading of M, most route-favorable):
+      (4096,12,1) gives M=25, q=0.006085667656076654, charged=164.3205 vs
+      rho_bound=64 -- still fails, 2.568x margin; (65536,16,1) gives M=33,
+      q=0.0005034171238640361, charged=1986.4243 vs rho_bound=256 -- still
+      fails, 7.759x margin. The closure is therefore robust not only to the
+      H-base ambiguity (moot at d=1, binom(n,0)=1 for any base) but also to
+      the most generous base reading of M.
+    verdict: holds
+
+  A3_units_exponents:
+    method: >-
+      Analyzed the unit of charged_expected_signatures (expected signature
+      constructions per solved target) against the unit of rho_bound
+      (group-operation-equivalents per solved target, ceil(N^(1/2)),
+      KN-TECH-005 baseline convention). Read the spec's conversion_rule
+      ("polylog bit-cost factors are recorded but never used to change the
+      compared N-exponents") and the hypothesis's cost assumptions. Computed
+      the effective N-exponent of charged and of rho at both gate points, and
+      the asymptotic ratio charged/rho for L = Theta(log N).
+    finding: >-
+      (1) The frozen comparison convention is explicit and pre-registered:
+      the spec's conversion_rule forbids using polylog bit-cost factors to
+      change the compared N-exponents, and the hypothesis assumes base-field
+      and group operations have poly(log N) bit cost. Both sides of the
+      comparison (signature constructions and group operations) are
+      polylog-bit operations, so any honest unit conversion between them is a
+      polylog(N) factor, which the frozen rule excludes from the exponent
+      comparison. (2) The load-bearing part of the closure is the exponent
+      comparison, not the constants: for d=1, H=1 and q ~ M/N, so charged =
+      H/q ~ N/(L+1) = N^(1-o(1)) for L = Theta(log N), while rho = N^(1/2).
+      The ratio charged/rho ~ sqrt(N)/(L+1) -> infinity, so no polylog unit
+      factor can bridge the exponent gap 1/2 vs 1-o(1) asymptotically.
+      (3) At the specific toy points the effective exponents are
+      log(315.5387)/log(4096) = 0.6918 and log(3855.5294)/log(65536) =
+      0.7445, both above rho's 0.5; the constant margins are 4.930x and
+      15.061x. (4) Attack on the margins: a unit conversion factor of >=
+      4.93x (point 1) or >= 15.06x (point 2) applied in the route-favorable
+      direction would be required to flip the toy-point gate. The
+      hypothesis's own assumption that constructing one distinct normalized
+      signature costs at least one field operation or memory access, plus the
+      standard cost model (a signature construction reads and normalizes
+      matrix entries; it is not a sub-fraction of a group operation), make a
+      4.93x favorable conversion implausible -- but the toy-point margins are
+      constant-factor comparisons under the frozen unit convention, and the
+      convention (1 signature construction compared as >= 1 unit of the
+      compared cost) is an assumption, not a theorem. (5) Conclusion: the
+      closure rests on the exponent comparison N^(1-o(1)) vs N^(1/2), which
+      is unit-robust; the 4.93x/15.06x margins are consistent with, but not
+      the basis of, the closure. A composition that presents the closure as
+      "the route's work is 4.93x rho in group-operation-equivalents" would
+      overstate the unit convention; the correct statement is the
+      exponent-level one under the pinned model.
+    verdict: holds
+    boundary_flag: >-
+      The toy-point margins (4.93x / 15.06x) are constant-factor comparisons
+      under the frozen unit convention (conversion_rule + hypothesis cost
+      assumption); the load-bearing closure is the exponent gap
+      N^(1-o(1)) vs N^(1/2). Composition sentences must state the closure at
+      the exponent level under the pinned model, with the two toy points as
+      the pre-registered gate instances, not as a group-operation-equivalent
+      multiple of rho.
+
+  A4_scope_language:
+    method: >-
+      Read specification.yaml falsification_criterion(b) and
+      success_criterion verbatim; ledger/hypotheses/H-HZM-001.yaml
+      falsification_conditions and interpretation_limits; the run manifest's
+      scope_note and no_conclusion_note; the amendment's what_remains_open
+      and nonclaims; and the review plan's claim block and proves_too_much
+      objects. Enumerated exactly what criterion (b) licenses and every
+      extension a composition must not make.
+    finding: >-
+      Criterion (b) as written says: "the route's charged operation-level
+      work at either primary gate size meets or exceeds the frozen
+      Pollard-rho comparison bound -- the route is closed as non-sub-rho
+      under its own published model (the prior audit's expected outcome)".
+      This licenses EXACTLY: the defect-scaled hyperplane-signature zero-minor
+      route is closed as non-sub-rho, under its own pinned published model
+      (q = 1-(1-1/N)^M, M = binom(L+d,d), H = binom(L+d,d-1)), at the two
+      pre-registered primary gate sizes (12,1) and (16,1), both d=1. A
+      composition must NOT extend the closure to: (1) an error claim against
+      the external publications beyond their pinned model -- the closure is
+      "under its own published model" (the pinned formulas as quoted in the
+      immutable TASK-20260723-301 snapshot); it does not assert the
+      publications are wrong in general, that the route is broken for other
+      reasons, or that no other cost model could clear the gate; (2) the
+      general d in {2,3} manuscript-alignment question -- that question
+      remains inconclusive_misalignment from RUN-HZM-001-a (the l-vs-l' base
+      ambiguity is live at d in {2,3}), and the closure is base-invariant
+      only at d=1; (3) the untested enumeration leg -- RUN-HZM-001-b (the
+      9-config x 3-seed toy enumeration) was never opened, so the closure
+      rests on the closed-form cost model under the pinned formulas, not on
+      measured enumeration counts tracking the formulas; (4) any
+      standardized curve -- no standardized curve is instantiated anywhere in
+      this run or its authorization (stopping_rules[4] remains in force), so
+      the closure is at the abstract/toy level and makes no claim about any
+      named curve. The hypothesis's interpretation_limits ("A gate failure
+      closes only this defect/signature interface, not all nonlinear
+      zero-minor locators or all non-generic ECDLP representations (AGENTS.md
+      rule 6)") and the run's no_conclusion_note independently confirm these
+      boundaries, and the amendment's what_remains_open carries the general
+      alignment question and the full 9-stage accounting as open.
+    verdict: holds
+
+  A5_receipt_admissibility:
+    method: >-
+      Adjudicated the three named items: (i) COMMAND-ARTIFACT-DISCREPANCY as
+      flagged by VAL-20260907-612101; (ii) the validator report's
+      task_id: not_dispatched disclosure; (iii) the amendment's
+      status: proposed / approved_by: null versus its verbatim adoption by
+      DEC-20260907-5b500d. Traced the full authority chain in git:
+      amendment commit, decision first-creation commit, decision
+      schema-completion commit, handoff commit, run-snapshot commit --
+      checking presence at each ancestor, commit ordering, and whether the
+      schema-completion altered any substantive field.
+    finding: >-
+      (i) COMMAND-ARTIFACT-DISCREPANCY: confirmed the substance of the
+      validator's finding by reading command.txt, stdout.log, and
+      raw-result.json directly. command.txt's literal script imports time
+      but never calls it and prints exactly two top-level keys (point_1,
+      point_2); the committed stdout.log carries a third top-level key
+      (wall_clock_seconds) and raw-result.json carries the same value under a
+      renamed key (wall_clock_seconds_of_the_two_calls_only) -- neither
+      producible by literally executing command.txt. So command.txt is a
+      simplified reconstruction, not a byte-verbatim transcript. Adjudication:
+      the discrepancy is confined to self-timing metadata; every substantive
+      ChargedCostModel field at both points is bit-for-bit identical across
+      the validator's three independent reproduction methods and this
+      review's own fresh re-execution. The spec's invalidation_rules require
+      the command to be present and the result reproducible -- both hold.
+      This is an archival-fidelity gap in the "exact command" artifact, not a
+      run-integrity failure and not evidence against the hypothesis (rule 3).
+      Not disqualifying; flagged for a future archival-hygiene correction.
+      (ii) Validator task_id: not_dispatched: the inherited validator review
+      VAL-20260907-612101 was assigned directly by the orchestrating session,
+      not through a Coordinator research_dispatch.py TASK-* handoff, and says
+      so explicitly rather than fabricating a task id. This is a disclosed
+      process irregularity, not a fabrication (core rules 5 and 9 are
+      honored by the disclosure itself). It does not undermine the review's
+      substance (triple independent reproduction), but it means the inherited
+      validator pass is not part of the formal dispatch chain; the current
+      round's review plan (REVIEW-PLAN-BATCH-98edec) supplies the
+      claim-changing review architecture, and J3 composes the inherited
+      report with the new joints. Carried as a boundary note, not a break.
+      (iii) Amendment status: proposed vs verbatim adoption: the amendment
+      file still reads status: proposed, approved_by: null, but
+      DEC-20260907-5b500d (decision_type:
+      amendment_adoption_and_dispatch_authorization) adopts V2-CHG-1 "exactly
+      as drafted, with no further modification" and sets
+      execution_authorized: true. The decision record is the authoritative
+      adoption; the amendment's stale status field is a minor archival-
+      hygiene gap (the amendment's own next_step anticipated exactly this:
+      "a Coordinator decision, not the amendment's own drafting act, is what
+      authorizes dispatch"). The verbatim-adoption claim was checked against
+      the text: the decision's execution_authorization_scope and the
+      amendment's scope_boundary authorize the identical two-point scope
+      (model_charged_cost(4096,12,1) and model_charged_cost(65536,16,1)
+      only, no curve instance, no enumeration, no forbidden modules), so the
+      adoption is in fact verbatim. Authority chain: amendment committed
+      00d4f312df (2026-09-07 20:30:54) -> decision first created
+      eaefdd294f (2026-09-07 20:32:07, verified ancestor of the handoff
+      commit) -> handoff TASK-20260907-d2164a committed 2c5d2dc200
+      (2026-09-07 20:33:08, cites authorized_by: DEC-20260907-5b500d as its
+      sole approval basis) -> run manifest cites task_id:
+      TASK-20260907-d2164a and authorized_by: DEC-20260907-5b500d ->
+      snapshot 3794391b64 (2026-09-07 20:38:21) adds exactly the seven run
+      artifact files, verified real and HEAD-reachable. The decision's later
+      schema-completion commit 551318a8ab (21:10:19) postdates the handoff
+      and snapshot, but the decision's substantive content (adoption,
+      execution_authorized, scope, review_requirement) was already committed
+      at eaefdd294f before the handoff, and the diff eaefdd294f..551318a8ab
+      on the decision file changes no substantive field (no change to
+      execution_authorized, amendment_adoption_note, scope, or
+      review_requirement) -- it is formatting/schema completion only. The
+      chain amendment -> decision -> handoff -> run -> snapshot therefore
+      holds both logically (each record cites its predecessor) and
+      temporally (each substantive record committed before the next).
+      Admissibility: the receipt is admissible for a claim-changing decision
+      within its narrow scope -- the falsification_criterion(b) comparison at
+      the two named base-invariant points -- subject to the boundary flags
+      RT98-O1 through RT98-O6 below, none of which is disqualifying.
+    verdict: holds
+
+  A6_proves_too_much:
+    method: >-
+      Stated the comparison semantics exactly from the spec's
+      success_criterion ("strictly below ... at BOTH primary gate sizes")
+      and falsification_criterion(b) ("meets or exceeds ... at either
+      primary gate size"), and from the implementation's comparison operator
+      (survives = charged_expected_signatures < rho_bound). Checked the two
+      criteria for logical consistency. Then ran the closure argument
+      against the two proves-too-much objects named in the review plan:
+      (a) the rho baseline itself, whose cost IS the bound (an object for
+      which "non-sub-rho vs the rho bound" is known false by definition);
+      (b) a model-passing point (N=64, L=16, d=1) where the pinned model
+      passes the gate (an object for which the closure conclusion is known
+      false). Both probes executed read-only via model_charged_cost.
+    finding: >-
+      (1) Comparison semantics, stated exactly: survive iff charged <
+      rho_bound at BOTH primary gate points (strict inequality, both
+      points); close iff charged >= rho_bound at EITHER primary gate point
+      (meets-or-exceeds, either point). The implementation uses strict
+      less-than (survives = charged < rho_bound), matching the
+      success_criterion's "strictly below" language; the falsification is
+      the exact logical negation of the success condition (not (a<b and
+      c<d) = a>=b or c>=d), so the two criteria are consistent with no gap
+      and no overlap: a point exactly at the bound (charged == rho_bound)
+      does NOT survive and DOES close. (2) Rho-baseline probe: rho's own
+      cost equals rho_bound, so charged == rho_bound: strictly_below =
+      False, meets_or_exceeds = True at both N=4096 (64 vs 64) and N=65536
+      (256 vs 256). The semantics classify the bound itself as
+      meets-or-exceeds (correct -- rho is the bound, not below it) and do
+      NOT classify it as surviving; the argument does not misclassify the
+      baseline, and the equality case is handled by the strict-inequality
+      convention exactly as the frozen criteria require. (3) Model-passing
+      point probe: model_charged_cost(64, 16, 1) returns M=17, H=1,
+      q=0.23487959735257802, charged_expected_signatures=4.257500486510537,
+      rho_bound=8, survives_rho_gate=True. The same verdict machinery that
+      returns False at the two gate points returns True at a point where the
+      pinned model passes -- the argument is NOT constant-false, it does not
+      close an object known to pass, and the closure is not void. (4)
+      Consistency with the plan's failure signature: none of the declared
+      failure signatures was observed -- the passing-point control returns
+      survives=True (not False), and the committed figures were reproduced
+      from the pinned formulas without substituting the q <= min(1, M/N)
+      bound for the exact q or applying any l -> 2l' base substitution at
+      d=1 (the base-2L robustness probe in A2 was a separate, more-
+      generous-to-route check that still fails the gate).
+    verdict: holds
+
+  objections:
+    - id: RT98-O1
+      severity: note
+      text: >-
+        cost_ledger.py's module docstring, first paragraph (lines 5-9),
+        states the module "Charges every named stage (sampled_point_
+        generation, evaluation_matrix_construction, left_kernel_and_
+        reductions, defect_loop, signature_construction, duplicate_storage_
+        or_streaming, failed_outer_restrictions, zero_minor_reconstruction,
+        final_group_equality_verification) as an explicit operation count" --
+        which is NOT what model_charged_cost does (it charges H/q only). The
+        overclaim is corrected in the same file by the STATUS block, the
+        function docstring, and optimistic_assumptions[0], and the run
+        manifest, amendment, and decision all correctly describe the H/q-
+        only scope, so no downstream record was misled. Documentation-
+        hygiene note: a future archival pass should fix the first paragraph
+        so the file's opening line does not overstate the computation.
+    - id: RT98-O2
+      severity: boundary
+      text: >-
+        The 4.93x / 15.06x toy-point margins are constant-factor comparisons
+        under the frozen unit convention (conversion_rule: polylog factors
+        never change the compared N-exponents; hypothesis assumption: each
+        signature construction costs at least one field operation or memory
+        access). The load-bearing closure is the exponent gap N^(1-o(1)) vs
+        N^(1/2), which is unit-robust. Every composition sentence must state
+        the closure at the exponent level under the pinned model, with the
+        two toy points as the pre-registered gate instances; a sentence
+        asserting the route's work is "4.93x rho in group-operation-
+        equivalents" would overstate the unit convention.
+    - id: RT98-O3
+      severity: boundary
+      text: >-
+        The closure is scoped to d=1 at the two primary gate sizes under the
+        pinned model. A composition must NOT extend it to: (a) an error
+        claim against the external publications beyond their pinned model;
+        (b) the general d in {2,3} manuscript-alignment question (remains
+        inconclusive_misalignment; the l-vs-l' base ambiguity is live there);
+        (c) the untested enumeration leg (RUN-HZM-001-b never opened; no
+        measured counts exist); (d) any standardized curve (none
+        instantiated; stopping_rules[4] in force). H-HZM-001's
+        interpretation_limits and the run's no_conclusion_note already
+        encode these boundaries; they must survive verbatim into the EV
+        boundaries and the DEC rationale.
+    - id: RT98-O4
+      severity: note
+      text: >-
+        The amendment file still reads status: proposed, approved_by: null
+        although DEC-20260907-5b500d adopted it verbatim and authorized
+        execution. The decision record is the authoritative adoption and the
+        chain is intact, but the stale status field is an archival-hygiene
+        gap: a future pass should record the adoption on the amendment by
+        reference (additive note), never by rewriting the immutable file.
+    - id: RT98-O5
+      severity: note
+      text: >-
+        The inherited validator review VAL-20260907-612101 carries
+        task_id: not_dispatched (assigned directly by the orchestrating
+        session, not through a TASK-* handoff). The disclosure is honest and
+        the review's substance (triple independent reproduction) stands, but
+        the composition should record that this validator pass was not part
+        of the formal dispatch chain and that the current round's review
+        plan supplies the claim-changing review architecture.
+    - id: RT98-O6
+      severity: note
+      text: >-
+        DEC-20260907-5b500d's schema-completion commit (551318a8ab,
+        2026-09-07 21:10:19) postdates the handoff (2c5d2dc200, 20:33:08)
+        and the run snapshot (3794391b64, 20:38:21). Verified this does not
+        break the chain: the decision's substantive content was committed at
+        first creation eaefdd294f (20:32:07), an ancestor of the handoff
+        commit, and the eaefdd294f..551318a8ab diff on the decision file
+        changes no substantive field (execution_authorized,
+        amendment_adoption_note, execution_authorization_scope, and
+        review_requirement are untouched). Recorded so the composition does
+        not re-litigate the ordering.
+
+  overall_verdict: holds
+  overall_verdict_note: >-
+    Joint verdict on J1 only (not a whole-claim verdict). All six attacks
+    (A1-A6) hold: the charged figure is a disclosed H/q lower bound whose
+    failure implies failure of the fully charged cost; the implementation
+    matches the pinned formulas exactly and no in-model q overestimate or
+    base reading rescues survival; the closure rests on the unit-robust
+    exponent gap N^(1-o(1)) vs N^(1/2), not on the constant margins;
+    criterion (b) licenses exactly "the route is closed as non-sub-rho under
+    its own published model" with the four enumerated extensions forbidden;
+    the authority chain (amendment -> decision -> handoff -> run -> snapshot
+    3794391b64) holds logically and temporally and the receipt is admissible
+    for a claim-changing decision within its narrow scope; and the closure
+    argument is not constant-false (it returns survives=True at the
+    model-passing point N=64, L=16, d=1 and handles the rho-baseline
+    equality case per the strict-inequality convention). The six objections
+    above are carried as boundary flags / notes for the composition; none is
+    disqualifying.
+
+  limitations:
+    - >-
+      This review re-executed cost_ledger.py's model_charged_cost read-only
+      (fresh process, no new scientific run, no curve work, no writes outside
+      write_scope) for the A1/A2/A3/A6 probes; it did not independently
+      re-derive the pinned formulas from the manuscript (that is J2's blind
+      re-derivation joint, and the prior round's RUN-HZM-001-a alignment
+      audit), so formula fidelity is verified against the SPEC's pinned
+      language, not against the manuscript's displayed equations.
+    - >-
+      The A3 unit-convention analysis rests on the spec's frozen
+      conversion_rule and the hypothesis's cost assumption as pre-registered;
+      it does not prove the unit convention is the only defensible one, only
+      that it is frozen, disclosed, and that the exponent-level closure is
+      robust to any polylog unit conversion.
+    - >-
+      The A5 adjudication of COMMAND-ARTIFACT-DISCREPANCY relies on the
+      validator's triple reproduction plus this review's own fresh
+      re-execution for the substantive fields; it does not reconstruct the
+      original (lost) timing-instrumented script, so the exact provenance of
+      the wall-clock value 0.0006182193756103516 remains unverified --
+      immaterial to any ChargedCostModel field.
+    - >-
+      Per the plan's blindness declaration, the coordinator_prior block of
+      review-plan.yaml and the sibling J2 report directory
+      (TASK-20260908-422afa) were not read; this verdict is formed without
+      them.
+
+  review_attestation:
+    task_id: TASK-20260908-5d29c2
+    joints_owned: ["J1_closure_interpretation_and_receipt_admissibility"]
+    independent_session: true
+    verdict: holds
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: vllm/qwen3.8-27b
+    fallback_used: false
+    read_sibling_reports: false
+    sources_read:
+      - ledger/handoffs/TASK-20260908-5d29c2.yaml
+      - experiments/EXP-HZM-001/specification.yaml
+      - experiments/EXP-HZM-001/implementation/cost_ledger.py
+      - experiments/EXP-HZM-001/amendments/v2_primary_gate_cost_check.yaml
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/manifest.yaml
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/command.txt
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/raw-result.json
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/summary.json
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/environment.json
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/stdout.log
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/stderr.log (0 bytes; listed, empty)
+      - experiments/EXP-HZM-001/reviews/validator-primary-gate/report.yaml
+      - ledger/decisions/DEC-20260907-5b500d.yaml
+      - ledger/handoffs/TASK-20260907-d2164a.yaml
+      - ledger/hypotheses/H-HZM-001.yaml
+      - coordination/goals/GOAL-CRYPTO-001/batches/BATCH-98edec/review-plan.yaml (claim block lines 1-27 and joints/proves_too_much/blind_rederivation/blindness/attestation lines 80-224 ONLY; the coordinator_prior block, lines 28-79, was NOT read per the blindness constraint)
+      - AGENTS.md (worktree copy, via session system context)
+      - "git (read-only): log/show/diff/cat-file/merge-base on commits 00d4f312df, eaefdd294f, 551318a8ab, 2c5d2dc200, 3794391b64, e176b09f09 and the files named above"
+      - "python3 (read-only re-execution): cost_ledger.model_charged_cost at (4096,12,1), (65536,16,1), (64,16,1), plus base-2L robustness and exponent computations"

@@ -1,0 +1,200 @@
+refutation_artifact:
+  id: REFUT-EXP-MLKEM-007-001
+  class: derivation_note
+  proof_status: derivation
+  status_label: >-
+    DERIVATION, NOT A THEOREM AND NOT MACHINE-CHECKED. This is a self-contained
+    argument an independent reader can re-check step by step from the archived
+    covariance matrices (docs/claims-and-verification.md, "Refutation
+    artifacts", level 2 of 3). It is labelled `derivation` and must never be
+    described as "proved".
+  experiment_id: EXP-MLKEM-007
+  hypothesis_id: H-MLKEM-007
+  supports_decision: DEC-20260803-9b3d40
+  supports_evidence: EV-MLKEM-c47a1e
+  authored_by: coordinator
+  recorded_at: '2026-08-03'
+
+  question: >-
+    Why did the frozen criterion "GLS fusion attains at least a 2x lower
+    held-out wrong-candidate false-positive rate than naive unweighted orbit
+    averaging on the same vectors and threshold" fail, at ratio exactly 1.000
+    under both pre-registered readings, at n=32 with the selected orbit subset
+    {0,8,16,24}?
+
+  input_data:
+    source_artifact: experiments/EXP-MLKEM-007/analysis/covariance_report.json
+    path_in_artifact: orbit_score_covariance.orbit["2048"].held_out_covariance
+    source_run: RUN-MLKEM-026
+    matrix_sigma_held_out_m2048:
+      - [ 0.7250833587633034,  0.0124296044970524, -0.0006785359345197,  0.0186152023953059]
+      - [ 0.0124296044970524,  0.7377508056667548, -0.0343887745623463, -0.0047741009317600]
+      - [-0.0006785359345197, -0.0343887745623463,  0.6932108305126466,  0.0089473287590846]
+      - [ 0.0186152023953059, -0.0047741009317600,  0.0089473287590846,  0.7985165361217217]
+    reported_gls_null_variance_held_out_m2048: 0.18472651881483632
+    reported_gls_weights_m2048: [0.25667856594408295, 0.25856292110266377,
+                                 0.24273233828505797, 0.24202617466819534]
+
+  step_1_algebraic_identity:
+    statement: >-
+      For a linear fusion rule s_w = w'X with sum(w) = 1 and Cov(X) = Sigma,
+      the minimum-variance (GLS) weights are w* = Sigma^{-1}1 / (1'Sigma^{-1}1),
+      with Var(s_{w*}) = 1 / (1'Sigma^{-1}1). The uniform rule w_u = 1/k has
+      Var(s_{w_u}) = (1'Sigma 1) / k^2. By Cauchy-Schwarz applied to
+      Sigma^{1/2}1 and Sigma^{-1/2}1,
+      (1'Sigma 1)(1'Sigma^{-1}1) >= (1'1)^2 = k^2, hence
+      Var(s_{w*}) / Var(s_{w_u}) = k^2 / [(1'Sigma 1)(1'Sigma^{-1}1)] <= 1,
+      with EQUALITY IF AND ONLY IF Sigma*1 is proportional to 1, i.e. Sigma has
+      constant row sums. The entire attainable advantage of covariance-aware
+      weighting over uniform averaging is therefore governed by the departure
+      of Sigma's row sums from constancy -- a quantity measurable before any
+      fusion machinery is built.
+    checkable_by: standard linear algebra; no data needed
+
+  step_2_row_sums_of_the_measured_matrix:
+    row_sums: [0.7554496296211913, 0.7110175346697009, 0.6670908078748652,
+               0.8213049663443343]
+    mean: 0.7387157346275229
+    sample_sd_population: 0.05700
+    coefficient_of_variation: 0.07717
+    remark: >-
+      A 7.7 percent coefficient of variation. Because the bound in step 1 is
+      second order in this deviation (the diagonal case is exactly the
+      arithmetic-mean / harmonic-mean gap, 1 - HM/AM ~= CV^2), the predicted
+      attainable VARIANCE gain is ~ CV^2 = 0.60 percent.
+
+  step_3_exact_oracle_gain:
+    method: >-
+      Sigma = D + E with D the diagonal part. 1'Sigma^{-1}1 evaluated by
+      Neumann series to second order in E (third-order term ~1e-4, negligible):
+      1'D^{-1}1 - 1'D^{-1}E D^{-1}1 + 1'D^{-1}E D^{-1}E D^{-1}1.
+    one_prime_Dinv_one: 5.4295024
+    minus_first_order_term: 0.0102940
+    plus_second_order_term: 0.0073171
+    one_prime_Sigma_inv_one: 5.4471135
+    var_oracle_gls: 0.1835832
+    one_prime_Sigma_one: 2.9548629795100600
+    var_uniform: 0.1846789362193788
+    variance_ratio_oracle_over_uniform: 0.9940668
+    variance_gain_percent: 0.5933
+    standard_deviation_gain_percent: 0.2971
+    consistency_check: >-
+      Predicted from CV^2 in step 2: 0.60 percent variance gain. Computed
+      exactly: 0.5933 percent. The second-order rule is confirmed on this
+      matrix.
+    conclusion_step_3: >-
+      An ORACLE GLS estimator -- one handed the true held-out covariance for
+      free -- reduces the fused null standard deviation by 0.297 percent
+      relative to plain uniform averaging. This is an upper bound on what ANY
+      covariance-aware weighting of these four scores can achieve at this
+      configuration.
+
+  step_4_what_the_frozen_criterion_required:
+    reading_b_standardised_threshold_tau_3:
+      argument: >-
+        Under the pre-registered reading (b) the threshold is expressed in
+        units of each rule's OWN null standard deviation. The metric is
+        therefore INVARIANT to any common rescaling of the fused statistic, so
+        a pure variance reduction cannot move it at all. GLS can only win by
+        changing the SHAPE of the standardised null. Since the fitted weights
+        deviate from uniform by at most 3.43 percent, the two standardised
+        statistics are very nearly the same random variable, and the ratio is
+        expected to be 1.000. It was measured as 1.000 at all ten vector
+        counts. Under this reading the criterion was not merely unmet but
+        structurally unreachable by a near-uniform weight vector.
+    reading_a_matched_detection_rate:
+      argument: >-
+        Under reading (a) the comparison is at matched pool size and matched
+        held-out detection rate 0.5, so what matters is the separation ratio
+        (signal mean)/(null sd). The achievable improvement is exactly the
+        standard-deviation gain of step 3, i.e. 0.297 percent.
+      gaussian_tail_mapping: >-
+        Treating the standardised null as Gaussian, an epsilon relative
+        reduction in null sd moves an effective threshold from tau to
+        tau/(1-epsilon). Required for a 2x FPR reduction at tau = 3.0:
+        Phibar(3.0) = 1.3499e-3, target 6.7495e-4, attained at tau' = 3.2055,
+        hence 3/(1-epsilon) = 3.2055 and epsilon = 6.41 percent.
+        Delivered by an oracle GLS: 0.297 percent.
+      shortfall_factor: 21.6
+      what_gls_actually_delivered: >-
+        Worse than the oracle and worse than uniform. The reported held-out
+        fused null variance under the FITTED GLS weights is 0.18472652 against
+        uniform's 0.18467894, i.e. the realised estimator is 0.0258 percent
+        WORSE out of sample. The weights were fitted on 15 training instances;
+        the estimation noise of the covariance exceeded the 0.297 percent
+        attainable gain. This is the standard small-sample GLS pathology and it
+        is visible directly in the archived numbers.
+
+  step_5_robustness_of_the_tail_step:
+    statement: >-
+      Only step 4's Gaussian mapping uses a distributional model; steps 1-3 are
+      exact linear algebra on the archived matrix. AN-5 records that the
+      empirical null has a HEAVIER-than-Gaussian upper tail (held-out FPR at
+      tau = 3.0 of 0.0058-0.0117 versus 0.00135 for a normal). A heavier tail
+      has a smaller |d log Phibar / d tau|, so it requires a LARGER threshold
+      shift, hence a LARGER standard-deviation reduction, for the same 2x FPR
+      drop. The 6.41 percent requirement is therefore a conservative
+      under-estimate and the shortfall factor of ~22 is a conservative
+      under-estimate. The direction of the model error favours the conclusion.
+
+  conclusion: >-
+    At n=32, d_shift=8, orbit subset {0,8,16,24}, and the frozen pool
+    construction, the wrong-candidate orbit-score covariance is close enough to
+    a multiple of the identity (r_eff 3.983 of 4.000; row-sum CV 7.7 percent)
+    that covariance-aware GLS weighting is analytically incapable of the
+    factor-2 false-positive-rate improvement the frozen criterion demanded,
+    by roughly a factor of 22 in the standard-deviation budget -- and the
+    realised estimator, fitted on 15 instances, was slightly worse out of
+    sample than uniform averaging. The measured ratio of 1.000 is what this
+    algebra predicts, not a surprising null.
+
+  scope_and_limits:
+    - >-
+      THIS IS CONDITIONAL ON THE MEASURED SIGMA. It explains why the criterion
+      failed given the covariance that was observed. It does NOT show that the
+      orbit-score covariance must be near-diagonal at other ring sizes, other
+      d_shift values, other orbit-subset sizes, or other pool constructions.
+      Sigma was measured at ONE configuration (PD-2, PD-3), and the restriction
+      to |J| = 4 came from the pure-Python execution host, not from the
+      mathematics.
+    - >-
+      It is a statement about the tested construction, NOT a universal
+      impossibility claim about covariance-aware fusion, isometry orbits, or
+      dual-attack scoring. Universal impossibility is the domain of
+      knowledge/open-problems/ (docs/claims-and-verification.md).
+    - >-
+      It says nothing about n=64: RUN-MLKEM-027 produced no covariance and no
+      metric (resource_exhaustion, AGENTS.md rule 5).
+    - >-
+      claim_tier remains toy. Nothing here bears on ML-KEM-512/768/1024.
+    - >-
+      It does NOT refute the isometry-reuse premise. The orbit's four elements
+      are all signal-preserving (m50 64) whereas the size-matched random
+      signed-permutation control's are not (m50 1024, AN-3). What is refuted at
+      this configuration is the covariance-aware fusion limb only.
+
+  reusable_design_rule:
+    statement: >-
+      Before building covariance-aware fusion over k correlated scores,
+      measure the coefficient of variation of the score covariance's ROW SUMS.
+      The attainable variance gain over plain uniform averaging is second order
+      in that CV (~ CV^2), and the attainable sd gain ~ CV^2 / 2. A target of a
+      factor-f reduction in a tail FPR at standardised threshold tau needs an
+      sd gain of about 1 - tau/tau_f where Phibar(tau_f) = Phibar(tau)/f;
+      at tau = 3 and f = 2 that is ~6.4 percent, i.e. CV >= ~36 percent. This
+      is a cheap pre-compute falsification check in the sense of
+      docs/inventor-protocol.md section 8, and it would have falsified this
+      composition before any lattice reduction was run.
+    promotion_status: >-
+      Candidate for a KN-TECH entry; NOT promoted by DEC-20260803-9b3d40. See
+      that decision's knowledge_promotion block for the reason and the
+      scheduled successor.
+
+  independent_recheck_instructions: >-
+    Read held_out_covariance from analysis/covariance_report.json at
+    orbit_score_covariance.orbit["2048"]. Compute (i) row sums and their
+    coefficient of variation, (ii) 1'Sigma 1 / 16, (iii) 1 / (1'Sigma^{-1}1)
+    by direct inversion rather than the Neumann series used here, and (iv) the
+    ratio of (iii) to (ii). Steps 1-3 of this note are confirmed if (iv) is
+    0.9941 to four decimals and the sd gain is 0.297 percent. Direct inversion
+    is the preferred check: it removes this note's only approximation.

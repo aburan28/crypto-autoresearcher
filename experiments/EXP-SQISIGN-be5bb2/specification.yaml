@@ -1,0 +1,257 @@
+experiment:
+  id: EXP-SQISIGN-be5bb2
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-SQISIGN-be57a1
+  question_id: RQ-SQISIGN-001
+  goal_id: GOAL-SQISIGN-001
+  batch_id: null
+  assigned_to: executor
+  title: >-
+    Review-required contract: count the SQIsign v2.0.1 verification
+    accept-fibre |A(pk,m)| via a model-verifier field evaluator, gated by an
+    EXTERNAL ECDSA known-answer control that must return |A|=1 (low-s) and
+    |A|=2 (no low-s) exactly before any SQIsign number is read
+
+  objective: >-
+    If separately approved, frozen, authorized, AND run only after
+    GOAL-SQISIGN-001 is activated (see goal_activation_blocker below), build
+    a ~150-line model verifier over the SQIsign v2.0.1 published field list,
+    validate it against the external ECDSA known-answer gate, and report
+    |A(pk,m)| with its per-field decomposition at NIST-I/III/V. This
+    contract is an instrument design and a pre-execution declaration. No run
+    has happened.
+
+  what_this_is_not:
+    - Not an attack on SQIsign, not a key recovery, not a forgery, and not a certificate of any kind.
+    - Not a claim about EUF-CMA; it counts bit-strings the verifier accepts, not messages an adversary can forge.
+    - Not a security estimate and not a revision of any published cost figure.
+    - Not an approval, a freezing, an execution authorization, a run, an observation, or evidence.
+    - Not a reopening of GOAL-SQISIGN-001's activation decision; that is exclusively a Coordinator matter.
+
+  goal_activation_blocker: >-
+    GOAL-SQISIGN-001 is currently status draft with dispatch_queue_path
+    null, as verified against ledger/goals/GOAL-SQISIGN-001.yaml at contract
+    drafting time. NOTHING CAN BE EXECUTED UNDER THIS GOAL AS IT STANDS. This
+    contract may be reviewed, revised, and even frozen in advance, but
+    execution_authorized may not become true, and no run may occur, until a
+    Coordinator decision moves GOAL-SQISIGN-001 out of draft (status ->
+    active or a successor goal is opened) and assigns it a
+    dispatch_queue_path. This mirrors EXP-MLKEM-bfdb63's honest disclosure
+    that its own goal is closed_at_budget and the contract would run only
+    under a successor goal; here the analogous fact is that the goal has
+    never yet been opened for dispatch.
+
+  claim_ceiling:
+    tier: medium
+    exact_scope_a_run_could_support: >-
+      MEDIUM ceiling, and no higher, because the object audited is a shipped
+      wire format rather than a toy construction -- but the ceiling still
+      cannot rise above documentary/arithmetic. A completed run could
+      support, at most: (1) the byte-budget reconstruction landing within 1
+      byte of the independently reported 212-byte inventory; (2) the
+      external ECDSA known-answer gate returning exactly |A|=1 (low-s
+      enforced) and |A|=2 (not enforced); (3) |A(pk,m)| per parameter set
+      with its per-field pinned/free/two-valued decomposition. NOTHING ELSE.
+      No outcome may be quoted as an EUF-CMA statement, a forgery, an attack,
+      or a crypto-scale security conclusion.
+
+  inputs:
+    field_list_source: >-
+      SQIsign v2.0.1 specification (2025-07-07), Section 4.6 and Algorithms
+      2.1, 2.2, 4.9, as already read and re-quoted in H-SQISIGN-c0488f; this
+      contract does not plan a re-fetch and depends on that hypothesis's
+      external_source_note for provenance and extraction-damage disclosure.
+    ecdsa_known_answer_gate:
+      construction: >-
+        Standard ECDSA verification predicate implemented twice: once with
+        low-s enforcement (canonical s only), once without. Applied to the
+        identical field-list-evaluator code path used for the SQIsign arm,
+        adapted to ECDSA's field list (r, s).
+      expected_output: "exactly |A|=1 with low-s enforced; exactly |A|=2 without."
+    model_verifier:
+      field_marking_rule: >-
+        Each published field marked pinned (fully constrained by the
+        verification equation), free (unconstrained, contributes its full
+        domain size), or two-valued (exactly two accepted values), derived
+        from the read algorithms and cited to H-SQISIGN-c0488f sections C
+        and E for hint_aux/hint_chl and M_chl respectively.
+    seeds:
+      note: >-
+        No randomized sampling is required; the field evaluator is a
+        deterministic multiplication of declared field cardinalities. Any
+        KAT-key spot check, if included at execution time, must use
+        publicly published test vectors, not freshly sampled secrets.
+
+  arms_and_controls:
+    treatment: >-
+      The SQIsign arm. Per parameter set (NIST-I, NIST-III, NIST-V): mark
+      every published field, multiply out |A|, and report the per-field
+      decomposition.
+    measured_null: not_applicable_reason -- this contract has no random-sampling null; correctness rests on the external known-answer gate instead.
+    positive_control: >-
+      THE ECDSA KNOWN-ANSWER GATE, RUN FIRST AND MANDATORY. With low-s
+      enforced the counter MUST return exactly |A|=1; without low-s
+      enforcement it MUST return exactly |A|=2 (the classical (r,+-s)
+      malleability). A counter that does not return exactly 1 and 2 is
+      BROKEN INSTRUMENTATION AND NO SQISIGN NUMBER MAY BE REPORTED FROM ANY
+      ARM. This gate is external to SQIsign by design, per the source
+      catalogue entry's own specification.
+    byte_budget_gate: >-
+      Stage 0: re-quote Algorithms 2.1, 2.2, 4.9 and reconstruct the byte
+      budget; must land within 1 byte of the independently reported 212
+      (H-SQISIGN-c0488f section A) or the field list is incomplete and the
+      entry halts.
+    ordering_control: >-
+      The byte-budget gate and the ECDSA known-answer gate are both
+      evaluated and their outputs committed BEFORE any SQIsign treatment
+      number is read. If either gate fails, the SQIsign arm is not read at
+      all in that run.
+    comparability_policy: >-
+      No number from this contract may be compared with any published SUF-
+      CMA or EUF-CMA figure, or with any figure from another EXP-SQISIGN-*
+      contract, except by direct citation of this contract's own |A| value.
+
+  stages_cheapest_first:
+    - id: stage-0-byte-budget
+      cost: "zero compute, minutes"
+      content: "Re-quote the three algorithms and reconstruct the byte budget."
+      can_terminate_run: true
+      termination_rule: "A reconstruction more than 1 byte off the reported 212 halts the contract here."
+    - id: stage-1-model-verifier
+      cost: "minutes, pure Python"
+      content: "Build the ~150-line field evaluator marking each field pinned/free/two-valued."
+      can_terminate_run: false
+      termination_rule: not_applicable
+    - id: stage-2-known-answer-gate
+      cost: "minutes"
+      content: "Run the ECDSA with/without low-s known-answer gate through the identical code path."
+      can_terminate_run: true
+      termination_rule: "Any output other than exactly 1 and 2 halts the whole package; no SQIsign number is read."
+    - id: stage-3-sqisign-count
+      cost: "minutes"
+      content: "Evaluate |A(pk,m)| and its decomposition at NIST-I/III/V."
+      can_terminate_run: false
+      termination_rule: not_applicable
+
+  metrics:
+    primary:
+      - "byte-budget residual against the reported 212."
+      - "ECDSA known-answer gate outputs (with/without low-s)."
+      - "|A(pk,m)| per parameter set with per-field decomposition."
+    secondary:
+      - "hint two-valuedness verdict per hint field."
+      - "M_chl orbit-collapse verdict (U=I only, or re-opened)."
+
+  heuristic_under_test: HEUR-SQ-be57a1-1
+
+  preregistered_prediction:
+    quantity: "|A(pk,m)| per parameter set"
+    formula: "|A| = 2^{#{hint bytes with h_true != 0}}, generically 4; E[|A|] ~ 3.938 given Pr[h_true=0] ~ 2^-7."
+    source: "Derived in H-SQISIGN-be57a1 and H-SQISIGN-c0488f section C; no external theorem cited."
+
+  scale_relevance:
+    tier: medium
+    justification: >-
+      The object audited (the published SQIsign v2.0.1 wire format) is real
+      and shipped, not a toy construction, which is why the ceiling is
+      medium rather than toy -- but the count is still a documentary/
+      arithmetic statement, not an attack, and cannot rise above medium
+      regardless of parameter set.
+    correspondence: null
+
+  tail_checks:
+    - "NIST-III byte-budget spot check: this level carries a known residual risk flagged in IDEA-20260805-244f78 and must be independently reconciled before its |A| decomposition is trusted."
+
+  replication:
+    seeds: []
+    independent_instances: 1
+    interpretation: >-
+      Deterministic field evaluation; no seed-to-seed variance is expected
+      or permitted. Any variation across repeated evaluations on the same
+      input is an implementation defect, not a distribution.
+
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 2
+    maximum_runs: 3
+    maximum_workers: 1
+
+  stopping_rules:
+    - Do not execute unless this contract is separately approved, frozen, archived, AND GOAL-SQISIGN-001 has been activated with a dispatch_queue_path.
+    - Stop before any SQIsign number is read if the ECDSA gate and byte-budget gate are not committed with their digests.
+    - Stop the whole package on any ECDSA gate output other than exactly 1 and 2.
+    - Stop stage 0 on a byte-budget residual exceeding 1 byte.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any execution while GOAL-SQISIGN-001 remains status draft with dispatch_queue_path null.
+    - Any change to the field-marking rule after any number has been observed.
+    - Citation of a decomposition without the paired byte-budget reconciliation.
+    - Absence of the pre-treatment commitment of the ECDSA gate outputs.
+
+  success_criterion: >-
+    This contract has no current success outcome because it is not
+    authorized for execution and its goal is not yet activated. IF a
+    separately approved, frozen successor is executed under an activated
+    GOAL-SQISIGN-001, its only positive disposition is: the byte budget
+    reconciles within 1 byte; the ECDSA gate returns exactly 1 and 2; and
+    |A(pk,m)| is reported per parameter set with its per-field decomposition.
+    THAT DISPOSITION ESTABLISHES NO ATTACK, NO EUF-CMA OR SUF-CMA CONCLUSION,
+    AND NO CRYPTO-SCALE SECURITY RESULT.
+
+  falsification_criterion: >-
+    H-SQISIGN-be57a1 (specifically HEUR-SQ-be57a1-1) is falsified, in whole
+    or in the named part, by any of: (F1a) Algorithm 4.9 is found to
+    recompute and reject a non-canonical hint, giving |A|=1 -- a clean,
+    fully usable negative reported at equal emphasis; (F1b) the model
+    verifier's |A| disagrees with a directly enumerated |A| on a toy
+    encoding -- the model is void; (F1c) the M_chl collapse argument is
+    wrong because the aux basis is also signer-chosen -- the orbit re-opens
+    to 2^{4(e_rsp-2)}, reported together with the reason it is not itself a
+    forgery. An ECDSA gate failure is NOT a falsification of anything; it is
+    an instrument failure that forbids reporting any SQIsign number.
+
+  outcomes:
+    no_execution_authorization: >-
+      The only current disposition: a review_required draft blocked on both
+      Coordinator approval AND goal activation. No run, no observation, no
+      evidence, no inference.
+    future_complete_readout: >-
+      Only after separate approval, freezing, authorization under an
+      activated GOAL-SQISIGN-001, and valid execution; scoped medium-tier,
+      documentary, never an EUF-CMA or SUF-CMA claim.
+    infrastructure_or_integrity_failure: >-
+      A timeout, crash, or missing dependency is INFRASTRUCTURE SIGNAL and
+      is NEVER negative mathematical evidence against H-SQISIGN-be57a1 or
+      against SQIsign (AGENTS.md rule 5).
+
+  required_artifacts_if_later_authorized:
+    - Frozen approved specification with a freeze receipt binding its SHA-256.
+    - Byte-budget reconciliation table with the arithmetic shown.
+    - ECDSA known-answer gate transcript (both arms), committed before the SQIsign arm is read.
+    - Per-field pinned/free/two-valued table and the resulting |A| per parameter set.
+    - Manifest, environment, exact argv, stdout, stderr, timestamps.
+    - Snapshot archive followed by independent validation and red-team review.
+
+  approval_requirements:
+    - Independent review confirms the field-marking derivation (hint two-valuedness, M_chl collapse) against H-SQISIGN-c0488f before any compute is authorized.
+    - Independent review confirms the ECDSA known-answer gate can actually discriminate (produces 1 in the low-s arm and 2 in the unenforced arm on a real toy implementation, not by construction of the test alone).
+    - Coordinator separately approves and freezes a successor contract without editing this draft.
+    - >-
+      REQUIRED, NOT OPTIONAL: a Coordinator decision activating GOAL-SQISIGN-001
+      (status draft -> active or equivalent, with a dispatch_queue_path
+      assigned) must exist before execution_authorized may become true. This
+      contract's approval and this goal's activation are two separate
+      Coordinator decisions and neither substitutes for the other.
+
+  approval_status: >-
+    Pending review AND pending goal activation. No approved_by field is
+    present because this draft is not approved and only the Coordinator may
+    approve it (AGENTS.md rule 1); even if approved, execution remains
+    blocked until GOAL-SQISIGN-001 leaves draft status.
+  approved_by: null

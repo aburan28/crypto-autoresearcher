@@ -1,0 +1,797 @@
+                        Twisted Edwards Curves
+
+      Daniel J. Bernstein1 , Peter Birkner2 , Marc Joye3 , Tanja Lange2 , and
+                                Christiane Peters2
+      1
+     Department of Mathematics, Statistics, and Computer Science (M/C 249)
+          University of Illinois at Chicago, Chicago, IL 60607–7045, USA
+                                    djb@cr.yp.to
+              2
+                Department of Mathematics and Computer Science
+Technische Universiteit Eindhoven, P.O. Box 513, 5600 MB Eindhoven, Netherlands
+       p.birkner@tue.nl, tanja@hyperelliptic.org, c.p.peters@tue.nl
+                               3
+                                 Thomson R&D France
+           Technology Group, Corporate Research, Security Laboratory
+         1 avenue de Belle Fontaine, 35576 Cesson-Sévigné Cedex, France
+                               marc.joye@thomson.net
+
+
+
+          Abstract. This paper introduces “twisted Edwards curves,” a general-
+          ization of the recently introduced Edwards curves; shows that twisted
+          Edwards curves include more curves over finite fields, and in particular
+          every elliptic curve in Montgomery form; shows how to cover even more
+          curves via isogenies; presents fast explicit formulas for twisted Edwards
+          curves in projective and inverted coordinates; and shows that twisted
+          Edwards curves save time for many curves that were already expressible
+          as Edwards curves.
+          Keywords: Elliptic curves, Edwards curves, twisted Edwards curves,
+          Montgomery curves, isogenies.
+
+
+1     Introduction
+Edwards in [13], generalizing an example from Euler and Gauss, introduced an
+addition law for the curves x2 + y 2 = c2 (1 + x2 y 2 ) over a non-binary field k.
+Edwards showed that every elliptic curve over k can be expressed in the form
+x2 + y 2 = c2 (1 + x2 y 2 ) if k is algebraically closed. However, over a finite field,
+only a small fraction of elliptic curves can be expressed in this form.
+   Bernstein and Lange in [4] presented fast explicit formulas for addition and
+doubling in coordinates (X : Y : Z) representing (x, y) = (X/Z, Y /Z) on an
+Edwards curve, and showed that these explicit formulas save time in elliptic-
+curve cryptography. Bernstein and Lange also generalized the addition law to
+the curves x2 + y 2 = c2 (1 + dx2 y 2 ). This shape covers considerably more elliptic
+*
+    Permanent ID of this document: c798703ae3ecfdc375112f19dd0787e4. Date of this
+    document: 2008.03.13. This work has been supported in part by the European Com-
+    mission through the IST Programme under Contract IST–2002–507932 ECRYPT,
+    and in part by the National Science Foundation under grant ITR–0716498. Part of
+    this work was carried out during a visit to INRIA Lorraine (LORIA).
+2       D. J. Bernstein, P. Birkner, M. Joye, T. Lange, C. Peters
+
+curves over a finite field than x2 +y 2 = c2 (1+x2 y 2 ). All curves in the generalized
+form are isomorphic to curves x2 + y 2 = 1 + dx2 y 2 .
+    In this paper, we further generalize the Edwards addition law to cover all
+curves ax2 + y 2 = 1 + dx2 y 2 . Our explicit formulas for addition and doubling
+are almost as fast in the general case as they are for the special case a = 1. We
+show that our generalization brings the speed of the Edwards addition law to
+every Montgomery curve; we also show that, over prime fields Fp where p ≡ 1
+(mod 4), many Montgomery curves are not covered by the special case a = 1.
+We further explain how to use isogenies to cover the odd part of every curve
+whose group order is a multiple of 4; over prime fields Fp where p ≡ 3 (mod 4),
+the special case a = 1 covers all Montgomery curves but does not cover all curves
+whose group order is a multiple of 4. Our generalization is also of interest for
+many curves that were already expressible in Edwards form; we explain how
+the twisting can save time in arithmetic. See [2] for a successful application of
+twisted Edwards curves to the elliptic-curve method of factorization.
+    Section 2 reviews Edwards curves, introduces twisted Edwards curves, and
+shows that each twisted Edwards curve is (as the name would suggest) a twist
+of an Edwards curve. Section 3 shows that every Montgomery curve can be
+expressed as a twisted Edwards curve, and vice versa. Section 4 reports the
+percentages of elliptic curves (over various prime fields) that can be expressed
+as Edwards curves, twisted Edwards curves, “4 times odd” twisted Edwards
+curves, etc. Section 5 uses isogenies to cover even more curves: specifically, it
+shows that every curve with group order a multiple of 4 and with no point
+of order 4 is 2-isogenous to a twisted Edwards curve. Section 6 generalizes the
+Edwards addition law, the explicit formulas from [4], and the “inverted” formulas
+from [5] to handle twisted Edwards curves. Section 7 analyzes the benefits of the
+generalization for cryptographic applications.
+
+
+2    Edwards Curves and Twisted Edwards Curves
+In this section we briefly review Edwards curves and the Edwards addition law
+at the level of generality of [4]. We then introduce twisted Edwards curves and
+discuss their relationship to Edwards curves.
+Review of Edwards Curves. Throughout the paper we consider elliptic curves
+over a non-binary field k, i.e., a field k whose characteristic char(k) is not 2.
+   An Edwards curve over k is a curve E : x2 +y 2 = 1+dx2 y 2 where d ∈ k\{0, 1}.
+The sum of two points (x1 , y1 ), (x2 , y2 ) on this Edwards curve E is
+                                                                         
+                                         x1 y2 + y1 x2    y1 y2 − x1 x2
+            (x1 , y1 ) + (x2 , y2 ) =                   ,                   .
+                                        1 + dx1 x2 y1 y2 1 − dx1 x2 y1 y2
+
+The point (0, 1) is the neutral element of the addition law. The point (0, −1)
+has order 2. The points (1, 0) and (−1, 0) have order 4. The inverse of a point
+(x1 , y1 ) on E is (−x1 , y1 ). The addition law is strongly unified: i.e., it can also
+be used to double a point. The addition law also works for the neutral element
+                                                        Twisted Edwards Curves            3
+
+and for inverses. If d is a nonsquare in k then, as proven in [4, Theorem 3.3],
+this addition law is complete: it works for all pairs of inputs.
+Twisted Edwards Curves. The existence of points of order 4 restricts the
+number of elliptic curves in Edwards form over k. We embed the set of Edwards
+curves in a larger set of elliptic curves of a similar shape by introducing twisted
+Edwards curves.
+Definition 2.1 (Twisted Edwards curve). Fix a field k with char(k) 6= 2.
+Fix distinct nonzero elements a, d ∈ k. The twisted Edwards curve with coeffi-
+cients a and d is the curve
+                            E E,a,d : ax2 + y 2 = 1 + dx2 y 2 .
+An Edwards curve is a twisted Edwards curve with a = 1.
+   In Section 3 we will show that every twisted Edwards curve is birationally
+equivalent to an elliptic curve in Montgomery form, and vice versa. The elliptic
+curve has j-invariant 16(a2 + 14ad + d2 )3 /ad(a − d)4 .
+Twisted Edwards Curves as Twists of Edwards Curves. The twisted
+Edwards curve E E,a,d : ax2 + y 2 = 1 + dx2 y 2 is a quadratic twist of the Edwards  √
+curve E E,1,d/a : x̄2 + ȳ 2 = 1 + (d/a)x̄2 ȳ 2 . The map√ (x̄, ȳ) 7→ (x, y) = (x̄/ a, ȳ)
+is an isomorphism from E E,1,d/a to E E,a,d over k( a). If a is a square in k then
+E E,a,d is isomorphic to E E,1,d/a over k.
+    More generally, E E,a,d is a quadratic twist of E E,ā,d¯ for any ā, d¯ satisfying
+ ¯
+d/ā = d/a. Conversely, every quadratic twist of a twisted Edwards curve is
+isomorphic to a twisted Edwards curve; i.e., the set of twisted Edwards curves
+is invariant under quadratic twists.
+    Furthermore, the twisted Edwards curve E E,a,d : ax2 + y 2 = 1 + dx2 y 2 is a
+quadratic twist of (actually is birationally equivalent to) the twisted Edwards
+curve E E,d,a : dx̄2 + ȳ 2 = 1 + ax̄2 ȳ 2 . The map (x̄, ȳ) 7→ (x, y) = (x̄, 1/ȳ) is a
+birational equivalence from E E,d,a to E E,a,d . More generally, E E,a,d is a quadratic
+twist of E E,ā,d¯ for any ā, d¯ satisfying ¯
+                                             d/ā = a/d. This generalizes the known fact,
+used in [4, proof of Theorem 2.1], that E E,1,d is a quadratic twist of E E,1,1/d .
+
+3    Montgomery Curves and Twisted Edwards Curves
+Let k be a field with char(k) 6= 2. In this section we show that the set of
+Montgomery curves over k is equivalent to the set of twisted Edwards curves
+over k. We also analyze the extent to which this is true without twists.
+   Standard algorithms for transforming a Weierstrass curve into a Montgomery
+curve if possible (see, e.g., [11, Section 13.2.3.c]) can be combined with our
+explicit transformation from a Montgomery curve to a twisted Edwards curve.
+Definition 3.1 (Montgomery curve). Fix a field k with char(k) 6= 2. Fix
+A ∈ k \ {−2, 2} and B ∈ k \ {0}. The Montgomery curve with coefficients A and
+B is the curve
+                        EM,A,B : Bv 2 = u3 + Au2 + u.
+4       D. J. Bernstein, P. Birkner, M. Joye, T. Lange, C. Peters
+
+Theorem 3.2. Fix a field k with char(k) 6= 2.
+    (i) Every twisted Edwards curve over k is birationally equivalent over k to a
+Montgomery curve.
+    Specifically, fix distinct nonzero elements a, d ∈ k. The twisted Edwards curve
+E E,a,d is birationally equivalent to the Montgomery curve EM,A,B , where A =
+2(a + d)/(a − d) and B = 4/(a − d). The map (x, y) 7→ (u, v) = ((1 + y)/(1 − y),
+(1 + y)/(1 − y)x) is a birational equivalence from E E,a,d to EM,A,B , with inverse
+(u, v) 7→ (x, y) = (u/v, (u − 1)/(u + 1)).
+    (ii) Conversely, every Montgomery curve over k is birationally equivalent
+over k to a twisted Edwards curve.
+    Specifically, fix A ∈ k \ {−2, 2} and B ∈ k \ {0}. The Montgomery curve
+EM,A,B is birationally equivalent to the twisted Edwards curve E E,a,d , where
+a = (A + 2)/B and d = (A − 2)/B.
+
+Proof. (i) Note that A and B are defined, since a 6= d. Note further that A ∈
+k \ {−2, 2} and B ∈ k \ {0}: if A = 2 then a + d = a − d so d = 0, contradiction; if
+A = −2 then a+d = d−a so a = 0, contradiction. Thus EM,A,B is a Montgomery
+curve.
+    The following script for the Sage computer-algebra system [24] checks that
+the quantities u = (1 + y)/(1 − y) and v = (1 + y)/(1 − y)x satisfy Bv 2 =
+u3 + Au2 + u in the function field of the curve E E,a,d : ax2 + y 2 = 1 + dx2 y 2 :
+    R.<a,d,x,y>=QQ[]
+    A=2*(a+d)/(a-d)
+    B=4/(a-d)
+    S=R.quotient(a*x^2+y^2-(1+d*x^2*y^2))
+    u=(1+y)/(1-y)
+    v=(1+y)/((1-y)*x)
+    0==S((B*v^2-u^3-A*u^2-u).numerator())
+The exceptional cases y = 1 and x = 0 occur for only finitely many points (x, y)
+on E E,a,d . Conversely, x = u/v and y = (u − 1)/(u + 1); the exceptional cases
+v = 0 and u = −1 occur for only finitely many points (u, v) on EM,A,B .
+    (ii) Note that a and d are defined, since B 6= 0. Note further that a 6= 0 since
+A 6= −2; d 6= 0 since A 6= 2; and a 6= d. Thus E E,a,d is a twisted Edwards curve.
+Furthermore
+                    A+2 A−2
+            a+d      B + B                        4         4
+        2       = 2 A+2 A−2
+                            =A          and            = A+2 A−2 = B.
+            a−d      B − B
+                                               (a − d)    B − B
+
+Hence E E,a,d is birationally equivalent to EM,A,B by (i).                        t
+                                                                                  u
+
+Exceptional Points for the Birational Equivalence. The map (u, v) 7→
+(u/v, (u − 1)/(u + 1)) from EM,A,B to E E,a,d in Theorem 3.2 is undefined at the
+points of EM,A,B : Bv 2 = u3 + Au2 + u with v = 0 or u + 1 = 0. We investigate
+these points in more detail:
+                                                    Twisted Edwards Curves          5
+
+ – The point (0, 0) on EM,A,B corresponds to the affine point of order 2 on
+   E E,a,d , namely (0, −1). This point and (0, 1) are the only exceptional points
+   of the inverse map (x, y) 7→ ((1 + y)/(1 − y), (1 + y)/(1 − y)x), where (0, 1)
+   is mapped to the point at infinity.
+ – If (A + 2)(A − 2) is a square (i.e.,p
+                                       if ad is a square) then there are two more
+   points with v = 0, namely ((−A± (A + 2)(A − 2))/2, 0). These points have
+   order 2. These points correspond to two points of order 2 at infinity on the
+   desingularization of E E,a,d .
+ – If (A − 2)/B is a square (i.e.,p if d is a square) then there are two points
+   with u = −1, namely (−1, ± (A − 2)/B). These points have order 4. These
+   points correspond to two points of order 4 at infinity on the desingularization
+   of E E,a,d .
+
+Eliminating the Twists. Every Montgomery curve EM,A,B is birationally
+equivalent to a twisted Edwards curve by Theorem 3.2, and therefore to a
+quadratic twist of an Edwards curve. In other words, there is a quadratic twist
+of EM,A,B that is birationally equivalent to an Edwards curve.
+    We now state two situations in which twisting is not necessary. Theorem 3.3
+states that every elliptic curve having a point of order 4 is birationally equivalent
+to an Edwards curve. Theorem 3.4 states that, over a finite field k with #k ≡ 3
+(mod 4), every Montgomery curve is birationally equivalent to an Edwards curve.
+    Some special cases of these results were already known. Bernstein and Lange
+proved in [4, Theorem 2.1(1)] that every elliptic curve having a point of order 4 is
+birationally equivalent to a twist of an Edwards curve, and in [4, Theorem 2.1(3)]
+that, over a finite field, every elliptic curve having a point of order 4 and a unique
+point of order 2 is birationally equivalent to an Edwards curve. We prove that
+the twist in [4, Theorem 2.1(1)] is unnecessary, and that the unique point of
+order 2 in [4, Theorem 2.1(3)] is unnecessary.
+
+Theorem 3.3. Fix a field k with char(k) 6= 2. Let E be an elliptic curve over
+k. The group E(k) has an element of order 4 if and only if E is birationally
+equivalent over k to an Edwards curve.
+
+Proof. Assume that E is birationally equivalent over k to an Edwards curve
+E E,1,d . The elliptic-curve addition law corresponds to the Edwards addition law;
+see [4, Theorem 3.2]. The point (1, 0) on E E,1,d has order 4, so E must have a
+point of order 4.
+    Conversely, assume that E has a point (u4 , v4 ) of order 4. As in [4, Theo-
+rem 2.1, proof], observe that u4 6= 0 and v4 6= 0; assume without loss of generality
+that E has the form v 2 = u3 + (v42 /u24 − 2u4 )u2 + u24 u; define d = 1 − 4u34 /v42 ;
+and observe that d ∈   / {0, 1}.
+    The following script for the Sage computer-algebra system checks that the
+quantities x = v4 u/u4 v and y = (u − u4 )/(u + u4 ) satisfy x2 + y 2 = 1 + dx2 y 2
+in the function field of E:
+  R.<u,v,u4,v4>=QQ[]
+  d=1-4*u4^3/v4^2
+6       D. J. Bernstein, P. Birkner, M. Joye, T. Lange, C. Peters
+
+    S=R.quotient((v^2-u^3-(v4^2/u4^2-2*u4)*u^2-u4^2*u).numerator())
+    x=v4*u/(u4*v)
+    y=(u-u4)/(u+u4)
+    0==S((x^2+y^2-1-d*x^2*y^2).numerator())
+The exceptional cases u4 v = 0 and u = −u4 occur for only finitely many points
+(u, v) on E. Conversely, u = u4 (1 + y)/(1 − y) and v = v4 (1 + y)/(1 − y)x; the
+exceptional cases y = 1 and x = 0 occur for only finitely many points (x, y) on
+E E,1,d .
+    Therefore the rational map (u, v) 7→ (x, y) = (v4 u/u4 v, (u − u4 )/(u + u4 )),
+with inverse (x, y) 7→ (u, v) = (u4 (1+y)/(1−y), v4 (1+y)/(1−y)x), is a birational
+equivalence from E to the Edwards curve E E,1,d .                                u
+                                                                                 t
+
+Theorem 3.4. If k is a finite field with #k ≡ 3 (mod 4) then every Mont-
+gomery curve over k is birationally equivalent over k to an Edwards curve.
+
+Proof. Fix A ∈ k \ {−2, 2} and B ∈ k \ {0}. We will use an idea of Okeya, Ku-
+rumatani, and Sakurai [21], building upon the observations credited to Suyama
+in [20, page 262], to prove that the Montgomery curve EM,A,B has a point of
+order 4. This fact can be extracted from [21, Theorem 1] when #k is prime, but
+to keep this paper self-contained we include a direct proof.
+    Case p1: (A + 2)/B is a square. Then (as mentioned before) EM,A,B has a
+point (1, (A + 2)/B) of order 4.
+    Case 2: (A + p2)/B is a nonsquare but (A − 2)/B is a square. Then EM,A,B
+has a point (−1, (A − 2)/B) of order 4.
+    Case 3: (A + 2)/B and (A − 2)/B are nonsquares. Then (A + 2)(A − 2) must
+be square, since
+               pk is finite. The Montgomery curve EM,A,A+2 has three points
+(0, 0), ((−A ± (A + 2)(A − 2))/2, 0) of order 2, and a point (1, 1) of order 4,
+so #EM,A,A+2 (k) ≡ 0 (mod 8). Furthermore, EM,A,B is a nontrivial quadratic
+twist of EM,A,A+2 , so #EM,A,B (k) + #EM,A,A+2 (k) = 2#k + 2 ≡ 0 (mod 8).
+Therefore #EM,A,B (k) ≡ 0 (mod 8). The curve EM,A,B cannot have more than
+three points of order 2, so it must have a point of order 4.
+    In every case EM,A,B has a point of order 4. By Theorem 3.3, EM,A,B is
+birationally equivalent to an Edwards curve.                                 t
+                                                                             u
+
+   This theorem does not generalize to #k ≡ 1 (mod 4). For example, the
+Montgomery curve EM,9,1 over F17 has order 20 and group structure isomorphic
+to Z/2 × Z/10. This curve is birationally equivalent to the twisted Edwards
+curve E E,11,7 , but it does not have a point of order 4, so it is not birationally
+equivalent to an Edwards curve.
+
+Theorem 3.5. Let k be a finite field with #k ≡ 1 (mod 4). Let EM,A,B be a
+Montgomery curve so that (A + 2)(A − 2) is a square and let δ be a nonsquare.
+    Exactly one of EM,A,B and its nontrivial quadratic twist EM,A,δB is bira-
+tionally equivalent to an Edwards curve.
+    In particular, EM,A,A+2 is birationally equivalent to an Edwards curve.
+                                                   Twisted Edwards Curves         7
+
+Proof. Since (A + 2)(A − 2) is a square both EM,A,B and EM,A,δB contain a
+subgroup isomorphic to Z/2Z × Z/2Z. This subgroup accounts for a factor of 4
+in the group order. Since #EM,A,B (k) + #EM,A,δB (k) = 2#k + 2 ≡ 4 (mod 8)
+exactly one of #EM,A,B (k) and #EM,A,δB (k) is divisible by 4 but not by 8. That
+curve cannot have a point of order 4 while the other one has a point of order 4.
+The first statement follows from Theorem 3.3.
+    The second statement also follows from Theorem 3.3, since the point (1, 1)
+on EM,A,A+2 has order 4.                                                      t
+                                                                              u
+
+
+4   Statistics
+It is well known that, when p is a large prime, there are approximately 2p
+isomorphism classes of elliptic curves over the finite field Fp . How many of these
+elliptic curves are birationally equivalent to twisted Edwards curves ax2 + y 2 =
+1 + dx2 y 2 ? How many are birationally equivalent to Edwards curves x2 + y 2 =
+1 + dx2 y 2 ? How many are birationally equivalent to complete Edwards curves,
+i.e., Edwards curves with nonsquare d? How many are birationally equivalent to
+original Edwards curves x2 + y 2 = c2 (1 + x2 y 2 )? How do the statistics vary with
+the number of powers of 2 in the group order?
+     We computed the answers for various primes p by enumerating all complete
+Edwards curves, all Edwards curves, all twisted Edwards curves (with a limited
+set of a’s covering all isomorphism classes), and all elliptic curves in Weierstrass
+form (with similar limitations). We transformed each curve to a birationally
+equivalent elliptic curve E and then computed (#E, j(E)), where #E is the
+number of points on E and j(E) is the j-invariant of E. Recall that j(E) = j(E 0 )
+if and only if E 0 is a twist of E, and that twists are distinguished by #E except
+for a few isomorphism classes.
+     Some parts of these experiments have been carried out before. See, e.g., [15].
+However, the information in the literature is not sufficient for our comparison of
+Edwards curves (and complete Edwards curves) to twisted Edwards curves.
+Answers for Primes p ≡ 1 (mod 4). For p = 1009 we found
+
+ – 43 different pairs (#E, j(E)) for original Edwards curves,
+ – 504 different pairs (#E, j(E)) for complete Edwards curves,
+ – 673 different pairs (#E, j(E)) for Edwards curves,
+ – 842 different pairs (#E, j(E)) for twisted Edwards curves,
+ – 842 different pairs (#E, j(E)) for elliptic curves with group order divisible
+   by 4, and
+ – 2014 different pairs (#E, j(E)) for elliptic curves.
+8      D. J. Bernstein, P. Birkner, M. Joye, T. Lange, C. Peters
+
+We looked more closely at the number of powers of 2 dividing #E and observed
+the following distribution:
+               Curves Total odd 2 · odd 4 · odd 8 · odd 16 · odd 32 · odd 64 · odd
+     original Edwards    43 0         0       0       0       23        6        6
+   complete Edwards 504 0             0     252     130       66       24       16
+              Edwards 673 0           0     252     195      122       42       30
+     twisted Edwards 842 0            0     421     195      122       42       30
+4 divides group order 842 0           0     421     195      122       42       30
+                   all 2014 676     496     421     195      122       42       30
+We observed similar patterns for more than 1000 tested primes p ≡ 1 (mod 4):
+                   Curves     Total      odd 2 · odd     4 · odd   8 · odd
+         original Edwards ≈ (1/24)p        0        0          0         0
+       complete Edwards ≈ (1/2)p           0        0 ≈ (1/4)p ≈ (1/8)p
+                  Edwards ≈ (2/3)p         0        0 ≈ (1/4)p ≈ (3/16)p
+         twisted Edwards ≈ (5/6)p          0        0 ≈ (5/12)p ≈ (3/16)p
+    4 divides group order ≈ (5/6)p         0        0 ≈ (5/12)p ≈ (3/16)p
+                       all     ≈ 2p ≈ (2/3)p ≈ (1/2)p ≈ (5/12)p ≈ (3/16)p
+We do not claim novelty for statistics regarding the set of Montgomery curves (in
+other words, the set of twisted Edwards curves) and the set of all elliptic curves;
+all of these statistics have been observed before, and some of them have been
+proven. Furthermore, the (1/2)p for complete Edwards curves was pointed out
+in [4, Abstract]. However, the (2/3)p, (1/4)p, and (3/16)p for Edwards curves
+appear to be new observations. We include the old statistics as a basis for com-
+parison.
+Answers for Primes p ≡ 3 (mod 4). For primes p ≡ 3 (mod 4) the patterns
+are different, as one would expect from Theorems 3.4 and 3.5. For example, here
+is the analogous table for p = 1019:
+               Curves Total odd 2 · odd 4 · odd 8 · odd 16 · odd 32 · odd 64 · odd
+     original Edwards 254 0           0       0     127       68       33       10
+   complete Edwards 490 0             0     236     127       68       33       10
+              Edwards 744 0           0     236     254      136       66       20
+     twisted Edwards 744 0            0     236     254      136       66       20
+4 divides group order 822 0           0     314     254      136       66       20
+                   all 2012 680     510     314     254      136       66       20
+We observed similar patterns for more than 1000 tested primes p ≡ 3 (mod 4):
+                    Curves    Total      odd 2 · odd 4 · odd 8 · odd
+          original Edwards ≈ (1/4)p        0        0        0 ≈ (1/8)p
+        complete Edwards ≈ (1/2)p          0        0 ≈ (1/4)p ≈ (1/8)p
+                   Edwards ≈ (3/4)p        0        0 ≈ (1/4)p ≈ (1/4)p
+          twisted Edwards ≈ (3/4)p         0        0 ≈ (1/4)p ≈ (1/4)p
+     4 divides group order ≈ (5/6)p        0        0 ≈ (1/3)p ≈ (1/4)p
+                        all    ≈ 2p ≈ (2/3)p ≈ (1/2)p ≈ (1/3)p ≈ (1/4)p
+                                                    Twisted Edwards Curves            9
+
+As above, we do not claim novelty for statistics regarding the set of Montgomery
+curves and the set of all elliptic curves; we include these statistics as a basis for
+comparison.
+Near-Prime Group Orders. We also looked at how often the odd part of #E
+was prime and observed the following distribution for p = 1009:
+
+                   Curves prime 2 · prime 4 · prime 8 · prime 16 · prime 32 · prime
+         original Edwards     0         0         0         0          8          2
+       complete Edwards       0         0        64        42         28          8
+                  Edwards     0         0        64        63         50         14
+         twisted Edwards      0         0       102        63         50         14
+    4 divides group order     0         0       102        63         50         14
+                       all 189         98       102        63         50         14
+
+Here is the analogous table for p = 1019:
+
+                   Curves prime 2 · prime 4 · prime 8 · prime 16 · prime 32 · prime
+         original Edwards     0         0         0        25         22          9
+       complete Edwards       0         0        48        25         22          9
+                  Edwards     0         0        48        50         44         18
+         twisted Edwards      0         0        48        50         44         18
+    4 divides group order     0         0        64        50         44         18
+                       all 148        100        64        50         44         18
+
+Of course, larger primes p have smaller chances of prime #E, smaller chances of
+prime #E/2, etc.
+
+
+5     Isogenies: Even More Curves
+A curve that is not isomorphic to an Edwards curve, and not even isomorphic to
+a twisted Edwards curve, might nevertheless be isogenous to a twisted Edwards
+curve. This section shows, in particular, that every curve with three points of
+order 2 is 2-isogenous to a twisted Edwards curve. This section gives an example
+of a curve that is not birationally equivalent to a twisted Edwards curve but that
+is 2-isogenous to a twisted Edwards curve. This section also discusses the use
+of 2-isogenies for scalar multiplication in an odd-order subgroup of the original
+curve.
+    Our use of isogenies to expand the coverage of twisted Edwards curves is
+analogous to the use of isogenies by Brier and Joye in [9] to expand the coverage
+of “a4 = −3” Weierstrass curves. We comment that isogenies are also useful
+for other curve shapes. For example, over fields Fp with p ≡ 3 (mod 4), every
+elliptic curve with a point of order 4 is 2-isogenous to a Jacobi-quartic curve
+v 2 = u4 − 2δu2 + 1; see [6], [12], [16], [17], and [3] for fast explicit formulas to
+perform computations on curves of this shape.
+10      D. J. Bernstein, P. Birkner, M. Joye, T. Lange, C. Peters
+
+Theorem 5.1. Fix a field k with char(k) 6= 2. Every elliptic curve over k having
+three k-rational points of order 2 is 2-isogenous over k to a twisted Edwards
+curve.
+Proof. Let E be an elliptic curve over k having three k-rational points of order 2.
+Write E in Weierstrass form v 2 = u3 + a2 u2 + a4 u + a6 , with points (u0 , 0) and
+(u1 , 0) and (u2 , 0) of order 2. Assume without loss of generality that u0 = 0; to
+handle the general case, replace u by u − u0 .
+    The polynomial u3 + a2 u2 + a4 u + a6 has distinct roots 0, u1 , u2 so it factors
+as u(u − u1 )(u − u2 ); i.e., E has the form
+
+                         v 2 = u3 − (u1 + u2 )u2 + (u1 u2 )u.
+
+Therefore E is 2-isogenous to the elliptic curve Ē given by
+
+                      v̄ 2 = ū3 + 2(u1 + u2 )ū2 + (u1 − u2 )2 ū;
+
+see, e.g., [22, Chapter III, Example 4.5]. The 2-isogeny from E to Ē is given by
+                               v2                   v(u1 u2 − u2 )
+                      ū =           and     v̄ =                  .
+                               u2                         u2
+The dual 2-isogeny from Ē to E is given by
+                        v̄ 2                    v̄((u1 − u2 )2 − ū2 )
+                  u=                and    v=                          .
+                       4ū2                             8ū2
+    The elliptic curve Ē is isomorphic to EM,2(u1 +u2 )/(u1 −u2 ),1/(u1 −u2 ) , so by
+Theorem 3.2 it is birationally equivalent to E E,4u1 ,4u2 . Therefore the original
+elliptic curve E is 2-isogenous to E E,4u1 ,4u2 .                                    t
+                                                                                     u
+
+A Numerical Example. Over fields Fp with p ≡ 1 (mod 4), every curve with
+three points of order 2 is already birationally equivalent to a twisted Edwards
+curve. However, over fields Fp with p ≡ 3 (mod 4), a curve that has three points
+of order 2 is not birationally equivalent to a twisted Edwards curve unless it has
+a point of order 4; see Theorem 3.4. Theorem 5.1 applies whether or not there
+is a point of order 4.
+    Consider, for example, the elliptic curve given in [7, Appendix A.1, Exam-
+ple 11]. This is a Weierstrass-form curve y 2 = x3 + ax + b having n points over
+a prime field Fp with p ≡ 3 (mod 4), where
+
+     p = 704884506943271274200281641864861869675382281803874374287823
+         572590636465776430902994937116627154697596008175843994317887,
+     a = 5,
+     b = 386662904220884846158118978755296957588161144581227227632608
+         477394833508761427897436830503346162919463497627079364752199,
+  n/4 = 176221126735817818550070410466215467418845570450968593571955
+        849984388374202661367791144000780545901540071164046444060971.
+                                                    Twisted Edwards Curves        11
+
+There are three roots of x3 + ax + b modulo p, so this elliptic curve has three
+points of order 2. It is 2-isogenous to a twisted Edwards curve by Theorem 5.1.
+On the other hand, it is not birationally equivalent to a Montgomery curve,
+or to a twisted Edwards curve; if it were, it would have a point of order 4 by
+Theorem 3.4, so n would have to be a multiple of 8.
+    The most important operation in elliptic-curve cryptography is scalar multi-
+plication in a prime-order subgroup of an elliptic curve. Consider a point P in
+the subgroup of order n/4 of the elliptic curve shown above; n/4 is prime. To
+compute Q = mP for any integer m, we do the following:
+
+ – compute P 0 = φ(P ), where φ is the 2-isogeny (shown explicitly in the proof
+   of Theorem 5.1) from this elliptic curve to a twisted Edwards curve;
+ – compute Q0 = ((m/2) mod (n/4))P 0 on the twisted Edwards curve; and
+ – compute Q = φ̂(Q0 ), where φ̂ is the dual isogeny.
+
+The isogeny and dual isogeny are easy to evaluate, so most of the work consists
+of the scalar multiplication on the twisted Edwards curve.
+
+
+6   Arithmetic on Twisted Edwards Curves
+Let k be a field with char(k) 6= 2. In this section we present fast explicit formulas
+for addition and doubling on twisted Edwards curves over k.
+The Twisted Edwards Addition Law. Let (x1 , y1 ), (x2 , y2 ) be points on the
+twisted Edwards curve E E,a,d : ax2 + y 2 = 1 + dx2 y 2 . The sum of these points
+on E E,a,d is
+                                                                           
+                                           x1 y2 + y1 x2 y1 y2 − ax1 x2
+              (x1 , y1 ) + (x2 , y2 ) =                   ,                   .
+                                          1 + dx1 x2 y1 y2 1 − dx1 x2 y1 y2
+
+The neutral element is (0, 1), and the negative of (x1 , y1 ) is (−x1 , y1 ).
+    For the correctness of the addition law observe that it√coincides with the
+Edwards addition law on x̄2 + y 2 = 1 + (d/a)x̄2 y 2 with x̄ = ax which is proven
+correct in [4, Section 3].
+    These formulas also work for doubling. These formulas are complete (i.e.,
+have no exceptional cases) if a is a square in k and d is a nonsquare in k. The
+latter follows from E E,a,d being isomorphic to E E,1,d/a ; d/a being a nonsquare
+in k and from [4, Theorem 3.1] which showed that the Edwards addition law is
+complete on E E,1,d0 if d0 is a nonsquare.
+Projective Twisted Edwards Coordinates. To avoid inversions we work on
+the projective twisted Edwards curve
+
+                         (aX 2 + Y 2 )Z 2 = Z 4 + dX 2 Y 2 .
+
+For Z1 6= 0 the homogeneous point (X1 : Y1 : Z1 ) represents the affine point
+(X1 /Z1 , Y1 /Z1 ) on E E,a,d .
+12       D. J. Bernstein, P. Birkner, M. Joye, T. Lange, C. Peters
+
+   We checked the following explicit formulas for addition and doubling with
+the help of the Sage computer-algebra system, following the approach of the
+Explicit-Formulas Database [3].
+Addition in Projective Twisted Coordinates. The following formulas com-
+pute (X3 : Y3 : Z3 ) = (X1 : Y1 : Z1 ) + (X2 : Y2 : Z2 ) in 10M + 1S + 2D + 7add,
+where the 2D are one multiplication by a and one by d:
+
+      A = Z1 · Z2 ; B = A2 ; C = X1 · X2 ; D = Y1 · Y2 ; E = dC · D;
+      F = B − E; G = B + E; X3 = A · F · ((X1 + Y1 ) · (X2 + Y2 ) − C − D);
+     Y3 = A · G · (D − aC); Z3 = F · G.
+
+Doubling in Projective Twisted Coordinates. The following formulas com-
+pute (X3 : Y3 : Z3 ) = 2(X1 : Y1 : Z1 ) in 3M + 4S + 1D + 7add, where the 1D
+is a multiplication by a:
+
+       B = (X1 + Y1 )2 ; C = X12 ; D = Y12 ; E = aC; F := E + D; H = Z12 ;
+       J = F − 2H; X3 = (B − C − D) · J; Y3 = F · (E − D); Z3 = F · J.
+
+Clearing Denominators in Projective Coordinates. Here is an alternative
+approach to arithmetic on the twisted Edwards curve E E,a,d when a is a square
+in k.
+    The curve E E,a,d : ax̄2 + ȳ 2 = 1 + dx̄2 ȳ 2 √
+                                                    is isomorphic to the Edwards curve
+E E,1,d/a : x2 + y 2 = 1 + (d/a)x2 y 2 by x = ax̄ and y = ȳ; see Section 2. The
+following formulas add on E E,1,d/a using 10M + 1S + 3D + 7add, where the 3D
+are two multiplications by a and one by d:
+
+     A = Z1 · Z2 ; B = aA2 ; H = aA; C = X1 · X2 ; D = Y1 · Y2 ; E = dC · D;
+     F = B − E; G = B + E; X3 = H · F · ((X1 + Y1 ) · (X2 + Y2 ) − C − D);
+     Y3 = H · G · (D − C); Z3 = F · G.
+
+One can double on E E,1,d/a with 3M + 4S + 6add, independent of the curve
+coefficient d/a, using the formulas from [4, Section 4].
+    Our addition formulas for E E,1,d/a are slower (by 1 multiplication by a) than
+our addition formulas for E E,a,d . On the other hand, doubling for E E,1,d/a is
+faster (by 1 multiplication by a) than doubling for E E,a,d . Some applications
+(such as batch signature verification) have more additions than doublings, while
+other applications have more doublings than additions, so all of the formulas are
+of interest.
+Inverted Twisted Edwards Coordinates. Another way to avoid inversions
+is to let a point (X1 : Y1 : Z1 ) on the curve
+
+                           (X 2 + aY 2 )Z 2 = X 2 Y 2 + dZ 4
+
+with X1 Y1 Z1 6= 0 correspond to the affine point (Z1 /X1 , Z1 /Y1 ) on E E,a,d .
+                                                            Twisted Edwards Curves           13
+
+    Bernstein and Lange introduced these inverted coordinates in [5], for the case
+a = 1, and observed that the coordinates save time in addition. We generalize
+to arbitrary a.
+Addition in Inverted Twisted Coordinates. The following formulas com-
+pute (X3 : Y3 : Z3 ) = (X1 : Y1 : Z1 ) + (X2 : Y2 : Z2 ) in 9M + 1S + 2D + 7add,
+where the 2D are one multiplication by a and one by d:
+
+         A = Z1 · Z2 ; B = dA2 ; C = X1 · X2 ; D = Y1 · Y2 ; E = C · D;
+        H = C − aD; I = (X1 + Y1 ) · (X2 + Y2 ) − C − D;
+        X3 = (E + B) · H; Y3 = (E − B) · I; Z3 = A · H · I.
+
+Doubling in Inverted Twisted Coordinates. The following formulas com-
+pute (X3 : Y3 : Z3 ) = 2(X1 : Y1 : Z1 ) in 3M + 4S + 2D + 6add, where the 2D
+are one multiplication by a and one by 2d:
+
+   A = X12 ; B = Y12 ; U = aB; C = A + U ; D = A − U ;
+   E = (X1 + Y1 )2 − A − B; X3 = C · D; Y3 = E · (C − 2dZ12 ); Z3 = D · E.
+
+Clearing Denominators in Inverted Coordinates. The following formulas
+add in inverted coordinates on E E,1,d/a using 9M + 1S + 3D + 7add, where the
+3D are two multiplications by a and one by d:
+
+        A = Z1 · Z2 ; B = dA2 ; C = X1 · X2 ; D = Y1 · Y2 ; E = aC · D;
+        H = C − D; I = (X1 + Y1 ) · (X2 + Y2 ) − C − D;
+       X3 = (E + B) · H; Y3 = (E − B) · I; Z3 = aA · H · I.
+
+   The following formulas double in inverted coordinates on E E,1,d/a using 3M+
+4S + 3D + 5add, where the 3D are two multiplications by a and one by 2d:
+
+      A = X12 ; B = Y12 ; C = A + B; D = A − B; E = (X1 + Y1 )2 − C;
+      F = aC; Z3 = aD · E; X3 = F · D; Y3 = E · (F − 2dZ12 ).
+
+More Parameters. One could consider the more general curve equation
+
+                               ax2 + y 2 = c2 (1 + dx2 y 2 )
+
+with addition law
+                                                                                    
+                                            x1 y2 + y1 x2       y1 y2 − ax1 x2
+         (x1 , y1 ) + (x2 , y2 ) =                           ,                           .
+                                         c(1 + dx1 x2 y1 y2 ) c(1 − dx1 x2 y1 y2 )
+
+We do not present explicit formulas for this generalization; these curves are
+always isomorphic to twisted Edwards curves. We comment, however, that there
+exist curves for which the extra parameter saves a little time.
+14      D. J. Bernstein, P. Birkner, M. Joye, T. Lange, C. Peters
+
+7    Edwards Versus Twisted Edwards
+We introduced twisted Edwards curves as a generalization of Edwards curves. Is
+this generalization actually useful for cryptographic purposes?
+    Section 4 showed that, over prime fields Fp where p ≡ 1 (mod 4), twisted
+Edwards curves cover considerably more elliptic curves than Edwards curves do.
+In particular, for “4 times odd” elliptic curves over such prime fields, the coverage
+of Edwards curves is only about 60% of the coverage of twisted Edwards curves.
+One can choose a to be very small, making twisted Edwards curves essentially
+as fast as Edwards curves and thus bringing the speed of the Edwards addition
+law to a wider variety of elliptic curves.
+    Even when an elliptic curve can be expressed in Edwards form, expressing
+the same curve in twisted Edwards form often saves time in arithmetic. In this
+section we review the issues faced by implementors aiming for top speed. We
+give examples of the impact of twisted Edwards curves for implementors who
+are faced with externally specified curves, and for implementors who are free to
+choose their own curves.
+How Twisting Can Save Time. The following table summarizes the speeds of
+addition and doubling in standard (projective) coordinates on Edwards curves,
+standard coordinates on twisted Edwards curves, inverted coordinates on Ed-
+wards curves, and inverted coordinates on twisted Edwards curves:
+
+Coordinates                 Source of           Addition            Doubling
+                            algorithms
+Edwards                     [4, §4]          10M+1S+1D          3M+4S
+                                             (mult by d/a)
+Edwards                  this paper          10M+1S+3D          3M+4S
+                         (clearing denoms) (mult by a, a, d)
+Twisted Edwards          this paper          10M+1S+2D          3M+4S+1D
+                                             (mult by a, d)       (mult by a)
+Inverted Edwards         [5, §§4–5]           9M+1S+1D          3M+4S+1D
+                                             (mult by d/a)     (mult by d/a)
+Inverted Edwards         this paper           9M+1S+3D          3M+4S+3D
+                         (clearing denoms) (mult by a, a, d) (mult by a, a, d)
+Inverted twisted Edwards this paper           9M+1S+2D          3M+4S+2D
+                                             (mult by a, d) (mult by a, d)
+
+   If a curve E is expressible as an Edwards curve, is there any reason to consider
+more general expressions of E as a twisted Edwards curve? One might think,
+from a glance at the above table, that the answer is no: twisting appears to lose
+1D in every coordinate system and for every group operation without gaining
+anything. However, there are many situations where the answer is yes!
+   Specifically, instead of performing computations on the Edwards curve E E,1,d¯
+over k, one can perform computations on the twisted Edwards curve E E,a,d over
+k for any (a, d) such that d¯ = d/a and such that a is a square in k. (It is
+                                                    Twisted Edwards Curves        15
+
+convenient for computing the isomorphism, but certainly not essential, for a to
+be the square of a small integer.) In particular, many curves over Fp have d¯
+expressible as a ratio d/a where both d and a are small, much smaller than any
+integer congruent to d¯ modulo p. In the non-twisted Edwards case the 1D in the
+table above is a multiplication by d¯ while the 2D in the twisted Edwards case
+are one multiplication by d and one multiplication by a, often taking less time
+than a multiplication by d.¯
+    Consider, for example, the curve “Curve25519” used in [1] to set speed
+records for elliptic-curve Diffie-Hellman before the advent of Edwards curves.
+Curve25519 is a particular elliptic curve over Fp where p = 2255 − 19. Bernstein
+and Lange point out in [4, Section 2] that Curve25519 can be expressed as an
+Edwards curve x2 + y 2 = 1 + (121665/121666)x2 y 2 . We point out that this curve
+is isomorphic to the twisted Edwards curve 121666x2 + y 2 = 1 + 121665x2 y 2 ,
+and that the twisted Edwards curve provides faster arithmetic. Each addition
+on the twisted Edwards curve involves only one multiplication by 121665 and
+one multiplication by 121666, which together are faster than a multiplication by
+20800338683988658368647408995589388737092878452977063003340006470870624536394
+≡ 121665/121666 (mod p).
+    This phenomenon is not an accident. Montgomery curves EM,A,B are nor-
+mally chosen so that (A + 2)/4 is a small integer: this speeds up u-coordinate
+arithmetic, as Montgomery pointed out in [20, page 261, bottom]. The corre-
+sponding twisted Edwards curves have d/a equal to (A − 2)/(A + 2), a ratio of
+small integers, allowing fast arithmetic in twisted Edwards form.
+    The decision between Edwards curves and twisted Edwards curves interacts
+with the decision between standard Edwards coordinates and inverted Edwards
+coordinates. Frequent additions make inverted Edwards coordinates more im-
+pressive; large a, d make inverted Edwards coordinates less impressive.
+Choosing Twisted Edwards Curves. Often implementors are free to choose
+their own curves for the best possible speed. To illustrate the benefits of this
+flexibility we studied “small” twisted Edwards curves modulo several primes of
+cryptographic size: 2160 − 47, the largest prime below 2160 ; 2192 − 264 − 1, the
+prime used for NIST’s P-192 elliptic curve; 2224 − 296 + 1, the prime used for
+NIST’s P-224 elliptic curve; and 2255 − 19, the prime used in [1]. Specifically, we
+enumerated twisted Edwards curves E E,a,d for thousands of small pairs (a, d),
+and we checked which curves had small cofactors over Fp , i.e., had group orders
+h·prime where the cofactor h is small. We give some examples of twisted Edwards
+curves with small cofactor, tiny a, and tiny d, supporting exceptionally fast
+arithmetic.
+    For p = 2192 − 264 − 1, the twisted Edwards curve E E,102,47 : 102x2 + y 2 =
+1 + 47x2 y 2 has cofactor 4. Arithmetic on E E,102,47 is impressively fast, and the
+cofactor is minimal. The nontrivial quadratic twist E E,1122,517 has cofactor only
+28, protecting against the active small-subgroup attacks discussed in (e.g.) [1,
+Section 3].
+    For p = 2224 − 296 + 1, the twisted Edwards curve E E,12,1 has cofactor
+3456, and its nontrivial quadratic twist E E,132,11 has cofactor 20. The coefficients
+16      D. J. Bernstein, P. Birkner, M. Joye, T. Lange, C. Peters
+
+a = 12 and d = 1 here are spectacularly small. The cofactor 3456 is not minimal
+but can still be considered for cryptographic purposes.
+    If active small-subgroup attacks are stopped in other ways then one can
+find even smaller pairs (a, d). For p = 2160 − 47 the twisted Edwards curve
+E E,23,−6 has cofactor 4; for comparison, the first Edwards curve we found with
+small parameter d and with cofactor 4 over the same field was E E,1,268 . For
+p = 2255 − 19 the twisted Edwards curve E E,29,−28 has cofactor 4 and the
+twisted Edwards curve E E,25,2 has cofactor 8.
+
+
+References
+ 1. Daniel J. Bernstein, Curve25519: new Diffie-Hellman speed records, in PKC 2006
+    [25] (2006), 207–228. URL: http://cr.yp.to/papers.html#curve25519. Citations
+    in this document: §7, §7, §7.
+ 2. Daniel J. Bernstein, Peter Birkner, Tanja Lange, Christiane Peters, ECM using
+    Edwards curves (2007). URL: http://eprint.iacr.org/2008/016. Citations in
+    this document: §1.
+ 3. Daniel J. Bernstein, Tanja Lange, Explicit-formulas database (2007). URL: http://
+    hyperelliptic.org/EFD. Citations in this document: §5, §6.
+ 4. Daniel J. Bernstein, Tanja Lange, Faster addition and doubling on elliptic
+    curves, in Asiacrypt 2007 [19] (2007), 29–50. URL: http://cr.yp.to/papers.
+    html#newelliptic. Citations in this document: §1, §1, §2, §2, §2, §3, §3, §3, §3, §3,
+    §3, §4, §6, §6, §6, §7, §7.
+ 5. Daniel J. Bernstein, Tanja Lange, Inverted Edwards coordinates, in AAECC 2007
+    [8] (2007), 20–27. URL: http://cr.yp.to/papers.html#inverted. Citations in
+    this document: §1, §6, §7.
+ 6. Olivier Billet, Marc Joye, The Jacobi model of an elliptic curve and side-channel
+    analysis, in AAECC 2003 [14] (2003), 34–42. MR 2005c:94045. URL: http://
+    eprint.iacr.org/2002/125. Citations in this document: §5.
+ 7. Ian F. Blake, Gadiel Seroussi, Nigel P. Smart, Elliptic curves in cryptography,
+    Cambridge University Press, 2000. ISBN 0–521–65374–6. MR 1 771 549. Citations
+    in this document: §5.
+ 8. Serdar Boztas, Hsiao-Feng Lu (editors), Applied algebra, algebraic algorithms
+    and error-correcting codes: 17th international symposium, AAECC-17, Banga-
+    lore, India, December 2007, proceedings, Lecture Notes in Computer Science, 4851,
+    Springer, 2007. See [5].
+ 9. Éric Brier, Marc Joye, Fast point multiplication on elliptic curves through isogenies,
+    in AAECC 2003 [14] (2003), 43–50. Citations in this document: §5.
+10. Henri Cohen, Gerhard Frey (editors), Handbook of elliptic and hyperelliptic curve
+    cryptography, CRC Press, 2005. ISBN 1–58488–518–1. MR 2007f:14020. See [11].
+11. Christophe Doche, Tanja Lange, Arithmetic of elliptic curves, in [10] (2005), 267–
+    302. MR 2162729. Citations in this document: §3.
+12. Sylvain Duquesne, Improving the arithmetic of elliptic curves in the Jacobi model,
+    Information Processing Letters 104 (2007), 101–105. Citations in this document:
+    §5.
+13. Harold M. Edwards, A normal form for elliptic curves, Bulletin of the Ameri-
+    can Mathematical Society 44 (2007), 393–422. URL: http://www.ams.org/bull/
+    2007-44-03/S0273-0979-07-01153-6/home.html. Citations in this document: §1.
+                                                    Twisted Edwards Curves         17
+
+14. Marc Fossorier, Tom Høholdt, Alain Poli (editors), Applied algebra, algebraic al-
+    gorithms and error-correcting codes: 15th international symposium, AAECC-15,
+    Toulouse, France, May 2003, proceedings, Lecture Notes in Computer Science,
+    2643, Springer, 2003. ISBN 3–540–40111–3. MR 2004j:94001. See [6], [9].
+15. Steven D. Galbraith, James McKee, The probability that the number of points on
+    an elliptic curve over a finite field is prime, Journal of the London Mathematical
+    Society 62 (2000), 671–684. URL: http://www.isg.rhul.ac.uk/~sdg/pubs.html.
+    Citations in this document: §4.
+16. Huseyin Hisil, Gary Carter, Ed Dawson, New formulae for efficient elliptic curve
+    arithmetic, in [23] (2007). Citations in this document: §5.
+17. Huseyin Hisil, Kenneth Wong, Gary Carter, Ed Dawson, Faster group operations
+    on elliptic curves, 25 Feb 2008 version (2008). URL: http://eprint.iacr.org/
+    2007/441. Citations in this document: §5.
+18. Hideki Imai, Yuliang Zheng (editors), Third international workshop on practice
+    and theory in public key cryptosystems, PKC 2000, Melbourne, Victoria, Aus-
+    tralia, January 18–20, 2000, proceedings, Lecture Notes in Computer Science, 1751,
+    Springer, 2000. ISBN 978–3–540–66967–8. See [21].
+19. Kaoru Kurosawa (editor), Advances in cryptology — ASIACRYPT 2007, Lecture
+    Notes in Computer Science, 4833, Springer, 2007. See [4].
+20. Peter L. Montgomery, Speeding the Pollard and elliptic curve methods of factor-
+    ization, Mathematics of Computation 48 (1987), 243–264. ISSN 0025–5718. MR
+    88e:11130. URL: http://links.jstor.org/sici?sici=0025-5718(198701)48:
+    177<243:STPAEC>2.0.CO;2-3. Citations in this document: §3, §7.
+21. Katsuyuki Okeya, Hiroyuki Kurumatani, Kouichi Sakurai, Elliptic curves with the
+    Montgomery-form and their cryptographic applications, in PKC 2000 [18] (2000),
+    238–257. Citations in this document: §3, §3.
+22. Joseph H. Silverman, The arithmetic of elliptic curves, Graduate Texts in Mathe-
+    matics, 106, Springer, 1986. Citations in this document: §5.
+23. Kannan Srinathan, C. Pandu Rangan, Moti Yung (editors), Progress in
+    cryptology—INDOCRYPT 2007: 8th international conference on cryptology in In-
+    dia, Chennai, India, December 2007, proceedings, Lecture Notes in Computer Sci-
+    ence, 4859, Springer, 2007. See [16].
+24. William Stein (editor), Sage Mathematics Software (Version 2.8.12), The Sage
+    Group, 2008. URL: http://www.sagemath.org. Citations in this document: §3.
+25. Moti Yung, Yevgeniy Dodis, Aggelos Kiayias, Tal Malkin (editors), 9th interna-
+    tional conference on theory and practice in public-key cryptography, New York, NY,
+    USA, April 24–26, 2006, proceedings, Lecture Notes in Computer Science, 3958,
+    Springer, 2006. ISBN 978–3–540–33851–2. See [1].
+

@@ -1,0 +1,595 @@
+validation_report:
+  id: VAL-20260830-mono805a02
+  task_id: validator-mono5-805a02
+  hypothesis_id: H-MONO-40aca5
+  experiment_id: EXP-MONO-805a02
+  run_ids: [RUN-MONO-805a02-1, RUN-MONO-805a02-2]
+  review_role: validator
+  review_joint: J1-correctness
+  blindness:
+    read_sibling_reports: false
+    note: >-
+      No other reviewer report for this task was read. Read
+      experiments/EXP-MONO-715694/reviews/validator/validation-report.yaml
+      and its runtime-session-receipt.json ONLY as a FORMAT precedent (a
+      sibling MONO record's validator output, cited in this record's own
+      coordinator_approval_rationale as the precedent this contract
+      follows) -- not as a review of the SAME task, and not read for its
+      substantive findings before forming my own. Disclosed for
+      transparency per agents/validator.md's blindness-disclosure norm.
+
+  admissibility_finding: >-
+    NOT ADMISSIBLE AS A DURABLE RECEIPT YET. Per this task's own dispatch
+    instructions the branch `ideas-ecdlp-20260830` "not yet committed by
+    the Coordinator" was to be read directly from the working tree; I
+    complied and performed the full technical review below, but per
+    Operating Rules ("Refuse to validate a working-tree-only producer
+    receipt") and agents/validator.md's Prohibitions ("must not ... accept
+    a working-tree-only artifact as a durable receipt"), I do not treat
+    this as satisfying AGENTS.md's Validator responsibility #7 ("Validate
+    only a Coordinator-committed snapshot"). Verified directly:
+    `git status --short experiments/EXP-MONO-805a02/` shows
+    execution_report.yaml, implementation.md, implementation/, and runs/
+    ALL as untracked ("??"); `git cat-file -t 147b5cd1fcfddbc2776eecced512e18e64ffbe30`
+    confirms that commit exists and is the current HEAD, but HEAD does
+    NOT contain any of the four EXP-MONO-805a02 execution artifacts (only
+    specification.yaml is tracked/committed). The manifest's own
+    `code.commit` field therefore records the git state at run time for
+    provenance, not evidence that the executed code or its outputs are
+    committed. This is a process gap, not a content defect: the technical
+    findings below are independently reproduced and, on CONTENT alone,
+    would support `holds_with_finding` (see verdict_rationale). The
+    terminal verdict is `incomplete` pending a Coordinator snapshot
+    commit of exactly these artifacts (byte-identical content), after
+    which this report's technical content remains valid and a `passed`
+    determination on J1-correctness would be available to whichever
+    ledger-archive task re-checks admissibility against the committed
+    SHA.
+
+  artifact_checks:
+    - path: experiments/EXP-MONO-805a02/specification.yaml
+      status: present_and_committed
+      note: Tracked in git, part of HEAD (147b5cd1f); frozen:true, status:approved.
+    - path: ledger/hypotheses/H-MONO-40aca5.yaml
+      status: present_and_committed
+    - path: ledger/handoffs/TASK-20260830-d0ad39.yaml
+      status: present_and_committed
+    - path: experiments/EXP-MONO-805a02/execution_report.yaml
+      status: present_working_tree_only
+      hash_check: not_applicable_uncommitted
+    - path: experiments/EXP-MONO-805a02/implementation.md
+      status: present_working_tree_only
+    - path: experiments/EXP-MONO-805a02/implementation/run_experiment.py
+      status: present_working_tree_only
+      lines: 757
+      note: >-
+        Read in full. Confirmed imports are exactly itertools, json,
+        random, sys, time, pathlib.Path (stdlib) plus sympy, and
+        harness.semaev/harness.toycurve -- no numpy/scipy/sage, matching
+        the frozen contract's dependency constraint and environment.json's
+        own dependency block.
+    - path: "experiments/EXP-MONO-805a02/runs/RUN-MONO-805a02-{1,2}/{manifest.yaml,command.txt,environment.json,raw-result.json,stdout.log,stderr.log}"
+      status: present_working_tree_only
+      manifest_schema: >-
+        Nested run.status/code/inference/environment/inputs/timing/
+        resources/result/artifacts/budget/determinism schema, matching
+        the required structure cited in the handoff
+        (experiments/EXP-MONO-a20e48/runs/*/manifest.yaml).
+      commit_field: >-
+        code.commit=147b5cd1fcfddbc2776eecced512e18e64ffbe30, confirmed
+        reachable and equal to HEAD via `git cat-file -t` / `git rev-parse
+        HEAD`; dirty:true with a dirty_note disclosing unrelated
+        concurrent-session files outside this run's write_scope --
+        consistent with `git status --short` at review time.
+      cross_run_diff: >-
+        Programmatically diffed raw-result.json run1 vs run2 (own script,
+        stage-by-stage, timing fields stripped): stage3, stage4, and
+        stage5 blocks DIFFER (independent samples, as expected); stage2
+        is BYTE-IDENTICAL (confirmed defect, see item 7); stage1 is ALSO
+        byte-identical at the JSON level, but this is a schema artifact
+        (stage1 reports only aggregate pass/fail counts, no per-triple
+        data) and NOT evidence of the same seeding defect -- see item 7
+        below for the direct RNG-level disambiguation.
+
+  metric_recomputations:
+    - id: ITEM1-STAGE0-FRESH-CURVE
+      method: >-
+        Fresh, independently-written script (v1_stage0_stage1.py; imports
+        s3_expr/s4_expr/EllipticCurve from the harness as the objects
+        under test, but writes its own verification logic, not the
+        Executor's stage0()/stage1()). Tested on an INDEPENDENT curve/prime
+        never used by the contract (p=97, A=2, B=3), 5 random point pairs.
+      result: >-
+        All 5 trials: s3_expr's two roots in T exactly equal
+        {x(P+Q), x(P-Q)} computed via EllipticCurve.add, degree 2 both
+        over Z and mod p in every trial.
+      matches_reported: true
+      note: Independently confirms the m=3 known-answer-edge identity holds beyond the fixture curve/prime, not merely reproducing Stage 0's own fixed instance.
+    - id: ITEM1-STAGE1-FRESH-M4-SAMPLE
+      method: >-
+        Same fresh script, independent seed (999888777, disjoint from the
+        Executor's stage1 seeding domain), fixture curve p=211/A=37/B=57,
+        own root-finder (mod-p degree stripping written independently, not
+        copied from poly_roots_bruteforce).
+      result: "25/25 fresh triples split completely AND root-set-matched the group-law prediction; 1 of 25 exhibited the over-Z/mod-p degree-drop phenomenon (see item 2)."
+      matches_reported: true
+      note: >-
+        Partial (n=25, not the full 193) independent re-run, per the task's
+        item-1 instruction; consistent with, and additional to, the
+        Executor's own reconstructed-sample 193/193 result.
+    - id: ITEM2-DEGREE-BUG-COUNTEREXAMPLE
+      method: >-
+        Fresh script (v2_bugfix.py), independently constructed a concrete
+        m=4 degree-drop instance by scanning fresh random triples (own
+        seed) until sympy.Poly(expr,x4).degree() (no modulus=p, the BUGGY
+        call) disagreed with the true mod-p degree.
+      result: >-
+        FOUND: P1=(122,79), P2=(123,92), P3=(135,37) at p=211. Over-Z
+        degree=4 (sympy .degree()); true mod-p degree=3 (leading
+        coefficient over Z = 594582724414345216, which is 0 mod 211 but
+        nonzero over Z). The BUGGY check (len(roots)==deg_over_z) reads
+        False (spurious non-split); the FIXED check
+        (len(roots)==deg_modp) reads True; the 3 roots found
+        ([11,65,156]) EXACTLY equal the group-law-predicted set
+        {x(+-P1+-P2+-P3)}.
+      matches_reported: true
+      note: >-
+        Independently confirms both (a) the bug is real and reproducible,
+        not a fabricated disclosure, and (b) the disclosed fix (strip
+        leading-zero mod-p coefficients before computing degree) is
+        mathematically correct, by constructing my own counterexample
+        rather than trusting the Executor's characterization. Also
+        confirmed by direct code inspection that this exact fix (lines
+        76-83 of run_experiment.py's poly_roots_bruteforce) is the code
+        that ran in BOTH official runs (single implementation file, single
+        commit, no pre/post-fix variant present in the reviewed tree), and
+        that both runs' raw-result.json independently read
+        stage1_fixture_reproduction_m4.n_split_completely=193 and
+        n_root_set_matches_group_law=193 (both runs, checked directly).
+    - id: ITEM3A-FULL-S4-SYMMETRY
+      method: >-
+        Fresh script (v3_symmetry.py), independently checked ALL SIX
+        transpositions of S4(x1,x2,x3,x4) (the Executor's own artifacts
+        checked only 2: x3<->x4 and x1<->x4), by direct symbolic
+        subtraction and expansion.
+      result: >-
+        All 6 transpositions (x1x2, x1x3, x1x4, x2x3, x2x4, x3x4) give
+        IDENTICALLY ZERO difference. Full S4 symmetric-group symmetry of
+        the harness's OWN s4_expr construction is established without
+        gaps.
+      matches_reported: true
+      note: >-
+        See central_question_item3_finding below: the Executor's own
+        stated justification ("transpositions generate the full symmetric
+        group") is technically under-supported by the 2 transpositions it
+        actually checked (their transposition graph on {1,2,3,4} does not
+        connect vertex 2 to anything, so checking only swap_34 and
+        swap_14 establishes symmetry on {1,3,4} only, NOT full S4
+        symmetry, contrary to the blanket claim made from them) -- but the
+        CONCLUSION is independently confirmed true by this review's more
+        complete check.
+    - id: ITEM3B-S5-XT-SYMMETRY-THE-KEY-GAP
+      method: >-
+        Fresh script (v3_symmetry.py Part B + v3b_symmetry_robust.py),
+        built the harness's OWN S5 construction
+        (Res_U(S4(x1,x2,x3,U), S3(x4,T,U)), the exact pattern
+        build_s5_root_set_and_deg uses) but with BOTH x4 and T left
+        symbolic simultaneously (unlike every stage in the harness, which
+        always numerically fixes one of {x4,T} before eliminating U),
+        yielding a genuine bivariate S5(x4,T) with x1,x2,x3 fixed to
+        concrete on-curve values. Tested the x4<->T swap identity across 9
+        independent (x1,x2,x3) triples total (1 in the first script, 4+4
+        in the robustness script) at BOTH tested primes (211, 1009).
+      result: >-
+        S5(x4,T) == S5(T,x4) IDENTICALLY (as an exact bivariate polynomial
+        subtraction, not merely at sampled points) in all 9/9 independent
+        triples tested, at both p. Degrees checked: deg_x4=deg_T=8,
+        matching Semaev's deg_T(S_m)=2^(m-2)=2^3=8 for m=5, an additional
+        structural sanity check.
+      matches_reported: not_applicable_never_computed_by_executor
+      note: >-
+        THIS IS THE MOST CONSEQUENTIAL FINDING OF THIS REVIEW. See
+        central_question_item3_finding below for why this specific check
+        is load-bearing and was never performed by the Executor's own
+        submitted artifacts.
+    - id: ITEM3C-STAGE5-MATCH-CHECK-NEVER-COMPUTED-BY-HARNESS
+      method: >-
+        Grepped run_experiment.py for n_match/group_law_root_set/
+        matches_group_law: these appear ONLY inside stage0/stage1/stage2
+        (lines 159,199,206,237,285,292,299); stage5_m4/stage5_m5 (lines
+        428-505) never call group_law_root_set and never report an
+        n_match/match field -- they report ONLY n_split_completely /
+        split_rate (a WEAKER property: "factors into distinct linear
+        terms of the correct degree" is not the same claim as "the root
+        SET equals the group-law prediction"). Independently recomputed
+        the ONE example execution_report.yaml cites by name
+        (RUN-MONO-805a02-2, m=4, p=211: P1=(72,38), P2=(51,71), R=(51,71))
+        AND ran a full independent recomputation of Stage 5 m=4 and m=5
+        at both p (own seeds 0xA11CE/0xB0B0B for m=4, 0xC0FFEE/0xDEAD01
+        for m=5, own fresh script v5_stage5_full_recompute.py, 30 trials
+        per cell matching the contract's own floor), WITH the match check
+        added.
+      result: >-
+        Cited example: deg=4, roots=[72,94,166] (len=3, hence "not split"
+        under the strict test), group-law-predicted set
+        {x(+-P1+-P2+-R)}={72,94,166} -- EXACT MATCH. Full independent
+        recompute: m=4 p=211 30/30 split, 30/30 match; m=4 p=1009 30/30
+        split, 30/30 match; m=5 p=211 29/30 split, 30/30 MATCH; m=5 p=1009
+        29/30 split, 30/30 MATCH. Every trial's root SET equals the
+        group-law prediction at both m and both p, on an INDEPENDENT
+        30-trial sample per cell (different seeds from the Executor's own
+        runs).
+      matches_reported: >-
+        Consistent with and strictly stronger than what execution_report.yaml
+        reports (which never states a match rate for Stage 5 at all,
+        only a split rate).
+      note: >-
+        This closes the gap identified in ITEM3B/ITEM3C: even though
+        neither the harness's own code nor its report ever verify
+        root-set matching for Stage 5, this independent recomputation
+        confirms, on fresh samples, that Stage 5's measured near-complete
+        splitting IS fully consistent with (not merely "explained away
+        by prose reference to") the theorem, at both m=4 and m=5.
+    - id: ITEM4-STAGE3-OPCOUNT-INDEPENDENT-RECOUNT
+      method: >-
+        Fresh script (v6_stage3_check.py), own counting wrapper around
+        EllipticCurve.add (not importing AddCounter), own seed, m in
+        {3,4,5,8}, 2000 attempts/cell (smaller than the contract's 1e5
+        floor, sufficient to test the reconciliation identity).
+      result: "m=3: 4000/4000; m=4: 6000/6000; m=5: 8000/8000; m=8: 14000/14000 -- exactly (m-1)*attempts in every case."
+      matches_reported: true
+    - id: ITEM6-STAGE4-DISCRIMINANT-IDENTITY
+      method: >-
+        Fresh script (v7_negloc_check.py), fully symbolic (general A,B,
+        not numeric) recomputation of disc_T(s3_expr) - 16*f(x1)*f(x2)
+        using the harness's own s3_expr.
+      result: >-
+        Symbolic difference simplifies to exactly 0 -- KN-FIND-c41ea9's
+        own cited identity holds for THIS repository's actual s3_expr
+        implementation, confirming stage4's Legendre-symbol-of-
+        discriminant approach measures the quantity the theorem is about.
+      matches_reported: not_stated_by_executor_but_consistent
+    - id: ITEM6-STAGE4-EXACT-BOUND-CHECK
+      method: >-
+        Checked all 4 reported negative-locus split rates against
+        KN-FIND-c41ea9's own EXACT closed-form bound
+        |freq_split - 1/2| < 4/p (not just "close to 1/2" informally).
+      result: >-
+        RUN1 p211: dev=0.006525 < bound 0.018957 (PASS). RUN1 p1009:
+        dev=0.003256 < bound 0.003964 (PASS, margin ~18%). RUN2 p211:
+        dev=0.001960 < bound (PASS). RUN2 p1009: dev=0.000600 < bound
+        (PASS). All 4 cells satisfy the theorem's own precise bound, not
+        merely an informal "near 1/2" impression.
+      matches_reported: true
+
+  control_checks:
+    - id: KNOWN-ANSWER-EDGE-M3
+      as_implemented_result: "roots={100,151}=={x(P+Q),x(P-Q)}, 1 addition per named root, gate_pass=true both runs"
+      independently_reconfirmed: true
+      verdict: correct
+    - id: COMMITTED-FIXTURE-REPRODUCTION-M4
+      as_implemented_result: "193/193 split, 193/193 match, both runs"
+      independently_reconfirmed: "partial (n=25 fresh sample), see ITEM1-STAGE1-FRESH-M4-SAMPLE"
+      verdict: correct_with_disclosed_scope_gap
+      finding: >-
+        The reconstruction_caveat (literal historical 193 triples are not
+        machine-readably committed; this run used a freshly seeded
+        193-triple sample of the IDENTICAL construction/curve/prime
+        instead) is an ACCEPTABLE substitute, not a meaningful gap: (a)
+        the theorem's own claim is universally quantified over EVERY
+        factor-base triple on this curve, so any faithful sample tests the
+        same claim, not a weaker one; (b) same curve, same p, same
+        s4_expr construction, same triple COUNT (193) as the historical
+        census; (c) this review's own independent, disjointly-seeded
+        25-triple sample also reproduces 193/193-consistent behavior
+        (25/25 split+match), providing a THIRD independent sample beyond
+        the Executor's two runs' reconstructions, all agreeing.
+    - id: NEGATIVE-LOCUS-NULL-M3
+      as_implemented_result: "split rate 0.4935-0.5033 across both runs/both p, bug_signature_near_1=false"
+      independently_reconfirmed: true
+      verdict: correct
+      finding: See ITEM6 metric recomputations above (exact-bound check, discriminant-identity check) -- this control is genuinely measuring the KN-FIND-c41ea9 quantity, not a mislabeled proxy, and all 4 cells pass the theorem's own precise numeric bound, not just an informal check.
+    - id: DEGENERATE-CHECK-M2
+      as_implemented_result: "degenerate:true, expr='x1 - x2', no numeric field forced"
+      verdict: correct
+      finding: >-
+        Confirmed by direct code inspection (harness/semaev.py's s2(a,b)
+        returns x1-x2 exactly; stage4's m2 block reports a boolean
+        degenerate flag plus a reason string, never a split-rate number).
+    - id: UNIT-DECLARATION-TRIPWIRE
+      as_implemented_result: "refused_no_declared_conversion=true"
+      verdict: correct
+      finding: >-
+        Confirmed by code inspection: unit_declaration_tripwire() is a
+        static function returning the refusal; no code path in
+        run_experiment.py computes or attempts a cross-formulation ratio
+        anywhere.
+
+  heuristic_validation_checks:
+    pre_registered_prediction: >-
+      H1's formal_statement and preregistered_prediction
+      (D_trial(E)=m-1+1 lookup) are recorded in H-MONO-40aca5.yaml and
+      specification.yaml, both committed (147b5cd1f, HEAD) before
+      execution began (execution artifacts are all working-tree-only,
+      postdating the frozen, committed contract). No evidence of post-hoc
+      fitting.
+    sample_integrity: >-
+      Seeds (20260830, 20260831), attempt counts (1e5/cell for Stage 3,
+      1e4 for Stage 4, 30/cell for Stages 2 and 5) are recorded in both
+      run manifests' inputs.parameters block and independently
+      reproduced by this review with fresh seeds and fresh code at Items
+      1, 2, 3, 4, 6 above.
+    correspondence_validity:
+      status: not_applicable
+      note: >-
+        No Deuring-style or other distributional-correspondence
+        substitution is used; the central claim is an exact algebraic
+        identity (group-law root set), verified by direct computation,
+        not a distributional comparison against a theoretical CDF.
+    scale_binding: >-
+      Explicitly tier:toy in specification.yaml.scale_relevance; p in
+      {211,1009}, m<=5 for polynomial-construction stages, m<=8 for the
+      pure operation count. No transfer to cryptographic scale is
+      claimed by the record itself; this review adds none either.
+    cost_unit_honesty: >-
+      D_trial(E) is reported in group operations (Stage 3) and never
+      combined with a field-operation count (Stage 5/Stage 6's
+      Buchberger #G*) into a ratio -- the unit-declaration tripwire is
+      exercised and holds (see control_checks above). Memory is disclosed
+      qualitatively (H2's |F|-word table-size accounting; no peak_rss
+      instrumentation, disclosed as such in both manifests'
+      resources.peak_rss_note).
+    cost_bookkeeping: >-
+      This record deliberately makes no relation-rate/attack-cost claim
+      (asymptotic_claim: null, explicitly). The only "cost" content is
+      the per-attempt operation count D_trial(E)=m-1, reported beside
+      (never combined with) the attempt count's own combinatorial growth
+      per the confounders block. No inverse-success-probability
+      cost-total claim is made or checked, correctly, since none is
+      claimed by the record.
+
+  central_question_item3_finding: >-
+    ITEM 3 -- THE CENTRAL QUESTION, both parts resolved independently.
+
+    PART A (m=4, S4's symmetry): CONFIRMED, and more completely than the
+    Executor's own artifact. run_experiment.py's stage5() checks only 2 of
+    the 6 transpositions needed to rigorously justify "transpositions
+    generate the full symmetric group, hence S4 is symmetric under every
+    permutation" -- the two checked (x3<->x4, x1<->x4) connect only
+    {1,3,4} in the transposition graph, leaving x2 unconnected, so the
+    STATED justification does not by itself establish full S4 symmetry.
+    This review checked all 6 transpositions directly (ITEM3A) and found
+    all 6 identically zero, which DOES establish full S4 symmetry without
+    gaps. The Executor's ultimate conclusion is therefore correct, but its
+    own stated argument for it has an unremarked logical gap (a
+    documentation/rigor defect, not a wrong conclusion).
+
+    Given full S4 symmetry, the LOGICAL REDUCTION argument for Stage 5's
+    m=4 case is valid and was walked through independently: Stage 5's
+    actual construction (fix x1=P1,x2=P2,x4=T=Rt; free x3) equals, via the
+    x3<->x4 identity S4(x1,x2,x3,x4)=S4(x1,x2,x4,x3), the SAME polynomial
+    as evaluating S4 with slots (x1,x2,x3)=(P1,P2,Rt) fixed and slot x4
+    free -- which is EXACTLY Stage 1's own already-verified construction
+    (fix 3 rational x-coordinates, solve for the 4th), just with (P1,P2,Rt)
+    playing the role of "the three fixed points." So Stage 5 m=4, as
+    literally specified, reduces via ONE symmetric relabeling to the
+    already-proven theorem. This chain is independently re-derived here,
+    not merely accepted from the Executor's prose.
+
+    PART B (m=5, S5's symmetry) -- THE GAP THE EXECUTOR'S OWN ARTIFACTS
+    DID NOT CLOSE. The identical logical reduction for m=5 requires the
+    analogous fact that the harness's OWN S5 construction (built via ONE
+    FURTHER resultant elimination, a DIFFERENT and more complex
+    construction than S4's) is symmetric under swapping x4<->T. Neither
+    run_experiment.py's code NOR execution_report.yaml's prose ever states
+    or checks this for S5 specifically -- stage5() computes a
+    symmetry_finding block ONLY for S4 (m=4), and stage5_m5() builds a
+    fresh S5 every trial with NO symmetry check and NO group-law-match
+    check at all (see ITEM3C). Yet execution_report.yaml's
+    "headline_consequence" and "symmetry_finding" text are placed as a
+    SHARED preface to BOTH the m=4 and m=5 measured_split_rates blocks,
+    giving the reader the impression that the m=5 near-complete-split
+    numbers (83.3%-96.7%) are equally explained by a checked symmetry
+    fact, when in the submitted artifacts they are not -- only the m=4
+    case was actually checked.
+
+    This review independently performed the missing check (ITEM3B): built
+    the harness's own two-step S5 resultant construction with BOTH x4 and
+    T left symbolic (a genuine bivariate object neither the harness nor
+    the Executor ever constructs, since every stage always numerically
+    fixes one of the two before eliminating the resultant variable), and
+    confirmed x4<->T symmetry holds IDENTICALLY across 9 independent
+    on-curve triples at both tested primes. This review additionally
+    recomputed Stage 5 m=5 from scratch with the match-check the harness
+    never computes (ITEM3C) and found 30/30 root-set matches at both p on
+    a fresh, independently-seeded sample.
+
+    CONCLUSION: the symmetry explanation for Stage 5 (both m=4 and m=5) is
+    TRUE and the logical reduction is VALID -- Stage 5 as literally
+    specified genuinely does not reach outside KN-FIND-c41ea9's theorem,
+    at either tested m. But this conclusion, for m=5 specifically, is
+    established by THIS REVIEW's own supplementary computation, not by
+    the Executor's own submitted artifacts, which asserted it by analogy
+    ("Semaev 2004", "not new to this record") without the
+    construction-specific verification the task itself warns is necessary
+    ("resultant elimination does not automatically preserve symmetry in
+    an implementation, even though the true mathematical S_m has it").
+    Had this review's Part B or ITEM3C check come out negative, Stage 5's
+    m=5 "cheap result" would have remained a live, unexplained falsifier
+    exactly as the frozen contract's own falsification_conditions
+    anticipated -- the Executor's report would have been WRONG to fold it
+    into the same "not new" narrative as m=4 without having checked it.
+    As it happens the check comes out positive, so no correction to the
+    substantive conclusion is needed, but the gap in what was actually
+    verified before that conclusion was written is real and is reported
+    here as a finding under this joint (see verdict_rationale).
+
+  cost_model_checks:
+    - id: D_TRIAL_UNIT_AND_TRIPWIRE
+      finding: >-
+        Confirmed correct by code inspection and by control_checks above.
+        No cost table combines group and field operations; D_trial(E) is
+        reported alone, and any code path that would need a conversion
+        constant refuses explicitly.
+
+  proof_architecture_checks: []
+
+  limitations:
+    - >-
+      Item 1's independent m=4 re-run used n=25 fresh triples, not the
+      full 193 (per the task's own "at least a sample" instruction and
+      the 75-minute budget); this is a partial, not exhaustive, third
+      independent sample.
+    - >-
+      Item 3 Part B's x4<->T symmetry check is an EXACT symbolic identity
+      test at each of 9 independently-sampled (x1,x2,x3) triples (with
+      x1,x2,x3 numeric, x4 and T both symbolic) -- it is not a single
+      fully-symbolic 5-variable proof covering every possible (x1,x2,x3),
+      but 9 independent exact polynomial identities at 9 different
+      numeric instances across both tested primes is strong evidence, not
+      a spot check at one point.
+    - >-
+      This review did not re-verify Stage 6's `not_yet_committed`
+      dispositions for GOAL-SDEG-001 and the ICEX contract beyond
+      confirming the cited status fields (review_required/
+      approved_execution_withheld) and the absence of run output;
+      GOAL-DREG-001 and both GOAL-SIG-001 arms were verified by direct
+      reading of the cited source files (DREG_dff.sage,
+      h013_f5_signatures.sage, analysis.md), per the task's item-5
+      instruction.
+    - >-
+      No independent review of J2 (interpretation/scope) or red-team
+      falsification routes was performed; this report covers J1
+      (correctness) only, per the assigned joint.
+    - >-
+      Total review compute stayed well within the 75-minute wall-clock /
+      4GB memory budget (all independent scripts combined ran in well
+      under 15 minutes of wall clock).
+
+  item7_stage2_seeding_materiality: >-
+    ITEM 7. Confirmed the defect is real by BOTH code inspection
+    (stage2()'s rng = random.Random(str((p,"stage2"))) never references
+    the `seed` parameter at all) and direct simulation (identical draws
+    regardless of which of the two official seeds is used). By contrast,
+    stage1()'s rng = random.Random(str((seed,"stage1"))) DOES depend on
+    seed, and direct simulation confirms the two official seeds draw
+    GENUINELY DIFFERENT 193-triple samples (first 3 triples shown differ
+    completely) -- so the apparent "byte-identical" stage1 JSON block
+    across both runs (noted in artifact_checks) is a schema artifact
+    (aggregate-only reporting) and NOT a second instance of the seeding
+    defect; disambiguating this required going beneath the JSON diff to
+    the RNG level, which this review did.
+    MATERIALITY: benign, as the Executor characterizes it, for the
+    following reason argued independently rather than merely accepted:
+    the quantity Stage 2 measures (does THIS SPECIFIC triple's S5 root
+    set match the group-law prediction) is a DETERMINISTIC per-instance
+    algebraic fact, not a stochastic rate that could differ across
+    independent draws of the SAME underlying distribution. Re-seeding
+    Stage 2 would only change WHICH 30 triples are tested, not whether
+    the theorem holds for the ones that were. The genuine cost of the
+    defect is a reduction in EFFECTIVE sample size for the m=5 census
+    from 60 (30 x 2 independent replications, as intended) to 30 (the
+    same 30 triples computed twice) -- a real but scope-limited defect
+    that narrows statistical breadth without casting any doubt on the
+    30-triple result actually obtained. A reviewer wanting n=60 distinct
+    m=5 census triples should treat this as an open, disclosed gap
+    (candidate RUN-MONO-805a02-3 per the Executor's own suggestion), not
+    as grounds to doubt the reported 30/30 match rate.
+
+  verdict: incomplete
+  verdict_rationale: >-
+    On CONTENT alone, this record would read as `holds_with_finding`:
+    every recomputable metric this review attempted (Stage 0/1 identity
+    and fixture reconstruction, the degree-computation bug and its fix,
+    Stage 3's operation count, Stage 4's negative-locus null against
+    KN-FIND-c41ea9's own exact bound, and -- most importantly -- Stage
+    5's symmetry-based explanation for both m=4 AND m=5 -- reproduces or
+    is independently confirmed from fresh code, fresh seeds, and in one
+    case a genuinely new computation the Executor's own artifacts never
+    performed (the S5 x4<->T symmetry check and the Stage-5 root-set
+    match check). Two findings are reported under this joint rather than
+    silently absorbed: (a) the Executor's own stated justification for
+    full S4 symmetry checks only 2 of the 6 transpositions needed and
+    does not, by itself, establish the blanket claim it is used to
+    support, even though the claim is independently confirmed true here;
+    (b) the m=5 "cheap result" was folded into the same "not new, Semaev
+    2004" narrative as the m=4 result WITHOUT the harness ever checking
+    S5's own construction-specific symmetry or Stage 5's root-set match at
+    all -- this review supplied the missing verification and it comes out
+    positive, so the substantive conclusion survives, but it was not
+    supported by the submitted artifacts at the time they were written.
+    Neither finding overturns the record's reported observations; both
+    are rigor/completeness gaps in how the Executor arrived at and
+    documented a conclusion that turns out to be correct.
+    The terminal verdict is `incomplete` rather than `passed`, however,
+    because ADMISSIBILITY as a durable receipt is blocked by a single
+    clean process gap: no Coordinator snapshot commit exists for the
+    execution artifacts (execution_report.yaml, implementation.md,
+    implementation/, runs/ are all untracked in git at review time; only
+    specification.yaml, the hypothesis, and the handoff are committed).
+    This is not a mathematical or implementation error by the Executor;
+    it is a ledger-discipline step for the Coordinator to complete (make
+    the snapshot commit) before this record can be certified `passed` on
+    J1-correctness. Once committed with byte-identical content, this
+    report's technical findings (metric_recomputations,
+    central_question_item3_finding, item7 materiality assessment) remain
+    valid and support a `holds_with_finding` disposition for
+    J1-correctness specifically -- not a whole-claim verdict, since this
+    report covers only the assigned joint.
+
+  review_attestation:
+    task_id: validator-mono5-805a02
+    role: validator
+    joints_owned: [J1-correctness]
+    independent_session: true
+    blindness:
+      read_sibling_reports: false
+    verdict: incomplete
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    canonical_policy_resolved_by_adapter: "anthropic:claude-opus-5 (per `python3 -m orchestration.adapter resolve --role validator --independent-session`)"
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    model_id_discrepancy_note: >-
+      This session's own environment identifies its running model as
+      "claude-sonnet-5" (exact model id per system context), while the
+      orchestration adapter's configured resolution for
+      review-adversarial/xhigh currently maps to "anthropic:claude-opus-5".
+      Disclosed rather than silently reconciled in either direction; no
+      probe (`orchestration.adapter doctor --probe`) was run to
+      independently verify either identifier within this review's budget.
+    sources_read:
+      - AGENTS.md
+      - agents/validator.md
+      - ledger/hypotheses/H-MONO-40aca5.yaml
+      - experiments/EXP-MONO-805a02/specification.yaml
+      - ledger/handoffs/TASK-20260830-d0ad39.yaml
+      - experiments/EXP-MONO-805a02/execution_report.yaml
+      - experiments/EXP-MONO-805a02/implementation.md
+      - experiments/EXP-MONO-805a02/implementation/run_experiment.py
+      - experiments/EXP-MONO-805a02/runs/RUN-MONO-805a02-1/manifest.yaml
+      - experiments/EXP-MONO-805a02/runs/RUN-MONO-805a02-1/command.txt
+      - experiments/EXP-MONO-805a02/runs/RUN-MONO-805a02-1/raw-result.json
+      - experiments/EXP-MONO-805a02/runs/RUN-MONO-805a02-2/manifest.yaml
+      - experiments/EXP-MONO-805a02/runs/RUN-MONO-805a02-2/command.txt
+      - experiments/EXP-MONO-805a02/runs/RUN-MONO-805a02-2/raw-result.json
+      - harness/semaev.py
+      - harness/toycurve.py
+      - knowledge/findings/KN-FIND-c41ea9.md
+      - experiments/EXP-SIG-001/src/h013_f5_signatures.sage
+      - experiments/EXP-SIG-001/analysis.md
+      - experiments/EXP-SDEG-0be8e4/specification.yaml
+      - experiments/EXP-SDEG-0d4fec/specification.yaml
+      - experiments/EXP-SDEG-f7faa8/specification.yaml
+      - ledger/evidence/EV-SDEG-001.yaml
+      - experiments/EXP-DREG-001/DREG_dff.sage
+      - ledger/evidence/EV-DREG-004.yaml
+      - ledger/goals/GOAL-DREG-001.yaml
+      - experiments/EXP-ICEX-146ff5/specification.yaml
+      - "experiments/EXP-MONO-715694/reviews/validator/validation-report.yaml (format precedent only, per blindness note above)"
+      - "experiments/EXP-MONO-715694/reviews/validator/runtime-session-receipt.json (format precedent only)"
+      - "git log/show/status/cat-file/rev-parse on this branch (ideas-ecdlp-20260830)"
+
+  artifact_paths:
+    - experiments/EXP-MONO-805a02/reviews/validator/validation-report.yaml
+    - experiments/EXP-MONO-805a02/reviews/validator/runtime-session-receipt.json

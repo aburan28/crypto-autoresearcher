@@ -1,0 +1,154 @@
+id: EXP-ECDLP-08b7f5
+kind: experiment_draft
+status: draft
+title: Synthetic tier-ladder reachability classification gate
+source_idea: IDEA-20260815-0253b6
+source_hypothesis: H-ECDLP-ed4060
+authority:
+  implementation_authorized: false
+  scientific_execution_authorized: false
+  maximum_runs: 0
+  approved_by: null
+  permitted_activity:
+    - Create and review this BATCH-local source-only mock design.
+  prohibited_activity:
+    - Read, enumerate, classify, or modify live goal records.
+    - Read, enumerate, classify, or modify live experiment, lane, queue, claim, or priority records.
+    - Retire, pause, cancel, complete, approve, reprioritize, or otherwise change research state.
+    - Create canonical hypothesis, experiment, decision, result, run, or archive records.
+    - Execute a reachability audit against any repository source or external system.
+mock_contract:
+  schema_version: tier-ladder-reachability-mock-v1
+  input_schema:
+    top_level_required:
+      - schema_version
+      - graph_id
+      - nodes
+      - edges
+      - route_request
+      - no_state_change_witness
+    top_level_forbidden:
+      - live_record_path
+      - goal_id
+      - experiment_id
+      - lane_id
+      - queue_id
+      - priority
+      - status_update
+      - approval
+      - retirement_action
+    graph_id_pattern: '^MOCK-GRAPH-[A-Z0-9]{6}$'
+    node_schema:
+      required: [node_id, tier, range]
+      allowed_tiers: [SOURCE, TRANSFORM, CHECK, TERMINAL]
+      node_id_pattern: '^M[0-9]+$'
+      range_schema:
+        required: [kind]
+        allowed_kinds: [BOUNDED, UNCONSTRAINED, ABSENT]
+        bounded_requires: [lower, upper]
+        unconstrained_forbids: [lower, upper]
+        absent_forbids: [lower, upper]
+        bound_type: nonnegative_integer
+        bound_relation: lower_less_than_or_equal_to_upper
+    edge_schema:
+      required: [from, to]
+      forbidden: [weight, live_locator, state_action]
+      relation: directed_edge_between_declared_distinct_nodes
+    route_request_schema:
+      required: [from, to]
+      forbidden: [live_locator, state_action, priority_override]
+    no_state_change_witness_schema:
+      required: [kind, allowed_effects, prohibited_effects]
+      kind_exact: NO_STATE_CHANGE
+      allowed_effects_exact: [EMIT_MOCK_CLASSIFICATION]
+      prohibited_effects_must_include:
+        - READ_LIVE_RESEARCH_STATE
+        - WRITE_LIVE_RESEARCH_STATE
+        - RETIRE_BRANCH
+        - CHANGE_PRIORITY
+        - APPROVE_EXPERIMENT
+        - EXECUTE_AUDIT
+  classification_precedence:
+    - INVALID_INTERFACE
+    - UNCONSTRAINED_ROUTE
+    - ABSENT_ROUTE
+    - RANGE_CONSTRAINED_ROUTE
+    - NO_ROUTE
+  classification_rules:
+    INVALID_INTERFACE: >
+      Emit when any schema, identifier, range, graph, edge, route, or
+      no-state-change witness condition fails, or when any forbidden field is present.
+    UNCONSTRAINED_ROUTE: >
+      Emit when a directed route exists and at least one node on every accepted
+      candidate route has range.kind UNCONSTRAINED. This class carries no
+      feasibility, cost, priority, or retirement meaning.
+    ABSENT_ROUTE: >
+      Emit when a directed route exists but contains an ABSENT node and no
+      route avoiding ABSENT nodes exists. This class is a synthetic graph fact,
+      not an impediment or status change for live work.
+    RANGE_CONSTRAINED_ROUTE: >
+      Emit when at least one directed route exists, every node on the selected
+      canonical route is BOUNDED, and all bounds are well formed. It does not
+      assert that a live task is executable or ranked.
+    NO_ROUTE: >
+      Emit when the graph is valid and no directed route exists. It has no
+      authority to retire, close, pause, deprioritize, or otherwise alter a branch.
+  canonical_route_rule: >
+    Among eligible synthetic routes, select the lexicographically smallest
+    sequence of node_id strings. Exact duplicate nodes or edges are INVALID_INTERFACE.
+  controls:
+    - id: CONTROL-UNCONSTRAINED
+      mutation: Replace one BOUNDED node on an otherwise valid mock route with UNCONSTRAINED.
+      expected: UNCONSTRAINED_ROUTE
+    - id: CONTROL-ABSENT
+      mutation: Replace one BOUNDED node on the sole otherwise valid mock route with ABSENT.
+      expected: ABSENT_ROUTE
+    - id: CONTROL-NO-ROUTE
+      mutation: Remove every directed synthetic path between route_request.from and route_request.to.
+      expected: NO_ROUTE
+    - id: CONTROL-FORBIDDEN-LIVE-FIELD
+      mutation: Add goal_id, status_update, or retirement_action to any mock envelope.
+      expected: INVALID_INTERFACE
+    - id: CONTROL-BAD-RANGE
+      mutation: Use lower greater than upper or bounds with a non-BOUNDED range kind.
+      expected: INVALID_INTERFACE
+    - id: CONTROL-NO-STATE-CHANGE
+      mutation: Add RETIRE_BRANCH or CHANGE_PRIORITY to allowed_effects.
+      expected: INVALID_INTERFACE
+  metrics:
+    allowed:
+      - mock_classification
+      - canonical_route_node_count
+      - bounded_range_count
+    forbidden:
+      - live_goal_reachability
+      - live_lane_reachability
+      - priority_score
+      - retirement_recommendation
+      - scientific_metric
+      - ECDLP_cost
+  stopping_rules:
+    - Stop and refuse if any input names or locates a live repository research-state record.
+    - Stop and refuse if any output proposes or encodes a state change.
+    - Stop at design review; no implementation or execution is authorized.
+  required_artifacts_before_any_later_stage:
+    - Frozen source snapshot explicitly naming only sources authorized for a future live audit.
+    - Source-bound schema and implementation contract.
+    - Coordinator decision specifying authority and no-state-change guarantees.
+    - Independent review of the future implementation contract.
+    - A new execution decision and independent result-review plan.
+  inference_policy:
+    allowed_conclusion: >
+      A reviewed synthetic mock input conforms or fails to conform to this
+      mock interface only.
+    prohibited_conclusions:
+      - Any live goal, experiment, lane, queue, or branch is reachable or unreachable.
+      - Any research branch should be retired, paused, completed, cancelled, or reprioritized.
+      - Any experiment is approved or ready to run.
+      - Any ECDLP result, cost, security assessment, or scientific conclusion.
+impediments:
+  - id: IMP-UNREAD-LIVE-SOURCES
+    condition: No goal, lane, queue, priority, or ledger source was read or bound.
+    effect: The draft cannot support a live reachability conclusion or a state-changing decision.
+    clears_when: A future task has a Coordinator-approved, source-bound live-audit contract and independent review.
+    asserts_nothing_about: Actual reachability, priority, or merit of any research branch.

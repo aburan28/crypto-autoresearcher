@@ -1,0 +1,458 @@
+validation_report:
+  id: VAL-20260805-9c54e4
+  task_id: TASK-20260805-9c54e4
+  verdict: passed_with_caveats
+  verdict_note: >-
+    Terminal status under agents/validator.md's closed enum is `passed`
+    (admissible receipt). "passed_with_caveats" is recorded here per this
+    task's explicit instruction; treat it as `passed` for downstream ledger
+    purposes with the two caveats below carried forward verbatim. This report
+    asserts nothing about ECDLP, S-box speedups, or hypothesis promotion; it
+    only rules the producer's recomputation admissible with named findings.
+
+  scope: >-
+    TOY TIER ONLY. Reduced-round (r=5) AES-shaped SPN, C1 convention, one
+    machine, 2^30-2^31 trials, five distinct derived keys/streams at
+    amask=1/smask=1. No statement about full-round or deployed AES, no
+    comparison to published cryptanalysis in either direction. This report
+    validates a pure recomputation over already-committed data; no new
+    measurement was reviewed.
+
+  producer_snapshot_reviewed:
+    task_id: TASK-20260805-258754
+    archive_task_id: TASK-20260805-c7e43d
+    snapshot_commit: b128056b49dd3286040460247a7cacd65248f80b
+    verified_commit: d133e706c8f981d7db16fd30a4c686e448ec130f
+    working_tree_state_at_review_time: clean (git status --porcelain empty)
+    note: >-
+      Reviewed the Coordinator-committed snapshot only, per operating rules.
+      Did not trust the producer's or the archive receipt's citations; all
+      figures below were independently re-derived from the source files
+      listed in run_ids/artifact_checks.
+
+  run_ids:
+    - Y-AES-main (coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-367b1b/runs/Y-AES-main.json)
+    - D-AES-K1 (coordination/goals/GOAL-AES-003/batches/BATCH-005/tasks/TASK-20260803-48a239/RESULTS.json, measurements.item_1_arms.D-AES-K1)
+    - D-AES-K2 (coordination/goals/GOAL-AES-003/batches/BATCH-005/tasks/TASK-20260803-48a239/RESULTS.json, measurements.item_1_arms.D-AES-K2)
+    - D-AES-K3 (coordination/goals/GOAL-AES-003/batches/BATCH-005/tasks/TASK-20260803-48a239/RESULTS.json, measurements.item_1_arms.D-AES-K3)
+    - B0-AES-REF (coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-0764fc/runs/B0-AES-REF.json)
+    - 27-arm random-S-box reference set (coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-0764fc/runs/*.json, rounds=5, sbox_spec startswith "rand", amask=1, smask=1)
+
+  artifact_checks:
+    - check: producer artifact hashes vs snapshot receipt
+      method: >-
+        sha256sum on the three committed files, compared byte-for-byte
+        against snapshot-receipt.json's path_sha256 block.
+      result: >-
+        MATCH for all three: RESULTS.json
+        9c3d022dbaa3b88add3e5dc95cdeb3002b24c574304563d782a172c93a9b5c48,
+        budget_stamps.jsonl
+        860709b8bdfe15d6754b88d5ffe924b150864dacece0fc257f337e7983b9f3ad,
+        analyze.py
+        7cdb3af48fbd0009976263c9a0f9c84547eecf41ff2285551cad313442eede28.
+      status: PASS
+    - check: snapshot commit reachable, parent correct, dispatcher-verified
+      method: git log / git show on b128056b and d133e706.
+      result: >-
+        b128056b (parent 234eacd1) is the snapshot commit binding
+        TASK-20260805-c7e43d; d133e706 is the dispatcher's post-commit
+        verification, updating only dispatch_queue.json. Both reachable from
+        current HEAD. Working tree clean at review time.
+      status: PASS
+    - check: Y-AES-main source values
+      method: direct Read of runs/Y-AES-main.json
+      quoted_verbatim: >-
+        rounds=5, amask=1, smask=1, trials=2147483648, log2N=31,
+        W_ge1_nontrivial=27, key_hex="25b3faa13dbaeaab5491571199979d53"
+        (32 hex chars).
+      result: EXACT MATCH to producer's citation (2^31 trials, W=27).
+      status: PASS
+    - check: D-AES-K1 / D-AES-K2 / D-AES-K3 source values
+      method: direct Read of BATCH-005 RESULTS.json, measurements.item_1_arms
+      quoted_verbatim: >-
+        D-AES-K1: trials=1073741824, seed=531001, MEASURED_W_ge1=14,
+        key_hex="bdf3823182ad657dab3d556b3886ba72" (32 hex chars), status
+        COMPLETED.
+        D-AES-K2: trials=1073741824, seed=531002, MEASURED_W_ge1=14,
+        key_hex="58146703b42fca722bc0ab918cd1409b" (32 hex chars), status
+        COMPLETED.
+        D-AES-K3: trials=1073741824, seed=531003, MEASURED_W_ge1=8,
+        key_hex="144e2584001beec873a02a29e6156875" (32 hex chars), status
+        COMPLETED.
+      result: >-
+        EXACT MATCH to producer's citations for W-values and trial counts.
+        D-AES-K2 independently confirmed COMPLETED (not a stub/NOT_RUN),
+        confirming the producer's own re-derivation that it is a genuine
+        fifth, distinct arm rather than a duplicate role.
+      status: PASS
+    - check: B0-AES-REF source values
+      method: direct Read of runs/B0-AES-REF.json
+      quoted_verbatim: >-
+        rounds=5, amask=1, smask=1, trials=1073741824, log2N=30,
+        W_ge1_nontrivial=12, key_hex="c17835e6ca6233347781f4ba00d26ee4"
+        (32 hex chars).
+      result: EXACT MATCH to producer's citation.
+      status: PASS
+    - check: BATCH-005 T2/T3 p-values cited via EV-AES-1d5136
+      method: >-
+        Located item_1_analysis.tests.T2_key_main_effect.p_value and
+        T3_full_cell_homogeneity.p_value directly in BATCH-005's RESULTS.json.
+      result: >-
+        T2 p_value = 0.24734580566758235 (character-for-character match to
+        both the producer's citation and EV-AES-1d5136 OBS-B10-5). T3
+        p_value = 0.45730017978460535 (matches). Confirms the producer's
+        consequence_for_BATCH_005_key_main_effect_finding block.
+      status: PASS
+    - check: 27-arm random-S-box reference distribution (mean 15.48, range 6-25)
+      method: >-
+        Independently scanned all *.json files in BATCH-006's
+        TASK-20260803-0764fc/runs/ (29 candidate r=5 files; 1 unparseable
+        as an interrupted-attempt artifact, correctly excluded), filtering to
+        rounds=5, sbox_spec startswith "rand", amask=1, smask=1, and
+        computed mean/range over W_ge1_nontrivial directly with a fresh
+        Python script -- not by reading OBS-B8-7's or the producer's stated
+        figures.
+      result: >-
+        27 arms found (matches the "27-arm" count cited by both EV-AES-8b8dcf
+        OBS-B8-7 and this task's producer). mean = 15.481481481481481
+        (rounds to 15.48 as stated), range = [6, 25] (matches). This is a
+        check the producer's own package explicitly declined to perform
+        (listed under "not_reached" item 3, correctly scoped out of its
+        Inputs list and budget); this validator performed it independently
+        rather than accepting the input as given.
+      status: PASS
+
+  key_distinctness_check:
+    method: >-
+      Read key_hex directly from each of the five source files/records
+      (not from the producer's key_distinctness_check block) and compared
+      pairwise as plain strings.
+    keys_as_read_by_this_validator:
+      Y-AES-main: 25b3faa13dbaeaab5491571199979d53
+      D-AES-K1: bdf3823182ad657dab3d556b3886ba72
+      D-AES-K2: 58146703b42fca722bc0ab918cd1409b
+      D-AES-K3: 144e2584001beec873a02a29e6156875
+      B0-AES-REF: c17835e6ca6233347781f4ba00d26ee4
+    result: >-
+      All five key_hex values are pairwise distinct, standard 32-hex-character
+      AES-128 key representations. CONFIRMS the producer's distinctness
+      conclusion for D-AES-K1/D-AES-K3/B0-AES-REF and, transitively, all five.
+    status: PASS
+    finding_against_producer: >-
+      OVERSTATED / INCORRECT CLAIM FOUND. The producer's RESULTS.json
+      (key_distinctness_check.all_five_pairwise_check note) asserts the
+      key_hex fields are "33-character strings ... one character longer than
+      a standard 32-hex-digit AES-128 key representation." This validator
+      measured len() on every key_hex string read directly from the five
+      source JSON files with python3 json.load(): all five are exactly 32
+      characters, the standard length. The claimed length discrepancy does
+      not exist in the source data. This does not affect the distinctness
+      conclusion (a plain string-inequality check is unaffected by a wrong
+      length observation), but it is a factual inaccuracy the producer
+      asserted about its own source data without it being true, and is
+      recorded here as an audit finding per this task's item 6 (things
+      overstated). Not classified as fabrication under AGENTS rule 9 -- most
+      likely a miscounted transcription -- but it is incorrect and should not
+      be repeated uncorrected in any downstream synthesis.
+
+  metric_recomputations:
+    - description: >-
+        Independent from-scratch Poisson(lambda=15.48) right-tail
+        probabilities for the four raw-count AES arms, using
+        scipy.stats.poisson (a different code path from the producer's
+        hand-rolled log-space PMF summation), run by this validator.
+      code_run: |
+        import scipy.stats as st
+        lam = 15.48
+        def sf_ge(k, lam):
+            return st.poisson.sf(k-1, lam)
+        for arm, k in [("D-AES-K1",14), ("D-AES-K2",14), ("D-AES-K3",8), ("B0-AES-REF",12)]:
+            p = sf_ge(k, lam)
+            pctl = st.poisson.cdf(k-1, lam) * 100
+      results:
+        D-AES-K1: {k: 14, "P(X>=k)": 0.6811403904651809, percentile_from_below: 31.89}
+        D-AES-K2: {k: 14, "P(X>=k)": 0.6811403904651809, percentile_from_below: 31.89}
+        D-AES-K3: {k: 8, "P(X>=k)": 0.9863846253740199, percentile_from_below: 1.36}
+        B0-AES-REF: {k: 12, "P(X>=k)": 0.845060624282609, percentile_from_below: 15.49}
+      comparison_to_producer: >-
+        EXACT MATCH to analyze.py's reported per-arm values
+        (0.6811403904651809, 0.98638462537402, 0.845060624282609) and to its
+        own scipy cross-check block. This validator's independent
+        scipy-based recomputation, run separately from and without reading
+        analyze.py's internals beyond its stated logic, reproduces the same
+        figures to full double precision.
+      status: PASS
+    - description: >-
+        Independent check of the two "descriptive only" interpolated figures
+        the producer computed for Y-AES-main's rate-scaled 13.5 (not fed
+        through a direct Poisson tail lookup).
+      finding: >-
+        INTERNAL INCONSISTENCY FOUND in analyze.py / RESULTS.json. Two
+        different interpolation schemes were used for what should be
+        complementary quantities at the same point (13.5):
+          (a) The survival-function interpolation correctly brackets 13.5
+              between k=13 and k=14: interp_sf = SF(13) + (SF(14)-SF(13))*0.5
+              = 0.770237 - 0.044549 = 0.725689 (matches the reported
+              "linear_interpolated_survival_at_13.5" = 0.725689). This half
+              is correct.
+          (b) The "percentile from below" interpolation does NOT bracket
+              13.5 between CDF(13) and CDF(14); it instead computes
+              CDF(12) + (CDF(13)-CDF(12))*(13.5-12), i.e. it extrapolates
+              from the [12,13] bracket using a fraction of 1.5 rather than
+              interpolating within [13,14]. This validator recomputed both
+              the producer's literal formula (36.34%) and the correct
+              bracket-[13,14] interpolation (36.81%, using CDF(13)=0.318860,
+              CDF(14)=0.417376) independently with scipy. The two happen to
+              be numerically close here (36.3% vs 36.8%) because the Poisson
+              CDF is locally near-linear over this small range -- not
+              because the formula is correct.
+          A genuine internal-consistency check exposes the real problem: the
+          survival-based figure (72.57%) and the from-below figure (36.3%
+          or, correctly, 36.8%) should sum to approximately 100% if both are
+          estimating complementary probabilities at the same point (i.e.
+          P(X<13.5-ish) + P(X>=13.5-ish) = 1). They do not: 72.57% + 36.3%
+          = 108.9% (or 72.57% + 36.8% = 109.4% using the corrected bracket).
+          The internally-consistent complement of the (correctly computed)
+          survival interpolation is 1 - 0.725689 = 27.43%, not 36.3-36.8%.
+          This is a genuine arithmetic/logic defect in analyze.py's CDF-side
+          interpolation, not merely a coincidence-masked non-issue.
+      severity_and_scope: >-
+        This defect is confined entirely to a value the producer itself
+        explicitly and repeatedly labels DESCRIPTIVE_ONLY and states must
+        NOT be treated as a probability statement about an observed count.
+        It is not used in any of the four raw-count Poisson percentile
+        computations (which are exact, see above), not used in the
+        "descriptive mean of all five" figure (12.3, which uses the raw rate
+        13.5 arithmetically, not its percentile position), and not used in
+        the qualitative_conclusion_assessment's core claim (which correctly
+        cites the SF-based ~36.3rd-percentile figure derived from the
+        already-consistent survival interpolation route, not the
+        internally-inconsistent CDF-from-below route -- so the report's own
+        narrative text is not contaminated by the bug it also contains). It
+        does NOT change the qualitative reading (Y-AES-main sits below the
+        distribution median under either the reported 36.3%/36.8% or the
+        internally-consistent complement 27.4% -- all three are well below
+        the ~50th percentile and nowhere near either tail).
+      status: FLAGGED (does not change verdict; recorded per this task's
+        audit item 6 and per the "recompute every percentile figure in your
+        own code" instruction)
+
+  statistical_soundness_ruling:
+    question: >-
+      Is treating Y-AES-main's scaled 13.5 rate alongside four raw integer
+      counts statistically sound, or should it be excluded/reported
+      separately?
+    ruling: >-
+      SOUND AS PRACTICED, with one caveat above. The producer's decision to
+      NOT feed 13.5 into a Poisson(15.48) P(X>=k) tail lookup as if it were
+      an observed integer draw is correct: 27 hits at 2^31 trials scaled
+      down by exposure to a 2^30-equivalent rate (27/2=13.5) is a derived
+      point estimate of the underlying process rate, not itself a Poisson
+      random variable, and treating a non-integer, exposure-averaged
+      quantity as a discrete Poisson draw would understate its own
+      uncertainty and misuse the discrete tail model. Positioning it via
+      linear interpolation between the two neighboring integers as a
+      DESCRIPTIVE device, explicitly caveated as such and kept separate from
+      the four raw-count percentiles (never pooled or averaged into a single
+      test statistic before percentile computation, consistent with the
+      task's own item-4 constraint), is the right level of rigor for a
+      non-pooled, per-arm descriptive recomputation. The one defect found is
+      that the specific interpolation formula used for the CDF-from-below
+      side of that descriptive device is internally inconsistent with the
+      correctly-computed survival-side figure (see metric_recomputations
+      above); this is a computational bug in an explicitly-secondary
+      descriptive statistic, not a soundness failure in the decision to
+      treat the rate separately from the counts.
+
+  five_vs_two_points_ruling:
+    question: >-
+      Does five points meaningfully change confidence in OBS-B8-7's
+      qualitative conclusion versus the original two, given the 27-arm
+      distribution's spread (range 6-25, mean 15.48, independently confirmed
+      above)?
+    ruling: >-
+      MODESTLY, IN THE SAME DIRECTION, NOT DRAMATICALLY. Two considerations
+      this validator checked that the producer's own text does not fully
+      separate:
+        (1) At face value, all five AES readings (14, 14, 8, ~13.5, 12) sit
+            well inside the random-S-box distribution's observed range
+            (6-25) and at approximate individual percentiles of 32nd, 32nd,
+            1st, ~27-37th (depending on interpolation choice, see finding
+            above), and 15th -- none approaching either tail (nearest to a
+            tail is D-AES-K3=8 at ~1.4th percentile, still 2 units inside
+            the observed minimum of 6). This is consistent with, and
+            modestly reinforces, the "not S-box-specific" reading: five
+            independent-in-time AES measurements read as unremarkable as
+            the original two did, and the new low outlier (D-AES-K3=8) pulls
+            the AES sample mean DOWN, away from the top of the distribution,
+            which is the opposite direction an S-box-specificity claim would
+            need.
+        (2) A more important limitation this validator surfaces that the
+            producer's own report names but does not resolve: D-AES-K1,
+            D-AES-K2 and D-AES-K3 are three measurements of the SAME S-box
+            (AES) under three different keys, not three independent draws
+            from the random-S-box population's reference frame. They add
+            precision to the estimate of AES's own rate (and BATCH-005's own
+            T2 test, independently re-verified above at p=0.247, already
+            shows no detectable key-to-key rate variation among them) but do
+            NOT increase the effective sample size of the comparison against
+            27 DIFFERENT random S-boxes each measured once. The producer
+            explicitly declines to run the one test that would answer this
+            cleanly -- a single pooled AES rate (from all 5 points, at
+            increased effective exposure) compared against the per-arm
+            variance structure of the 27-arm population -- and instead
+            reports only per-arm, unpooled percentiles (task item 4's own
+            constraint). That is a legitimate scope limit honestly disclosed
+            (see "not_reached" item 1 in RESULTS.json), not a defect, but it
+            means the correct characterization of what changed is: "five
+            per-arm readings, all unremarkable, is a slightly larger sample
+            of the same underlying picture the two-point reading already
+            gave" rather than "five independent comparisons materially
+            tighten the S-box-specificity conclusion." Both this validator
+            and the producer are explicit that no formal combined-test
+            confidence claim is licensed by this task.
+      Net: the five-point recomputation is corroborating, not decisive; it
+      neither strengthens the conclusion into a formal statistical claim nor
+      weakens or contradicts it. The qualitative direction (AES unremarkable
+      relative to the random-S-box distribution at r=5) holds under this
+      validator's own independent recomputation.
+
+  control_checks:
+    - check: negative/positive control adequacy for the underlying r=5 excess claim (OBS-B8-7 lineage)
+      note: >-
+        Out of scope for this recomputation task, which touches only the
+        percentile figure, not the underlying excess-detection controls.
+        Those controls (byte-locality analytic null, ideal-permutation
+        substitution in BATCH-009, structure-destroyed arms) were validated
+        under EV-AES-8b8dcf and EV-AES-1d5136 by prior, separately-recorded
+        validator sessions (TASK-20260803-bc660a verdict PASSED;
+        TASK-20260805-3b11d3 verdict PASSED) which this task does not
+        re-litigate. This validator did not re-check those controls.
+    - check: null-object correspondence (inventor-protocol section 3)
+      note: >-
+        The comparison this task recomputes -- AES readings against the
+        27-arm random-S-box distribution -- is itself the relevant
+        null-object-of-the-same-shape comparison (random S-boxes standing in
+        for AES's specific S-box, same instrument, same geometry). This
+        validator independently reconstructed that reference distribution
+        from raw files (see artifact_checks above) rather than trusting
+        either OBS-B8-7's or the producer's stated mean/range, and confirms
+        it is not decaying toward or away from AES in any way this task's
+        scope would detect; no parameter here is "the thing meant to
+        destroy the effect," so a decay check does not apply to this
+        specific recomputation task.
+
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+
+  overstatement_understatement_audit:
+    overstated_or_incorrect:
+      - >-
+        key_hex "33-character" claim: factually wrong (all five are 32
+        characters); see key_distinctness_check.finding_against_producer
+        above. Harmless to the distinctness conclusion, but incorrect as
+        stated.
+    understated: []
+    both_directions_otherwise_accurate: >-
+      Aside from the two items above (the length-claim error and the
+      CDF-interpolation internal inconsistency), this validator found the
+      producer's RESULTS.json to be an accurate, appropriately-hedged
+      recomputation: it correctly refuses to pool or average before
+      computing percentiles (per its own item-4 constraint), correctly
+      separates the rate-scaled Y-AES-main figure from the four integer
+      counts, correctly surfaces D-AES-K2 as the previously-unnamed fifth
+      point with a traceable justification, correctly re-verifies (and
+      matches) the BATCH-005 T2/T3 p-values, and correctly declines to make
+      any evidence-strength, hypothesis-status, or promotion claim, leaving
+      that to the Coordinator as required.
+
+  qualitative_conclusion_holds: true
+  qualitative_conclusion_note: >-
+    Under this validator's own independent re-derivation of every source
+    value, key-distinctness check, per-arm Poisson recomputation (via
+    scipy.stats.poisson, a different code path from the producer's
+    analyze.py), and independent reconstruction of the 27-arm reference
+    distribution from raw files, OBS-B8-7's qualitative conclusion --
+    that the r=5 excess is not AES-S-box-specific, as judged by AES's
+    readings falling inside the interior (not the tails) of the campaign's
+    own random-S-box distribution -- holds under the fuller five-point
+    evidence base. This is a toy-tier, per-arm descriptive finding; it is
+    not a formal pooled statistical test and licenses no claim about
+    deployed AES, full-round AES, or any comparison to published
+    cryptanalysis.
+
+  limitations:
+    - >-
+      TOY TIER ONLY: r=5 reduced-round AES-shaped SPN, one machine, 2^30-2^31
+      trials per arm. No full-round or deployed-AES statement is supported
+      by this report; no comparison to published cryptanalysis in either
+      direction.
+    - >-
+      This validator did not re-check the underlying excess-detection
+      controls (byte-locality, ideal-permutation substitution,
+      structure-destroyed arms) that establish the r=5 excess exists in the
+      first place; those were validated separately under EV-AES-8b8dcf and
+      EV-AES-1d5136 by other, independently recorded validator sessions.
+    - >-
+      No formal pooled/combined statistical test of the five AES points as a
+      group against the 27-arm distribution was performed by the producer or
+      by this validator; both are explicit that only per-arm, unpooled
+      figures are reported here, consistent with this task's own scope
+      constraint.
+    - >-
+      D-AES-K1, D-AES-K2 and D-AES-K3 are repeated measurements of the SAME
+      S-box (AES) under different keys, not three independent draws from the
+      27-arm random-S-box reference population; see
+      five_vs_two_points_ruling above for why this bounds how much the
+      three-point addition can strengthen an S-box-specificity conclusion.
+    - >-
+      Two producer-side defects found and recorded above: (a) an incorrect
+      "33-character key_hex" claim (actual: 32 characters, harmless to the
+      distinctness conclusion), and (b) an internally inconsistent
+      CDF-interpolation formula for the descriptive-only 13.5-rate figure
+      (the reported 36.3rd-percentile figure does not complement the
+      correctly-computed 72.57% survival figure; the internally consistent
+      complement is 27.4%). Neither affects the four raw-count percentiles,
+      which this validator independently reproduced to full double precision
+      via a separate code path (scipy.stats.poisson), nor the qualitative
+      conclusion, which remains "unremarkable, below median" under any of
+      the candidate figures (27.4%, 36.3%, or 36.8%).
+    - >-
+      Session and implementation independence only. NO MODEL INDEPENDENCE
+      under standing basis 0137a051eb5828789eb267fa83c8278086578d4c; this
+      report does not count toward any goal-closure quorum.
+    - >-
+      This report assigns no official evidence strength, changes no
+      hypothesis status, and recommends no promotion; those are the
+      Coordinator's determinations in the next task.
+
+  self_check: >-
+    This entire validation_report.yaml was read back in full (via the same
+    tool that wrote it) and parsed with python3 yaml.safe_load() by this
+    validator before being reported as complete; it parses as valid YAML
+    with no syntax errors.
+
+  artifact_paths:
+    - coordination/goals/GOAL-AES-003/batches/BATCH-013/tasks/TASK-20260805-9c54e4/validation_report.yaml
+
+  inference:
+    policy: coordinator-orchestration-code
+    requested_policy: coordinator-orchestration-code
+    resolved_model: claude-sonnet-5
+    fallback_used: true
+    model_verified: false
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
+    independence_statement: >-
+      Session and implementation independence from the producer
+      (TASK-20260805-258754) and from the snapshot-archive task
+      (TASK-20260805-c7e43d) is asserted: this validator ran in a separate
+      session, re-derived every figure from raw source files with its own
+      Python code (scipy.stats.poisson and an independent 27-arm-file scan),
+      and did not copy or trust the producer's analyze.py output or the
+      Coordinator's archive-receipt citations. NO MODEL INDEPENDENCE is
+      claimed or implied: this session resolves to the same model
+      (claude-sonnet-5) under standing basis
+      0137a051eb5828789eb267fa83c8278086578d4c as the producer and archive
+      tasks, consistent with the harness-wide single-backend condition
+      recorded in CLAUDE.md's model policy note.

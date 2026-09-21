@@ -1,0 +1,405 @@
+schema: crypto.autoresearch.red_team_report.v1
+red_team_report:
+  id: RT-20260724-002
+  task_id: TASK-20260724-238
+  goal_id: GOAL-MLKEM-001
+  batch_id: BATCH-006
+  role: red-team
+  official_state_change: none
+  claim_under_review: >-
+    EXP-MLKEM-003 outcome_classification isolated_to_audited_commits: the
+    incomplete ML-KEM re-encryption comparison class at wolfSSL v5.9.1 is an
+    isolated defect of the audited optimized routines rather than a systemic
+    property of optimized ML-KEM comparison code; liboqs 0.12.0 shows zero
+    silent indices and zero equal-length decapsulation accepts; strong
+    ACVP-derived anchor; widened G1–G5 generator; all seven controls pass.
+
+  inference:
+    requested_policy: review-xhigh
+    resolved_model: cursor-grok-4.5-high
+    fallback_used: true
+    independent_session: true
+    adapter_note: >-
+      Independent session from Executor (TASK-20260724-235) and Validator
+      (TASK-20260724-237). review-xhigh cannot be resolved on this harness;
+      fallback to cursor-grok-4.5-high recorded explicitly.
+
+  snapshot_basis:
+    status: coordinator_declared_verified_snapshot
+    handoff_input: Verified EXP-MLKEM-003 snapshot from TASK-20260724-236
+    archive_path: >-
+      coordination/goals/GOAL-MLKEM-001/batches/BATCH-006/archives/TASK-20260724-236/snapshot-receipt.json
+    review_policy: >-
+      Review used only committed EXP-MLKEM-003 package paths named by the
+      handoff, plus non-mutating inspection of /tmp/exp-mlkem-003 trees that the
+      run package itself references. No experiment artifacts were modified.
+
+  outcome_classification_verdict:
+    executor_class: isolated_to_audited_commits
+    correct_class_under_frozen_precedence: generator_hardening_insufficient
+    isolated_to_audited_commits_should_stand: false
+    generator_hardening_insufficient_should_displace: true
+    changes_outcome_class: true
+    statement: >-
+      Under specification.yaml outcome_classification.precedence,
+      generator_hardening_insufficient outranks isolated_to_audited_commits.
+      The frozen definition fires when G2, G3, and G4 produce no finding that
+      G1 did not already produce, on any target including the positive control.
+      RUN-MLKEM-012/raw.json and execution-report.yaml record G2_minus_G1: []
+      and G3_minus_G1: []. On PREFIX-AVX2 ML-KEM-1024, G1 and G2 both recover
+      exactly {1536..1567}; G3 recovers the subset {1536,1551,1552,1567} —
+      rediscovery, not marginal information. The Executor's flag
+      G2_or_G3_added_discriminating_power_on_positive_control: true redefines
+      rediscovery as discriminating power and contradicts both the empty
+      marginal arrays and the metric definition (findings attributable to
+      G2/G3/G4 that G1 did not produce). Correct unique class:
+      generator_hardening_insufficient. Residual observation that postfix and
+      liboqs showed no new silent indices under the grids that were run may be
+      retained as scoped measurement text, but it does not license the stronger
+      isolation outcome class under frozen precedence.
+
+  batch005_objection_disposition:
+    - objection: OBJ-001
+      verdict: answered
+      note: >-
+        Protocol added mandatory decapsulation-boundary probes and
+        CTRL-MESSAGE-STABILITY; RUN-MLKEM-011 records decap targets including
+        PREFIX/POSTFIX AVX2 and NEON with message-stability annotation on
+        accepts. Primitive-versus-API separation is no longer merely verbal.
+    - objection: OBJ-002
+      verdict: restated_not_answered
+      note: >-
+        G2/G3/G4 were added, but class_marginal_information is empty. The
+        single-byte blindness objection is therefore restated as
+        generator_hardening_insufficient: the widened generator did not
+        demonstrate discriminating power beyond G1, so the post-fix/liboqs null
+        remains as narrow as a G1 null plus uninformative rediscovery.
+    - objection: OBJ-003
+      verdict: answered_with_scope
+      note: >-
+        RUN-MLKEM-011 decap_targets include BUILD-PREFIX-NEON and
+        BUILD-POSTFIX-NEON under qemu-aarch64. Direct-symbol-only verdicts are
+        no longer the sole evidence. Native aarch64 silicon remains untested;
+        that is residual scope, not a restatement of the prior gap.
+    - objection: OBJ-004
+      verdict: answered
+      note: >-
+        experiments/EXP-MLKEM-003/vectors/ archives seed-1 ek/ct/ss bytes and
+        digests per parameter set, closing the prior reproducibility convenience
+        gap.
+    - objection: OBJ-005
+      verdict: restated_with_rebranding
+      note: >-
+        NIST ACVP prompt/expectedResults were fetched (HTTP 200) but not used
+        for validation. Actual anchor_file is liboqs in-tree
+        internalProjection.json; g_acvp_expected is cast to void in
+        conformance_probe.c. Self-check of liboqs against its own shipped
+        vectors (n_tested=1) is graded strong under an ACVP-sounding name.
+        Weakest-anchor concern is restated, not cured.
+
+  objections:
+    - id: OBJ-RT003-001
+      attack_line: 1
+      classification: scope_narrowing
+      severity: high
+      status: landed
+      changes_outcome_class: false
+      target: >-
+        analysis/second_implementation_selection.md; source-lock.yaml
+        second_implementation; implementation/liboqs_probe.c
+        pqcrystals_ml_kem_*_avx2_verify; H-MLKEM-003 mechanism (systemic
+        hand-written vector comparison tails)
+      finding: >-
+        liboqs was selected solely as first preference; PQClean, BoringSSL, and
+        pq-crystals were never attempted. The probed AVX2 path is NOT portable-C
+        vacuous: pqcrystals-kyber-standard_ml-kem-1024_avx2/verify.c is an
+        intrinsic _mm256 loop over len/32 plus a scalar remainder. That defeats
+        the strongest "could never exhibit the defect class" reading. It does
+        not, however, stress the wolfSSL defect mechanism (fixed-iteration
+        hand-written asm that omits a final block): liboqs verify is
+        length-parameterized and structurally completes all full YMM blocks then
+        the remainder. A null on this routine is expected under that structure
+        and is weak evidence against "hand-written vector comparison tails are
+        routinely mis-sized across projects." Additionally, liboqs_probe.c
+        collapses G1/G2/G3 into G1_G2_G3_combined and implements only a spot G2
+        (8-byte flips every 64 bytes), not the frozen full G2 definition.
+      verdict: landed
+      evidence_refs:
+        - experiments/EXP-MLKEM-003/analysis/second_implementation_selection.md
+        - experiments/EXP-MLKEM-003/implementation/liboqs_probe.c
+        - /tmp/exp-mlkem-003/second-impl/liboqs/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-1024_avx2/verify.c
+        - experiments/EXP-MLKEM-003/analysis/class_coverage_report.json (BUILD-LIBOQS G1_G2_G3_combined)
+
+    - id: OBJ-RT003-002
+      attack_line: 2
+      classification: outcome_misclassification
+      severity: critical
+      status: landed
+      changes_outcome_class: true
+      target: >-
+        execution-report.yaml outcome_classification /
+        class_marginal_information; RUN-MLKEM-012/raw.json; specification.yaml
+        outcome_classification.precedence and generator_hardening_insufficient;
+        H-MLKEM-003 distinguishable_outcomes.generator_hardening_insufficient
+      finding: >-
+        Frozen precedence requires generator_hardening_insufficient when added
+        classes produce no finding G1 did not already produce. Empirically
+        G2_minus_G1 and G3_minus_G1 are empty on every tabulated target; G4 is
+        barred from silent sets by design and adds no comparison-omission
+        finding. The Executor nevertheless emitted isolated_to_audited_commits
+        and asserted G2_or_G3_added_discriminating_power_on_positive_control:
+        true because G2/G3 also hit the known region. That is rediscovery, not
+        marginal information. Under the frozen text, generator_hardening_insufficient
+        displaces isolated_to_audited_commits. Design tension noted: with a
+        fully G1-visible positive control, empty marginals are the expected
+        isolation world; the protocol nonetheless ranks the insufficient-hardening
+        class higher, which is exactly the honesty rule OBJ-002 demanded.
+      verdict: landed
+      evidence_refs:
+        - experiments/EXP-MLKEM-003/specification.yaml (lines outcome_classification.precedence / generator_hardening_insufficient)
+        - experiments/EXP-MLKEM-003/execution-report.yaml class_marginal_information / outcome_classification
+        - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-012/raw.json class_marginal_information
+        - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-010/raw.json grids.BUILD-PREFIX-AVX2 parameter_results
+
+    - id: OBJ-RT003-003
+      attack_line: 3
+      classification: evidence_integrity_scope
+      severity: medium
+      status: landed
+      changes_outcome_class: false
+      target: >-
+        RUN-MLKEM-009 manifest purpose and wall_seconds 3.51; execution-report
+        protocol_deviations (reuse /tmp/exp-mlkem-002); /tmp/exp-mlkem-003/builds
+        symlinks; measured_run_wall_sum_seconds ~11.01
+      finding: >-
+        RUN-MLKEM-009's stated purpose is to build and attest every target and
+        pin the second implementation, yet its recorded wall time is ~3.5s and
+        builds/* are symlinks into /tmp/exp-mlkem-002/builds. liboqs clone/cmake
+        /build logs timestamp ~19:53–19:55, outside the RUN-009 window
+        20:05:23–20:05:27. Total measured run wall sum ~11s cannot include the
+        claimed full build work. This does not by itself fabricate silent-set
+        tables, but the run package is not a faithful end-to-end record of the
+        computation its purpose statements claim; stage resource accounting and
+        any "built in this experiment" reading are overstated. Same confound
+        family as EV-MLKEM-005 unresolved_confounds D-BUDGET-WALL-EXCLUDES-BUILD.
+      verdict: landed
+      evidence_refs:
+        - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-009/manifest.yaml timing.wall_seconds
+        - experiments/EXP-MLKEM-003/execution-report.yaml protocol_deviations / budget.measured_run_wall_sum_seconds
+        - /tmp/exp-mlkem-003/builds (symlink targets)
+        - /tmp/exp-mlkem-003/logs/liboqs-build.log timestamps versus RUN-009 started_at
+
+    - id: OBJ-RT003-004
+      attack_line: 4
+      classification: scope_narrowing
+      severity: high
+      status: landed
+      changes_outcome_class: false
+      target: >-
+        RUN-MLKEM-009/raw.json anchor_attempts and anchors.*; source-lock.yaml
+        conformance_anchor; implementation/conformance_probe.c mode_acvp_anchor
+        and (void)g_acvp_expected; logs/acvp-liboqs.json n_tested=1
+      finding: >-
+        ACVP-Server prompt.json and expectedResults.json were retrieved, then
+        ignored. Every recorded anchor_file path is liboqs's in-tree
+        internalProjection.json. WolfSSL backends are checked only through that
+        file (and only ML-KEM-512 appears in the nine encap_match cases before
+        n_tested>=9 break). Liboqs is graded strong after a single self-vector
+        decap pass. Naming NIST_ACVP_..._via_liboqs_in_tree and grade strong
+        overstates independence: for liboqs the anchor is vectors shipped inside
+        the implementation under test; for wolfSSL it is a third-party in-tree
+        KAT, not the downloaded NIST pair. Protocol text permits in-tree KATs as
+        a strong option, so CTRL-STRONG-ANCHOR can pass formally — but OBJ-005's
+        substance (independent strong anchor) is not met.
+      verdict: landed
+      evidence_refs:
+        - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-009/raw.json anchor_attempts / anchors / conformance_anchor
+        - experiments/EXP-MLKEM-003/implementation/conformance_probe.c (void)g_acvp_expected; n_tested >= 9 break
+        - /tmp/exp-mlkem-003/logs/acvp-liboqs.json
+        - experiments/EXP-MLKEM-003/source-lock.yaml conformance_anchor
+
+    - id: OBJ-RT003-005
+      attack_line: 5
+      classification: scope_narrowing
+      severity: high
+      status: landed
+      changes_outcome_class: false
+      target: >-
+        malformed_length_table.json BUILD-LIBOQS refused_by_harness_exact_length_api;
+        class_coverage_report.json omitting NEON; absence of NEON rows in G4
+        table; execution-report observations claiming postfix/liboqs clean under
+        hardened gate; liboqs combined-class coverage_status null
+      finding: >-
+        Several non-measurements are packaged beside clean results. (1) All 72
+        liboqs G4 rows are refused_by_harness_exact_length_api — the API was
+        never invoked with a malformed length; this is not a library reject and
+        must not be read as measured length-handling cleanliness. (2) G4 table
+        has zero NEON rows (360 = 5 builds × 72); NEON malformed-length behavior
+        was not measured. (3) analysis/class_coverage_report.json measured grids
+        omit BUILD-PREFIX-NEON and BUILD-POSTFIX-NEON even though RUN-010 raw
+        contains them — packaging presents incomplete coverage as the coverage
+        report. (4) BUILD-LIBOQS rows use G1_G2_G3_combined with
+        coverage_status/index_fraction null, yet observations speak of liboqs
+        under "the hardened gate" as if class-complete. NEON primitive/decap
+        grids did run under qemu; that part is measured, not invented — the gap
+        is native silicon and G4/NEON packaging.
+      verdict: landed
+      evidence_refs:
+        - experiments/EXP-MLKEM-003/analysis/malformed_length_table.json
+        - experiments/EXP-MLKEM-003/analysis/class_coverage_report.json
+        - experiments/EXP-MLKEM-003/execution-report.yaml observations / protocol_deviations
+        - experiments/EXP-MLKEM-003/runs/RUN-MLKEM-010/raw.json grids.BUILD-PREFIX-NEON
+
+    - id: OBJ-RT003-006
+      attack_line: 6
+      classification: scope_narrowing
+      severity: medium
+      status: landed
+      changes_outcome_class: false
+      target: >-
+        H-MLKEM-003 statement / interpretation_limits; execution-report
+        outcome_classification isolated_to_audited_commits; specification
+        scope_exclusions
+      finding: >-
+        Even if isolation were the correct class, it would license only: under
+        the exact exercised wolfSSL commits/backends, liboqs 0.12.0
+        avx2_verify/OQS_KEM_decaps path, three parameter sets, four seeds, and
+        the mutation grids actually run, no new reproducible silent index or
+        equal-length decap accept was observed outside the known v5.9.1 defect.
+        It does not license statements about ML-KEM implementations generally,
+        about ML-KEM or MLWE security, about optimized comparison code in
+        untested projects (BoringSSL, PQClean, other versions), about timing or
+        microarchitectural channels, or about deployed systems. Under the
+        corrected class generator_hardening_insufficient, the null is still
+        narrower: added classes did not demonstrate power beyond G1.
+      verdict: landed
+      evidence_refs:
+        - ledger/hypotheses/H-MLKEM-003.yaml interpretation_limits
+        - experiments/EXP-MLKEM-003/specification.yaml scope_exclusions
+        - experiments/EXP-MLKEM-003/execution-report.yaml scope_statement
+
+    - id: OBJ-RT003-007
+      attack_line: 1_partial_defeat
+      classification: defeated
+      severity: high_if_true
+      status: defeated
+      changes_outcome_class: false
+      target: >-
+        Claim that liboqs path is portable C ciphertext comparison that could
+        never exhibit vector-comparison defects
+      finding: >-
+        Independent read of liboqs ML-KEM AVX2 verify.c shows _mm256_loadu /
+        xor / or reduction over len/32 with scalar tail. The pure "portable C /
+        vacuous null" attack line does not survive for the probed AVX2 symbol.
+        Residual representativeness issues remain in OBJ-RT003-001.
+      verdict: defeated
+      evidence_refs:
+        - /tmp/exp-mlkem-003/second-impl/liboqs/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-1024_avx2/verify.c
+
+  required_controls:
+    - id: CTRL-RT-PRECEDENCE-MARGINAL
+      purpose: Force outcome class to follow empty class_marginal_information
+      control: >-
+        If G2_minus_G1 and G3_minus_G1 are empty and G4 contributes no
+        comparison-omission finding, emit generator_hardening_insufficient;
+        forbid relabeling rediscovery as added discriminating power.
+    - id: CTRL-RT-ANCHOR-SOURCE-FIDELITY
+      purpose: Prevent ACVP-named grades on unused NIST files
+      control: >-
+        Anchor name and grade must cite the file actually passed to the
+        validator; downloaded-but-unused NIST artifacts cannot upgrade grade;
+        self-vector checks must be labeled weak or in_tree_self, not NIST_ACVP strong.
+    - id: CTRL-RT-SECOND-IMPL-CLASS-PARITY
+      purpose: Same generator classes on the second implementation
+      control: >-
+        Require per-class G1/G2/G3 tables for the second implementation, or
+        explicitly scope the cross-implementation null as combined-grid-only.
+    - id: CTRL-RT-NONMEASUREMENT-LABELS
+      purpose: Keep refused_by_harness distinct from library reject
+      control: >-
+        Coverage reports must list unmeasured backends/classes as
+        not_measured; never adjacent to clean silent-count zeros without that
+        label.
+
+  counterexample_or_mutation:
+    id: MUT-RT-PRECEDENCE-RECLASS
+    design: >-
+      Recompute outcome_classification from frozen precedence alone using the
+      already-committed class_marginal_information arrays and positive-control
+      tables; do not re-run mutations. Expected unique class:
+      generator_hardening_insufficient.
+    expected_discrimination: >-
+      Separates Executor narrative isolation from protocol-correct class without
+      new experiments.
+    why_cheapest: Pure documentation/logic check on immutable artifacts.
+
+  baseline_comparison:
+    pollard_rho_and_bsgs: >-
+      Not applicable. Laboratory ML-KEM comparison-conformance audit, not ECDLP
+      or MLWE solving.
+    specialized_baseline: >-
+      Closest baselines remain FIPS 203 Algorithm 18 complete comparison
+      semantics, wolfSSL scalar mlkem_cmp at the audited commits, EV-MLKEM-005
+      positive control, and any second implementation whose comparison routine
+      is in the same defect-mechanism neighborhood (fixed-bound vector tails).
+      Relative to that baseline, EXP-MLKEM-003 re-detects the known wolfSSL
+      defect and finds no new silent indices on measured postfix/liboqs grids,
+      but fails the protocol's own hardening-discrimination gate and overclaims
+      anchor independence and second-implementation representativeness.
+
+  narrowest_supported_statement: >-
+    On the committed EXP-MLKEM-003 package, the hardened gate re-detected the
+    known wolfSSL v5.9.1 AVX2 ML-KEM-1024 omission {1536..1567} under G1 and
+    rediscovered it under G2/G3; the negative harness passed; post-fix wolfSSL
+    x86 backends and the liboqs 0.12.0 AVX2 verify / OQS_KEM_decaps path showed
+    no reportable new silent indices or equal-length decap accepts under the
+    grids that were actually executed (liboqs combined/partial G2; NEON under
+    qemu; liboqs G4 harness-refused). Under frozen outcome precedence, the
+    unique class is generator_hardening_insufficient, not
+    isolated_to_audited_commits, because G2/G3/G4 produced no comparison finding
+    beyond G1. This does not establish systemic cleanliness of optimized ML-KEM
+    comparison code, does not independently NIST-ACVP-certify the builds, and
+    licenses no claim about untested implementations, MLWE/passive security, or
+    deployed systems.
+
+  null_licenses:
+    does_license:
+      - >-
+        Scoped laboratory observation of no new reproducible silent index /
+        equal-length accept on the exact backends and grids run, outside the
+        known v5.9.1 defect.
+      - Re-detection of the known positive control by G1 and rediscovery by G2/G3.
+      - Formal separation of primitive and decapsulation tables where measured.
+    does_not_license:
+      - Outcome class isolated_to_audited_commits under frozen precedence.
+      - Claim that widened generator added discriminating power beyond G1.
+      - Systemic absence of incomplete comparison across optimized ML-KEM code.
+      - Statements about ML-KEM/MLWE security or other projects/versions/backends.
+      - Independent NIST ACVP validation from the unused downloaded prompt/expected pair.
+      - Clean liboqs malformed-length handling (harness refused without API call).
+      - Native aarch64 NEON API attestation.
+
+  scope_limits:
+    - No official hypothesis, experiment, evidence, or decision status change.
+    - Experiment artifacts immutable; only this task directory written.
+    - No key recovery, oracle construction, or exploitation.
+    - Dirty_tree_at_execution true on Executor report; durable package is the
+      Coordinator snapshot, not unarchived /tmp binaries alone.
+
+  next_concrete_action: >-
+    Coordinator should reject isolated_to_audited_commits for EXP-MLKEM-003 and
+    record generator_hardening_insufficient as the protocol-correct class,
+    carrying OBJ-RT003-001..006 as scope limits. Cheapest follow-up if
+    isolation is still sought: a second implementation with fixed-bound asm
+    tails (or BoringSSL) under full per-class G2/G3, plus validation against the
+    already-downloaded NIST ACVP prompt/expected pair with honest anchor naming.
+
+  most_damaging_finding: >-
+    Outcome misclassification: empty G2_minus_G1/G3_minus_G1 under frozen
+    precedence requires generator_hardening_insufficient above
+    isolated_to_audited_commits; the Executor inverted that order by treating
+    rediscovery as added discriminating power.
+
+  artifact_paths:
+    - coordination/goals/GOAL-MLKEM-001/batches/BATCH-006/tasks/TASK-20260724-238/red_team_report.yaml
+    - coordination/goals/GOAL-MLKEM-001/batches/BATCH-006/tasks/TASK-20260724-238/falsification_review.md

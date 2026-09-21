@@ -1,0 +1,150 @@
+run:
+  id: RUN-MLKEM-STAGE0V2-1
+  task_id: TASK-20260814-534f80
+  goal: GOAL-MLKEM-005
+  batch: BATCH-d1a736
+  role: executor
+  policy: executor-implementation
+
+  git:
+    commit_at_run_start: 9010b20f68f990a13e19fc41bc445d39f63517cb
+    branch: claude/launch-research-harness-1ns6z3
+    dirty_tree_at_run_start: >-
+      Clean except this task's own new, untracked write_scope files
+      (stage0_v2_feasibility.py at the time of the environment.json capture);
+      no tracked file modified anywhere in the repository.
+    note_on_head_drift_during_run: >-
+      HEAD on this branch advanced during the run's ~9863s wall-clock window
+      (external PR merge #428 and its main-events digest commit, both
+      unrelated to this task, landed via the repository's own scheduled/CI
+      automation while this task's subprocess tree was executing). Confirmed
+      9010b20f68f990a13e19fc41bc445d39f63517cb remains an ancestor of the
+      branch HEAD at the time this manifest was written
+      (f07b67416bf2b5fe5a21fd36b66784399e566e71). Nothing in this task's own
+      write_scope was touched by that drift; this task wrote nothing outside
+      its own write_scope directory.
+
+  seeds:
+    seed_root: 715923
+    stage_index: 0
+    formula: default_rng([SEED_ROOT, stage_index, d, beta, arm_index, draw_index])
+    bisection_instance_seed_used: 1398073216
+    bisection_instance_d_beta: [256, 40]
+    bisection_instance_matches_precedent: >-
+      Confirmed bit-identical to TASK-20260814-ffd791's own reported
+      seed_used=1398073216 at (d=256, beta=40) and to every adjudication/
+      probe artifact in this goal that cites the same cell.
+    main_grid_seeds_used:
+      - {d: 256, beta: 40, seed_used: 1398073216}
+      - {d: 256, beta: 55, seed_used: 1615872610}
+      - {d: 256, beta: 70, seed_used: null, note: "NOT_COMPUTED before seed capture line; subprocess timed out mid-bkz-tour, seed was set inside the subprocess but the worker never reached json.dump before being SIGTERM-killed at the 7200s cap"}
+      - {d: 512, beta: 40, seed_used: 2074339090}
+      - {d: 512, beta: 55, seed_used: 452658293}
+      - {d: 512, beta: 70, seed_used: 915347894}
+
+  construction_used: >-
+    FPLLL.set_precision(N) called BEFORE GSO.Mat construction; GSO.Mat(A,
+    float_type="mpfr"), explicitly NO flags=GSO.ROW_EXPO; M.update_gso();
+    LLL.Reduction(M, flags=LLL.DEFAULT) -> L; BKZReduction(L). Verified
+    against this host's fpylll 0.6.4 bkz.py source before the run: passing an
+    LLL.Reduction instance makes BKZReduction.__init__ reuse L.M as self.M
+    and set self.lll_obj = L directly -- the raw-IntegerMatrix branch that
+    would rebuild GSO.Mat(A, flags=GSO.ROW_EXPO) internally is never taken.
+    This matches, exactly, the shape validated at the isolated-LLL-step
+    level by adjudicate_precision.py / probe5_precision_fix_at_cheapest_failing_d.py
+    / probe6_full_bkz_with_precision_fix.py. No deviation.
+
+  precision:
+    bisection_performed: true
+    bisection_level: isolated_lll_step (GSO.Mat + LLL.Reduction + lll_obj(), no BKZReduction)
+    bisection_bounds_tested: [53, 212]
+    bisection_result: 65 bits (1-bit resolution binary search; both endpoints re-confirmed as trials before bisecting -- 53 bits: ERROR/infinite loop in babai; 212 bits: COMPLETED)
+    bisection_wall_clock_seconds: 618.3843791484833
+    bisection_budget_seconds: 3600
+    bisection_budget_exhausted: false
+    fallback_used: false
+    precision_bits_used_for_main_grid: 65
+
+  budgets:
+    overall_wall_clock_cap_seconds: 25200
+    overall_wall_clock_used_seconds: 9863.267633676529
+    per_cell_cap_seconds: 7200 (PER_BASIS_FEASIBILITY_CAP_V2)
+    memory_cap_gb: 16
+    peak_rss_observed_mb_max_across_cells: 139.10546875
+    maximum_runs: 1
+    runs_performed: 1
+    overall_cap_reached: false (script completed all 6 cells' own attempts within budget; last cell finished at total_script_wall_clock_seconds=9863.27s, well under 25200s)
+
+  outer_backstop:
+    command: "timeout 25260 python3 stage0_v2_feasibility.py"
+    triggered: false
+
+  main_grid_outcome_summary:
+    n_cells_attempted: 6
+    n_cells_completed: 0
+    n_cells_error: 5
+    n_cells_not_computed_cap_exceeded: 1
+    n_cells_not_computed_budget_exhausted: 0
+
+  certificate:
+    kind: none
+    note: >-
+      No discrete-log solve or factor-base relation is claimed anywhere in
+      this run. This is a pure lattice-reduction feasibility/timing
+      measurement (PREREG-8 section 2 Stage 0); no certificate applies.
+
+  classification: negative_observation
+  classification_basis: >-
+    Every one of the 6 main-grid cells was attempted to a definite outcome
+    (5 ERROR, 1 NOT_COMPUTED-cap-exceeded) using well-formed, native fpylll
+    calls, the exact construction the follow-up task named, and a properly
+    enforced budget. Nothing here is an infrastructure_error,
+    implementation_error, resource_exhaustion, or specification_error in
+    this task's own execution -- the corrected construction itself, run
+    exactly as specified, did not clear any main-grid cell. Per AGENTS.md
+    rule 3/5, a timeout is not itself negative evidence, but the 5 cells that
+    terminated with a definite ReductionError (or a chained ValueError
+    arising from the identical underlying condition, see writeup.md) inside
+    ordinary, correctly-configured fpylll/fplll code are a genuine
+    reproducible observation about this specific construction, host, and
+    fpylll/fplll version at these specific (d, beta) cells -- an
+    infrastructure/numerical-feasibility observation, exactly like
+    TASK-20260814-ffd791's own T-PROJNOISE-NODATA finding, not a
+    mathematical result about H-MLKEM-7d9bcc's C1/C2. This task does not
+    itself rule on T-PROJNOISE-NODATA (that is Coordinator/Validator/Red
+    Team territory per this task's own completion_gate); it reports the
+    observation.
+
+  inference_provenance:
+    requested_policy: executor-implementation
+    reasoning_effort: medium
+    fallback_used: false
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; AUTORESEARCH_POLICY
+      and AUTORESEARCH_BACKEND are unset, matching every other producer and
+      review artifact in this goal.
+
+  artifact_sha256:
+    bisection_results.json: eb50ac3af3f931f8ae19d07d3ed5a4cb0ed605eca16290b4a602ece4bc1ad76b
+    command.txt: d70f069aaaf6fae2b0ece5cdc7b2a9a00ffcdd7dac7763b076e009884968c0d9
+    environment.json: c2d977114533d2270643e0e0d7ea3048dc2ac0125218f1ecca11e8c352cb9560
+    run_end_utc.txt: c67e1cf7eeeeb762123b7f28fa08e67be72f26b61c8c45bed7b4aee5ae953cd3
+    run_start_utc.txt: e72a206fd40453841dd1296d37a03b551c90d333725af786ad1566d34630e795
+    stage0_v2_feasibility.py: adc1dc000e42409ee7f136cf6ea661bc6ae7abc33ce9c3ef345910f5e6afafd9
+    stage0_v2_results.json: b82056e4b385e8ca65c3b19535b168b0f4f1483fd09977d369323c734957e4ea
+    stderr.log: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    stdout.log: a3ef55305d2a378ac3fc04e8d7a288ba5bd0337637a5acd264e52774497224a9
+    task_card.md: 79828392216bba0c1f4f1b58b6eeba12fd3765a78a4c6de7c85984f3d45af7a4
+    note: >-
+      run_manifest.yaml's own hash cannot include itself; writeup.md is
+      written after this manifest and its hash is recorded separately by the
+      Coordinator snapshot task (TASK-20260814-cfa812) per this goal's own
+      established two-step (executor writes content, coordinator hashes the
+      full final set) pattern.
+
+  wall_clock_start_utc: "2026-08-14T13:29:22Z"
+  wall_clock_end_utc: "2026-08-14T16:19:39Z"

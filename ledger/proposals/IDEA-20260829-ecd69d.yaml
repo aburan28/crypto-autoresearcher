@@ -1,0 +1,945 @@
+idea:
+  id: IDEA-20260829-ecd69d
+  question_id: RQ-MLKEM-002
+  added: '2026-08-29'
+  status: proposed
+  proposed_by: idea-generator
+  title: >-
+    The FO re-encryption is a SECOND silent-set filter that this lane has
+    treated as pass-through. At ML-KEM-1024 a decapsulation-level xor_0x01
+    probe at c2 byte index i flips a coefficient bit of weight
+    2^((3(i-1408)) mod 5), so the probe is FORCED to be rejected exactly when
+    i = 1 mod 5 and is a free coin exactly when i = 4 mod 5 -- a
+    parameter-free law that accounts for the archived 20/9/3 partition
+    EV-MLKEM-005 called "mechanism-consistent" and never derived
+  class: mechanism
+
+  claim: >-
+    (A) THE ARCHIVED NUMBER NOBODY DERIVED. EV-MLKEM-005 observation 6 records
+    that the Algorithm-18 integration arm of EXP-MLKEM-002 "accepted a mutated
+    ciphertext on 43 of 64 index/seed pairs (20 indices on both seeds, 9 on
+    neither, 3 seed-dependent)" over the 32 archived AVX2 pre-fix silent
+    indices {1536..1567} at ML-KEM-1024, and explains it in one clause -- "a
+    mutation in the uncompared tail that changes the decrypted message produces
+    a re-encryption differing inside the compared prefix, so the FO comparison
+    still rejects" -- with no derivation, no partition, and no prediction. No
+    proposal filed against RQ-MLKEM-002 has returned to that number. This
+    record derives it.
+    (B) THE MECHANISM, EXACT AND KEY-INDEPENDENT. Algorithm 18 does not compare
+    the received ciphertext c* against a fixed reference; it compares c*
+    against c' = Encrypt(ek, m', r') where m' is what c* decrypts to. If the
+    mutation leaves m' = m, then r' = G(m || H(ek)) is unchanged, c' is
+    BIT-IDENTICAL to the honest c, and the comparison's difference support is
+    exactly the mutation support {i}. If the mutation changes m', then c' is a
+    freshly derived ciphertext differing from c* at essentially every position,
+    the difference support is the whole buffer, and the comparison rejects NO
+    MATTER WHAT the comparator's silent set is. Therefore the effective silent
+    set at the Algorithm-18 boundary is not S but S intersect T, where
+    T = {i : a probe at i leaves the decrypted message unchanged}. T is a
+    property of the SCHEME's encoding, not of the comparator, and this lane has
+    implicitly assumed T = [0, L).
+    (C) T IS COMPUTABLE IN CLOSED FORM ON c2, AND IT IS PERIODIC WITH PERIOD 5.
+    At ML-KEM-1024 the ciphertext is c = (c1, c2) with |c1| = 32*du*k =
+    32*11*4 = 1408 and |c2| = 32*dv = 32*5 = 160, so c2 occupies byte range
+    [1408, 1568) and the archived silent tail {1536..1567} lies ENTIRELY inside
+    c2. ByteEncode_5 lays the 256 five-bit compressed coefficients of v into a
+    little-endian bit array, so byte offset t = i - 1408 carries bitstream
+    positions [8t, 8t+8). The archived integration probe is `xor_0x01` at every
+    index (read first-hand from the committed raw.json this session), which
+    flips exactly bitstream position 8t. That bit belongs to coefficient
+    floor(8t/5) at intra-coefficient bit index (8t mod 5) = (3t mod 5), so the
+    flip perturbs that coefficient's compressed value by exactly
+    +/- 2^((3t) mod 5) units, i.e. v is perturbed by
+    Delta = 2^((3t) mod 5) * q/32 in {q/32, q/16, q/8, q/4, q/2}.
+    A message bit is recovered by Compress_1 of w = v - s^T u, whose decision
+    boundaries are q/4 apart from the two codewords 0 and q/2. THEREFORE:
+      b = 4  (Delta = q/2)  -- the bit ALWAYS flips, for every key, every
+                              message and every noise value, because a shift by
+                              exactly half the code period maps each codeword
+                              onto the other. The probe is FORCED to be
+                              rejected. T excludes i, unconditionally.
+      b = 3  (Delta = q/4)  -- the shift lands exactly on the decision
+                              boundary; the outcome is decided by the sign of
+                              the decryption noise at that coefficient, i.e. it
+                              is a key-and-message-dependent near-coin.
+      b <= 2 (Delta <= q/8) -- the shift flips the bit only when the decryption
+                              noise already exceeds q/8 at that coefficient,
+                              which is far outside ML-KEM's operating regime.
+                              The probe is essentially always accepted.
+    Converting t = i - 1408 back to i: b = 4 iff t = 3 mod 5 iff i = 1 mod 5;
+    b = 3 iff t = 1 mod 5 iff i = 4 mod 5.
+    (D) THE FORCED PARTITION OF THE ARCHIVED 32 INDICES, WITH NO FREE
+    PARAMETER. Over i in {1536,...,1567}: seven indices satisfy i = 1 mod 5
+    ({1536, 1541, 1546, 1551, 1556, 1561, 1566}) and are FORCED-REJECT; six
+    satisfy i = 4 mod 5 ({1539, 1544, 1549, 1554, 1559, 1564}) and are FREE
+    COINS; the remaining nineteen are FORCED-ACCEPT. This partition (7 forced
+    reject / 19 forced accept / 6 free) is derived from dv = 5 and the
+    bit-packing rule alone, with nothing fitted. It implies, before any further
+    data is read, that EV-MLKEM-005's "neither" count must lie in [7, 13], its
+    "both seeds" count in [19, 25], and
+    (neither - 7) + (both - 19) + seed_dependent = 6 exactly. The archived
+    triple (both = 20, neither = 9, seed_dependent = 3) satisfies this with
+    (1, 2, 3) as the realization of the six coins -- a consistent and
+    unremarkable multinomial outcome -- and it is the ONLY account this lane
+    has that reproduces all three numbers at once.
+    (E) WHAT WAS ACTUALLY READ THIS SESSION, STATED EXACTLY SO IT IS NOT
+    MISTAKEN FOR THE PROPOSED TEST. This session read
+    experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/raw.json lines 374-570 only:
+    the BUILD-PREFIX-AVX2 integration block, seed 1, indices 1536 through 1559
+    inclusive, mutation `xor_0x01`. Within that window every one of the five
+    forced-reject indices (1536, 1541, 1546, 1551, 1556) records
+    integration_accept_on_mutation = false, every one of the fourteen
+    forced-accept indices records true, and the five free-coin indices
+    (1539, 1544, 1549, 1554, 1559) are mixed. That is 19 of 19 deterministic
+    predictions consistent on a partial read of ONE seed. THE REMAINING ROWS
+    (indices 1560-1567 on seed 1, and all of seed 2) WERE NOT READ AND ARE THE
+    PROPOSED TEST. No number in this record is a measurement made by this
+    session.
+    (F) THE CROSS-PARAMETER-SET DISCRIMINATOR, WHICH IS WHY THIS IS NOT A
+    CURVE-FIT. At ML-KEM-512 and ML-KEM-768 the compression parameter is
+    dv = 4, and 4 divides 8, so 8t mod 4 = 0 for EVERY byte offset t: the
+    xor_0x01 probe flips the least significant bit of a coefficient at every
+    index without exception, Delta = q/16 everywhere, and the periodic
+    structure vanishes identically. The model therefore predicts NO forced
+    rejects and NO free coins in c2 at dv = 4, i.e. a completely flat
+    acceptance profile -- a qualitatively different prediction at a different
+    parameter set, derived from the same one-line rule, and one that a
+    post-hoc fit to the ML-KEM-1024 numbers could not have produced.
+    (G) THE CONSEQUENCE FOR THE GATE, WHICH IS THE POINT. Every
+    decapsulation-level (Algorithm-18) differential probe in this lane has
+    per-index power multiplied by 1{i in T}. At ML-KEM-1024, one index in five
+    inside c2 has power EXACTLY ZERO against ANY comparator silent set, however
+    defective the comparator: a mutation there is rejected by the FO transform
+    before the comparator's verdict can matter. This is a
+    null-that-cannot-fail (KN-TECH-1a5b7e mode 1) located in the SCHEME'S OWN
+    ALGEBRA -- not in the control arm (IDEA-20260724-001/-002), not in the
+    generator's support law (IDEA-20260821-13b667), and not in the ciphertext
+    length arithmetic (IDEA-20260805-3c957e). It also corrects the containment
+    law the lane now runs on: IDEA-20260821-13b667 computes
+    P_hit = Pr[D subset of S] with D the MUTATION support; at the Algorithm-18
+    boundary the operative support is D_eff = supp(c* xor c'), which equals D
+    only on T and is essentially the whole buffer off T. The correct
+    decapsulation-level form is P_hit = Pr[D subset of S and D subset of T].
+    (H) WHAT IS NOT CLAIMED, AND THE STOPPING RULE. No attack, no oracle, no
+    exploitation path, no attack-cost estimate, no timing/power/EM/cache/fault
+    measurement, no statement about MLWE hardness or ML-KEM security at any
+    parameter set. This record deliberately derives and tests only the
+    KEY-INDEPENDENT half of T -- the bit-weight law fixed by ByteEncode_dv --
+    and treats the key-and-message-dependent half (which way a b = 3 coin
+    lands) as an irreducible nuisance term reported as a seed-variance count
+    and never inverted. STOPPING RULE, BINDING ON THE EXECUTOR: if any stage
+    begins to resolve per-key or per-coefficient decryption-margin structure
+    from acceptance outcomes, the stage halts and escalates to the coordinator,
+    because that is decryption-failure/oracle territory belonging to
+    RQ-MLKEM-001 and forbidden by RQ-MLKEM-002's constraints. Any newly
+    observed conformance defect escalates to the coordinator and is published
+    by no agent.
+
+  mechanism: >-
+    STAGE 0 -- FREEZE THE FORCED TABLE BEFORE READING ANY UNREAD ROW. Under a
+    frozen script, emit for every i in [1408, 1568) the triple
+    (t = i - 1408, b = (3t) mod 5, class in {FORCED_REJECT, FREE, FORCED_ACCEPT})
+    using class = FORCED_REJECT iff b = 4, FREE iff b = 3, FORCED_ACCEPT
+    otherwise. Commit and hash this table. It contains no measured input and no
+    fitted parameter: its only inputs are dv = 5 and the ByteEncode bit-packing
+    rule. Emit the dv = 4 table for ML-KEM-512/768 in the same script, where
+    every index is FORCED_ACCEPT.
+    STAGE 1 -- THE ZERO-COMPUTE ARCHIVE CHECK, WHICH IS THE WHOLE MINIMAL TEST.
+    Parse the committed
+    experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/raw.json integration block for
+    BUILD-PREFIX-AVX2 in full -- all 64 index/seed pairs, both seeds, indices
+    1536-1567 -- and score every row against the frozen Stage-0 table. Report
+    three counts: deterministic agreements, deterministic violations, and free
+    rows. Recover the (both, neither, seed_dependent) triple independently from
+    the rows and check it reproduces EV-MLKEM-005's (20, 9, 3); a mismatch
+    there is a discrepancy between the evidence record's prose and its own raw
+    data and is REPORTED, not adjudicated (AGENTS.md retrieval policy).
+    STAGE 2 -- THE NULL ARM, WHICH THE ARCHIVE ALREADY CONTAINS. The same
+    committed summary.json records integration_accept_counts of 0 for
+    BUILD-PREFIX-SCALAR, BUILD-POSTFIX-SCALAR and BUILD-POSTFIX-AVX2. Those are
+    builds whose comparator has an EMPTY silent set, so S intersect T is empty
+    regardless of T, and the forced value is 0 accepts at every index including
+    the 19 forced-accept ones. This is the null object the model must not
+    explain away: if the model predicted acceptance on a complete comparator it
+    would be predicting a defect where none exists. Scoring it is free and it
+    can fail -- a nonzero count on any post-fix build would mean the archived
+    null is not what the record says it is.
+    STAGE 3 -- THE CROSS-PARAMETER-SET ARM, WHICH SEPARATES LAW FROM FIT. The
+    archived corpus has no ML-KEM-512/768 integration arm on a silent set,
+    because those parameter sets had empty pre-fix silent sets. So the dv = 4
+    prediction is tested on a PLANTED comparator: build a comparator whose
+    silent set is a declared 32-byte window inside c2 at ML-KEM-768
+    (c2 = [960+... , 1088), computed under the frozen script from
+    |c1| = 32*10*3 = 960), drive the identical xor_0x01 probe through a full
+    decapsulation, and confirm the forced flat profile (no forced-reject
+    index). Then repeat at ML-KEM-1024 with a planted silent window inside c2
+    and confirm the period-5 profile reappears. Two parameter sets, opposite
+    qualitative predictions, one probe.
+    STAGE 4 -- THE BIT-WEIGHT LADDER, THE GRADED CONTROL. Replace xor_0x01 by
+    xor_0x02, xor_0x04, ..., xor_0x80 at a fixed index and at ML-KEM-1024. Byte
+    bit e flips bitstream position 8t + e, hence intra-coefficient bit
+    ((8t + e) mod 5) and coefficient floor((8t+e)/5), so the forced class of a
+    probe is a function of (t, e) through (3t + e) mod 5 -- the SAME law with a
+    shifted argument. The graded prediction is that the forced-reject residue
+    class SHIFTS by one position for each increment of e, cycling with period 5
+    in e as well as in t. This is the arm that makes the law falsifiable in a
+    way a single residue class is not: a period-5 pattern in t alone could be
+    an artifact of any period-5 phenomenon, but a jointly period-5 pattern in
+    (3t + e) is specific to the ByteEncode_5 packing.
+    STAGE 5 -- THE CORRECTED POWER FORM, HANDED TO THE GATE. Emit, per
+    parameter set and per generator, the decapsulation-level per-index power
+    multiplier 1{i in T} and the corrected closed form
+    P_hit = Pr[D subset of (S intersect T)], as an amendment to
+    IDEA-20260821-13b667's primitive-level form. State explicitly that
+    13b667's form is UNCHANGED and correct at the PRIMITIVE level (where the
+    comparator is called directly on two buffers and no re-encryption
+    intervenes), and that the amendment applies only at the Algorithm-18
+    boundary. This record does not re-read or restate 13b667's verdict.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Retrieval this session was Grep over the repository plus first-hand reads;
+      the crypto-kb MCP index's availability was not re-checked and is not
+      relied on. Grep of ledger/proposals (glob *MLKEM*) for
+      `re-encrypt|reencrypt|decrypt|message bit|Compress|Decompress|coins`,
+      case-insensitive: NO MATCHES across all eleven filed RQ-MLKEM-002
+      proposals. Read in full or in their claim/mechanism/object blocks this
+      session: RQ-MLKEM-002, RQ-MLKEM-001, RQ-MLKEM-003, IDEA-20260724-001,
+      IDEA-20260724-002, IDEA-20260805-1beeca, IDEA-20260805-3c957e,
+      IDEA-20260805-ee2018, IDEA-20260821-121612, IDEA-20260821-13b667,
+      IDEA-20260821-25d3ca, IDEA-20260828-033cb3, IDEA-20260828-40db79,
+      IDEA-20260828-edec21, EV-MLKEM-005 (full), and the committed
+      RUN-MLKEM-007 summary.json (full) and raw.json (lines 374-570 only).
+      No web retrieval was performed for this record; FIPS 203 was not fetched.
+    results: >-
+      EV-MLKEM-005 states the mechanism in a single clause and gives the 20/9/3
+      partition as an observation; it derives nothing and predicts nothing.
+      IDEA-20260821-13b667 builds the lane's containment law on the MUTATION
+      support and states its own domain as OR-of-XOR accumulates, never
+      considering that the second operand of the Algorithm-18 comparison is
+      itself a function of the mutation. IDEA-20260805-3c957e and -1beeca use
+      L = 32*(du*k + dv) as a LENGTH identity only and never use du, dv as
+      bit-packing parameters. No record in this repository mentions
+      ByteEncode_dv bit weights, message-bit stability, or the FO transform as
+      a filter on probe power. Outside the repository, the general fact that
+      FO re-encryption rejects ciphertexts that decrypt differently is
+      textbook, and the general sensitivity of Kyber's message bits to
+      compressed-coefficient perturbations is the standard basis of published
+      decryption-failure and plaintext-checking-oracle literature; NO SEARCH
+      for that literature was performed this session and no external novelty is
+      claimed. A reviewer with retrieval should chase it, because the
+      arithmetic here is elementary and may well be written down somewhere as
+      an attack primitive rather than as an instrument-power statement.
+    verdict: >-
+      UNVERIFIED. Claimed new relative to this repository: treating the FO
+      re-encryption as a second, comparator-independent silent-set filter T;
+      deriving T's closed form on c2 from the ByteEncode_dv bit weight; the
+      forced residue classes i = 1 mod 5 (reject) and i = 4 mod 5 (coin) at
+      ML-KEM-1024; the resulting forced 7/19/6 partition of the archived silent
+      tail and its consistency with EV-MLKEM-005's 20/9/3; the qualitatively
+      opposite dv = 4 prediction; and the correction
+      P_hit = Pr[D subset of (S intersect T)] to the lane's decapsulation-level
+      power form. ASSEMBLED FROM KNOWN PARTS: the length identity is
+      IDEA-20260805-3c957e's; the containment law is IDEA-20260821-13b667's;
+      the archived numbers are EV-MLKEM-005's and RUN-MLKEM-007's; the FO
+      transform's re-encrypt-and-compare shape and the ByteEncode/Compress
+      definitions are FIPS 203's and are RECALLED, not fetched.
+
+  object_first_candidate:
+    tracked_object: >-
+      T, THE MESSAGE-STABILITY SET: T = {i in [0, L) : the probe at index i
+      leaves the decrypted message m' equal to m}, together with its
+      key-independent certificate, the bit-weight map
+      b(i) = ((8*(i - |c1|)) mod dv) defined on the c2 region. What is followed
+      through the computation is not a set of comparator byte positions but the
+      map from a probe's byte index to the ARITHMETIC WEIGHT of the coefficient
+      bit it disturbs.
+      ESTABLISHED FAMILIES DECLARED OFF-LIMITS as the primary lens per
+      inventor-protocol section 1: (a) the comparator's silent set S and its
+      size, profile and periodicity (IDEA-20260805-1beeca, -ee2018); (b) the
+      length residue L mod w (IDEA-20260805-3c957e); (c) the generator's
+      difference support D and its containment law (IDEA-20260821-13b667);
+      (d) compiled-artifact stride and coverage determinacy
+      (IDEA-20260821-121612, IDEA-20260828-033cb3); (e) downstream primitives,
+      select coverage and finalize value maps (IDEA-20260828-40db79, -edec21);
+      (f) control-arm wiring and baseline-invisibility (IDEA-20260724-001,
+      -002); (g) every cryptanalytic and physical-side-channel lens, excluded
+      by RQ-MLKEM-002. S enters this record only as the set T is intersected
+      with, never as the thing tracked.
+    lossiness: >-
+      Genuinely lossy, and lossy in a direction no prior object in this lane
+      uses. The full state at an Algorithm-18 probe is (dk, c, i, delta, the
+      whole re-encryption arithmetic). The projection retains only the integer
+      b(i) in [0, dv) -- the intra-coefficient bit index the probe disturbs --
+      discarding the key, the message, the noise polynomial, the affected
+      coefficient's identity, and the sign of the perturbation. The fibre is
+      enormous and non-singleton: all 256/dv-many byte offsets sharing a
+      residue, across every key and every message, map to one value of b, and
+      the archived data realizes at least seven distinct byte indices in the
+      single fibre b = 4. It is not a change of coordinates: the probe index i
+      is NOT recoverable from b, and neither is anything about the key.
+      COMPATIBILITY with the target's operation is exactly where the projection
+      earns its keep and exactly where it fails, and both are stated in
+      advance. It propagates deterministically for b = dv - 1 (a shift of q/2
+      flips the codeword unconditionally) and for small b (a shift below the
+      noise-to-boundary margin never flips it); it does NOT propagate
+      deterministically at b = dv - 2, where the shift lands on the decision
+      boundary and the discarded information -- the sign of the decryption
+      noise -- is exactly what decides the outcome. That is a declared,
+      located, measurable failure of the projection at one residue class, not a
+      caveat: the record predicts a coin there rather than a value.
+    propagation: >-
+      One step of the operation of interest is "apply the probe, decapsulate,
+      observe accept or reject". The law is:
+      probe at c2 offset t flips bitstream bit 8t + e (for xor of 2^e), hence
+      coefficient floor((8t+e)/dv) at intra-coefficient bit b = (8t+e) mod dv,
+      hence perturbs v by 2^b * q/2^dv, hence flips that message bit iff the
+      shift crosses the Compress_1 decision boundary. Composing with the
+      comparator: accept iff (message unchanged) AND (i in S). Deterministic
+      except at the single residue class b = dv - 2.
+    survival_score: >-
+      Survives two steps and dies at a stated third. Step 1, byte index to
+      coefficient bit weight: survives exactly, by the ByteEncode packing rule.
+      Step 2, bit weight to message-flip verdict: survives at b = dv - 1 and at
+      b <= dv - 3, dies at b = dv - 2 where the answer depends on discarded
+      state -- and this record predicts a coin rather than pretending
+      otherwise. Step 3, ANY STATEMENT ABOUT c1: DIES DELIBERATELY. A probe in
+      c1 perturbs one compressed coefficient of u, whose effect on the message
+      is spread across all 256 message positions through multiplication by the
+      secret s; the projection to a single bit weight is not sufficient there
+      and this record makes no claim about c1, which is its declared method
+      ceiling.
+
+  discriminated_from:
+    - >-
+      IDEA-20260821-13b667 derives P_hit = Pr[D subset of S] for the difference
+      support D under an OR-of-XOR accumulate, and its whole apparatus assumes
+      the comparison's two operands are the honest and mutated ciphertexts.
+      This record's object is the OTHER operand: at the Algorithm-18 boundary
+      c' is recomputed from the mutated input, so D is not the mutation
+      support. The two records meet at one point and the meeting is an
+      amendment, not an overlap -- 13b667's form is correct at the primitive
+      level and is not re-read, re-scored, or contradicted there.
+    - >-
+      IDEA-20260805-ee2018 and -1beeca track the comparator's silent set S: its
+      size, its profile across parameter sets, its period, its suffix shape.
+      Every one of those is a property of the COMPARATOR. T is a property of
+      the SCHEME and is identical across every implementation of FIPS 203; no
+      comparator fix changes a single element of it.
+    - >-
+      IDEA-20260805-3c957e uses L = 32*(du*k + dv) as a length identity to
+      derive L mod w. This record uses du and dv as BIT-PACKING widths to
+      derive an intra-coefficient bit index. The two derivations share one
+      formula and nothing else: 3c957e's conclusion is about which comparator
+      strides leave a tail, this record's is about which probe positions the FO
+      transform silences.
+    - >-
+      IDEA-20260828-40db79 and -edec21 open the select and finalize primitives
+      DOWNSTREAM of the comparator's verdict. This record's filter acts
+      UPSTREAM of the comparator, on whether the probe survives to reach it at
+      all. No claim of either record depends on this one and this record
+      depends on neither.
+    - >-
+      RQ-MLKEM-001's H-MLKEM-232843 mutates the PRIVATE KEY dk and reads
+      decapsulation as a black box. This record never touches dk, mutates only
+      the ciphertext, and derives a key-independent encoding law; the
+      key-dependent part is explicitly declared a nuisance and is not inverted.
+
+  citations:
+    - ref: experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/raw.json
+      provenance: internal
+      claim: >-
+        The BUILD-PREFIX-AVX2 integration block at resolved_commit
+        1d363f3adceba9d1478230ede476a37b0dcdef24 records per-row
+        (parameter_set, seed, index, mutation, integration_accept_on_mutation,
+        ss_len). The mutation is `xor_0x01` at every row. PARTIAL READ: lines
+        374-570 only, i.e. seed 1, indices 1536 through 1559 inclusive. Within
+        that window, integration_accept_on_mutation is false at exactly
+        1536, 1541, 1546, 1551, 1556 and at 1544, 1549, 1554, and true at every
+        other index read. Relied on for the fact that the probe is xor_0x01,
+        and for the 19-of-19 consistency of the deterministic classes stated in
+        claim (E). NOT read: indices 1560-1567 on seed 1, and all rows for
+        seed 2.
+      verified_by: idea-generator@2026-08-29 (partial read, lines 374-570)
+    - ref: experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/summary.json
+      provenance: internal
+      claim: >-
+        integration_accept_counts are BUILD-PREFIX-SCALAR 0, BUILD-PREFIX-AVX2
+        43, BUILD-POSTFIX-SCALAR 0, BUILD-POSTFIX-AVX2 0. Relied on for the
+        headline 43 and for the Stage-2 null arm's forced zeros. Read in full
+        this session (the file is twelve lines).
+      verified_by: idea-generator@2026-08-29 (full read)
+    - ref: EV-MLKEM-005
+      provenance: internal
+      claim: >-
+        Observation 6: "Algorithm-18 integration on pre-fix AVX2 silent indices
+        accepted a mutated ciphertext on 43 of 64 index/seed pairs (20 indices
+        on both seeds, 9 on neither, 3 seed-dependent). This is
+        mechanism-consistent rather than universal: a mutation in the uncompared
+        tail that changes the decrypted message produces a re-encryption
+        differing inside the compared prefix, so the FO comparison still
+        rejects." Also observation 4 (AVX2 pre-fix silent set exactly
+        {1536..1567} at ML-KEM-1024) and the boundaries clause naming
+        multi-byte, alignment, length-dependent, key-dependent, shared-defect
+        and timing-only as classes the post-fix null does not cover. Read in
+        full this session.
+      verified_by: idea-generator@2026-08-29 (full read)
+    - ref: IDEA-20260821-13b667
+      provenance: internal
+      claim: >-
+        The containment law P_hit = Pr[D subset of S] with D the generator's
+        difference support, its forced-zero and forced-unit cells, and its
+        NULL-D direction anchor tied to the archived {1536..1567} profile. Read
+        in full through line 760 of 1078 this session (claim, mechanism,
+        novelty screen, object, controls, predictions, minimal test,
+        falsification, confounders, interpretation limits and H1). Relied on
+        for the exact form this record amends at the Algorithm-18 boundary.
+      verified_by: idea-generator@2026-08-29 (read lines 1-760 of 1078)
+    - ref: IDEA-20260805-3c957e
+      provenance: internal
+      claim: >-
+        L = 32*(du*k + dv) with (k, du, dv) = (2,10,4), (3,10,4), (4,11,5)
+        giving L = 768, 1088, 1568, and the derived residue table L mod w.
+        Read (claim, object, mechanism sections 1-4) this session. Relied on
+        for |c1| = 32*du*k = 1408 and |c2| = 32*dv = 160 at ML-KEM-1024.
+      verified_by: idea-generator@2026-08-29 (partial read, lines 1-130)
+    - ref: IDEA-20260805-1beeca
+      provenance: internal
+      claim: >-
+        The same parameter triples, independently stated, together with the
+        observation that the three standardized lengths are corroborated inside
+        this repository by EV-MLKEM-005's measured cardinalities. Read (claim,
+        object, mechanism sections 1-3) this session; used as a second internal
+        witness for (k, du, dv) so the triple does not rest on one record.
+      verified_by: idea-generator@2026-08-29 (partial read, lines 1-130)
+    - ref: knowledge/techniques/KN-TECH-1a5b7e.md
+      provenance: recalled
+      claim: >-
+        Null sufficiency, mode 1 ("the null that cannot fail") and the
+        null-first discipline. RECALLED VIA ITS QUOTATION IN
+        IDEA-20260821-13b667 AND IDEA-20260828-40db79, both read this session;
+        the technique file itself was NOT opened this session.
+      verified_by: null
+    - ref: null
+      provenance: recalled
+      claim: >-
+        FIPS 203 structure relied on for the derivation: ByteEncode_d packs
+        256 d-bit coefficients into a little-endian bit array so that byte j
+        carries bitstream positions [8j, 8j+8); Compress_d/Decompress_d are the
+        scaled roundings with step q/2^d; ML-KEM.Decaps recomputes m', derives
+        r' = G(m' || H(ek)), re-encrypts to c' and compares c' with the
+        received ciphertext; a message bit is Compress_1 of v - s^T u with
+        codewords 0 and q/2 and decision boundaries at q/4 and 3q/4; q = 3329;
+        (k, du, dv) = (4, 11, 5) at ML-KEM-1024 and (k, 10, 4) at ML-KEM-512
+        and -768. RECALLED, NOT FETCHED THIS SESSION. Every prior record in
+        this lane that attempted to fetch readable FIPS 203 text failed
+        (IDEA-20260828-40db79 records a WebFetch returning only publication
+        metadata; IDEA-20260821-13b667 records a failed PDF conversion). The
+        length consequences of these facts are independently corroborated
+        inside this repository by EV-MLKEM-005's measured cardinalities; the
+        BIT-PACKING and COMPRESSION facts are NOT so corroborated and are the
+        load-bearing recalled input of this record. Stage 0 of the minimal test
+        re-derives them against the standard or against a primary
+        implementation before the archive check is scored.
+      verified_by: null
+
+  assumptions:
+    - >-
+      The archived integration probe is xor_0x01 at every index (read
+      first-hand for indices 1536-1559, seed 1; assumed for the unread rows and
+      CHECKED in Stage 1 rather than assumed at scoring time).
+    - >-
+      The AVX2 pre-fix comparator's silent set is exactly {1536..1567} at
+      ML-KEM-1024, so that acceptance at index i is equivalent to
+      "the message was unchanged" for i in that range. Taken from EV-MLKEM-005
+      and RUN-MLKEM-007; if the silent set were larger or smaller the index
+      range changes but the residue law does not.
+    - >-
+      The decryption noise at a single coefficient is, in the ML-KEM operating
+      regime, well below q/8 with overwhelming probability, so that a shift of
+      q/8 or less does not cross a decision boundary. This is what makes
+      b <= dv - 3 forced-accept; it is stated as heuristic H2 with its own
+      validation route rather than assumed silently.
+    - >-
+      No conclusion transfers beyond the parameter sets, probe forms, and
+      archived runs actually scored. The c1 region is out of scope by
+      construction, and nothing here is claimed for multi-byte probes.
+
+  proof_search_map:
+    bottleneck: >-
+      The step from "the probe flips a coefficient bit of weight 2^b" to "and
+      therefore the decrypted message does or does not change". That step is
+      unconditional at b = dv - 1 (a q/2 shift), conditional on the noise
+      magnitude at b <= dv - 3, and undetermined at b = dv - 2. Everything the
+      record claims deterministically lives on the first and third of those,
+      and the middle is where a wrong noise model would show up.
+    baseline_embedding:
+      parameter_slice: >-
+        Restricted to dv = 4 (ML-KEM-512 and ML-KEM-768), the law collapses to
+        b = 0 at every index, which is the lane's existing implicit assumption
+        T = [0, L) -- i.e. the prior model is recovered exactly as the dv | 8
+        slice of this one. That is a genuine embedding: the previous account is
+        not contradicted at the parameter sets where it was implicitly applied,
+        it is derived as a special case, and the new content is confined to
+        dv = 5.
+      reproduction_check: >-
+        Under the frozen Stage-0 script, evaluate (8t) mod dv for dv = 4 over
+        t in [0, 160) and confirm it is identically 0, reproducing the flat
+        profile, before any ML-KEM-1024 row is read. A nonzero value would
+        indict the script.
+    observation_collision:
+      observable: >-
+        The single bit integration_accept_on_mutation per (index, seed).
+      distinct_preimage_search: >-
+        A REJECT at index i has two distinct ground-truth preimages that this
+        observable cannot separate: (i) the comparator SAW the difference
+        (i is outside S), and (ii) the comparator never got the chance because
+        the FO re-encryption changed (i is outside T). This is a genuine
+        collision and it is the reason the archived 43/64 was reported as
+        "mechanism-consistent rather than universal" without a mechanism. The
+        separating condition is that arm (i) is a property of the build and
+        arm (ii) is a property of the residue class: Stage 2 holds the residue
+        class fixed and varies the build (post-fix builds must reject
+        everywhere), and Stage 3/4 hold the build fixed and vary the residue
+        class. Neither alone identifies the mechanism; the crossed design does.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          The bit-weight residue b(i) = (8*(i - |c1|)) mod dv, standing in for
+          the entire decryption computation on the c2 region.
+        predicted_gain: >-
+          Reduces "will this probe change the decrypted message" from a
+          full decapsulation to one modular arithmetic step, deterministically
+          on 26 of 32 archived indices, at zero compute.
+      - transform: observable_fiber
+        proposed_object: >-
+          The accept bit held fixed at REJECT, with the forgotten structure
+          (which of comparator-saw-it versus FO-filtered-it) varied.
+        predicted_gain: >-
+          Names the intrinsic invariant separating the two preimages -- the
+          residue class of i, which is invariant under every comparator change
+          -- and thereby converts an unidentifiable observation into an
+          identifiable one.
+    quantifier_order: >-
+      FOR the ML-KEM-1024 parameter set, FOR ALL keys, FOR ALL messages, FOR
+      ALL c2 byte indices i with i = 1 mod 5, and FOR the xor_0x01 probe, the
+      decrypted message changes -- no witness is allowed to depend on the key
+      or the seed, which is exactly what makes this half falsifiable by a
+      single counterexample row. The complementary statement at b <= dv - 3 is
+      weaker and is written as such: FOR ALL such i, THERE IS a bound (the
+      noise-to-boundary margin) such that FOR ALL keys whose noise at the
+      affected coefficient respects that bound, the message is unchanged. The
+      b = dv - 2 class carries NO universal quantifier and is predicted as a
+      per-(key, seed) coin.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        For the c2 region of a stated parameter set and a stated single-bit
+        probe, this method certifies exactly which probe positions are
+        FORCED to be rejected at the Algorithm-18 boundary independently of the
+        comparator, which are forced to be accepted subject to the stated noise
+        bound, and which are undetermined. It certifies NOTHING about the c1
+        region, nothing about multi-byte probes, nothing about which way an
+        undetermined coin lands, and nothing about any implementation's
+        comparator.
+      nearby_object_control: >-
+        The c1 region, where the desired conclusion FAILS: a probe there
+        perturbs one compressed coefficient of u, whose message effect is
+        delocalized across all 256 positions through the secret polynomial, so
+        no single bit weight determines the outcome. The method must report
+        c1 as OUT OF DOMAIN rather than assigning it a residue class. A
+        pipeline that emits a period-5 forced table over c1 has learned to
+        print the law rather than to apply it, and that is the specific failure
+        the control exists to catch.
+    proof_obligations:
+      - claim: A shift of exactly q/2 in v flips the Compress_1 bit for every key and message.
+        responsibility: correctness
+      - claim: Byte offset t of c2 carries bitstream positions [8t, 8t+8) under ByteEncode_dv.
+        responsibility: encoding
+      - claim: The forced 7/19/6 partition of {1536..1567} follows from dv = 5 with nothing fitted.
+        responsibility: size
+      - claim: No deterministic prediction is violated on any archived row, over both seeds.
+        responsibility: baseline
+      - claim: Nothing transfers to c1, to multi-byte probes, or to unscored parameter sets.
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        forced_reject_violations: over all 64 archived (index, seed) rows of
+        the BUILD-PREFIX-AVX2 integration block, the number with i = 1 mod 5
+        and integration_accept_on_mutation = true
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0, with no tolerance, over all 14 such rows (7 indices x 2
+        seeds). Any single violation refutes the unconditional half of the law
+        and the record is withdrawn in that part. Five of the seven indices
+        were read on seed 1 this session and are consistent; the remaining
+        nine rows are the test.
+    - metric: >-
+        forced_accept_violations: the number of archived rows with
+        b(i) in {0, 1, 2} (equivalently i not congruent to 1 or 4 mod 5) and
+        integration_accept_on_mutation = false
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0 over all 38 such rows (19 indices x 2 seeds). A nonzero count
+        falsifies heuristic H2 (the noise-margin bound) rather than the
+        encoding law, and the record says which by reporting the violating
+        rows' b values: violations concentrated at b = 2 indict the margin
+        bound, violations at b = 0 indict the encoding.
+    - metric: >-
+        free_class_containment: whether every seed-dependent index and every
+        non-forced reject in EV-MLKEM-005's partition lies in the residue class
+        i = 4 mod 5
+      direction: different
+      minimum_effect: >-
+        MUST HOLD for all 3 seed-dependent indices and for exactly
+        (9 - 7) = 2 of the never-accept indices. Equivalently the recovered
+        triple must satisfy (both - 19) + (neither - 7) + seed_dependent = 6
+        with all three terms non-negative. The archived (20, 9, 3) satisfies it
+        as (1, 2, 3). A recovered triple violating the identity refutes the
+        partition.
+    - metric: >-
+        dv4_flatness: at ML-KEM-768 with a planted 32-byte silent window inside
+        c2, the number of probe indices whose acceptance is forced to reject by
+        the bit-weight law
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0, and the MEASURED acceptance profile must show no residue-5
+        or residue-4 periodicity at all -- a flat profile. This is the arm that
+        separates a derived law from a curve fitted to ML-KEM-1024, and it
+        predicts the OPPOSITE qualitative behaviour at a different parameter
+        set from the same one-line rule.
+    - metric: >-
+        bit_ladder_phase: over probes xor_2^e for e in {0,...,7} at fixed
+        indices, the position of the forced-reject residue class as a function
+        of e
+      direction: different
+      minimum_effect: >-
+        MUST SHIFT by exactly one residue per unit increment of e, cycling with
+        period 5, i.e. the forced-reject condition is (3t + e) = 4 mod 5. A
+        pattern periodic in t but NOT jointly periodic in (3t + e) means the
+        period-5 structure is not the ByteEncode_5 packing and the mechanism is
+        misidentified even if the ML-KEM-1024 table matches.
+    - metric: >-
+        postfix_null_accepts: integration accepts on BUILD-POSTFIX-AVX2,
+        BUILD-POSTFIX-SCALAR and BUILD-PREFIX-SCALAR, recovered from the
+        committed raw rows rather than from the summary
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0 on all three, matching the committed summary.json. These are
+        builds with an empty comparator silent set, where S intersect T is
+        empty regardless of T; a nonzero count would mean the archived null is
+        not what EV-MLKEM-005 reports and voids the Stage-1 scoring until
+        adjudicated.
+
+  minimal_test:
+    design: >-
+      STAGE 0 plus STAGE 1 ARE THE WHOLE MINIMAL DISCRIMINATING TEST AND THEY
+      REQUIRE NO BUILD, NO LIBRARY, NO COMPILER AND NO KEY GENERATION: emit and
+      hash the forced (t, b, class) table from dv alone; then parse the
+      committed RUN-MLKEM-007 raw.json integration block in full and score
+      every one of the 64 rows against it. That is minutes of arithmetic
+      against data already committed to this repository, and it either produces
+      52 consecutive deterministic agreements with zero violations or it
+      produces a violation that kills the law outright. Stages 2 (the archived
+      post-fix null arm) and the EV-MLKEM-005 triple recomputation are also
+      zero-compute and run in the same pass. STAGES 3-4 (the dv = 4 flatness
+      arm and the bit-weight ladder) require planted comparators and full
+      decapsulation runs and are the confirmatory, non-minimal half; they are
+      bounded by a few thousand decapsulations at three parameter sets, well
+      under a CPU-minute of actual cryptographic work plus build time. Every
+      planted arm uses the GNU ld --wrap interposition admitted by EV-MLKEM-010
+      and never the call-site macro interposition refuted by EV-MLKEM-009.
+    controls:
+      - >-
+        NULL OBJECT, ALREADY IN THE ARCHIVE AND ABLE TO FAIL: the three
+        archived builds with an empty comparator silent set
+        (BUILD-PREFIX-SCALAR, BUILD-POSTFIX-SCALAR, BUILD-POSTFIX-AVX2), whose
+        forced acceptance count is 0 at every index including the 19
+        forced-accept ones. If the model or the scoring script predicts any
+        acceptance there, it is predicting a defect where the archive records
+        none and no candidate reading is admissible.
+      - >-
+        MUST-FIRE ARM: a planted comparator at ML-KEM-1024 with a declared
+        silent window placed inside c2 at indices spanning at least two full
+        residue periods, driven by xor_0x01. The period-5 forced-reject pattern
+        must appear. Without a demonstrated appearance on a comparator whose
+        silent set is known by construction, a pattern found on an archived
+        build is uninterpretable.
+      - >-
+        NEARBY-OBJECT CONTROL WHERE THE METHOD MUST REPORT OUT OF DOMAIN: the
+        c1 region. The predicate must refuse to assign a forced class there and
+        must say why (delocalized message effect through the secret), never
+        emit a residue table for it.
+      - >-
+        NEARBY-OBJECT CONTROL WHERE THE CONCLUSION MUST INVERT: ML-KEM-768,
+        dv = 4, where the same script must emit a flat all-forced-accept table
+        and the measurement must show no periodicity.
+      - >-
+        STRUCTURAL-TELL CHECK (inventor protocol section 3): the forced-reject
+        pattern must be INVARIANT under the parameter that destroys every
+        comparator-side explanation -- namely, replacing the comparator with a
+        different defective one having a different silent set placed over the
+        same residue classes. A pattern that moves when the comparator changes
+        is a comparator artifact, not an FO filter, and the record is withdrawn.
+        Conversely a pattern that survives comparator replacement is the
+        signature this record claims.
+      - >-
+        ORDERING CONTROL: the Stage-0 forced table is committed and hashed
+        before any unread archived row is parsed, so no residue class can be
+        selected after seeing the data. The rows this session did read
+        (seed 1, 1536-1559) are declared in claim (E) and are excluded from
+        counting as confirmations in the scored result.
+      - >-
+        ARCHIVE CHECK (zero compute): recompute EV-MLKEM-005's (20, 9, 3)
+        triple from the raw rows and report agreement or disagreement between
+        the evidence record's prose and its own run artifact, without
+        adjudicating which is right.
+    required_metrics:
+      - the frozen (t, b, class) forced table for dv in {4, 5}, with script and hash
+      - per-row scoring of all 64 archived integration rows against it, with violation counts by class
+      - the (both, neither, seed_dependent) triple recomputed from raw rows, beside EV-MLKEM-005's stated triple
+      - archived post-fix and scalar acceptance counts recomputed from raw rows
+      - planted-comparator measured acceptance profiles at ML-KEM-768 (dv=4) and ML-KEM-1024 (dv=5), per index
+      - the bit-ladder phase table over e in {0..7}
+      - the comparator-replacement invariance check outcome
+      - every build configuration, seed, and pinned commit used
+
+  falsification_conditions:
+    - >-
+      Any archived row with i = 1 mod 5 in the silent range records
+      integration_accept_on_mutation = true. The unconditional half of the law
+      is false and the record is withdrawn in that part immediately.
+    - >-
+      Any archived row with b(i) in {0,1,2} records reject. Either H2's noise
+      margin or the encoding rule is wrong; the record reports which by the b
+      value of the violating rows and does not patch the model to fit.
+    - >-
+      The recovered (both, neither, seed_dependent) triple violates
+      (both - 19) + (neither - 7) + seed_dependent = 6 with non-negative terms.
+      The forced partition is wrong.
+    - >-
+      The ML-KEM-768 planted arm shows periodic structure in c2. dv = 4 should
+      make the effect vanish identically; periodicity there means the
+      mechanism is not the ByteEncode bit weight and the entire derivation is
+      an accident of ML-KEM-1024's numbers.
+    - >-
+      The bit ladder shows periodicity in t but no phase shift in e. The
+      period-5 structure is real but is not the packing, and the mechanism is
+      misidentified.
+    - >-
+      The forced-reject pattern moves when the comparator is replaced by a
+      different defective one over the same residue classes. The pattern is a
+      comparator artifact and this record's central claim -- that the filter is
+      comparator-independent -- is false.
+    - >-
+      FIPS 203's actual ByteEncode bit order is most-significant-bit-first
+      rather than least-significant-bit-first, or dv at ML-KEM-1024 is not 5.
+      The residue classes shift or the law dissolves; this is the recalled
+      input most likely to be wrong and Stage 0 checks it before anything else.
+    - >-
+      Build, fetch or parse failures. INFRASTRUCTURE outcome under AGENTS.md
+      rule 3, never mathematical evidence; the archive check still completes
+      because it reads only committed files.
+
+  confounders:
+    - >-
+      THE ARCHIVED ROWS THIS SESSION ALREADY READ CANNOT BE COUNTED TWICE. 19
+      deterministic predictions were checked against seed-1 rows 1536-1559 in
+      the course of writing this record, and the model was written knowing
+      EV-MLKEM-005's 20/9/3 headline. The residue law itself has no fitted
+      parameter, but the honest position is that the record is PART
+      RETRODICTION, and only the unread rows (seed 1 indices 1560-1567, all of
+      seed 2), the dv = 4 arm, and the bit ladder are genuine predictions. The
+      scored result must separate the two.
+    - >-
+      A NEAR-BOUNDARY SHIFT IS NOT A CLEAN COIN. At b = dv - 2 the shift is
+      q/4, exactly the distance to the decision boundary, so the outcome is
+      decided by the sign of a small noise term whose distribution is not
+      symmetric in general. Predicting "about half" is a modelling convenience;
+      the record predicts only that this class is NOT deterministic and does
+      not rest any conclusion on the rate.
+    - >-
+      COEFFICIENT STRADDLING. A byte's eight bits span two or three
+      coefficients under dv = 5, so a MULTI-BIT probe disturbs more than one
+      coefficient and the single-weight law does not apply. This record is
+      confined to single-bit probes, which is what the archive used; extending
+      to multi-byte generators requires a different derivation and is not
+      attempted.
+    - >-
+      SILENT SET AND FILTER ARE OBSERVED THROUGH ONE BIT. Every archived row
+      reports acceptance only. Attribution of a reject to the comparator versus
+      to the filter is possible only through the crossed design of Stages 2-4,
+      never from a single build's rows.
+    - >-
+      SCOPE OF THE ARCHIVE. One experiment, one library, two seeds, one
+      parameter set with a nonempty silent set. Whatever the scoring returns is
+      a statement about those rows.
+    - >-
+      PROXIMITY TO FORBIDDEN TERRITORY. The mechanism analysed here is the same
+      arithmetic that underlies published decryption-failure and
+      plaintext-checking-oracle work. The record's scope discipline -- derive
+      only the key-independent encoding half, report key dependence as a
+      variance count, never invert it -- is what keeps it inside
+      RQ-MLKEM-002, and the stopping rule in claim (H) is binding on any
+      executor.
+
+  interpretation_limits:
+    - >-
+      NOT AN ATTACK, NOT AN ORACLE, NOT AN EXPLOITATION PATH, NOT A COST
+      ESTIMATE, NOT A STATEMENT ABOUT MLWE HARDNESS OR ML-KEM SECURITY AT ANY
+      PARAMETER SET. RQ-MLKEM-002's constraints bind unchanged; any newly
+      observed conformance defect escalates to the coordinator and is published
+      by no agent.
+    - >-
+      NO STATUS CHANGE is proposed for GOAL-MLKEM-002, for any hypothesis, or
+      for any archived evidence or decision record. Deriving the mechanism
+      behind an archived observation is not re-reading that record's verdict.
+    - >-
+      A confirmed law says NOTHING about whether any implementation's
+      comparator is correct. It says which probe positions could never have
+      told you either way at the Algorithm-18 boundary. That makes some
+      archived nulls weaker than they read, and it makes no archived null
+      stronger.
+    - >-
+      Claim tier laboratory/toy, not raisable by citation. The scoring is over
+      committed laboratory conformance rows at three standardized ciphertext
+      lengths and is never crypto-scale or MLWE evidence.
+    - >-
+      The c1 region, multi-byte probes, and the direction of any individual
+      near-boundary coin remain untested by this record and are named as open
+      rather than closed. Premature closure is a failure mode symmetric with
+      overclaiming.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        BIT-WEIGHT LOCALITY ON c2. FOR ALL byte offsets t in [0, 32*dv) of the
+        c2 region and FOR ALL e in [0, 8), the probe c2[t] xor 2^e flips
+        exactly bitstream position 8t + e of the ByteEncode_dv bit array,
+        hence perturbs exactly the single compressed coefficient
+        floor((8t+e)/dv) by exactly +/- 2^((8t+e) mod dv) units, hence perturbs
+        v at that coefficient by exactly 2^((8t+e) mod dv) * q/2^dv and
+        perturbs no other coefficient of v and no coefficient of u.
+      rigorous_support: >-
+        Not a distributional heuristic: a rigorous consequence of ByteEncode_dv
+        being a bijective little-endian bit-packing and of Decompress_dv being
+        multiplication by q/2^dv followed by rounding. It imitates no classical
+        distribution theorem and is not presented as one. It rests on the
+        recalled FIPS 203 bit order (least-significant-bit-first), which is the
+        single input this record cannot corroborate internally and which
+        Stage 0 verifies before anything is scored. It is FALSE for multi-bit
+        probes spanning a coefficient boundary, and that exclusion is part of
+        the statement.
+      validation_plan: >-
+        Verify symbolically against the standard or against a primary
+        implementation's ByteEncode/ByteDecode by round-tripping a probe:
+        encode a known coefficient vector, flip byte t bit e, decode, and check
+        that exactly one coefficient changed and that it changed by exactly
+        2^((8t+e) mod dv). Run this at dv in {4, 5} over all t in [0, 32*dv)
+        and all e in [0, 8) -- 1280 and 1024 cases respectively, exhaustive,
+        milliseconds, no key material. Any case where two coefficients change,
+        or where the delta is not the predicted power of two, falsifies H1 for
+        that (t, e) and those cells are excluded rather than approximated. No
+        sampling at cryptographic scale is required; this is an exhaustive
+        check over a small finite domain.
+    - id: H2
+      statement: >-
+        NOISE-MARGIN SEPARATION. FOR the ML-KEM parameter sets and FOR
+        honestly generated keys and ciphertexts, the per-coefficient decryption
+        statistic w = v - s^T u lies within q/8 of its intended codeword
+        (0 or q/2) with probability at least 1 - epsilon for a small epsilon;
+        consequently a perturbation of magnitude at most q/8 does not cross a
+        decision boundary, a perturbation of exactly q/4 crosses it with
+        probability governed by the sign of the residual noise, and a
+        perturbation of exactly q/2 crosses it always.
+      rigorous_support: >-
+        The q/2 case is rigorous and unconditional (a shift by half the code
+        period maps each codeword to the other regardless of noise) and is the
+        only case this record's deterministic reject prediction uses. The
+        q/8-and-below case is DISTRIBUTIONAL and imitates the standard
+        decryption-correctness argument for ML-KEM: the same noise budget that
+        makes ML-KEM's decryption-failure rate negligible is what makes a
+        sub-q/8 perturbation harmless, since a failure would require the noise
+        to have already consumed most of the q/4 margin. This record does NOT
+        re-derive the failure-rate bound, does not cite a specific numerical
+        value for it, and does not claim any number for epsilon.
+      validation_plan: >-
+        Measured directly and cheaply on planted keys the experimenter
+        generates: over at least 2000 honest (key, message) pairs per parameter
+        set, apply a synthetic +/- q/8 shift to one randomly chosen coefficient
+        of v before decryption and record the empirical message-flip rate; the
+        prediction is a rate at or near zero, and the tail check is that the
+        maximum observed number of flipped bits over all trials is small.
+        Repeat at +/- q/4 (prediction: an intermediate rate, no value
+        predicted) and +/- q/2 (prediction: exactly one flipped bit in every
+        trial, zero tolerance -- this is the arm that must be perfect). The
+        sampled parameters (key generation seed set, parameter set, coefficient
+        index distribution) are recorded, and the transfer assumption is stated
+        explicitly: rates measured on laboratory-generated keys are not claimed
+        to transfer to any deployed key distribution, and the only quantity any
+        conclusion of this record rests on is the +/- q/2 arm, which is
+        rigorous and key-independent.
+
+  target_complexity:
+    time_exponent: >-
+      n/a -- no exponent is moved and no attack is proposed; RQ-MLKEM-002
+      forbids attack-cost estimation and this record does not perform one. The
+      deliverable is a closed-form, parameter-free law scored against committed
+      data. Stated plainly rather than dressed up, per the idea-generator
+      contract's requirement that a non-asymptotic proposal say so.
+    memory_exponent: n/a
+    best_known: >-
+      n/a -- no competing statement of an Algorithm-18-boundary probe filter
+      exists in this repository. Whether one exists in the external
+      decryption-failure literature was NOT searched this session and is an
+      open novelty question, flagged rather than settled.
+    hidden_overhead: >-
+      n/a for the minimal test, which is arithmetic over 64 committed rows.
+      For the confirmatory stages, the dominant cost is building planted
+      comparators and running a few thousand decapsulations; there is no
+      superpolynomial overhead and nothing hides in an o(1).
+    tradeoff_note: >-
+      n/a. No time-memory tradeoff arises. The one scaling remark worth making
+      is that the forced table's size is 32*dv entries per parameter set, i.e.
+      160 at ML-KEM-1024, so the method's cost is independent of the number of
+      probes and of the key size.
+
+  dominated_by: >-
+    n/a (no result claimed as an algorithm; no time, memory or data/query cost,
+    hence no Pareto point). Rows checked inside this repository on 2026-08-29
+    for a prior derivation of the Algorithm-18 acceptance pattern or of a
+    probe filter upstream of the comparator: all eleven filed RQ-MLKEM-002
+    proposals (IDEA-20260724-001, -002; IDEA-20260805-1beeca, -3c957e,
+    -ee2018; IDEA-20260821-121612, -13b667, -25d3ca; IDEA-20260828-033cb3,
+    -40db79, -edec21), read in full or in their claim/mechanism/object blocks;
+    RQ-MLKEM-001 and RQ-MLKEM-003 in full, to confirm this object is not
+    theirs; EV-MLKEM-005 in full; RUN-MLKEM-007 summary.json in full and
+    raw.json in part. None derives, predicts, or partitions the 43/64 figure;
+    the only account of it in the corpus is EV-MLKEM-005's one clause. NO
+    EXTERNAL SEARCH was performed and no external novelty is claimed --
+    specifically, the possibility that this arithmetic is already written down
+    in the published decryption-failure or plaintext-checking-oracle
+    literature is acknowledged and NOT excluded.
+  sota_delta: >-
+    No attack; mechanism and instrument-calibration contribution only.
+    Quantitatively, against the lane's own state: the archived 43/64
+    acceptance figure has stood since 2026-07-24 with a one-clause qualitative
+    account and no partition; this record supplies a parameter-free law that
+    assigns a DETERMINISTIC predicted outcome to 26 of the 32 archived indices
+    (81 percent) and a declared coin to the remaining 6, and it identifies 7 of
+    those 32 indices (22 percent of the archived silent set, and one index in
+    five throughout c2 at ML-KEM-1024) as carrying EXACTLY ZERO
+    decapsulation-level detection power against any comparator defect
+    whatsoever. Against the lane's power formalism: IDEA-20260821-13b667's
+    P_hit = Pr[D subset of S] is amended at the Algorithm-18 boundary to
+    Pr[D subset of (S intersect T)], with T derived rather than assumed to be
+    everything. Cost of the discriminating test: zero compute, zero build,
+    committed data only.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high

@@ -1,0 +1,26 @@
+amendment:
+  supersedes_for_review: coordination/design/BATCH-6a60b3/tasks/TASK-20260909-d5572d/specification.yaml
+  scope: BATCH-local finite fixture interface only
+  execution_authorized: false
+  maximum_runs: 0
+  canonical_fixture:
+    canonical_json: '[{"explicit_refs":[],"mechanism_tokens":["alpha"],"record_id":"A","tracked_object_tokens":["one"]},{"explicit_refs":["A"],"mechanism_tokens":["beta"],"record_id":"B","tracked_object_tokens":["two"]},{"explicit_refs":["B"],"mechanism_tokens":["alpha"],"record_id":"C","tracked_object_tokens":["one"]}]'
+    sha256: 906c904fed6e3b0d868dfa0bbae67b9e3b82067c86f7e2e07933b9c41d5d4f4c
+    record_ids: [A, B, C]
+  normalization:
+    token: ASCII lowercase; reject non-string or empty tokens; deduplicate and lexicographically sort.
+    jaccard: If both normalized unions are empty, return 1; otherwise return exact intersection_count over union_count.
+  controls:
+    self: {left: A, right: A, expected_numerator: 2, expected_denominator: 2, expected_score: '1'}
+    known_different: {left: A, right: B, expected_numerator: 0, expected_denominator: 4, expected_score: '0'}
+    cycle: {edges: [[A, B], [B, A]], expected_topological_order: null, expected_cycle: [A, B, A]}
+  result_schema:
+    exact_keys: [fixture_sha256, controls, pair_scores, candidate_flags, explicit_dependency_edges, cycle_list, topological_order]
+    fixture_sha256: must_equal_canonical_fixture_sha256
+    pair_scores: each is {left, right, numerator, denominator}; left and right must be distinct declared record_ids unless named self control.
+    candidate_flags: each is [record_id, record_id] from declared record_ids; flags are descriptive only.
+    explicit_dependency_edges: each is [record_id, record_id] from declared explicit_refs only.
+    cycle_list: list of declared record_id cycles, or empty.
+    topological_order: declared record_ids exactly once, or null only when cycle_list is nonempty.
+    reject: unknown keys, unknown IDs, digest mismatch, malformed types, control mismatch, or any absent required key.
+  interpretation: Result values are fixture-local descriptions only; the schema rejects all extra fields, including merge, schedule, approval, authorization, execution, scientific, cryptanalytic, or claim fields.

@@ -1,0 +1,130 @@
+hypothesis:
+  id: H-XOR-YIELD
+  question_id: RQ-ECDLP-002
+  statement: >-
+    The relation yield under an x-oracle-guided enumeration strategy is strictly
+    greater than the yield under an identical enumeration strategy driven by a
+    random predictor. Formally, for the Semaev m-fold decomposition over a
+    prime-order subgroup of E(F_p), the yield Y_B (x-oracle MITM) exceeds the
+    yield Y_C (random predictor MITM) by a statistically significant margin
+    across multiple (prime, b) configurations.
+  mechanism: >-
+    The x-oracle provides information about which x-coordinates admit points in
+    the factor base. An MITM strategy guided by this oracle can filter candidate
+    tuples more efficiently than a random predictor, potentially finding more
+    relations per unit of enumeration space. The hypothesis tests whether this
+    filtering translates into a measurable yield advantage.
+  assumptions:
+    - >-
+      The x-oracle is a true oracle: it correctly identifies whether an x-coordinate
+      admits a point in the factor base. No false positives or false negatives.
+    - >-
+      The factor base is an x-interval F = {P in E(F_p) : x(P) in I} with
+      I = {0, 1, ..., L-1}, L = round(p^beta). The factor base is closed under
+      negation.
+    - >-
+      The group order N is prime, so every non-identity point generates the group.
+    - >-
+      The yield metric is relations_found / |F|^m, where |F|^m is the full
+      enumeration space. For MITM arms, this is the theoretical enumeration space,
+      treating MITM as a filtering strategy that reduces verification cost but not
+      the enumeration space.
+  predictions:
+    - metric: yield_difference_delta
+      direction: higher
+      minimum_effect: >-
+        Δ = Y_B − Y_C > 0 with statistical significance (p < 0.05) across at
+        least 3 of 4 tested prime values, with consistent direction.
+    - metric: yield_ratio
+      direction: higher
+      minimum_effect: >-
+        Y_B / Y_C > 1.5 on average across tested configurations, indicating
+        substantial oracle advantage.
+  test_boundary:
+    instances:
+      - >-
+        Four toy primes: p in {101, 103, 107, 211} (7-8 bits).
+      - >-
+        Two factor-base exponents: b in {0.4, 0.5}, giving factor-base sizes
+        B = floor(p^b) in {6, 12, 15, 20, 27}.
+      - >-
+        Arity m = 3 (Semaev 3-fold decomposition).
+      - >-
+        Five deterministic seeds per (prime, b) configuration, yielding 40 cells
+        and 120 arm-runs (3 arms per cell).
+    parameters:
+      decomposition_test: hash membership in the set of factor-base m-sums
+      solver: >-
+        NONE. No Groebner basis, no polynomial system solve, no summation
+        polynomial. Decomposition is decided by hash membership.
+      operation_unit: one elliptic-curve point addition or doubling
+    budget:
+      wall_clock_seconds_per_run: 300
+      maximum_memory_gb: 4
+      maximum_runs: 120
+  falsification_conditions:
+    - >-
+      Δ = Y_B − Y_C is not statistically significant (p > 0.05) across all
+      tested cells, indicating the x-oracle provides no measurable yield advantage
+      over a random predictor at toy scale.
+    - >-
+      Y_B = Y_A exactly across all cells, indicating the x-oracle MITM strategy
+      finds the same relations as exhaustive search, not more. This would show
+      the oracle provides cost reduction (fewer field operations) but not yield
+      improvement (more relations per enumeration space).
+  interpretation_limits:
+    - >-
+      TOY SCALE ONLY. At most 8 field bits, one arity, one implementation. Nothing
+      this hypothesis can establish is evidence about cryptographic-size curves in
+      either direction (AGENTS.md rule 7).
+    - >-
+      This hypothesis tests yield (relations per enumeration space), not total
+      computational cost. A yield advantage does not imply an overall speedup
+      without a full cost model including field operations, memory, and oracle
+      queries.
+    - >-
+      The x-oracle is an idealized construct. Real attacks do not have access to
+      a perfect oracle; they must compute whether an x-coordinate admits a point,
+      which has its own cost.
+  status: weakened
+  status_history:
+    - status: specified
+      decided_at: '2026-08-06'
+      decision_id: null
+      decision_id_note: >-
+        NEW RECORD, created by TASK-20260806-a01d5a (experiment design) in
+        BATCH-b3f591. The hypothesis was specified together with the experiment
+        contract EXP-SEMAEV-f48dd1. No decision record existed at creation time.
+    - status: weakened
+      decided_at: '2026-08-07'
+      decision_id: DEC-20260807-fd61e4
+      decision_note: >-
+        Weakened by TASK-20260807-fd61e4-interpret in BATCH-fd61e4 based on
+        EXP-SEMAEV-f48dd1 corrected results (EV-ECDLP-65b004). The corrected
+        analysis showed Y_A = Y_B exactly across all 40 cells, indicating the
+        x-oracle provides cost reduction via MITM filtering (fewer field operations)
+        but not yield improvement (more relations per enumeration space) over
+        exhaustive search. The statistically significant Δ = 0.01202 (p = 0.0023)
+        measures the difference between the x-oracle and a random predictor
+        (strawman baseline), not the difference between the x-oracle and exhaustive
+        search (scientifically relevant baseline). The hypothesis in its original
+        formulation (oracle improves yield over exhaustive search) is not supported.
+  status_scope: >-
+    `weakened` means the hypothesis in its original scientific formulation is not
+    supported by the available evidence. The x-oracle does not improve yield
+    (relations per unit of enumeration space) over exhaustive search at toy scale.
+    It provides cost reduction via MITM filtering (fewer field operations to find
+    the same relations), which is a different research question. The hypothesis
+    is not falsified in the strong sense (an infrastructure failure could still
+    invalidate the runs), but the evidence directly contradicts its scientific
+    intent.
+  source_refs:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-b3f591/tasks/TASK-20260806-a01d5a/experiment_design.md
+    - experiments/EXP-SEMAEV-f48dd1/specification.yaml
+    - ledger/evidence/EV-ECDLP-65b004.yaml
+    - ledger/decisions/DEC-20260807-fc6df4.yaml
+    - ledger/decisions/DEC-20260807-fd61e4.yaml
+    - ledger/evidence/EV-ECDLP-fd61e4.yaml
+  proposed_by: idea-generator
+  specified_by: coordinator
+  weakened_by: coordinator

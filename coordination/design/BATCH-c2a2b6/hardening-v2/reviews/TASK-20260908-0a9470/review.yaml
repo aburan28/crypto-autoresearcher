@@ -1,0 +1,448 @@
+red_team_report:
+  task_id: TASK-20260908-0a9470
+  review_plan: sdeg_counter_v2_4_canonical_locator_closure
+  experiment_id: EXP-ECDLP-ac7e8b
+  claim_under_review: >-
+    The prospective v2.4 source definitions canonically resolve CPU/IO counters
+    and schedule/campaign targets, reject textual spelling aliases, and retain
+    the listed direct custody protections. This review concerns source text
+    only; it makes no implementation, execution, resource, or scientific claim.
+  scientific_runs: 0
+  scope:
+    joint: canonical_locator_and_target_resolution_v2_4
+    joint_verdict: breaks
+    verdict_meaning: >-
+      The prescribed direct spelling and retained-custody constructions are
+      rejected by stated v2.4 or inherited v2.2/v2.3 rules. However, the v2.4
+      counter-locator and schedule-target registry objects are not closed typed
+      schemas and do not specify a source-checkable semantic uniqueness
+      projection. Consequently, two registry-entry byte strings can denote the
+      same physical counter or schedule node while producing different hashes.
+      The claim that the source definitions themselves reject every textual
+      alias therefore breaks at this prospective source boundary.
+  source_integrity:
+    result: holds
+    source_snapshot_commit: 2a67e9f58a93a3ba9dbc131408d261726b4bfe86
+    worktree_head_at_read: 9d91ce1c0db70d9cb9ec39af436a0266db758783
+    working_tree_clean_before_report_write: true
+    amendment_sha256_declared_and_recomputed: 0d10e48fb6719fe8c9ec823f4eae2366ef64686e7fd182ab90057b68b50d1aa6
+    pinned_paths_byte_match_snapshot:
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+        sha256: 955d260b9264f98b0439b9a28fa844644fa2f372c8ddb8d75b2803ea581db66a
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_1_lifecycle_custody.yaml
+        sha256: e3c5cc9f212c70fc87156f243c13919e68dbd96955b47092cc59ae5eff391eb8
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_2_custody_replay_closure.yaml
+        sha256: 256b92d1df1b74058f553f42024f34654c066da6ee8709024cae8fb80a0a1933
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_3_custody_alias_closure.yaml
+        sha256: 8028fb8f49825f71414a7e2a58519264182f5582cb7856228777cc7e984ebcb5
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+        sha256: 0d10e48fb6719fe8c9ec823f4eae2366ef64686e7fd182ab90057b68b50d1aa6
+      - path: coordination/design/BATCH-28dddb/protocol-appendix.yaml
+        sha256: ac0b4b83fe32bd949d710a203bf1dd4248557f64dcdd381edcec65cd236e37b0
+      - path: ledger/corrections/CORR-20260908-f75243.yaml
+        sha256: e693cb4c1fa77dbfec71b675840090fa42f9626f243a66a53c046707dea627b7
+  prescribed_attacks:
+    - id: cpu_stat_usage_usec_textual_spelling_alias
+      result: holds
+      construction: >-
+        For one sealed launch cgroup C, represent the same counter once with
+        a displayed namespace such as "cpu.stat:usage_usec" and once with a
+        path-like display such as "/sys/fs/cgroup/.../cpu.stat:usage_usec".
+        Both samples instead carry the same registry entry whose required
+        values are kind=cpu_cgroup_v2, platform=linux,
+        cgroup_identity_digest=C, counter_file=cpu.stat, and field=usage_usec.
+      source_reasoning: >-
+        V2.4 requires counter_file and field to be those exact literals and
+        makes path, URI, display label, and alternate spelling non-identity
+        data. Each raw sample must carry registry bytes and their recomputed
+        hash, and its displayed counter_namespace must be a non-authoritative
+        rendering of that same entry before an interval exists. The two
+        displays therefore cannot create two locator identities; all records
+        resolving to the locator share one complete disjoint partition and
+        aggregate once.
+      rejection_or_hold_rule:
+        - v2_4.cpu_io_interval_accounting.canonical_locator_schema.cpu_cgroup_v2
+        - v2_4.cpu_io_interval_accounting.observation_binding
+        - v2_4.cpu_io_interval_accounting.alias_and_aggregate_rule
+        - v2_4.cpu_io_interval_accounting.reject.counter_namespace_alias
+      sources:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+
+    - id: io_stat_device_or_field_textual_spelling_alias
+      result: holds
+      construction: >-
+        For the same sealed launch cgroup C and one physical IO counter
+        (major=8, minor=0, field=rbytes), offer a display spelling "8:0 rbytes"
+        and a path-like or zero-padded display spelling. The admissible locator
+        entry instead has kind=io_cgroup_v2, platform=linux, cgroup C,
+        counter_file=io.stat, device={major: 8, minor: 0}, and field=rbytes.
+      source_reasoning: >-
+        V2.4 admits the typed device object and only the listed IO fields; it
+        says alternate device spellings, paths, URIs, and labels are not
+        identity components. Registry-byte hash recomputation and the same
+        locator partition prevent distinct displays from creating separate IO
+        resource identities.
+      rejection_or_hold_rule:
+        - v2_4.cpu_io_interval_accounting.canonical_locator_schema.io_cgroup_v2
+        - v2_4.cpu_io_interval_accounting.observation_binding
+        - v2_4.cpu_io_interval_accounting.alias_and_aggregate_rule
+        - v2_4.cpu_io_interval_accounting.reject.counter_namespace_alias
+      sources:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+
+    - id: trace_or_source_representation_alias
+      result: holds
+      construction: >-
+        Give the same typed CPU locator two distinct counter_source_id values
+        and two immutable trace digests, one serializing a subset and one a
+        superset of its samples, then try to publish each as a new counter.
+      source_reasoning: >-
+        V2.3 already treats trace serializations for one resolved tuple as
+        representations rather than sources. V2.4 strengthens the resolution
+        point: counter_source_id and trace digest are representation metadata,
+        and every record resolving to one locator hash contributes to one
+        complete disjoint ordered partition. Cross-trace overlap or an
+        incomplete inventory is rejected, so no second trace/source label has
+        its own accounting identity.
+      rejection_or_hold_rule:
+        - v2_3.cpu_io_interval_accounting.trace_binding
+        - v2_3.cpu_io_interval_accounting.aggregate_rule
+        - v2_4.cpu_io_interval_accounting.alias_and_aggregate_rule
+        - v2_4.cpu_io_interval_accounting.reject.cross_trace_locator_overlap
+        - v2_4.cpu_io_interval_accounting.reject.incomplete_locator_interval_inventory
+      sources:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_3_custody_alias_closure.yaml
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+
+    - id: v2_4_counter_locator_schema_version_alias
+      result: breaks
+      construction: >-
+        Let C be one sealed launch cgroup. Seal both canonical JSON entries
+        {"cgroup_identity_digest":C,"counter_file":"cpu.stat",
+        "field":"usage_usec","kind":"cpu_cgroup_v2","platform":"linux",
+        "schema_version":"v1"} and the identical object except
+        "schema_version":"v1-alias". They hash differently but select the
+        same CPU cgroup-v2 usage_usec counter. No v2.4 rule fixes the value or
+        type of schema_version, declares the locator object closed to additional
+        fields, or hashes a separate physical-counter projection.
+      source_reasoning: >-
+        The text requires schema_version but supplies no allowed-value set or
+        equality rule that excludes it from the byte-hashed identity. The
+        registry's intended sentence that one physical counter maps to one
+        locator hash states an outcome, but the specified admission checks only
+        recompute the full-entry hash, validate the partly described schema,
+        compare C, and inspect a displayed namespace. Those checks do not
+        provide a source-defined test equating these two full JSON entries.
+        This is a registry-entry alias, not the direct display alias above.
+      missing_separator: >-
+        Freeze schema_version to one exact typed value, reject undeclared
+        fields, and make registry uniqueness compare a closed semantic locator
+        tuple (or its separately canonicalized hash) excluding serialization or
+        schema-version metadata. The validator must reject a second registry
+        entry with that semantic tuple before samples are admitted.
+      sources:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+        - ledger/corrections/CORR-20260908-f75243.yaml
+
+    - id: schedule_target_id_spelling_alias_without_sum
+      result: holds_for_the_direct_display_mutation
+      construction: >-
+        For one already resolved stage entry, publish one report with a display
+        target_id such as "relation_collection/node-7" and another with an
+        alias such as "/schedule/node-7". Do not add their totals.
+      source_reasoning: >-
+        V2.4 requires every reporting scope and interval to carry the resolved
+        target_registry_sha256 and entry bytes; target_id is display-only. One
+        scope resolves to each registry hash, and that scope's sealed complete
+        inventory is the sole input to every publication for the target,
+        including an individually published report. Thus a second display-only
+        publication cannot acquire a new target identity merely because no sum
+        is attempted.
+      rejection_or_hold_rule:
+        - v2_4.wall_interval_accounting.observation_binding
+        - v2_4.wall_interval_accounting.scope_and_publication_rule
+        - v2_4.wall_interval_accounting.reject.target_id_alias
+        - v2_4.wall_interval_accounting.reject.duplicate_scope_for_target
+        - v2_4.wall_interval_accounting.reject.duplicate_publication_for_target
+      sources:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+
+    - id: v2_4_schedule_registry_entry_alias
+      result: breaks
+      construction: >-
+        For one physical stage node, form two stage registry entries with equal
+        experiment_id, campaign_id, target_kind=stage, component_id, and
+        phase_id, but two text encodings for the asserted immutable schedule
+        node identifier. The appendix seals measurement nodes and gives local
+        root ordinals, but does not declare a schedule_node_id field, grammar,
+        canonical construction, or resolver table against which either string
+        is checked. The two canonical JSON byte strings yield distinct
+        target_registry_sha256 values, allowing each to have one scope and one
+        individually published inventory without invoking a cross-scope sum.
+      source_reasoning: >-
+        V2.4 says an entry names an immutable schedule-node identifier "from"
+        the appendix, but neither v2.4 nor the packet's appendix defines the
+        identifier's syntax or the equality relation from an entry to one of
+        the sealed schedule nodes. The hash only authenticates the submitted
+        entry bytes. It cannot establish that the two entries identify the same
+        node, and the one-scope-per-hash rule then treats them as distinct.
+        Therefore the target registry does not yet source-define the resolver
+        needed to reject this non-summed publication fork.
+      missing_separator: >-
+        Seal a closed stage-target schema containing a canonical schedule-node
+        key derived from a specified appendix inventory (for example the exact
+        campaign/root/job/component/phase tuple), publish that inventory's
+        canonical hash, and require a bijective registry lookup before a scope
+        or publication is admitted. Reject duplicate semantic keys even when
+        their entry hashes differ.
+      sources:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+        - coordination/design/BATCH-28dddb/protocol-appendix.yaml
+        - ledger/corrections/CORR-20260908-f75243.yaml
+
+    - id: root_b_timeout_authority_replay
+      result: holds
+      construction: >-
+        Reuse a Coordinator authorization payload for root A to emit a
+        TIMEOUT_CENSORED final for root B, changing the B final's root ordinal,
+        attempt, final identity commitment, or registry position.
+      source_reasoning: >-
+        V2.2 requires every named authority payload value to exactly match the
+        final receipt and its registry position, requires Coordinator authorship
+        and a hash-valid record preceding the event, and explicitly rejects
+        cross-root authority replay. V2.4 is additive and preserves this direct
+        custody protection.
+      rejection_or_hold_rule:
+        - v2_2.timeout_authority_target.acceptance
+        - v2_2.timeout_authority_target.reject.cross_root_authority_replay
+        - v2_1.terminal_authority_binding.validator_rule
+      sources:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_1_lifecycle_custody.yaml
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_2_custody_replay_closure.yaml
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+
+    - id: different_launch_rank_owner_label_reuse
+      result: holds
+      construction: >-
+        Reuse a rank_owner_id label under a different launch hash and process or
+        cgroup identity, while omitting a Coordinator-authorized handover.
+      source_reasoning: >-
+        V2.2 binds the owner and process incarnation to one immutable launch
+        hash plus cgroup/process identity digest and requires a handover before
+        the new launch's first update. It explicitly rejects process-label
+        reuse. The prior sealed ordering and inventory reconstruction also
+        reject owner swaps without a handover.
+      rejection_or_hold_rule:
+        - v2_2.rank_owner_and_slot_inventory.process_binding
+        - v2_2.rank_owner_and_slot_inventory.reject.process_label_reuse
+        - v2_1.rank_state_custody.coverage_rule
+      sources:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_1_lifecycle_custody.yaml
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_2_custody_replay_closure.yaml
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+
+    - id: sealed_slot_omission
+      result: holds
+      construction: >-
+        Omit a sealed EC root/component/phase slot from the receipt inventory
+        and attempt to form a final rank state without a preceding terminal
+        causal-event hash for that slot.
+      source_reasoning: >-
+        V2.2 requires exactly one receipt status for every sealed slot and
+        permits an omission only with a preceding terminal causal event. The
+        final rank inventory is rebuilt from that complete slot inventory and
+        relation statuses are checked before a rank-state transition. The
+        appendix independently says all 1600 measurement nodes are sealed roots
+        with no added retries.
+      rejection_or_hold_rule:
+        - v2_2.rank_owner_and_slot_inventory.coverage
+        - v2_2.rank_owner_and_slot_inventory.reject.missing_component_slot
+        - coordination.design.BATCH-28dddb.protocol_appendix.schedule.roots_and_retries
+      sources:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_2_custody_replay_closure.yaml
+        - coordination/design/BATCH-28dddb/protocol-appendix.yaml
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+
+    - id: overlapping_wall_split_by_scope
+      result: holds_for_resolved_targets
+      construction: >-
+        Split two overlapping common-clock intervals for one resolved target
+        between separately named reporting scopes, then try to publish or sum
+        their totals.
+      source_reasoning: >-
+        V2.4 gives exactly one scope to a resolved target hash and makes that
+        scope's sealed complete interval inventory the only source for every
+        target report; campaign wall is its own inventory union. Totals may be
+        added only for distinct registry hashes with an independently checked
+        temporal-disjointness proof. The construction is rejected by duplicate
+        scope/publication, incomplete inventory, overlap, or missing-proof
+        rules. This hold does not repair the separate schedule-key ambiguity
+        identified above.
+      rejection_or_hold_rule:
+        - v2_3.wall_interval_accounting.complete_inventory_and_union
+        - v2_3.wall_interval_accounting.sum_precondition
+        - v2_4.wall_interval_accounting.scope_and_publication_rule
+        - v2_4.wall_interval_accounting.sum_precondition
+        - v2_4.wall_interval_accounting.reject.cross_scope_overlap_summed
+      sources:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_3_custody_alias_closure.yaml
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+
+  proves_too_much_controls:
+    - id: v2_3_unnormalized_counter_namespace
+      known_false_object: >-
+        V2.3 uses counter_namespace as a component of its physical-counter
+        tuple but gives it no canonical locator grammar.
+      unchanged_mutation: >-
+        For one launch, cgroup/process digest, and clock domain, use
+        counter_namespace="cpu.stat:usage_usec" in one source and
+        counter_namespace="/sys/fs/cgroup/.../cpu.stat:usage_usec" in another;
+        give each a different counter_source_id and trace representation.
+      v2_3_result: admitted_by_source_definition
+      v2_3_reasoning: >-
+        The two recorded tuples differ textually, so the v2.3 equal-tuple alias
+        test does not fire. V2.3 requires a partition for each resulting tuple
+        but contains no typed locator that identifies the physical counter.
+      v2_4_result: rejected_by_source_definition
+      v2_4_reasoning: >-
+        V2.4 fixes counter_file and field, binds the cgroup digest, makes the
+        display namespace non-authoritative, and groups every representation
+        by counter_locator_sha256 into one partition. The direct spelling
+        mutation is therefore rejected.
+      failure_signature: holds
+      sources:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_3_custody_alias_closure.yaml
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+
+    - id: v2_3_textual_target_id_without_resolver
+      known_false_object: >-
+        V2.3 identifies a reporting scope through a tuple whose target_id is
+        textual and has no sealed schedule-target resolver.
+      unchanged_mutation: >-
+        For one stage node, create one scope with target_id="stage/node-7" and
+        another with target_id="/schedule/node-7"; publish each separately and
+        do not sum their totals.
+      v2_3_result: admitted_by_source_definition
+      v2_3_reasoning: >-
+        The textual target tuples differ and the v2.3 no-sum precondition is
+        not invoked. Nothing resolves either string to a sealed schedule node
+        before individual publication.
+      v2_4_result: rejected_for_the_same_resolved_registry_entry
+      v2_4_reasoning: >-
+        With the same valid registry entry, v2.4 makes target_id display-only,
+        requires the entry hash on both scopes, and permits exactly one scope
+        and one inventory/publication source for that hash. The direct v2.3
+        mutation is rejected. The separate unclosed schedule-registry-entry
+        mutation above remains the residual break.
+      failure_signature: holds_for_direct_v2_3_control
+      sources:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_3_custody_alias_closure.yaml
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+
+  objections:
+    - id: OBJ-1
+      type: canonical_locator_schema_not_closed
+      effect: >-
+        A varying or otherwise untyped schema_version participates in a full
+        entry hash despite not identifying a physical CPU/IO counter. This
+        leaves the required one-physical-counter/one-locator condition without
+        a specified equality check.
+    - id: OBJ-2
+      type: schedule_target_resolver_not_defined
+      effect: >-
+        The source packet contains no canonical schedule-node identifier or
+        bijective resolver table. A registry hash authenticates submitted bytes
+        but does not show that two differing entries name distinct sealed nodes.
+  counterexample_or_mutation: >-
+    The two schema_version-distinguished CPU locator entries and the two
+    unresolved schedule-node entry spellings above are source-level residual
+    mutations. Neither depends on implementation behavior, a fixture, a run,
+    or a scientific inference.
+  required_controls:
+    - >-
+      A future non-scientific admission control must attempt the two full-entry
+      schema_version locator variants and require rejection before raw samples.
+    - >-
+      A future non-scientific admission control must attempt two entry hashes
+      for one schedule node and require rejection before a scope or individual
+      publication can exist.
+  baseline_comparison: null
+  heuristic_challenges: []
+  cost_model_challenges: []
+  reduction_and_scope_challenges: []
+  proof_architecture_challenges:
+    - >-
+      The source definition has a quantifier/equality gap: it says each
+      physical counter or eligible target has one hash, but it does not define
+      a closed input language and equality projection by which an admission
+      reviewer can test that universal condition.
+  narrowest_supported_statement: >-
+    On the byte-verified source packet, v2.4 rejects the reviewed direct
+    CPU/IO display-spelling, trace/source-label, and same-entry target_id
+    mutations, and the v2.2/v2.3 direct timeout, owner, slot, and resolved-wall
+    protections remain. The packet does not yet establish registry-level alias
+    closure for variable locator schema metadata or under-specified schedule
+    node identifiers. No authority, implementation, execution, cost, or
+    cryptanalytic conclusion follows.
+  next_concrete_action: >-
+    The Coordinator should require an additive source correction that closes
+    both registry schemas, fixes every schema-version/type/field rule, and
+    binds every stage entry to a canonical appendix inventory key with a
+    bijective semantic-uniqueness check. A fresh independent source review
+    should repeat these two residual mutations before implementation authority
+    is reconsidered.
+  limitations:
+    - Source-level reasoning only; no code, fixtures, runtime, receipts, or measurements were inspected or executed.
+    - The report does not approve implementation or execution and changes no hypothesis, experiment, goal, or ledger state.
+    - No sibling report was read, including TASK-20260908-b2abee.
+  artifact_paths:
+    - coordination/design/BATCH-c2a2b6/hardening-v2/reviews/TASK-20260908-0a9470/review.yaml
+  review_attestation:
+    task: TASK-20260908-0a9470
+    task_id: TASK-20260908-0a9470
+    role: red-team
+    joint: canonical_locator_and_target_resolution_v2_4
+    joints:
+      - canonical_locator_and_target_resolution_v2_4
+    joints_owned:
+      - canonical_locator_and_target_resolution_v2_4
+    verdict: breaks
+    independent_session: true
+    read_sibling_reports: false
+    sibling_reports_read: []
+    inference:
+      requested_policy: review-adversarial
+      reasoning_effort: xhigh
+      fallback_allowed: false
+      fallback_used: false
+      degraded_allowed: false
+      degraded_requirements: []
+      amazon_bedrock: not_used
+    sources_actually_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/SKILL.md
+      - ledger/handoffs/TASK-20260908-0a9470.yaml
+      - coordination/design/BATCH-c2a2b6/hardening-v2/lifecycle-v2_4-review-plan.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v2_1_lifecycle_custody.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v2_2_custody_replay_closure.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v2_3_custody_alias_closure.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+      - coordination/design/BATCH-28dddb/protocol-appendix.yaml
+      - ledger/corrections/CORR-20260908-f75243.yaml
+    conclusions_sources:
+      direct_spelling_and_registry_claim:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+      retained_direct_custody_claim:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_1_lifecycle_custody.yaml
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_2_custody_replay_closure.yaml
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_3_custody_alias_closure.yaml
+      schedule_resolver_gap:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+        - coordination/design/BATCH-28dddb/protocol-appendix.yaml
+      prospective_and_no_authority_change:
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+        - experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+        - ledger/corrections/CORR-20260908-f75243.yaml
+    procedure_deviations: []

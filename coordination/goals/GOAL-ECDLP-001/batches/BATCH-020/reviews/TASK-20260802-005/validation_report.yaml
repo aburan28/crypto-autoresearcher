@@ -1,0 +1,289 @@
+validation_report:
+  id: VAL-20260801-046
+  task_id: TASK-20260802-005
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-020
+  role: validator
+  independent_session: true
+  review_scope: >-
+    Integrity validation of only snapshot commit
+    59dbd8fd033c7fe66b4111f4b5563dfbd6da995e and its frozen
+    CTRL-RT025-UNPLANTED contract. This report does not interpret mechanism
+    support, S1_met, or any hypothesis status.
+  reviewed_snapshot:
+    commit: 59dbd8fd033c7fe66b4111f4b5563dfbd6da995e
+    parent: 2150cbf4e92aaaa72f0539eb2df68984a1ef718b
+    queue_binding_commit: 8350425a8ca15c1591677f1c1395354de4006941
+    reachable_from_queue_binding: true
+    exact_delta_path_count: 13
+    exact_declared_path_set_match: true
+    all_queue_sha256_match_git_blobs: true
+  run_ids:
+    - RUN-DS-001-ctrl-unplanted-b
+  terminal_verdict: INADMISSIBLE
+  verdict: invalid
+  admissibility_scope: empirical_only evidence
+  receipt_preservation_note: >-
+    The package is an honestly archived receipt of an invalid measurement.
+    INADMISSIBLE means its measurements and labels cannot be consumed as
+    empirical evidence. It does not mean the immutable receipt should be
+    removed or rewritten.
+
+  blocking_defects:
+    - id: DEFECT-LIVE-PLANT-FAIL
+      check: Mandatory CTRL-RT025-PLANT-LIVE positive control
+      evidence: >-
+        Recalculation from the raw charged costs gives
+        R_live_div4=0.008011381311329564 and
+        R_null_live_div4=27.88739513557737. The frozen detector requires both
+        values below 0.5 and 0.9 respectively, so planted_bug_detected=false.
+        The manifest correctly records status invalid_measurement and reason
+        live_div4_plant_not_detected_by_frozen_null_gate.
+      consequence: >-
+        The mandatory positive control did not detect the live /4 plant. The
+        package is therefore invalid as empirical evidence. This control
+        failure is not mathematical evidence against H-DS-001 or any other
+        hypothesis.
+    - id: DEFECT-R-CI-WRONG-ESTIMAND
+      check: Frozen bootstrap 95 percent CI for yield-charged R
+      evidence: >-
+        Reported yield-charged R is 0.03204552524531826, but its alleged 95
+        percent interval is [0.05028302518468771, 0.13658728073025028], which
+        does not contain the point estimate. The driver constructs this
+        interval from resampled ratios of successful per-relation search
+        times ws/wn. The frozen R instead includes total arm wall time,
+        table-building time, and all failed attempts through
+        cost_split/cost_naive. The interval is therefore not an interval for
+        the reported estimand.
+      consequence: >-
+        R_ci_95 cannot support any CI-exclusion statement about frozen R.
+    - id: DEFECT-CI-NOT-RECOMPUTABLE
+      check: Raw support for independent interval recomputation
+      evidence: >-
+        Neither the successful per-relation wall samples used by the driver nor
+        bootstrap replicate values are retained in raw-result.json. The
+        reported R interval cannot be independently regenerated from the
+        archived raw receipt.
+      consequence: >-
+        The required interval fails the Validator raw-recomputation gate.
+    - id: DEFECT-RNULL-CI-NOT-BOOTSTRAP
+      check: Frozen bootstrap 95 percent CI for R_null
+      evidence: >-
+        R_null_ci_95 is recorded as the degenerate point interval
+        [111.54958054230949, 111.54958054230949]. The driver assigns this pair
+        directly and performs no null-arm bootstrap, despite 200 usable null
+        relations in each arm and the specification's explicit bootstrap-CI
+        requirement.
+      consequence: >-
+        R_null_ci_95 is not a bootstrap confidence interval and cannot be used
+        as uncertainty evidence.
+
+  artifact_checks:
+    - id: ART-SNAPSHOT
+      status: verified
+      result: >-
+        Commit, expected parent, reachability, commit-message record IDs, exact
+        13-path delta, declared path count, and set equality all verify.
+    - id: ART-HASHES
+      status: verified
+      result: >-
+        All 13 SHA-256 values bound prospectively in dispatch_queue.json at
+        8350425a match the Git blobs at 59dbd8fd. The in-blob receipt's
+        commit_sha null and path_sha256 empty are explicitly prospective; the
+        queue supplies the authoritative post-commit binding.
+    - id: ART-CONTRACT
+      status: verified
+      result: >-
+        Manifest SHA-256 bindings match the snapshot bytes for
+        specification.v2.yaml, CTRL-RT025-UNPLANTED.yaml,
+        v2_ctrl_unplanted.yaml, v2_ctrl_unplanted_archive_rebind.yaml, and
+        ds001_driver.py.
+    - id: ART-RUN-PACKAGE
+      status: verified
+      result: >-
+        All six run-directory artifacts, four result artifacts, the execution
+        report, driver, and snapshot receipt exist at the reviewed commit.
+        Cross-artifact metrics agree byte-for-value across manifest, raw,
+        summary, R_cell, null-control, and live-plant reports.
+    - id: ART-PROVENANCE
+      status: verified_with_limitation
+      result: >-
+        The run records code commit 7b840f3d, branch, dirty=true, exact command,
+        implementation SHA-256, OS, architecture, Python executable/version,
+        SymPy version, hostname, timestamps, CPU time, wall time, and peak RSS.
+        Approval archive 4307cacf is an ancestor of the recorded execution
+        commit. The manifest does not retain a dirty-porcelain listing or hash;
+        exact driver bytes are nevertheless bound by the snapshot and recorded
+        implementation SHA-256.
+    - id: ART-SCHEMA
+      status: verified_with_defects
+      result: >-
+        The minimum run-manifest fields required by
+        docs/evidence-and-reproducibility.md are present. Statistical fields
+        fail the frozen semantic/recomputation requirements described in the
+        blocking defects. certificate.kind=none with verified=true and no
+        verifier is non-evidentiary and supplies no certificate claim.
+
+  control_checks:
+    - id: CTRL-AUTHORIZATION
+      status: verified
+      result: >-
+        DEC-20260802-005 and approval archive 4307cacf record APPROVED before
+        the execution revision. The frozen rebind adds no scientific change.
+    - id: CTRL-SINGLE-RUN
+      status: verified
+      result: >-
+        Exactly one declared run receipt and one frozen cell are archived; no
+        HEUR or 54-cell matrix rerun is present in the snapshot delta.
+    - id: CTRL-CELL-BINDING
+      status: verified
+      result: >-
+        Command, manifest, raw result, summary, and driver bind bits=20, B=64,
+        m=4, seed=101, relations_target=200, and cell_wall_seconds=7200.
+    - id: CTRL-TARGET-MODE
+      status: verified
+      result: >-
+        Driver mode_ctrl_unplanted calls execute_cell once with
+        target_mode=unplanted_uniform_random. Targets are nonzero uniform
+        scalar multiples of the subgroup generator and do not use planted
+        factor-base m-sums. The master seed and deterministic derivation code
+        are archived.
+    - id: CTRL-BACKEND
+      status: verified
+      result: >-
+        Backend id is
+        ds001-v2-point-sum-membership+charged-units-v1 in the driver, manifest,
+        raw result, and summary. Its recorded SHA-256 recomputes to
+        9eb0acb7b80bc2ef3ca5ee8593643bab5d1df63c705cbb4d3cf361d15df00beb.
+    - id: CTRL-SMOOTHNESS
+      status: verified
+      result: >-
+        smoothness_abort=false is enforced in the frozen mode call and is
+        consistently recorded in manifest, raw result, and summary.
+    - id: CTRL-RELATION-STOP
+      status: verified_with_label_limitation
+      result: >-
+        All real and null arms reach exactly 200 usable relations. Real-arm
+        attempted targets are 200/200, so the observed stop is the relation
+        target, not resource exhaustion. protocol_stop is generically labeled
+        relations_or_attempt_cap even though the unplanted path disables the
+        zero-yield attempt cap; the counts make the actual relation-target stop
+        unambiguous.
+    - id: CTRL-LIVE-PLANT
+      status: failed
+      result: >-
+        The driver applies /4 to measured split charged costs on both real and
+        same-shape null paths, uses neither synthetic known answers nor a
+        hardcoded true flag, and recomputes the detector honestly. The required
+        detection does not occur; see DEFECT-LIVE-PLANT-FAIL.
+
+  metric_recomputations:
+    - id: METRIC-CHARGED-COSTS
+      status: verified
+      result: >-
+        From rho_total_group_operations=744 and
+        rho_wall_seconds=0.0004897079998045228, rho calibration is
+        1519272.710057796 group-operation equivalents/second. Applying the
+        frozen wall*rho/max(n_usable,1) identity reproduces cost_naive
+        41332.17110621113, cost_split 1324.5111326279025, cost_naive_null
+        212.12687207591182, and cost_split_null 23662.663601820106 exactly.
+    - id: METRIC-R
+      status: verified
+      result: >-
+        cost_split/cost_naive recomputes exactly to R=0.03204552524531826.
+    - id: METRIC-RNULL
+      status: verified
+      result: >-
+        cost_split_null/cost_naive_null recomputes exactly to
+        R_null=111.54958054230949.
+    - id: METRIC-LIVE-PLANT
+      status: verified
+      result: >-
+        Dividing measured split costs by four reproduces reported live costs
+        331.1277831569756 and 5915.6659004550265 and live ratios
+        0.008011381311329564 and 27.88739513557737 exactly. The frozen Boolean
+        detector therefore recomputes false.
+    - id: METRIC-CI
+      status: failed
+      result: >-
+        The reported intervals do not satisfy the frozen estimand or raw-data
+        recomputation requirements; see DEFECT-R-CI-WRONG-ESTIMAND,
+        DEFECT-CI-NOT-RECOMPUTABLE, and DEFECT-RNULL-CI-NOT-BOOTSTRAP.
+
+  internal_consistency_checks:
+    - id: STATUS-PACKAGE
+      status: verified
+      result: >-
+        Manifest and summary say invalid_measurement; result.valid=false;
+        invalid_reason is exact; execution_report lists the run only under
+        runs.invalid, data_quality=invalid, and requires_rerun=true.
+    - id: STATUS-CELL-SCOPE
+      status: limitation
+      result: >-
+        raw-result.cell.status and R_cell.status remain completed_valid while
+        package-level records are invalid_measurement. This reflects the base
+        cell finishing before the companion control invalidates the package,
+        but the field scope is not labeled. R_cell must not be consumed as a
+        separately valid empirical receipt.
+    - id: STATUS-LABEL
+      status: limitation
+      result: >-
+        r1_cell_label=S1_eligible_on_null_axis is arithmetic labeling only and
+        occurs inside an invalid package. It is not admissible as mechanism
+        support or S1_met.
+
+  heuristic_validation_checks:
+    - id: HEURISTIC-SCOPE
+      status: not_applicable
+      result: >-
+        The frozen control explicitly does not rerun HEUR-DS-1. No heuristic
+        validation or correspondence claim is made by this package.
+
+  cost_model_checks:
+    - id: COST-UNIT
+      status: verified
+      result: >-
+        Cost unit and yield-charged identities are declared and recompute from
+        raw measurements. Memory is reported as peak RSS. assembled_E_proxy is
+        explicitly labeled modeled and carries no crypto-scale claim.
+    - id: COST-SCALE
+      status: limitation
+      result: >-
+        This is one 20-bit toy cell. It supplies no cryptographic-scale or
+        asymptotic cost evidence.
+
+  limitations:
+    - >-
+      Toy-scale, one cell, one seed, one run; no replication and no
+      crypto-scale inference.
+    - >-
+      The failed live-plant control and invalid_measurement status are control
+      failure, not mathematical negative evidence.
+    - >-
+      Exact dirty-tree contents at invocation are not retained, although the
+      executed driver is hash-bound after the run and imported harness files do
+      not differ between the recorded execution revision and snapshot.
+    - >-
+      No interpretation of H-DS-001, H-IC-001, H-STR-002, S1, F1, F2, or F3 is
+      made by this report.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/reviews/TASK-20260802-005/validation_report.yaml
+
+  inference:
+    requested_policy: review-adversarial
+    policy_default_reasoning_effort: xhigh
+    resolved_model_id: not_exposed_to_validator_session
+    actual_reasoning_effort: not_exposed_to_validator_session
+    model_verified: false
+    fallback_used: null
+    degraded_requirements: []
+    independent_session_required: true
+    independent_session: true
+
+  claim_boundary: >-
+    INADMISSIBLE as empirical_only evidence. The invalid receipt is durably and
+    consistently preserved, but the failed mandatory positive control and
+    defective/non-recomputable confidence intervals prevent empirical use.
+    Nothing here is evidence against a mathematical hypothesis, and no
+    hypothesis or official research status is changed.

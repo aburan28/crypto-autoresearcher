@@ -1,0 +1,193 @@
+idea:
+  id: IDEA-20260808-95a21c
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-FAEST-001
+  goal_id: GOAL-FAEST-001
+  title: The per-attempt cost a Fiat-Shamir-with-grinding analysis charges a forger is the
+    cost of ONE FULL TRANSCRIPT HASH, but the deployed hash chaining lets a forger change
+    only the last block - so FAEST's charged forgery cost may be overstated by log2(transcript
+    blocks), which at multi-kilobyte signatures is up to about 8-13 bits.
+  class: mechanism
+  claim: 'A forgery search against a Fiat-Shamir signature with a grinding or counter field
+    repeatedly re-derives a challenge from a transcript. If the varied field (counter, salt,
+    or a chosen commitment) sits at the END of the hashed byte string and the hash is a Merkle-Damgard
+    or sponge construction with a saveable intermediate state, then the marginal cost of one
+    additional attempt is ONE COMPRESSION or PERMUTATION CALL, not one full transcript hash
+    of L blocks. CLAIM, IN THE FORM OF A DICHOTOMY THAT CAN BE SETTLED BY READING PRIMARY
+    SOURCE - either (A) the deployed FAEST v2.0 challenge derivation places every adversary-varied
+    field at or near the START of the hashed string, in which case no amortisation is possible
+    and the analysis''s per-attempt charge is correct, and this record produces a positive
+    tightness finding for one link of the chain GOAL-FAEST-001 asks to reconstruct; or (B)
+    at least one varied field sits late enough that a saved intermediate state amortises the
+    prefix, in which case the effective per-attempt cost is lower by a factor equal to the
+    number of prefix blocks amortised, and every bit of that factor is a bit off the claimed
+    forgery cost. Predicted magnitude for (B): FAEST signatures are multiple kilobytes, so
+    L is in the hundreds to thousands of hash blocks and log2(L) is between about 8 and 13
+    bits.'
+  mechanism: Security analyses of Fiat-Shamir transforms count HASH QUERIES, and then concrete-cost
+    tables convert a query into a unit of work. The conversion silently assumes each query
+    costs the same. For a long transcript with a short varied suffix this is false by a factor
+    L, and the factor is exactly the kind of unit-of-account error that a chain-reconstruction
+    exercise is designed to catch. It matters most for schemes whose signatures are large,
+    which is precisely the MPCitH/VOLEitH family, and it interacts multiplicatively with any
+    grinding parameter, because grinding is defined as trying many counters and its whole
+    cost is per attempt.
+  why_not_a_renamed_known_approach: Nearest known method - length-extension and prefix-reuse
+    observations about Merkle-Damgard hashing, entirely classical, and standard practice in
+    proof-of-work design where the varied nonce is deliberately placed in the last block.
+    The novelty is not the observation but its APPLICATION AS A COST-MODEL AUDIT to a specific
+    deployed signature's charged forgery cost. Nearest internal record - IDEA-20260801-005
+    (reconstruct FAEST's claimed security as a numbered chain and evaluate the per-round soundness
+    error) and IDEA-20260731-002 (a fully charged forgery cost model charging every hash evaluation
+    including salt/grinding search). IDEA-20260731-002 IS THE CLOSEST AND THE DIFFERENCE IS
+    SHARP - it charges every hash EVALUATION; this record says the charge per evaluation is
+    not constant and depends on the field layout, which changes the total by a factor that
+    record's accounting cannot see. LOSSY-PROJECTION TEST - the tracked object is the HASH-STATE
+    PREFIX, i.e. the projection of the transcript onto the intermediate compression state
+    after the last unvaried block. It discards every varied byte and keeps a fixed-size state.
+    Compatibility - by the definition of an iterated hash, the retained state plus the varied
+    suffix determines the output deterministically, which is exactly the compatibility condition.
+    Genuinely lossy (the whole prefix collapses to one state). PASSES, and this is the cleanest
+    lossy projection in the slice because the hash construction itself supplies the propagation
+    rule.
+  predictions:
+  - observable: byte offset of each adversary-varied field within the hashed challenge-derivation
+      string, read from the FAEST v2.0 specification or a pinned faest-ref commit
+    metric: offset, and number of hash blocks preceding it
+    predicted: to be pinned; the record is informative in both directions
+  - observable: amortisation factor, the number of blocks before the first varied byte
+    metric: bits, log2 of that factor
+    predicted: 0 bits under (A); 8-13 bits under (B) given multi-kilobyte transcripts
+  - observable: measured per-attempt cost with and without saved-state amortisation
+    metric: hash compression calls per attempt, measured on a re-implementation of the derivation
+    predicted: ratio equal to the amortisation factor, confirming the accounting rather than
+      assuming it
+  - observable: interaction with the grinding parameter
+    metric: total forgery cost in the charged unit, with and without amortisation
+    predicted: the saving applies to the grinding stage in full and to other stages only insofar
+      as they re-hash the same prefix; the split must be computed, not assumed uniform
+  - observable: whether the same audit applies to the OTHER deployed parameter sets and to
+      the EM variants
+    metric: yes or no per set
+    predicted: uniform across sets if the derivation layout is uniform; a non-uniform answer
+      is itself a finding
+  minimal_test: Read primary source, then measure a re-implementation. (1) Pin the exact byte
+    layout of the challenge derivation and of any grinding input from the FAEST v2.0 spec
+    text or a pinned faest-ref commit - the same blocker (RSF-5) GOAL-FAEST-001 already names
+    as gating BATCH-002, so this record is aligned with the campaign's existing next action
+    rather than competing with it. (2) Re-implement the derivation and COUNT compression calls
+    per attempt in both modes. (3) Recompute the charged forgery cost with the corrected per-attempt
+    price at the twelve deployed sets. (4) State the delta in bits against the matched AES
+    baseline 2^126.1 that all three admitted FAEST ideas already write down.
+  controls:
+  - A deliberately prefix-varied control derivation (vary a byte in the first block) which
+    must show ZERO amortisation - if the measurement shows a saving there, the instrument
+    is wrong.
+  - Counting compression calls rather than wall clock, so the result is implementation-independent;
+    wall clock reported separately.
+  - Independent re-read of the byte layout by a second session, since the entire record turns
+    on one structural fact.
+  confounders:
+  - Sponge constructions absorb differently from Merkle-Damgard; the amortisation argument
+    must be instantiated for the ACTUAL primitive used, not for a generic hash.
+  - Domain separation or a length prefix placed at the front can force a re-hash even when
+    the varied field is late, if the length changes - this must be checked explicitly.
+  - The security analysis may charge queries in a model where the unit is deliberately defined
+    as one oracle query regardless of length, in which case the correction applies to the
+    CONCRETE-COST TABLE and not to the bound - and that distinction must be stated precisely,
+    because conflating them would be an overclaim.
+  falsification_conditions:
+  - All adversary-varied fields sit in the first block - outcome (A), no amortisation, and
+    the record is a tightness confirmation.
+  - The primitive's structure defeats saved-state reuse - the argument dies for FAEST specifically
+    while remaining valid as a general audit item.
+  - The correction turns out to apply only to a concrete-cost table and not to any claimed
+    security level - then the honest deliverable is a documentation finding, not a security
+    finding, and it must be filed as one.
+  interpretation_limits: A COST-MODEL claim, not a forgery. It cannot by itself produce a
+    forgery below the claimed category; it can only move the charged cost. Any statement of
+    a margin must name the matched baseline (2^126.1) in the same sentence, per the campaign's
+    own discipline.
+  assumptions:
+  - The FAEST v2.0 spec text or a pinned faest-ref commit is obtainable (GOAL-FAEST-001 names
+    the spec PDF-text blocker RSF-5 as the gating item).
+  - Round-3 tweaks due 2026-08-14 may change the layout; the record must state the exact version
+    it audits.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: FOR the deployed hash primitive H and FOR ALL prefixes P of the challenge-derivation
+      string ending on a block boundary, the intermediate state after absorbing P is saveable
+      and reusable, so computing H(P || X) for many X costs the length of X in blocks each,
+      after a one-time cost for P.
+    rigorous_ingredient: This is a structural property of iterated hash constructions and
+      is PROVABLE from the primitive's definition, not assumed - which is why it is listed
+      here only to be discharged by reading the definition, and it is the one heuristic in
+      this slice expected to be promoted to a fact.
+    distribution_imitated: not applicable.
+    validation_route: Implement and measure - compute H(P || X) for 10^6 values of X with
+      and without state reuse and compare compression-call counts exactly. This is a MEASUREMENT
+      at full deployed size, not a toy proxy.
+    tail_checks: Verify at the exact deployed transcript length rather than at a convenient
+      one, since block-boundary alignment is where the saving can vanish.
+  target_complexity:
+    time_exponent: The claimed movement is in the FORGERY COST EXPONENT charged against FAEST
+      - a reduction of up to log2 of the amortisation factor, predicted 8-13 bits under outcome
+      (B), and exactly 0 under (A). Against the matched AES baseline of 2^126.1 that this
+      program has already written down, a 10-bit correction would put the charged forgery
+      cost near 2^116, which is a CATEGORY-RELEVANT number and must be reviewed as such rather
+      than mentioned in passing.
+    memory_exponent: The amortisation costs ONE saved hash state (tens of bytes) per worker,
+      so the memory charge is negligible and the saving is NOT bought with memory - which
+      is what makes it a real movement rather than a tradeoff.
+    best_known_baseline: FAEST's own claimed security at the twelve deployed sets and the
+      matched AES baseline 2^126.1 recorded in the campaign's BATCH-001 checkpoint.
+    hidden_overhead_disclosure: The correction may apply to the concrete-cost conversion rather
+      than to the proven bound. That distinction is the difference between a documentation
+      finding and a security finding, and the record commits in advance to reporting whichever
+      it turns out to be.
+    time_memory_tradeoff: None - the saving is memoryless, which is stated because a memoryless
+      saving is strictly stronger than a traded one and reviewers should check that claim
+      specifically.
+  sota_delta: Up to 8-13 bits off a charged forgery cost, or a confirmed-tight link in the
+    chain. Against the published state of the art - not asserted; the comparison is against
+    FAEST's own claim and the campaign's own matched baseline.
+  dominated_by: IDEA-20260731-002 (fully charged multi-round forgery cost model) dominates
+    on BREADTH - it charges every hash evaluation across every stage - and is dominated by
+    this record on the per-evaluation PRICE, which it holds constant. IDEA-20260805-38048d
+    (the bavc_open filter) and IDEA-20260731-019 (the consistency-check soundness term) address
+    different links entirely. Checked all seven RQ-FAEST-001 records plus H-FAEST-9c935b and
+    H-FAEST-a55eb3.
+  estimated_cost: Implementation LOW (a hash re-implementation and a counter); compute LOW;
+    one producer slot, gated on the RSF-5 spec blocker the campaign already owns.
+  recommended_priority: high
+  honest_prior_of_survival: 'Outcome (B) occurring at all - 0.35; designers of PoW-adjacent
+    constructions often place the counter early precisely to prevent this, but signature schemes
+    are not usually designed with that reflex. The correction being material (at least 8 bits)
+    given (B) - 0.7. The correction applying to a claimed security level rather than only
+    to a cost table - 0.4. A determinate answer from primary source - 0.9, and that is the
+    main reason to rank it high: it is cheap and it terminates.'
+  novelty_status: unverified
+  novelty_class: adaptation
+  novelty_screen: EXISTING_PROPOSALS.txt lines 42-46, 59, 64, 125, 155, 212 (all RQ-FAEST-001
+    records read); EXISTING_HYPOTHESES.txt H-FAEST-9c935b (the matched baseline) and H-FAEST-a55eb3
+    (bAVC opening-size filter); CATALOGUE_TITLES.txt (no FAEST entries); REJECTED_TITLES.txt,
+    DEFERRED_TITLES.txt, KNOWLEDGE_BARRIERS.txt (none). EXTERNAL LITERATURE NOT SCREENED.
+  discriminated_from: IDEA-20260731-002 charges every hash EVALUATION at a constant unit price;
+    this record attacks the unit price itself via the field layout. That is a strictly different
+    axis of the same cost model, and the two compose multiplicatively rather than duplicating.
+  source_refs:
+  - ref: FAEST v2.0 specification and faest-ref (KN-LIT-7637, KN-LIT-7638, KN-LIT-7619..7620
+      per the GOAL-FAEST-001 BATCH-001 checkpoint)
+    status: internal_committed_pointer
+    use: the layout must be read from these; the record asserts nothing about the layout until
+      then.
+  - ref: matched AES baseline 2^126.1, recorded in all three admitted FAEST ideas
+    status: internal_committed
+  proof_search_map:
+    not_applicable_reason: 'Not proof-oriented - it audits a cost conversion. Applicable audits
+      are discharged inline: the baseline is IDEA-20260731-002''s accounting, which must be
+      reproduced before the price is changed; the observation-collision search is the prefix-varied
+      control derivation; the method ceiling is that it re-prices a search and never exhibits
+      a forgery.'

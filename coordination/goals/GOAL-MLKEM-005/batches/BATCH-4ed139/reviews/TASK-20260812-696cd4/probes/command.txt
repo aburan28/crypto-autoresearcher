@@ -1,0 +1,44 @@
+# TASK-20260812-696cd4 -- RED TEAM PROBES -- exact commands, in order.
+# Run from this directory. Repository root is resolved by each script from its
+# own location via `git rev-parse --show-toplevel`, or from GVAR2_REPO_ROOT.
+# host: Linux-6.18.5-fc-v20-x86_64, 4 cores, python 3.11.15, numpy 2.4.6,
+#       fpylll ABSENT (no probe here needs it), mpmath ABSENT (stdlib `decimal`
+#       is used instead).
+# Every invocation sets PYTHONDONTWRITEBYTECODE=1 and passes -B; no __pycache__
+# was created inside this task's directory and none was deleted anywhere.
+
+export PYTHONDONTWRITEBYTECODE=1
+
+# RT-PROBE-1 -- the declared argument set (primary target)
+python3 -B probe_argset.py --out probe_argset_output.json \
+    > probe_argset_stdout.log 2> probe_argset_stderr.log
+
+# RT-PROBE-2 -- the null object and the precision parameter, default threading
+python3 -B probe_precision_null.py --out probe_precision_null_output.json \
+    > probe_precision_null_stdout.log 2> probe_precision_null_stderr.log
+
+# RT-PROBE-2 again, BLAS threads pinned to 1: the cheapest environment
+# falsifier of the load-bearing non-bit-identity that decides the F0 verdict.
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+NUMEXPR_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 \
+python3 -B probe_precision_null.py \
+    --out probe_precision_null_threads1_output.json \
+    > probe_precision_null_threads1_stdout.log \
+    2> probe_precision_null_threads1_stderr.log
+
+# RT-PROBE-3 -- reading/normalization completeness and the guard's reachability
+python3 -B probe_readings_and_guard.py \
+    --out probe_readings_and_guard_output.json \
+    > probe_readings_and_guard_stdout.log \
+    2> probe_readings_and_guard_stderr.log
+
+# INVOCATION DISCLOSURE (budget maximum_runs: 1, and these are PROBES, not a
+# pre-registered measurement run). Development invocations were made while the
+# probes were being written: probe_argset.py was invoked twice before the
+# recorded run (the first raised TypeError at Q3 -- a tuple/dict slip in this
+# probe's own code -- and produced no output file), and
+# probe_readings_and_guard.py was invoked three times before the recorded run
+# while parts D and E were added. Every recorded output above is from the final
+# invocation of each script. All are deterministic: no sampling, no shuffling
+# and no timing-dependent branch, so no invocation could be a re-roll seeking a
+# favourable number. Enumerated rather than reconciled away.

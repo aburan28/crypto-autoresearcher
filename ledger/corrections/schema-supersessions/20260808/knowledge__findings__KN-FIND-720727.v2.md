@@ -1,0 +1,85 @@
+---
+id: KN-FIND-720727
+type: internal_finding
+title: "Dilithium/ML-DSA formal security proofs cover cryptographic adversaries only\
+  \ \u2014 physical fault injection (Shin DFA, Jendral glitch) is outside the formal\
+  \ model"
+tags:
+- ml-dsa
+- fips-204
+- dilithium
+- formal-proof
+- fault-injection
+- adversary-model
+- easycrypt
+- cma-security
+- rom
+- qrom
+- security-boundary
+added: 2026-08-05
+proof_status: derivation
+claim_status: supported_scoped
+source_goal: GOAL-MLDSA-001
+source_batch: BATCH-214d98
+source_evidence:
+- EV-MLDSA-32d752
+- EV-MLDSA-56e35b
+source_decisions:
+- DEC-20260805-64abe7
+- DEC-20260805-79d745
+authority: internal_analysis
+confidence: provisional
+internal_refs:
+- EV-MLDSA-32d752
+- EV-MLDSA-56e35b
+- DEC-20260805-64abe7
+- DEC-20260805-79d745
+proof_refs: []
+---
+
+## Finding
+
+The formal security proofs for Dilithium/ML-DSA establish CMA security against a
+**cryptographic adversary** — one that can submit chosen messages to a signing oracle
+and query a random oracle, but cannot physically access or manipulate the signing
+device. Both primary formal sources confirm this:
+
+- **KN-LIT-3907** (ePrint 2023/246, Barbosa et al., CRYPTO 2023-era): Provides fixed
+  CMA-to-NMA proofs in ROM and QROM, and a fully mechanized EasyCrypt ROM proof.
+  Abstract explicitly scoped to CMA security. Physical fault adversaries not modelled.
+
+- **KN-LIT-8ce0b5** (ePrint 2026/1188, Gupta): Provides formal Lean 4 bounds for
+  NTT **twiddle-factor** faults specifically. Scope is explicitly NTT arithmetic;
+  hash computations (including nonce derivation ρ' = H(ξ||M||rnd)) are out of scope.
+
+## Corollary for known fault attacks
+
+The following two attacks are **outside the formal model** of both sources:
+
+1. **Shin et al. 2026 DFA** (KN-LIT-340675): recovers the challenge polynomial from
+   information computable from the public message and key, then uses this to select
+   fault targets. This requires challenge-recovery capability outside the cryptographic
+   adversary model (which treats the challenge as hash output in the ROM, not as a
+   value computable from public data by a physically-present adversary).
+
+2. **Jendral 2024 voltage-glitch** (KN-LIT-4f3b80, success probability 0.582 on
+   Cortex-M4): exploits nonce erasure by corrupting the randomness input rnd in
+   ρ' = H(ξ||M||rnd). This requires physical access to the signing device to corrupt
+   rnd before or during signing — outside any cryptographic adversary model.
+
+## What this does NOT say
+
+- Not a claim that either attack is practically feasible against deployed systems.
+- Not a claim that the attacks constitute breaks of the MSIS or SelfTargetMSIS problems.
+- Not a claim that no formal fault-injection proof exists for Dilithium/ML-DSA;
+  KN-LIT-8ce0b5 provides formal bounds for NTT twiddle faults specifically.
+- Not a statement about FIPS 204 standard body — abstract-verified only (FIPS 204 body
+  not read under this campaign).
+
+## Scope and confidence
+
+Scope: Dilithium academic paper parameters (TCHES 2018 CRYSTALS-Dilithium); FIPS 204
+(ML-DSA) standard body not read. Confidence: abstract-verified from KN-LIT-3907 ePrint
+page (correct ePrint 2023/246 confirmed; full text not obtained). Determination is
+structural (adversary model definition) and unlikely to be contradicted by the full
+text, but full-text confirmation is noted as pending.

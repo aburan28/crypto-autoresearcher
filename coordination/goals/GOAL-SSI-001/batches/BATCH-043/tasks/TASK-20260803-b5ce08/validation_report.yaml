@@ -1,0 +1,431 @@
+validation_report:
+  task_id: TASK-20260803-b5ce08
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-043
+  reviewed_artifact: experiment_contract.yaml (TASK-20260803-ffda95)
+  reviewed_supplementary: design_notes.md (TASK-20260803-ffda95)
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-opus-4-6-v1
+    model_verified: false
+    independent_session: true
+    fallback_used: false
+    reasoning_effort: max
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # RT-CTRL-001 ELEMENT VERDICTS
+  # ───────────────────────────────────────────────────────────────────────────
+  rt_ctrl_001_elements:
+    - id: named_statistic
+      verdict: PASS
+      rationale: |
+        The chi-squared goodness-of-fit on kernel-scalar residues mod q=7 is
+        mathematically defined with an explicit formula. The test modulus q=7
+        is coprime to D=2^17 (verified: gcd(7, 2^17)=1). The number of bins,
+        degrees of freedom, expected counts, and null distribution
+        (chi-squared(df=6)) are all stated.
+
+        The "canonical basis" specification is incomplete — Weil normalization
+        e_D(P,Q) = zeta_D does NOT uniquely determine the basis (the
+        symplectic group Sp(2, Z/DZ) acts freely on valid bases preserving the
+        pairing). However, this does NOT affect the test statistic: any change
+        of symplectic basis permutes the kernel scalar s via an invertible map
+        on Z/DZ, which induces a permutation on residues mod 7, and
+        chi-squared is invariant under permutations of categories. Two
+        independent implementers with different valid bases will compute the
+        SAME chi2_7 value. The statistic is well-defined.
+
+    - id: simulator_construction
+      verdict: PASS
+      rationale: |
+        SIM-UNIFORM-KERNEL is fully specified with 5 constructive steps. The
+        critical isolation is clean: only step 3 (kernel selection) differs
+        between real and simulator. Calibration criteria (CAL-1 through CAL-4)
+        are explicit, testable, and have stated acceptance thresholds (KS
+        p-value > 0.05, chi-squared p-value > 0.05, chi2_7 p-value > 0.10 for
+        self-consistency, t-test p-value > 0.05 for timing). Failure actions
+        are specified for each criterion.
+
+        The simulator is reimplementable from the specification alone. The
+        dependency on calibrating the commitment-length distribution from real
+        transcripts creates a sequencing requirement that is properly
+        acknowledged in the pipeline.
+
+    - id: parameter_set
+      verdict: PASS
+      rationale: |
+        All parameters verified:
+        - p = 6143 is prime (confirmed via SymPy isprime)
+        - p ≡ 3 mod 4 (6143 mod 4 = 3) ✓
+        - p = 3·2^11 - 1 (3·2048 - 1 = 6143) ✓
+        - Supersingular curve count: floor(6143/12) + 1 = 512 (p ≡ 11 mod 12) ✓
+        - 2-isogeny graph connected (l=2 ≠ p; Pizer 1990) ✓
+        - p ≡ 7 mod 8 → 2 is QR mod p → 2-isogenies exist from all curves ✓
+        - D = 2^17 = 131072; D/p ≈ 21.3 ✓
+        - E[2^17] ⊂ E(F_{p^2}) since 2^17 | (p+1)^2 = 9·2^22 ✓
+        - gcd(7, 2^17) = 1 ✓
+        - Three fixed master seeds with HMAC-SHA256 domain-separated derivation ✓
+
+        KLPT feasibility: D/p ≈ 21 provides abundant norm-D elements in the
+        maximal order; strong approximation guarantees solutions exist. STOP-4
+        handles the unlikely failure case.
+
+    - id: effect_size_threshold
+      verdict: FAIL
+      rationale: |
+        The minimum advantage (TV = 0.05), significance level (alpha = 0.001
+        per test, Bonferroni-corrected to 0.0002), and target power (0.80) are
+        all stated. However, the power derivation contains mathematical errors
+        that invalidate the claimed power estimate of 0.83:
+
+        ERROR 1: Invalid probability distribution. The contract's "diffuse"
+        example specifies:
+          p_0=1/7+0.033, p_1=1/7+0.033, p_2=1/7+0.034,
+          p_5=1/7-0.033, p_6=1/7-0.034, p_3=p_4=1/7.
+        Sum of deviations = +0.033+0.033+0.034-0.033-0.034 = +0.033 ≠ 0.
+        These probabilities sum to 1.033, which is not a valid distribution.
+
+        ERROR 2: Incorrect Cohen's w formula. The contract writes:
+          w = sqrt(7 * 2*(0.033^2 + 0.033^2 + 0.034^2))
+        This computes 7 × 2 × (sum of 3 positive-bin deviations squared),
+        effectively double-counting 3 deviations as if there were 6 symmetric
+        bins. The correct formula for the 5 non-zero deviations gives w ≈ 0.198,
+        not 0.214.
+
+        ERROR 3: TV miscalculation. The stated distribution has TV ≈ 0.083
+        (not 0.05). For a valid distribution with TV = 0.05 spread across 3
+        positive and 3 negative bins (equal magnitude ±0.0167), the correct
+        Cohen's w is 0.108 (w^2 = 0.0117).
+
+        CONSEQUENCE: Actual power (verified numerically via Patnaik approximation):
+        - Per-key (n=400) at alpha=0.0002:
+          * Concentrated (1+1 bins): 0.24
+          * Mid (2+2 bins): 0.05
+          * Diffuse (3+3 bins): 0.02
+        - Aggregate (n=2000) at alpha=0.001:
+          * Concentrated (1+1 bins): >0.99
+          * Mid (2+2 bins): 0.96
+          * Diffuse (3+3 bins): 0.73
+          * Worst case (4+3 bins): 0.62
+
+        The binding power guarantee of ≥0.80 is NOT met for diffuse bias
+        patterns even at the aggregate level. The guarantee holds only for
+        concentrated biases (1-2 deviating bins).
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # EXPERIMENTAL SOUNDNESS VERDICTS
+  # ───────────────────────────────────────────────────────────────────────────
+  experimental_soundness:
+    controls:
+      verdict: PASS
+      rationale: |
+        Four controls are properly designed and isolate the right variables:
+        - CTRL-NULL (true simulator): Tests KLPT-vs-uniform kernel selection.
+          The simulator differs in exactly one step, making the isolation clean.
+        - CTRL-SHUFFLE: Destroys key-transcript correlation while preserving
+          per-transcript marginals. Distinguishes key-specific from protocol-
+          level bias.
+        - CTRL-INDEP: Fresh key per transcript; tests per-invocation KLPT bias
+          without same-key repetition.
+        - CTRL-DIAGNOSTIC: Cross-control consistency check (CTRL-INDEP vs
+          CTRL-NULL should be indistinguishable).
+
+        The control structure is well-motivated and addresses the right
+        confounds. The shuffled control is informative because it tests whether
+        any detected bias requires key repetition.
+
+    stop_rules:
+      verdict: PASS
+      rationale: |
+        Six stopping rules (STOP-1 through STOP-6) are unambiguous and
+        mechanically evaluable:
+        - STOP-1: Calibration failure (objective test result)
+        - STOP-2: Post-hoc statistic modification (protocol violation)
+        - STOP-3: Prime verification failure (mathematical fact)
+        - STOP-4: KLPT success rate < 90% (countable threshold)
+        - STOP-5: Budget overrun > 50% (wall-clock measurement)
+        - STOP-6: Transcript generation < 90% success (countable)
+
+        None require post-hoc judgment. Each has a specified action. STOP-2
+        is particularly important for preregistration integrity. The graceful
+        degradation in STOP-5 and STOP-6 (reduce count, recompute power) is
+        appropriate.
+
+    budget_separation:
+      verdict: PASS
+      rationale: |
+        Budget is explicitly separated into three non-overlapping phases:
+        - Simulator construction: 600s (implementation, calibration runs)
+        - Transcript generation: 900s (KLPT, keys, all 8000 transcripts)
+        - Statistical testing: 300s (extraction, tests, reporting)
+
+        The scope of each phase is explicitly defined, with simulator
+        construction EXCLUDING real-protocol implementation. Total 1800s
+        per run, 3 runs, 4GB memory. STOP-5 triggers on 50% overrun per
+        phase. This addresses RT-CTRL-001's concern about simulator
+        construction consuming the entire budget.
+
+    preregistration:
+      verdict: PASS
+      rationale: |
+        The preregistration manifest is complete:
+        - Exact statistic formula (chi2_7 with all terms defined)
+        - Parameter values (p=6143, D=2^17, q=7, n=400/key, K=5)
+        - Seed list (3 master seeds, derivation method)
+        - Effect-size threshold (TV=0.05 at alpha=0.001/0.0002)
+        - Success and falsification criteria
+        - Required artifacts with timing constraints
+        - Cryptographic hash requirement (preregistration_manifest.yaml
+          must be frozen before any data generation)
+        - STOP-2 invalidates the experiment if the statistic is modified
+          post-data
+
+        The preregistration can be frozen before data generation. The
+        invalidation rules (section) provide additional integrity guarantees.
+
+    falsifiability:
+      verdict: PASS
+      rationale: |
+        The experiment is falsifiable in both directions:
+        - Positive: ≥3/5 keys reject at alpha=0.0002, controls pass.
+          Consistent across 3 runs.
+        - Negative (falsification): All 5 keys × 3 runs fail to reject at
+          alpha=0.05, diagnostic control shows no difference.
+
+        The asymmetric thresholds (0.0002 for positive, 0.05 for negative)
+        are appropriate: strict for claiming signal, lenient for confirming
+        absence (ensuring non-rejection isn't just low power). The
+        consistency requirement across 3 replicate runs protects against
+        seed-dependent artifacts.
+
+        Intermediate outcomes (1-2 keys reject, or runs disagree) are
+        addressed by the replication consistency requirement (report as
+        "inconsistent" — neither positive nor negative).
+
+    scope_honesty:
+      verdict: PASS
+      rationale: |
+        Scope limitations are correctly and thoroughly stated:
+        - evidence_class: toy_or_derivation_only
+        - not_claimed: [key_recovery, cryptographic_scale, break, completion,
+          exponent_improvement]
+        - scale_relevance.tier: toy
+        - Explicit statement that "A negative result at toy scale... does NOT
+          prove absence of leakage at crypto scale"
+        - Explicit statement that "A positive result at toy scale motivates
+          mid-scale follow-up but does NOT constitute a vulnerability finding"
+        - what_this_does_not_test section is comprehensive
+        - Complies with AGENTS.md Rule 7 (toy evidence never presented as
+          crypto-scale validation)
+        - No asymptotic or exponent claim
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # TECHNICAL CONCERNS
+  # ───────────────────────────────────────────────────────────────────────────
+  technical_concerns:
+    - title: Power analysis contains mathematical errors and overstates detection capability
+      severity: major
+      detail: |
+        Three errors in the power derivation (Section "RT-CTRL-001 ELEMENT 4"):
+
+        1. The example probability distribution for the "diffuse TV = 0.05"
+           case doesn't sum to 1 (sums to 1.033). Positive deviations total
+           0.100 while negative deviations total only 0.067.
+
+        2. Cohen's w formula is miscomputed. The contract writes
+           "sqrt(7 * 2*(0.033^2 + 0.033^2 + 0.034^2))" which double-counts
+           deviations by assuming 6 symmetric non-zero bins when there are
+           actually 5 non-zero deviations of non-matching magnitudes.
+
+        3. The resulting w = 0.214 corresponds to TV ≈ 0.08, not TV = 0.05.
+           The claimed per-key power of 0.83 is actually ≈0.53 at the stated
+           lambda (verified by Patnaik non-central chi-squared approximation).
+
+        Actual power profile for TV = 0.05 at aggregate level (n=2000):
+        - Concentrated (1-2 deviating bins): power > 0.95 (adequate)
+        - Diffuse (3+ deviating bins): power ≈ 0.62-0.73 (below 0.80)
+
+        This means the experiment can reliably detect concentrated biases but
+        may miss diffuse biases. The "binding power guarantee ≥ 0.80" as
+        stated does NOT hold uniformly over all TV=0.05 alternatives.
+      resolution_required: true
+
+    - title: Canonical basis uniqueness is underdetermined in the statistic formula
+      severity: minor
+      detail: |
+        The Weil normalization e_D(P,Q) = zeta_D does not uniquely determine
+        the basis — the stabilizer is {(P+aQ, Q) : a in Z/DZ}, which changes
+        the kernel scalar s to s-a. The design_notes.md (Section 9) adds
+        "lexicographically smallest" as a secondary criterion, but this is
+        not in the formal statistic specification within the contract.
+
+        MITIGATING FACTOR: The chi-squared statistic chi2_7 is INVARIANT under
+        any change of symplectic basis. This is because: (a) additive shifts
+        s→s-a permute bins cyclically, (b) multiplicative rescalings s→cs
+        permute bins by the group action of (Z/7Z)*, and (c) chi-squared is
+        invariant under category permutations. Therefore this issue affects
+        REPRODUCIBILITY of individual scalar values but does NOT affect the
+        test statistic or its validity.
+
+        The design notes should be incorporated into the contract for
+        completeness, but this is not a validity issue.
+      resolution_required: false
+
+    - title: Success criterion does not specify non-rejection threshold for controls
+      severity: minor
+      detail: |
+        The success criterion states "chi2_7(CTRL-NULL) and chi2_7(CTRL-INDEP)
+        do NOT reject" but does not specify the alpha level for this non-
+        rejection requirement. At what significance level must the controls
+        fail to reject for a positive to be declared?
+
+        If controls are tested at alpha=0.05, there's a 5% chance of a false
+        control-rejection that blocks a valid positive finding. If tested at
+        alpha=0.001, a true simulator deficiency might go undetected. The
+        threshold should be explicitly stated.
+      resolution_required: false
+
+    - title: The concentrated bias case (where power is adequate) is the more realistic KLPT scenario
+      severity: minor
+      detail: |
+        The KLPT algorithm's lattice structure would plausibly produce bias
+        concentrated in 1-2 residue classes (corresponding to specific
+        lattice vectors being preferentially selected), not a diffuse bias
+        across all 7 classes. The low power for diffuse biases is therefore
+        less concerning from a physical-mechanism standpoint, though it means
+        the negative-result closure statement must be carefully worded.
+      resolution_required: false
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # POWER ANALYSIS CHECK
+  # ───────────────────────────────────────────────────────────────────────────
+  power_analysis_check:
+    claimed_power: 0.83
+    validated: false
+    actual_power_estimates:
+      per_key_n400_alpha0002:
+        concentrated_1_1: 0.24
+        mid_2_2: 0.05
+        diffuse_3_3: 0.02
+      aggregate_n2000_alpha001:
+        concentrated_1_1: ">0.99"
+        mid_2_2: 0.96
+        diffuse_3_3: 0.73
+        worst_case_4_3: 0.62
+    method: Patnaik two-moment approximation to non-central chi-squared
+    note: |
+      The contract's claimed power of 0.83 per-key at n=400 is based on a
+      non-centrality lambda=18.3 derived from an invalid probability
+      distribution. Even at lambda=18.3, the actual power against
+      chi2(6) > 22.46 is approximately 0.53 (not 0.83). The contract's
+      chi-squared exceedance probability computation appears erroneous.
+
+      The aggregate test (n=2000, pooling all keys) achieves power ≥ 0.80
+      ONLY for concentrated biases (1-2 deviating bins). For maximally
+      diffuse biases (4+3 bins), aggregate power drops to ≈0.62.
+
+      The design_notes.md is more honest about this limitation than the
+      contract, acknowledging "per-key power decreases for maximally diffuse
+      biases." However, the contract's binding statement
+      "achieved_power_estimate: 0.83" and the specific derivation are wrong.
+
+      RECOMMENDATION: Restate the binding guarantee as: "Aggregate power
+      ≥0.95 against concentrated TV≥0.05 (1-2 deviating bins); aggregate
+      power ≈0.73 against diffuse TV≥0.05 (3+ deviating bins). Per-key
+      power is insufficient for individual-key detection at the Bonferroni-
+      corrected level; per-key tests serve a qualitative consistency role."
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # ADDITIONAL VERIFICATIONS
+  # ───────────────────────────────────────────────────────────────────────────
+  parameter_verification:
+    p_6143_prime: true
+    p_mod_4_eq_3: true
+    p_form_3x2e11_minus_1: true
+    ss_curve_count: 512
+    two_isogeny_graph_connected: true
+    D_divides_group_order_Fp2: true
+    gcd_7_D_eq_1: true
+    D_over_p_adequate: true
+
+  chi2_invariance_check:
+    property: |
+      chi2_7 is invariant under symplectic basis changes Sp(2, Z/DZ).
+      Additive shifts s → s+a permute bins cyclically; multiplicative
+      rescalings s → cs permute bins by (Z/7Z)*-action. Chi-squared is
+      invariant under all category permutations. Therefore the test
+      statistic is well-defined regardless of basis canonicalization.
+    validated: true
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # OVERALL VERDICT
+  # ───────────────────────────────────────────────────────────────────────────
+  overall_verdict: REVISE
+  verdict_rationale: |
+    The experiment contract satisfies the SPIRIT of RT-CTRL-001 comprehensively:
+    it names an exact statistic, fully specifies the simulator, fixes a concrete
+    parameter set, and states an effect-size threshold with significance level.
+    The experimental design is fundamentally sound — controls are well-motivated,
+    stop rules are unambiguous, budget is properly separated, preregistration is
+    complete, scope is honest, and the contract is falsifiable.
+
+    However, the power analysis (RT-CTRL-001 Element 4) contains mathematical
+    errors that overstate detection capability by approximately 50%. The binding
+    power guarantee of ≥0.80 per-key is not achievable at the stated sample size
+    and significance level for TV=0.05, and even the aggregate guarantee fails
+    for diffuse biases.
+
+    This does NOT invalidate the experimental design — the experiment can still
+    produce useful results. But the power analysis is the quantitative foundation
+    for interpreting a negative result ("we had power X to detect TV≥0.05 and
+    found nothing"). An overstated power makes a negative result appear more
+    conclusive than it is. For a preregistered experiment, the power analysis
+    must be correct.
+
+    Verdict: REVISE with the specific corrections below before approval.
+
+  revision_requirements:
+    - id: REV-1
+      priority: required
+      description: |
+        Correct the power derivation in the threshold section. Specifically:
+        (a) Replace the invalid probability distribution with one that sums to 1.
+        (b) Correct the Cohen's w formula to match the actual number and
+            magnitude of deviations.
+        (c) Recompute non-centrality parameters and power using exact or
+            well-validated approximations (e.g., scipy.stats.ncx2 or Patnaik).
+        (d) Report power for multiple bias patterns (concentrated, mid, diffuse)
+            rather than a single point estimate.
+
+    - id: REV-2
+      priority: required
+      description: |
+        Revise the "achieved_power_estimate: 0.83" and the "binding power
+        guarantee" statements to reflect actual power. Two acceptable options:
+        (a) State a conditional guarantee: "Power ≥ 0.95 for concentrated
+            biases (1-2 deviating bins) at aggregate level; power ≈ 0.73 for
+            diffuse biases (3+ bins). Per-key tests are qualitative consistency
+            checks, not individually powered."
+        (b) Increase sample size to achieve ≥0.80 uniformly. This requires
+            approximately n=3200 per aggregate test in the worst case
+            (lambda needed ≈ 25.6 → n = 25.6/0.008 ≈ 3200), which may exceed
+            budget. Option (a) is preferred if budget is binding.
+
+    - id: REV-3
+      priority: recommended
+      description: |
+        Explicitly state the alpha level for control non-rejection in the
+        success criterion. E.g., "chi2_7(CTRL-NULL) and chi2_7(CTRL-INDEP)
+        do not reject at alpha = 0.05."
+
+    - id: REV-4
+      priority: recommended
+      description: |
+        Add a brief note in the statistic formula section observing that chi2_7
+        is basis-invariant (since it tests uniformity under category permutation),
+        so the canonical-basis specification affects reproducibility of individual
+        s-values but not the test statistic. This prevents implementer confusion
+        without requiring a fully unique basis definition.
+
+  artifact_paths:
+    - coordination/goals/GOAL-SSI-001/batches/BATCH-043/tasks/TASK-20260803-b5ce08/validation_report.yaml

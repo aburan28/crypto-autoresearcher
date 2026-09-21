@@ -1,0 +1,177 @@
+merge_decision:
+  task_id: TASK-20260822-4c2dff
+  archived_by: TASK-20260822-4ea05c
+  verdict: REPAIR_REQUIRED
+  decided_by: coordinator
+  decided_on: '2026-08-22'
+  producer_snapshot:
+    commit: 4c9fff70e73e3ce68441450131256d582df860b2
+    parent: f36ca3d3277b120bba8f36f9f014b21c99193c81
+    tree: 1e579ab7473ebe9a1814549b4cdf334b89ebac79
+    merge_eligible: false
+    disposition: requires_gitlink_successor
+  red_team:
+    task_id: TASK-20260822-d32303
+    archive_task: TASK-20260822-4a7164
+    archive_commit: 67986e32ee673ce1dc94599f8eff09224d333319
+    adversarial_report_sha256: eeab58196adbe56395e5e3b9fcb69d1aa5aacb1efb5c272514cbca2e387b4d39
+    task_report_sha256: b89d5c291f03e845cfc0cf840faadf7e2f86663eb3590dab4df686a047e57085
+    blindness:
+      validator_report_read: false
+    blocking_findings:
+      - id: B2-GITLINK
+        title: Initialized gitlink bypasses whole-ledger trusted-prefix validation
+        observation: >-
+          A Git mode-160000 entry at ledger/goals or ledger is rejected by
+          check_merge_hygiene.py, but an initialized checkout presents an
+          ordinary directory to validate_ledger.py lstat checks. Whole-ledger
+          validation then traverses the checkout, registers a hidden target-only
+          GOAL, and reads GITLINK_TARGET_INTERPRETED or
+          LEDGER_GITLINK_INTERPRETED.
+        consequence: >-
+          Whole-ledger validation does not establish the effective Git object
+          type of protected prefixes before filesystem traversal, so its result
+          can depend on initialized submodule contents outside the
+          repository-owned ledger tree.
+        disposition: blocks_merge
+    nonblocking_findings:
+      - id: B2-SCOPE-WORDING
+        title: Non-traversal claim must be narrowly stated
+        disposition: adopt_in_successor
+        required_wording: >-
+          Validation does not traverse through a protected ledger or
+          ledger/goals alias and does not access objects available only through
+          that protected alias target. No broader no-filesystem-access claim is
+          made.
+  validator:
+    task_id: TASK-20260822-bc97c9
+    archive_task: TASK-20260822-554167
+    archive_commit: 0d405cc7fc58b247005068ddeaaa426559b0e8e5
+    validation_report_sha256: b9900fa4432295c6cf7bbbd7cca8ac6a372384a3aa50c765db73932c49aeb010
+    task_report_sha256: 37b878ae82fa9a524ff65b31c894da6aa6e55ac0f5a1a4a7bdefe8eb7f7834d9
+    verdict: PASS
+    passed_gates: 22
+    total_gates: 22
+    blindness:
+      red_team_report_read: false
+    retained_scope: >-
+      Declared symlink, ordinary-directory, candidate-state, allocator,
+      immutable-record, hash, and zero-new-error matrix.
+    limitation: >-
+      The matrix did not inspect mode-160000 protected prefixes whose
+      initialized checkout presents an ordinary filesystem directory.
+  composition:
+    reports_consistent: true
+    explanation: >-
+      The Validator proves its declared matrix. The Red Team supplies a
+      reproducible distinct-Git-object-type counterexample outside it. Because
+      whole-ledger validation reads target-only data, B2-GITLINK is blocking.
+    branch_head_at_composition: 0d405cc7fc58b247005068ddeaaa426559b0e8e5
+    merge_authorized: false
+    mark_pr_ready: false
+    erank_materialization_authorized: false
+    research_dispatch_authorized: false
+    rank_claim_effect: none
+  successor_scope:
+    source_test_write_scope:
+      - tools/validate_ledger.py
+      - tools/test_goal_id_random_suffix.py
+    explicitly_excluded:
+      - tools/check_merge_hygiene.py
+      - tools/allocate_id.py
+      - tools/test_allocate_id.py
+      - projection and MCP code
+      - research dispatch
+      - documentation, templates, and skills
+      - closure and quorum code
+      - every ledger, goal, question, evidence, decision, experiment, archive, run, coordination-goal, and knowledge record
+    stop_condition: >-
+      If the repair cannot be completed within the exact two source/test paths,
+      stop for a new Coordinator amendment.
+  successor_task_ids:
+    producer: TASK-20260822-b60b91
+    producer_archive: TASK-20260822-eded1e
+    red_team: TASK-20260822-c4a73c
+    red_team_archive: TASK-20260822-85a5d5
+    validator: TASK-20260822-16abff
+    validator_archive: TASK-20260822-4a3239
+    coordinator_composition: TASK-20260822-9d9a69
+    coordinator_composition_archive: TASK-20260822-a5de47
+  gitlink_policy:
+    protected_prefixes:
+      - ledger
+      - ledger/goals
+    forbidden_git_modes:
+      - '160000'
+      - '120000'
+    permitted_git_type: ordinary tree represented by repository-owned entries
+    forbidden_filesystem_types:
+      - symlink
+      - regular file
+      - special file
+      - non-directory object
+    behavior_on_forbidden_prefix:
+      - emit an explicit trusted-prefix validation error
+      - skip goal discovery beneath the prefix
+      - do not open or parse target files
+      - do not register target-only goal IDs
+      - do not derive question, status, or handoff data from target contents
+  effective_candidate_metadata:
+    - Determine the repository root without following a protected alias.
+    - Inspect effective index entries for exact ledger and ledger/goals paths.
+    - Reject exact mode 160000 or 120000 before traversal.
+    - Distinguish exact entries from normal tracked descendants.
+    - Preserve existing non-following filesystem checks.
+    - Fail closed inside a Git worktree when candidate type cannot be determined.
+    - For non-Git absolute fixtures, retain filesystem checks and make no Git-provenance claim.
+    - Never initialize, fetch, or execute a submodule target.
+  required_controls:
+    gitlink_prefixes:
+      - initialized, uninitialized, unavailable, internal, and malformed ledger/goals gitlinks
+      - initialized, uninitialized, unavailable, internal, and malformed ledger ancestor gitlinks
+      - hidden legacy and random-suffix GOAL sentinels
+      - GITLINK_TARGET_INTERPRETED and LEDGER_GITLINK_INTERPRETED non-read markers
+    candidate_states:
+      - committed exact mode-160000 entry
+      - staged replacement by mode-160000 entry
+      - staged index versus later working-tree disagreement
+      - exact-entry versus descendant parsing
+      - explicit untracked boundary until staged
+    retained:
+      - mode-120000 and protected-prefix file rejection
+      - all B2 symlink-prefix controls
+      - B1 child-symlink controls
+      - ordinary-directory and flat-to-sharded controls
+      - N1, N2, N4, and prior regular-path matrix
+      - zero live repository record changes
+  claim_scope:
+    proved_if_tests_pass: >-
+      Validation does not traverse through a protected ledger or ledger/goals
+      symlink/gitlink alias and does not access objects available only through
+      that protected alias target.
+    not_claimed:
+      - no filesystem access anywhere outside ledger/goals
+      - no interaction with unrelated repository paths
+      - protection for arbitrary non-ledger gitlinks
+      - untracked-object provenance without Git metadata
+  successor_dag:
+    - TASK-20260822-4c2dff -> TASK-20260822-4ea05c
+    - TASK-20260822-4ea05c -> TASK-20260822-b60b91
+    - TASK-20260822-b60b91 -> TASK-20260822-eded1e
+    - TASK-20260822-eded1e -> TASK-20260822-c4a73c
+    - TASK-20260822-eded1e -> TASK-20260822-16abff
+    - TASK-20260822-c4a73c -> TASK-20260822-85a5d5
+    - TASK-20260822-16abff -> TASK-20260822-4a3239
+    - TASK-20260822-85a5d5 + TASK-20260822-4a3239 -> TASK-20260822-9d9a69
+    - TASK-20260822-9d9a69 -> TASK-20260822-a5de47
+  campaign_gate:
+    infrastructure_merge_authorized: false
+    pr_ready_transition_authorized: false
+    erank_goal_allocation_authorized: false
+    erank_materialization_authorized: false
+    erank_queue_authorized: false
+    rank_search_authorized: false
+    next_action: >-
+      Archive this decision and execute only the two-path gitlink successor,
+      then archive it and obtain fresh mutually blind reviews.
+

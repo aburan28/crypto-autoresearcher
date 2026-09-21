@@ -1,0 +1,157 @@
+idea:
+  id: IDEA-20260726-001
+  title: Multi-target index-calculus amortization crossover against the generic preprocessing frontier
+  class: measurement
+  claim: >-
+    For toy prime-field curves, the index-calculus multi-target crossover K*
+    (the smallest K for which amortized IC cost per target beats per-target
+    Pollard rho) is either infinite (per-target descent cost alone meets or
+    exceeds sqrt(N)), or finite but lying on or above the generic preprocessing
+    frontier S*T^2 = Omega~(N) from Corrigan-Gibbs--Kogan, indicating no
+    non-generic multi-target advantage at toy scale. A finite K* whose
+    amortized cost lies strictly below the generic S*T^2 frontier would be a
+    non-generic signal requiring independent review.
+  mechanism: >-
+    In point-decomposition index calculus (KN-TECH-003), the factor-base
+    logarithm table is computed once from relation collection plus sparse
+    linear algebra and then reused for every target. The per-target cost is
+    only the descent (one decomposition of Q+[t]P) plus verification. For K
+    targets on the same fixed curve, total IC cost is
+    C_IC(K) = S_rel + S_LA + K*(T_desc + T_verify), while matched Pollard rho
+    costs K*sqrt(N) (each target independently) and the generic preprocessing
+    lower bound (KN-LIT-013, KN-TECH-005) gives S*T^2 = Omega~(epsilon*N),
+    yielding an amortized floor of approximately N^{1/3} per target at the
+    optimal S ~ N^{2/3}, T ~ N^{1/3} in the large-K limit. The measurement
+    isolates three regimes by computing K* = ceil((S_rel + S_LA) /
+    (sqrt(N) - T_desc - T_verify)) and comparing the crossover cost to the
+    S*T^2 frontier. If T_desc >= sqrt(N), K* is infinite and the route is
+    closed at toy scale. If K* is finite, the crossover cost either lies on
+    the generic frontier (no non-generic advantage) or below it (non-generic
+    signal). This discriminates between the hypothesis that IC preprocessing
+    is generic-equivalent (the S*T^2 bound is tight for all preprocessing) and
+    the hypothesis that IC structure provides a genuinely non-generic
+    multi-target amortization.
+  novelty_status: unverified
+  assumptions:
+    - >-
+      The factor-base log table is target-independent (no target-derived
+      material enters preprocessing), as required by the frontier-A
+      non-interference receipt concept.
+    - >-
+      The per-target descent cost T_desc is measurable at toy scale as the
+      median Groebner solve time for S_{m+1} systems over the frozen factor
+      base, including all failed attempts.
+    - >-
+      The generic preprocessing bound S*T^2 = Omega~(N) applies to the
+      fixed-curve, multi-target setting and is the correct reference frontier.
+    - >-
+      Toy-scale measurements (16-24 bit primes) can distinguish the sign of
+      K* but cannot settle the asymptotic regime; any finite K* at toy scale
+      is a scaling signal, not cryptographic evidence.
+  predictions:
+    - metric: per_target_descent_cost_vs_sqrt_n
+      direction: higher
+      minimum_effect: >-
+        T_desc / sqrt(N) >= 1.0 for all tested toy instances, making K*
+        infinite and closing the multi-target IC route at toy scale. The
+        competing prediction is T_desc / sqrt(N) < 1.0, giving finite K*.
+    - metric: crossover_K_star
+      direction: different
+      minimum_effect: >-
+        K* either infinite (route closed) or finite with value >= 2. A
+        finite K* = 1 would mean IC already beats rho for a single target,
+        contradicting KN-OPEN-001.
+    - metric: amortized_cost_vs_generic_frontier
+      direction: higher
+      minimum_effect: >-
+        At K = K*, the amortized per-target cost C_IC(K*)/K* lies on or above
+        the generic S*T^2 = N frontier (no non-generic advantage). The
+        competing prediction is that it lies strictly below, indicating a
+        non-generic signal.
+  minimal_test:
+    design: >-
+      For 3-5 toy prime-field curves at 16, 20, and 24 bits with prime-order
+      subgroups, each with a frozen factor base of B = ceil(sqrt(N)) points
+      and decomposition arity m=3: (1) measure S_rel = total wall time for
+      relation collection until B+margin independent verified relations;
+      (2) measure S_LA = Wiedemann solve time for the relation matrix;
+      (3) measure T_desc = median wall time for 50 target descents
+      (S_{m+1} Groebner solve including failures); (4) compute K* =
+      ceil((S_rel + S_LA) / (sqrt(N) - T_desc)) using group-operation counts
+      as the common cost unit; (5) plot the amortized cost C_IC(K)/K against
+      K*rho and the generic S*T^2 frontier. All costs are in group-operation
+      equivalents; wall times are reported separately as implementation
+      artifacts.
+    controls:
+      - >-
+        Matched Pollard rho: run the harness rho solver on the same curves
+        and targets, reporting median group-operation count per target.
+      - >-
+        Matched BSGS: report BSGS group-operation count and memory for
+        comparison.
+      - >-
+        Generic preprocessing frontier: plot S*T^2 = N as the reference
+        curve, with S = S_rel + S_LA (IC preprocessing as advice) and T =
+        T_desc (per-target online cost).
+      - >-
+        Target-independence control: verify that the factor-base log table
+        is identical across all targets (content hash comparison).
+      - >-
+        Single-target rho control: confirm that IC single-target cost
+        exceeds sqrt(N), consistent with KN-OPEN-001.
+    required_metrics:
+      - S_rel in group-operation equivalents
+      - S_LA in group-operation equivalents
+      - T_desc median and IQR in group-operation equivalents
+      - T_verify in group-operation equivalents
+      - K* computed from the above
+      - amortized C_IC(K)/K at K = K* and K = 10*K* (if finite)
+      - S*T^2 product at K = K*
+      - rho per-target group-operation count
+      - BSGS group-operation count and memory
+  falsification_conditions:
+    - >-
+      T_desc < sqrt(N) AND the amortized cost at K* lies strictly below the
+      S*T^2 = N frontier — this would be a non-generic signal contradicting
+      the claim, requiring independent review before any promotion.
+    - >-
+      K* = 1 for any tested instance — this would mean IC beats rho for a
+      single target at toy scale, contradicting KN-OPEN-001 and requiring
+      investigation.
+    - >-
+      The measurement is inconclusive because T_desc has IQR exceeding its
+      median (too noisy to determine the sign of sqrt(N) - T_desc).
+  confounders:
+    - >-
+      Groebner solve time at toy scale is implementation-bound (sympy/Sage)
+      and may not reflect asymptotic cost; group-operation-equivalent
+      conversion is model-dependent.
+    - >-
+      The factor-base size B = ceil(sqrt(N)) may be suboptimal for IC; a
+      different B could change T_desc. The test uses the rho-matched B as the
+      default but should also test B = N^{1/3} and B = N^{2/5}.
+    - >-
+      Toy primes (16-24 bit) have sqrt(N) ~ 2^8 to 2^12, where Groebner
+      overhead dominates and the asymptotic regime may not be reached.
+    - >-
+      The S*T^2 frontier applies to generic algorithms; IC preprocessing is
+      non-generic, so the comparison is between two non-generic approaches,
+      not between IC and the generic lower bound.
+  interpretation_limits:
+    - >-
+      Toy-scale only; K* at 16-24 bits says nothing about crypto-scale
+      behavior. A finite K* at toy scale is a scaling signal, not
+      cryptographic evidence.
+    - >-
+      K* = infinity at toy scale closes only the tested scope (these primes,
+      B, m, solver); it does not prove K* = infinity asymptotically.
+    - >-
+      The measurement does not propose a new mechanism; it measures whether
+      existing IC structure provides a multi-target advantage.
+    - >-
+      A non-generic signal (amortized cost below S*T^2) requires independent
+      review before any breakthrough claim.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high

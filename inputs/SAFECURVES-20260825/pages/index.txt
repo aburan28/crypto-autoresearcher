@@ -1,0 +1,967 @@
+SafeCurves:
+Introduction
+
+SafeCurves:
+choosing safe curves for elliptic-curve cryptography
+
+	Introduction
+
+	Curve parameters:
+
+	Fields
+
+	Equations
+
+	Base points
+
+	Prime proofs
+
+	ECDLP security:
+
+	Rho
+
+	Transfers
+
+	Discriminants
+
+	Rigidity
+
+	ECC security:
+
+	Ladders
+
+	Twists
+
+	Completeness
+
+	Indistinguishability
+
+	More information:
+
+	References
+
+	Verification
+
+Introduction
+
+There are several different standards
+covering selection of curves for use in elliptic-curve cryptography (ECC):
+
+ANSI X9.62 (1999).
+
+IEEE P1363 (2000).
+
+SEC 2 (2000).
+
+NIST FIPS 186-2 (2000).
+
+ANSI X9.63 (2001).
+
+Brainpool (2005).
+
+NSA Suite B (2005).
+
+ANSSI FRP256V1 (2011).
+
+Each of these standards tries to ensure that the
+elliptic-curve discrete-logarithm problem (ECDLP) is difficult.
+ECDLP is the problem of finding an ECC user's secret key,
+given the user's public key.
+
+Unfortunately,
+there is a gap between ECDLP difficulty and ECC security.
+None of these standards do a good job of ensuring ECC security.
+There are many attacks that break real-world ECC without solving ECDLP.
+The core problem is that
+if you implement the standard curves, chances are you're doing it wrong:
+
+Your implementation produces incorrect results for some rare curve points.
+
+Your implementation leaks secret data when the input isn't a curve point.
+
+Your implementation leaks secret data through branch timing.
+
+Your implementation leaks secret data through cache timing.
+
+These problems are exploitable by real attackers,
+taking advantage of the gaps between ECDLP and real-world ECC:
+
+ECDLP is non-interactive. Real-world ECC handles attacker-controlled input.
+
+ECDLP reveals only nP. Real-world ECC also reveals timing
+(and, in some situations, much more side-channel information).
+
+ECDLP always computes nP correctly. Real-world ECC has failure cases.
+
+Secure implementations of the standard curves
+are theoretically possible but very hard.
+
+Most of these attacks would have been ruled out by better choices of curves
+that allow simple implementations to be secure implementations.
+This is the primary motivation for SafeCurves.
+The SafeCurves criteria are designed to ensure ECC security,
+not just ECDLP security.
+
+Other attacks would have been ruled out by better choices
+at higher levels of ECC protocols.
+For example,
+deterministic nonces were proposed in 1997,
+are integrated into modern signature mechanisms such as
+EdDSA,
+and would have prevented the 2010 Sony PlayStation ECDSA security disaster.
+However,
+this security issue does not interact with curve choices,
+so it is outside the scope of SafeCurves.
+
+Efficiency
+
+All of the standards listed above add further constraints
+for the sake of efficiency.
+For example, the NIST P-256 curve
+
+uses a prime 2^256-2^224+2^192+2^96-1 chosen for efficiency
+("modular multiplication can be carried out more efficiently than in general"),
+
+uses curve shape y^2=x^3-3x+b "for reasons of efficiency"
+(similarly, IEEE P1363 claims that this curve shape
+provides "the fastest arithmetic on elliptic curves"); and
+
+takes cofactor "as small as possible"
+for "efficiency reasons".
+
+Subsequent research (and to some extent previous research)
+showed that essentially all of these efficiency-related decisions
+were suboptimal,
+that many of them actively damaged efficiency,
+and that some of them were bad for security.
+
+SafeCurves does not attempt to correct
+the erroneous efficiency claims in the standards listed above.
+SafeCurves does not consider efficiency issues,
+except to the extent that they interact with security issues.
+
+Evaluation targets
+
+The SafeCurves web site
+reports security assessments of various specific curves.
+Some of the curves listed on this site
+are deployed or have been proposed for deployment.
+Some of the curves are merely toy examples
+meant to illustrate how curves can fail to meet various security criteria.
+
+"Safe" in the following table means that a curve meets all SafeCurves requirements.
+The curves are sorted in increasing order of
+the prime ℓ.
+
+Curve
+
+Safe?
+
+Details
+
+Anomalous
+
+False
+
+y^2 = x^3+15347898055371580590890576721314318823207531963035637503096292x+7444386449934505970367865204569124728350661870959593404279615
+
+modulo p = 17676318486848893030961583018778670610489016512983351739677143
+
+Created as an illustration of additive transfer and small discriminant.
+
+M-221
+
+True✔
+
+y^2 = x^3+117050x^2+x
+
+modulo p = 2^221 - 3
+
+2013 Aranha–Barreto–Pereira–Ricardini
+(formerly named Curve2213)
+
+E-222
+
+True✔
+
+x^2+y^2 = 1+160102x^2y^2
+
+modulo p = 2^222 - 117
+
+2013 Aranha–Barreto–Pereira–Ricardini
+
+NIST P-224
+
+False
+
+y^2 = x^3-3x+18958286285566608000408668544493926415504680968679321075787234672564
+
+modulo p = 2^224 - 2^96 + 1
+
+2000 NIST; also in
+SEC 2
+
+Curve1174
+
+True✔
+
+x^2+y^2 = 1-1174x^2y^2
+
+modulo p = 2^251 - 9
+
+2013 Bernstein–Hamburg–Krasnova–Lange
+
+Curve25519
+
+True✔
+
+y^2 = x^3+486662x^2+x
+
+modulo p = 2^255 - 19
+
+2006 Bernstein
+
+BN(2,254)
+
+False
+
+y^2 = x^3+0x+2
+
+modulo p = 16798108731015832284940804142231733909889187121439069848933715426072753864723
+
+2011 Pereira–Simplicio–Naehrig–Barreto
+pairing-friendly curve.
+Included as an illustration of multiplicative transfer and small discriminant.
+
+brainpoolP256t1
+
+False
+
+y^2 = x^3-3x+46214326585032579593829631435610129746736367449296220983687490401182983727876
+
+modulo p = 76884956397045344220809746629001649093037950200943055203735601445031516197751
+
+2005 Brainpool
+
+ANSSI FRP256v1
+
+False
+
+y^2 = x^3-3x+107744541122042688792155207242782455150382764043089114141096634497567301547839
+
+modulo p = 109454571331697278617670725030735128145969349647868738157201323556196022393859
+
+2011 ANSSI
+
+NIST P-256
+
+False
+
+y^2 = x^3-3x+41058363725152142129326129780047268409114441015993725554835256314039467401291
+
+modulo p = 2^256 - 2^224 + 2^192 + 2^96 - 1
+
+2000 NIST; also in
+SEC 2 and
+NSA Suite B
+
+secp256k1
+
+False
+
+y^2 = x^3+0x+7
+
+modulo p = 2^256 - 2^32 - 977
+
+SEC2
+
+E-382
+
+True✔
+
+x^2+y^2 = 1-67254x^2y^2
+
+modulo p = 2^382 - 105
+
+2013 Aranha–Barreto–Pereira–Ricardini
+
+M-383
+
+True✔
+
+y^2 = x^3+2065150x^2+x
+
+modulo p = 2^383 - 187
+
+2013 Aranha–Barreto–Pereira–Ricardini
+
+Curve383187
+
+True✔
+
+y^2 = x^3+229969x^2+x
+
+modulo p = 2^383 - 187
+
+2013 Aranha–Barreto–Pereira–Ricardini;
+authors subsequently recommended switching to M-383
+
+brainpoolP384t1
+
+False
+
+y^2 = x^3-3x+19596161053329239268181228455226581162286252326261019516900162717091837027531392576647644262320816848087868142547438
+
+modulo p = 21659270770119316173069236842332604979796116387017648600081618503821089934025961822236561982844534088440708417973331
+
+2005 Brainpool
+
+NIST P-384
+
+False
+
+y^2 = x^3-3x+27580193559959705877849011840389048093056905856361568521428707301988689241309860865136260764883745107765439761230575
+
+modulo p = 2^384 - 2^128 - 2^96 + 2^32 - 1
+
+2000 NIST; also in
+SEC 2 and
+NSA Suite B
+
+Curve41417
+
+True✔
+
+x^2+y^2 = 1+3617x^2y^2
+
+modulo p = 2^414 - 17
+
+2013 Bernstein–Lange
+(formerly named Curve3617)
+
+Ed448-Goldilocks
+
+True✔
+
+x^2+y^2 = 1-39081x^2y^2
+
+modulo p = 2^448 - 2^224 - 1
+
+2014 Hamburg
+
+M-511
+
+True✔
+
+y^2 = x^3+530438x^2+x
+
+modulo p = 2^511 - 187
+
+2013 Aranha–Barreto–Pereira–Ricardini
+(formerly named Curve511187)
+
+E-521
+
+True✔
+
+x^2+y^2 = 1-376014x^2y^2
+
+modulo p = 2^521 - 1
+
+2013 Bernstein–Lange;
+independently 2013 Hamburg;
+independently 2013 Aranha–Barreto–Pereira–Ricardini
+
+The following table splits the SafeCurves requirements
+into
+(1) basic parameter requirements,
+(2) ECDLP security requirements, and
+(3) ECC security requirements beyond ECDLP security:
+
+Parameters:
+
+ECDLP security:
+
+ECC security:
+
+Curve
+
+Safe?
+
+field
+
+equation
+
+base
+
+rho
+
+transfer
+
+disc
+
+rigid
+
+ladder
+
+twist
+
+complete
+
+ind
+
+Anomalous
+
+False
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+False
+
+False
+
+True✔
+
+False
+
+False
+
+False
+
+False
+
+M-221
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+E-222
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+NIST P-224
+
+False
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+False
+
+False
+
+False
+
+False
+
+False
+
+Curve1174
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+Curve25519
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+BN(2,254)
+
+False
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+False
+
+False
+
+True✔
+
+False
+
+False
+
+False
+
+False
+
+brainpoolP256t1
+
+False
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+False
+
+False
+
+False
+
+False
+
+ANSSI FRP256v1
+
+False
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+False
+
+False
+
+False
+
+False
+
+False
+
+NIST P-256
+
+False
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+False
+
+False
+
+True✔
+
+False
+
+False
+
+secp256k1
+
+False
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+False
+
+True✔
+
+False
+
+True✔
+
+False
+
+False
+
+E-382
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+M-383
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+Curve383187
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+brainpoolP384t1
+
+False
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+False
+
+True✔
+
+False
+
+False
+
+NIST P-384
+
+False
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+False
+
+False
+
+True✔
+
+False
+
+False
+
+Curve41417
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+Ed448-Goldilocks
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+M-511
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+E-521
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+True✔
+
+Contributors
+
+SafeCurves is joint work by the following authors (alphabetical order):
+
+Daniel J. Bernstein,
+University of Illinois at Chicago, USA,
+and Technische Universiteit Eindhoven, Netherlands
+
+Tanja Lange,
+Technische Universiteit Eindhoven, Netherlands
+
+SafeCurves should be cited as follows:
+
+    Daniel J. Bernstein and Tanja Lange.
+    SafeCurves: choosing safe curves for elliptic-curve cryptography.
+    https://safecurves.cr.yp.to, accessed 1 December 2014.
+
+Replace 1 December 2014 by your download date.
+
+Acknowledgments
+
+This work was supported
+by the U.S. National Science Foundation under grant 1018836.
+"Any opinions, findings, and conclusions or recommendations
+expressed in this material are those of the author(s)
+and do not necessarily reflect the views of the National Science Foundation."
+
+This work was supported by the Netherlands Organisation for Scientific Research (NWO)
+under grant 639.073.005.
+
+Many calculations used the
+Sage computer-algebra system.
+The most difficult factorizations were completed with CADO-NFS.
+Version:
+This is version 2017.01.22 of the index.html web page.

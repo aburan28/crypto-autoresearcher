@@ -1,0 +1,198 @@
+protocol_amendment:
+  experiment_id: EXP-ECDLP-2156e3
+  version_from: 3
+  version_to: 4
+  kind: special_action_rationality_prefilter_and_inventory_charge_superseding_amendment
+  filed_at: '2026-08-09'
+  filed_by: coordinator
+  status: draft_pending_independent_review
+  approved_by: null
+  approved_by_decision: null
+  affected_runs: []
+  confirmatory_status: preserved
+  supersedes:
+    path: amendments/EXP-ECDLP-2156e3-v3.yaml
+    snapshot_commit: a9980ed19229744c5a1615af97e2b77f96e5a9c6
+    treatment: immutable_prior_amendment_remains_unchanged
+  scope_statement: >-
+    This amendment adds a public, necessary rationality prefilter for the
+    non-negation unit-special actions on j=0 and j=1728 targets. It is a
+    target-inventory optimization and refusal classifier, not an acceptance
+    certificate, an isogeny-class proof, an ECDLP result, or an experiment
+    authorization. Every candidate remains serialized: a prefilter refusal
+    may prevent transfer construction and target-side rho, but it may not be
+    silently dropped from the frozen inventory or used as negative evidence.
+    The v3 same-field/same-trace gate and independent map/kernel/subgroup/
+    twist/replay verifier remain mandatory for every admitted target.
+  motivation: >-
+    The v3 protocol correctly separates same-trace reachability from transfer
+    validity, but it still leaves the target search to discover after
+    enumeration whether the nontrivial geometric automorphism can be defined
+    over F_p. For p>3, the j=0 unit group needs a nontrivial cube root of unity
+    for an order-3 action, and the j=1728 unit group needs a fourth root of
+    unity for an order-4 action. Congruence is therefore a cheap necessary
+    filter for the intended full-action mode, while exact map certificates
+    remain the acceptance gate. The filter cannot claim that a curve is
+    generically hard or that no other attack applies.
+  prefilter_contract:
+    characteristic_scope:
+      accepted: p > 3
+      p_equals_2_or_3: unsupported_small_characteristic_refusal
+      reason: >-
+        The j=0 and j=1728 automorphism formulae and their rationality
+        conditions require separate small-characteristic treatment; no row is
+        routed through the generic congruence filter in those characteristics.
+    predicates:
+      j_0:
+        target_label: 0
+        nontrivial_unit_action_order: 3
+        necessary_condition: p_mod_3_equals_1
+        failing_decision: special_action_unavailable_prefilter
+        retained_action: negation_only_if_independently_certified
+      j_1728:
+        target_label: 1728
+        nontrivial_unit_action_order: 4
+        necessary_condition: p_mod_4_equals_1
+        failing_decision: special_action_unavailable_prefilter
+        retained_action: negation_only_if_independently_certified
+    semantics: >-
+      A passing congruence is only a candidate-enumeration permission. It does
+      not prove that the chosen twist has the declared F_p-defined map, that
+      the map has the requested order, or that it preserves the measured
+      subgroup. A failing congruence is a refusal of the requested
+      non-negation unit-special action, not a refusal of the curve, its
+      isogeny class, or every possible ECDLP method.
+  inventory_contract:
+    freeze_point: before_first_target_side_rho_solve
+    required_decision_fields:
+      - source_instance_id
+      - field_p
+      - target_j
+      - target_curve_digest
+      - source_trace
+      - target_trace
+      - same_field_same_trace_decision
+      - characteristic_decision
+      - congruence_prefilter_decision
+      - exact_action_certificate_decision
+      - refusal_reason
+    row_kinds:
+      - candidate
+      - rejected
+      - special_action_unavailable_prefilter
+      - unsupported_small_characteristic
+      - truncated
+      - C-RATIONALITY-POS
+      - C-RATIONALITY-NEG
+      - C-RANDMAP
+      - C-NONSPECIAL
+      - C-IDENTITY
+      - C-POS
+      - unsupported
+    ordering: >-
+      Serialize all candidate labels, congruence decisions, class-gate
+      decisions, exact-certificate decisions, and truncation markers in the
+      canonical candidate order before any target-side solve or target-count
+      amortization is inspected.
+    no_silent_filtering: true
+    target_selection_after_solve: forbidden
+  controls_added:
+    - id: C-RATIONALITY-POS
+      kind: congruence_passing_special_candidate
+      construction: >-
+        Predeclare p>3 rows with j=0 and p mod 3=1 or j=1728 and p mod 4=1,
+        then require the full independent map certificate before admission.
+      expected: >-
+        A passing congruence produces eligible_for_certificate only; it never
+        becomes a counted transfer merely from the arithmetic predicate.
+    - id: C-RATIONALITY-NEG
+      kind: congruence_failing_special_candidate
+      construction: >-
+        Predeclare same-field j=0 rows with p mod 3=2 and j=1728 rows with
+        p mod 4=3, retaining the rows in the inventory and routing the
+        requested non-negation action to special_action_unavailable_prefilter.
+      expected: >-
+        No full-action target-side rho is attempted; the row is a refusal of
+        that action, never negative evidence against the isogeny-transfer or
+        ECDLP hypothesis.
+  cost_schema_additions:
+    fields:
+      characteristic_filter_ops: {type: integer, unit: field_operation}
+      rationality_prefilter_ops: {type: integer, unit: field_operation}
+      special_action_unavailable_refusals: {type: integer, unit: event}
+      unsupported_small_characteristic_refusals: {type: integer, unit: event}
+    accounting: >-
+      Charge the prefilter and every refusal in the target-inventory vector.
+      The prefilter may reduce later construction and path-search work, but
+      no inventory, classification, or refusal cost is free in either the
+      one-shot or amortized transfer vector.
+    formulas:
+      one_shot: >-
+        C_1_v4 = C_inventory + C_characteristic_filter +
+        C_rationality_prefilter + C_class_filter + C_enumeration +
+        C_rejected + C_unreachable + C_construct + C_forward +
+        C_serialize + C_target_rho + C_inverse_or_dual + C_replay.
+      amortized: >-
+        For k in {1,8,64}, C_k_v4 = C_inventory +
+        C_characteristic_filter + C_rationality_prefilter + C_class_filter +
+        C_enumeration + C_rejected + C_unreachable + C_construct + k *
+        (C_forward + C_serialize + C_target_rho + C_inverse_or_dual +
+        C_replay).
+  verifier_contract:
+    independent_verifier: harness/verify_isogeny_transfer_v2.py
+    required_checks:
+      - characteristic_scope_check
+      - congruence_prefilter_replay
+      - source_trace_recomputed_independently
+      - target_trace_recomputed_independently
+      - same_field_check
+      - same_trace_class_gate
+      - exact_map_order_and_field_of_definition
+      - declared_degree_check
+      - complete_kernel_and_closure_check
+      - subgroup_intersection_check
+      - twist_membership_check
+      - independent_dual_or_inverse_replay
+      - source_scalar_replay
+    consistency_rule: >-
+      A counted full unit-special row must have a passing necessary predicate
+      and a separately verified map certificate. If a full-action certificate
+      is valid for a row rejected by the predicate, the amendment or its
+      characteristic assumptions are defective; invalidate the affected
+      classification rather than overriding the refusal silently.
+  falsification_conditions_added:
+    - >-
+      A target is counted in full-action mode despite a failing congruence or
+      unsupported characteristic decision; the classification is invalid.
+    - >-
+      A passing congruence is treated as a map certificate, eigenvalue proof,
+      or same-isogeny-class proof; the target row is refused as incomplete.
+    - >-
+      A prefilter refusal is omitted from the frozen inventory or its cost
+      vector; the candidate manifest is invalid until rebuilt.
+    - >-
+      A row is selected after observing target-side solve success, cost, or
+      retry behavior; the target-selection contract is invalid.
+    - >-
+      A congruence-failing row is used as negative evidence against special
+      targets in another field or isogeny class; the interpretation exceeds
+      scope and must be withdrawn.
+  interpretation_gate:
+    only_optimization_claim: >-
+      At most, a successful prefilter can reduce target-inventory downstream
+      work for the declared full-action search. It supplies no solve-cost
+      speedup, no exponent movement, and no conclusion about ECDLP hardness.
+    reachable_special_target: >-
+      Requires passing congruence, same-field/same-trace membership, complete
+      independent transfer verification, and charged source-to-target replay.
+    no_candidate_after_filter: >-
+      Record a scoped reachability/refusal observation for the frozen
+      inventory only; do not call the special-target lane dead.
+  dispatch_gate:
+    not_dispatchable: true
+    required_before_approval:
+      - independent review of EXP-ECDLP-2156e3-v3 and this v4 amendment together
+      - exact target-inventory and congruence implementation frozen
+      - source-hash-bound implementation and conformance fixtures
+      - backend preflight passes without prohibited fallback
+      - Coordinator decision explicitly admits or rejects the amendment

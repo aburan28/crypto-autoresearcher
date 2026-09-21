@@ -1,0 +1,82 @@
+handoff:
+  id: TASK-20260803-36f572
+  from: coordinator
+  to: executor
+  objective: 'Two tasks, and the first is the one this lane has owed for three batches. (A) INSTANTIATE
+    THE ACTUAL MODEL. BATCH-009 through BATCH-011 all fitted a GAUSSIAN-Phi SURROGATE whose region measure
+    was taken as K*v^p. Replace that by the EXACT region measure built from the source''s own (4.10),
+    (4.11) and (4.24) at alpha=2, and refit. Report the rms achieved by the exact-measure model on both
+    archived files, whole band and in the count>=10 and count>=1000 sub-bands, each ALONGSIDE the counting-noise
+    floor for that same band. Then state whether the exact model closes the misfit the surrogate showed
+    (16.5x and 24.8x the floor in the count>=1000 sub-band), reduces it, or leaves it unchanged. (B) COMPUTE
+    THE COUNTING-NOISE FLOOR IN CLOSED FORM as an independent deliverable: recover pooled counts as value*nb_iteration*q^k_fft
+    and evaluate sqrt(mean_T E[(log2 lambda - log2 C)^2 | C>=1]) under Poisson. No simulation and no random
+    numbers -- the expectation is closed-form. Every conclusion in this goal now rests on this quantity
+    and it has never had an independent check, so it ships as its own script and its own numbers.'
+  uncertainty_reduced: Whether Approximation 4.9's actual region measure fits the archived data, which
+    no batch has yet tested; and whether the counting-noise floor that now underwrites every conclusion
+    in this lane is correct.
+  inputs:
+  - ledger/evidence/EV-MLKEM-2e668d.yaml (C-2, C-3 and the RT-9 mechanism) and ledger/decisions/DEC-20260803-2e82d5.yaml
+  - coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-90c29e/red_team_report.yaml
+    (objections RT-7, RT-9, and the C1/C3 checks)
+  - coordination/goals/GOAL-MLKEM-003/batches/BATCH-010/tasks/TASK-20260803-f95b4e/ (the surrogate implementation
+    being replaced)
+  - inputs/MLKEM-DUAL-SOURCES-20260802/extracts/carrier-hal-05406481/ ((4.10)/(4.11) are on PDF page 20,
+    which the extract set omits - pull it from the vendored PDF if needed, READ ONLY)
+  - experiments/EXP-MLKEM-011/vendor-lock/data/ archived Pwrong outputs
+  constraints:
+  - Never fabricate a command, output, statistic, citation, or run (AGENTS.md rule 9).
+  - 'ZERO NEW SAMPLING and NO NETWORK. Only archived bytes: experiments/EXP-MLKEM-011/vendor-lock/data/
+    and the Carrier text extracts. The vendored PDF at experiments/EXP-MLKEM-010/vendor-lock/ is READ
+    ONLY.'
+  - Stay inside the resolved band, floor 1/(4000*241^3) = 2^-35.70445229. Never extrapolate past it.
+  - Raw undivided score scale (the k_fft=3 asymmetry would shift every point silently).
+  - SCORE AGAINST THE COUNTING-NOISE FLOOR, NEVER AGAINST ZERO. Reporting an rms without the floor it
+    is measured against is the exact error DEC-20260803-2e82d5 struck.
+  - Toy tier. No ML-KEM security claim in either direction.
+  - 'AGENTS.md rule 12 is UNMET and UNWAIVED: EV-MLKEM-011, EV-MLKEM-013 and EV-MLKEM-017 keep their status.'
+  - Write only inside your declared write_scope. Do not git commit.
+  - The red team notes this is cheap because in fit_one_p the quadrature never reads log2meas. Reuse that
+    structure where correct and state every departure.
+  - alpha=2 is the value the red team identified from the archive to 0.48 percent via (4.19) against the
+    archived Pgood median. USE IT AND SAY SO; if your own check disagrees, report the disagreement rather
+    than silently adopting either value.
+  - REPORT THE OUTCOME THAT MAKES THE PROGRAM WRONG IF THAT IS THE OUTCOME. If the exact measure fits
+    well, then three batches of misfit findings were about a surrogate nobody should have fitted, and
+    saying so plainly is the result. If it fits no better, say that too.
+  - Do not re-litigate the exponent scan. This task is about the region measure, not about p.
+  - 'Score against the closed-form counting-noise floor (0.3406 bits n=43, 0.3276 n=50) from the outset.
+    NEVER against zero: EV-MLKEM-2e668d C-1 struck that argument.'
+  - Declare the provenance fields the evidence doctrine requires INSIDE your own artifacts (command, commit,
+    dirty state, environment, seeds/determinism, memory, stderr, validity, inference block). BATCH-010
+    DEV-1 and validator D1 recorded that gap twice; the fix is yours to carry this time.
+  deliverables:
+  - 'exact_region_measure.py and counting_floor.py: the exact scripts run'
+  - 'results.json: exact-model rms per file per band with the matching counting floor, and the closed-form
+    floor derivation'
+  - 'report.md: what was computed, every departure from the BATCH-010 implementation, and the closes/reduces/unchanged
+    verdict'
+  artifact_paths:
+  - coordination/goals/GOAL-MLKEM-003/batches/BATCH-012/tasks/TASK-20260803-36f572/exact_region_measure.py
+  - coordination/goals/GOAL-MLKEM-003/batches/BATCH-012/tasks/TASK-20260803-36f572/results.json
+  - coordination/goals/GOAL-MLKEM-003/batches/BATCH-012/tasks/TASK-20260803-36f572/report.md
+  archived_by: TASK-20260803-5b602c
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: true
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 3000
+    memory_gb: 4
+    maximum_runs: 1
+  completion_gate:
+  - exact-measure rms reported for both files with the counting floor alongside, per band
+  - the closed-form counting floor shipped as its own computation with its derivation
+  - the closes / reduces / leaves-unchanged verdict stated explicitly
+  repairs: TASK-20260803-b762a1
+  repair_note: Successor under a NEW identifier, not a retry. The failed task keeps its id, its failed
+    state and its committed infra_failure_receipt.yaml. Its failure was a provider session limit and is
+    not evidence about this check in either direction (AGENTS.md rule 5).

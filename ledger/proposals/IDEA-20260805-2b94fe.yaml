@@ -1,0 +1,562 @@
+idea:
+  id: IDEA-20260805-2b94fe
+  question_id: RQ-MLKEM-001
+  added: '2026-08-05'
+  title: >-
+    The exact per-coordinate log-likelihood as the scoring functional: replacing
+    the Euclidean norm by -sum_j log p_j(v_j) wherever an ML-KEM attack scores a
+    candidate error, with the CBD characteristic function cos^{2eta} and the
+    deterministic compression boxcar written out
+  class: mechanism
+
+  claim: >-
+    ML-KEM's noise is neither Gaussian nor unbounded, and every published lattice
+    cost model scores candidates with a functional that assumes it is both. The
+    exact per-coordinate law is available in closed form: a centred binomial
+    coefficient of parameter eta convolved, on the ciphertext side, with the
+    deterministic compression residue, which is bounded by q / 2^{d_u + 1} =
+    1.626 for d_u = 10. Two consequences are claimed, with opposite signs and
+    both small. (i) DUAL SIDE, DEFENSIVE: the exact per-vector bias is
+    prod_j cos^{2 eta}(pi x_j / q), not exp(-2 pi^2 sigma^2 ||x||^2 / q^2); the
+    ratio is exp(-a^2 / (2 eta d)) + O(u^6), which at the operating point a =
+    18.4, d = 500 equals 0.844 for eta = 2 and 0.893 for eta = 3, against 0.8513
+    and 0.8989 measured independently in this program's own archive
+    (RT-20260803-dc7568 section 6a) -- agreement to within 1% with ZERO free
+    parameters. Since the sample count scales as the inverse square of the bias,
+    dual-attack costs computed with the Gaussian bias UNDERSTATE the attacker's
+    sample term by 0.31 to 0.47 bits. (ii) PRIMAL SIDE, OFFENSIVE AND BOUNDED:
+    replacing the Euclidean decoding metric by the exact log-likelihood raises
+    BDD success probability at fixed block size by a factor F, and F is bounded
+    above by the log-likelihood discrepancy between the two metrics, which for
+    CBD_2 has per-coordinate standard deviation 0.0969 bits and therefore
+    0.0969 sqrt(beta) = 1.94 bits at beta = 400, giving F <= 2^1.94 ~ 3.8. THIS
+    IS NOT AN EXPONENT-MOVING PROPOSAL AND IS NOT PRESENTED AS ONE. It is a
+    sub-2-bit mechanism with a derived ceiling, proposed because the ceiling is
+    derivable at zero compute and because the primal half composes directly with
+    IDEA-20260805-3d71ca, whose gain is measured in the same currency.
+
+  object_first_candidate:
+    tracked_object: >-
+      The per-coordinate log-likelihood profile L(v) = -sum_j log p_j(v_j) of a
+      candidate error vector, with p_j the EXACT law of coordinate j: CBD_eta1
+      for secret coordinates, CBD_eta2 for error coordinates, and CBD_eta2
+      convolved with the compression boxcar for ciphertext coordinates. What is
+      followed through the computation is L and its increments, in place of the
+      squared Euclidean norm and its increments.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: dual-sieve database statistics and any
+      row-permutation or score-spread observable on one (spent by
+      GOAL-MLKEM-004); estimator cost-table re-derivation and primal_bdd versus
+      matzov differencing (spent by GOAL-MLKEM-003); hybrid MITM; coefficient
+      isometries; class-group/PIP; decryption failures; side channels. This object
+      is a SCORING FUNCTIONAL, not a database statistic: it is evaluated on
+      candidate error vectors, its value on a given vector is instance-independent,
+      and it touches no sieve pool.
+    newness_score: >-
+      UNVERIFIED and quite possibly known. "Unified Dual Attack Analyses:
+      Covariance-Based" (ePrint 2026/1048) was returned by a 2026-08-05 search
+      with a summary indicating it uses E[cos(X+Y)] = E[cos X] E[cos Y] for
+      symmetric distributions, which is exactly the factorisation that yields the
+      exact CBD bias; the PDF returned HTTP 403 and WAS NOT READ. If that paper
+      already carries the exact product form, half (i) of this proposal is KNOWN
+      and its delta is zero. Half (ii), the primal decoding metric, was not found
+      in any retrieved source, but "not found" is not "not present".
+    testability_score: >-
+      Very high and unusually cheap. Half (i) is pure arithmetic against a
+      characteristic function -- seconds, no lattice. Half (ii) needs the same
+      BKZ harness as IDEA-20260805-3d71ca and shares it entirely.
+    survival_score: >-
+      The object propagates deterministically as long as the coordinates remain
+      the ones the distributions are attached to. It DISSOLVES the moment the
+      attack changes basis, because L is not orthogonally invariant -- which is
+      simultaneously the source of any gain and the reason the gain is bounded.
+
+  mechanism: >-
+    For X ~ CBD_eta, written as sum_{i=1..eta}(b_i - b'_i) with b, b' independent
+    uniform bits, E[e^{itX}] = |E[e^{itb}]|^{2 eta} = cos^{2 eta}(t/2). Hence for
+    a dual vector x the exact expected score is prod_j cos^{2 eta}(pi x_j / q),
+    and with u_j = pi x_j / q and ln cos u = -u^2/2 - u^4/12 - u^6/45 - ...,
+    ln(bias) = -eta sum u_j^2 - (eta/6) sum u_j^4 - ... The first term is exactly
+    the Gaussian exponent a = 2 pi^2 sigma^2 ||x||^2 / q^2 with sigma^2 = eta/2.
+    The second term is NOT a function of ||x||: it is a fourth moment, so the
+    exact objective is a convex non-quadratic gauge and not the Euclidean norm.
+    For a direction isotropic in R^d, E[sum u^4] = 3 (sum u^2)^2 / d, giving the
+    closed form exp(-a^2 / (2 eta d)). The same non-Gaussianity appears on the
+    primal side as a decoding metric: the Euclidean metric is the log-likelihood
+    of a Gaussian, so a decoder that minimises ||v||^2 is a maximum-likelihood
+    decoder FOR THE WRONG NOISE. The exact metric for CBD_2 assigns
+    (1.415, 2.000, 4.000) bits to |v| = (0, 1, 2) where the matched Gaussian
+    assigns (1.326, 2.047, 4.211): the true law penalises 0 MORE and 2 LESS than
+    the Gaussian does. On the ciphertext side the discrepancy is larger and
+    structurally different, because the compression residue is BOUNDED: the
+    correct per-coordinate likelihood is a boxcar of half-width q / 2^{d_u + 1}
+    convolved with CBD_eta2, i.e. a hard constraint that the Gaussian model
+    replaces by a quadratic penalty with unbounded support. A candidate that the
+    Euclidean decoder ranks acceptable can be provably impossible.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      "Unified Dual Attack Analyses: Covariance-Based", IACR ePrint 2026/1048.
+      Returned by a 2026-08-05 search; the PDF fetch returned HTTP 403 and the
+      paper WAS NOT READ. The retrieved search summary states it establishes
+      E[cos(X + Y)] = E[cos X] E[cos Y] for symmetric distributions. THIS IS THE
+      MOST LIKELY DOMINATOR of half (i) and reading it is the first action of any
+      batch that takes this proposal.
+    - >-
+      RT-20260803-dc7568 section 6a (this program's own archive, red team,
+      GOAL-MLKEM-004 BATCH-f75059). Tabulates the exact characteristic function
+      prod_j cos^{2 eta}(pi x_j / q) against exp(-a) for a = 1, 5, 18.4 and
+      reports 0.9997 / 0.9922 / 0.8989 for CBD eta = 3 and 0.9995 / 0.9884 /
+      0.8513 for eta = 2, with x drawn isotropic in dimension 500 at q = 3329,
+      and states explicitly that the isotropy of x is itself a heuristic. It also
+      records, for a rounded Gaussian of sigma^2 = 1.5, 0.3598 at a = 18.4, i.e. a
+      factor 7.7 on N. That archived table is what the closed form in this
+      proposal reproduces to within 1%, which is why it is offered as a prediction
+      rather than a fit.
+    - >-
+      EV-MLKEM-50901f OBS-4 records the same point at evidence level: "Sheppard's
+      correction does NOT shrink at cryptographic q -- it grows with a_x (7.7x on
+      N for a rounded Gaussian at a = 18.4). ML-KEM is spared only because CBD
+      deviates at fourth order (1.24x-1.38x)." This proposal supplies the closed
+      form behind the 1.24x-1.38x and extends the same observation to the primal
+      decoder, which that record does not consider.
+    - >-
+      KN-LIT-111 (Ducas-Pulles, "Does the Dual-Sieve Attack on LWE even Work?")
+      and KN-OPEN-016. The dual-attack heuristics are contested precisely at the
+      level of score distributions; a correction to the per-vector bias is
+      adjacent to that dispute but does NOT resolve it and must not be presented
+      as doing so.
+    - >-
+      Retrieved but NOT READ on 2026-08-05, recorded as ingredient scouting for a
+      future curator: ePrint 2026/1326 "LaMS: A p-adic Layered Modulus Switching
+      for Provable Dual Attacks on LWE"; ePrint 2026/1060 "An Improved Hybrid Dual
+      Attack on LWE with Sparse Secrets"; arXiv 2605.24798 "Improved Dual Attack
+      and Trapdoor Sampling via Quantum Rejection Sampling"; arXiv 2510.02162
+      "NoMod: A Non-modular Attack on Module Learning With Errors" (claims
+      recovery of SPARSE binomial secrets at Kyber-like (n,k), which is not the
+      FIPS 203 regime).
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Candidate error vector v in Z^d --> the scalar L(v) = -sum_j log p_j(v_j),
+      or on the dual side, dual vector x --> the scalar
+      prod_j cos^{2 eta}(pi x_j / q).
+    what_is_discarded: >-
+      All directional information. L is invariant under any coordinate PERMUTATION
+      that preserves the assignment of laws to coordinates, and under any sign
+      flip (both p_j and cos^{2 eta} are even). The fibre over a value of L is
+      (d-1)-dimensional.
+    why_genuinely_lossy: >-
+      The fibre is positive-dimensional and there is no inverse map, so this
+      passes the KN-LIT-7595 test that (x xor y, x*y) fails: the discarded
+      information is not recoverable as the roots of anything.
+    why_compatible_with_the_operations: >-
+      L is ADDITIVE over coordinates, so it propagates deterministically under the
+      one operation the decoder actually performs -- extending a partial candidate
+      by one more coordinate. This is exactly the compatibility a branch-and-bound
+      or nearest-plane decoder needs, and it is why the object is usable rather
+      than merely definable. It is NOT compatible with orthogonal change of basis,
+      and that incompatibility is stated as a limit rather than hidden: the
+      functional can only be applied where the coordinates carry their own laws.
+    is_it_only_a_change_of_coordinates: >-
+      No, but it is CLOSE to one, and this is the proposal's main honesty
+      exposure. For a Gaussian law L IS the squared Euclidean norm up to an affine
+      map, so the object degenerates exactly to the incumbent under the null. The
+      entire content is the DEPARTURE of CBD (and of the compression boxcar) from
+      Gaussian, and that departure is quantified above rather than gestured at:
+      per-coordinate log-likelihood discrepancy of standard deviation 0.0969 bits.
+      A reader who concludes "this is a reparametrisation" is right up to that
+      0.0969, and the proposal's ceiling is derived from exactly that number.
+
+  assumptions:
+    - >-
+        The attacker knows the noise laws exactly. True by construction: FIPS 203 publishes eta1, eta2, d_u, d_v.
+    - The decoder's coordinates are the ones the laws are attached to, i.e. the
+      metric is applied where the candidate error is expressed in the original
+      coordinate system, not after an arbitrary orthogonal transform.
+    - Bias-to-cost conversion N proportional to (bias)^{-2}, i.e. the sample count
+      is set by a signal-to-noise requirement sqrt(N) * bias = const. This is the
+      standard dual-distinguisher accounting and is named as an assumption because
+      it is exactly what KN-OPEN-016 records as contested.
+
+  proof_search_map:
+    bottleneck: >-
+      The scoring functional itself. On the dual side it sets the per-vector bias
+      and hence N and hence T_sample, which DEC-20260803-64b55b records as 99.94%
+      of matzov's Kyber-768 cost. On the primal side it sets the decoding success
+      probability at fixed block size.
+    baseline_embedding:
+      parameter_slice: >-
+        EXACT: replace CBD_eta by a discrete Gaussian of variance eta/2 and let
+        the compression bound go to infinity at fixed variance. Then
+        cos^{2 eta}(pi x_j / q) -> exp(-eta u_j^2) coordinatewise and L(v) ->
+        ||v||^2 / (2 sigma^2) + const, and the entire mechanism collapses onto the
+        incumbent identically, not approximately.
+      reproduction_check: >-
+        Symbolic, plus a frozen fixture: on the Gaussian arm the measured
+        success-probability ratio F between the two decoders must be EXACTLY 1
+        (up to tie-breaking), and the measured bias ratio must be exactly 1. Any
+        departure on that arm is an implementation bug and voids the real arm.
+    observation_collision:
+      observable: >-
+        L(v), and on the dual side the scalar bias.
+      distinct_preimage_search: >-
+        Collisions are abundant and must be exhibited, one on each side of the
+        conclusion: (a) two candidate errors with equal L but different Euclidean
+        norm -- e.g. for CBD_2, v = (2,0,0,0) has L = 4.000 + 3*1.415 = 8.245
+        bits and ||v||^2 = 4, while v' = (1,1,1,0) has L = 3*2.000 + 1.415 =
+        7.415 bits and ||v'||^2 = 3; the ORDERING agrees here; (b) a pair where
+        the orderings DISAGREE is what the mechanism needs to exist, and finding
+        one is a required pre-compute deliverable. If no disagreeing pair exists
+        at the relevant weights, the two metrics induce the same decision on every
+        candidate the decoder ever compares, F = 1 identically, and the primal
+        half is dead BEFORE any experiment. This search is exhaustive over small
+        weights and costs seconds.
+    constructive_transforms:
+      - transform: stronger_invariant
+        proposed_object: >-
+          Preserve the full per-coordinate likelihood profile rather than the
+          single scalar the goal requires, because the profile is what survives
+          the recursion through the nearest-plane levels.
+        predicted_gain: >-
+          F <= 2^{0.0969 sqrt(beta)} = 3.8 at beta = 400, i.e. at most 1.94 bits
+          of amplification budget. Stated as a CEILING, not a target.
+      - transform: representation_reduction
+        proposed_object: >-
+          Move the compression residue from "extra Gaussian noise of variance
+          (q/2^{d_u})^2/12" to "hard interval constraint of half-width
+          q/2^{d_u+1}", turning a penalty into a feasibility condition.
+        predicted_gain: >-
+          Unquantified before measurement; the constraint is a 2.19-sigma hard
+          bound on the ciphertext-side noise, so the discrepancy is larger there
+          than the 0.0969 bits computed for pure CBD_2, and the ceiling must be
+          recomputed for the convolved law inside the batch.
+    quantifier_order: >-
+      FOR ALL FIPS 203 parameter sets and FOR ALL dual vectors x, the exact bias
+      equals prod_j cos^{2 eta}(pi x_j / q) -- this is an identity with no
+      existential. The primal claim is weaker and its quantifiers matter: THERE
+      EXISTS a decoder using L such that FOR A RANDOM instance and a random basis,
+      success probability exceeds that of the Euclidean decoder by a factor F > 1.
+      The witness decoder is allowed to depend on the parameter set (through
+      eta, d_u) but NOT on the instance; a decoder tuned per instance would be
+      cheating and is excluded by the pre-registration.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        Dual side: a bias correction of exactly exp(-a^2/(2 eta d)) to leading
+        order, hence at most ~0.5 bits on T_sample at ML-KEM operating points, IN
+        THE DEFENSIVE DIRECTION. Primal side: F <= 2^{0.0969 sqrt(beta)}. Neither
+        can move an exponent and neither is claimed to. The method's absolute
+        ceiling is the total log-likelihood discrepancy between the true law and
+        the matched Gaussian, and that quantity is computed, not estimated.
+      nearby_object_control: >-
+        The nearby object on which the hoped-for conclusion FAILS is an
+        LWE instance with genuinely Gaussian noise of the same variance. There
+        F = 1 by construction. A pipeline that reports F > 1 on that arm has not
+        identified the load-bearing structure and is measuring its tie-breaking
+        rule.
+    proof_obligations:
+      - claim: E[e^{itX}] = cos^{2 eta}(t/2) for X ~ CBD_eta.
+        responsibility: correctness
+      - claim: bias ratio = exp(-a^2/(2 eta d)) + O(u^6) for isotropic x.
+        responsibility: size
+      - claim: N proportional to bias^{-2}, hence 0.31-0.47 bits.
+        responsibility: baseline
+      - claim: F <= 2^{0.0969 sqrt(beta)}.
+        responsibility: success_probability
+      - claim: flat-vector selection is unprofitable at every selection fraction.
+        responsibility: strictness
+      - claim: defensive direction on the dual side; no ML-KEM weakening claimed.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        exact_over_gaussian_bias_ratio at the ML-KEM-768 dual operating point
+        (a and d taken from the pinned estimator's own chosen (beta, d) for
+        matzov, not chosen by the producer)
+      direction: lower
+      minimum_effect: >-
+        Point prediction 0.84 to 0.90, from the closed form exp(-a^2/(2 eta d)),
+        with the exact product computed alongside it. Falsified if the exact
+        product lies outside [0.80, 0.95], or if it lies within 1% of 1.0 (in
+        which case the correction is nil at the real operating point and half (i)
+        is closed).
+    - metric: >-
+        implied_bit_shift_on_T_sample = -2 log2(bias ratio)
+      direction: higher
+      minimum_effect: >-
+        0.31 to 0.47 bits, DEFENSIVE (the attack is harder than the Gaussian model
+        says). Recorded with its sign in the same sentence as its magnitude,
+        because a correction that makes ML-KEM look stronger is exactly the kind
+        this program has a duty not to bury.
+    - metric: >-
+        F = P_success(exact-likelihood decoder) / P_success(Euclidean decoder) at
+        fixed beta, over >= 10^4 targets at scaled ML-KEM shapes
+      direction: higher
+      minimum_effect: >-
+        Predicted 1.3 <= F <= 3.8 on the key-recovery instance (CBD_eta1 noise)
+        and larger on the ciphertext instance (CBD_eta2 convolved with the
+        compression boxcar). Closed if F < 1.05. FLAGGED AS AN INSTRUMENT FAILURE,
+        not a discovery, if F > 8, since that exceeds the derived ceiling and
+        would indicate the two decoders are not being compared at matched effort.
+    - metric: >-
+        flat_vector_selection_figure_of_merit = f * exp(2 Delta(f)) for selection
+        fractions f in {2^-1, 2^-4, 2^-10, 2^-20}
+      direction: lower
+      minimum_effect: >-
+        Predicted < 1 at every f, i.e. selection is always unprofitable. Derived
+        before any run: the standard deviation of the quartic correction across a
+        database is m * 3.266 / sqrt(d) with m = a^2/(2 eta d); at a = 18.4,
+        eta = 2, d = 1000 that is 0.0846 * 0.1033 = 0.00874, so selecting the best
+        1/e fraction gains 2 Delta = 0.018 against ln(1/f) = 1, and at f = 2^-20
+        gains 2 Delta = 0.091 against ln(1/f) = 13.9. THIS IS A CLOSURE PREDICTION:
+        it says the obvious attack-side use of the object does not work, and it
+        would be falsified by any measured f with figure of merit > 1.
+
+  minimal_test:
+    design: >-
+      TWO ARMS, DELIBERATELY UNEQUAL IN COST. ARM 1 (dual, arithmetic only,
+      minutes, no lattice, no sieve): read ePrint 2026/1048 first; then evaluate
+      prod_j cos^{2 eta}(pi x_j / q) exactly against exp(-a) at the (beta, d, a)
+      the pinned lattice-estimator itself selects for matzov at ML-KEM-512/768/
+      1024, for both eta1 and eta2, with x drawn (i) isotropically and (ii) from
+      an actual short-vector distribution if one is available, since the isotropy
+      of x is a heuristic that RT-20260803-dc7568 already flagged. Compute the
+      selection figure of merit at the four fractions. Compute Ahat(2)/Ahat(1) to
+      confirm or refute the higher-mode closure. ARM 2 (primal, shares the harness
+      of IDEA-20260805-3d71ca): at n in {64, 128}, k = 2, q = 3329, real CBD
+      samplers and real d_u/d_v compression, run BOTH decoders against the SAME
+      frozen bases and the SAME targets and measure F. The exhaustive
+      ordering-disagreement search of the observation-collision audit is run FIRST
+      and can terminate arm 2 before any lattice work.
+    controls:
+      - >-
+        NULL-G (Gaussian arm; the calibration null). Replace CBD by a discretised
+        Gaussian of matched variance and remove compression. FORCED VALUE DERIVED
+        BEFORE THE RUN: F = 1 EXACTLY, because the two metrics are affinely
+        equivalent under a Gaussian law. This null has zero tolerance and can
+        certainly fail; a measured F != 1 here is an implementation defect and
+        the real arm may not be read.
+      - >-
+        NULL-U (uniform-noise arm). Replace CBD by uniform noise on [-eta, eta].
+        The exact likelihood is then FLAT inside the support and infinite outside,
+        so the exact-likelihood decoder degenerates to a pure feasibility test.
+        Derived expectation: F is LARGEST here, because the metric discrepancy is
+        largest. If F is not larger here than on the CBD arm, the statistic is not
+        tracking the metric discrepancy.
+      - >-
+        SENS-T (graded sensitivity, five points, monotonicity REPORTED not
+        assumed). Interpolate the noise law between CBD_eta (t = 0) and the
+        matched discretised Gaussian (t = 1) as a mixture at t in
+        {0, 0.25, 0.5, 0.75, 1}. THRESHOLDS DECLARED BEFORE THE RUN: F(1) = 1.00
+        +/- 0.02, F(0) >= 1.05, and F monotone non-increasing in t across all five
+        points. KN-TECH-1a5b7e's refinement is binding here: two endpoints
+        establish a range but not a direction, so all three interior points are
+        required and non-monotonicity must be reported beside the verdict rather
+        than suppressed.
+      - >-
+        COMP (comparator replication). Every generated ensemble drawn >= 8 times;
+        intervals reported, never single draws; leave-one-out false-positive rate
+        of any min/max rule derived before the run as exactly 2/n.
+      - >-
+        MATCHED-EFFORT. The two decoders must be given the same number of
+        candidate evaluations. An exact-likelihood decoder that simply enumerates
+        a larger list will beat a Euclidean decoder for reasons that have nothing
+        to do with the metric; the list size is fixed and reported.
+    required_metrics:
+      - exact and Gaussian bias, per parameter set, per eta, with the (beta, d, a) source named
+      - the derived closed form exp(-a^2/(2 eta d)) beside the exact product, and their ratio
+      - Ahat(m)/Ahat(1) for m = 2, 3
+      - figure of merit for flat-vector selection at four fractions
+      - F per arm with >= 8-draw intervals, and the ordering-disagreement census from the collision audit
+      - the recomputed ceiling 0.0969-analogue for the compression-convolved ciphertext law
+
+  falsification_conditions:
+    - >-
+      ePrint 2026/1048 (or any other source) already carries the exact product
+      form. Half (i) is then KNOWN, delta zero, and this proposal is superseded in
+      part; the honest action is to record it and keep only half (ii).
+    - >-
+      The exhaustive ordering-disagreement search finds no pair of candidate
+      errors on which the two metrics disagree at the weights the decoder actually
+      compares. The primal half is then dead at zero compute, which is the
+      cheapest possible outcome and a good one.
+    - >-
+      F < 1.05 on the CBD arm with NULL-G calibrating at 1.00. The primal half is
+      closed at the tested shapes.
+    - >-
+      SENS-T is non-monotone. No directional reading may be attached to F, and the
+      verdict must say so where it is reported.
+    - >-
+      The exact bias ratio lies within 1% of 1 at the real operating point. Half
+      (i) is closed; the archived 0.85/0.90 figures would then be artifacts of the
+      isotropic-x heuristic rather than properties of real short vectors, which is
+      itself worth recording.
+
+  confounders:
+    - >-
+      THE ISOTROPY HEURISTIC. The closed form exp(-a^2/(2 eta d)) assumes the dual
+      vector's direction is isotropic. Sieve output is not isotropic in the q-ary
+      basis: q-vectors and the modulus structure bias the coordinate distribution.
+      This is named in the source archive as a heuristic and it is the most likely
+      reason the arithmetic arm's number is wrong.
+    - >-
+      TIE-BREAKING. Two decoders differing only in tie-breaking can show F != 1 on
+      a lattice of integer scores. NULL-G exists to catch exactly this.
+    - >-
+      COST OF THE METRIC. The exact log-likelihood is a table lookup per
+      coordinate, so it is not slower than a squaring -- but a branch-and-bound
+      decoder using L may PRUNE differently and therefore visit a different number
+      of nodes. Matched effort must be enforced by node count, not wall clock.
+    - >-
+      DOUBLE-COUNTING WITH IDEA-20260805-3d71ca. Both proposals move the same
+      quantity (BDD success probability at fixed beta). If both survive, their
+      gains are NOT additive without an argument, and any combined figure must be
+      measured jointly rather than multiplied.
+
+  interpretation_limits:
+    - >-
+      Half (i) makes ML-KEM look STRONGER, not weaker. It is a correction to
+      published attack costs in the defensive direction and must never be quoted
+      as an improvement in cryptanalysis.
+    - >-
+      Half (ii) is bounded by a derived ceiling below 2 bits. Under
+      docs/target-result-profile.md rule A1 this is explicitly NOT a target-class
+      result and must not be presented as one. Its justification for existing is
+      that it is a required building block for IDEA-20260805-3d71ca -- it moves
+      the same p(beta) -- and that its ceiling is derivable before compute.
+    - >-
+      Nothing here bears on the dual-attack heuristic dispute of KN-OPEN-016. A
+      corrected per-vector bias does not repair, and does not further damage, the
+      independence assumptions Ducas-Pulles attack.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For dual vectors x produced by a sieve on the ML-KEM q-ary lattice at the
+        estimator's chosen (beta, d), the empirical distribution of the direction
+        x/||x|| is close enough to isotropic that E[sum_j (pi x_j/q)^4] =
+        3 (sum_j (pi x_j/q)^2)^2 / d holds to within 20%, uniformly over the
+        operating range a in [10, 30].
+      rigorous_support: >-
+        Rigorous ingredient: for a FIXED norm and a UNIFORMLY random direction in
+        R^d, E[sum u^4] = 3 (sum u^2)^2 / (d + 2), an exact moment identity for the
+        uniform measure on the sphere. Classical distribution statement it
+        imitates: that sieve output directions behave like uniform points on the
+        sphere -- the same Gaussian-heuristic-style assumption used throughout
+        lattice cost modelling, here applied to a FOURTH moment where it has never
+        been checked. RT-20260803-dc7568 flags the same assumption in its own
+        table.
+      validation_plan: >-
+        Compute sum u^4 / (sum u^2)^2 * d directly on real short-vector databases
+        where any are archived, at >= 3 dimensions, and compare against the
+        predicted 3. Compare the empirical CDF of that ratio against its
+        theoretical distribution under the uniform-direction model (a ratio of
+        quadratic forms whose law is computable by simulation), with a tail check
+        on the 100 most extreme vectors. WHERE NO REAL DATABASE IS AVAILABLE THE
+        CHECK IS SIMULATION-ONLY AND MUST BE LABELLED SIMULATION-ONLY, NOT
+        VALIDATION. All of this is toy-to-moderate scale and none of it is
+        crypto-scale validation of the fourth-moment behaviour of a real
+        beta = 620 sieve.
+    - id: H2
+      statement: >-
+        The number of dual vectors required scales as N proportional to
+        (bias)^{-2}, uniformly over the parameter range considered.
+      rigorous_support: >-
+        Follows from a signal-to-noise argument (signal N * bias, noise
+        sqrt(N/2)) under the assumption that scores of distinct vectors are
+        independent. THAT INDEPENDENCE IS EXACTLY WHAT KN-OPEN-016 RECORDS AS
+        CONTESTED, and it is named here rather than assumed silently. The bit
+        figures 0.31-0.47 inherit the dispute in full.
+      validation_plan: >-
+        No new validation is proposed; the dispute is out of scope. The mitigation
+        is presentational and binding: every bit figure derived from H2 is quoted
+        as "under the standard SNR accounting, which KN-OPEN-016 records as
+        contested", in the same sentence.
+    - id: H3
+      statement: >-
+        The per-coordinate log-likelihood discrepancy between CBD_eta and the
+        matched Gaussian has standard deviation 0.0969 bits for eta = 2, and the
+        discrepancies across the beta decision coordinates add as independent
+        draws, giving a total of 0.0969 sqrt(beta) bits.
+      rigorous_support: >-
+        The per-coordinate figure is an exact computation from the CBD_2 pmf
+        (1,4,6,4,1)/16 against the matched Gaussian, requiring no assumption. The
+        INDEPENDENT-ADDITION step is the heuristic: it imitates the central limit
+        behaviour of a sum of iid bounded terms, which is standard, but the
+        decision coordinates of a reduced basis are not iid in the error.
+      validation_plan: >-
+        Measure the empirical standard deviation of L(e) - ||e||^2/(2 sigma^2)
+        directly over >= 10^5 real CBD error vectors at the tested d, and compare
+        against 0.0969 sqrt(d). Report the ratio. If it exceeds 1.5 the ceiling
+        must be recomputed upward before any F is interpreted; if it falls below
+        0.7 the ceiling tightens and the primal half may already be closed.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT CHANGE, and this is stated first because the target profile
+      requires the distinction to be explicit. Dual side: T_sample multiplied by
+      1.24 to 1.38, i.e. +0.31 to +0.47 bits, DEFENSIVE. Primal side: success
+      probability at fixed beta multiplied by F <= 3.8, i.e. at most -1.94 bits of
+      amplification budget, offensive. Both are constant-factor effects in the
+      sense of docs/target-result-profile.md A1 and neither is a
+      logarithmic-cofactor improvement either -- they are sub-2-bit constants.
+    memory_exponent: >-
+      Unchanged. The exact-likelihood metric is a table of 2 eta + 1 entries per
+      coordinate law, i.e. O(1) memory, and the compression constraint is a pair
+      of bounds. No memory is traded for anything.
+    best_known: >-
+      Dual: MATZOV/GJ21-style costing under the Gaussian bias, as implemented in
+      the pinned lattice estimator. Primal: Euclidean nearest-plane / pruned
+      enumeration decoding. Both to be reproduced inside the batch under one named
+      cost model, per KN-TECH-040's standing warning that cross-model bit
+      comparisons are meaningless.
+    hidden_overhead: >-
+      The O(u^6) term dropped from the bias expansion. At a = 18.4, d = 500 the
+      sixth-order term is smaller than the fourth by a further factor of order
+      a/d, i.e. below 4%, so it is genuinely negligible HERE and would not be at
+      larger a/d. The batch computes the EXACT product anyway, so the expansion is
+      used only to explain the number, never to produce it.
+    tradeoff_note: >-
+      No time-memory tradeoff is introduced. The relevant tradeoff is different
+      and is disclosed: the exact metric is basis-dependent, so any gain is lost
+      in a decoder that works in a rotated basis, and that constrains where in a
+      pipeline the object can be used.
+
+  dominated_by: >-
+    Possibly ePrint 2026/1048 "Unified Dual Attack Analyses: Covariance-Based" on
+    half (i) -- UNRESOLVED, because the PDF returned HTTP 403 and was not read.
+    This is recorded as an unresolved dominance check rather than as null, because
+    an unchecked null is a fabrication under AGENTS.md rule 5. Rows checked and
+    found NOT to dominate: the corpus lattice entries KN-LIT-109, 110, 111, 123,
+    7617, 7663, 7665, 7667, 7661, KN-OPEN-016, KN-OPEN-026, KN-TECH-039/040; the
+    program's own EV-MLKEM-50901f OBS-4 and RT-20260803-dc7568, which OBSERVE the
+    effect numerically but supply no closed form, no primal-side application, and
+    no selection analysis; and the ledger's ML-KEM proposals. On half (ii) (the
+    primal decoding metric and the compression boxcar as a hard constraint) no
+    dominating source was found in the corpus or in the 2026-08-05 searches, which
+    is weaker than a checked frontier and is labelled as such.
+  sota_delta: >-
+    Half (i): +0.31 to +0.47 bits on the dual sample term at ML-KEM-512/768/1024
+    operating points, in the DEFENSIVE direction, under the SNR accounting that
+    KN-OPEN-016 records as contested; if 2026/1048 already carries it, delta = 0.
+    Half (ii): at most -1.94 bits of primal amplification budget, ceiling derived
+    rather than measured; measured value unknown and possibly 0. Exponent delta:
+    zero on both halves. Memory delta: zero. Data delta: zero.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: >-
+    Half (i): 0.85 that the exact/Gaussian bias ratio at the real operating point
+    lies in [0.80, 0.95] as predicted, because the closed form already reproduces
+    an independently archived measurement to within 1% with no free parameters --
+    but only 0.35 that the result is NEW, because ePrint 2026/1048's retrieved
+    summary points directly at the same factorisation and I could not read it.
+    Half (ii): 0.4 that F >= 1.3 survives against the Gaussian calibration null.
+    The ceiling is genuinely small, the collision audit may kill it before any
+    compute, and the honest reason to run it anyway is that it costs one extra
+    decoder in a harness that IDEA-20260805-3d71ca is building regardless. I would
+    not spend a batch on this proposal alone; I would spend forty minutes of one.

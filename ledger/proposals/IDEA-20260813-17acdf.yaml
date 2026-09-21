@@ -1,0 +1,470 @@
+idea:
+  id: IDEA-20260813-17acdf
+  added: '2026-08-13'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  title: >-
+    Dense-CBD boundary test for the ring-enhanced hybrid decoding attack:
+    replace sparse-weight enumeration by exact type-class lists and decide
+    whether the reported O(N) online reuse survives ML-KEM entropy
+  class: composition
+  claim: >-
+    Hou-Jiang ePrint 2026/366 reports an O(N) guessing/decoding acceleration
+    for Module/Ring-LWE with sparse secrets, but its primary abstract evaluates
+    sparse FHE parameter sets, not standardized ML-KEM. FIPS 203 instead uses
+    coefficient-wise CBD_eta secrets: for eta=2 the exact law is
+    (1,4,6,4,1)/16 on {-2,-1,0,1,2}, with zero probability 3/8 and entropy
+    about 2.031 bits per coefficient; for eta=3 the law is
+    (1,6,15,20,15,6,1)/64, with zero probability 5/16 and larger support.
+    This proposal composes the ring-enhanced online step with exact
+    constant-composition/type-class meet-in-the-middle lists rather than a
+    fixed sparse-weight guess. The falsifiable claim is that, at one FIPS 203
+    parameter set, the optimized composition lowers a matched, fully charged
+    hybrid-decoding cost by at least 2 bits beyond both the unstructured hybrid
+    baseline and the already-reported 2-3-bit coefficient-isometry reuse row,
+    without increasing the memory exponent. The cheapest expected outcome is
+    negative: if CBD type-class entropy and list construction consume the
+    maximum 8-bit N=256 ring reuse before reduction/decoding savings appear,
+    the sparse-to-CBD transfer is non-material. No claim from the sparse FHE
+    setting is transferred to ML-KEM without this gate.
+  mechanism: >-
+    A conventional hybrid attack guesses part of the secret, reuses one reduced
+    lattice for the remainder, and verifies candidates. The reported ring
+    attack accelerates the online guessing/decoding steps through multiplication
+    in R_q=Z_q[X]/(X^256+1). A fixed-weight ternary list does not represent an
+    ML-KEM CBD secret. The proposed bridge partitions a guessed coefficient
+    block by its exact empirical type (counts of -eta,...,eta), builds balanced
+    meet-in-the-middle lists weighted by the exact multinomial probability, and
+    applies the ring-online transform within each type. Rare types are ordered
+    by probability mass and every omitted type contributes explicit failure
+    probability. The tracked object is therefore (CBD type, ring orbit of the
+    partial guess, residual decoding target). It is a lossy projection: many
+    secret blocks share a type and an orbit key, while discarded coefficient
+    ordering is recovered only through enumerated witnesses. The mechanism
+    survives only if orbit reuse removes more work than type partitioning,
+    list memory, hash labels, residual decoding, and retries add.
+  object_studied: >-
+    Exact CBD partial-secret type classes feeding a ring-enhanced hybrid online
+    step; not secret leakage, ciphertext selection, failures, or public weak keys.
+  depth_of_verified_structure: >-
+    The CBD probabilities are derivable from FIPS 203 sampling. All attack
+    transfer, complexity, and bit-delta claims are unverified proposal content;
+    the 2026/366 results are reported primary-source claims, not reproduced facts.
+  why_not_a_renamed_known_approach: >-
+    KN-LIT-7667/KN-TECH-082 and ePrint 2026/366 own the ring-enhanced hybrid
+    attack in the sparse-secret setting. This proposal does not claim that
+    algorithm as new; its precise delta is an exact CBD type-class interface
+    and a preregistered transfer-kill test for ML-KEM. IDEA-20260722-001 and
+    IDEA-20260805-690de8 concern dual-score isometry-orbit batching and its
+    operation-DAG ceiling, not guessing/decoding with exact secret types.
+    IDEA-20260805-574cd0 audits the general 2^17 algebraic-reuse ceiling and
+    names map classes; the present proposal accepts that ceiling and asks
+    whether one published online hybrid transform retains at least 2 fully
+    charged bits after the CBD entropy is inserted. KN-LIT-7663's reported
+    2-3-bit ML-KEM row amortizes preprocessing across coefficient isometries;
+    this candidate must beat it because it acts on the online phase.
+  assumptions:
+    - >-
+      Core Module-LWE key recovery only, from one valid FIPS 203 encapsulation
+      key. No side information, failure oracle, chosen ciphertext, leakage,
+      fault, malformed key, or implementation target is available.
+    - >-
+      The full 2026/366 algorithm and corrected estimator implementation must be
+      acquired and reproduced before any ML-KEM adaptation; abstract-level
+      descriptions are insufficient for a cost claim.
+    - >-
+      All guessed-type probability mass, list construction, hashing, ring
+      operations, preprocessing, reduction, decoding, memory, verification,
+      and retry probability are included in the same cost model.
+  proof_search_map:
+    bottleneck: >-
+      Determine whether the sparse-secret assumption is load-bearing for the
+      O(N) ring online reuse, and whether exact CBD type classes yield a strict
+      cost improvement rather than merely re-expressing exhaustive guessing.
+    baseline_embedding:
+      parameter_slice: >-
+        First reproduce a parameter slice from the authors' sparse-secret
+        benchmark or estimator with the corrected implementation they cite.
+        Setting ring reuse factor to one must reproduce the prior unstructured
+        hybrid; setting the secret law to the cited sparse ternary law must
+        reproduce the ring-enhanced sparse row.
+      reproduction_check: >-
+        Freeze paper version, code commit, estimator commit, cost convention,
+        secret distribution, guessed dimension, list sizes, beta, decoding
+        success, memory, and final bit cost. Reject the proposal as
+        underspecified if either baseline cannot be reproduced.
+    observation_collision:
+      observable: >-
+        CBD type counts plus the ring-orbit/hash key used to join partial lists.
+      distinct_preimage_search: >-
+        Exhaustively find distinct partial secrets with the same type and orbit
+        key but different residual syndromes or verification outcomes. Count
+        the fibre size and include every witness in list/verification cost; a
+        collision that the algorithm silently merges falsifies soundness.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          Exact multinomial CBD type classes ordered by probability, with
+          disjoint class masses and balanced partial-secret lists.
+        predicted_gain: >-
+          Remove worst-case value enumeration while preserving a measurable
+          success probability and preventing probability double-counting.
+      - transform: boundary_lift
+        proposed_object: >-
+          Lift the reproduced sparse-weight ring hybrid through a distribution
+          ladder ending at exact CBD_eta, with all intermediate laws frozen.
+        predicted_gain: >-
+          Identify a nonzero entropy/zero-density interval where ring-online
+          reuse retains >=2 fully charged bits beyond all baselines.
+    quantifier_order: >-
+      For each standardized eta,k, there exists an optimized guessed block g,
+      accepted type set T, and frozen ring-hybrid decoder such that, over every
+      honestly generated CBD secret drawn from that set's declared mass, total
+      expected recovery cost (per-attempt cost divided by accepted mass and
+      decoder success) improves by >=2 bits. Parameters may depend on eta,k but
+      not on the sampled hidden secret outside enumerated guesses.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A model-relative constant-bit improvement for standardized CBD secrets;
+        the ring factor N=256 caps the raw online reuse at 8 bits before costs,
+        and no exponent improvement can follow from this composition.
+      nearby_object_control: >-
+        An unstructured LWE instance with identical dimension, modulus, exact
+        CBD type distribution, guessed dimension, list engine, and lattice
+        baseline, but ring multiplication replaced by random signed
+        permutations. Equal cost means the ring operation is not load-bearing.
+    proof_obligations:
+      - claim: Exact CBD type probabilities and entropy follow from the normative sampler.
+        responsibility: baseline
+      - claim: Sparse-paper baseline and unstructured hybrid baseline reproduce under frozen code and costs.
+        responsibility: feasibility
+      - claim: Type classes are disjoint, their accepted probability mass is exact, and list joins are sound.
+        responsibility: correctness
+      - claim: Collision fibres and all verification witnesses are charged.
+        responsibility: interface
+      - claim: The raw ring-online gain is at most log2(256)=8 bits before overhead under the proposed reuse mechanism.
+        responsibility: size
+      - claim: End-to-end cost equals preprocessing plus reduction plus online/list/verification work times inverse total success.
+        responsibility: runtime
+      - claim: A >=2-bit strict delta remains beyond both unstructured hybrid and coefficient-isometry ML-KEM rows.
+        responsibility: strictness
+      - claim: No sparse-FHE conclusion is transferred outside the tested CBD laws and standardized dimensions.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: baseline_sparse_row_reproduction_error_bits
+      direction: lower
+      minimum_effect: >-
+        At most 0.25 bit against the authors' corrected reported row or an
+        explicitly explained convention difference. Larger unexplained error
+        stops the adaptation.
+    - metric: accepted_CBD_type_mass
+      direction: different
+      minimum_effect: >-
+        Exact multinomial sum matching exhaustive enumeration at toy g to
+        machine precision, with no overlapping classes or missing mass.
+    - metric: ring_online_speedup_after_type_cost
+      direction: higher
+      minimum_effect: >-
+        At least 4x versus the same type-class hybrid with ring reuse disabled
+        at two adjacent scaled dimensions; below 4x is non-material before BKZ.
+    - metric: fully_charged_delta_beyond_best_baseline_bits
+      direction: lower
+      minimum_effect: >-
+        At least 2.0 bits at one ML-KEM set beyond both unstructured hybrid and
+        the reported coefficient-isometry row under one matched model.
+    - metric: speedup_over_distribution_ladder
+      direction: lower
+      minimum_effect: >-
+        Monotone decay as entropy/expected nonzero fraction rises from the
+        reproduced sparse law through three interior mixtures to CBD_eta. A
+        flat signal is an instrumentation or accounting artifact.
+  minimal_test:
+    design: >-
+      Gate 0 reads and reproduces the full primary paper/code; no adaptation is
+      attempted from the abstract. Gate 1 derives exact CBD type probabilities
+      and exhausts toy guessed blocks, including collision fibres and accepted
+      mass. Gate 2 runs the identical list/decoder on a five-point distribution
+      ladder from the reproduced sparse law to CBD_eta, with ring-enabled,
+      ring-disabled, and unstructured-null arms. Gate 3 performs only a frozen
+      estimator optimization, not standardized key recovery, if the final two
+      scaled cells retain >=4x online speedup. Stop if the sparse baseline does
+      not reproduce, any join is unsound, or the gain fails to decay. This
+      proposal authorizes no run.
+    controls:
+      - >-
+        Ring-disabled baseline: same CBD types, lists, hashes, lattice and
+        decoder with reuse factor forced to one.
+      - >-
+        Unstructured same-shape null: random LWE matrix and random signed
+        permutation actions, matched on every non-ring cost axis.
+      - >-
+        Sparse positive control: exact secret law and parameters from a
+        reproduced 2026/366 row; it must recover the declared ring speedup
+        within the frozen tolerance before ML-KEM is read.
+      - >-
+        Five-point entropy/zero-density ladder including at least three interior
+        laws between sparse ternary and exact CBD_eta; all points and mass
+        formulas are preregistered.
+      - >-
+        Random-orbit-label null: permute list orbit keys while preserving type
+        counts and hash loads. Any surviving speedup is hash/list imbalance.
+      - >-
+        Matched conventional coefficient-isometry row from KN-LIT-7663 if the
+        full primary source and model are available; otherwise record dominance
+        unresolved and forbid the >=2-bit SOTA statement.
+    required_metrics:
+      - paper/code/estimator versions and sparse baseline reproduction table
+      - exact CBD coefficient law, entropy, zero fraction, type count, and accepted mass
+      - list sizes, collision-fibre sizes, hash labels, ring operations, and false joins
+      - reduction beta/calls, decoding success, verification candidates, and retries
+      - peak memory and time by preprocessing, reduction, online, list, verification stages
+      - ring-enabled versus disabled versus unstructured ratios over the full ladder
+      - fully charged matched delta against unstructured hybrid and coefficient-isometry rows
+  falsification_conditions:
+    - >-
+      The full sparse-secret primary baseline cannot be reproduced within
+      0.25 bit or lacks enough specification to reproduce; no ML-KEM cost may
+      be reported from the abstract alone.
+    - >-
+      A type/orbit collision merges distinct residual syndromes or loses the
+      true secret, making the list interface unsound.
+    - >-
+      CBD_eta ring-enabled online work improves by less than 4x over
+      ring-disabled at two adjacent scaled dimensions.
+    - >-
+      The five-point ladder does not decay with increasing entropy/zero-density
+      loss, or the random-orbit null preserves the signal.
+    - >-
+      Fully charged improvement is under 2 bits, memory exponent rises, or the
+      coefficient-isometry row remains strictly better on all axes.
+  confounders:
+    - Importing the sparse FHE speedup into CBD without paying secret entropy.
+    - Counting rotated guesses as independent probability mass when their orbits overlap.
+    - Comparing different estimator commits or reduction-cost conventions.
+    - Omitting failed type classes, collision witnesses, or inverse accepted mass.
+    - Crediting a ring speedup that actually comes from a better MITM/hash implementation.
+    - Using sparse benchmark instances whose reduction profile is easier for unrelated reasons.
+    - Ignoring memory routing and treating a list-size reduction as free time.
+    - Applying a contested dual success heuristic inside a hybrid without checking its regime.
+  interpretation_limits:
+    - >-
+      The proposal concerns one core Module-LWE key-recovery construction. It
+      uses no implementation leakage, CCA/failure oracle, side channel, fault,
+      malformed input, ciphertext multiplicity, or deployed target.
+    - >-
+      ePrint 2026/366 is a primary preprint whose abstract was read; its full
+      derivation and corrected code were not accessible in this ideation task.
+      Its figures are reported, not verified or inherited as facts.
+    - >-
+      A toy or estimator result is hypothesis-generating and model-relative.
+      It does not alter any FIPS 203 parameter, NIST category, deployment
+      guidance, hypothesis status, or knowledge authority.
+    - >-
+      Even a surviving 2-bit delta is bounded by an 8-bit raw ring factor and
+      changes no asymptotic exponent. Sparse FHE results remain out of scope.
+  heuristic_assumptions:
+    - id: H1-type-class-cost-model
+      statement: >-
+        Exact multinomial type mass and observed list collision rates determine
+        the dominant guessing/retry cost of the CBD-adapted hybrid up to a
+        subexponential factor over the declared guessed-dimension range.
+      formal_statement: >-
+        For every tested g in the frozen ladder, predicted log2 online cost from
+        type mass, list sizes and collision fibres differs from measured log2
+        online cost by at most 1 bit, uniformly over the three standardized CBD
+        laws/parameter mappings tested.
+      rigorous_support: >-
+        Multinomial counts and CBD probabilities are exact. Hash/list constant
+        factors and residual decoder interaction have no rigorous distribution
+        theorem here and remain heuristic.
+      validation_plan: >-
+        Exhaust all partial secrets at the smallest g, then use at least five g
+        values and eight seeds per cell; compare full cost distributions, tail
+        collisions and extreme type classes with exact predictions.
+      falsification_condition: >-
+        Error exceeds 1 bit at two adjacent g values, a systematic tail class is
+        missed, or measured collision fibres exceed the declared bound.
+    - id: H2-ring-reuse-transfer
+      statement: >-
+        The ratio of ring-enabled to ring-disabled online work measured on the
+        distribution ladder predicts the ratio at the optimized FIPS-shaped
+        residual dimension without a hidden sparse-only prerequisite.
+      formal_statement: >-
+        On the last two scaled dimensions, the log2 speedup remains at least 2
+        bits for exact CBD_eta, does not increase when orbit labels are random,
+        and follows the preregistered monotone entropy ladder; extrapolation to
+        standardized dimension is explicitly conditional.
+      rigorous_support: >-
+        Ring multiplication and orbit identities are exact, and the raw reuse
+        count is at most N=256. Their interaction with list and decoding cost at
+        standardized dimensions is not a theorem.
+      validation_plan: >-
+        Reproduce the sparse control, run ring-enabled/disabled/unstructured
+        arms at all ladder points and dimensions, compare ratios and tails, and
+        include a nearby dense law with matched entropy but permuted values.
+      falsification_condition: >-
+        Speedup below 2 bits at the terminal scaled pair, no decay across the
+        ladder, or equal speedup for the random-orbit/unstructured null.
+    - id: H3-hybrid-reduction-model
+      statement: >-
+        The frozen lattice estimator predicts relative residual-decoding costs
+        for the CBD-adapted and baseline hybrids within the precision needed to
+        distinguish a 2-bit total delta.
+      formal_statement: >-
+        Predicted and observed treatment-minus-baseline log2 cost have the same
+        sign and differ by at most 25 percent on every executable scaled cell.
+      rigorous_support: >-
+        The residual lattice construction is exact; BKZ shape, SVP cost, and
+        decoder success are heuristic, as documented by the primal/dual corpus.
+      validation_plan: >-
+        Reproduce r=0/sparse baselines, execute a dimension ladder under one
+        estimator commit, and compare ratios at both enumeration and sieve
+        endpoints with memory charged.
+      falsification_condition: >-
+        Sign mismatch, over-25-percent ratio error twice, baseline failure, or
+        placement in a known contradictory dual-heuristic regime.
+  target_complexity:
+    time_exponent: >-
+      Unchanged from the best hybrid LWE attack. Raw ring online reuse is capped
+      by N=256, hence at most 8 bits before overhead for FIPS 203 n=256.
+    memory_exponent: >-
+      Must not increase; type/MITM lists are fully charged and an increased
+      exponent makes the composition dominated.
+    best_known: >-
+      Best matched unstructured primal/hybrid row plus the primary-source
+      coefficient-isometry ML-KEM row if reproducible; exact baselines are
+      prerequisites and are not asserted in this proposal.
+    hidden_overhead: >-
+      Type enumeration, accepted-mass loss, ring orbit canonicalization, MITM
+      list/hash work, collisions, basis reduction, decoding, verification,
+      memory routing, restarts, and estimator optimization.
+    tradeoff_note: >-
+      Report list memory versus online time, enumeration versus sieve reduction
+      endpoints, and parallel shards with duplicated state. The raw 8-bit factor
+      is not a fully charged gain.
+  cost_boundary:
+    oracle_model: passive one-key core Module-LWE key recovery
+    samples_or_queries: one valid ML-KEM encapsulation key; zero ciphertext or decapsulation queries
+    preprocessing: >-
+      A expansion, lattice construction, type tables, probability ordering,
+      orbit canonicalization, MITM/hash preparation, and any reusable basis work.
+    memory: >-
+      Reduced bases/sieve state, both MITM lists, type metadata, hash labels,
+      orbit witnesses, decoder queues, and verification buffers; include routing.
+    reduction_and_decoding: >-
+      Every BKZ/SVP call, guessed dimension optimization, residual decode, failed
+      type class, collision expansion, restart, and negative candidate.
+    verification: >-
+      Reconstruct the complete s and e relation t=A*s+e, check coefficient laws,
+      and pay every candidate; no free distinguisher-to-key-recovery conversion.
+    success_and_retry: >-
+      Expected total is preprocessing plus per-attempt work divided by accepted
+      CBD type mass, join success, and decoder success, with dependencies stated.
+    standardized_sets:
+      - ML-KEM-512
+      - ML-KEM-768
+      - ML-KEM-1024
+    optimistic_assumptions:
+      - Sparse ring-online identities extend to exact CBD type lists.
+      - Type/hash overhead remains subdominant.
+      - Relative BKZ/decoder projections transfer from scaled cells.
+    scope: >-
+      Exact standardized CBD laws only; sparse FHE, failures, leakage,
+      multi-key/ciphertext effects, and deployments are excluded.
+  estimated_cost:
+    implementation: high
+    compute: medium
+    note: >-
+      The cheapest gates are paper/code reproduction and exact toy type-list
+      enumeration. Any standardized reduction is outside this proposal and not
+      authorized.
+  dominated_by: >-
+    Currently unresolved rather than null. The sparse-secret mechanism is
+    dominated/owned by ePrint 2026/366 and KN-LIT-7667; coefficient-isometry
+    preprocessing reuse is owned by KN-LIT-7663 and audited by
+    IDEA-20260722-001/IDEA-20260805-690de8; the 2^17 algebraic ceiling is owned
+    by IDEA-20260805-574cd0. The proposed CBD transfer occupies a new interface
+    only if it reproduces the primary sparse row and beats the best
+    unstructured and coefficient-isometry ML-KEM rows by >=2 fully charged
+    bits with no memory-exponent increase. Otherwise those rows dominate it.
+  sota_delta: >-
+    No present attack delta. Raw theoretical ceiling is -8 bits from N=256
+    before all overhead, with exponent delta 0. Survival threshold is at least
+    -2.0 fully charged bits beyond both matched baselines and unchanged memory
+    exponent; otherwise delta is 0 and the sparse-to-CBD transfer is non-material.
+  recommended_priority: medium
+  novelty_status: unverified
+  novelty_screen:
+    local_kb_status: zero manifests and zero indexed points; direct committed-corpus screen used
+    screened_proposals:
+      - IDEA-20260722-001
+      - IDEA-20260805-0e65c3
+      - IDEA-20260805-1d76e9
+      - IDEA-20260805-2b94fe
+      - IDEA-20260805-3d71ca
+      - IDEA-20260805-530869
+      - IDEA-20260805-574cd0
+      - IDEA-20260805-690de8
+      - IDEA-20260805-866eca
+      - IDEA-20260805-cd6e1e
+      - IDEA-20260805-cdc87d
+      - IDEA-20260805-e805b6
+      - IDEA-20260806-7c1ae4
+      - IDEA-20260807-05e12c
+      - IDEA-20260807-1f5f89
+      - IDEA-20260807-331ae5
+      - IDEA-20260807-abacec
+      - IDEA-20260808-4854f8
+      - IDEA-20260808-90632c
+    adjacent_corpus:
+      - KN-LIT-7663
+      - KN-LIT-7666
+      - KN-LIT-7667
+      - KN-TECH-082
+      - KN-TECH-038
+      - KN-TECH-039
+      - KN-OPEN-026
+      - GOAL-MLKEM-005 inherited 2^17 algebraic-reuse ceiling
+    nearest_neighbors:
+      - id: KN-LIT-7667
+        precise_delta: Exact standardized CBD type classes and a transfer-kill gate replace the source's sparse-secret FHE setting.
+      - id: IDEA-20260805-690de8
+        precise_delta: Guessing/decoding online reuse replaces dual-score evaluation DAG reuse.
+      - id: IDEA-20260805-574cd0
+        precise_delta: A specific published transform is tested beneath the accepted algebraic ceiling rather than reopening the ceiling.
+      - id: IDEA-20260722-001
+        precise_delta: Exact partial-secret type/MITM lists replace covariance-weighted dual orbit scores.
+    external_screen: >-
+      Primary sources read: FIPS 203 Algorithm 8, Algorithm 13, and Table 2;
+      Hou-Jiang, Careful with the Ring (ePrint 2026/366) primary abstract and
+      revision note; Guo-Johansson, Faster Dual Lattice Attacks for Solving LWE
+      with Applications to CRYSTALS (ASIACRYPT 2021) primary paper; the
+      lattice-estimator authors' repository. The 2026/366 full PDF was blocked,
+      so this proposal explicitly gates on full-paper/code reproduction and
+      keeps novelty unverified.
+  source_refs:
+    - https://doi.org/10.6028/NIST.FIPS.203
+    - https://eprint.iacr.org/2026/366
+    - https://www.iacr.org/archive/asiacrypt2021/130900114/130900114.pdf
+    - https://github.com/malb/lattice-estimator
+    - knowledge/literature/KN-LIT-7663.md
+    - knowledge/literature/KN-LIT-7666.md
+    - knowledge/literature/KN-LIT-7667.md
+    - knowledge/techniques/KN-TECH-082.md
+    - ledger/proposals/IDEA-20260805-574cd0.yaml
+    - ledger/proposals/IDEA-20260805-690de8.yaml
+  enumerated_closures:
+    - >-
+      Failure to reproduce the sparse primary row closes adaptation from the
+      abstract; it is an evidence/specification stop, not evidence against the
+      mathematical mechanism.
+    - >-
+      Reproduced sparse gain plus <2-bit CBD gain identifies secret sparsity as
+      the load-bearing boundary and closes only this CBD composition.
+  open_directions:
+    - Non-type-class interfaces if coefficient order, not counts, carries the sparse gain.
+    - Exact proofs of the 8-bit online ceiling under orbit overlap.
+    - Other standardized small-secret laws, kept separate from ML-KEM.

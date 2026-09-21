@@ -1,0 +1,265 @@
+idea:
+  id: IDEA-20260816-67a1b4
+  question_id: RQ-ALECF-001
+  added: '2026-08-16'
+  title: The counted gate categories do not sum to the reported op stream in any committed ALECF log
+    row, leaving between seven and thirty-one percent of operations in no bucket; make partition completeness
+    a reported metric, measure the residual on the committed logs, and validate the metric where completeness
+    is guaranteed by construction.
+  class: measurement
+  claim: '(A) A resource count computed from categories that do not cover the operation stream carries
+    a residual whose size and composition are unknown, and this repository holds a worked instance.
+    In the shared seven-row prefix of all three committed ALECF logs, a row records toffoli 3942753.000,
+    clifford 22627118.169 and ops 28677221; the first two sum to 26569871.169, leaving 2107349.831
+    operations, that is 7.35 percent, in neither category. In the final row of EXP-ALECF-001''s log,
+    toffoli 1316080.523 plus clifford 5530669.476 equals 6846749.999 against ops 9759245, a residual
+    of 2912495.001, that is 29.84 percent. In the final row of EXP-ALECF-003''s log the residual is
+    3164721.927 of 10122449, that is 31.26 percent. (B) The claim is that this residual should be
+    a reported metric of any circuit-counting instrument, defined as one minus the sum of counted
+    category counts divided by the total operation count, and that its value carries information:
+    a residual that is stable across rows suggests a fixed uncounted category, while a residual that
+    jumps from 7 percent to 30 percent between rows suggests the categories or the op definition changed.
+    (C) The claim is that the metric''s validity is testable where completeness is guaranteed by construction:
+    in an interpreter built here, every emitted operation belongs to a declared category by construction,
+    so the residual must be exactly zero, and any nonzero value is an instrument bug rather than a
+    finding. (D) The claim is that the residual''s composition is partly reconstructable by re-implementing
+    plausible category definitions and checking which definition drives the residual to zero on the
+    committed rows, reported as a set of consistent definitions rather than as an identification.
+    (E) WHAT IS NOT CLAIMED: no claim that the original counting was wrong, no claim to know what
+    the uncounted operations are, no claim that the committed scores are affected (the score uses
+    Toffoli and width only, and reproduces exactly), no claim about the circuits, and no attack, speedup
+    or security consequence. The residual is a property of the reported categories, and an uncounted
+    category may be entirely intentional.'
+  mechanism: 'STAGE 1: define the metric. Residual fraction R equals 1 minus (sum of reported category
+    counts) divided by (reported total operation count), computed in exact rational arithmetic from
+    the committed columns, per row, per package. STAGE 2: measure on committed data. Compute R for
+    every row of all three logs, and report its distribution, its stability within a package, and
+    where it jumps. STAGE 3: validate the instrument. In the classical interpreter, every emitted
+    operation carries a category tag by construction, so R must be exactly zero; run circuits of several
+    kinds through it and confirm. Then deliberately drop a category from the report and confirm R
+    equals that category''s exact share, which calibrates the metric. STAGE 4: reconstruct candidate
+    definitions. Enumerate plausible readings under which the committed columns would be complete,
+    for instance ops counting a decomposed gate stream while toffoli and clifford count logical gates,
+    or ops including measurement and allocation events; for each, compute the implied ratio and test
+    it against every committed row. Report the set of readings consistent with all rows, and if the
+    set is empty, report that. STAGE 5: run the null arm, synthetic logs with a known uncounted category,
+    and confirm the reconstruction procedure identifies it and does not identify one where none exists.
+    STAGE 6: report R per row, the consistent-reading set, and the instrument validation.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read all three committed results.tsv files in full, including row counts (8, 114 and 8
+      data rows) and column headers, and computed the residual for representative rows in exact arithmetic.
+      Read the committed README's description of what is counted. Confirmed RQ-ALECF-001 carries zero
+      proposals. Read the ten RQ-QRE-6dba8c proposal titles and claim openings. Grepped ledger/proposals/
+      for 'residual', 'completeness', 'partition', 'accounting gap' and 'uncounted'.
+    results: No proposal in ledger/proposals/ was found concerning partition completeness of a gate-count
+      report, and none references the ALECF logs. IDEA-20260809-63fc4a (auditable pipeline failing
+      on unsourced constants) is adjacent in spirit but concerns constants rather than category coverage,
+      and its gate is on provenance rather than on arithmetic completeness. IDEA-20260809-593de3 counts
+      the modular-arithmetic layer and validates by classical simulation, which shares the instrument-validation
+      move but produces counts rather than a completeness metric. The accounting-lattice contract
+      elsewhere in this batch measures score dependence on conventions given whatever categories exist,
+      which presupposes the categories; this contract asks whether they cover the stream, and the
+      two are named in each other's discriminated_from.
+    verdict: 'UNVERIFIED. Nothing is asserted about published practice in resource reporting, which
+      cannot be consulted from this environment. What is claimed new is the specific metric and its
+      application: the residual fraction as a required output of a counting instrument, measured on
+      this repository''s committed logs where it takes values from 7.35 to 31.26 percent, validated
+      against an interpreter where completeness holds by construction, with a reconstruction step
+      that reports a set of consistent readings rather than an identification. Assembled from known
+      parts: arithmetic consistency checking, category partitions, and synthetic-log validation.'
+  object_first_candidate:
+    tracked_object: 'The operation multiset of a circuit execution together with its declared partition
+      into reported categories: the pair (total op count, vector of category counts). The object is
+      followed across log rows and across packages, and the tracked quantity is the mass left uncovered
+      by the partition.'
+    lossiness: 'The projection from an execution to (total, category counts) discards the operations
+      themselves, their order, their operands and their targets, retaining a total and a few sums.
+      That is compatible with the operation of interest, which is ''report the resource usage'', because
+      reporting consumes exactly sums. The retained part propagates deterministically in the sense
+      that matters: the residual is additive over any decomposition of the execution, so an uncounted
+      category contributes its full share to the residual of every row in which it appears, which
+      is why residual STABILITY across rows is diagnostic and why a jump between rows is evidence
+      that something other than a fixed uncounted category changed. What is discarded, the identity
+      of the uncounted operations, is exactly what cannot be recovered from the committed data, which
+      is why the deliverable is a set of consistent readings rather than an answer.'
+    propagation: 'One step of the target operation is adding a category to the report. Acting on the
+      tracked object, it reduces the residual by exactly that category''s share and leaves the total
+      unchanged, so the residual is monotone decreasing under category addition and reaches zero exactly
+      when the partition covers the stream. A second step is redefining what counts as one operation,
+      for instance decomposing a Toffoli; this multiplies the total while leaving the logical category
+      counts unchanged, so it raises the residual multiplicatively rather than additively. Those two
+      propagation modes have different signatures, additive versus multiplicative, and distinguishing
+      them on the committed rows is what the reconstruction stage does: a residual jump from 7.35
+      to about 30 percent between rows is much more consistent with a redefinition than with a newly
+      appearing category.'
+    survival_score: The residual survives as a well-defined quantity wherever a total and category
+      counts are both reported, and dissolves the moment the total is not reported, which is the common
+      case in resource tables that give only category counts. The concrete survival statement for
+      this repository is that the residual is computable on all 130 committed data rows across the
+      three logs because every row carries an ops column, and it is not computable for any resource
+      figure that omits a total. That is a sharp boundary and it is the argument for making the total
+      a required column rather than an optional one.
+  null_object_control: 'The null object is a synthetic log generated from a circuit whose category
+    partition is complete by construction, so its true residual is exactly zero, plus a second synthetic
+    family in which one category of known share is deliberately omitted from the report. The identical
+    residual computation and reconstruction procedure runs on both in the same invocation as the committed-data
+    measurement. For the signal arm to mean anything the null must show: exactly zero residual on
+    the complete family, and a residual equal to the omitted category''s exact share on the incomplete
+    family, with the reconstruction procedure identifying the omitted category and, on the complete
+    family, identifying none. A reconstruction procedure that finds an explanation for a zero residual
+    is fitting noise, and every reading it offers for the committed rows would then be uninterpretable.'
+  discriminated_from:
+  - 'IDEA-20260809-63fc4a (build fails on an unsourced constant): a provenance gate on constants;
+    this is an arithmetic completeness metric on category coverage, and a fully sourced report can
+    still have a 30 percent residual.'
+  - 'IDEA-20260809-593de3 (count the modular-arithmetic layer, validate by classical simulation):
+    produces counts; this measures whether counts cover the stream and treats the simulator as the
+    place where completeness can be guaranteed rather than measured.'
+  - 'The accounting-lattice contract elsewhere in this batch: takes the categories as given and measures
+    the score''s dependence on how they are weighted and rounded; this asks whether the categories
+    cover the operations at all, which is logically prior.'
+  - 'The provenance-attribution contract elsewhere in this batch: attributes a score DELTA between
+    packages to circuit or benchmark causes; this measures an internal arithmetic property of single
+    rows and would apply equally to a single package in isolation.'
+  assumptions:
+  - The ops column of the committed logs is intended as a total operation count covering the toffoli
+    and clifford columns; if it counts something else entirely, the residual is not a residual and
+    the reconstruction stage is precisely what tests that reading.
+  - Fractional counts in the committed columns reflect shot-averaging rather than a different unit,
+    which the presence of values like 22627118.169 and 1316080.523 supports but does not prove.
+  - An interpreter built here can guarantee partition completeness by construction, which is true
+    if every emit path assigns a category and is checked by the instrument validation stage rather
+    than assumed.
+  - The three committed logs' columns have consistent meaning across rows within a package; a mid-log
+    redefinition is one of the readings the reconstruction stage must consider rather than exclude.
+  predictions:
+  - metric: residual fraction on the shared seven-row prefix rows of all three committed logs
+    direction: different
+    minimum_effect: 0.0734
+  - metric: residual fraction on the final row of EXP-ALECF-001 and of EXP-ALECF-003
+    direction: higher
+    minimum_effect: 0.29
+  - metric: residual fraction measured by the interpreter on circuits with a complete partition by
+      construction
+    direction: lower
+    minimum_effect: 0.0
+  - metric: number of candidate readings consistent with every committed row
+    direction: lower
+    minimum_effect: 3
+  - metric: reconstruction procedure's false-positive rate on complete synthetic logs
+    direction: lower
+    minimum_effect: 0.05
+  minimal_test:
+    design: 'This is almost entirely arithmetic on committed bytes. Parse all 130 data rows across
+      the three logs, compute the residual per row in exact rational arithmetic, and report its distribution
+      and the exact rows where it jumps. Then run the interpreter on five circuit kinds and confirm
+      the residual is exactly zero, and on the same five with one category deliberately omitted, confirming
+      the residual equals that category''s exact share. Then enumerate a small set of candidate readings,
+      at minimum: ops counts a decomposed stream while toffoli and clifford count logical gates; ops
+      includes allocation and free events; ops includes measurements; toffoli and clifford are per-shot
+      averages while ops is a total. For each reading compute the implied relation and test it against
+      every committed row, keeping only readings consistent with all of them. Finally run the reconstruction
+      on synthetic complete and incomplete logs to measure its false-positive rate. The discriminating
+      outputs are the residual distribution, the consistent-reading set size, and the false-positive
+      rate. Compute is seconds; the care is in enumerating readings honestly and reporting an empty
+      set if that is the answer.'
+    controls:
+    - Interpreter-generated logs with a partition complete by construction, on which the residual
+      must be exactly zero.
+    - Interpreter-generated logs with one category of known share deliberately omitted, on which the
+      residual must equal that share exactly.
+    - 'Reconstruction false-positive control: the procedure run on complete synthetic logs must return
+      no reading claiming an uncounted category.'
+    - Exact rational arithmetic throughout, so that a residual of 2107349.831 is not confused with
+      a floating-point artifact.
+    - Hash-first discipline on every committed artifact read, with sha256 recorded before parsing.
+    required_metrics:
+    - residual fraction per committed row
+    - residual distribution and jump locations per package
+    - interpreter residual on complete-partition circuits
+    - interpreter residual on deliberately incomplete reports
+    - size and membership of the consistent-reading set
+    - reconstruction false-positive rate on complete synthetic logs
+  falsification_conditions:
+  - The interpreter reports a nonzero residual on a circuit whose partition is complete by construction,
+    falsifying the instrument.
+  - The deliberately-omitted-category control produces a residual differing from the omitted share,
+    falsifying the metric's calibration.
+  - The reconstruction procedure returns a reading for complete synthetic logs at above a 0.05 rate,
+    meaning it fits noise and its committed-data output is uninterpretable.
+  - The consistent-reading set is empty, meaning no enumerated reading explains every committed row,
+    which is a legitimate result and closes the reconstruction in the negative.
+  - Residuals computed on committed rows differ from the values recomputed here, indicating a parsing
+    error.
+  confounders:
+  - The meaning of the ops column is not documented in the committed README beyond the counting description,
+    so every reading is a hypothesis and the reconstruction can at best narrow the set.
+  - Shot-averaged fractional counts mean the residual inherits averaging noise, though at these magnitudes
+    the noise is far smaller than the residual and this can be shown rather than assumed.
+  - A mid-log redefinition of a column would make within-package residual stability meaningless, and
+    the 7.35 versus 30 percent gap between prefix rows and final rows is exactly the pattern such
+    a redefinition would produce.
+  - The enumerated readings are authored, so an unlisted reading could explain the rows and would
+    leave the consistent set spuriously empty or spuriously narrow.
+  interpretation_limits:
+  - 'A residual measures the reported categories'' coverage, not an error: an uncounted category may
+    be entirely intentional and undocumented only in a file this repository does not hold.'
+  - The committed scores are unaffected by the residual, since the scoring formula uses Toffoli count
+    and peak width only and reproduces exactly, so nothing about score correctness follows.
+  - The consistent-reading set is a narrowing, never an identification, and must not be quoted as
+    knowledge of what the uncounted operations are.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The contract measures an arithmetic completeness
+      property of reported gate counts.
+    memory_exponent: No attack memory exponent is claimed.
+    best_known: 'The incumbent is reporting category counts without a completeness check, which is
+      what the committed logs do: they report toffoli, clifford, qubits and ops without any stated
+      relation among them. The contract does not replace that reporting; it adds one derived number
+      and demonstrates that the number is nonzero and non-constant on committed data.'
+    hidden_overhead: 'The hidden cost is in the reconstruction stage, where the temptation is to keep
+      adding readings until one fits, which converts a narrowing into a fabrication; the false-positive
+      control exists precisely to price that temptation, and the honest outcome may well be an empty
+      consistent set. A second hidden cost is downstream: a residual metric, once defined, obliges
+      every future counting artifact in this program to report a total, which is a small but real
+      change to run-record schemas.'
+  dominated_by: n/a (no result claimed). I checked this bucket's committed frontier, the two ALECF
+    resource points (1316081, 1152) and (1423723, 1141), and this contract produces no circuit and
+    enters no row. No attack, algorithm or speedup is proposed, so no time/memory/data frontier applies.
+  sota_delta: 'no attack; conceptual/measurement contribution only. The quantitative content is already
+    partly in hand from committed bytes: residuals of 7.35 percent on the shared prefix rows, 29.84
+    percent on EXP-ALECF-001''s final row and 31.26 percent on EXP-ALECF-003''s final row, against
+    an incumbent practice that reports no such figure at all.'
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Part (A), the residual values themselves: 0.96, since they are exact
+    arithmetic on committed columns, with the only real risk being that the ops column means something
+    under which subtraction is meaningless, which is a semantic risk rather than an arithmetic one.
+    Part (C), that an interpreter built here yields exactly zero residual by construction and calibrates
+    correctly under deliberate omission: 0.85. Part (B), that the residual is stable within the prefix
+    rows and jumps at the final rows in a way consistent with a redefinition rather than a new category:
+    0.7. Part (D), that the reconstruction yields a nonempty consistent-reading set of at most three
+    members with a false-positive rate below 0.05: 0.4, and an empty set is a substantially likely
+    and fully reportable outcome.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ALECF-001
+  - EXP-ALECF-001
+  - EXP-ALECF-002
+  - EXP-ALECF-003
+  - RUN-ALECF-002-import
+  - EV-ALECF-001
+  - IDEA-20260809-63fc4a
+  - IDEA-20260809-593de3
+  - docs/evidence-and-reproducibility.md
+  - docs/autolab-port-inventory-20260731.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ALECF-bd6443

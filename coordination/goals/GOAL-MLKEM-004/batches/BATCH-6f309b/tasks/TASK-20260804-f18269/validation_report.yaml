@@ -1,0 +1,116 @@
+validation_report:
+  task_id: TASK-20260804-f18269
+  producer_task_id: TASK-20260804-736f46
+  snapshot_commit: 3c7032c748bb1d520e1a5cc515535e02cfd6de47
+  verdict: accept_with_qualifications
+  summary: >
+    All four artifact hashes match the snapshot receipt exactly; all 50 T_N values are
+    present and valid; variance, mean, std, independence-predicted variance, and
+    variance_ratio all independently recompute to the reported values within floating-point
+    tolerance; states_a_finding=false and compared_against_matzov_nf=false are confirmed;
+    platform is Linux x86_64 (QEMU emulation on ARM64 host) and n_runs_completed=50;
+    single_score_var=0.332505 is confirmed from batch-1 raw_scores.json; one provenance
+    labeling qualification noted.
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: false
+    independent_session: true
+    model_verified: false
+
+  checks:
+    - id: CHK-1
+      description: SHA-256 hash check of all 4 artifact files against snapshot receipt
+      result: pass
+      detail: |
+        All four hashes computed fresh from working tree and matched snapshot receipt
+        coordination/goals/GOAL-MLKEM-004/batches/BATCH-6f309b/archives/TASK-20260804-42e24b/snapshot_receipt.json exactly:
+          rebuild_transcript.txt: 4df09ee0555e79bf6d21c453a967e38dd32c701ef3b017c760228f9618ea8c50 ✓
+          receipt.json:           28eb98603ca4545b0d09114aa5505186126a8329b52986df75accfd622cea79a ✓
+          variance_results.json:  e9a48ecfb3e9e13ca6310c4abc35ec83c496a80cf80ed4560068db91645343b3 ✓
+          report.md:              52aed0629c08b38d35a8f4146be7b10c224bec9a5788fa368ab8417d230abb2d ✓
+        Commit 3c7032c748bb1d520e1a5cc515535e02cfd6de47 is reachable from HEAD, has
+        parent 64d8260e59edea6deefae704e32b7e0d32aaed69 as declared, and introduces
+        exactly these 4 files with no other changes.
+
+    - id: CHK-2
+      description: Arithmetic re-derivation of variance_ratio from raw TN_values
+      result: pass
+      detail: |
+        Independently loaded 50 TN_values from variance_results.json and computed:
+          n = 50 (confirmed)
+          mean(T_N) computed:   7554.191666525788  reported: 7554.191666525788  match: True
+          var(T_N, ddof=1):     7296.781604786730  reported: 7296.781604786730  match: True (tol 1e-6)
+          std(T_N):             85.421201143432    reported: 85.421201143432    match: True
+          N=17919, single_score_var=0.332504798309469
+          independence_predicted = 17919 * 0.332504798309469 = 5958.153480907375
+            reported: 5958.153480907375  match: True
+          variance_ratio = 7296.78160478673 / 5958.153480907375 = 1.2246716416703476
+            reported: 1.2246716416703476  match: True
+        All arithmetic checks pass to floating-point tolerance. No discrepancy found.
+
+    - id: CHK-3
+      description: Scope check — states_a_finding, compared_against_matzov_nf, no MATZOV/Nf/cost-model text
+      result: pass
+      detail: |
+        variance_results.json:
+          states_a_finding: false ✓
+          compared_against_matzov_nf: false ✓
+        Text search of variance_results.json for 'MATZOV', 'Nf', 'cost': none found ✓
+        The interpretation_note field reads:
+          "ratio=1.0 is consistent with i.i.d.; ratio>1.0 means more variance than independence
+           predicts; ratio<1.0 means less. No conclusion is drawn here."
+        This is a factual description of what the ratio means, not a claim or comparison.
+        report.md § 4 explicitly states "NO FINDING IS STATED."
+        receipt.json rule12_status: "UNMET and UNWAIVED" (correctly declared).
+
+    - id: CHK-4
+      description: Platform Linux x86_64 confirmation and n_runs_completed=50
+      result: pass
+      detail: |
+        variance_results.json platform field:
+          "Linux-6.12.76-linuxkit-x86_64-with-glibc2.41"
+          Contains 'Linux': True
+          Contains 'x86_64': True
+        receipt.json platform block:
+          docker_platform: linux/amd64
+          container_uname_m: x86_64
+          container_kernel: Linux-6.12.76-linuxkit-x86_64-with-glibc2.41
+          emulation: QEMU x86_64 via Docker Desktop
+        rebuild_transcript.txt line 2: "x86_64" (from uname -m)
+        rebuild_transcript.txt line 3: "Linux ... x86_64 GNU/Linux" (from uname -a)
+        n_runs_completed: 50 ✓ (n_runs_requested: 50, all 50 run_records marked valid: True)
+        All 50 run_records have N_vectors=17919 ✓
+
+    - id: CHK-5
+      description: single_score_var cross-check against batch-1 raw_scores.json
+      result: pass
+      detail: |
+        Loaded batch-1 raw_scores.json from:
+          BATCH-d2a728/tasks/TASK-20260803-e53ce2/raw_scores.json
+        Extracted per-vector cosine scores for candidate 'correct' under target
+        MAIN_lwe_sigma2 (17919 scores).
+        Computed independently:
+          N: 17919
+          mean: 0.427375  (matches batch-1 results.json correct_label_mean=0.427375 ✓)
+          var (ddof=1): 0.332504798...  matches single_score_var=0.332504798309469 ✓ (tol 1e-6)
+          std (ddof=1): 0.576632  consistent with batch-1 "std≈0.5766" ✓
+        Consistency confirmed. The single_score_var used in the independence prediction
+        is correctly sourced from batch-1 raw data.
+
+  qualifications:
+    - id: QUAL-1
+      severity: minor
+      description: >
+        variance_results.json carries task field "TASK-20260804-27e27b" (the original
+        failed task) rather than "TASK-20260804-736f46" (the repair task that actually
+        produced the file). The receipt.json correctly records task=TASK-20260804-736f46
+        and repair_of=TASK-20260804-27e27b, so the full provenance chain is traceable.
+        The mislabeled task field inside variance_results.json is a minor internal
+        provenance artifact that does not affect any numerical result or finding.
+        Flagged for the Coordinator's awareness; no correction action required before
+        downstream use.
+
+  admissible_as_variance_measurement: true
+  validated_at: '2026-08-04'
+  validated_by: TASK-20260804-f18269

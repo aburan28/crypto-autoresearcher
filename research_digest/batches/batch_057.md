@@ -1,0 +1,60 @@
+# Batch 057 digest
+
+## Overview
+- Dominated by early-2000s symmetric cryptanalysis: reduced-round attacks on Camellia, MISTY1, RC6, Skipjack, XTEA/TEA, SC2000, Serpent, and the SOBER/MUGI/Scream stream ciphers (NESSIE/FSE-2002 era).
+- Strong cluster of pairing-based and curve papers: BLS short signatures (22480516), Galbraith on supersingular curves (22480497), Gaudry–Gürel point counting (22480482), Weil-pairing credentials (22480535).
+- Notable foundational papers: Rivest–Shamir–Tauman ring signatures (22480554), Bellare et al. key-privacy (22480568), Knudsen–Wagner integral cryptanalysis (23650114), Patarin's generic Feistel attacks (22480224).
+- Several threshold-crypto and zero-knowledge protocol papers from ENS/MIT groups (Fouque–Stern, Lysyanskaya–Peikert, Fouque–Pointcheval, Courtois MinRank).
+- Anomalies: 22480274 has no extractable text (0 pages); 23650232 and 22480107 are severely garbled; 22480241's extract starts mid-paper (no abstract).
+
+## Papers
+- **22480107.pdf** — Function field sieve / finite-field DLP text (?), title unreadable (?). Extract is garbled math about DLP in F_{2^n} (F_{2607}, F_{2503}) with complexity O(exp((c+o(1))n^{1/3}(log n)^{2/3})); likely a function-field-sieve paper, but content cannot be reliably summarized.
+- **22480125.pdf** — Speeding up XTR (Martijn Stam, Arjen Lenstra). New XTR double and single exponentiation methods that are on average 60% faster, avoid matrices, and simplify implementation.
+- **22480144.pdf** — An Efficient Implementation of Braid Groups (Cha, Ko, Lee, Han, Cheon). Practical optimized algorithms and implementation timings for braid-group computations underlying the Crypto 2000 braid cryptosystem.
+- **22480158.pdf** — How to Achieve a McEliece-Based Digital Signature Scheme (Courtois, Finiasz, Sendrier). First practical code-based signature scheme, with security reduced to syndrome decoding and Goppa-code distinguishability.
+- **22480176.pdf** — Efficient Traitor Tracing Algorithms Using List Decoding (Silverberg, Staddon, Walker). Applies list decoding of error-correcting codes to make traitor-tracing algorithms efficient for large user populations.
+- **22480194.pdf** — Security of Reduced Camellia against Truncated and Impossible Differential Cryptanalysis (Sugita, Kobara, Imai). Presents a 9-round byte characteristic and 7-round impossible differential for Camellia, improving prior reduced-round analysis.
+- **22480210.pdf** — Known-IV Attacks on Triple Modes of Operation of Block Ciphers (Hong et al.). Attacks 123 triple cascade modes using only known-IV chosen texts, showing security loss when IVs are exposed.
+- **22480224.pdf** — Generic Attacks on Feistel Schemes (Jacques Patarin). Shows most 5-round Feistel schemes can be distinguished from random permutations with O(2^{3n/2}) work; recommends at least 6 rounds.
+- **22480241.pdf** — Compact Rijndael hardware architecture with S-Box optimization (?) (Satoh, Morioka, Takano, Munetoh). Extract begins mid-paper; discusses optimizing the Rijndael S-Box using new composite-field arithmetic for hardware.
+- **22480257.pdf** — Provable Security of KASUMI and 3GPP Encryption Mode f8 (Kang, Shin, Hong, Yi). Shows 4-round KASUMI is a pseudorandom permutation ensemble and derives a security bound for the f8 mode.
+- **22480274.pdf** — No text extracted (0-page PDF); nothing to summarize.
+- **22480292.pdf** — Provably Authenticated Group Diffie–Hellman Key Exchange — The Dynamic Case (Bresson, Chevassut, Pointcheval). Defines a security model for dynamic group AKE with join/leave and proves a modified scheme secure.
+- **22480312.pdf** — Fully Distributed Threshold RSA under Standard Assumptions (Fouque, Stern). Dealer-free distributed RSA key generation enabling Shoup-style threshold signatures under standard assumptions.
+- **22480333.pdf** — Adaptive Security in the Threshold Setting: From Cryptosystems to Signature Schemes (Lysyanskaya, Peikert). First adaptively secure threshold signature scheme under standard assumptions, via an adaptively secure erasure-free threshold Paillier.
+- **22480353.pdf** — Threshold Cryptosystems Secure against Chosen-Ciphertext Attacks (Fouque, Pointcheval). Revives Naor–Yung twin encryption to convert threshold IND-CPA schemes to IND-CCA; first factoring-based threshold CCA scheme.
+- **22480371.pdf** — Oblivious Polynomial Evaluation and Oblivious Neural Learning (Chang, Lu). Efficient OPE protocols based only on oblivious transfer, handling multivariate and floating-point polynomials, applied to oblivious neural-network training.
+- **22480387.pdf** — Mutually Independent Commitments (Liskov, Lysyanskaya, Micali, Reyzin, Smith). Defines three independence notions for two-party commitments and gives practical protocols cheaper than non-malleable techniques.
+- **22480404.pdf** — Efficient Zero-Knowledge Authentication Based on a Linear Algebra Problem MinRank (Courtois). New zero-knowledge identification scheme based on the NP-complete MinRank problem, proven secure by black-box simulation.
+- **22480423.pdf** — Responsive Round Complexity and Concurrent Zero-Knowledge (Cohen, Kilian, Petrank). Introduces a round-complexity measure robust to message delays, applied to concurrent zero-knowledge protocols.
+- **22480443.pdf** — Practical Construction and Analysis of Pseudo-randomness Primitives (Håstad, Näslund). Concrete fixed-parameter analysis of PRG-from-one-way-function and PRF constructions, yielding practical generators with tight bounds.
+- **22480462.pdf** — Autocorrelation Coefficients and Correlation Immunity of Boolean Functions (Tarannikov, Korolev, Botev). New bounds on absolute indicator, nonlinear variables, resiliency, and nonlinearity of correlation-immune and resilient Boolean functions.
+- **22480482.pdf** — An Extension of Kedlaya's Point-Counting Algorithm to Superelliptic Curves (Gaudry, Gürel). Counts points on y^r = f(x) over small-characteristic fields in O(log^{3+ε} q), reaching cryptographic sizes.
+- **22480497.pdf** — Supersingular Curves in Cryptography (Steven Galbraith). Bounds the Frey–Rück embedding degree k for higher-genus supersingular curves, shows they are weaker, and gives a bandwidth-reduced identity-based scheme.
+- **22480516.pdf** — Short Signatures from the Weil Pairing (Boneh, Lynn, Shacham). BLS signatures: ~160-bit signatures from CDH on pairing-friendly curves, half the size of DSA at similar security.
+- **22480535.pdf** — Self-Blindable Credential Certificates from the Weil Pairing (Eric Verheul). Two pseudonymous credential certificate systems supporting anonymity without a trusted third party, built from the Weil pairing.
+- **22480554.pdf** — How to Leak a Secret (Rivest, Shamir, Tauman). Formalizes ring signatures with unconditional signer ambiguity, no setup or managers, and very efficient construction in the random oracle model.
+- **22480568.pdf** — Key-Privacy in Public-Key Encryption (Bellare, Boldyreva, Desai, Pointcheval). Defines anonymity of encryption; proves El Gamal and Cramer–Shoup key-private under DDH and gives an anonymous RSA-OAEP variant.
+- **22480585.pdf** — Provably Secure Fair Blind Signatures with Tight Revocation (Abe, Ohkubo). Points out vulnerabilities in prior fair blind signatures and gives a scheme proven secure against adaptive parallel attacks with tight revocation.
+- **23.pdf** — NanoCMOS-Molecular Realization of Rijndael (Masoumi, Raissi, Ahmadian). Implements Rijndael modules in CMOL (CMOS + nanowire) technology, claiming advantages in defect tolerance, speed, area, and power.
+- **230.pdf** — Privacy-Preserving Graph Algorithms in the Semi-Honest Model (Brickell, Shmatikov). Efficient two-party protocols for all-pairs/single-source shortest distance and set union on joint private graphs.
+- **23650001.pdf** — New Results on Boomerang and Rectangle Attacks (Biham, Dunkelman, Keller). Improved rectangle attack algorithm; applications include 3.5-round SC2000 and 10-round Serpent key recovery.
+- **23650017.pdf** — Multiplicative Differentials (Borisov, Chew, Johnson, Wagner). New differential type for ciphers using modular multiplication; breaks MultiSwap (Microsoft DRM) and gives weak-key attacks on xmx and IDEA variants.
+- **23650035.pdf** — Differential and Linear Cryptanalysis of a Reduced-Round SC2000 (Yanami, Shimoyama, Dunkelman). Two-round iterative differential and linear characteristics enabling attacks on 4.5-round SC2000 with 128-bit keys.
+- **23650050.pdf** — Impossible Differential Cryptanalysis of Reduced Round XTEA and TEA (Moon, Hwang, Lee, Lee, Lim). 12-round impossible characteristic for XTEA (attack to 14 rounds) and 10-round for TEA (attack to 11 rounds).
+- **23650062.pdf** — Improved Cryptanalysis of MISTY1 (Ulrich Kühn). Introduces the "Slicing Attack" on 4-round MISTY1 exploiting the position of key-dependent linear FL functions.
+- **23650077.pdf** — Multiple Linear Cryptanalysis of a Reduced Round RC6 (Shimoyama, Takenaka, Koshiba). Multiple linear attack breaking 18-round RC6 under weak keys.
+- **23650090.pdf** — On the Security of CAMELLIA against the Square Attack (Yeom, Park, Kim). 4-round distinguisher and square attack on 5-round Camellia, extendable to 9 rounds including the first FL/FL^{-1} layer.
+- **23650102.pdf** — Saturation Attacks on Reduced Round Skipjack (Hwang, Lee, Lee, Lee, Lim). 16- and 20-round saturation distinguishers attacking up to 27 rounds of Skipjack with 2^50 chosen plaintexts.
+- **23650114.pdf** — Integral Cryptanalysis (Knudsen, Wagner). Unifies sum-propagation attacks as a dual to differential cryptanalysis, naming and systematizing integral cryptanalysis.
+- **23650130.pdf** — Improved Upper Bounds of Differential and Linear Characteristic Probability for Camellia (Shirai, Kanamaru, Abe). Discards invalid truncated paths via linear-equation filtering, showing 10-round Camellia (no FL) has no characteristic above 2^{-128}.
+- **23650145.pdf** — The Round Functions of RIJNDAEL Generate the Alternating Group (Ralph Wernsdorf). Proves 128-bit Rijndael round functions generate the alternating group, excluding certain algebraic weaknesses.
+- **23650151.pdf** — Non-cryptographic Primitive for Pseudorandom Permutation (Iwata, Yoshino, Kurosawa). Shows the second-round permutation in 5-round MISTY-type schemes needs no randomness or secrecy, only g(x)⊕x distinctness.
+- **23650166.pdf** — BeepBeep: Embedded Real-Time Encryption (Kevin Driscoll). Stream-oriented cipher for resource-constrained embedded real-time systems, using only registers and offering combined secrecy and integrity.
+- **23650181.pdf** — A New Keystream Generator MUGI (Watanabe, Furuya, Yoshida, Takaragi, Preneel). Panama-variant 128-bit-key stream cipher outputting 64 bits/round, evaluated against re-synchronization and related-key attacks.
+- **23650197.pdf** — Scream: A Software-Efficient Stream Cipher (Halevi, Coppersmith, Jutla). SEAL-inspired stream cipher aiming for comparable speed with significantly higher security, revisiting SEAL's design tradeoffs.
+- **23650212.pdf** — Distinguishing Attacks on SOBER-t16 and t32 (Ekdahl, Johansson). Two distinguishing attacks beating exhaustive search on full SOBER-t16 and SOBER-t32 without stuttering.
+- **23650227.pdf** — Linearity Properties of the SOBER-t32 Key Loading (Dichtl, Schafheutle). Finds related-key correlations in SOBER-t32 key loading due to poor diffusion of the nonlinear filter.
+- **23650232.pdf** — Garbled extract (encoding failure). Stream-cipher-related content mentioning LFSRs and an O(log N)-step / O(√N) tradeoff is visible but unreadable; cannot be reliably summarized.
+- **23650238.pdf** — On the Security of Randomized CBC-MAC Beyond the Birthday Paradox Limit (Jaulmes, Joux, Valette). New randomized CBC-MAC construction with optimal tag size (2n bits) and provable full security beyond the birthday bound.
+- **23650253.pdf** — Cryptanalysis of the Modified Version of the Hash Function Proposed at PKC'98 (Han, Park, Chee). Finds collisions in the modified Shin et al. MD-family hash function with probability 2^{-30} via analysis of Boolean functions, message expansion, and rotations.

@@ -1,0 +1,94 @@
+evidence:
+  id: EV-HQC-67a6ec
+  hypothesis_id: H-HQC-18d1b4
+  experiment_ids:
+  - EXP-HQC-982268
+  run_ids: []
+  run_ids_note: The pilot real-sampler defect-injection artifacts are snapshot-committed at 17d5fb54 under
+    coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/. Produced under a
+    coordination task card, the same convention prior EV-HQC-* records used; cited here by path and hash.
+  type: empirical
+  direction: neutral
+  strength: preliminary
+  claim_tier: toy
+  certificate_refs: []
+  proof_status: derivation
+  proof_refs:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/reviews/TASK-20260806-8d4d48/validation_report.yaml
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/reviews/TASK-20260806-92aecb/red_team_report.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/design.md
+  observations:
+  - 'THIS IS THE FIRST BATCH IN THE CAMPAIGN TO INJECT A DEFECT INTO stage_a.py''S REAL (T)-SAMPLER PATH,
+    NOT A PLANTED-CONTENT PROXY. TASK-20260806-77a574 injected the V3 defect class (last-block-window-
+    read-early) at block index n_e-1 only -- the narrowest of four candidate points and the prior batch''s
+    Red Team''s explicit recommendation -- via a module-attribute monkey-patch wrapper calling
+    decode_blocks unmodified. Both reviewers independently confirmed, via their own fresh reimplementations
+    (not by re-reading the executor''s code), that the injection is genuine and not a no-op: the Red Team''s
+    matched-pair probe measured a large, trivially significant local effect at the injected block (10.7
+    percent flip rate, z ~ 24); the Validator wrote an independent wrapper from design.md''s prose alone
+    and confirmed it is confined to block n_e-1.'
+  - 'MECHANICAL SOUNDNESS IS CONFIRMED, WITHOUT QUALIFICATION, BY BOTH REVIEWERS. No crashes, 0
+    injection-invariant violations, both fail-closed dry runs aborted correctly, the Validator reproduced
+    the executor''s exact committed shards bit-for-bit via stage_a.py''s own unmodified _t_shard, and
+    traced both fail-closed selftests'' control flow against stdout.log to confirm they ran and passed
+    live. Neither reviewer found evidence of post-hoc criteria shading against design.md''s pre-registered
+    "needs structural redesign" list. Two open items were named as LIMITATIONS, not redesign triggers:
+    the monkey-patch technique was only exercised single-process (untested under the mp.Pool-based
+    dispatch a full run would likely use), and no positive control was run at this trial count.'
+  - 'THE PAIRED DEFECTED-VS-UNDEFECTED COMPARISON AT k=m=17 IS A CLEAN NULL (diff = -0.207, combined
+    jackknife SE = 0.444, z = -0.466; max |z| = 0.700 across k=2..26), independently recomputed exactly
+    by the Validator at four k values from freshly reproduced raw data, and reproduced again (opposite
+    sign, as design.md predicted no a priori sign) at an entirely fresh, previously unused shard pair.'
+  - 'THE RED TEAM SHOWED, WITH NEW EVIDENCE NEITHER THE EXECUTOR NOR THE VALIDATOR PRODUCED, THAT THIS
+    CLEAN NULL IS NOT INFORMATIVE ABOUT DETECTABILITY. The pilot''s comparison design used disjoint PRNG
+    shards (between-shard comparison) rather than a matched-pair design (same underlying random draws,
+    decoded once true and once defected -- free, since it reuses the same generated bits). A matched-pair
+    reanalysis at the identical trial count gives standard errors 2.8-10.6x TIGHTER than the between-shard
+    design actually used. This means the reported null at k=17 is consistent with BOTH a genuinely
+    near-zero propagated effect AND a real effect of the magnitude the raw point estimates suggest -- the
+    comparison method used cannot distinguish these. The null bounds the SE floor of an avoidably weaker
+    design choice, not the defect''s actual detectability.'
+  - 'THROUGHPUT WAS MEASURED AND CROSS-VALIDATED: the executor reported 2,097.6 t/cs defected vs. 2,105.6
+    t/cs undefected (a negligible ~0.4 percent difference), close to the cost model''s optimistic figure.
+    The Validator''s independent 4-repeat A/B gave means of 2,090.8 / 2,096.6 t/cs with a measured noise
+    floor (std ~48 t/cs, ~2.3 percent) LARGER than the executor''s reported gap -- which corroborates,
+    rather than merely repeats, the "negligible defect-injection cost" finding: the apparent difference is
+    within measurement noise either way.'
+  inference: 'The mechanical question this pilot was built to answer -- can a boundary-shift defect be
+    injected into the real (T)-sampler path without requiring new machinery or a structural rewrite -- is
+    answered YES, confirmed independently and rigorously by both reviewers using their own fresh
+    reimplementations rather than by re-reading the executor''s artifacts. But the STATISTICAL question --
+    would a real such defect, if present in stage_a.py, actually be caught by this campaign''s measurement
+    methodology -- is NOT answered by this pilot''s clean null, because the Red Team demonstrated the
+    comparison design used cannot distinguish "no effect" from "an effect of the size the raw estimates
+    suggest." The two reviews therefore do not conflict on the facts: both confirm the injection works and
+    the artifacts are honest. They diverge only on what a clean-but-underpowered-by-design null licenses
+    deciding next, which is the Coordinator''s call to make in the decision record accompanying this
+    evidence.'
+  boundaries:
+  - "Toy. A single defect class at a single injection point, one comparison design, one seed family. This
+    is a pilot instrument check, not a measurement of HQC: no statement about A17, HQC's decoding-failure
+    rate, or any standardized parameter set."
+  - This evidence record does not reopen, revise, or supersede EV-HQC-b71230, EV-HQC-db1fd9, EV-HQC-9a30d3,
+    EV-HQC-163374, or EV-HQC-bfb257, all of which stand exactly as archived.
+  - Only ONE of the two named defect classes (V3) and ONE of four candidate injection points was tested.
+    V1 (off-by-one truncation, global) and the other three injection points remain untested at the real
+    sampler.
+  - "No positive control has yet been run through the real-sampler pipeline at any trial count: this
+    campaign has never observed a real defect actually produce a detected MISMATCH through the genuine
+    (T)-sampler, only through planted-content proxies (V1-V3) or, now, an inconclusive real-sampler
+    comparison."
+  - H-HQC-18d1b4 is untouched by this record in either direction; it remains PROPOSED.
+  unresolved_confounds:
+  - 'THE PRIMARY UNRESOLVED ITEM: whether a genuine boundary-shift defect in the real sampler would be
+    caught by this campaign''s measurement methodology remains untested with adequate statistical power.
+    The Red Team named three cheap, concrete next steps, none requiring the full ~305,000-trial
+    commitment: (1) a matched-pair reanalysis of this pilot''s own already-collected data (free -- reuses
+    existing draws); (2) a real power/required-T calculation from the defect''s own measured 10.7 percent
+    local effect size, rather than reusing the undefected estimator''s T_req; (3) a positive-control pilot
+    at a less-diluted injection point (e.g. V1, global) to obtain this campaign''s first actual positive
+    detection through the real-sampler pipeline.'
+  - The monkey-patch injection technique''s behavior under multiprocessing (mp.Pool-based dispatch, which
+    a full-scale run would likely use for throughput) remains untested; a single-process pilot cannot rule
+    out a defect that only manifests under parallel dispatch.
+  reviewed_by: coordinator

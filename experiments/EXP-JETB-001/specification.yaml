@@ -1,0 +1,80 @@
+experiment:
+  id: EXP-JETB-001
+  hypothesis_id: H-JETB-001
+  version: 1
+  status: approved
+  title: "D1 toy certification: measured jet (dual-number) tangent-screen sigma vs the simulable-model prediction"
+  objective: >
+    Execute the minimal falsifying experiment of candidate D1. Formalize the augmented
+    generic-group model whose queries include first-order jet (dual-number) data of the
+    addition law, derive the model's prediction for A1's tangent-survival rate sigma
+    under simulability (jet data = Zariski tangent space, determined by the zeroth-order
+    relation variety), and measure the actual sigma on ordinary prime-field toy curves.
+    Per the frozen candidate text: match = barrier evidence; a per-tuple mismatch,
+    validated at all three toy sizes, = explicit non-simulable operation (candidate
+    loophole). The script is self-contained: it computes its own jet sigma measurements
+    and does not depend on EXP-JET-001 output.
+  model_formalization: >
+    Augmented model: standard Shoup generic group of prime order plus a tangent oracle
+    answering epsilon-consistency queries on the x-only summation variety S = 0:
+    given candidate x and free tangent parameters t, does S(x + eps*t) = 0 hold over
+    F_p[eps]/eps^2? Since S(x + eps*t) = S(x) + eps*(grad S(x) . t), the epsilon-block
+    is a HOMOGENEOUS F_p-linear system in t (t = 0 always solves it), hence
+    eps-consistency holds iff S(x) = 0, and the solution space ker grad S(x) is by
+    definition the Zariski tangent space. Simulability prediction: the jet query adds
+    no information beyond the zeroth-order relation structure.
+  frozen_predictions:
+    P1_screen_equivalence: "per-tuple tangent-screen verdict == zeroth-order S-test verdict, exactly"
+    P2_sigma_true: "tangent-survival rate among true relations sigma_true = 1 exactly"
+    P3_no_leakage: "screen pass rate among non-relations = 0 exactly"
+    P4_sigma_ratio: "sigma_pass / p_m = 1 exactly (screen pass rate equals base relation rate)"
+    P5_eps_dim: "epsilon-solution-space dimension at true relations = (#jet variables) - 1 at smooth points, = #jet variables at singular points (ker grad S)"
+    P6_formal_group_linearity: "first-order part of dual-number EC addition equals Lie-algebra addition of jet scalars; 0 failures, swap-invariance exact"
+    P7_solve_side: "one-step jet-linear (Newton) solve recovers a true partner at rate sigma_solve ~ 0, bounded by 2/p (jet data is local, no global relation reach)"
+  parameters:
+    primes: [101, 211, 431]              # frozen by candidate D1 (exactly these three toy sizes)
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]  # A1-family seed list; fallback on timeout: 20260717..20260719 (min 3)
+    curve_family: "short-Weierstrass over F_p, ordinary (trace != 0), non-anomalous (#E != p), nonsingular, largest prime factor ell of #E with ell^2 >= #E (prime-order subgroup present); target R in the ell-subgroup; char 2/3 excluded by construction"
+    factor_base: "x-interval FB: x = 0,1,2,... first B liftable x-values, one lift per x (min-y convention); B = max(8, ceil(sqrt(2*p)))"
+    varieties:
+      m2_target: "S_R(x1,x2) = S3(x1,x2,x_R); candidates = unordered pairs i<=j from FB; full P1..P7 battery"
+      m3_sum_to_zero: "S3(x1,x2,x3); candidates = unordered triples i<=j<=k from FB; P1..P5 battery (mechanism m-independence check)"
+    tangent_screen: "pass iff c0 = S(x) == 0 AND homogeneous epsilon-system grad S(x) . t = 0 consistent (kernel computed explicitly via exact linear algebra)"
+    newton_probe: "per true m=2 relation: 100 seeded random starts x20, one Newton step on S_R(x1, . ); hit iff S_R(x1, x2hat) == 0; cap 50 true relations per (p,seed)"
+    formal_group_probe: "100 seeded random (P,Q,a,b) per (p,seed): dual-number EC addition over F_p[eps]/eps^2, exact checks of zeroth-order, Lie-linearity (c3 == a+b), swap-invariance"
+    exhaustive_check: "at p=101, first seed: all 101^2 pairs (x1,x2) in F_p^2 — screen vs zeroth-order agreement; baseline agreement where both coordinates lift to F_p-points"
+  controls:
+    positive: "Semaev S-evaluation must reproduce point-arithmetic relation truth on EVERY candidate tuple (standard S3 baseline reproduces relation counts); constructed true relations (P2 = R - P1 with x in FB) must pass both zeroth-order test and tangent screen"
+    negative: "no leakage: screen pass rate among tuples failing the zeroth-order test must be exactly 0 (random non-relation tuples rejected)"
+  metrics:
+    primary: [agreement_ZT (screen vs zeroth-order), sigma_true, leakage, sigma_pass_over_pm, eps_dim, fg_linearity_failures, sigma_solve]
+    secondary: [p_m, n_true_relations, singular_relation_counts, timings, curve invariants (N, trace, ell, cofactor)]
+  replication:
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]
+    independent_instances: 18   # 3 primes x 6 seeds, fresh curve per (p,seed)
+  budget:
+    wall_clock_seconds_per_run: 600
+    wall_clock_seconds_total: 2400
+    maximum_runs: 8
+    maximum_memory_gb: null
+  stopping_rules:
+    - "any single sage invocation > 600 s: kill, record as infrastructure timeout (NOT evidence against the hypothesis), reduce seeds to 20260717..20260719 (min 3) or sizes, record deviation in analysis.md and EV record"
+    - "total wall clock 2400 s across at most 8 sage invocations"
+  invalidation_rules:
+    - "positive control fails (any Z vs baseline mismatch, or constructed relation fails Z or screen) => validity_status invalid, reason: implementation error; fix and rerun as a new run"
+    - "a leakage > 0 with positive control passing is NOT invalidity: it is a measured deviation from the model (the tested loophole branch) and must be reported as such"
+  success_criterion: "all artifacts written; controls pass or deviation recorded; validity_status set honestly; measured numbers reported per size with gate arithmetic"
+  falsification_criterion: "per D1: an explicit non-simulable operation = any per-tuple screen/zeroth-order mismatch (or sigma_true < 1, or leakage > 0, or fg-linearity failure) reproduced at all three toy sizes with exact witnesses"
+  promotion_gate_arithmetic: "D1 gate: proved simulation theorem, OR an explicit non-simulable operation validated at all three toy sizes. Toy contribution reported as: mismatch counts per size, sigma_pass vs p_m per size, sigma_true, leakage, eps_dim distribution, sigma_solve vs 2/p. A clean exact match at all sizes is consistency evidence for the barrier (toy scope only, NOT a proof)."
+  required_artifacts:
+    - experiments/EXP-JETB-001/specification.yaml
+    - experiments/EXP-JETB-001/jetbarrier1_model_check.sage
+    - experiments/EXP-JETB-001/runs/RUN-JETB-001-a/manifest.yaml
+    - experiments/EXP-JETB-001/runs/RUN-JETB-001-a/raw.json
+    - experiments/EXP-JETB-001/runs/RUN-JETB-001-a/stderr.txt
+    - experiments/EXP-JETB-001/analysis.md
+    - ledger/RQ-JETB-001.yaml
+    - ledger/H-JETB-001.yaml
+    - ledger/EV-JETB-001.yaml
+  assigned_to: executor
+  approved_by: coordinator

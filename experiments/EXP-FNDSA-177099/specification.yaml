@@ -1,0 +1,388 @@
+experiment:
+  id: EXP-FNDSA-177099
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-FNDSA-58b464
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  batch_id: null
+  assigned_to: executor
+  title: >-
+    The width homotopy as a graded control: measure the decay exponent of the
+    signature cloud's second-moment anisotropy from the Babai endpoint, where
+    the parallelepiped attack must work, to the smoothing endpoint, where the
+    derivation forbids any signal -- and decide whether the exact
+    second-order cancellation survives the recursion
+
+  objective: >-
+    If separately approved, frozen and authorized, decide one exponent. Is the
+    pooled second-moment anisotropy of a Klein-family signature cloud linear
+    or quadratic in eps = exp(-2 pi^2 sigma_i^2)? One power of eps is 46.5
+    bits at FN-DSA parameters and it decides whether the NTRUSign-lineage
+    moment attacks sit 79 bits behind the normalizer channel or 14 bits ahead
+    of it. The design measures the exponent on a six-rung width ladder at
+    isolated leaves and again in a full toy recursive sampler, bracketed by a
+    positive control at the Babai endpoint where recovery MUST succeed and a
+    null at the smoothing endpoint where the derived signal is below any
+    representable double. NOTHING HERE HAS BEEN RUN AND NO RESULT IS ASSERTED.
+
+  what_this_is_not:
+    - Not an attack on FN-DSA, not a key recovery, and not a demonstration that any signature scheme is broken.
+    - Not a measurement at FN-DSA-512 or FN-DSA-1024. Those enter by closed-form evaluation only; every empirical arm runs at toy dimension n <= 32 and toy widths.
+    - Not an analysis of the FOURTH moment. The attack that broke NTRUSign used a fourth-moment gradient; this contract measures the second moment only and its conclusions do not extend.
+    - Not a reproduction of any published attack, and not dependent on any number from one. The Babai endpoint's exploitability is established by this contract's own measurement.
+    - Not a statement about timing, precision, or any implementation.
+    - Not approval, freezing, execution authorization, a run, an observation, or evidence. No approved_by field is present.
+
+  claim_ceiling: >-
+    TIER: toy for every measured quantity; derivation for the closed forms,
+    conditional on the constants read in EXP-FNDSA-52dcc7 Stage 0. The exact
+    scope a completed run could support: (i) the decay exponent and
+    coefficient of the pooled second-moment anisotropy of an isolated discrete
+    Gaussian leaf across six widths; (ii) the same exponent in a full Klein
+    sampler on toy NTRU-shaped bases at n in {8, 16, 32}; (iii) measured
+    leaf-center harmonic-moment maxima at those dimensions; (iv) a Pareto
+    ordering of two distributional channels at derived constants. IT COULD NOT
+    SUPPORT: any attack cost, any exponent movement, any statement about a
+    fielded parameter set, any claim about higher moments, or any claim that
+    the moment channel is closed. A recovery figure measured with the secret
+    Gram-Schmidt frame in hand is an upper bound on attacker capability and
+    may never be quoted as an attack success rate.
+
+  inputs:
+    gaussian_convention: "rho_s(x) = exp(-x^2 / (2 s^2)); eps(s) = exp(-2 pi^2 s^2)"
+    leaf_ladder_widths: [0.45, 0.50, 0.55, 0.60, 0.65, 0.70]
+    lattice_ladder_widths: [0.05, 0.45, 0.60, 0.80, 1.20, 3.00]
+    leaf_centers: "uniform on [0,1), drawn from the declared stream, 2^20 distinct values per cell"
+    samples_per_leaf_cell: 20000000
+    samples_per_lattice_cell: 100000
+    toy_dimensions: [8, 16, 32]
+    keys_per_dimension: 20
+    matched_profile_key_pairs_per_dimension: 5
+    toy_modulus: 12289
+    center_uniformity_messages: 1000000
+    derived_parameter_sets:
+      n512: {sigma_min: 1.277833697, d: 1024, status: "RECALLED, UNVERIFIED -- replaced by EXP-FNDSA-52dcc7 Stage 0"}
+      n1024: {sigma_min: 1.298280334, d: 2048, status: "RECALLED, UNVERIFIED -- replaced by EXP-FNDSA-52dcc7 Stage 0"}
+    master_seed: 20260805
+    domain: "EXP-FNDSA-177099/v1"
+    seed_derivation_rule: >-
+      Every random stream is SHA-256 in counter mode over the ASCII byte
+      string domain || "|" || label || "|" || decimal(dimension) || "|" ||
+      decimal(width_index) || "|" || decimal(key_index) || "|" ||
+      decimal(counter), digests interpreted big-endian unsigned. Labels are
+      exactly: "leaf", "center", "key-f", "key-g", "message", "null". A third
+      party reproduces every key, message and draw bit-for-bit from
+      (master_seed, domain, label, indices) and no other input.
+    toy_key_construction: >-
+      For each key index, draw f and g coefficient vectors in
+      Z[X]/(X^n + 1) from the declared streams with entries from a centered
+      binomial of parameter 8, reject unless the resultant conditions permit
+      solving f G - g F = q over the ring, and complete (F, G) by the
+      standard extended-Euclidean lift. RECORD EVERY REJECTION AND ITS REASON.
+      If the lift cannot be completed for a drawn (f, g) after 1000 attempts
+      at a dimension, that dimension is reported as a CONSTRUCTION FAILURE
+      and is not silently replaced by another dimension.
+
+  environment_preflight:
+    required: >-
+      Record python version, numpy presence and version, and scipy and sympy
+      import results in the run manifest. IDEATION-SESSION OBSERVATION ON THIS
+      MACHINE, OUTSIDE THE HARNESS, RECORDED AS A CANDIDATE AND NOT A FACT:
+      python 3.11.15, numpy 2.4.6 present, scipy and sympy absent. Two prior
+      scouting sweeps of this repository disagree; the executor measures.
+    dependency_policy: >-
+      Standard library plus numpy only. Gram-Schmidt norms are computed in
+      EXACT RATIONAL ARITHMETIC with fractions -- never in floating point,
+      because the whole contract turns on ratios of those norms. Eigenvector
+      alignment uses numpy in double precision and its conditioning is
+      reported. NO COMPUTER-ALGEBRA SYSTEM IS AVAILABLE, so the symbolic
+      re-derivation in Stage 0 is done by hand and independently checked by a
+      second reviewer; that limitation is recorded rather than worked around.
+
+  arms_and_controls:
+    treatment: >-
+      ARM T-LEAF. Isolated discrete Gaussian leaf sampler at each of the six
+      leaf widths with uniformly drawn centers; measure the POOLED second
+      moment E[(z - c)^2] over both z and c, and report the relative inflation
+      E[(z - c)^2] / s^2 - 1. Fit alpha and K in
+      (inflation) = K s^2 eps(s)^alpha across the six rungs.
+      ARM T-LATTICE. Full Klein sampling on each toy key at each of the six
+      lattice widths; measure the empirical covariance M, its anisotropy
+      ratio, and the alignment of its eigenvectors with the key's exact
+      rational Gram-Schmidt frame. Fit alpha again.
+    measured_null: >-
+      ARM N. The smoothing endpoint, per-leaf width 3.00, where
+      eps = exp(-2 pi^2 * 9) = 7.0e-78 and every derived anisotropy is
+      astronomically below double precision. FORCED VALUES, DERIVED BEFORE ANY
+      RUN: measured anisotropy indistinguishable from the sampling-noise floor
+      1 / sqrt(N); frame-recovery fraction EXACTLY 0; measured covariance
+      isotropic to within estimator noise. THIS NULL CAN FAIL, in three
+      concrete and distinguishable ways -- an estimator that reports
+      anisotropy under perfect isotropy because the small-sample bias
+      2n / N was not subtracted; a correlated random stream; or an alignment
+      procedure that finds structure in noise. Any nonzero recovery here
+      invalidates the entire package.
+    positive_control: >-
+      ARM P. The Babai endpoint, per-leaf width 0.05, where the sampler is
+      deterministic rounding for every practical purpose and the cloud is the
+      fundamental parallelepiped of the Gram-Schmidt frame. FORCED VALUES,
+      DERIVED BEFORE ANY RUN: per-direction variance ||b~_i||^2 / 12 within
+      5 per cent, and eigenvector alignment with the true frame within 5
+      degrees, for at least 90 per cent of keys, from 10^5 samples. IF ARM P
+      DOES NOT FIRE, THE INSTRUMENT HAS NO SENSITIVITY TO THE SIGNAL IT EXISTS
+      TO BOUND AND NO NEGATIVE RESULT MAY BE REPORTED FROM ANY OTHER ARM.
+      This is a nearby-object control of unusual strength: ARM P and ARM N
+      differ in exactly one scalar and share the lattice, the keys, the code
+      path and the statistic.
+    graded_control: >-
+      ARM G. All six rungs of each ladder, spanning eps from 1.8e-2 down to
+      6.3e-5 at the leaf and crossing the smoothing parameter at the lattice.
+      REPORT MONOTONICITY EXPLICITLY: the anisotropy must be strictly
+      decreasing across the rungs. Pre-derived leaf reference coefficients
+      8 pi^2 s^2 at the six widths are 15.995, 19.739, 23.885, 28.425, 33.362,
+      38.689; ideation-session direct summation returned 16.005, 19.742,
+      23.885, 28.425, NOT MEASURED, 38.689 -- the fifth rung was not evaluated
+      during ideation and that gap is recorded rather than filled. A quantity
+      that fails to decay as the width increases is the canonical artifact
+      tell; a decay at exponent 1 rather than 2 localises the failure to the
+      cancellation and is the outcome the contract most wants to detect.
+    collision_control: >-
+      ARM X. For each dimension, five key PAIRS constructed to have matched
+      Gram-Schmidt norm multisets (within 1 per cent per norm) but different
+      frames. FORCED VALUE: identical anisotropy ratios within sampling noise,
+      and DIFFERENT eigenvector alignments. If the ratios differ, the
+      statistic is responding to the frame, which the derivation forbids, and
+      the estimator is wrong. This is the observation-collision arm of
+      H-FNDSA-58b464 made executable.
+    center_uniformity_arm: >-
+      ARM C. From the toy recursive sampler at each dimension over 10^6
+      messages, report the MAXIMUM over leaves of |E[cos(2 pi c_i)]| and the
+      MAXIMUM over pairs of |E[cos(2 pi c_i) cos(2 pi c_j)]|. Maxima and not
+      means, because HEUR-FN-5's failure mode is existential in the leaf and
+      an attacker chooses the leaf. REPORT THIS BEFORE ANY SEPARATION FIGURE.
+    ordering_control: >-
+      ARM N and ARM G are generated, analysed and hash-committed IN FULL
+      before ARM P is examined, and the frozen decision rule is executed on
+      ARM N first. Examining the Babai endpoint before the null is committed
+      is an invalidation: the endpoint's signal is enormous and seeing it
+      first would contaminate every judgement about estimator behaviour.
+    comparability_policy: >-
+      No comparison to any other experiment is permitted from this contract.
+      Area FNDSA holds zero prior experiments, runs and evidence records, so
+      there is no lineage and no comparability claim can be constructed. A
+      shared master seed with EXP-FNDSA-52dcc7 implies nothing about stream or
+      output equivalence; the domain strings differ and so do all streams.
+
+  metrics:
+    primary:
+      - "alpha_leaf: fitted decay exponent of the pooled leaf anisotropy in eps, over six rungs, with its confidence interval"
+      - "K_leaf: fitted coefficient in (inflation) = K s^2 eps^alpha, against the derived 8 pi^2 = 78.957"
+      - "alpha_lattice: the same exponent fitted in the full recursive sampler, per dimension"
+      - "ARM P recovery fraction and per-direction variance ratio against the derived ||b~_i||^2 / 12"
+      - "ARM N measured anisotropy against the sampling-noise floor, and recovery fraction (forced value 0)"
+      - "ARM C maxima against the assumed 2^-10 bound"
+    secondary:
+      - "per-rung raw anisotropy with small-sample bias correction shown separately from the raw value"
+      - "monotonicity verdict across each ladder"
+      - "ARM X paired anisotropy ratios and alignment differences"
+      - "the recomputed N_moment and N_LLR at the Stage-0 constants and their separation in bits, under both the pooled and unpooled HEUR-FN-6 variants"
+      - "eigenvector alignment conditioning diagnostics for the double-precision step"
+      - "construction rejection counts and reasons per dimension"
+
+  preregistered_prediction:
+    quantity: >-
+      P1 symbolic cancellation; P2 alpha_leaf; P3 K_leaf; P4 alpha_lattice;
+      P5 ARM P reproduction and recovery; P6 ARM N null; P7 monotonicity;
+      P8 ARM X collision; P9 ARM C maxima. These are exactly the predictions
+      of H-FNDSA-58b464, restated here as the frozen preregistration.
+    formula: >-
+      pooled leaf anisotropy = 8 pi^2 s^2 eps(s)^2 + O(eps^3);
+      Babai-endpoint per-direction variance = ||b~_i||^2 / 12;
+      N_moment = 1 / (d delta^2) with delta = 8 pi^2 sigma_min^2 eps_0^2.
+    source: >-
+      Derived in H-FNDSA-58b464 and IDEA-20260805-637a3b by differentiating
+      the Poisson expansion of the discrete Gaussian normalizer, before any
+      run, with no parameter fitted to any measurement. Numerical values at
+      the recalled constants: delta = 2^-85.99 and 2^-88.94; N_moment =
+      2^161.98 and 2^166.89; separation from the normalizer channel 79.0 and
+      82.0 bits.
+    tolerance: >-
+      P1 exact equality required; P2 alpha_leaf = 2.00 plus or minus 0.15;
+      P3 K_leaf within 10 per cent of 78.957; P4 alpha_lattice = 2.00 plus or
+      minus 0.15, with a measured 1.00 plus or minus 0.15 reported as
+      refutation of HEUR-FN-5 rather than of the closed form; P5 variance
+      within 5 per cent and alignment within 5 degrees for at least 90 per
+      cent of keys; P6 anisotropy within 3 / sqrt(N) of zero and recovery
+      exactly 0; P7 strict monotonicity; P8 ratios equal within sampling
+      noise; P9 below 2^-10 predicted, above 2^-5 refutes HEUR-FN-5.
+
+  stages_cheapest_first:
+    - stage: 0
+      name: symbolic re-derivation of the cancellation
+      compute: none
+      wall_clock_seconds: 1800
+      can_terminate_run: true
+      termination_condition: >-
+        THE DECISIVE ZERO-COMPUTE GATE, AND IT RUNS FIRST. Re-derive by hand,
+        and have independently checked, that the c-average of E[(z - c)^2]
+        exceeds s^2 by exactly 8 pi^2 s^4 eps^2 and that the variance of the
+        mean bias equals exactly 8 pi^2 s^4 eps^2. IF THEY ARE NOT EQUAL, the
+        pooled anisotropy is O(eps), N_moment falls from 2^161.98 to about
+        2^68.98 -- below the normalizer channel's 2^83.00 -- the moment
+        channel becomes the leading distributional route, and the run stops
+        and escalates that finding rather than proceeding to a ladder designed
+        around the wrong exponent. Cost of being wrong: one page of algebra.
+    - stage: 1
+      name: isolated-leaf ladder
+      compute: "sampling; numpy"
+      wall_clock_seconds: 2700
+      can_terminate_run: true
+      termination_condition: >-
+        If alpha_leaf falls outside [1.85, 2.15], the closed form does not
+        describe even the isolated leaf; the derivation has failed upstream of
+        the recursion and the lattice stage is not run on a law known to be
+        wrong.
+    - stage: 2
+      name: null and positive-control endpoints
+      compute: "sampling; exact rational Gram-Schmidt"
+      wall_clock_seconds: 2400
+      can_terminate_run: true
+      termination_condition: >-
+        ARM N first, then ARM P. If ARM N shows anisotropy above the noise
+        floor or any frame recovery, the instrument is broken and the run
+        stops. If ARM P does not fire, the instrument is insensitive and the
+        run stops; NO NEGATIVE RESULT IS REPORTABLE IN EITHER CASE.
+    - stage: 3
+      name: full recursive lattice ladder, collision arm, center diagnostics
+      compute: "sampling; numpy; exact rational Gram-Schmidt"
+      wall_clock_seconds: 5400
+      can_terminate_run: false
+      termination_condition: >-
+        None. On budget exhaustion the stage reports exactly which
+        (dimension, width, key) cells completed and which did not, and no
+        uncompleted cell is described as consistent with anything.
+
+  scale_relevance:
+    tier: toy
+    transfer_argument: >-
+      The decay law in the width is a property of the ONE-DIMENSIONAL discrete
+      Gaussian and is independent of lattice dimension, so validating alpha
+      and K at the isolated leaf validates the same identity that is evaluated
+      at sigma_min. Stage 1 is therefore a check of a derivation and not an
+      extrapolation.
+    transfer_limits: >-
+      Stage 3 does NOT transfer. The center correlation structure and the
+      pooling factor d are properties of the actual dimension, and n <= 32 is
+      four to six doublings short of n = 512. A measured alpha_lattice = 2.00
+      at n = 32 is EVIDENCE THAT THE CANCELLATION CAN SURVIVE A RECURSION, not
+      evidence that it survives FN-DSA's recursion, and the report must say so
+      at every use. The recovery figures use the secret frame and are upper
+      bounds on attacker capability, not attack success rates. Nothing here is
+      a statement about a standardized parameter set.
+
+  replication:
+    seeds: [20260805, 20260806, 20260807]
+    planned_runs: 3
+    interpretation: >-
+      Three seeds establish sampling reproducibility only. The seed-to-seed
+      spread of every measured anisotropy MUST be reported BEFORE its
+      deviation from the derived value. If the spread is comparable to or
+      larger than the deviation, that cell resolves nothing and is reported as
+      unresolved rather than as agreement -- which is the failure mode that a
+      six-rung fit is most likely to hide.
+
+  budget:
+    maximum_runs: 3
+    maximum_wall_seconds: 12300
+    maximum_cpu_seconds: 36000
+    maximum_peak_rss_bytes: 4294967296
+    maximum_total_disk_bytes: 4294967296
+    maximum_workers: 1
+    network: false
+
+  stopping_rules:
+    - Do not execute unless this contract is separately approved, frozen, archived, and execution-authorized by the Coordinator. It carries no approved_by field.
+    - Stop at Stage 0 and escalate if the second-order cancellation fails symbolically.
+    - Stop at Stage 1 if alpha_leaf falls outside [1.85, 2.15].
+    - Stop before ARM P is examined if the ARM N commitment and its digest are absent.
+    - Stop and report an instrument failure if ARM N shows any recovery or if ARM P fails to fire.
+    - Stop any stage exceeding its declared allowance and report the coverage achieved.
+    - Stop and escalate under AGENTS.md rule 12 if alpha_lattice measures 1.00 within tolerance, since that would place a distributional channel against a standardized algorithm at 2^69 signatures.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - ARM P examined before the ARM N commitment exists.
+    - Any Gram-Schmidt norm computed in floating point rather than exact rational arithmetic.
+    - Any anisotropy reported without its small-sample bias correction shown separately from the raw value.
+    - Any anisotropy reported without its seed-to-seed spread reported first.
+    - Any recovery figure quoted without the statement that it was computed with the secret frame in hand.
+    - Any fit of alpha and K performed per rung and then reported as a single law; the claim is that ONE pair fits all six rungs.
+    - Any statement that moment attacks on FN-DSA are ruled out, or any extension of a second-moment result to the fourth moment.
+
+  infrastructure_failure_disposition: >-
+    A timeout, crash, missing dependency, construction failure, or exhausted
+    budget is INFRASTRUCTURE SIGNAL and is NEVER negative mathematical
+    evidence against H-FNDSA-58b464 or any proposition in RQ-FNDSA-001
+    (AGENTS.md rule 5). Specifically: an absent numpy reduces sample counts and
+    is recorded; a toy-key lift that cannot be completed at a dimension is a
+    CONSTRUCTION FAILURE for that dimension and that dimension is reported as
+    not measured rather than replaced; an exhausted Stage-3 budget is reported
+    as partial cell coverage naming exactly which cells completed. The absence
+    of a computer-algebra system means Stage 0 is a hand derivation with an
+    independent check, and if no independent checker is available Stage 0 is
+    reported as SINGLY DERIVED and the confidence attached to P1 is reduced
+    accordingly in every downstream statement.
+
+  success_criterion: >-
+    This contract has NO current success outcome because it is not authorized
+    for execution. If a separately approved, frozen and authorized successor
+    is executed, its only positive disposition is a COMPLETE LADDER READOUT:
+    Stage 0 cancellation independently re-derived; ARM N committed before ARM
+    P and consistent with its forced values of zero anisotropy and zero
+    recovery; ARM P firing at 90 per cent recovery with per-direction
+    variances matching ||b~_i||^2 / 12 within 5 per cent; alpha_leaf and
+    K_leaf within tolerance over six monotone rungs with seed spreads reported
+    first; alpha_lattice reported per dimension; ARM X ratios equal and
+    alignments different; ARM C maxima stated. THAT DISPOSITION ESTABLISHES NO
+    ATTACK, NO EXPONENT, NO CRYPTO-SCALE CLAIM, AND NO CLOSURE OF THE MOMENT
+    FAMILY -- higher moments are untouched and the report must say so.
+
+  falsification_criterion: >-
+    The contract falsifies H-FNDSA-58b464 if: the symbolic cancellation fails
+    (clause B void, and the derived separation reverses); alpha_leaf falls
+    outside [1.85, 2.15] (clauses A and B void at the leaf); alpha_lattice
+    measures 1.00 within tolerance while alpha_leaf measures 2.00 (HEUR-FN-5
+    refuted, separation withdrawn); ARM X gives different anisotropy ratios
+    for matched-profile keys (the estimator measures something the derivation
+    does not describe); or the ladder fails to decay monotonically (an
+    artifact is reported rather than a law). If ARM N fails or ARM P fails to
+    fire, the instrument is void and NEITHER confirmation NOR falsification
+    may be claimed.
+
+  required_artifacts:
+    - The frozen approved specification and a freeze receipt binding its SHA-256.
+    - The Stage-0 hand derivation in full, with the independent checker's identity and verdict, or an explicit record that it was singly derived.
+    - The ARM N commitment digest and its timestamp, provably preceding ARM P generation.
+    - Per-rung, per-key, per-seed raw anisotropy records with raw and bias-corrected values shown separately.
+    - The exact rational Gram-Schmidt norms of every toy key, and the construction transcript including every rejection and its reason.
+    - ARM P per-direction variance ratios and alignment angles per key.
+    - ARM X paired measurements with the matched-profile construction transcript.
+    - ARM C harmonic-moment maxima with message counts and seeds.
+    - Environment manifest: python version, numpy presence and version, scipy and sympy import results, git commit, dirty-tree state, and the resolved inference block.
+    - An execution report naming every cell NOT measured and why.
+    - A snapshot archive followed by independent Validator and Red Team review before any evidence record is written.
+
+  approval_requirements:
+    - Independent review confirms ARM N is a genuine null whose forced value was derived pre-run and which can fail, and ARM P is a genuine sensitivity demonstration on the historically exploitable object.
+    - Independent review confirms the fit protocol claims ONE (alpha, K) across six rungs rather than per-rung fits.
+    - Independent review confirms the secret-frame qualifier is attached to every recovery figure in the report template, not only in a limitations section.
+    - Coordinator separately approves and freezes a successor contract without editing this draft, and pre-agrees the rule 12 routing for a measured alpha_lattice near 1.00.
+
+  approval_status: >-
+    Pending Coordinator review. No approved_by field is present because this
+    contract is not approved, and only the Coordinator may approve it
+    (AGENTS.md rule 1).

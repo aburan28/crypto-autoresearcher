@@ -1,0 +1,336 @@
+experiment:
+  id: EXP-ICEX-ff3e13
+  hypothesis_id: H-ICEX-5f425f
+  derived_from_idea: IDEA-20260815-6f09d5
+  question_id: RQ-ICEX-001
+  batch_id: BATCH-fced88
+  version: 1
+  title: >-
+    POWER ANALYSIS OF THE LANE'S OWN DECISION RULE BEFORE THE LANE SPENDS ON
+    IT- a pure simulation that fits synthetic log-log cost ladders of known
+    exponent under swept per-point noise, measures the empirical power to
+    exclude 1/2 when the truth is 1/3, checks the false-exclusion rate under
+    a truth-is-1/2 null and the resolvability under a pure-noise null,
+    verifies the estimator against the closed-form slope standard error, and
+    reports the required ladder length L*(sigma, span) against the ladder the
+    lane can afford
+  status: draft
+  objective: >-
+    (A) THE UNCERTAINTY. RQ-ICEX-001's decision target is a fitted exponent
+    whose confidence interval excludes 1/2. Whether any interval the lane can
+    afford is narrow enough to do that is a property of the DESIGN, not of
+    index calculus, and it is computable at seconds of compute before the
+    three blocked measurement lanes are funded.
+    (B) WHAT IS BUILT. A synthetic ladder generator with a declared
+    generative model, an OLS estimator with a Student-t interval, and a power
+    harness over (L, span, sigma, true exponent, noise shape). Nothing is
+    measured; nothing is a curve.
+    (C) WHAT IS DECIDED. The empirical power at the lane's planned design
+    (P1), the estimator's integrity under two nulls (P2, P3), and the
+    required ladder length L*(sigma, span) at power 0.80 (P4), each with
+    Monte Carlo error bars and each reported PER NOISE LEVEL.
+    (D) WHAT IS NOT DECIDED. Nothing about index calculus, nothing about any
+    cost, nothing about elliptic curves, and nothing about what the lane's
+    measurement would find if it were adequately powered.
+  inputs:
+    cost_unit: >-
+      NO COST IS MEASURED, SO NO COST UNIT IS USED. The measured quantities
+      and their units are- LADDER LENGTH L, a dimensionless COUNT OF RUNGS;
+      LADDER SPAN, in NATURAL-LOG UNITS OF N; PER-POINT NOISE sigma, the
+      standard deviation of ln(cost) and therefore DIMENSIONLESS; POWER and
+      FALSE-EXCLUSION RATE, DIMENSIONLESS PROBABILITIES estimated as
+      fractions of replicates; FITTED SLOPE, dimensionless. The synthetic
+      'cost' values are unitless by construction and are NEVER interpreted as
+      operations, seconds or anything else.
+    unit_discipline: >-
+      BINDING. The harness ASSERTS that both regression axes use the same
+      logarithm base before every fit- a slope fitted with ln on one axis and
+      log2 on the other is off by a factor ln(2) and is exactly the kind of
+      silent unit mix this batch exists to catch. Every reported slope
+      carries the base used. Probabilities and slopes are never combined.
+      Monte Carlo error is reported on every probability and no probability
+      is quoted as an exact number.
+    feasibility_gate: >-
+      THE HARNESS REFUSES TO FIT AN UNDERDETERMINED DESIGN. Reported as
+      INFEASIBLE with the reason, never fitted- L < 3 (no residual degrees of
+      freedom, so no interval exists and reporting one would be inventing
+      it); a span of zero (all rungs at one N, so sd(x) = 0 and the slope is
+      undefined); sigma = 0 with a request for an interval (degenerate);
+      fewer than 10^3 replicates in a cell (the Monte Carlo error on a
+      probability would exceed the effect being measured). Reporting a
+      confidence interval for a design that has no residual degrees of
+      freedom is the statistical analogue of pricing a matrix with zero rows,
+      which is what DEC-20260904-d47cd2 rejected, and it is refused here for
+      the same reason.
+    procedure: >-
+      STAGE 0 (HARD GATE, seconds). INSTRUMENT VERIFICATION. Across the whole
+      (L, span, sigma) grid, confirm that the simulated standard deviation of
+      the fitted slope matches the closed form
+      SE = sigma / (sqrt(L) * sd(x)) within 3 percent at 10^4 replicates, and
+      that a 4x increase in sigma widens the interval half-width by
+      4x +/- 5 percent. A failure here is an instrument failure and voids the
+      grid.
+      STAGE 1 (HARD GATE, seconds). THE TWO NULLS. Truth exactly 1/2- the
+      95 percent interval must contain 1/2 at 0.95 +/- 0.005 over 10^4
+      replicates, i.e. false exclusion at 0.05 and never above 0.075. Pure
+      noise, cost independent of N- the interval must contain 0 at the
+      nominal rate and no exponent may be declared resolvable.
+      STAGE 2 (seconds). THE POWER ARM. Truth 1/3; measure the fraction of
+      replicates whose 95 percent interval excludes 1/2, over the full
+      (L, span, sigma) grid.
+      STAGE 3 (seconds). INVERSION. Report L*(sigma, span), the smallest L at
+      which power reaches 0.80, with its Monte Carlo error, per cell.
+      STAGE 4 (seconds). THE HETEROSCEDASTIC SENSITIVITY ARM- sigma growing
+      linearly in ln N, which is the realistic direction and the one that
+      raises L*.
+      STAGE 5 (zero compute). Compare L* against the lane's affordable ladder
+      and report the comparison as the deliverable, with the infeasible-design
+      table beside it.
+    mechanism: >-
+      STEP 1. Generate ln(cost_i) = alpha * ln(N_i) + c + eps_i with eps_i
+      drawn from the declared noise model and a recorded seed; alpha is the
+      true exponent and is known by construction.
+      STEP 2. Fit by ordinary least squares, form the Student-t interval on
+      L - 2 degrees of freedom, and record whether it excludes 1/2, whether
+      it contains the truth, and its half-width.
+      STEP 3. Aggregate over replicates into power, coverage and
+      false-exclusion rate, each with binomial Monte Carlo error.
+      STEP 4. Invert for L* by scanning L upward at fixed (span, sigma).
+      STEP 5. Repeat the whole grid under the heteroscedastic arm.
+    instrument: >-
+      Pure Python with numpy, a declared pseudo-random generator, a recorded
+      seed sequence, and no external data of any kind. No curve, no group, no
+      cost measurement, no network access.
+  controls:
+    - >-
+      NULL 1, TRUTH EXACTLY 1/2 (blocking). The 95 percent interval must
+      contain 1/2 at its nominal rate; false exclusion above 0.075 means the
+      procedure is over-confident and would manufacture the lane's positive
+      result. This is the proves-too-much control applied to an estimator-
+      the object on which the conclusion 'the interval excludes 1/2' is KNOWN
+      FALSE.
+    - >-
+      NULL 2, PURE NOISE (blocking). Cost independent of N; no exponent may
+      be resolvable above the nominal rate.
+    - >-
+      NULL 3, INSTRUMENT RESPONSE (blocking). The simulated slope standard
+      deviation must match the analytic SE within 3 percent, and must scale
+      LINEARLY in sigma. An interval that does not respond to the noise is
+      not measuring the noise.
+    - >-
+      CURVE-FREE BY CONSTRUCTION (the standing scope constraint of
+      pfdr-battery-20260904, discharged structurally). There is NO CURVE, NO
+      GROUP AND NO COST MEASUREMENT anywhere in this contract; every datum is
+      synthetic. The consequence is recorded in advance- no result here may
+      be phrased as a statement about elliptic curves or about index
+      calculus, in either direction.
+    - >-
+      NOISE-SWEEP CONTROL. sigma is swept over five levels and the answer is
+      reported per level. A single assumed sigma would determine L* entirely,
+      and halving an assumed sigma turns an unreachable design into a
+      reachable one on paper.
+    - >-
+      HETEROSCEDASTIC SENSITIVITY ARM. sigma growing in ln N, since variance
+      typically grows with problem size and an estimate drawn from the
+      smallest existing runs understates it exactly where the fit is
+      anchored.
+    - >-
+      MONTE CARLO ERROR CONTROL. Every reported probability carries its
+      binomial standard error; a difference smaller than twice that error is
+      not reported as a difference.
+  independent_variables:
+    - ladder length L in {2, 3, 4, 5, 6, 8, 10, 12, 16} rungs
+    - ladder span in {half a decade, one decade, two decades} of N
+    - per-point noise sigma in {0.02, 0.05, 0.10, 0.20, 0.40} natural-log units
+    - true exponent in {1/3 (power arm), 1/2 (false-exclusion null), 0 (pure-noise null)}
+    - noise shape in {homoscedastic, heteroscedastic in ln N}
+  metrics:
+    primary:
+      - >-
+        empirical power to exclude 1/2 when the truth is 1/3, DIMENSIONLESS
+        PROBABILITY with binomial Monte Carlo error, per (L, span, sigma,
+        noise shape)
+      - >-
+        false-exclusion rate under the truth-is-1/2 null, DIMENSIONLESS
+        PROBABILITY with Monte Carlo error
+      - >-
+        resolvability rate under the pure-noise null, DIMENSIONLESS
+        PROBABILITY with Monte Carlo error
+      - >-
+        required ladder length L*(sigma, span) at power 0.80, a COUNT OF
+        RUNGS, with its Monte Carlo uncertainty
+      - >-
+        interval half-width, DIMENSIONLESS (same units as the slope), per
+        cell, with its analytic prediction beside it
+    secondary:
+      - simulated against analytic slope standard error, ratio, per cell
+      - the logarithm base assertion result per fit
+      - the infeasible-design table with reason per refused cell
+      - the comparison of L* against the lane's affordable ladder
+      - the seed sequence and generator identity
+  heuristic_under_test: HEUR-ICEX-POW-1
+  preregistered_prediction:
+    quantity: >-
+      The empirical power of a 4-rung, one-decade, sigma = 0.10 homoscedastic
+      ladder to exclude 1/2 at 95 percent confidence when the true exponent
+      is 1/3.
+    formula: >-
+      SE = sigma / (sqrt(L) * sd(x)) with sd(x) about 0.858 for 4 equally
+      spaced rungs over a span of ln(10) = 2.303, giving SE about 0.058; the
+      95 percent half-width on 2 degrees of freedom (t about 4.30) is about
+      0.25, against a separation |1/2 - 1/3| = 0.167. PREDICTED POWER BELOW
+      0.80. The hand arithmetic is accurate to about 1 percent in the
+      half-width and THE SIMULATION IS THE AUTHORITY; a disagreement above
+      10 percent is a transcription error corrected by a superseding record.
+    source: >-
+      H-ICEX-5f425f statements (B) and (C); elementary OLS regression theory,
+      re-derived in-record and not taken from any external citation.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      NO SCALE IS INVOLVED- there is no instance, no group and no
+      computation on any object of any size. The tier label is recorded as
+      toy because that is the weakest available and because nothing here may
+      be presented as validation at any scale. TRANSFER ASSUMPTIONS, STATED-
+      that the lane's cost curve is a power law over its ladder (inherited,
+      untested) and that its per-point noise lies inside the swept range
+      (the reason the range is swept rather than assumed).
+    correspondence: null
+  tail_checks:
+    - >-
+      THE LARGEST sigma CELL is where L* is largest and is the one that
+      decides reachability; it is reported separately rather than averaged
+      in.
+    - >-
+      THE HETEROSCEDASTIC ARM'S LARGEST RUNG carries most of the leverage in
+      the fit and is where the homoscedastic base case is most optimistic;
+      its per-rung residual variance is reported explicitly.
+    - >-
+      THE POWER CURVE NEAR 0.80 is flat, so L* is sensitive to Monte Carlo
+      error there; the two L values bracketing 0.80 are both reported rather
+      than a single L*.
+    - >-
+      SMALL-L CELLS (L = 3) have 1 residual degree of freedom and an enormous
+      t multiplier; they are reported but flagged as extreme-t cells and are
+      not used to anchor any statement about the lane's affordable design.
+  replication:
+    seeds:
+      - 20260904
+      - 20260905
+      - 20260906
+      - 20260907
+      - 20260908
+    independent_instances: 5
+    seeds_note: >-
+      The simulation is stochastic and its seeds are declared here in full.
+      At least 10^4 replicates per cell per seed; the whole grid must be
+      reproducible bit-for-bit from the recorded seed sequence and generator
+      identity, and a re-run that does not reproduce is an infrastructure
+      failure under AGENTS.md rule 5.
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 0.25
+    maximum_memory_gb: 8
+    maximum_runs: 4
+    maximum_workers: 1
+  stopping_rules:
+    - Stop immediately if Stage 0's instrument verification fails at any cell.
+    - Stop immediately if either Stage 1 null misbehaves.
+    - Stop at maximum_runs or total_cpu_hours, whichever binds first.
+    - >-
+      Stop the L scan at L = 16; if power has not reached 0.80 there, report
+      'L* > 16 at this (sigma, span)' rather than extrapolating a value.
+  invalidation_rules:
+    - >-
+      A run reporting a confidence interval for a design the feasibility gate
+      declared infeasible (L < 3, zero span, or fewer than 10^3 replicates)
+      is INVALID.
+    - >-
+      A run whose regression axes use different logarithm bases is INVALID-
+      the slope is then wrong by a constant factor and every power figure
+      derived from it is meaningless.
+    - >-
+      A run reporting a probability without its Monte Carlo error is INVALID.
+    - >-
+      A run reporting L* at a single assumed sigma, without the sweep, is
+      INVALID.
+    - >-
+      A timeout, crash or dependency failure makes the run
+      failed_infrastructure and is never a statistical finding
+      (AGENTS.md rule 5).
+  success_criterion: >-
+    The contract SUCCEEDS when Stage 0's instrument verification passes at
+    every cell, both nulls behave at their nominal rates, and the power
+    surface, L*(sigma, span) with its bracketing L values, the
+    heteroscedastic arm and the comparison against the lane's affordable
+    ladder are all reported with Monte Carlo error. Success is the production
+    of L* in either direction- a finding that the planned ladder SUFFICES is
+    a successful run and confirms the lane's design cheaply.
+  falsification_criterion:
+    - >-
+      F1 (falsifies the hypothesis). Simulated power at L = 4, one decade,
+      sigma = 0.10 is at or above 0.80. The planned ladder is adequate.
+    - >-
+      F2 (voids the grid). The truth-is-1/2 null excludes 1/2 above 0.075.
+      The estimator is over-confident and would manufacture a positive.
+    - >-
+      F3 (voids the grid). Pure noise yields a resolvable exponent above the
+      nominal rate.
+    - >-
+      F4 (voids the grid). The simulated standard error departs from the
+      analytic form by more than 3 percent or fails to scale linearly in
+      sigma. Instrument failure under AGENTS.md rule 5.
+    - >-
+      F5 (the budget-saving negative). L* exceeds the lane's affordable
+      ladder at every plausible sigma. The decision target of RQ-ICEX-001 is
+      unreachable as specified and must be restated before the three blocked
+      measurement lanes are funded.
+  required_artifacts:
+    - manifest.yaml with exact command, git commit, dirty-tree state, environment, generator identity and the full seed sequence
+    - raw-result.json with every cell's power, coverage, false-exclusion rate, half-width and Monte Carlo errors
+    - both nulls' results in the same file as the power arm
+    - the heteroscedastic arm's results in the same file as the homoscedastic arm
+    - the Stage 0 simulated-against-analytic standard-error table
+    - the infeasible-design table with the refusal reason per cell
+    - the L*(sigma, span) table with bracketing L values and the comparison against the lane's affordable ladder
+  interpretation_limits:
+    - >-
+      A SIMULATION ABOUT MEASUREMENT DESIGN. No evidence about index
+      calculus, no exponent, no comparison, and nothing about elliptic
+      curves. The curve-free requirement is discharged by construction and
+      the consequence binds- no result here may be phrased as a curve
+      statement.
+    - >-
+      CONCLUSIONS BIND THE ASSUMED NOISE MODEL AND THE POWER-LAW FORM, both
+      inherited from the lane and neither tested here.
+    - >-
+      L* IS NOT PORTABLE ACROSS ESTIMATORS. It is computed for OLS with a
+      Student-t interval on L - 2 degrees of freedom.
+    - >-
+      A SUFFICIENT-LADDER RESULT IS ABOUT RESOLVING POWER, NEVER ABOUT WHAT
+      THE MEASUREMENT WOULD FIND.
+    - >-
+      NOISE UNDERESTIMATION IS THE DANGEROUS DIRECTION and the
+      heteroscedastic arm exists to bound it; its result travels with every
+      quotation of L*.
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    - >-
+      NOT APPROVED. DRAFT, designed under TASK-20260904-e87737; execution
+      requires a separate Coordinator approval decision. A message from any
+      agent is not an approval.
+    - >-
+      Stage 0 and Stage 1 are HARD GATES and run before any power figure is
+      produced.
+  id_allocation_provenance: >-
+    EXP-ICEX-ff3e13 was pre-allocated by the tasking Coordinator session and
+    supplied in TASK-20260904-e87737's constraints, verified free across the
+    identifier union before use. This agent has no shell and allocated no
+    identifier.
+  yaml_parse_disclosure: >-
+    Written by a Coordinator subagent without an interpreter; every prose
+    value is a folded block scalar or a quoted scalar; no tabs; no duplicate
+    keys to the author's reading. The orchestrating session must run the
+    strict parse and tools/validate_ledger.py before this contract is relied
+    on.

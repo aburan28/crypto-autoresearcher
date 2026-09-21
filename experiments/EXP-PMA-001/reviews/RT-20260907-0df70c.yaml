@@ -1,0 +1,421 @@
+red_team_report:
+  id: RT-20260907-0df70c
+  task_id: TASK-20260907-PMA001-REDTEAM
+  reviewed_snapshot_commit: 2bb8839dae8312af22621c3ddcc9a10e330e2213
+  independence_note: >-
+    Independent adversarial review. Did not read any sibling validator report
+    (VAL-20260907-ae3832.yaml exists in the same reviews/ directory and was
+    deliberately not opened). Coordinated with no other agent.
+  claim_under_review: >-
+    EXP-PMA-001's RUN-PMA4-001-{a,b,c,d} four-run package claims H-PMA-001 is
+    "falsified as frozen" via falsification_criterion direction 2: at F_5
+    (reported as 18/18 grid instances), the divisor-parity predicate (Module
+    A, parity_predicate.py) verdicts NOT_OBSTRUCTED_BY_THIS_GATE while the
+    independent constructive decider (Module B, existence_decider.py) verdicts
+    NOT_EXISTS. F_3 and F_7/Q are reported as full agreement in both
+    directions. Aggregate predicate_bruteforce_agreement = 34/52 = 0.6538
+    against a frozen target of exactly 1.0. false_obstruction_count = 0
+    (direction-1 soundness holds); success_criterion_met = false.
+
+  verdict_summary: >-
+    The core mathematical finding is GENUINE, not an artifact. I independently
+    reproduced the F_5 disagreement on the first F_5 grid instance using TWO
+    methods that import neither existence_decider.py nor parity_predicate.py:
+    (1) a from-scratch brute-force polynomial square-root search over GF(5)[t]
+    (no factorization, no coefficient-matching recurrence) confirming all
+    three anchor-triple discriminants ARE squares in F_5(t); and (2) a
+    from-scratch, unconstrained (no WLOG normalization) 12-unknown, 11-equation
+    Groebner basis computation over the algebraic closure of F_5(t), confirming
+    the ideal is trivial (basis = [1]) -- i.e. NO 4x4 matrix with the
+    prescribed principal minors exists even over the algebraic closure, a
+    strictly stronger statement than "no matrix over F_5(t)". This rules out a
+    shared bug between Module A and Module B, and rules out the WLOG
+    diagonal-conjugation normalization Module B uses as a source of missed
+    solutions. However, I found two undisclosed problems that the eventual
+    evidence-review decision must correct before this result is promoted:
+    (a) a severe, undisclosed sample-duplication defect that inflates the
+    apparent evidentiary weight of "18/18" (and "10/10", and the 34/52
+    aggregate) well beyond the real distinct-instance count, and (b) a
+    dead/no-op "widening fallback" that cannot deliver what the frozen
+    specification says it does. Neither defect changes the truth of the
+    disagreement itself, but both must be corrected before the finding is
+    cited as "the entirety of the F_5 grid" or folded into a headline
+    statistic.
+
+  objections:
+    - id: OBJ-1-sample-duplication
+      severity: high
+      description: >-
+        The reported instance counts materially overstate independent sample
+        size. Reading d_values directly out of RUN-PMA4-001-b/raw-result.json:
+        F_3's 18 "instances" reduce to 1 distinct table (already disclosed);
+        but F_5's 18 "instances" reduce to only 5 distinct tables (repeated
+        5-6x each), and F_7's 10 "instances" reduce to only 3 distinct tables
+        (repeated 3x each). Root cause: grid_data.py's allowed_values(field)
+        = list(range(2, q)) has only q-2 elements (3 for F_5, 5 for F_7), and
+        15 subsets are assigned d_S values cyclically from that box, so by
+        pigeonhole every F_5 instance necessarily has only 3 distinct d_S
+        values spread over 15 subsets (and every F_7 instance only 5). This
+        is NOT disclosed anywhere in analysis.md or execution-report.yaml --
+        only F_3's total collapse to a single point is flagged as a "genuine
+        executability tension." The real distinct-instance ledger is: F_3=1
+        (compatible), F_5=5 (all false_compatibility), F_7=3 (all
+        obstructed_confirmed), Q=5 of 6 (obstructed_confirmed, Q's box of 45
+        values gives full 15-subset diversity so this field is NOT affected).
+        Recomputed on a distinct-instance basis: n_decided=14 (not 52),
+        n_agreement=9 (not 34), agreement=9/14=0.643 (close in value to
+        0.6538 but resting on 3.7x fewer independent data points), and
+        nonvacuous_obstruction_count on a distinct basis is 8 (3 from F_7 + 5
+        from Q), not 16. The commit message and analysis.md's repeated
+        emphasis on "18/18," "10/10," "the entirety of the F_5 grid," and "a
+        complete flip" reads as far stronger evidence than 5 distinct
+        mathematical data points (all sharing the same narrow structural
+        shape: a table built from only 3 distinct rational-function values,
+        see OBJ-2) actually supports.
+      evidence: >-
+        Verified directly from experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/raw-result.json
+        by grouping instances on their full d_values dict: F_3 -> 1 distinct
+        key / 18 rows; F_5 -> 5 distinct keys / 18 rows (counts 6,5,5,1,1);
+        F_7 -> 3 distinct keys / 10 rows. Cross-checked against
+        RUN-PMA4-001-c/raw-result.json's q_field.instances: 5 distinct keys /
+        6 rows (Q is not materially affected -- each Q instance carries 15
+        distinct d_S values by construction, since Q's box has 45 elements).
+    - id: OBJ-2-narrow-structural-family
+      severity: medium
+      description: >-
+        Because of OBJ-1's box-collision, every F_5 instance tested (all 5
+        distinct ones) has the identical special shape: only 3 distinct
+        rational functions A=(t+1)/(t+2), B=(t+1)/(t+3), C=(t+1)/(t+4) appear
+        among the 15 p_S values, each repeated on 5 subsets. This is a very
+        narrow, highly repetitive corner of the F_5(t) reciprocal-minor
+        instance space, not a representative sample of it. analysis.md
+        already (correctly) declines to claim the false_compatibility outcome
+        is "F_5-specific" versus a "more general phenomenon," which is the
+        right level of caution -- but it does so without disclosing that the
+        tested F_5 grid could not have explored anything BUT this narrow
+        repeated-value family, given the frozen box construction. The
+        red-team requires this to be stated explicitly: the direction-2
+        falsification is scoped not just to "F_5" but to this specific
+        repeated-value table family within F_5, and whether it holds for a
+        generic (non-repeating) F_5(t) table is untested and unknown.
+    - id: OBJ-3-dead-widening-fallback
+      severity: medium
+      description: >-
+        specification.yaml's widening_fallback text says "if a field's grid
+        yields zero obstructions, one widening of its parameter box (+8
+        instances) is allowed per field." As implemented,
+        grid_data.py:widening_instance(field_label, m) calls
+        grid_instance(field_label, m), which calls allowed_values(field_label)
+        -- the IDENTICAL box, not a widened one. Because F_5's box has only 3
+        elements and the assignment stride (5) is coprime to 3, continuing the
+        same periodic formula at m=8..15 is mathematically guaranteed to
+        revisit tables already reachable by the base grid (confirmed: F_5's 8
+        widened instances collapse into the same 5 distinct tables already
+        seen among the 10 base+perturbed instances). The widening step, as
+        coded, cannot discover any new information for a field whose box is
+        smaller than its assignment period; it can only re-sample. This is a
+        real deviation from what the frozen protocol's own text describes,
+        and it is NOT among the four items execution-report.yaml lists under
+        protocol_deviations (interrupted-session re-execution, driver_core.py
+        passthrough, run_d.py path-bug fix, F_3 box collapse). It predates
+        this session's own work (grid_data.py was inherited, not authored, by
+        the committing session) but the committing session's own analysis
+        and aggregate statistics rely on the widened instances without
+        flagging that the widening never actually widened anything.
+    - id: OBJ-4-groebner-control-blind-spot
+      severity: low
+      description: >-
+        CTRL-PMA4-GROEBNER's pre-declared subsample (2 F_7-obstructed, 2
+        F_3-compatible instances, per RUN-PMA4-001-c/raw-result.json's
+        groebner_subsample) never touches F_5 or Q at all. For a result this
+        significant (a frozen-classifier falsification), the one control in
+        the frozen contract capable of giving a fully independent third-method
+        cross-check landed entirely outside the disputed field. I supplied
+        this missing check myself (see independent_verification below); it
+        should have been run as part of the original package, or at minimum
+        flagged in analysis.md as a control gap specific to the anomalous
+        result.
+    - id: OBJ-5-significance-framing-vs-pre-registered-hedge
+      severity: low
+      description: >-
+        H-PMA-001's own frozen interpretation_limits (written before this
+        experiment executed) already states "divisor parity plus residual
+        constant class is necessary, not sufficient; shared orientation
+        consistency, every size-at-most-three minor, and the mask-15
+        four-minor gate remain independent requirements." The hypothesis's
+        own mechanism text calls the bidirectional "exact classifier" reading
+        "the stronger frozen exact-classifier reading" precisely in
+        contradistinction to "the underlying mechanism [which] claims the
+        obstruction direction only." Direction-2 failing (sufficiency, not
+        soundness) is therefore the pre-anticipated weak point, not a
+        surprise; the truly load-bearing claim (direction 1: an odd valuation
+        is fatal to existence) held perfectly across all 52 (14 distinct)
+        decided instances, non-vacuously, 0 counterexamples. The commit
+        message and analysis.md's language ("a frozen-classifier
+        falsification... not a routine pass... warrant particular scrutiny")
+        is technically accurate per the letter of the falsification_criterion
+        but risks being read as a bigger surprise than the hypothesis's own
+        pre-registered hedge implies. This is a framing objection, not a
+        request to downgrade the result: per AGENTS rules, the falsification
+        is real and should stand, but any evidence-review promotion language
+        must state clearly that (i) only the sufficiency/exact-classifier
+        reading is falsified, (ii) the necessary-condition/obstruction
+        mechanism is unrefuted and non-vacuously confirmed, and (iii) this
+        distinction was anticipated in H-PMA-001's own frozen text, not
+        discovered by this run.
+
+  required_controls:
+    - >-
+      Recompute and report predicate_bruteforce_agreement (and
+      nonvacuous_obstruction_count, false_compatibility_count) on a
+      DISTINCT-INSTANCE basis alongside the existing label-based count, for
+      every field, with the deduplication method disclosed (e.g., group by
+      the full d_values dict). This is the same "cost of computing an
+      eliminated dimension must be charged" principle applied to sample
+      counting: a repeated instance under a different `kind` label is not a
+      second observation.
+    - >-
+      Disclose, for every finite field tested (not only F_3), the number of
+      distinct d_S values available in that field's box (q-2) versus the 15
+      subsets needing values, and the resulting forced-collision structure.
+    - >-
+      Fix or explicitly retire grid_data.py's widening_instance so that it
+      either (a) genuinely draws from an enlarged box (e.g., by lifting d_S
+      to values in an extension, or by relaxing the "!=1" /nonzero
+      constraint's box definition), or (b) is relabeled in
+      specification.yaml as a no-op for fields whose box size is smaller than
+      the assignment stride's period, with the consequence for the
+      non-vacuity check stated explicitly.
+    - >-
+      Run CTRL-PMA4-GROEBNER (or an equivalent from-scratch symbolic check)
+      on at least one F_5 instance specifically, since the pre-declared
+      subsample structurally missed the one field where the anomaly occurs.
+      (I ran this myself against RUN-PMA4-001-b's F_5 instance 0; it should
+      be run as a first-class, disclosed artifact of the experiment itself,
+      not reconstructed by a reviewer.)
+    - >-
+      The cheapest discriminating experiment to resolve OBJ-2: construct one
+      genuinely non-repeating F_5(t) table (15 distinct d_S values is
+      impossible in F_5 itself, but a table using a small set of DISTINCT
+      *rational functions* rather than the fixed (t+1)/(t+d_S) family, or
+      moving to F_11/F_13 where q-2 >= 9-11 permits far less collision) and
+      check whether false_compatibility persists outside the box-collision
+      corner. If it does not, "F_5" was never the operative variable and the
+      finding should be re-attributed to the repeated-value table family
+      wherever it occurs, at any field.
+
+  counterexample_or_mutation: >-
+    None found against the mathematical result itself -- I attempted exactly
+    this (mutation: replace Module A/B's decision procedures with two more,
+    from-scratch, algorithmically distinct methods on the identical F_5
+    instance) and both reproduced the reported disagreement exactly,
+    including per-branch mismatch counts. The counterexample I DID find is
+    against the reported SAMPLE SIZE: the "18/18" and "10/10" instance counts
+    are not 18 and 10 independent observations; see OBJ-1.
+
+  independent_verification:
+    scope: >-
+      RUN-PMA4-001-b, field F_5, grid instance index 0 (d_values as recorded
+      in raw-result.json: (1,)=2,(2,)=3,(3,)=4,(4,)=2,(1,2)=3,(1,3)=4,
+      (1,4)=2,(2,3)=3,(2,4)=4,(3,4)=2,(1,2,3)=3,(1,2,4)=4,(1,3,4)=2,
+      (2,3,4)=3,(1,2,3,4)=4). No import of parity_predicate.py,
+      existence_decider.py, driver_core.py, or witness_verifier.py.
+    method_1: >-
+      Rebuilt p_table/q_ij/c_ijk/Delta_ijk from the specification.yaml
+      formulas in a fresh script (custom RationalFunction add/sub/mul/div
+      over sympy Poly(..., domain=GF(5))). Computed Delta_123 =
+      (t+1)^2 / (t^2+1)^2, Delta_124 = (t+1)^2 / (t^2+t-2)^2, Delta_134 =
+      (t+1)^2 / (t^2-t-1)^2 (all reduced, denominators monic). Verified
+      t^2+1 = (t-2)(t+2) over F_5, matching parity_predicate.py's own
+      reported factor list and multiplicities exactly (independently
+      re-derived, not read off the module's output and trusted).
+    method_2_squareness: >-
+      Brute-force (exhaustive enumeration, no factorization, no
+      coefficient-matching recurrence) search over ALL monic degree-<=2
+      candidate polynomials in GF(5)[t] for a square root of each monic
+      numerator/denominator. Found exact square roots for all three anchor
+      discriminants (e.g. den sqrt of (t^2+1) is (t+2) or (t-2) up to sign
+      convention used; residual leading constants all 1, trivially square).
+      CONFIRMS Module A's NOT_OBSTRUCTED verdict is mathematically correct
+      for this instance -- not a factorization bug.
+    method_3_existence_construction: >-
+      Using the square roots found in method_2, built all 8 sign-branch
+      candidate matrices via the same anchor-triple quadratic-root
+      construction (independently re-derived from c_ijk = x+y, q_ij q_jk
+      q_ki = x*y), fixing a_12=a_13=a_14=1 (justified independently below,
+      not assumed from existence_decider.py), and computed the {2,3,4} and
+      full {1,2,3,4} principal minors via fresh manual Laplace-expansion
+      determinant code. Result: 0 of 8 branches match the {2,3,4} minor; the
+      per-branch mismatch pattern (1 mismatch on 4 branches where the 4x4
+      also happens to match, 2 mismatches on the other 4) reproduces
+      RUN-PMA4-001-b's own branch_log exactly, branch-by-branch.
+      CONFIRMS Module B's NOT_EXISTS verdict.
+    normalization_justification: >-
+      The a_12=a_13=a_14=1 reduction used by both existence_decider.py and my
+      independent method_3 is not an assumption borrowed from either module:
+      principal minors of M are invariant under diagonal conjugation
+      D M D^-1 for any diagonal invertible D (since (DMD^-1)_S =
+      D_S M_S D_S^-1 has the same determinant as M_S for every principal
+      index set S), and a_ij -> (d_i/d_j) a_ij under this conjugation. Given
+      a_12,a_13,a_14 all nonzero (guaranteed outside the disclosed degenerate
+      locus, since a_1j=0 would force q_1j=0), the three ratios d_2/d_1,
+      d_3/d_1, d_4/d_1 can always be chosen to set a_12=a_13=a_14=1, so any
+      solution matrix (if one exists) appears, up to this conjugation, among
+      the 8 enumerated branches. This is a general linear-algebra fact, true
+      in any characteristic, and does not depend on anything Module A or B
+      computes.
+    method_4_groebner_no_normalization: >-
+      As a fourth, maximally independent check that does NOT use the
+      diagonal-conjugation reduction at all, built the full unconstrained
+      system in all 12 off-diagonal unknowns a_ij directly from
+      specification.yaml's formulas (6 pairwise-product equations, 4
+      triple-minor equations including the non-anchor (2,3,4), 1 full 4x4
+      determinant equation) and computed a Groebner basis over
+      GF(5).frac_field(t) with sympy 1.14.0 (matching the tool/version this
+      experiment itself used for CTRL-PMA4-GROEBNER). Result: basis = [1]
+      (trivial ideal) -- NO solution exists even over the algebraic closure
+      of F_5(t), a strictly stronger statement than "no solution over
+      F_5(t)". This independently confirms NOT_EXISTS without relying on the
+      branch-enumeration construction at all.
+    conclusion: >-
+      Four independent, algorithmically distinct methods (Module A's
+      factorization-based squareness test; Module B's coefficient-matching
+      constructive square root + branch enumeration; my from-scratch
+      brute-force square-root search + branch enumeration; my from-scratch
+      unconstrained Groebner basis over the closure) all agree: the anchor
+      discriminants are squares in F_5(t) AND no 4x4 matrix with the
+      prescribed 15 principal minors exists. The disagreement between Module
+      A and Module B on this instance is a genuine mathematical fact, not a
+      shared-bug artifact and not a factorization/coefficient-matching edge
+      case at characteristic 5.
+
+  baseline_comparison: >-
+    Not applicable in the ECDLP/Pollard-rho/BSGS sense -- this experiment
+    makes no discrete-log, relation, or scalar-recovery claim of any kind
+    (certificate.kind: none throughout, confirmed by reading every raw-result
+    and manifest). The relevant "baseline" here is the ground-truth decider
+    itself (Module B) and the specification's own CTRL-PMA4-GROEBNER control;
+    I extended both baselines onto the disputed instance myself, since the
+    frozen protocol's own subsample never covered it (OBJ-4).
+
+  heuristic_challenges: []
+
+  cost_model_challenges: []
+
+  reduction_and_scope_challenges:
+    - >-
+      claim_tier and scope discipline are otherwise clean: claim_tier: toy is
+      held throughout specification.yaml, H-PMA-001, analysis.md, and
+      execution-report.yaml; certificate.kind: none everywhere; no ECDLP,
+      relation, source-recovery, or standardized-curve computation was
+      performed (verified: implementation/ contains only the four named
+      modules plus common.py/grid_data.py/driver_core.py, none of which
+      import anything ECDLP-related); H-PMA-001's own interpretation_limits
+      pre-declares exclusion of char-2, bordered/block/algebra-valued/
+      extension-field/higher-genus representations, and explicitly states
+      "no rho/BSGS advantage, no Shoup-relevant content; candidate_count 0."
+      No scope inflation beyond the tested toy grid was found. The one
+      precision issue is OBJ-1/OBJ-2/OBJ-5 above: the SIZE and REPRESENTATIVE-
+      NESS of the tested grid, not its claimed relevance beyond toy scale.
+    - >-
+      Verified the two disclosed "protocol deviations" (driver_core.py
+      passthrough field; run_d.py path-bug fix) by diffing the actual
+      committed bytes between 0c028b182 (the honestly-marked incomplete prior
+      state) and 2bb8839da (this reviewed commit), not by trusting the prose.
+      driver_core.py's diff is exactly one additive dict key
+      (predicate_triple_certificates) inserted after predicate_verdict; every
+      line that computes record["classification"] (false_obstruction,
+      false_compatibility, agreement_obstructed_confirmed,
+      agreement_compatible_confirmed) is byte-identical before and after.
+      run_d.py's diff changes RUNS_DIR from parents[1]/"runs" to parents[1]
+      (correct: run_d.py lives inside runs/, so the old code pointed at
+      runs/runs/, which does not exist -- an obvious, necessary fix, not a
+      judgment call) and otherwise only ADDS new dict keys under
+      secondary_metrics (obstruction_witnesses, degenerate_branch_count,
+      exceptional_locus_count, per_stage_wall_clock_seconds); every line
+      computing n_agreement, n_decided, predicate_bruteforce_agreement,
+      false_obstruction_count, false_compatibility_count,
+      nonvacuous_obstruction_count, existence_witness_verification_failures,
+      and the falsification_classification block is untouched. I also
+      confirmed RUN-PMA4-001-a/b/c's raw-result.json reproduce bit-for-bit
+      (aside from elapsed_seconds and the one disclosed additive field)
+      against the honestly-committed interrupted-session state in 0c028b182.
+      CONCLUSION: neither disclosed deviation touched any classification
+      verdict; the "orchestration only" characterization is correct and
+      independently confirmed, not merely asserted.
+    - >-
+      predicate_bruteforce_agreement is NOT tautological/circular in the
+      EXP-SEMAEV-002 sense (it compares two verdicts computed by genuinely
+      separate decision procedures, not a metric computed from conditions
+      that guarantee its own numerator). The closest analog to that concern
+      here is OBJ-1 (sample-count inflation via undisclosed duplication)
+      rather than definitional circularity -- flagged and required-controlled
+      above, not swept into the same bucket as a false equivalence.
+
+  proof_architecture_challenges: []
+
+  narrowest_supported_statement: >-
+    On the specific, narrow family of F_5(t) reciprocal-minor tables
+    reachable by this frozen grid's construction (tables built from exactly
+    3 distinct values of the rational function (t+1)/(t+d), d in {2,3,4},
+    each value repeated across 5 of the 15 subsets -- the only shape F_5's
+    3-element parameter box can produce, and the only shape actually tested,
+    across 5 truly distinct instances, not 18), the divisor-parity predicate
+    is genuinely NOT an exact classifier: all 5 distinct tested instances are
+    squares-in-all-three-anchor-discriminants (predicate: compatible) while
+    provably having no 4x4 matrix realization, even over the algebraic
+    closure of F_5(t) (decider + two independent from-scratch re-derivations:
+    NOT_EXISTS). This does falsify H-PMA-001's frozen bidirectional
+    "exact-classifier" reading within that scope, exactly as
+    falsification_criterion direction 2 specifies, and exactly as
+    H-PMA-001's own pre-registered interpretation_limits anticipated as the
+    likely failure mode ("necessary, not sufficient"). It does NOT falsify,
+    and is not evidence against, the one-directional obstruction mechanism
+    (direction 1: odd valuation implies non-existence), which held with zero
+    counterexamples across every decided instance in this run, including
+    non-vacuously (F_7: 3 distinct instances; Q: 5 distinct instances). No
+    claim is supported, and none should be inferred, about F_5(t) tables
+    outside this repeated-value corner, about F_7 or Q's fuller (but still
+    field-box-limited, see OBJ-1) grids revealing anything different under a
+    truly non-colliding parameter box, or about any generic-family,
+    all-size-PMA, or asymptotic/cryptographic question.
+
+  next_concrete_action: >-
+    Before any evidence-review promotion or knowledge-corpus write cites this
+    result, require a superseding correction to analysis.md/execution-
+    report.yaml (per AGENTS.md rule 2, records are immutable and corrections
+    supersede) that: (1) reports predicate_bruteforce_agreement and related
+    counts on both the label basis (as now) and a disclosed distinct-instance
+    basis (14 decided / 9 agree / 8 nonvacuous, not 52/34/16); (2) discloses
+    the q-2 box-size collision structure for F_5 and F_7 exactly as it is
+    already disclosed for F_3; (3) states plainly that the widening fallback,
+    as implemented, cannot access new parameter values for any field whose
+    box is smaller than its assignment period (F_3 and F_5 both hit this);
+    and (4) adds the from-scratch Groebner check on an F_5 instance (or
+    reruns CTRL-PMA4-GROEBNER's methodology against F_5, not just F_3/F_7) as
+    a disclosed, first-class artifact rather than leaving that gap for a
+    reviewer to fill ad hoc. The falsification_criterion direction-2 verdict
+    itself should stand -- it is genuine and independently reproduced by two
+    additional methods in this review -- but it should stand on the honestly
+    counted (5-distinct-instance) evidentiary base, not the inflated
+    18-instance one.
+
+  artifact_paths:
+    - experiments/EXP-PMA-001/specification.yaml
+    - experiments/EXP-PMA-001/analysis.md
+    - experiments/EXP-PMA-001/execution-report.yaml
+    - experiments/EXP-PMA-001/implementation/common.py
+    - experiments/EXP-PMA-001/implementation/parity_predicate.py
+    - experiments/EXP-PMA-001/implementation/existence_decider.py
+    - experiments/EXP-PMA-001/implementation/witness_verifier.py
+    - experiments/EXP-PMA-001/implementation/grid_data.py
+    - experiments/EXP-PMA-001/implementation/driver_core.py
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-a/raw-result.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/raw-result.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-b/run_b.py
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/raw-result.json
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-c/run_c.py
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-d/run_d.py
+    - experiments/EXP-PMA-001/runs/RUN-PMA4-001-d/manifest.yaml
+    - ledger/hypotheses/H-PMA-001.yaml
+    - ledger/questions/RQ-PMA-001.yaml

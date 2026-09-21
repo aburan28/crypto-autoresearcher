@@ -1,0 +1,248 @@
+idea:
+  id: IDEA-20260815-0253b6
+  question_id: RQ-ECDLP-002
+  added: '2026-08-15'
+  title: >-
+    A REACHABILITY AUDIT OF THE TIER LADDER: for each Tier-2 conclusion the
+    PATH series promises, compute whether ANY admissible outcome of the
+    currently deferred G4-G6 lanes could still reach it, and retire the
+    branches that provably cannot
+  class: audit
+
+  claim: >-
+    GOAL-PATH-001 binds a Tier 0-2 series in which SDEG, RELN, SIG and MONO
+    are all deferred and ICEX is non-executing. A campaign in that state is
+    spending prioritisation effort on branches whose reachability nobody has
+    checked. This record treats the ladder as a dependency graph and asks,
+    per terminal conclusion, whether any admissible combination of deferred-
+    lane outcomes still reaches it. Unreachable branches are retired with
+    their reasons; reachable ones are ranked by how few deferred inputs they
+    need.
+
+  mechanism: >-
+    Build the dependency graph from the goal records and their decisions.
+    For each terminal conclusion enumerate the input combinations that would
+    establish it, intersect with the admissible ranges (from counting bounds
+    and existing scoped decisions), and mark reachable or not. Report the
+    retired branches, the minimal input set per surviving branch, and the
+    branch reachable with fewest deferred inputs.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Read of GOAL-PATH-001 next_action, GOAL-ICEX/SDEG/RELN/SIG/MONO
+      statuses; grep for 'dependency audit' (0), 'reachability', 'branch
+      retirement'.
+    results: >-
+      No record performs a reachability analysis over the Tier ladder.
+      Prioritisation decisions exist but select directions rather than
+      eliminating unreachable ones.
+    verdict: >-
+      ADAPTATION. Dependency-graph reachability is standard planning; the
+      contribution is applying it to a research ladder that has
+      accumulated deferrals.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE TIER LADDER'S TERMINAL CONCLUSIONS, indexed by reachability
+      under admissible deferred-lane outcomes.
+    lossiness: >-
+      Reducing a lane to its admissible output range is lossy and
+      deliberately so; it is what makes reachability decidable without
+      running the lane.
+    propagation: >-
+      Not applicable; a planning audit.
+    survival_score: >-
+      Survives while admissible ranges are derivable from committed
+      decisions and counting bounds. Lanes with no bounded range are
+      listed as unconstrained rather than guessed.
+
+  null_object_control: >-
+    NULL 1 -- a DELIBERATELY WRONG dependency graph (edges shuffled), which
+    must produce a visibly different retirement set; identical output means
+    the analysis is not reading the graph. NULL 2 -- reachability computed
+    with all inputs unconstrained, which must retire nothing and bounds the
+    analysis's own conservatism.
+
+  discriminated_from:
+    - >-
+        The Coordinator's prioritisation decisions. NOT A SUBSTITUTE:
+        those choose among reachable options under judgement; this
+        eliminates unreachable ones by argument and feeds that elimination
+        into the next prioritisation.
+    - >-
+        The ICEX optimistic-instantiation record in this batch.
+        COMPLEMENTARY AND SHOULD BE SEQUENCED: that one bounds a single
+        verdict; this one bounds the whole ladder and should consume its
+        output as one edge weight.
+
+  assumptions:
+    - >-
+        Admissible output ranges are derivable for the deferred lanes.
+        Where they are not, the branch is marked unconstrained, never
+        assigned a plausible value.
+    - >-
+        The dependency graph in the goal records is complete. If
+        undocumented dependencies exist the retirement set is wrong in the
+        dangerous direction, so every retirement must name the edges it
+        relied on.
+
+  predictions:
+    - metric: >-
+        shuffled-graph null
+      direction: different
+      minimum_effect: >-
+        FORCED to change the retirement set. Identical output voids the
+        analysis.
+    - metric: >-
+        number of terminal conclusions provably unreachable
+      direction: different
+      minimum_effect: >-
+        No count pre-committed; the list and its reasons are the
+        deliverable.
+    - metric: >-
+        minimal deferred-input set per surviving branch
+      direction: lower
+      minimum_effect: >-
+        Identifies the cheapest branch to unblock, which is the
+        campaign-actionable output.
+
+  minimal_test:
+    design: >-
+      Symbolic, no compute. Build the graph, derive ranges, compute
+      reachability, run both nulls. Hours of work against a campaign
+      currently blocked on four deferred lanes.
+    controls:
+      - >-
+          Shuffled-graph null.
+      - >-
+          Unconstrained-input null bounding conservatism.
+      - >-
+          Every retirement names the specific edges and admissible
+          ranges it used.
+      - >-
+          Unconstrained lanes listed rather than assigned values.
+    required_metrics:
+      - >-
+          Retired branches with reasons and cited edges.
+      - >-
+          Minimal input set per surviving branch.
+      - >-
+          List of lanes with no derivable admissible range.
+      - >-
+          Both null outputs.
+
+  falsification_conditions:
+    - >-
+        Shuffled graph gives the same retirements. Analysis not reading
+        the graph.
+    - >-
+        No lane has a derivable admissible range. The audit is vacuous and
+        must say so.
+    - >-
+        Every branch is reachable. The ladder is not over-committed and
+        the audit's value is the confirmation.
+
+  confounders:
+    - >-
+        UNDOCUMENTED DEPENDENCIES: retiring a branch on an incomplete
+        graph is a false closure, which is worse than no audit. Every
+        retirement must be individually challengeable from its cited
+        edges.
+    - >-
+        STALE DECISIONS: a superseded decision used as an edge constraint
+        would retire a live branch.
+
+  interpretation_limits:
+    - >-
+        A planning artifact. It establishes nothing mathematical and
+        retires branches only within the cited constraints.
+    - >-
+        A retirement is scoped to the admissible ranges used and is
+        reversed if any range is later widened.
+
+  heuristic_assumptions:
+    - id: HEUR-PATH-REACH-1
+      statement: >-
+        The admissible output range of each deferred lane is fully
+        determined by its committed scoped decisions plus the counting
+        bounds already in the corpus.
+      rigorous_support: >-
+        The rigorous ingredient is that the counting bounds (Bezout,
+        tuple-image) are theorems and cap the favourable direction. THE
+        GAP: a lane could return an outcome outside the anticipated
+        range for a structural reason nobody has recorded, which is
+        exactly what a research programme is for, so this heuristic is
+        systematically optimistic about its own completeness.
+      falsification_condition: >-
+        A deferred lane later returning an outcome outside its declared
+        admissible range.
+      validation_plan: >-
+        SAMPLE: every deferred lane, range derived and recorded with
+        citations. COMPARISON: against outcomes as lanes eventually
+        report. TAIL CHECK: any lane whose range was derived from a
+        single citation, flagged as fragile. TRANSFER: none claimed.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Stated explicitly rather than omitted. Symbolic;
+      no compute.
+    memory_exponent: >-
+      Negligible.
+    best_known: >-
+      No incumbent reachability analysis exists in this program; the
+      Coordinator's prioritisation decisions are the closest artifact and
+      answer a different question.
+    hidden_overhead: >-
+      A retirement list invites treating the ladder as settled; every
+      retirement must carry its reversal condition.
+    tradeoff_note: >-
+      Tighter admissible ranges retire more branches and risk false
+      closure. The audit errs toward marking unconstrained.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed) -- no
+    attack is mounted, so no row of the ECDLP frontier (rho, BSGS, kangaroo,
+    index calculus, isogeny) dominates or is dominated. As a planning
+    artifact: not dominated, since none exists here. As methodology:
+    entirely standard dependency analysis, dominated by the planning
+    literature. Not null on any axis.
+  sota_delta: >-
+    No attack, no exponent. Content delivered: a reachability verdict per
+    terminal Tier conclusion with cited edges; a retirement list with
+    reversal conditions; and the identification of the branch reachable with
+    the fewest deferred inputs, which is directly actionable for a campaign
+    currently blocked on four lanes.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.85 that the graph is buildable from committed records. 0.5 that
+    admissible ranges are derivable for most lanes. 0.4 that at least one
+    terminal conclusion is provably unreachable, which would be the audit's
+    payoff. 0.3 that undocumented dependencies make some retirement
+    contestable, which is why each cites its edges.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-ECDLP-002
+    - GOAL-PATH-001
+    - GOAL-ICEX-001
+    - GOAL-SDEG-001
+    - GOAL-RELN-001
+    - GOAL-SIG-001
+    - GOAL-MONO-001
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

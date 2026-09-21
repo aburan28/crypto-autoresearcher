@@ -1,0 +1,162 @@
+idea:
+  id: IDEA-20260726-006
+  title: Frobenius-collapse theorem — closed-form GGM simulator for the endomorphism oracle on generic prime-field curves
+  class: barrier
+  claim: >-
+    For E/F_p with E(F_p) cyclic of prime order n = p + 1 - t, every element of
+    End(E) acts on E(F_p) as multiplication by an integer that is computable in
+    O(log p) from (p, t, n) alone, without evaluating any isogeny. Concretely,
+    Frobenius pi fixes F_p-rational points, so pi acts as 1, and for
+    alpha = u + v*pi the action is multiplication by lambda_alpha = u + v mod n.
+    The characteristic polynomial degenerates accordingly: t == p + 1 (mod n)
+    gives X^2 - t*X + p == (X - 1)(X - p) (mod n), so the only eigenvalues
+    available on E(F_p) are 1 and p mod n. Corollary: the endomorphism oracle
+    is GGM-simulable with an explicit simulator costing one scalar
+    multiplication, i.e. C = O(log p) group operations per query, closing the
+    GLV / volcano-walking / Deuring-transport / CM-descent family at exponent
+    1/2 on generic curves. This upgrades the SIMULABLE verdict that
+    IDEA-20260726-004 *predicts* for its endomorphism oracle from a heuristic
+    ("the endomorphism is public, hence in the model's public setup") to a
+    proved statement with a closed-form simulator and an explicit constant.
+  mechanism: >-
+    Two independent steps, the second of which carries all the content.
+    (1) Triviality of the action: E(F_p) is cyclic of prime order n, and every
+    group endomorphism of a cyclic group is multiplication by an integer, so
+    lambda_alpha exists for every alpha in End(E). This step is elementary and
+    is not the barrier. (2) Freeness of the multiplier: the barrier is that
+    lambda_alpha requires no isogeny computation. E(F_p) = ker(pi - 1), so pi
+    acts as the identity on it, and the ring homomorphism O -> Z/n given by
+    u + v*pi |-> u + v has kernel (pi - 1). An adversary handed an oracle for
+    arbitrary endomorphism evaluation therefore learns nothing it could not
+    compute itself in O(log p) from public curve data. This is what closes the
+    family: it is not that endomorphisms are expensive to apply, but that their
+    effect on E(F_p) is already known for free. Note the direction of the
+    argument matters for cost-model purposes — see IDEA-20260726-008, where the
+    minimum non-scalar endomorphism degree is computed as |Delta|/4 and shown to
+    land exactly at the birthday bound under sqrt-elu evaluation, making the
+    channel marginal even before this collapse is applied. Positioning against
+    IDEA-20260726-002: that proposal must restrict to GLV curves (j = 0, j = 1728,
+    small CM discriminant) precisely because on a generic curve the collapse
+    proved here leaves no efficiently computable phi with a nontrivial orbit
+    structure; this record supplies the reason for that scope restriction.
+  novelty_status: unverified
+  assumptions:
+    - >-
+      E/F_p is ordinary with n = #E(F_p) prime, so E(F_p) is cyclic. Non-cyclic
+      or non-prime-order groups are out of scope and are handled by
+      Pohlig-Hellman anyway.
+    - >-
+      End(E) is an order O in the imaginary quadratic field Q(sqrt(t^2 - 4p)),
+      with Z[pi] contained in O. When the conductor f of Z[pi] satisfies
+      gcd(f, n) = 1 the quotient O/(pi - 1)O is Z/n; the generic case has n
+      prime and huge, so this holds, but the boundary case must be checked
+      rather than assumed.
+    - >-
+      The generic-group model definition used is the one fixed by
+      IDEA-20260726-004, so that the two records' simulability verdicts compose
+      rather than conflict.
+  predictions:
+    - metric: endomorphism_action_equals_lambda_on_E_Fp
+      direction: different
+      minimum_effect: >-
+        alpha(P) = lambda_alpha * P holds for 100% of tested (curve, alpha, P)
+        triples, with zero exceptions. A single counterexample falsifies the
+        theorem outright.
+    - metric: eigenvalue_set_on_E_Fp
+      direction: different
+      minimum_effect: >-
+        The roots of X^2 - t*X + p mod n are exactly {1, p mod n} for 100% of
+        tested curves. Any curve exhibiting a third distinct multiplier
+        reachable by an endomorphism falsifies the collapse.
+    - metric: simulator_overhead_C_group_ops_per_query
+      direction: lower
+      minimum_effect: >-
+        C is one scalar multiplication, O(log p) group operations, independent
+        of the degree of alpha. If C is observed to grow with deg(alpha), the
+        closed-form simulator is wrong.
+  minimal_test:
+    design: >-
+      Toy scale, 30-60 bit p, 8-12 ordinary curves with n prime. For each curve:
+      (1) compute t and n; (2) verify X^2 - t*X + p factors as (X - 1)(X - p)
+      mod n; (3) construct a non-scalar endomorphism alpha concretely as an
+      l-isogeny cycle E -> E' -> ... -> E for small l, recording its
+      decomposition u + v*pi; (4) evaluate alpha(P) directly via the isogeny
+      chain for >= 200 random P in E(F_p); (5) compare against
+      (u + v mod n) * P computed by scalar multiplication; (6) record the
+      group-operation count of each path. The theorem predicts exact agreement
+      on every point with the scalar path costing O(log p) and the isogeny path
+      costing at least deg(alpha).
+    controls:
+      - >-
+        Scalar control: alpha = [m] for known integer m. The recovered
+        lambda must equal m mod n. Confirms the extraction procedure is sound.
+      - >-
+        Frobenius control: alpha = pi. The recovered lambda must be exactly 1,
+        and independently 1 - t + p == 0 mod n must hold. This is the sharpest
+        internal consistency check.
+      - >-
+        Supersingular contrast control (negative control, expected to FAIL the
+        collapse): an oriented supersingular curve over F_p2 whose End is a
+        quaternion order. The action on points must NOT collapse to a scalar.
+        If the collapse appears to hold there too, the test is not measuring
+        what it claims and the whole record is invalid.
+      - >-
+        GLV control: a j = 0 or j = 1728 curve as used by IDEA-20260726-002.
+        The collapse must still hold on E(F_p); this confirms that the LA
+        block structure of IDEA-20260726-002 comes from the orbit combinatorics
+        of the factor base, not from any extra multiplier on the group.
+    required_metrics:
+      - fraction of (curve, alpha, P) triples with alpha(P) = lambda_alpha * P
+      - recovered eigenvalue set per curve vs the predicted {1, p mod n}
+      - group operations for the isogeny path vs the scalar path, per query
+      - deg(alpha) per constructed endomorphism, to confirm independence of C
+  falsification_conditions:
+    - >-
+      Any (E, alpha, P) with E in scope and alpha(P) != lambda_alpha * P.
+    - >-
+      A curve in scope where X^2 - t*X + p does not factor as (X - 1)(X - p)
+      mod n, contradicting t == p + 1 (mod n).
+    - >-
+      An End-using ECDLP algorithm on generic prime-field curves that is not
+      simulable at O(log p) overhead per endomorphism query, exhibited
+      concretely rather than argued.
+    - >-
+      The supersingular contrast control also collapses, which would indicate
+      the measurement is an artifact of the test harness rather than a property
+      of the ordinary case.
+  confounders:
+    - >-
+      Constructing a genuinely non-scalar endomorphism as an l-isogeny cycle is
+      the delicate step; a cycle that returns to E via the dual isogeny gives
+      alpha = [l], a scalar, and would produce a vacuous confirmation. The test
+      must certify v != 0 in alpha = u + v*pi before the datum counts.
+    - >-
+      The conductor boundary case gcd(f, n) != 1 is excluded by genericity but
+      is not automatically impossible; a curve hitting it must be recorded as
+      out-of-scope rather than silently dropped.
+    - >-
+      The collapse is a statement about the action on E(F_p) only. Isogenies to
+      other curves change the ambient Weierstrass model and are NOT covered; that
+      channel is representation-only and is the subject of H-ISO-001
+      (rejected_scoped) and IDEA-20260726-009.
+  interpretation_limits:
+    - >-
+      This is a barrier, not an attack. Confirmation closes a family; it does not
+      move any ECDLP cost exponent downward.
+    - >-
+      The proof is a mathematical statement, not a toy-scale measurement, so the
+      empirical cells are a correctness check on the derivation rather than the
+      evidence itself. Any evidence record should be typed theoretical with the
+      toy cells as corroboration.
+    - >-
+      Scope is generic ordinary prime-field curves with prime group order.
+      Nothing here applies to supersingular curves, to oriented curves over
+      F_p2, or to isogeny-based protocol security, where non-commutative End
+      makes the analogous action genuinely informative.
+    - >-
+      Closing the End-action channel does not close index calculus, descent, or
+      any representation-sensitive route. It closes exactly one family.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high

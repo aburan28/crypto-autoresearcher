@@ -1,0 +1,287 @@
+idea:
+  id: IDEA-20260816-1128f8
+  question_id: RQ-ARGON-141710
+  added: '2026-08-16'
+  title: The security argument counts graph nodes and the machine counts memory cells, and later passes
+    overwrite in place so the map between them is many-to-one with multiplicity t; measure the induced
+    cell-level cost of node-level removal sets, since deleting a node frees no cell whose index another
+    surviving node still occupies.
+  class: representation
+  claim: '(A) In a t-pass Argon2 evaluation the dependency graph has roughly t*m nodes, one per (pass,
+    index) pair, while the machine holds exactly m memory cells, because later passes overwrite blocks
+    in place at the same index. Every depth-robustness statement in this lane -- H-ARGON-ef2f0b''s
+    rho, IDEA-20260809-a915ea''s direct measurement, EXP-ARGON-2608c2''s whole objective -- is a statement
+    about NODES. Every cost statement the AT model makes is a statement about CELLS. The map from
+    nodes to cells is many-to-one with multiplicity t and nobody in this lane has written it down.
+    (B) The claim is that this map is a first-class object with measurable consequences, and specifically
+    that a node-removal set which is cheap in node count can be expensive or free in cell count depending
+    on how its nodes distribute across passes: removing all t nodes that share a cell frees that cell,
+    while removing t-1 of them frees nothing, so the cell-level cost of a removal set is the number
+    of cells all of whose nodes were removed, which is a strictly different and generally much smaller
+    quantity than the node count. (C) It is claimed that the ratio between node-level and cell-level
+    removal cost is computable exactly from a node-level removal set with one pass over it, that it
+    is bounded between 1/t and 1, and that for removal sets produced by the lane''s existing greedy
+    heuristic it will sit far from both ends -- because the greedy heuristic optimizes a node-level
+    objective and has no reason to align its choices within cells. (D) WHAT IS NOT CLAIMED: no claim
+    that a cell-aligned removal set is better for any adversary, since no adversary and no strategy
+    is proposed; no claim that the node-level analysis is wrong, since a node count may be exactly
+    the right currency for a depth argument even when it is the wrong one for a memory argument; no
+    claim about Argon2''s security or any parameter set; and specifically no claim that the ratio
+    measured here is an attack quantity of any kind. It is a units mismatch between two accountings
+    that this lane uses in the same sentence. (E) The named way the cost model flatters the defender:
+    reporting a depth-reducing set as a fraction of m suggests the attacker must retain that fraction
+    of MEMORY, when what was counted is nodes and t of them share each cell -- so a removal set of
+    size 0.3*t*m nodes may free far fewer than 0.3*m cells, and the direction of the discrepancy has
+    never been checked here.'
+  mechanism: 'STAGE 1: build the multi-pass per-lane graph at p=1 with nodes explicitly indexed by
+    (pass, position) rather than by a flattened counter, and record the node-to-cell map c(pass, position)
+    = position, which is the entire content of the in-place overwrite rule and must be verified against
+    KN-LIT-7f3c21 rather than assumed. STAGE 2: run the lane''s existing greedy depth-reducing-set
+    heuristic unchanged on the node graph, obtaining a node-level removal set S. STAGE 3: compute
+    the cell-level cost of S in one pass: the number of cells all of whose t nodes lie in S, plus
+    the distribution over cells of how many of their nodes lie in S. STAGE 4: report the node-to-cell
+    efficiency ratio, defined as cells fully freed divided by |S|/t, which is 1 when S is perfectly
+    cell-aligned and near 1/t when S is maximally spread. STAGE 5: construct a cell-aligned variant
+    of the same problem by running a modified greedy that, at equal node-level benefit, prefers nodes
+    in already-partially-removed cells, and report how much cell-level cost it saves at what node-level
+    penalty -- a purely instrumental comparison establishing whether the gap is a property of the
+    graph or of the heuristic''s indifference. STAGE 6: run both against a null graph of the same
+    node count, same edge count and same node-to-cell multiplicity but with uniformly placed reference
+    edges, so that any efficiency-ratio difference is attributable to the RFC indexing rather than
+    to the arithmetic of dividing t*m nodes into m cells. STAGE 7: check the structural tell -- the
+    efficiency ratio must approach 1 as t approaches 1, by construction, since at t=1 nodes and cells
+    coincide; an efficiency ratio away from 1 at t=1 is a bug and halts the run.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -l RQ-ARGON-141710 ledger/proposals/*.yaml and read all ten titles and classes; read
+      H-ARGON-ef2f0b in full, checking whether its rho definition is over nodes or cells -- it defines
+      native depth as t*q-1 and removal sets as node sets, with no cell notion anywhere; read the
+      inputs and objective blocks of experiments/EXP-ARGON-2608c2/specification.yaml for the same
+      check; grep -ril for overwrite, in-place, memory cell, node-to-cell across ledger/proposals/,
+      ledger/hypotheses/ and knowledge/; read docs/inventor-protocol.md section 2 on the lossy-projection
+      test, since the node-to-cell map is exactly a projection.
+    results: H-ARGON-ef2f0b defines native depth as t*q-1 and its removal set S* as a set of graph
+      nodes, with the fraction taken relative to q; there is no cell, memory-index, or overwrite notion
+      anywhere in the record, and the same holds for EXP-ARGON-2608c2's objective block. None of the
+      ten proposals under this question mentions in-place overwrite or the distinction between graph
+      nodes and memory cells. The terms overwrite, in-place, memory cell and node-to-cell return no
+      hits under this question and no relevant hits elsewhere. IDEA-20260809-bf5139 prices memory
+      with explicit hardware costs but takes the memory quantity as given rather than asking which
+      object it counts. So the units mismatch is not merely unmeasured here -- it is unstated, and
+      H-ARGON-ef2f0b's own use of the fraction of q as the reporting unit for a node set is exactly
+      the place it becomes consequential.
+    verdict: 'UNVERIFIED. Nothing is asserted about whether external analyses of memory-hard functions
+      distinguish node counts from cell counts; they may do so routinely and this environment cannot
+      check. What is claimed new within this repository is writing down the node-to-cell map for the
+      multi-pass graph, defining the cell-level cost of a node-level removal set, and measuring the
+      efficiency ratio for the removal sets this lane''s existing instrument actually produces. Assembled
+      from known parts: the in-place overwrite rule is in KN-LIT-7f3c21, the greedy heuristic is the
+      lane''s own, and the counting is elementary. The contribution is noticing that two accountings
+      this lane uses in the same sentence count different objects, and that the discrepancy is one
+      pass over an existing output away from being measured.'
+  object_first_candidate:
+    tracked_object: 'The node-to-cell map itself: the many-to-one function from graph nodes (pass,
+      position) to memory cells (position), followed through the removal-set computation as the induced
+      multiset of per-cell removal counts.'
+    lossiness: 'The projection from nodes to cells discards the pass index entirely and keeps only
+      the position -- it forgets WHEN a cell held a value and keeps only WHICH cell. This is genuinely
+      and consequentially lossy: the depth structure lives entirely in the discarded coordinate, since
+      every dependency edge in the graph orders nodes that the projection may collapse together. That
+      is precisely why the two accountings disagree, and it is a textbook instance of inventor-protocol
+      section 2 -- the projection is lossy in exactly the coordinate that carries the property one
+      accounting cares about, which is what makes the mismatch real rather than notational. What survives
+      and propagates is occupancy: a cell is occupied from the first node mapped to it until the last,
+      regardless of pass.'
+    propagation: One step of the target operation writes a node at (pass, position) into cell position,
+      destroying whatever that cell held. So one step advances the node graph by one vertex and leaves
+      the cell count unchanged, which is the whole asymmetry. Under removal, one step of the removal
+      process deletes one node and decrements one cell's surviving-node count; the cell is freed only
+      when that count reaches zero, so the cell-level effect of node removal is a threshold function
+      of t removals rather than a linear one. The efficiency ratio is therefore the density of completed
+      thresholds, and it is exactly computable from the removal set with one pass.
+    survival_score: 'The map is defined at every node with no dissolution, and the efficiency ratio
+      is exactly computable for any removal set. The concrete quantity that can dissolve is the DISTINGUISHABILITY
+      of the real graph''s efficiency ratio from the null''s: since the ratio is partly determined
+      by the arithmetic of distributing a node set across m cells regardless of structure, the honest
+      survival statement is the largest t at which the real and null ratios differ by more than the
+      null spread. At t=1 the ratio is forced to 1 for both and the object is empty by construction;
+      the interesting range begins at t=2 and the record reports where it ends.'
+  null_object_control: 'A null graph with the same node count t*m, the same edge count, the same one-reference-edge-per-node
+    structure, and the same node-to-cell multiplicity t, but with reference targets drawn uniformly
+    from the eligible history rather than by the RFC rule. The identical greedy heuristic and the
+    identical cell-counting pass run on it in the same invocation. The null must show an efficiency
+    ratio determined by the arithmetic of spreading a removal set of the same size across m cells
+    -- a quantity that can also be computed analytically under an independence approximation, giving
+    two independent predictions for the null that must agree with each other. For the real arm to
+    mean anything, the null''s measured and analytic ratios must agree, and the real arm''s ratio
+    must lie outside the null''s spread over twenty draws. If they coincide, the correct record is
+    a controlled null with real content: the efficiency ratio is a counting artifact of multi-pass
+    graphs and carries no information about Argon2''s indexing, which would settle the question at
+    low cost and prevent a later record from reading structure into it.'
+  discriminated_from:
+  - H-ARGON-ef2f0b and EXP-ARGON-2608c2 compute removal-set sizes over nodes and report them as fractions
+    of q, with no cell notion in either record. This record does not recompute rho; it takes those
+    node-level outputs as given and measures what they cost in the units the AT model charges in.
+  - IDEA-20260809-bf5139 prices memory with explicit hardware costs, taking the memory quantity as
+    given. This record questions which object that quantity counts, which is upstream of any pricing.
+  - The companion live-set record in this batch measures how many cells must be RETAINED under free
+    eviction. This record measures how many cells a node-removal set actually FREES. Retention and
+    removal are different operations on the same cell array and the two records deliberately share
+    the cell abstraction so their numbers compose.
+  - IDEA-20260809-ac5947's tradeoff attack, which would trade recomputation for memory. No strategy,
+    no recomputation and no adversary appears here; the cell-aligned greedy variant in stage 5 is
+    an instrument comparison, not a proposed attack, and the record says so.
+  - A memory-layout or implementation-efficiency study. Nothing about allocation, alignment, paging
+    or hardware appears; the cell is an abstract index and the whole computation is integer counting
+    over an existing removal set.
+  assumptions:
+  - 'KN-LIT-7f3c21''s in-place overwrite rule is accurately read: later passes write to the same index
+    rather than to fresh memory. This must be verified afresh rather than assumed, since it is the
+    entire premise and it was not among the C1-C7 claims independently spot-checked per EV-ARGON-209ece.'
+  - The lane's existing greedy heuristic is used unchanged, so the measured efficiency ratio applies
+    to the removal sets this lane actually produces rather than to hypothetical optimal ones.
+  - p=1, as elsewhere in this lane; at p>1 the cell index is (lane, position) and the map is unchanged
+    in structure, so the analysis extends but is not run here.
+  - The analytic null prediction under an independence approximation is close enough to serve as a
+    cross-check on the measured null; where they disagree the measured value governs and the disagreement
+    is reported.
+  - 'The forced value at t=1 holds: nodes and cells coincide, efficiency ratio exactly 1.'
+  predictions:
+  - metric: node-to-cell efficiency ratio for greedy removal sets on the real graph at t=3
+    direction: lower
+    minimum_effect: below 0.6, that is, fewer than sixty percent of the cells that a perfectly cell-aligned
+      removal set of the same node count would free are actually freed
+  - metric: efficiency ratio at t=1
+    direction: different
+    minimum_effect: exactly 1.0, a forced value; any deviation halts the run as a construction bug
+  - metric: difference between the real graph's efficiency ratio and the matched null's
+    direction: different
+    minimum_effect: 'REFUSAL TO PRE-COMMIT on sign or size: the ratio is partly a counting artifact
+      of spreading a set across cells, and whether the RFC indexing biases the greedy heuristic toward
+      or away from cell alignment is genuinely unknown. What is pre-committed is that the comparison
+      is made against both a measured and an analytically predicted null, so a coincidence is reported
+      as a controlled null rather than as a small effect.'
+  - metric: node-level penalty paid by the cell-aligned greedy variant to achieve a given cell-level
+      saving
+    direction: higher
+    minimum_effect: at least 10 percent more nodes removed for the same depth target, establishing
+      that cell alignment is not free and that the node-level heuristic is not merely leaving value
+      on the table
+  minimal_test:
+    design: At p=1, t in {1, 2, 3, 6}, q in {1024, 4096}, variants Argon2i and Argon2id, build the
+      multi-pass node graph with explicit (pass, position) indexing and the node-to-cell map. Run
+      the lane's existing greedy depth-reducing-set heuristic unchanged at the 50-percent threshold
+      to obtain S. In one pass over S, compute the per-cell removal-count distribution, the number
+      of fully freed cells, and the efficiency ratio. Verify the forced value at t=1 before reading
+      anything else. Run the identical pipeline on twenty draws of a matched null with the same node
+      count, edge count and multiplicity, and compare against the analytic null prediction. Then run
+      the cell-aligned greedy variant and report its node-level penalty and cell-level saving. Everything
+      reuses the lane's existing instrument and adds one counting pass, so the marginal compute over
+      what this lane already plans is close to zero; the cost is in building the explicitly pass-indexed
+      graph and verifying the overwrite rule.
+    controls:
+    - Forced value at t=1, where nodes and cells coincide and the ratio must be exactly 1.0.
+    - Matched null with same node count, edge count and node-to-cell multiplicity, twenty draws.
+    - Analytic null prediction under an independence approximation, cross-checking the measured null
+      by an independent route.
+    - The cell-aligned greedy variant, establishing whether any gap is a property of the graph or
+      of the node-level heuristic's indifference to cells.
+    - 'Monotonicity check: the efficiency ratio must weakly decrease as t increases, since more nodes
+      share each cell; a non-monotone ratio is an artifact signature.'
+    required_metrics:
+    - node-to-cell efficiency ratio per cell of the parameter grid
+    - per-cell removal-count distribution
+    - number of fully freed cells versus node-level removal-set size
+    - measured and analytic null efficiency ratios with twenty-draw spread
+    - node-level penalty and cell-level saving of the cell-aligned greedy variant
+  falsification_conditions:
+  - The efficiency ratio at t=1 is not exactly 1.0, halting the run as a construction defect.
+  - The efficiency ratio at t=3 exceeds 0.6, falsifying the central prediction and indicating that
+    greedy removal sets are already substantially cell-aligned by accident.
+  - The measured null disagrees with its analytic prediction by more than a declared tolerance, invalidating
+    the null and hence every comparison.
+  - The efficiency ratio is non-monotone in t, which is impossible under a correct construction.
+  - The cell-aligned greedy variant achieves cell savings at no node-level penalty, which would mean
+    the node-level heuristic is simply suboptimal and the units mismatch is not what is being measured.
+  confounders:
+  - The in-place overwrite rule must be verified rather than assumed; if later passes in fact write
+    elsewhere at any point, the entire node-to-cell map is wrong and every number is meaningless.
+  - The efficiency ratio is partly determined by pure counting -- distributing any set of size k across
+    m cells with multiplicity t -- so a difference from a naive expectation is not automatically structural,
+    which is why both a measured and an analytic null are required.
+  - The greedy heuristic's tie-breaking rule may incidentally correlate with cell index, producing
+    alignment or anti-alignment for reasons unrelated to the graph.
+  - The threshold at which a cell counts as freed is all-or-nothing by definition, which makes the
+    metric sensitive to removal sets that stop one node short across many cells; the per-cell count
+    distribution is reported precisely so that sensitivity is visible.
+  - At q=1024 and t=6 the node count is small enough that boundary effects at pass edges are a large
+    fraction of the graph.
+  interpretation_limits:
+  - The efficiency ratio is a units-conversion measurement between two accountings and is not an attack
+    quantity; no adversary is proposed and none is implied.
+  - It applies to the removal sets the lane's existing greedy heuristic produces, not to optimal removal
+    sets, which this lane cannot currently compute.
+  - p=1 and toy q only; the extension to p>1 is structural and stated but not run.
+  - A large gap between node and cell accounting does not show that either accounting is wrong, only
+    that they are not interchangeable, and no record may use one where the other is meant.
+  - Nothing here bears on the security or adequacy of any Argon2 parameter set.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The added measurement is one linear pass over an
+      existing removal set, O(t*m) integer operations.
+    memory_exponent: No attack exponent is claimed for any adversary. The efficiency ratio is a dimensionless
+      conversion factor between two counting conventions and must not be read as a memory exponent
+      or as a memory saving available to anyone.
+    best_known: The incumbent is the node-level removal-set accounting used by H-ARGON-ef2f0b, EXP-ARGON-2608c2
+      and IDEA-20260809-a915ea, which report removal-set sizes as fractions of q without distinguishing
+      nodes from cells. There is no incumbent cell-level figure anywhere in this repository, which
+      is the gap this record addresses.
+    hidden_overhead: 'The explicitly pass-indexed graph builder is the hidden cost: this lane''s existing
+      code flattens (pass, position) into a single counter, which is exactly the representation that
+      makes the cell structure invisible, so adopting the two-coordinate representation touches more
+      code than the one counting pass suggests. Second, verifying the overwrite rule against the specification
+      is a small task that the entire record depends on and that is easy to treat as already known.'
+  dominated_by: 'n/a (no result claimed). Pareto check performed rather than asserted: all ten proposals
+    under RQ-ARGON-141710 were enumerated and read by title and class, EV-ARGON-209ece is a proposal
+    review containing no measurement, and experiments/EXP-ARGON-2608c2/runs/ is empty, so there is
+    no row on any time, memory or data/query frontier under this question. No record anywhere in this
+    repository reports a cell-level figure for any memory-hard function, so the cell axis has no frontier
+    at all.'
+  sota_delta: 'No attack; measurement and units contribution only. The quantitative delta is the efficiency
+    ratio itself: every node-level removal-set fraction this lane reports must be multiplied by it
+    to become a statement about memory cells, and that multiplier is currently absent, which means
+    the lane''s node-level fractions and the AT model''s memory charge are being compared in different
+    units. If the ratio comes out near 1 the delta is a licence to keep treating them interchangeably,
+    which is worth establishing.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the in-place overwrite rule is as described and the node-to-cell
+    map is the right object: high, around 0.85, with the residual risk being a misread of the specification,
+    which is why verification is stage 1 rather than an assumption. That the t=1 forced value and
+    the monotonicity check pass: very high, around 0.95. That the efficiency ratio at t=3 comes in
+    below 0.6: moderate, around 0.6, since the greedy heuristic has no cell awareness at all and would
+    have to align by coincidence. That the real graph separates from the matched null on this ratio:
+    low, around 0.3 -- the ratio is largely a counting property of multi-pass graphs, and a null-matches-signal
+    outcome is the expected and useful one, since it would establish the ratio as a universal conversion
+    factor rather than an Argon2-specific number.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ARGON-141710
+  - GOAL-ARGON-001
+  - KN-LIT-7f3c21
+  - H-ARGON-ef2f0b
+  - IDEA-20260809-a915ea
+  - IDEA-20260809-bf5139
+  - IDEA-20260812-318db8
+  - EV-ARGON-209ece
+  - experiments/EXP-ARGON-2608c2/specification.yaml
+  - docs/inventor-protocol.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ARGON-e26dbb

@@ -1,0 +1,73 @@
+review:
+  task_id: TASK-20260909-97d50c
+  scope: BATCH-local v2 finite-fixture and closed-result-envelope interface only; no screen was executed.
+  joint: finite_fixture_result_envelope_v2
+  verdict: breaks
+  blind_rederivation:
+    blind_from_respected: true
+    fixture_sha256:
+      recomputed: 906c904fed6e3b0d868dfa0bbae67b9e3b82067c86f7e2e07933b9c41d5d4f4c
+      declared: 906c904fed6e3b0d868dfa0bbae67b9e3b82067c86f7e2e07933b9c41d5d4f4c
+      matches: true
+    controls:
+      self_A_A: {recomputed_numerator: 2, recomputed_denominator: 2, recomputed_score: '1', declared_matches: true}
+      known_different_A_B: {recomputed_numerator: 0, recomputed_denominator: 4, recomputed_score: '0', declared_matches: true}
+  mutation_checks:
+    - mutation: Alter fixture_sha256 by one hex character.
+      result: rejected_by_declared_rule
+      basis: result_schema.fixture_sha256 must equal the canonical fixture SHA-256.
+    - mutation: Replace a record ID with undeclared D in a pair, edge, flag, or order.
+      result: rejected_by_declared_rule
+      basis: result_schema.reject names unknown IDs.
+    - mutation: Add duplicate_merge, schedule, approval, authorization, execution, scientific, cryptanalytic, or claim output fields.
+      result: rejected_by_declared_rule
+      basis: exact_keys and reject unknown keys apply to every such extra field.
+    - mutation: Supply controls as an empty mapping and omit every declared control observation.
+      result: accepted_by_declared_shape
+      basis: controls has no typed members, required named control entries, expected values, or linkage to pair_scores; the required top-level key alone is present.
+    - mutation: Supply pair_scores containing A,B with numerator 99 and denominator -1.
+      result: accepted_by_declared_shape
+      basis: pair_scores requires only left, right, numerator, and denominator; it supplies no nonnegative or denominator constraint and no recomputation or control linkage.
+    - mutation: Omit every declared explicit dependency edge while retaining all record IDs once in topological_order.
+      result: accepted_by_declared_shape
+      basis: explicit_dependency_edges constrains each supplied edge but does not require every fixture explicit_ref; topological_order is not bound to the supplied or fixture edges.
+    - mutation: Put [A, B, A] in cycle_list and set topological_order to null.
+      result: accepted_by_declared_shape
+      basis: the listed IDs are declared and the nonempty cycle list permits null order, but no rule binds cycle_list to explicit_dependency_edges or requires its edges to exist.
+  findings:
+    - id: FINITE-ENV-1
+      severity: blocking
+      finding: The controls field is present but not closed or bound. An empty controls mapping satisfies the stated shape despite no self, known-different, or cycle control being checked.
+      impact: A result envelope can claim fixture-local completion without testing the declared controls.
+    - id: FINITE-ENV-2
+      severity: blocking
+      finding: Pair scores lack integer-domain, denominator, uniqueness, and exact-recomputation rules. The declared score values can be replaced by arbitrary integers without violating any stated field rule.
+      impact: The recomputed fixture controls do not constrain reported pair_scores.
+    - id: FINITE-ENV-3
+      severity: blocking
+      finding: The edge and cycle rules are one-way shape checks, not a closed graph relation. They permit omitting fixture references, inventing a declared-ID cycle, and accepting a null order for that invented cycle.
+      impact: The result cannot establish either the fixture dependency graph or its acyclicity/cycle behavior.
+    - id: FINITE-ENV-4
+      severity: blocking
+      finding: The declared cycle control itself uses A-to-B and B-to-A edges, although the literal fixture permits B-to-A and C-to-B only. The A-to-B edge is not an allowed explicit dependency edge under the same amendment.
+      impact: The cycle control cannot be represented as a valid fixture-derived result without a separate, typed control-fixture relation.
+  required_repair:
+    - Define controls as an exact mapping with named expected observations and require their typed results in the envelope.
+    - Bind every pair score to normalized fixture tokens with nonnegative exact numerator and denominator, unique unordered pairs, and required control pairs.
+    - Require explicit_dependency_edges to equal the literal fixture reference relation and derive both cycle_list and topological_order from that exact relation.
+    - Put the cycle control in a separately named literal control fixture and bind its digest, or make it a derived mutation whose edge relation is explicitly permitted and typed.
+  limits:
+    - This finding concerns only the v2 draft envelope; it is not a duplicate determination, scheduling decision, implementation approval, execution approval, or cryptanalytic conclusion.
+    - No experiment run, data collection, or scientific metric was performed.
+  next_action: Create an additive BATCH-local amendment that closes the four interface gaps, then obtain a fresh independent review before any canonical promotion.
+review_attestation:
+  task_id: TASK-20260909-97d50c
+  role: validator
+  joints_owned: [finite_fixture_result_envelope_v2]
+  independent_session: true
+  sources_read:
+    - coordination/design/BATCH-6a60b3/review-plan-v2-TASK-20260909-97d50c.yaml
+    - ledger/handoffs/TASK-20260909-97d50c.yaml
+    - coordination/design/BATCH-6a60b3/tasks/TASK-20260909-d5572d/specification-v2-finite-fixture.yaml
+  read_sibling_reports: false
+  verdict: breaks

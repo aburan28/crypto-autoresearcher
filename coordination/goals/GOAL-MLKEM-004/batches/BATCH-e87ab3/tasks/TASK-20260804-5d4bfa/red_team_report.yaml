@@ -1,0 +1,234 @@
+red_team_report:
+  id: TASK-20260804-5d4bfa
+  task_id: TASK-20260804-5d4bfa
+  producer_task_id: TASK-20260804-478b74
+  snapshot_commit: 891f85dd6060ef55e3c9b87e91c38e851c0e6c89
+  reviewed_artifacts:
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-e87ab3/tasks/TASK-20260804-478b74/gauss_results.json
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-e87ab3/tasks/TASK-20260804-478b74/gauss_test.py
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-e87ab3/tasks/TASK-20260804-478b74/receipt.json
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-e87ab3/tasks/TASK-20260804-478b74/report.md
+  prior_batch_artifacts_consulted:
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-68471b/tasks/TASK-20260804-52cc2b/receipt.json
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-6ec7a4/tasks/TASK-20260804-ff2c2b/receipt.json
+
+  verdict: blocking_objections
+
+  summary: >
+    The Coordinator's N-variability correction assumes N ⊥ T_N but r(N,T_N)=0.82
+    (p=3.3e-13); applying the correct within-group decomposition yields an
+    N-corrected ratio of 0.92 (p≈0.52 within each N class), reversing the
+    proposed "algorithm-independent" campaign conclusion — gauss_sieve shows NO
+    excess variance once N is conditioned out, while bgj1's ratio 1.39 stands
+    uncorrected (N constant), consistent with a bgj1-specific rather than
+    algorithm-independent mechanism.
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: true
+    fallback_reason: >
+      Executing model is amazon-bedrock/us.anthropic.claude-sonnet-4-6.
+      Policy review-adversarial resolves to a higher-capability model per
+      model-bindings.yaml; recorded as fallback per AGENTS.md model policy.
+    independent_session: true
+    model_verified: false
+
+  objections:
+
+    - id: OBJ-1
+      severity: blocking
+      title: Coordinator correction formula assumes N ⊥ T_N — demonstrably false
+      detail: >
+        The Coordinator's law-of-total-variance correction uses the formula:
+          Var_total = E[N]·Var[s] + Var[N]·E[s]²  →  14,252.9
+        This formula is the INDEPENDENT-N form.  It requires N ⊥ {s_j}, i.e.,
+        the count of sieve vectors is uncorrelated with the score distribution.
+        The data refutes this: Pearson r(N, T_N) = 0.820, p = 3.3e-13.
+        The correct full decomposition is:
+          Var[T_N] = E[Var[T_N|N]] + Var[E[T_N|N]]
+        where Var[E[T_N|N]] is NOT equal to Var[N]·E[s]² when N and E[s|N]
+        are positively correlated.  Measured from the 50 run records:
+          Var[E[T_N|N]]  = 12,030  (vs. Coordinator's Var[N]·E[s]² = 7,728)
+          E[Var[T_N|N]]  =  6,003  (≈ E[N]·Var[s] = 6,525; within ~8%)
+          Sum            = 18,033  (matches empirical 17,896 within rounding)
+        The corrected ratio accounting for the N-s correlation is:
+          E[Var[T_N|N]] / (E[N]·Var[s]) = 6,003 / 6,525 = 0.920
+        NOT 1.255 as the Coordinator computed.
+      verification:
+        - mean_N: 18613.34
+        - var_N_ddof1: 45919.21
+        - mean_s_approx: 0.4102
+        - V_total_coordinator_formula: 14252.86
+        - coordinator_corrected_ratio: 1.2556
+        - Var_E_cond_means: 12030.29
+        - E_Var_within_groups: 6002.67
+        - E_N_times_Var_s: 6525.24
+        - within_group_corrected_ratio: 0.9199
+        - r_N_TN: 0.8198
+        - p_r_N_TN: 3.3e-13
+
+    - id: OBJ-2
+      severity: blocking
+      title: >
+        Within-group ratio ≈ 0.92 (p≈0.52) reverses the campaign conclusion —
+        gauss_sieve shows NO excess variance
+      detail: >
+        Conditioning on N, the two informative N-classes (N=18098 has only 2 runs
+        and is uninformative) both yield chi2 statistics squarely in the center
+        of the null distribution:
+          N=18469 (27 runs): within-ratio = 0.9546; chi2(26)=24.82, p=0.529
+          N=18848 (21 runs): within-ratio = 0.9575; chi2(20)=19.15, p=0.512
+        Both fail to reject independence at any conventional alpha level.
+        By contrast, bgj1_sieve has constant N=17919, so its raw ratio 1.3916
+        IS its corrected ratio, and that was rejected at p=0.00112 (n=150).
+        Conclusion: the data support a bgj1-SPECIFIC mechanism, not an
+        algorithm-independent one.  The Coordinator's claim that "corrected ratio
+        1.255 is consistent with bgj1 ratios 1.39–1.54" is produced by a faulty
+        formula and does not hold when the formula is corrected.
+      verification:
+        - N_18469_within_ratio: 0.9546
+        - N_18469_chi2: 24.82
+        - N_18469_p: 0.5293
+        - N_18848_within_ratio: 0.9575
+        - N_18848_chi2: 19.15
+        - N_18848_p: 0.5121
+        - bgj1_b3_ratio: 1.3916
+        - bgj1_b3_p: 0.00112
+        - bgj1_N_constant: true
+
+    - id: OBJ-3
+      severity: moderate
+      title: >
+        RC-3 r=0.30 is an N-confound artifact; N-residualized RC-3 is r=-0.063 (p=0.77)
+      detail: >
+        The RC-3 test correlates even-indexed T_N values against odd-indexed T_N
+        values.  Since r(N,T_N)=0.82, any random imbalance in N between the even
+        and odd subsequences inflates or deflates RC-3 r.  After regressing out N
+        from both T_N_even and T_N_odd independently:
+          N-residualized RC-3 r = -0.063, p = 0.765
+        This is entirely consistent with no sequential QEMU-state leakage.
+        The raw RC-3 r=0.30 (p=0.14) should not be interpreted as a signal of
+        cross-run dependence; it is N-confounded.  The executor's report correctly
+        labels it not-significant at α=0.05, but the mechanism—N-confound—is not
+        identified in the report.
+      verification:
+        - rc3_r_raw: 0.3025
+        - rc3_p_raw: 0.1416
+        - rc3_r_N_residualized: -0.0628
+        - rc3_p_N_residualized: 0.7654
+        - N_even_mean: 18590.92
+        - N_odd_mean: 18635.76
+
+    - id: OBJ-4
+      severity: moderate
+      title: >
+        Cross-algorithm raw ratio comparison (2.764 vs 1.39) is structurally
+        non-comparable and should not appear in the same table
+      detail: >
+        The raw ratio for gauss_sieve uses N_run0·Var[s_gauss] = 18469·0.3506
+        = 6475 as denominator; the raw ratio for bgj1 uses N·Var[s_bgj1] =
+        17919·0.3406 = 6103 as denominator.  Var[s_gauss]/Var[s_bgj1] = 1.029
+        (3%), so score variance is a minor factor.  The large difference
+        (2.764 vs 1.39) is almost entirely the N-variability of gauss_sieve,
+        not any genuine difference in per-vector score correlation.  Presenting
+        these side-by-side as though they are comparable inflations of the same
+        quantity is misleading.  The report.md table (BATCH-d2a728 through
+        BATCH-e87ab3) contains this comparison; it requires a correction note or
+        removal before being used to support any conclusion.
+
+    - id: OBJ-5
+      severity: minor
+      title: >
+        Var[N] calculation consistency: mean_N used in the correction formula
+        should be the empirical mean (18613.34), not E[N] ≈ 18613 as an
+        approximation
+      detail: >
+        This is a bookkeeping point.  The Coordinator's stated Var_total ≈ 14,253
+        uses E[N]≈18,613 and Var[N] "measured from run records."  The exact
+        computed values are mean_N=18613.34 and var_N=45919.21 (ddof=1).  With
+        these exact values the Coordinator's formula gives 14,252.86, consistent
+        with their stated 14,253.  The issue is not arithmetic but the
+        independence assumption (OBJ-1), so this is minor.  Recorded for
+        completeness.
+
+  required_controls:
+    - id: RC-A
+      description: >
+        Rerun gauss_sieve with fixed N: use a capped database size (e.g., cap at
+        18469 vectors per run) so N is constant.  This eliminates N variability
+        entirely and produces a directly comparable ratio to bgj1.
+      priority: high
+    - id: RC-B
+      description: >
+        Rerun bgj1_sieve on native x86_64 hardware (no QEMU emulation).  If the
+        ratio drops to ≈1.0 on native hardware, the bgj1 inflation is confirmed
+        as a QEMU/AVX2 emulation artifact and no further algorithmic explanation
+        is needed.
+      priority: high
+    - id: RC-C
+      description: >
+        Compute per-run within-run score autocorrelation (lag-1 to lag-10) for
+        gauss_sieve and bgj1_sieve.  This directly measures intra-run score
+        correlation without the N-variability confound.
+      priority: medium
+
+  counterexample_or_mutation: >
+    The bgj1 batch-5 null-secret control (BATCH-6ec7a4) observed variance_ratio
+    = 1.533 with a WRONG secret.  If the inflation were due to genuine LWE-score
+    correlation with the correct secret, this null should yield ratio ≈ 1.0.
+    It does not; this already establishes the inflation as environment-specific,
+    not secret-specific.  The gauss_sieve data further narrows it to
+    algorithm-specific (bgj1 vs gauss_sieve shows divergent behavior), pointing
+    to the SIMD/AVX2 code path exercised by bgj1_sieve under QEMU as the
+    probable cause.  A cheap mutation: run bgj1_sieve with SIMD explicitly
+    disabled (if g6k supports that flag) and check whether the inflation
+    disappears on QEMU.
+
+  narrowest_supported_statement: >
+    bgj1_sieve in a Docker linux/amd64 QEMU environment on Apple Silicon shows
+    empirical Var[T_N] / (N·Var[s_within]) = 1.392 (n=150, chi2(149)=207.3,
+    p=0.00112); this inflation is present for both the correct secret
+    (ratio=1.392) and a wrong secret (ratio=1.533, n=50), ruling out a
+    secret-dependent LWE signal.  gauss_sieve, run under the same QEMU
+    environment on the same LWE instance, shows NO excess variance after
+    conditioning on N (within-group ratios 0.955 and 0.958 at the two primary
+    N values, p≈0.52 for both).  The evidence is consistent with a
+    bgj1-sieve-specific artefact in QEMU's emulation of AVX2/SIMD code paths
+    rather than any algorithm-independent sieve-vector correlation.  No
+    inference about LWE hardness or any attack performance is supported.
+
+  campaign_final_statement: >
+    After six batches the strongest supported statement is: in Docker linux/amd64
+    QEMU on Apple Silicon, bgj1_sieve produces excess cross-run T_N variance
+    (ratio ≈ 1.39, n=150, p=0.001) that is present regardless of whether the
+    correct or a random secret is scored — ruling out LWE-signal explanation —
+    and that is ABSENT in gauss_sieve once N-variability is properly conditioned
+    out (within-group ratio ≈ 0.92–0.96, p ≈ 0.52). The inflation is therefore
+    both environment-specific and algorithm-specific (bgj1, which uses SIMD-heavy
+    code paths emulated by QEMU). The raw gauss_sieve ratio of 2.764 is an
+    artifact of the strong N–T_N correlation (r=0.82) arising from gauss_sieve's
+    variable termination count; the Coordinator's corrected ratio 1.255 uses an
+    independence assumption that is false for this data, and the correct
+    within-group analysis gives 0.92.
+    
+    The campaign's primary finding is negative: no algorithm-independent
+    cross-run score correlation is present in this QEMU setup. A bgj1 excess
+    remains unexplained but is most parsimoniously attributed to QEMU SIMD
+    emulation artefact, not mathematical signal.
+    
+    What would change this conclusion:
+    (1) bgj1 on native x86_64: if ratio drops to ≈1.0, QEMU artifact confirmed.
+    (2) gauss_sieve with fixed N: if ratio rises to ≈1.39, algorithm-independent
+        mechanism found (but run-0 Var[s] estimate would need independent
+        verification).
+    (3) Direct per-vector score autocorrelation within bgj1 runs: if lag-1
+        correlation is positive and absent in gauss_sieve, confirms bgj1-specific
+        intra-run correlation.
+
+  artifact_paths:
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-e87ab3/tasks/TASK-20260804-5d4bfa/red_team_report.yaml
+    - coordination/goals/GOAL-MLKEM-004/batches/BATCH-e87ab3/tasks/TASK-20260804-5d4bfa/falsification_review.md
+
+  reviewed_at: '2026-08-05'
+  reviewed_by: TASK-20260804-5d4bfa

@@ -1,0 +1,227 @@
+experiment:
+  id: EXP-BLAKE-eeaef8
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-3af456; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-3af456
+  question_id: RQ-BLAKE-584719
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Propagate exact per-bit dependency masks through r rounds of BLAKE3, BLAKE2s, their message-injection-off
+    variants, twenty random-parameter ARX draws and three hand-verified planted controls, reporting
+    d and the fraction-set curve f(r).
+  objective: 'The one uncertainty a run reduces is whether the round at which each design''s output
+    bits first depend on all input bits separates the designs at all, measured exactly rather than
+    statistically. Decomposed: (i) whether the propagation implementation is correct, established
+    by requiring exact agreement with three planted constructions whose dependency behaviour is derived
+    by hand before the code is written -- this is the dominant part of the experiment because an exact
+    measurement carries no error bars to reveal its own failure, and a wrong implementation returns
+    a plausible number; (ii) what d and f(r) are for BLAKE3, BLAKE2s and their message-injection-off
+    variants over r = 1..12, with matrix dimensions and the first-saturation round reported so the
+    informative range is explicit rather than implied; (iii) whether those values fall outside the
+    distribution produced by twenty random-parameter ARX draws of the same shape through the identical
+    code path, since a value shared with random parameters is a property of the shape and attributes
+    nothing to either design. A run does NOT reduce uncertainty about security, about statistical
+    diffusion, about attack cost, or about any round count''s adequacy.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: under the stated propagation
+      rules (with modular addition treated by the exact carry over-approximation), for r = 1..12,
+      the dependency matrix of each arm is complete from round d onward, the fraction-set curve is
+      f(r), the first-saturation round across arms is r_sat, the twenty random draws gave d in [lo,
+      hi] with f(r) ranges as tabulated, and the three planted controls agreed exactly with their
+      hand derivations. What does NOT follow: that d bounds anything above, since the relation over-approximates
+      dependence and therefore only lower-bounds the round at which real mixing could exist; that
+      full dependency is security or diffusion in any statistical sense; that any comparison holds
+      beyond r_sat, where all arms are complete by construction; or anything about full-round BLAKE3
+      or any deployed system.'
+  inputs:
+    procedure: 'STAGE 0 (cost: agent time, on paper): derive by hand the exact dependency behaviour
+      of three planted constructions -- rotation-only state, single XOR-tree layer, single-word addition
+      chain -- including d, f(r) and the individual matrix entries at rounds 1 and 2. Do this BEFORE
+      writing code. STAGE 1 (cost: low agent time): implement mask propagation for XOR, rotation and
+      modular addition with the carry rule; implement the round assembly from the same parameter tuple
+      used by the transfer-curve generator. STAGE 2 (cost: seconds): run the planted controls; require
+      exact agreement on every checked entry; HALT on any mismatch. STAGE 3 (cost: milliseconds):
+      run BLAKE3, BLAKE2s and both message-injection-off variants for r = 1..12; record D_r, d, f(r),
+      dimensions. STAGE 4 (cost: seconds): 20 random-parameter draws through the identical path; record
+      the distribution. STAGE 5 (cost: minutes): statistical avalanche cross-check on the pinned references
+      at low round counts; verify every detected dependence lies inside the computed relation. STAGE
+      6 (cost: low): monotonicity check, saturation-round identification, normalised cross-configuration
+      comparison, and the run record.'
+    instrument: Python 3.11, standard library only. Each state bit's dependency set stored as a Python
+      integer used as a bitmask over input bit indices; XOR as bitwise or of masks, rotation as index
+      permutation, modular addition as a prefix-union over operand bit positions. Round assembly shares
+      the parameter tuple format with the transfer-curve generator so the same (rotation constants,
+      schedule table, round count) drives both instruments. Pinned BLAKE3 and BLAKE2s C references
+      via ctypes for the statistical cross-check only. Manifests and the twenty draws' seeds recorded
+      via harness/runner.py. No solver, no SAT, no MILP, no Sage.
+    parameters: 'Rounds r = 1..12 for every arm. Arms: BLAKE3 message-free, BLAKE3 message-off, BLAKE2s
+      message-free, BLAKE2s message-off, 20 random-parameter draws (message-free), 3 planted controls.
+      State 16 words of 32 bits = 512 bits; message 16 words of 32 bits = 512 bits, included as inputs
+      only in the message-free configuration, so matrix dimensions are 1024 x 512 (free) and 512 x
+      512 (off). Statistical cross-check: 10000 single-bit flips per arm at r = 1,2,3 only, used solely
+      for the superset test and never as a result. Random draws seeded and recorded.'
+  controls:
+  - Planted controls with hand-computed dependency behaviour (rotation-only, XOR-tree, addition-chain),
+    requiring exact agreement on d, f(r) and individual matrix entries.
+  - 20 random-parameter ARX draws through the identical code path, giving the by-chance distribution
+    of d and f(r).
+  - 'Monotonicity impossibility test: f(r+1) >= f(r) checked at every step; a violation halts the
+    run as an implementation defect.'
+  - 'Configuration-matched comparison: message-free and message-injection-off arms have different
+    input dimensions and are never compared as raw fractions without explicit normalisation, which
+    is enforced in the reporting code rather than by convention.'
+  - 'Cross-check against the pinned reference by a coarse statistical avalanche run: the exact dependency
+    relation must be a SUPERSET of every dependence the statistical run detects; a detected dependence
+    outside the computed relation is an implementation defect.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two null families, both through the identical code path in the same
+    invocation. First: random-parameter ARX arms (rotation constants uniform on 1..31, schedule tables
+    uniform random permutations), 20 draws, giving the distribution of d and of f(r) that random parameters
+    of the same shape produce. Second, and required: a PLANTED control whose exact dependency behaviour
+    is known by hand -- for example a state updated only by rotations (dependency never spreads between
+    words, d never reached) and one updated by a single full-width XOR tree (dependency complete after
+    a known number of rounds by construction). What the nulls must show for the signal arm to mean
+    anything: the planted controls must reproduce their hand-computed d and f(r) EXACTLY, since the
+    whole value of this measurement is exactness and an implementation that is merely plausible is
+    worth nothing; and the random family must show a spread in d, because if every random ARX of this
+    shape reaches d at the same round as both real designs, then d is a property of the shape and
+    separates nothing -- a complete and reportable result that also removes d from the attribution
+    toolkit.'
+  independent_variables:
+  - round count r
+  - design parameterisation (BLAKE3 | BLAKE2s | random draw | planted control)
+  - message configuration (free | injection-off)
+  metrics:
+    primary:
+    - 'd = min{r : D_r complete} per arm'
+    - f(r) fraction-set curve per arm
+    - planted-control exact-agreement flag
+    - distribution of d over the 20 random draws
+    - first-saturation round r_sat
+    secondary:
+    - matrix dimensions per configuration
+    - number of addition steps per arm (over-approximation load)
+    - statistical superset-check result
+    - monotonicity check result
+    - wall-clock per arm
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: 'Predicted: exact agreement of the planted controls, and the monotonicity of f(r).'
+    formula: For the rotation-only planted control, f(r) is predicted CONSTANT in r and equal to 1/512
+      exactly (each output bit depends on exactly one input bit, forever), and d is predicted undefined.
+      For the XOR-tree control with k layers, f(r) is predicted to equal min(1, 2^r / 512) exactly
+      and d = ceil(log2(512)) = 9. For the addition-chain control, output bit k after one addition
+      depends on exactly 2(k+1) input bits, giving f(1) = sum over k of 2(k+1) divided by (32*64)
+      with the exact value computed on paper before the run. Additionally f(r+1) >= f(r) is predicted
+      for every arm and every r as a construction-forced identity, with any violation classified as
+      an implementation defect rather than a finding.
+    source: Pre-registered in the parent proposal IDEA-20260816-3af456 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Rounds 1..12 covers and exceeds both designs'' shipped round counts, so the round
+      axis is not truncated -- unusual for this bucket and worth stating. The toy label applies to
+      the OBJECT, not the parameters: the dependency relation is a coarse over-approximation of the
+      Boolean functions involved, so covering all rounds grants no security reading whatever. NO EXTRAPOLATION
+      is performed; indeed the informative range is shorter than the swept range because of saturation,
+      and the record reports r_sat explicitly so a reader cannot mistake uniform completeness for
+      measured agreement.'
+    correspondence: null
+  tail_checks:
+  - Inspect f(r) immediately before r_sat, the last informative round, where any real difference must
+    appear if it appears at all.
+  - Check the addition-heavy arms specifically for over-approximation load, since a difference in
+    addition count could drive a difference in d.
+  - Examine the extreme random draws individually rather than trusting the range summary.
+  - Verify the rotation-only planted control stays flat across all 12 rounds rather than only the
+    first few, since a slow leak would indicate a mask-aliasing bug.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - HALT at STAGE 2 on any planted-control mismatch.
+  - HALT if monotonicity of f(r) is violated on any arm.
+  - HALT if the statistical cross-check finds a dependence outside the computed relation.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run succeeds if all three planted controls agree exactly with their hand
+    derivations, monotonicity holds everywhere, the statistical superset check passes, and d and f(r)
+    are reported for every arm with matrix dimensions and r_sat stated -- whether or not the real
+    arms differ from each other or from the random draws.
+  falsification_criterion:
+  - Planted-control mismatch on any entry.
+  - Monotonicity violation.
+  - Statistical cross-check finds a dependence outside the computed relation.
+  - Informative range (rounds before r_sat) shorter than 2, leaving nothing comparable.
+  - All arms and all random draws share d and indistinguishable f(r).
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-3af456
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - Rotation constants, word permutation and schedule tables are read from pinned specifications not
+    yet filed as KN-LIT; RQ-BLAKE-584719's first constraint blocks approval.
+  - The three planted controls' hand derivations do not exist yet and must be written and reviewed
+    before code, since they are the only validation this exact method has.
+  - Whether message bits should be included as inputs at all is a modelling choice with consequences
+    for comparability across configurations; a Coordinator must fix it rather than leaving it to the
+    implementer.
+  - Whether 20 random draws is enough to bound the by-chance range is unargued; a Coordinator should
+    set the draw count against the observed spread rather than accepting the placeholder.

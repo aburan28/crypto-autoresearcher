@@ -1,0 +1,232 @@
+idea:
+  id: IDEA-20260820-1dbf95
+  question_id: RQ-SQISIGN-001
+  added: '2026-08-20'
+  title: Serialization-exception fallback as a public transcript mixture
+  class: distributional implementation-fault audit
+  claim: >-
+    An implementation that catches a designated internal serialization exception and
+    falls back to a different encoding or resampling path can emit an acceptance-
+    conditioned public transcript mixture distinguishable from both the ordinary
+    signer and a true simulator. The proposal is restricted to that explicit
+    exception oracle and claims neither a canonicalization theorem, timing leakage,
+    length leakage, key recovery, nor a hard-problem improvement.
+  mechanism: >-
+    Define O_ser-exc(f, e) to force exactly one declared internal serialization call
+    f to return exception code e after its input object has been computed but before
+    bytes are exposed. The implementation then follows its documented catch/fallback
+    path and either emits a valid transcript or rejects. Compare the full public
+    outcome law, including valid transcript fields, explicit rejection, and parse
+    status, with a no-fault signer. A fallback that truncates, substitutes a sentinel,
+    changes a coordinate ordering, or resamples only a suffix can create a mixture
+    component aligned with public verifier strata even when emitted byte lengths are
+    padded to equality.
+  novelty_status: unverified
+  status: proposed
+  source_refs:
+    - id: RQ-SQISIGN-001
+      provenance: internal
+      verified_by: TASK-20260820-bdae64
+    - id: KN-TECH-057
+      provenance: internal
+      verified_by: TASK-20260820-bdae64
+    - id: KN-TECH-058
+      provenance: internal
+      verified_by: TASK-20260820-bdae64
+    - id: IDEA-20260813-87106b
+      provenance: internal
+      verified_by: TASK-20260820-bdae64
+    - id: IDEA-20260808-287361
+      provenance: internal
+      verified_by: TASK-20260820-bdae64
+    - id: Robust parsing and fault-analysis literature for post-quantum signatures, exact source not retrieved in this task
+      provenance: recalled
+      verified_by: null
+  novelty_screen:
+    method: >-
+      Compared the proposal against all 24 current RQ-SQISIGN-001 mechanisms and the
+      stale low-specificity knowledge-index results supplied by the Coordinator.
+    results: >-
+      The closest record studies canonical representative handling. Other records
+      cover verifier acceptance fibres, public strata, conversion tie-breaks, generic
+      transcript tests, retries, and signature length. The present candidate instead
+      forces one named serialization exception and models the catch/fallback path as
+      a public outcome mixture with explicit rejection retained.
+    verdict: >-
+      Unverified. Direct-tree differentiation is not literature novelty, and the
+      primary parsing/fault literature was not retrieved.
+  object_first_candidate:
+    tracked_object: >-
+      The joint public outcome object (emit-or-reject, parse status, verifier result,
+      and labelled transcript fields) under one forced serialization exception.
+    lossiness: >-
+      Padding and parsing collapse multiple byte-level causes; tests cannot identify
+      an internal exception not represented in the chosen public outcome map.
+    propagation: >-
+      A caught exception selects a fallback branch whose sentinel, partial resampling,
+      or reordered encoding can survive into verifier-visible fields or rejection.
+    survival_score: >-
+      Require a held-out likelihood-ratio or classifier effect after equal-length
+      padding, with correct true-simulator calibration and a detected planted fallback mixture.
+  predictions:
+    - metric: classifier AUC for exception-fallback versus no-fault public outcomes
+      direction: increase above chance
+      minimum_effect: AUC at least 0.60 with 95% lower confidence bound above 0.55
+    - metric: total-variation lower bound on verifier-stratum and explicit-rejection histogram
+      direction: positive
+      minimum_effect: at least 0.03 with simultaneous 95% confidence
+    - metric: equal-length true-simulator null AUC
+      direction: remain at chance
+      minimum_effect: AUC between 0.47 and 0.53 with no corrected rejection
+  minimal_test:
+    design: >-
+      Select one internal serializer and one documented exception handler in a toy
+      implementation. Produce balanced no-fault, O_ser-exc, true-simulator, and
+      planted-fallback data. The planted arm substitutes a registered sentinel public
+      field in 15 percent of otherwise valid transcripts. Preserve explicit rejection
+      as an outcome instead of silently dropping it, and pad all emitted byte strings
+      to equal analysis length before feature extraction.
+    controls:
+      - Matched true-simulator null with the same public-input distribution.
+      - No-fault real signer with identical serializer and padding.
+      - Planted 15-percent sentinel-mixture positive.
+      - Forced exception at a dead diagnostic serializer not consumed by signing.
+      - Uncaught-exception control reported as infrastructure behavior, not hypothesis evidence.
+      - No time, retry counter, raw signature length, power, cache, or branch-trace observation.
+    required_metrics:
+      - Outcome histogram including rejection, parse failure, verification, and public strata.
+      - Held-out classifier AUC with byte length excluded.
+      - Exact sentinel and coordinate-order frequencies.
+      - Plant-detection power and family-wise corrected confidence intervals.
+  controls:
+    - True-simulator no-fault null.
+    - Real-signer no-fault null.
+    - Equal-length planted fallback-mixture positive.
+    - Dead-serializer exception negative control.
+    - Parser implementation cross-check on the same frozen byte corpus.
+  falsification_conditions:
+    - >-
+      Reject the tested fallback mechanism if all primary public-outcome statistics
+      remain in their registered null bands while the planted mixture is detected with
+      at least 0.90 power.
+    - >-
+      Reject the serialization-specific interpretation if the dead-serializer control
+      yields an equal or larger effect or if a second parser removes the effect without
+      changing accepted mathematical objects.
+    - >-
+      Mark the experiment invalid if exception events are silently omitted, output
+      lengths differ in the feature set, or the true simulator fails calibration.
+  confounders:
+    - Dropping rejected samples can manufacture an acceptance-conditioned signal.
+    - Parser disagreement can masquerade as a signer-distribution change.
+    - Padding bytes may themselves reveal the arm if not sampled identically.
+    - An exception handler can consume extra randomness and conflate fallback semantics with state shift.
+  interpretation_limits:
+    - The exception oracle is an intervention stronger than an ordinary remote interface.
+    - A detected mixture is not proof of exploitable key information.
+    - The mechanism is distinct from passive canonicalization and conversion tie-break proposals.
+    - Signature length and timing are expressly excluded.
+    - SQIsign-002 Kani surfaces and GOAL-SSI-001 hard-problem work are out of scope.
+  heuristic_assumptions:
+    - id: H1
+      formal_statement: >-
+        The selected exception handler returns to a protocol path capable of producing
+        an emitted or explicitly rejected public outcome.
+      rigorous_support: >-
+        Control-flow reachability is exactly checkable in the chosen implementation;
+        a distributional consequence is not guaranteed.
+      distribution_imitated: A mixture of the ordinary public outcome law and a fallback-path law.
+      validation_plan: >-
+        Establish reachability and outcome accounting with deterministic toy inputs,
+        then remove internal branch labels from the blinded statistical test.
+      falsification_condition: >-
+        The handler always aborts before any protocol outcome can be classified, or it
+        provably reconstructs the exact ordinary state before continuing.
+    - id: H2
+      formal_statement: >-
+        The frozen public outcome map retains an effect of the fallback path after byte-length equalization.
+      rigorous_support: >-
+        Retention is exact for the planted sentinel mixture; no general claim is made
+        for the real handler.
+      distribution_imitated: A sparse fallback component in an acceptance-and-rejection outcome space.
+      validation_plan: >-
+        Calibrate over planted mixture weights 0.01 through 0.15 and require 0.90 power
+        at the predeclared minimum effect.
+      falsification_condition: >-
+        The planted mixture at the registered minimum cannot be distinguished after
+        equal-length padding and multiple-testing correction.
+  target_complexity:
+    time_exponent: null
+    memory_exponent: null
+    best_known: >-
+      Not an isogeny-solving algorithm. KN-TECH-058 gives unconditional Fp2
+      p^(1/2)(log p)^O(1) time with polynomial memory, and conditional p^(1/3+o(1))
+      time and memory only under Heuristic 1.
+    hidden_overhead: >-
+      Audit analysis is O(Nd); implementation instrumentation and cross-parser
+      checking are concrete overheads. KN-TECH-058's conditional row has
+      superpolynomial hidden overhead and no concrete-performance claim.
+    tradeoff_note: >-
+      Retaining explicit rejection increases data categories but prevents selection
+      bias. It does not change cryptanalytic exponents; reductions and the GRH boundary
+      remain unverified.
+  cost_model:
+    time: O(Nd) feature extraction and outcome testing after transcript generation
+    memory: O(Nd) frozen corpus and feature matrix, or O(d) streaming histograms
+    data_or_queries: 4N signer or simulator invocations across no-fault, exception, simulator, and planted arms
+    preprocessing: Freeze serializer site, exception code, handler semantics, parser pair, padding, outcome map, and thresholds
+    oracle: >-
+      O_ser-exc forces one declared internal serialization call to return one declared
+      exception code; it reveals no execution time, retry count, raw length, secret,
+      power trace, or branch trace.
+    verification: O(N) standard verification plus two-parser replay and independent outcome-histogram recomputation
+  proof_search_map:
+    exact_baseline_reproduction: >-
+      Reproduce no-fault signer and true-simulator outcome histograms under the exact
+      frozen parser and padding pipeline before enabling the exception.
+    observation_collision_search: >-
+      Search for selection bias, parser disagreement, padding markers, and randomness
+      consumption that can yield the same mixture observation.
+    quantifier_order: >-
+      For each fixed toy implementation, serializer site, exception code, handler,
+      parser pair, public-input distribution, and sample budget, probability is over
+      precommitted messages and seeds; no statement covers other exception paths.
+    method_ceiling: >-
+      The method can show that a forced exception changes the public outcome law, but
+      cannot establish a secret-dependent cause, exploitability, or a forgery bound.
+    nearby_object_control: >-
+      Force the same exception in a diagnostic serializer whose output is discarded;
+      any detected effect there identifies instrumentation or accounting leakage.
+  nearest_neighbors:
+    - id: IDEA-20260813-87106b
+      overlap: Both concern encoding behavior and public representatives.
+      discriminator: This proposal targets exception-handler control flow and retains rejection as an outcome; it does not study ordinary canonical representative choice.
+    - id: IDEA-20260808-287361
+      overlap: Both examine conversion or encoding choices that can affect public transcripts.
+      discriminator: The intervention is a forced serializer exception, not an algebraic conversion fibre or tie-break.
+    - id: IDEA-20260815-dc0277
+      overlap: Both may observe public output categories.
+      discriminator: Raw byte length is equalized and excluded here; the outcome mixture is keyed to an explicit exception oracle.
+  dominated_by: n/a (no result claimed)
+  sota_delta:
+    time_exponent_delta: 0
+    memory_exponent_delta: 0
+    data_or_query_exponent_delta: 0
+    concrete_speedup_claim: 0
+    baseline: KN-TECH-058 Fp2 unconditional and conditional hard-problem rows
+    caveats: >-
+      No hard-problem delta. Conditional p^(1/3+o(1)) remains under Heuristic 1 with
+      superpolynomial hidden overhead, no concrete claim, unverified reductions, and
+      the GRH boundary.
+  estimated_cost: >-
+    Moderate toy implementation audit: one live and one dead serializer site, two
+    parsers, and four arms of 2^12 to 2^15 outcomes.
+  recommended_priority: medium-high
+  honest_prior_of_survival: >-
+    0.25 for a public mixture under a deliberately live fallback handler; below 0.05
+    for any key-recovery or forgery implication without a new certified reduction.
+  proposed_by: idea-generator
+  proposed_at: '2026-08-20T00:00:00Z'
+  id_allocation_provenance: >-
+    Preallocated by the Coordinator with tools/allocate_id.py and frozen in
+    BATCH-74c282 before this Idea Generator task.

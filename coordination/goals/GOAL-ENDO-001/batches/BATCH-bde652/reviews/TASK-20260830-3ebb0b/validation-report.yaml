@@ -1,0 +1,536 @@
+validation_report:
+  id: VAL-20260830-3ebb0b
+  task_id: TASK-20260830-3ebb0b
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-bde652
+  owned_joint: J1-repair-correctness-and-nondegression
+  not_owned: [J2-adversarial-re-attack-of-repaired-procedure, J3-rule-extension-integrity]
+  scope_note: >-
+    This report renders a verdict ONLY on J1 and the blind re-derivation
+    assigned to TASK-20260830-3ebb0b by review-plan.yaml. It issues NO
+    disposition/PASS/REVISE for the batch (that composition belongs to the
+    Coordinator ledger-archive task TASK-20260830-20a761, after both J1 and
+    the sibling J2/J3 report are in). It makes no scientific, closure,
+    authorization, or status claim; this is a static-artifact and
+    git-history correctness review of governance/verification tooling only.
+
+  run_ids: []
+  experiment_ids_touched: []
+  scientific_claim_made: false
+
+  artifact_checks:
+    - artifact: coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/archives/TASK-20260830-e7db0d/snapshot-receipt.json
+      check: commit_reachability_and_parent
+      commands: [git rev-parse HEAD, git log --oneline -1 <commit_sha>, git merge-base --is-ancestor <commit_sha> HEAD, git log -1 --format=%P <commit_sha>]
+      result: >-
+        commit_sha 691684e68ae6b7c936a01ea29248d608d6b5d72d is reachable from
+        the current worktree HEAD (d36ac67840b56b6139b1533b38f1a95b8adbb352).
+        Its sole parent is 00d8cf9c20667e837dabb39590e50c32fa591b60, exactly
+        matching the receipt's declared parent_sha.
+      status: pass
+    - artifact: the 6 producer artifacts under TASK-20260830-31b79c/ plus the snapshot receipt itself
+      check: content_diff_is_pure_addition
+      command: git diff 00d8cf9c2066...b60 691684e68ae6...d72d --name-status
+      result: >-
+        All 7 changed paths are status A (added). Zero modifications, zero
+        deletions. `git show --stat` on the commit confirms 7 files changed,
+        1374 insertions(+), 0 deletions(-). The task's OWN commit is exactly
+        as additive as repair-package-v6.yaml claims.
+      status: pass
+    - artifact: the 6 declared path_sha256 entries in snapshot-receipt.json
+      check: hash_recomputation_against_working_tree
+      command: python3 sha256 recomputation script (see runtime-session-receipt.json)
+      result: >-
+        All 6 declared hashes MATCH the actual on-disk file contents exactly
+        (repair-package-v6.yaml, emit_host_binding_v2.sh, emit_procedure_v2.md,
+        demo-receipt-v2.json, stop-control-report-v6.yaml,
+        runtime-session-receipt.json). No hash mismatch found for any of the
+        6 producer artifacts this task authored.
+      status: pass
+
+  attack_plan_execution:
+
+    - item: "1. RT-J2-O1 -- absolute-path resolution, no PATH lookup"
+      objection: RT-J2-O1
+      method: >-
+        (a) Statically enumerated every _BIN pin (HOSTNAME_BIN=/bin/hostname,
+        DF_BIN=/bin/df, DATE_BIN=/bin/date, SED_BIN=/usr/bin/sed,
+        AWK_BIN=/usr/bin/awk, TR_BIN=/usr/bin/tr, TAIL_BIN=/usr/bin/tail) and
+        grepped the script for every bare occurrence of hostname/df/date/sed/
+        awk/tr/tail outside of a "$..._BIN" reference or a comment -- none
+        found; every invocation in executable code is a quoted "$..._BIN"
+        reference. printf and [ are confirmed POSIX sh builtins (not PATH-
+        resolved). The shebang #!/bin/sh is kernel-exec-resolved, not a shell
+        PATH lookup, and is outside the v5 threat model (caller-supplied
+        bindings via an environment variable the caller controls).
+        (b) Independently confirmed all 7 pinned absolute paths exist and are
+        executable on THIS host via `test -x`.
+        (c) LIVE RE-EXECUTION (not merely static reading): built a hostile
+        fakebin/ directory (fake `hostname` printing
+        "caller-controlled-hostname"; fake `df` printing a data line with
+        device /dev/fakedev and mount /mnt/fake), prepended it to PATH, and
+        ran emit_host_binding_v2.sh. It emitted the REAL host's values
+        unaffected (host_id "Mac.attlocal.net", filesystem_id
+        "/dev/disk5s1", filesystem_mount "/Volumes/SSD990" -- identical to
+        its own PATH-unmodified demo run). Confirmed the attack apparatus
+        itself is real by running a bare `hostname` under the same hostile
+        PATH: it printed "caller-controlled-hostname" (the fake binary was
+        genuinely shadowing the real one for any PATH-based lookup).
+        (d) CONTROL COMPARISON: ran the identical hostile-PATH attack,
+        read-only, against the v1 predecessor script
+        (BATCH-820ee8/TASK-20260830-78b00f/emit_host_binding.sh). It emitted
+        the hostile caller-controlled values (host_id
+        "caller-controlled-hostname", filesystem_id "/dev/fakedev",
+        filesystem_mount "/mnt/fake"), confirming the vulnerability the
+        repair claims to close is real and reproducible, and that the
+        repaired script -- not some accident of this host's PATH -- is what
+        defeats it.
+      result: >-
+        Reproduces exactly the outcome repair-package-v6.yaml and
+        stop-control-report-v6.yaml's PATH-PREPEND case claim. No PATH-
+        resolved command survives in emit_host_binding_v2.sh.
+      verdict: holds
+
+    - item: "2. RT-J2-O3 -- paste-from-different-mount, reviewer-runnable verification"
+      objection: RT-J2-O3
+      method: >-
+        Read emit_procedure_v2.md's "PASTE-FROM-DIFFERENT-MOUNT VERIFICATION
+        (repairs RT-J2-O3)" section: it names the attack surface explicitly
+        (a receipt's filesystem values are real but may describe the wrong
+        working directory/mount if captured elsewhere and pasted in) and
+        gives 5 explicit, numbered, human-executable steps (identify the
+        claimed working directory; independently run `df -P
+        <that-exact-worktree-path>` on the same host; normalize per the
+        stated v5 rules; compare against the receipt's filesystem_id/mount;
+        treat disagreement, including an undetermined one, as STOP). This is
+        a procedure, not a bare mention. I then EXECUTED it as a worked
+        example: ran `df -P
+        /Volumes/SSD990/crypto-autoresearcher/.worktrees/endo-gate5-complete-20260829`
+        myself and compared the normalized result against
+        demo-receipt-v2.json.
+      result: >-
+        My independently-run df matches demo-receipt-v2.json's
+        filesystem_id (/dev/disk5s1) and filesystem_mount (/Volumes/SSD990)
+        exactly, confirming the verification step is genuinely runnable and
+        produces a determinate agreement/disagreement outcome, not merely
+        rhetorical.
+      verdict: holds
+
+    - item: "3. RT-J3-O1 -- missing_receipt_field_v2 hand-instantiation"
+      objection: RT-J3-O1
+      method: >-
+        Hand-traced repair-package-v6.yaml's missing_receipt_field_v2
+        rule_text and normalization_definition_exact (step_1_trim,
+        step_2_case_and_slash, step_3_emptiness_test) against the required
+        worked-example battery, BEFORE reading the producer's own worked
+        battery in stop-control-report-v6.yaml, then cross-checked.
+      worked_examples:
+        - shape: absent_key
+          trace: "no value present -> fires under the pre-existing absence clause"
+          expected_by_rule_text: STOP
+          my_hand_traced_result: STOP
+          agrees_with_producer_battery: true
+        - shape: "json null"
+          trace: >-
+            no usable string value; falls under absence clause or the
+            literal-"null" clause per json_null_handling -- both paths STOP
+          expected_by_rule_text: STOP
+          my_hand_traced_result: STOP
+          agrees_with_producer_battery: true
+        - shape: empty_string
+          trace: "step_1_trim('') = ''; step_3: zero-length -> empty-after-normalization"
+          expected_by_rule_text: STOP
+          my_hand_traced_result: STOP
+          agrees_with_producer_battery: true
+        - shape: whitespace_only
+          trace: >-
+            "   \t  " trimmed by step_1 (ASCII space/tab/newline/CR) becomes
+            ''; step_3 zero-length -> empty-after-normalization
+          expected_by_rule_text: STOP
+          my_hand_traced_result: STOP
+          agrees_with_producer_battery: true
+        - shape: legitimate_unusual_device_string
+          example_value: "/dev/disk9s99"
+          trace: >-
+            non-zero-length after trim, not the literal "null"
+            case-insensitive -> NOT empty-after-normalization; rule text
+            explicitly carves this case out ("No other value is treated as
+            empty")
+          expected_by_rule_text: PASS
+          my_hand_traced_result: PASS
+          agrees_with_producer_battery: true
+      producer_battery_cross_check: >-
+        stop-control-report-v6.yaml's own EMPTY-NULL case battery (absent,
+        null, empty-string, whitespace-only "   \t  ", and
+        "/dev/disk9s99999x") independently arrives at the identical 5
+        outcomes (4 STOP + 1 PASS) via the identical normalization trace.
+        My hand-instantiation was performed against the rule TEXT, not
+        copied from this file, and agrees with it exactly.
+      additional_observation_not_required_by_my_battery: >-
+        Not part of my assigned 5-shape battery, but noted for completeness:
+        step_1_trim is defined as ASCII whitespace only (space, tab, newline,
+        CR). A field consisting solely of a non-ASCII/zero-width character
+        (e.g. U+200B) would NOT be trimmed to "" by step_1 and would
+        therefore NOT be caught by step_3's zero-length test, nor does it
+        match the literal "null" test -- it would PASS as
+        not-empty-after-normalization despite being visually blank. This is
+        a narrower, unexercised edge of the same objection class RT-J3-O1
+        addresses. It is not one of the 5 shapes I was asked to instantiate,
+        it is not something I am aware the schema or v5 rule ever claimed to
+        cover, and I do not treat it as a J1 break -- I flag it as a
+        limitation for the record because the sibling J3 joint's plan does
+        list "zero-width characters" in its own battery and I want the
+        Coordinator to have this cross-reference without my speaking to J3's
+        verdict (which I do not own and did not evaluate).
+      verdict: holds
+
+    - item: "4. Nondegression"
+      method: >-
+        (a) Confirmed via git that receipt-schema-v2.yaml and
+        j3-closure-v5.yaml each have exactly ONE commit in their entire
+        --follow history (their original archival commit) -- never edited.
+        (b) Confirmed the v1 predecessor's emit_procedure.md,
+        demo-receipt.json, and stop-control-report.yaml, the BATCH-820ee8
+        reviews/ directory, and DEC-20260830-a575a3.yaml itself each have
+        exactly ONE commit in their --follow history -- never edited.
+        (c) Confirmed this task's own snapshot commit
+        (691684e68ae6b7c936a01ea29248d608d6b5d72d) changes exactly 7 paths,
+        all additions (see artifact_checks above) -- this task's producer did
+        not edit any predecessor byte.
+        (d) Swept ALL of BATCH-820ee8/ and BATCH-90392b/ for any Modify-type
+        commit (git log --diff-filter=M). Found modifications ONLY to
+        dispatch_queue.json (state-tracking bookkeeping, expected and benign
+        per CLAUDE.md's generated-artifact/queue-state conventions) and
+        batch.yaml (one coordinator bookkeeping edit reserving IDs/adding an
+        archive block) -- neither is a frozen evidentiary artifact in the
+        sense this check cares about.
+        (e) ONE genuine predecessor-byte violation found: see finding below.
+      finding_predecessor_byte_edit:
+        severity: material
+        file: coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/tasks/TASK-20260830-78b00f/emit_host_binding.sh
+        declared_frozen_by: >-
+          repair-package-v6.yaml's additive_note ("edits no byte of any
+          predecessor file (emit_host_binding.sh, ...)"),
+          emit_host_binding_v2.sh's own header comment ("v1 predecessor... is
+          not edited, replaced, or reinterpreted"), and
+          emit_procedure_v2.md's status section (same claim), plus the
+          general BATCH-820ee8/BATCH-90392b "frozen, immutable, read-only
+          base" convention this entire successor chain depends on.
+        original_archived_hash_sha256: f71fe9f2059428888394b0cb6cd031a397879a8519044db70a1776878d54599f
+        original_hash_source: >-
+          coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/archives/TASK-20260830-b7ce0b/snapshot-receipt.json
+          path_sha256, confirmed by `git show af9b1a5fd:<path> | shasum -a
+          256` to match the file's content at the original snapshot commit
+          exactly.
+        current_head_hash_sha256: 8e2e9a1918f9051789d979b76c97ac8fccde7887af66d1bf074303b83cee8f1c
+        hashes_match: false
+        edit_commit: fe559e6a64d83060458a53756cd65e1e82e427ac
+        edit_commit_message: "Fix emit_host_binding.sh treating failed df header as a valid binding"
+        edit_author: Cursor Agent <cursoragent@cursor.com>
+        edit_authored_at: "2026-08-30T05:15:04Z"
+        edit_task_or_decision_reference: none
+        edit_reachable_from_head: true
+        edit_is_ancestor_of_this_task_snapshot: true
+        edit_position_in_history: >-
+          Lands directly on this same goal lane's branch, immediately after
+          the BATCH-820ee8 snapshot (af9b1a5fd) and the reviews/decision
+          completion-bookkeeping commits for that batch, and before
+          BATCH-bde652 was opened (8719bf0ac). It is NOT part of a merged-in
+          origin/main side history; it is a standalone commit interleaved
+          directly into this goal lane's own sequence, authored by a
+          different git identity ("Cursor Agent") than every other commit in
+          this lineage ("Dispatch Test").
+        diff_summary: >-
+          Two changes to the v1 script: (i) capture `df -P .` output
+          separately from `tail` and explicitly drop the header row before
+          taking the last line, so a nonzero df exit or a header-only
+          failure cannot be misread as a data line; (ii) require
+          fs_mount_raw to be non-empty before substituting "/" for an empty
+          fs_mount, so a genuinely-failed capture is not silently rewritten
+          to the root mount. Both are df-output-parsing robustness fixes.
+          NEITHER changes the script's command-resolution mechanism: hostname
+          and df are still invoked as bare, PATH-resolved command names in
+          both the pre- and post-edit v1 script. The edit does not touch,
+          add, or remove any PATH-related behavior.
+        substantive_impact_on_this_review: >-
+          Confirmed by live re-execution (this report's item 1 above) that
+          the v1 script AS IT CURRENTLY EXISTS on disk (i.e. the
+          fe559e6a6-edited version) is STILL vulnerable to the identical
+          PATH-prepend attack, producing the same hostile values
+          stop-control-report-v6.yaml records. The qualitative conclusion
+          "v1 is vulnerable, v2 closes it" is therefore unaffected in
+          substance. What is affected is a factual claim: the "v1 predecessor
+          script" that TASK-20260830-31b79c's PATH-PREPEND control actually
+          executed for comparison was NOT byte-identical to the archived,
+          reviewed, and hash-pinned v1 artifact from
+          TASK-20260830-b7ce0b/snapshot-receipt.json -- it was a
+          silently-drifted copy, and neither repair-package-v6.yaml nor
+          stop-control-report-v6.yaml discloses this drift (their
+          `no_predecessor_byte_edited: true` field is true only of what
+          TASK-20260830-31b79c itself did; it is not true of the file's
+          history, and is stated without that qualification).
+        attribution: >-
+          NOT caused by, and not detectable from, TASK-20260830-31b79c's own
+          actions -- its own commit is independently verified pure-additive
+          (see artifact_checks above). The drift predates BATCH-bde652's
+          opening and was introduced by an actor outside the GOAL-ENDO-001
+          coordinator/executor dispatch discipline (different git author
+          identity, no task/goal/decision reference, no coordinator archive
+          receipt). This is a shared-repository custody/concurrency finding,
+          not a defect in the executor's work product.
+        matches_expected_break: >-
+          Yes -- this is exactly the EXPECTED BREAK named in my task
+          assignment ("any predecessor byte changed anywhere in the repo").
+      verdict: breaks
+      verdict_scope: >-
+        Scoped to nondegression only. The three named repairs (RT-J2-O1,
+        RT-J2-O3, RT-J3-O1) are each independently sound on their own merits
+        (items 1-3 above); this break does not call any of them into
+        question. What breaks is the "frozen, immutable, read-only
+        predecessor" invariant this entire additive-successor methodology is
+        built on, for exactly one file, via exactly one out-of-band commit.
+
+  blind_rederivation:
+    required: true
+    quantity: "host_id, filesystem_id, filesystem_mount for THIS host"
+    blind_from:
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/emit_host_binding_v2.sh
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/emit_procedure_v2.md
+    blind_from_respected: true
+    procedure_note: >-
+      Performed BEFORE opening either blind_from file at all (stronger than
+      the letter of the task, which permitted reading them first "for steps
+      1-2" and excluding only their content from the derivation itself). I
+      chose the stricter ordering deliberately: reading the implementation
+      first and then trying not to "use" it for the derivation is a weaker
+      control than never having read it, since a script author would
+      trivially reproduce their own already-seen commands. This is a
+      disclosed procedural choice, not a deviation.
+    sources_used_for_derivation:
+      - "repair-package-v6.yaml (missing_receipt_field_v2.normalization_definition_exact -- literal-copy normalization rules)"
+      - "coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/tasks/TASK-20260830-78b00f/receipt-schema-v2.yaml (host_binding.fields.*.provenance and verification_semantics -- states the exact host commands hostname, df -P . column 1, df -P . mount column)"
+      - "independent host queries run by this session, see runtime-session-receipt.json (hostname, df -P .)"
+    independently_derived_values:
+      host_id: "Mac.attlocal.net"
+      filesystem_id: "/dev/disk5s1"
+      filesystem_mount: "/Volumes/SSD990"
+    derivation_trace: >-
+      hostname -> "Mac.attlocal.net"; trimmed/case-preserved per schema ->
+      unchanged. df -P . -> device column "/dev/disk5s1", mount column
+      "/Volumes/SSD990"; filesystem_id normalized lowercase/trimmed/no-
+      trailing-slash -> "/dev/disk5s1" (already lowercase, no trailing
+      slash); filesystem_mount normalized absolute-path/trailing-slash-
+      stripped-except-root -> "/Volumes/SSD990" (no trailing slash present).
+    recorded_values_in_demo_receipt:
+      host_id: "Mac.attlocal.net"
+      filesystem_id: "/dev/disk5s1"
+      filesystem_mount: "/Volumes/SSD990"
+    comparison: agreement
+    agreement_on_all_three_fields: true
+    disagreement_suspects: null
+    interpretation: >-
+      Exact agreement on all three fields, derived independently from the
+      schema's stated provenance/verification commands and this host's own
+      identity surfaces, without ever having read emit_host_binding_v2.sh or
+      emit_procedure_v2.md at derivation time. This is evidence that
+      demo-receipt-v2.json's values are real, machine-captured host identity
+      surfaces and not hand-written or copied from another host -- consistent
+      with (and independently reproducing, for the v2 repair, the same kind
+      of agreement) the precedent recorded for the v1 package in
+      DEC-20260830-a575a3 ("The blind re-derivation AGREED on all three
+      host_binding values"). No disagreement occurred, so no suspect is
+      named.
+
+  control_checks:
+    - control: PATH-PREPEND (repaired script)
+      independently_reproduced: true
+      result: unaffected by hostile PATH, matches producer's own recorded outcome
+    - control: PATH-PREPEND (v1 predecessor, read-only comparison)
+      independently_reproduced: true
+      result: >-
+        vulnerable, matches producer's own recorded outcome AND matches the
+        original RT-20260830-d85fdf finding -- despite the predecessor-byte
+        drift noted above, the vulnerability itself is unchanged and still
+        reproducible on the current on-disk copy
+    - control: EMPTY-NULL battery (missing_receipt_field_v2)
+      independently_reproduced: true
+      result: my hand-trace matches the producer's worked battery on all 5 shapes
+
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+
+  limitations:
+    - >-
+      This task's declared read_scope in dispatch_queue.json did not
+      explicitly list emit_host_binding_v2.sh or emit_procedure_v2.md, but
+      review-plan.yaml's own J1 attack_plan text requires reading both (it
+      instructs "diffing the repaired script's command invocations" and
+      confirming documentation "in emit_procedure_v2.md"), and its own
+      blind_rederivation.blind_from block names exactly these two files,
+      presupposing their existence and eventual reading for J1's other
+      steps. I read both, treating the review-plan (the Coordinator-recorded,
+      pre-registered document) as authoritative over an apparent omission in
+      the queue JSON's read_scope enumeration, and disclose this explicitly
+      rather than silently expanding scope.
+    - >-
+      In listing the parent `reviews/` directory to confirm my own target
+      directory did not yet exist, I incidentally saw that a sibling
+      directory entry `TASK-20260830-4213a6/` exists. I did NOT list, open,
+      or read anything inside that directory. This is a narrower version of
+      the PD-1 deviation recorded in DEC-20260830-a575a3 (which listed actual
+      filenames inside a sibling directory); here only the sibling directory
+      NAME itself (already known to me from dispatch_queue.json and
+      review-plan.yaml, which both name TASK-20260830-4213a6 as the red-team
+      task) became visible, carrying no verdict, finding, or file-level
+      information. Disclosed rather than absorbed.
+    - >-
+      I cannot independently introspect this session's actual runtime
+      reasoning-effort setting from inside the conversation. I confirmed the
+      DECLARED configuration (.claude/agents/validator.md frontmatter:
+      `effort: xhigh`, `model: inherit`) by reading the file directly; I have
+      no tool-level proof that this specific turn was sampled at that effort
+      level.
+    - >-
+      python3 -m orchestration.adapter resolve --role validator
+      --independent-session reports "review-adversarial -> anthropic:claude-
+      opus-5 (effort=xhigh)", but `doctor --probe` in this environment
+      reports the anthropic backend as UNUSABLE ($ANTHROPIC_API_KEY unset)
+      and every other backend's probe fails on sandboxed network egress or
+      unset credentials. This resolved identifier is NOT probe-verified and
+      does not match this session's self-reported running model
+      (claude-sonnet-5, per this runtime's own system-level disclosure). I
+      am not able to reconcile this discrepancy from inside this session and
+      disclose it rather than asserting either identifier as verified fact.
+      See review_attestation.inference below for exactly what is and is not
+      claimed.
+    - >-
+      This review is a static-artifact and git-history correctness check of
+      governance/verification tooling. It supports no ECDLP, isogeny, JINV,
+      speedup, or scientific claim, and authorizes no experiment,
+      implementation, or status change. HOST-BINDING-ENFORCEABILITY's overall
+      closure state against the v5 threat model is a Coordinator composition
+      question spanning J1 (mine), J2, and J3 (both owned by the sibling
+      red-team task) -- I do not render that composed judgment.
+    - >-
+      The predecessor-byte-edit finding is reported as observed fact
+      (hash comparison, commit metadata, reachability) with no claim about
+      WHY the edit happened or who "Cursor Agent" is beyond what git records;
+      I have no access to any system beyond this repository's own history to
+      investigate further.
+
+  verdict: breaks
+  verdict_summary: >-
+    J1's three named repairs (RT-J2-O1, RT-J2-O3, RT-J3-O1) each independently
+    HOLD under live re-execution, worked-example hand-instantiation, and
+    cross-checking against the producer's own controls. The blind
+    re-derivation AGREES exactly with demo-receipt-v2.json on all three
+    host_binding fields. J1 nevertheless BREAKS on its own nondegression
+    requirement: git history proves a predecessor byte (the v1
+    emit_host_binding.sh under BATCH-820ee8/TASK-20260830-78b00f, declared
+    "frozen, immutable, read-only" throughout this entire repair chain) WAS
+    edited by an out-of-band commit (fe559e6a64d, author "Cursor Agent", no
+    task/decision reference) reachable from HEAD and predating this task's
+    own snapshot -- exactly the EXPECTED BREAK named in this task's
+    assignment. This is not attributable to TASK-20260830-31b79c's producer,
+    whose own commit is independently verified pure-additive, and it does not
+    substantively undermine the RT-J2-O1 vulnerability demonstration (the
+    edited v1 file is still vulnerable to the identical attack). It does mean
+    the repair package's and stop-control report's unqualified
+    `no_predecessor_byte_edited: true` claim is not true of the repository's
+    actual history, and that the "frozen predecessor" invariant this
+    successor-repair methodology depends on for auditability has, in fact,
+    been violated once, by a party outside this goal's dispatch discipline.
+
+  recommended_coordinator_action: >-
+    Record this finding as a correction/disclosure (not attributable to any
+    task in this lineage) rather than silently absorbing it; consider
+    re-hashing and re-verifying the "frozen" predecessor set against their
+    original archive receipts before any future successor batch relies on
+    them, and consider whether a mechanical check (predecessor-hash-drift
+    detection) belongs in the dispatch/merge-hygiene tooling given this is
+    the second time an out-of-band actor has touched shared repository state
+    that a research lineage depends on being immutable.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/reviews/TASK-20260830-3ebb0b/validation-report.yaml
+    - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/reviews/TASK-20260830-3ebb0b/runtime-session-receipt.json
+
+  review_attestation:
+    task_id: TASK-20260830-3ebb0b
+    joints_owned: [J1-repair-correctness-and-nondegression]
+    blind_from_respected: true
+    blind_from_respected_note: >-
+      Scalar restatement, for tooling that expects this field on the
+      attestation itself, of blind_rederivation.blind_from_respected and
+      procedure_note below: both blind_from files (emit_host_binding_v2.sh,
+      emit_procedure_v2.md) were opened only AFTER the blind re-derivation
+      was already complete -- stricter than required.
+    role: validator
+    independent_session: true
+    read_sibling_reports: false
+    read_sibling_report_note: >-
+      Never opened, listed with contents shown, or read
+      coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/reviews/TASK-20260830-4213a6/
+      or any file within it. A parent-directory listing (`ls` on
+      .../reviews/) incidentally showed that the sibling directory NAME
+      exists (see limitations); no content was read.
+    sources_read:
+      - AGENTS.md
+      - agents/validator.md
+      - .claude/agents/validator.md (frontmatter only, for effort disclosure)
+      - CLAUDE.md (pre-loaded project instructions)
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/review-plan.yaml
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/dispatch_queue.json
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/archives/TASK-20260830-e7db0d/snapshot-receipt.json
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/repair-package-v6.yaml
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/demo-receipt-v2.json
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/stop-control-report-v6.yaml
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/emit_host_binding_v2.sh (read AFTER completing the blind re-derivation; also this task's blind_from set)
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/emit_procedure_v2.md (read AFTER completing the blind re-derivation; also this task's blind_from set)
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/tasks/TASK-20260830-78b00f/receipt-schema-v2.yaml
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/tasks/TASK-20260830-78b00f/emit_host_binding.sh (v1 predecessor; read-only control comparison, executed but never edited)
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-820ee8/archives/TASK-20260830-b7ce0b/snapshot-receipt.json (grepped for the original declared hash of emit_host_binding.sh)
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-90392b/tasks/TASK-20260825-74615f/j3-closure-v5.yaml
+      - ledger/decisions/DEC-20260830-a575a3.yaml
+      - git metadata (commit messages, diffs, blob contents via `git show`, `git log`) for the commits and files named throughout this report
+    not_read:
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/reviews/TASK-20260830-4213a6/ (sibling; forbidden)
+      - coordination/goals/GOAL-ENDO-001/batches/BATCH-bde652/tasks/TASK-20260830-31b79c/runtime-session-receipt.json (producer's own runtime receipt; not required for my assigned checks, and I verified its declared hash against on-disk content without opening its JSON content)
+    verdict: breaks
+    verdict_vocabulary_used: [holds, breaks, inconclusive]
+    inference:
+      requested_policy: review-adversarial
+      requested_reasoning_effort: xhigh
+      declared_agent_frontmatter_effort: xhigh
+      runtime: claude_code
+      self_reported_model_id: claude-sonnet-5
+      orchestration_adapter_static_resolve: "anthropic:claude-opus-5 (effort=xhigh)"
+      orchestration_adapter_probe_result: >-
+        anthropic backend reported UNUSABLE by `doctor --probe`
+        ($ANTHROPIC_API_KEY unset in this environment); no backend's model
+        identifier was probe-verified as actually serving this session
+      model_verified: false
+      resolved_model_id_disclosed_honestly: true
+      discrepancy_disclosed: >-
+        The adapter's static config-file resolution for review-adversarial
+        (claude-opus-5) does not match this session's own self-reported
+        running model (claude-sonnet-5), and the adapter cannot probe-verify
+        either identifier for this session in this environment (no API key,
+        this is a native Claude Code subagent dispatch, not an
+        adapter-launched process). I report both facts rather than picking
+        one to present as confirmed.
+      fallback_used: not disclosed to this session; not asserted either way
+      degraded_requirements: []
+      independent_session_required: true
+      independent_session_asserted: true
+      refused_rather_than_silently_downgraded: true
+      amazon_bedrock_selected_configured_probed_contacted_or_used: false
+    budget_used:
+      wall_clock_seconds_allotted: 5400
+      memory_gb_allotted: 4
+      experiment_runs_authorized: 0
+      experiment_runs_executed: 0
+      network_used: false
+      commit_or_ledger_writes: 0
+      writes_outside_declared_write_scope: 0

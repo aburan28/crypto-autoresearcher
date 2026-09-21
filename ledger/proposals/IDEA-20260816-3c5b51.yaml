@@ -1,0 +1,276 @@
+idea:
+  id: IDEA-20260816-3c5b51
+  question_id: RQ-SHATHREE-cd2cb2
+  added: '2026-08-16'
+  title: 'Attack the sponge accounting rather than the permutation: the capacity is initialised to
+    zero and therefore already symmetric, so an internal differential''s usable freedom is exactly
+    the symmetric part of the rate minus the padding constraint, giving a forced per-digest-size dimension
+    that orders the four SHA-3 instances before any search runs'
+  class: composition
+  claim: '(A) THE SPLIT NOBODY COUNTED. In a sponge, the attacker chooses the rate bits of each absorbed
+    block and never touches the capacity. FIPS 202 fixes four (rate, capacity) pairs over ONE permutation:
+    1152/448, 1088/512, 832/768, 576/1024 bits, i.e. 18, 17, 13 and 9 whole lanes of rate. The initial
+    state is all-zero, and the zero vector is fixed by every translation tau_t, so the capacity begins
+    PERFECTLY SYMMETRIC at no cost to the attacker. The attacker''s usable resource for a single-block
+    internal differential is therefore exactly dim(S_t intersect rate), which for t = 32 is 32 bits
+    per rate lane: 576, 544, 416 and 288 bits for SHA3-224, -256, -384 and -512 respectively. These
+    are forced integers, computed from the standard with no search and no solver. (B) THE PADDING
+    IS A CODIMENSION, NOT A DETAIL. pad10*1 with the SHA-3 domain separator forces specific bits at
+    fixed positions in the last rate lane. Under S_32 a forced bit at z also forces its partner at
+    z XOR 32 within the same lane, so each forced padding bit either costs one symmetric dimension
+    or is inconsistent, depending on whether its partner is also forced and to the same value. This
+    contract computes the exact codimension the padding rule adds, per digest size and per message
+    length modulo the rate, which is again a forced integer table. (C) THE ORDERING PREDICTION. Combining
+    (A) and (B) with the generic collision budget 2^(n/2) = 2^112, 2^128, 2^192, 2^256, the RATIO
+    of available symmetric freedom to required budget is monotonically worst for SHA3-512 and best
+    for SHA3-224. The prediction is that this forced ordering, computed from mode parameters alone
+    with the permutation held completely fixed, matches the direction of the differing reach across
+    digest sizes that RQ-SHATHREE-cd2cb2 calls a free control family -- and that it does so WITHOUT
+    any property of Keccak-f entering. (D) NOT CLAIMED. No attack on any digest size. No claim that
+    freedom-to-budget ratio is the operative frontier criterion, no claim about any published reach
+    figure, and nothing about 24 rounds. Crucially it is NOT claimed that a mode-only explanation
+    is the correct one: if the mode-only ordering matches, the permutation''s decay curve becomes
+    REDUNDANT for explaining the digest-size spread, which is a constraint on the companion contracts
+    rather than a security statement.'
+  mechanism: 'STAGE 1: pin the FIPS 202 absorption layout -- lane index x + 5y, little-endian bytes
+    within a lane -- and validate it by reconstructing all four SHA-3 digests plus SHAKE outputs against
+    hashlib, so the rate/capacity bit positions are established rather than assumed. STAGE 2: construct
+    the rate subspace as a coordinate subspace of GF(2)^1600 for each digest size, and compute dim(S_t
+    intersect rate) by rank for t in {1,2,4,8,16,32} and all four rates; check against the closed
+    form (rate lanes) x gcd(t,64). STAGE 3: for each digest size and each message length L mod rate,
+    generate the exact padded block, identify the forced bit positions and values, and compute the
+    codimension the forcing adds to S_32 intersect rate, plus a consistency flag when a forced pair
+    disagrees. STAGE 4: emit the freedom table F(digest, L) and the ratio F / (n/2) against the generic
+    budget. STAGE 5: extend to multi-block absorption -- after the first permutation call, the capacity
+    is generally NOT symmetric, so the second block''s contribution is the symmetric part of the rate
+    only and cannot repair capacity asymmetry; quantify the fraction of a deviation vector''s weight
+    that lands in the capacity per digest size. STAGE 6: run the null. REFUTATION: the mechanism fails
+    if dim(S_t intersect rate) disagrees with the closed form, if the padding codimension is zero
+    for every length (making padding irrelevant and part B empty), or if the ratio ordering across
+    digest sizes is non-monotone, which would remove the prediction entirely.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Ran `grep -ril "keccak\|sha-3\|sha3" ledger/ knowledge/ experiments/ docs/` from the
+      repository root: four proposals (IDEA-20260805-5194f9, IDEA-20260807-c4f1fc, IDEA-20260809-ce875b,
+      IDEA-20260809-7f2d9c), one question (RQ-SHATHREE-cd2cb2), GOAL-SHA3-001 and five sibling goals,
+      two decisions, and a block of KN-LIT files. Then per-noun counts over ledger/proposals/ and
+      ledger/hypotheses/: translation-invariant (4, all ECDLP/AES), symmetry-decay (0), "internal
+      differential" (0), sponge (2), "invariant subspace" (2), "chi step" (0), "rate/capacity" (0),
+      capacity (20), padding (15), "birthday bound" (38). Read RQ-SHATHREE-cd2cb2 in full, GOAL-SHA3-001,
+      KN-TECH-080 in full, docs/inventor-protocol.md sections 1-8, and headers of KN-TECH-066, KN-TECH-073,
+      KN-TECH-074, KN-TECH-056. Additionally grepped ledger/proposals and ledger/hypotheses for `rate/capacity`
+      (0 hits), `capacity` (20 hits, inspected), `padding` (15 hits, inspected) and `pad10` (0 hits).'
+    results: 'Zero hits for `rate/capacity` anywhere in the ledger. The 20 `capacity` hits are lattice
+      and channel-capacity usages in ML-KEM, ML-DSA and information-theoretic contexts, none of them
+      sponge capacity. The 15 `padding` hits are signature-encoding and message-padding usages in
+      ECDSA/EdDSA/SLH-DSA records, none of them pad10*1. IDEA-20260808-95a21c is the closest structural
+      relative in the whole ledger: it audits a MODE-LEVEL cost accounting (Fiat-Shamir grinding charged
+      per full transcript hash when hash chaining lets a forger change only the last block) rather
+      than a primitive, and its shape -- ''the accounting overstates or understates by a computable
+      number of bits'' -- is the shape reused here.'
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature; the interaction of sponge
+      capacity with symmetric states may be entirely standard there. NEW relative to this repository:
+      no record has ever computed a sponge rate/capacity quantity, and none has intersected a symmetry
+      subspace with an absorption layout. ASSEMBLED FROM KNOWN PARTS: the fixed-subspace machinery
+      is shared with the companion contracts; the mode-accounting-audit shape is borrowed explicitly
+      from IDEA-20260808-95a21c and that debt is recorded here. The contribution claimed is the forced
+      per-digest-size freedom table and the mode-only ordering prediction.'
+  object_first_candidate:
+    tracked_object: 'The affine subspace of state values the attacker can actually reach at the input
+      of the first permutation call: (S_t intersect rate-coordinate-subspace) constrained by the padding
+      forcing, with the capacity coordinates pinned to zero. The object is a subspace of GF(2)^1600
+      with an exact dimension, followed across the absorption boundary rather than across a round.'
+    lossiness: 'This object is deliberately NOT a projection of the state -- it is a constraint set,
+      and it discards nothing about any particular state. Saying so honestly: for this entry the lossy-projection
+      test of inventor-protocol section 2 does not apply in its usual form, because the entry does
+      not track a state through a computation; it tracks the DIMENSION of the attacker''s reachable
+      set across the mode boundary. The corresponding honesty check is different and is applied instead:
+      does the dimension count discard information that would change it? It discards the values of
+      the free bits (retaining only how many there are), and that discard is compatible with the mode
+      because absorption is a coordinate XOR and dimension is preserved by translation. Where the
+      count would break down is if the padding forcing were value-dependent in a way the codimension
+      misses, which stage 3 checks explicitly by flagging inconsistent forced pairs.'
+    propagation: 'One absorption step acts on the object as: reachable-set := (previous state) XOR
+      (rate-supported block), so the reachable set is an affine translate of the rate coordinate subspace,
+      and its intersection with S_t is an affine subspace whose dimension is dim(S_t intersect rate)
+      whenever the previous state is itself in S_t, and is EMPTY or smaller when the previous state
+      has capacity-side asymmetry the rate cannot cancel. That asymmetry-cannot-be-repaired step is
+      the mechanism''s whole content.'
+    survival_score: 'Reported as the number of absorbed blocks for which a symmetric state is still
+      reachable, per digest size: exactly 1 while the capacity remains symmetric, and 0 thereafter
+      once any capacity-side deviation is present. If that integer is 1 for every digest size, the
+      object dissolves at the first permutation call and the entry''s part (C) rests entirely on the
+      single-block freedom count -- which is a clean, honest, and still useful outcome.'
+  null_object_control: 'Two nulls in the same invocation. NULL-RATE: 1000 randomly chosen rate/capacity
+    splits at the same total width (rate drawn uniformly from 1..24 lanes) with the identical dimension
+    and padding computation; the FIPS ordering must sit at a distinguishable quantile of the resulting
+    ordering distribution, otherwise the ordering is a trivial consequence of ''smaller rate means
+    less freedom'' and carries no SHA-3-specific content. NULL-PAD: the pad10*1 rule replaced by a
+    random forcing of the same number of bits at random positions, 1000 draws, to separate the padding
+    rule''s specific geometry from the mere fact that some bits are forced. If both nulls match the
+    signal arm, the recorded result is a controlled null: the freedom table is arithmetic about any
+    sponge, not a fact about SHA-3.'
+  discriminated_from:
+  - 'IDEA-20260808-95a21c (FAEST Fiat-Shamir grinding cost) -- same audit shape, entirely different
+    mode: transcript hashing under a signature scheme versus sponge absorption, and its unit is per-attempt
+    hash cost while this one''s unit is a subspace dimension.'
+  - The companion divisor-lattice contract -- that one sweeps t over the permutation's symmetry group
+    and touches the mode only as a tiebreak at one stage; this one holds t = 32 fixed and makes the
+    mode the entire object.
+  - The companion active-row contract -- that one never leaves the permutation and never sees a rate,
+    a capacity or a padding rule.
+  - Generic 'audit the security proof of the sponge' proposals -- this contract proves nothing about
+    indifferentiability or generic bounds; it counts a dimension the attacker controls and reports
+    an ordering.
+  - The blacklisted class of program-self-audits of cost models -- this audits a STANDARD's parameter
+    accounting using computed integers from FIPS 202, not this program's own cost model, machine variance
+    or timing.
+  assumptions:
+  - The all-zero initial state, which is fixed by every tau_t, so the capacity starts symmetric at
+    no cost; this is read directly from the standard.
+  - The attacker is confined to rate bits of absorbed blocks and cannot influence capacity except
+    through the permutation.
+  - Dimension of controllable symmetric freedom is a meaningful resource measure in the unkeyed setting
+    where freedom is spent rather than data collected (KN-TECH-066 framing).
+  - The generic collision budget for SHA3-n is 2^(n/2); this is used only as a comparison scale and
+    no claim is made that it is the operative criterion.
+  - Lane-aligned rates (all four SHA-3 rates are whole numbers of 64-bit lanes) simplify the intersection,
+    and this alignment is verified rather than assumed.
+  predictions:
+  - metric: dim(S_32 intersect rate) for SHA3-224/256/384/512
+    direction: different
+    minimum_effect: forced to 576, 544, 416, 288 bits respectively (32 bits per rate lane at 18, 17,
+      13, 9 lanes); any deviation falsifies the counting
+  - metric: codimension added by pad10*1 to S_32 intersect rate, for a message length making padding
+      maximal
+    direction: higher
+    minimum_effect: 1
+  - metric: monotonicity of the freedom-to-budget ratio dim(S_32 intersect rate) / (n/2) across the
+      four digest sizes
+    direction: different
+    minimum_effect: predicted strictly monotone decreasing from SHA3-224 to SHA3-512; a single inversion
+      falsifies the ordering prediction
+  - metric: number of absorbed blocks for which a fully symmetric state remains reachable
+    direction: different
+    minimum_effect: 1
+  - metric: quantile of the FIPS rate/capacity ordering within the NULL-RATE ordering distribution
+    direction: different
+    minimum_effect: no pre-commitment; if FIPS sits at the median the ordering is generic sponge arithmetic
+      and that is the honest finding
+  minimal_test:
+    design: Stages 1-3 discriminate and cost under thirty minutes of CPU. Pin the absorption layout
+      and validate against hashlib for all four digest sizes and both SHAKE functions, including a
+      message that crosses a rate boundary and one that triggers the maximal padding case. Build each
+      rate as a coordinate subspace and compute dim(S_32 intersect rate) by rank rather than by the
+      lane-count formula, then compare the two -- a disagreement is a falsification of the counting
+      and is the cheapest possible way to find it. Enumerate message lengths L = 0..rate-1 for each
+      digest size, generate the exact padded final block, extract forced positions and values, and
+      compute the padding codimension and any inconsistent forced pair. That already yields the complete
+      forced freedom table F(digest, L) and the ratio ordering, which is the entry's central claim;
+      stages 4-6 and the nulls add the control that decides whether the ordering is SHA-3-specific
+      or generic sponge arithmetic. Nothing in the minimal test requires a solver, a search, or a
+      single evaluation of the permutation beyond validation.
+    controls:
+    - 'NULL-RATE: 1000 random rate/capacity splits at width 1600 with the identical computation.'
+    - 'NULL-PAD: 1000 random forcings of the same cardinality as pad10*1 at random positions.'
+    - 'Rank-versus-formula control: dim(S_32 intersect rate) computed by rank and compared with 32
+      x (rate lanes).'
+    - 'Zero-message anchor: the empty message must give the maximal padding case and its codimension
+      must match a hand-derived value recorded in the contract before the run.'
+    - 'Digest-reconstruction control: every rate/capacity configuration used must reproduce hashlib
+      output for at least three message lengths, so a mis-specified split cannot silently propagate.'
+    required_metrics:
+    - dim(S_t intersect rate) by rank, for t | 64 and all four digest sizes
+    - padding codimension per digest size per message length L mod rate
+    - count of inconsistent forced symmetric pairs, per configuration
+    - freedom table F(digest, L) in bits
+    - freedom-to-budget ratio F / (n/2) per digest size
+    - capacity-resident fraction of deviation weight after one permutation call
+    - NULL-RATE and NULL-PAD ordering distributions
+  falsification_conditions:
+  - dim(S_32 intersect rate) disagrees with 32 x (rate lanes) for any digest size.
+  - The padding codimension is zero for every message length and every digest size, emptying part
+    (B).
+  - Some forced padding pair is inconsistent under S_32 for every message length, which would mean
+    no symmetric padded block exists at all -- a strong and useful obstruction that would end the
+    single-block internal-differential framing for that digest size.
+  - The freedom-to-budget ratio is non-monotone across the four digest sizes, falsifying the ordering
+    prediction.
+  - 'The FIPS ordering sits at the median of the NULL-RATE distribution on every axis -- controlled
+    null: the ordering is generic sponge arithmetic.'
+  - Any configuration fails digest reconstruction against hashlib.
+  confounders:
+  - All four SHA-3 rates are whole lanes, which makes the intersection unusually clean and may make
+    the FIPS arm look structured relative to a NULL-RATE arm containing non-lane-aligned splits; the
+    null must therefore be reported both over all splits and restricted to lane-aligned splits.
+  - Freedom-to-budget ordering is nearly forced by the fact that larger digests have both smaller
+    rates and larger budgets, so the ordering could be trivially monotone for reasons having nothing
+    to do with symmetry; the null exists to expose exactly this and the entry's value survives either
+    way.
+  - Comparing a dimension in bits to a log-budget in bits treats one bit of freedom as one bit of
+    budget, which is a modelling choice, not an identity.
+  - Domain-separation bits differ between SHA-3 and SHAKE, and mixing them would corrupt the padding
+    codimension table; the contract computes SHA-3 only and records SHAKE as out of scope.
+  interpretation_limits:
+  - A freedom count is not an attack and an ordering of freedom counts is not an ordering of attack
+    difficulty.
+  - If the mode-only ordering matches the free control family, that constrains what the permutation's
+    decay curve can be credited with explaining; it is not evidence about SHA-3's security in either
+    direction.
+  - Single-block framing dominates the result; multi-block conclusions in stage 5 are weaker and are
+    reported separately.
+  - Round-reduced context throughout; nothing here bears on full 24-round SHA-3 or on any deployed
+    use of SHA-3 or SHAKE.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The computation is a handful of rank calculations
+      on 1600-column GF(2) matrices plus at most 1152 padded-block constructions per digest size,
+      under 2^32 bit operations.
+    memory_exponent: No attack memory exponent is claimed. One 1600x1600 GF(2) matrix at a time, about
+      320 KiB.
+    best_known: The incumbent explanation for differing reach across SHA-3 digest sizes is, within
+      this repository, nothing at all -- RQ-SHATHREE-cd2cb2 records the differing reach as a believed
+      but unread external fact and offers no model. Externally the incumbent is whatever published
+      round-reduced work states, which this program has not read and does not characterise. No attack
+      is produced, so no attack incumbent is challenged.
+    hidden_overhead: 'The human cost hides in the absorption layout: byte order within a lane and
+      lane order within the rate are the two places a wrong convention produces a table that is internally
+      consistent and completely wrong. The lower-order term is the equivalence of one bit of freedom
+      with one bit of budget, which the ratio silently assumes.'
+  dominated_by: 'n/a (no result claimed). Checked across every frontier axis: this contract emits
+    no attack time, no attack memory and no data/query figure, so it holds no frontier position. The
+    ordering it produces is over structural dimensions of four standardised parameter sets, which
+    is not a Pareto frontier of attacks and must not be read as one.'
+  sota_delta: no attack; conceptual/measurement contribution only. Output is a forced integer table
+    of dimensions and codimensions plus an ordering with its null quantile.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'That dim(S_32 intersect rate) equals 32 x rate-lanes and matches by rank:
+    0.9, arithmetic with transcription risk in the absorption layout. That pad10*1 adds a nonzero
+    codimension for some message length: 0.85. That some digest size has an inconsistent forced pair
+    making symmetric single-block padding impossible: 0.15, and if true it is the most interesting
+    outcome in this entry. That the freedom-to-budget ratio is strictly monotone: 0.75, but largely
+    for trivial reasons. That the ordering separates from the NULL-RATE distribution: 0.25 -- I expect
+    a controlled null here, and the entry is designed so that a controlled null is still a usable
+    measured result about where the digest-size spread can and cannot come from.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-SHATHREE-cd2cb2
+  - GOAL-SHA3-001
+  - KN-TECH-080
+  - KN-TECH-066
+  - docs/inventor-protocol.md
+  - IDEA-20260808-95a21c
+  - KN-TECH-056
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SHATHREE-c72fed

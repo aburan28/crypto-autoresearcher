@@ -1,0 +1,635 @@
+# DRAFT PROTOCOL AMENDMENT, NOT YET FROZEN. Supersedes specification_v5.yaml
+# (v5, frozen 59cfaf39ea721780b4cddf3d7ac5968a70872b15, retained unedited) on
+# the ranked resume action DEC-20260806-357b30 recorded at BATCH-008's close:
+# (A) GD-12's fix -- supersede (never edit) greedy_descent_hitting_time to
+# expose the walk's TERMINAL vertex, and correct the trapping diagnostic's
+# required cross-check to compare against it, restricted to trapped:True
+# walks, excluding the delta_E=1/success case; (B) the funnel-structure
+# diagnostic named by both BATCH-008 reviewers as the next mechanism
+# question for L4 -- which structural local minima capture the most greedy
+# walks (basin-size / in-degree concentration), now that PART A supplies a
+# genuine terminal-vertex-to-basin mapping. UNLIKE v5's PART A/PART B (which
+# were fully independent), PART B of THIS amendment DEPENDS on PART A's new
+# function -- stated explicitly here rather than claimed independent.
+# BATCH-009, the first batch under the extended campaign_budget
+# (maximum_batches: 8 -> 12, GOAL-SSIQ-001 goal.yaml
+# maximum_batches_amendment_20260806).
+experiment:
+  id: EXP-SSIQ-a85692
+  hypothesis_id: H-SSIQ-36e970
+  version: 6
+  title: >-
+    (A) Fix GD-12: expose the greedy walk's terminal vertex and correct the
+    trapped-vs-structural cross-check, and (B) diagnose funnel structure --
+    which structural local minima capture the most walks (BATCH-009)
+  status: approved
+  approved_by: coordinator
+  amends: EXP-SSIQ-a85692 (version 5, specification_v5.yaml, frozen 59cfaf39ea721780b4cddf3d7ac5968a70872b15)
+  amendment_scope: >-
+    PART A fixes GD-12 (EV-SSIQ-334ab9, DEC-20260806-357b30 D-2/D-3):
+    descent_hitting_time.py is EXP-SSIQ-58b642's own frozen artifact and
+    stays byte-for-byte UNTOUCHED (AGENTS.md immutability). A NEW module,
+    experiments/EXP-SSIQ-a85692/implementation/descent_walk_hardened.py,
+    defines greedy_descent_hitting_time_v2: identical to
+    dht.greedy_descent_hitting_time's walk logic in every branch, except
+    every returned dict additionally carries "terminal_vertex": the value
+    of `current` at the moment of return (start itself, unmoved, in the
+    delta_E==1 immediate-identity branch; the trapped vertex in the
+    trapped=True branch; the delta_E==1 vertex reached by descent in the
+    trapped=False/steps>0 branch). This is a pure superset of the
+    original's return value -- hitting_time/trapped/steps/tie_events/
+    steps_with_choice are computed by the IDENTICAL walk logic and must be
+    bit-identical to dht.greedy_descent_hitting_time's own output on every
+    input, which is a REQUIRED regression control (gd12_fix_v6.equivalence
+    below), not merely a stated intention.
+    The frozen v5 contract's required cross-check compared
+    dht.greedy_descent_hitting_time's "trapped" flag against
+    is_structural_local_min(START) for EVERY vertex, unconditionally. Both
+    BATCH-008 reviewers independently confirmed (Validator: re-tracing the
+    Executor's own p=2437/(148,37) example; Red Team: an independent
+    p=3889 counter-example) that this is the wrong vertex whenever start is
+    not itself a local minimum -- PF-6's underlying mathematical argument
+    (round 1 of v5's own pre-freeze review) is correct for the walk's
+    TERMINAL vertex, never exposed by the frozen function's return value.
+    THIS AMENDMENT'S OWN CORRECTED CLAIM, stated explicitly and traced
+    below (gd12_fix_v6.corrected_equivalence_proof) rather than asserted as
+    round 1's prose was: for every walk with trapped=True, the walk's own
+    non-backtracking exclusion NEVER removes a genuine smaller-delta
+    candidate (dht's own docstring: a strict-descent walk's predecessor
+    always has STRICTLY GREATER delta than the current vertex, so it can
+    never itself be a smaller-delta candidate) -- so a trapped=True walk's
+    terminal vertex has no neighbour, among its FULL neighbour set
+    including the excluded predecessor, with strictly smaller delta. That
+    IS exactly is_structural_local_min(terminal) by definition. This holds
+    UNCONDITIONALLY for trapped=True walks and is NOT claimed for
+    trapped=False walks (the delta_E=1 immediate-identity case): there,
+    terminal==start and delta_map[terminal]==1, which trivially satisfies
+    is_structural_local_min (1 is the global minimum of a positive-integer-
+    valued delta_E) regardless of whether the walk was meaningfully
+    "trapped" in the interesting sense -- comparing trapped=False against
+    is_structural_local_min(terminal)=True-by-triviality is exactly the
+    SECOND, independent boundary-condition defect the Red Team found in
+    BATCH-008 (RT-BATCH-008.md), and would newly misclassify every
+    successful walk (15-28% of vertices per prime, per that report) as a
+    disagreement under a naive terminal-vertex-only fix. THE CORRECTED
+    CROSS-CHECK THEREFORE COMPARES ONLY trapped=True WALKS, explicitly
+    EXCLUDING trapped=False (delta_E=1 success) walks from the equivalence
+    claim entirely -- reported and counted separately, never silently
+    dropped from the accounting.
+    PART B, DEPENDENT ON PART A: for the same four primes as v5's diagnostic
+    (2437, 3889, 5737, 7333; already-archived full delta_map coverage), run
+    greedy_descent_hitting_time_v2 from EVERY vertex (not the frozen
+    dht.greedy_descent_hitting_time, since only the v2 function exposes
+    terminal_vertex) and, for every trapped=True walk, assign that START
+    vertex to the BASIN of its terminal_vertex (a structural local minimum,
+    by PART A's corrected proof). Compute, per prime: the basin-size
+    distribution over the set of structural local minima (independently
+    computed exactly as v5's trapping_diagnostic_v5.py already does, REUSED
+    UNCHANGED as a library import, not re-implemented) -- is capture
+    concentrated on a small number of "deep" local minima (a funnel/hub
+    structure) or spread near-uniformly across all local minima? Reports
+    max basin size, the top-decile concentration (fraction of all
+    trapped=True walks captured by the top 10% of local minima by basin
+    size), and the correlation between a local minimum's basin size and its
+    own "depth" (the gap between its delta_E value and its smallest
+    neighbour's delta_E among non-local-minimum neighbours it could have
+    been reached from -- operationalized precisely in
+    funnel_structure_diagnostic_v6 below, not left to the Executor to
+    invent). This is NEW analysis (no prior batch computed a basin
+    assignment), but at ZERO NEW SEARCH COST: no new delta_E computation,
+    reusing the already-archived delta_map and the same pinned-seed graph
+    rebuild v5 already established.
+    Everything else in v1-v5 (B=23/X=23, the delta_E instrument, every
+    budget-allocation formula, trapped_exclusion_filter_v3,
+    c_null_label_comparison_v3, the decision rule, every control, GD-11's
+    fix in ols_hardened.py) is REUSED UNCHANGED and NOT reopened, restated,
+    or re-run.
+  pre_freeze_review:
+    status: REVIEWED
+    report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-009/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v6.md
+    round2_report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-009/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v6-round2.md
+    round3_report: coordination/goals/GOAL-SSIQ-001/batches/BATCH-009/reviews/RT-PREFREEZE-EXP-SSIQ-a85692-v6-round3.md
+    verdict: >-
+      Round 1: DO-NOT-FREEZE (original draft, PF-1/PF-2/PF-3 blocking).
+      PART A's own central mathematical claim (corrected_equivalence_proof)
+      was independently hand-traced by the reviewer directly against the
+      frozen greedy_descent_hitting_time and CONFIRMED CORRECT, including
+      the first-step (prev is None) and multi-edge fallback cases -- GD-12's
+      own standing repair applied correctly this time. PART B introduced a
+      NEW defect of the identical shape (PF-1): an unconditional claim about
+      "empty basin" behavior for delta_E=1 structural local minima, false by
+      construction of greedy_descent_hitting_time_v2's own inherited
+      top-level short-circuit, independently traced and confirmed by a
+      concrete counter-example (any F_p-rational vertex). PF-2 (a named
+      reuse mechanism that was not actually importable) and PF-3 (an
+      unreconciled global-vs-per-prime failure-handling model) were also
+      blocking. All three applied below, plus advisory PF-4/PF-5/PF-6.
+      Round 2 (after PF-1/PF-2/PF-3/PF-4/PF-5/PF-6 applied): DO-NOT-FREEZE
+      AGAIN -- round 1's three blocking findings were all independently
+      RE-DERIVED (not merely re-read) against the frozen code and archived
+      data and CONFIRMED HOLDING, including the reviewer's own additional
+      stress test (a walk cannot "pass through" a delta_E=1 vertex and
+      terminate elsewhere -- confirmed not a reachable code path). But
+      PART B's own fix for PF-3 reintroduced the identical global-vs-
+      per-prime ambiguity one level deeper (PF-7, blocking), and the fix's
+      own "traced by hand" illustrative numbers were false, confirmed by
+      direct query against already-archived data (PF-8, blocking,
+      non-gating on the assertion's own correctness but a falsified claim
+      in contract text -- the same "trace a Coordinator's own confidence-
+      building illustration" standard v5's PF-9 already established for
+      this lineage). PF-7/PF-8 fixed below, plus advisory PF-10/PF-11.
+      Round 3 (after PF-7/PF-8/PF-10/PF-11 applied): FREEZE-WITH-FIXES --
+      NO BLOCKING DEFECT SURVIVED THIS ROUND. All five blocking findings
+      across rounds 1-2 (PF-1, PF-2, PF-3, PF-7, PF-8) were independently
+      RE-VERIFIED from fresh queries against the frozen code and archived
+      data (PF-8's four numeric pairs recomputed from scratch in a fresh
+      Python process, not by re-deriving round 2's own arithmetic) and
+      CONFIRMED HOLDING. Two new advisory-only findings (PF-12: the PF-7 fix's
+      own "same mechanism" implementation-necessity claim was asserted, not
+      pinned down, and not strictly accurate -- removed; PF-13: PART A's and
+      PART B's two structurally identical accounting-partition assertions
+      were assigned different failure-handling severities with no stated
+      justification -- unified, both now per-prime) were applied below
+      without a fourth review round, per this lineage's own established
+      practice for advisory-only findings (v5's PF-10/PF-11; this draft's
+      own PF-4/PF-5/PF-6/PF-10/PF-11). FROZEN on this basis.
+    findings_applied: [PF-1, PF-2, PF-3, PF-4, PF-5, PF-6, PF-7, PF-8, PF-10, PF-11, PF-12, PF-13]
+    pf1_summary: >-
+      BLOCKING (round 1). PART B's original "empty basin -> basin_size==1,
+      its own start" convention is FALSE for every delta_E=1 structural
+      local minimum: greedy_descent_hitting_time_v2's inherited top-level
+      short-circuit (delta_map[start]==1 => trapped=False, unconditionally)
+      means these vertices can never receive a trapped=True walk from any
+      start including themselves, so their true basin is always empty (size
+      0), not 1 -- guaranteeing the REQUIRED ACCOUNTING ASSERTION would fail
+      by exactly the F_p-rational locus size on every prime, every run, as
+      originally specified. Fixed by defining "basin-eligible local minima"
+      = {m : is_structural_local_min(m) AND delta_map[m] > 1}, excluding
+      delta_E=1 vertices from the basin set entirely (they are not genuine
+      trapping destinations by construction) rather than special-casing an
+      "empty basin" that can no longer occur for the remaining set (every
+      basin-eligible m has itself in its own basin by construction, so
+      basin_size(m) >= 1 always, with no special case needed).
+    pf2_summary: >-
+      BLOCKING (round 1). The original "REUSED, not reimplemented"
+      instruction for is_structural_local_min named a symbol confirmed not
+      to exist as an importable unit in trapping_diagnostic_v5.py (it is six
+      inline lines inside run_diagnostic_for_prime, whose own returned dict
+      never exposes per-vertex flags). Fixed by an explicit, disclosed
+      split: build_graph_for_prime and load_archived_prime_data are
+      GENUINELY IMPORTED (both confirmed standalone module-level functions),
+      while is_structural_local_min, the coverage assertion, and the
+      graph-rebuild verification are AUTHORIZED, DISCLOSED DUPLICATES of
+      trapping_diagnostic_v5.py's own inline logic -- the same exception
+      v5's own PF-1 fix already established for bootstrap_gap_ci_v2.
+    pf3_summary: >-
+      BLOCKING (round 1). PART A's "halt with an explicit error... on ANY
+      disagreement" (global) and PART B's "must not run for that prime"
+      (per-prime) described the same failure event two incompatible ways.
+      Fixed by stating explicitly that the trapped=True-vs-
+      is_structural_local_min(terminal) comparison is a PER-PRIME boolean
+      (crosscheck_pass) that never aborts the process, matching
+      trapping_diagnostic_v5.py's own ACTUAL executed behavior in
+      RUN-SSIQ-a85692-e (which also did not literally halt on disagreement,
+      despite its own frozen spec text saying it would) rather than that
+      file's contradictory spec-text language.
+    pf4_summary: >-
+      ADVISORY (round 1), applied. The REQUIRED EQUIVALENCE REGRESSION now
+      explicitly requires the >=3 constructed inputs to collectively
+      exercise all three of greedy_descent_hitting_time_v2's return
+      branches (immediate delta_E==1, trapped=True, trapped=False-via-steps),
+      not merely reach 3 total cases.
+    pf5_summary: >-
+      ADVISORY (round 1), applied. depth(m)'s description corrected from
+      "well-defined and positive" (self-contradictory alongside "depth==0 is
+      legitimate") to "provably NON-NEGATIVE."
+    pf6_summary: >-
+      ADVISORY (round 1), applied. The top-decile boundary is now an
+      explicit, deterministic formula: k = max(1, ceil(0.1 *
+      n_basin_eligible)) local minima, never silently resolving to zero for
+      a small basin-eligible set. Re-verified round 2 against the real
+      basin-eligible counts these four primes will produce (86/114/176/270)
+      -- well-defined throughout, no boundary case triggered.
+    pf7_summary: >-
+      BLOCKING, NEW (round 2). PART B's own REQUIRED ACCOUNTING ASSERTION,
+      written to fix PF-3, reintroduced PF-3's exact global-vs-per-prime
+      ambiguity one level deeper: "a GLOBAL, run-aborting check for that
+      prime's computation" named two incompatible scopes in one phrase.
+      Fixed by stating explicitly that a mismatch halts ONLY that prime's
+      PART B computation, using the same per-prime isolation
+      crosscheck_pass gating already requires -- never global/run-aborting,
+      and the other three primes' results are computed and written
+      normally.
+    pf8_summary: >-
+      BLOCKING, NEW (round 2). The accounting assertion's own "traced by
+      hand" illustrative numbers (n_trapped_false==9, sum(basin)==194 for
+      p=2437) were FALSE, confirmed by direct query against RUN-SSIQ-a85692-b's
+      archived descent_metrics.per_prime[p].greedy_trapped_fraction, and
+      falsely attributed to "the round-1 reviewer's own trace" (round 1
+      never made this claim -- it cited 9/18/18/17 only as the OLD, broken
+      scheme's overcount magnitude, a different quantity). Fixed with the
+      correct values for all four primes, computed directly from already-
+      archived data: p=2437 n_trapped_false=33/sum=170; p=3889
+      n_trapped_false=90/sum=234; p=5737 n_trapped_false=86/sum=392; p=7333
+      n_trapped_false=91/sum=520.
+    pf10_summary: >-
+      ADVISORY (round 2), applied. The is_structural_local_min disclosed
+      duplicate now also restates the source formula's missing-neighbour
+      loud-raise guard, for completeness, though structurally unreachable
+      given the required coverage assertion.
+    pf11_summary: >-
+      ADVISORY (round 2), applied. The top-decile concentration now
+      specifies null-with-a-note (never a division by zero) for the
+      theoretical n_basin_eligible==0 case, not reachable by any of this
+      amendment's four primes.
+    pf12_summary: >-
+      ADVISORY, NEW (round 3), applied. PF-7's fix correctly specified the
+      required BEHAVIOR but its own justifying parenthetical ("the SAME
+      per-prime isolation mechanism... necessarily wraps... the identical
+      wrapping") asserted, without pinning down concretely, that
+      crosscheck_pass gating and the accounting assertion's halt need the
+      same implementation mechanism -- not strictly accurate (a plain
+      conditional skip suffices for the former; the latter's mid-computation
+      raise genuinely needs an exception-catching construct). Fixed by
+      removing the implementation-necessity claim, stating only the
+      required behavior, which was already sufficient and correct.
+    pf13_summary: >-
+      ADVISORY, NEW (round 3), applied. PART A's accounting assertion
+      (n_trapped_true + n_trapped_false == n_vertices) was called "global,
+      run-aborting" while PART B's structurally identical partition
+      assertion (sum(basin) + n_trapped_false == n_vertices) was per-prime,
+      with no stated justification for the asymmetry between two
+      structurally analogous, both-provably-tautological checks. Fixed by
+      unifying both to per-prime: a mismatch in either assertion now halts
+      only that one prime's computation for that part, leaving the other
+      three primes' results unaffected.
+  inputs:
+    gd12_fix_v6: >-
+      PART A. descent_walk_hardened.py defines ONE function,
+      greedy_descent_hitting_time_v2(adjacency, start, delta_map,
+      diameter_sentinel), a pure superset of
+      dht.greedy_descent_hitting_time: identical walk logic (the delta_E==1
+      immediate check, the non-backtracking candidate exclusion, the tied-
+      neighbour tie-break via the imported, unchanged tie_break_choice, the
+      strict-descent termination guarantee), with "terminal_vertex": current
+      added to every returned dict at the exact point of return.
+      REQUIRED EQUIVALENCE REGRESSION (bit-identical non-terminal-vertex
+      fields), PF-4 FIX APPLIED (round 1 pre-freeze review: the original
+      "at least 3 independent inputs" did not require branch coverage, so a
+      terminal_vertex bug isolated to one return branch could pass a
+      test that happens to hit only trapped=True three times): construct AT
+      LEAST 3 independent (adjacency, start, delta_map, diameter_sentinel)
+      inputs, REQUIRED TO COLLECTIVELY EXERCISE ALL THREE of
+      greedy_descent_hitting_time_v2's return branches at least once each
+      (the immediate delta_E==1 case, the trapped=True case, and the
+      trapped=False-via-one-or-more-steps case) -- including the already-
+      archived p=2437 graph and the exact (148,37) start vertex from
+      trapping_diagnostic_v5.py's own hand-traced counter-example for the
+      trapped=True branch -- and confirm greedy_descent_hitting_time_v2's
+      hitting_time/trapped/steps/tie_events/steps_with_choice fields are
+      BIT-IDENTICAL to dht.greedy_descent_hitting_time's own output on the
+      SAME input, for every case, and that terminal_vertex for the (148,37)
+      case equals (1617, 1793) EXACTLY, matching the already-independently-
+      traced value in trapping_diagnostic_v5.py's own code comment, AND
+      that terminal_vertex == start for the immediate delta_E==1 case, AND
+      that terminal_vertex equals the actual delta_E==1 vertex reached for
+      the trapped=False-via-steps case. The execution_report.yaml must state
+      which branch each constructed input exercises, not merely that 3
+      inputs were used.
+      corrected_equivalence_proof (restated here as the amendment's own
+      claim, not inherited from v5's PF-6): for trapped=True walks,
+      is_structural_local_min(terminal_vertex) is TRUE UNCONDITIONALLY, by
+      the non-backtracking-exclusion argument in amendment_scope above.
+      NOT claimed for trapped=False walks -- excluded from the corrected
+      cross-check entirely, per the Red Team's boundary-condition finding.
+      REUSE MECHANISM, NAMED EXPLICITLY (PF-2 FIX APPLIED, round 1 pre-freeze
+      review RT-PREFREEZE-EXP-SSIQ-a85692-v6.md: "REUSED UNCHANGED via
+      import" named no actual importable symbol for the graph/delta_map
+      load or for is_structural_local_min). This amendment's implementation
+      module imports TWO genuinely-standalone functions directly from
+      trapping_diagnostic_v5.py, confirmed importable by direct read of that
+      file: build_graph_for_prime(p, seed) (returns (g, seed_info), g
+      containing vertices/adjacency) and load_archived_prime_data(
+      raw_result_path, prime) (returns delta_map with PF-4's key round-trip
+      already applied, plus archived_n_vertices/archived_n_resolved). The
+      coverage assertion (delta_map keys matched against the rebuilt
+      vertex set == archived_n_vertices, never n_resolved, per PF-9) and the
+      graph-rebuild verification (degree_sequence_check, IMPORTED UNCHANGED
+      from build_isogeny_graph, cross-checked against archived_n_vertices,
+      per PF-5/PF-11) are NOT separately importable from
+      trapping_diagnostic_v5.py (they are inline in run_diagnostic_for_prime,
+      confirmed by direct read) and are therefore AUTHORIZED, DISCLOSED
+      DUPLICATIONS of that same ~15-line procedure in THIS amendment's own
+      module -- the same "necessarily duplicating... since [the source file]
+      cannot be edited" exception v5's own PF-1 fix already established for
+      bootstrap_gap_ci_v2's resampling loop, applied here to a second,
+      analogous case. is_structural_local_min(v, delta_map, adjacency) =
+      delta_map[v] <= min(delta_map[u] for u in adjacency[v]) is LIKEWISE an
+      AUTHORIZED, DISCLOSED DUPLICATE of trapping_diagnostic_v5.py's own
+      six-line inline formula (line 234), named identically, since that file
+      exposes only the AGGREGATE fraction to callers, never a per-vertex
+      flag or a standalone callable -- confirmed by direct read of all 500
+      lines (PF-2's own finding). PF-10 FIX APPLIED (round 2, advisory): the
+      duplicate ALSO restates the source formula's own missing-neighbour
+      guard (trapping_diagnostic_v5.py lines 224-232, "RAISE LOUDLY... never
+      a legitimate data gap") -- raise loudly if any u in adjacency[v] has
+      no delta_map entry, for the identical reason that file's own PF-7 fix
+      already gives (structurally unreachable given this amendment's own
+      required coverage assertion, but stated for completeness rather than
+      silently dropped from the duplicate). None of this touches or
+      modifies trapping_diagnostic_v5.py itself, which stays exactly as
+      frozen.
+      REQUIRED CORRECTED CROSS-CHECK (supersedes v5's inputs.
+      trapping_mechanism_diagnostic_v5's cross-check, which is NOT re-run
+      by this amendment -- it already ran, failed, and is archived
+      unmodified in RUN-SSIQ-a85692-e): for each of the 4 primes, run
+      greedy_descent_hitting_time_v2 from EVERY vertex against the graph and
+      delta_map loaded via the reuse mechanism above. Partition results into
+      trapped=True and trapped=False sets; REQUIRED ACCOUNTING ASSERTION:
+      n_trapped_true + n_trapped_false MUST equal that prime's archived
+      n_vertices exactly. PF-13 FIX APPLIED (round 3 pre-freeze review,
+      advisory: the original text called this "global, run-aborting" while
+      PART B's structurally identical partition assertion below is
+      per-prime, with no stated justification for the asymmetry -- nothing
+      in this assertion's own logic distinguishes it from PART B's, since
+      both check "every vertex accounted for exactly once" on one prime's
+      walk dispatch loop): a mismatch for prime P halts ONLY prime P's PART
+      A computation, reported with an explicit error naming the mismatch
+      amount, UNIFIED with PART B's own scope below -- the other three
+      primes' PART A cross-checks (and any PART B computation gated on
+      their own crosscheck_pass) proceed normally, unaffected by one
+      prime's accounting anomaly.
+      FAILURE-HANDLING MODEL, STATED EXPLICITLY (PF-3 FIX APPLIED, round 1:
+      "halt with an explicit error... on ANY disagreement" (PART A's own
+      wording) and PART B's per-prime continuation language were
+      unreconciled): the trapped=True-vs-is_structural_local_min(terminal)
+      comparison is computed and recorded as a PER-PRIME boolean field,
+      crosscheck_pass, exactly matching trapping_diagnostic_v5.py's own
+      ACTUAL executed behavior (crosscheck_result.crosscheck_pass, RUN-
+      SSIQ-a85692-e) rather than that file's frozen v5 SPEC TEXT's
+      contradictory "halt with an explicit error" language, which its own
+      Executor did NOT literally implement (see execution_report.yaml
+      PD-SPEC-1: the run completed all four primes and reported the
+      disagreement honestly rather than crashing the process, per this
+      task's own governing instruction to report a genuine
+      underspecification rather than improvise past it OR silently comply
+      with contract text a concrete trace has since falsified). THIS
+      AMENDMENT NEVER ABORTS THE PROCESS ON A trapped=True-vs-
+      is_structural_local_min DISAGREEMENT: it records crosscheck_pass per
+      prime, reports the full disagreement list (never merely a count) for
+      any prime where it is False, and -- per corrected_equivalence_proof
+      above, now independently traced and confirmed correct by the
+      pre-freeze reviewer, not merely asserted -- treats a disagreement as
+      conclusively a bug in this amendment's OWN code for that prime,
+      requiring a Coordinator report, same as v5's PD-SPEC-1 disclosure
+      discipline. Report, separately and explicitly per prime, n_trapped_false
+      (delta_E=1 success walks, EXCLUDED from the equivalence claim, never
+      silently folded into a pass/fail count) alongside crosscheck_pass and
+      the full disagreement list.
+    funnel_structure_diagnostic_v6: >-
+      PART B, DEPENDENT ON PART A's greedy_descent_hitting_time_v2 (this
+      diagnostic cannot run against the frozen, unmodified
+      dht.greedy_descent_hitting_time, which does not expose terminal_vertex)
+      AND on PART A's disclosed reuse mechanism (build_graph_for_prime,
+      load_archived_prime_data imported from trapping_diagnostic_v5.py;
+      is_structural_local_min an authorized disclosed duplicate -- see
+      gd12_fix_v6 above, not restated here).
+      For each of the same 4 primes, using the SAME rebuilt graph and
+      delta_map as PART A, and PART A's per-prime crosscheck_pass as a
+      REQUIRED PRECONDITION (PF-3 FIX APPLIED: crosscheck_pass is a
+      per-prime boolean, never a process-aborting halt -- see gd12_fix_v6):
+      if crosscheck_pass is False for a given prime, PART B MUST NOT run for
+      that prime and must report why (walk-to-local-minimum correspondence
+      not independently confirmed for that prime's data), while proceeding
+      normally for every other prime whose crosscheck_pass is True.
+      BASIN-ELIGIBLE LOCAL MINIMA, DEFINED PRECISELY (PF-1 FIX APPLIED,
+      round 1 pre-freeze review: the original "every structural local
+      minimum, empty basin -> self, size 1" convention is FALSE for
+      delta_E=1 vertices, which greedy_descent_hitting_time_v2's own
+      top-level short-circuit (if delta_map[start]==1: return trapped=False)
+      means can NEVER receive a trapped=True walk from ANY start including
+      themselves, since reaching delta_E=1 at any point in a walk converts
+      it to trapped=False immediately -- independently re-traced and
+      CONFIRMED by this fix against a concrete counter-example, any
+      F_p-rational vertex m' with delta_map[m']==1, per GD-12's own standing
+      repair). basin-eligible local minima = {m : is_structural_local_min(m)
+      AND delta_map[m] > 1}. delta_E=1 structural local minima are EXCLUDED
+      from the basin set ENTIRELY -- not assigned basin_size 0 as a reported
+      row, simply never members of the set iterated below, since they are
+      not genuine trapping destinations under greedy_descent_hitting_time_v2
+      by construction. For every m in the basin-eligible set, starting a
+      walk AT m itself enters the loop directly (delta_map[m] != 1, so the
+      top-level short-circuit does not fire), finds candidates empty (by
+      definition of m being a local minimum), and returns trapped=True in 0
+      steps with terminal_vertex == m -- so EVERY basin-eligible m has
+      itself in its own basin BY CONSTRUCTION, and basin_size(m) >= 1
+      ALWAYS, with no special-casing of an "empty basin" needed or possible
+      (PF-1's fix eliminates the case that required one).
+      1. For every trapped=True walk (from every start vertex), record
+         (start, terminal_vertex) -- terminal_vertex is guaranteed
+         basin-eligible by PART A's corrected_equivalence_proof (trapped=True
+         implies is_structural_local_min(terminal), and trapped=True can
+         never terminate at a delta_E=1 vertex, per the short-circuit
+         argument above, so delta_map[terminal] > 1 always holds for a
+         trapped=True walk's terminal_vertex). basin[m] = the multiset of
+         start vertices whose walk terminates at basin-eligible local
+         minimum m.
+      2. REQUIRED ACCOUNTING ASSERTION (PF-1 FIX APPLIED, corrected formula):
+         sum(len(basin[m]) for m in basin-eligible local minima) +
+         n_trapped_false (PART A's own per-prime count) MUST equal that
+         prime's n_vertices exactly. FAILURE-HANDLING SCOPE, STATED
+         EXPLICITLY (PF-7 FIX APPLIED, round 2 pre-freeze review
+         RT-PREFREEZE-EXP-SSIQ-a85692-v6-round2.md: the original "GLOBAL,
+         run-aborting check for that prime's computation" named two
+         incompatible scopes in one phrase; PF-12 FIX APPLIED, round 3
+         pre-freeze review, advisory: the round-2 fix's own justifying
+         parenthetical claimed an Executor implementing crosscheck_pass
+         gating "necessarily" builds the identical wrapping this assertion
+         needs, which is not accurate -- crosscheck_pass gating is
+         satisfiable by a plain conditional skip needing no exception
+         wrapper at all, while this assertion's own halt is a mid-
+         computation raise that does need one; that unverified claim is
+         removed below, stating only the required behavior): a mismatch for
+         prime P halts ONLY prime P's PART B computation for that prime,
+         reported with an explicit error naming the mismatch amount. The
+         other three primes' PART B results are computed and written to the
+         output artifacts normally, unaffected by one prime's accounting
+         mismatch -- this assertion is NEVER global/run-aborting, correcting
+         the original text's self-contradiction, and matches PART A's own
+         accounting assertion's scope above (PF-13's unification). Every
+         vertex's walk is
+         either trapped=True (falls into exactly one basin-eligible m's
+         basin, PF-1's fix having eliminated the double-counting failure
+         mode) or trapped=False (counted in n_trapped_false), so this
+         assertion is a genuine, exhaustive, non-overlapping partition
+         check, not vacuous, and holds unconditionally by construction
+         (independently re-derived by induction on the walk's loop
+         invariant by the round-2 reviewer, not merely asserted).
+         ILLUSTRATIVE VALUES, CORRECTED (PF-8 FIX APPLIED, round 2: the
+         original illustration -- "n_trapped_false expected == the
+         F_p-rational locus size 9... sum(len(basin[m])) is expected == 194"
+         for p=2437 -- was FALSE, and falsely attributed to "the round-1
+         reviewer's own trace," which round-1's report never made; n_trapped
+         _false counts every vertex whose walk EVER reaches delta_E=1, zero
+         or more steps, not merely the F_p-rational vertices that trigger
+         the immediate short-circuit, a categorically different, larger
+         quantity than the locus size). The CORRECT values, computed
+         directly from RUN-SSIQ-a85692-b's already-archived
+         descent_metrics.per_prime[p].greedy_trapped_fraction (n_trapped_false
+         = round((1 - greedy_trapped_fraction) * n_vertices), the identical
+         quantity this amendment's own reuse mechanism will reproduce
+         byte-for-byte once greedy_descent_hitting_time_v2 exists) are:
+         p=2437, n_vertices=203, n_trapped_false=33, sum(basin)=170;
+         p=3889, n_vertices=324, n_trapped_false=90, sum(basin)=234;
+         p=5737, n_vertices=478, n_trapped_false=86, sum(basin)=392;
+         p=7333, n_vertices=611, n_trapped_false=91, sum(basin)=520. These
+         are the values the Executor's own run is EXPECTED to report (not
+         merely "the actual figures, not this contract's prediction" as the
+         original text hedged) -- computed from data already archived and
+         checkable by anyone before this contract is even frozen, not a
+         prediction requiring the new run to resolve.
+      3. basin_size_distribution: report, per prime, the full sorted list of
+         basin sizes over the basin-eligible set ONLY (every entry >= 1 by
+         construction, per the basin-eligible definition above -- no
+         empty-basin or zero-size row is ever reported, and none is
+         expected), plus max, mean, median, and the TOP-DECILE
+         CONCENTRATION: let k = max(1, ceil(0.1 * n_basin_eligible))
+         (PF-6 FIX APPLIED: explicit, deterministic rounding -- always at
+         least one local minimum, rounding UP so "10%" never silently
+         resolves to zero minima for a small basin-eligible set. PF-11
+         FIX APPLIED, round 2, advisory: if n_basin_eligible == 0 for a
+         prime -- not reached by any of this amendment's four primes, whose
+         real basin-eligible counts are 86/114/176/270 per RUN-SSIQ-a85692-e's
+         own archived data, but a defensive requirement for any future reuse
+         -- report top_decile_concentration as null with an explicit note,
+         never a division by zero) local minima with the largest basins
+         (ties broken by (delta value ascending, vertex tuple ascending) for
+         a deterministic boundary); report the fraction of all trapped=True
+         walks (not all vertices,
+         and not basin-eligible-count) those k minima capture.
+      4. depth(m), for each basin-eligible local minimum m: min(delta_map[u]
+         for u in adjacency[m]) - delta_map[m] -- the gap between m's own
+         delta_E and its smallest neighbour's delta_E (PF-5 FIX APPLIED:
+         provably NON-NEGATIVE, not "positive" -- is_structural_local_min(m)
+         requires delta_map[m] <= every neighbour's delta, so depth >= 0
+         always; depth==0 is a legitimate, expected, reportable value for a
+         local minimum with a tied neighbour at the same delta, which the
+         non-backtracking walk's tie-break rule can still enter and
+         terminate at -- not an error condition).
+      5. REQUIRED CORRELATION: Pearson correlation coefficient (computed by
+         a self-contained, dependency-free implementation -- this campaign
+         has never imported a stats library and does not start doing so
+         here) between {depth(m)} and {basin_size(m)} across the
+         basin-eligible set, per prime, plus the same correlation computed
+         on log(basin_size(m)) (since basin sizes are plausibly
+         power-law-distributed, not necessarily linear against depth) --
+         report BOTH, do not select one post hoc.
+      OBJECTIVE_BOUNDARY (restated, unchanged from v5): this is a
+      DIAGNOSTIC, not a claim. It does not test H-SSIQ-36e970's real-arm
+      prediction, does not gate any decision rule, and does not itself
+      constitute evidence for or against a computable delta_E-gradient. A
+      strong depth/basin-size correlation would be a candidate MECHANISM
+      QUESTION for a future amendment (does descent get funnelled toward
+      "deep" local minima preferentially, and if so, by what property of
+      the walk or the graph), never itself evidence for or against L4's
+      revisit condition (a computable delta_E-gradient).
+  required_artifacts:
+    - runs/RUN-SSIQ-a85692-f/manifest.yaml
+    - runs/RUN-SSIQ-a85692-f/raw-result.json
+    - runs/RUN-SSIQ-a85692-f/execution_report.yaml
+    - runs/RUN-SSIQ-a85692-f/source_access_log.yaml
+    - runs/RUN-SSIQ-a85692-f/command.txt
+    - runs/RUN-SSIQ-a85692-f/environment.json
+    - runs/RUN-SSIQ-a85692-f/stdout.log
+    - runs/RUN-SSIQ-a85692-f/stderr.log
+    - runs/RUN-SSIQ-a85692-f/gd12_equivalence_regression_test.json
+    - runs/RUN-SSIQ-a85692-f/corrected_crosscheck.json
+    - runs/RUN-SSIQ-a85692-f/funnel_structure_diagnostic.json
+  required_artifacts_note: >-
+    EXPLICIT, CODE-VERIFIED FUNCTION-LEVEL DIFF, per GD-9/GD-10's standing
+    repair:
+      NEW: experiments/EXP-SSIQ-a85692/implementation/descent_walk_hardened.py --
+        ONE function, greedy_descent_hitting_time_v2 (pure superset of
+        dht.greedy_descent_hitting_time, adds terminal_vertex to the
+        returned dict, bit-identical on every other field -- REQUIRED
+        regression per gd12_fix_v6 above).
+      NEW: a diagnostic script (e.g. funnel_structure_diagnostic_v6.py)
+        implementing gd12_fix_v6's cross-check and funnel_structure_diagnostic_v6,
+        importing greedy_descent_hitting_time_v2 (this amendment's own new
+        function), build_isogeny_graph.degree_sequence_check (IMPORTED
+        UNCHANGED), AND, PF-2 FIX APPLIED (round 1 pre-freeze review: the
+        original "REUSED, not reimplemented" instruction named
+        is_structural_local_min as if it were an existing importable symbol,
+        confirmed by direct read that it is not), the following EXPLICIT,
+        DISCLOSED reuse/duplication split: (i) build_graph_for_prime and
+        load_archived_prime_data GENUINELY IMPORTED, UNCHANGED, from
+        trapping_diagnostic_v5.py (both confirmed standalone, module-level
+        functions by direct read); (ii) is_structural_local_min(v, delta_map,
+        adjacency), the coverage assertion, and the graph-rebuild
+        verification are AUTHORIZED, DISCLOSED DUPLICATES of
+        trapping_diagnostic_v5.py's own inline logic (confirmed NOT
+        separately importable from that file), matching it exactly in
+        formula and named identically where a name exists -- the same
+        "necessarily duplicating... since [the source] cannot be edited"
+        exception v5's own PF-1 fix already established for
+        bootstrap_gap_ci_v2, applied here a second time. The Executor's
+        execution_report.yaml must confirm this exact (i)/(ii) split against
+        the code it actually wrote.
+      UNCHANGED, NOT MODIFIED: descent_hitting_time.py (stays exactly as
+        frozen; this amendment supersedes by addition, never by edit),
+        ols_hardened.py, trapping_diagnostic_v5.py, compute_delta_e.py,
+        compute_delta_e_v2.py, reanalyze_v3.py, reanalyze_v4_selftest.py,
+        build_isogeny_graph.py.
+      NOT RE-RUN: RUN-SSIQ-a85692-a/-b/-c/-d/-e and every already-archived
+        gamma/CI/diagnostic value stay exactly as committed; this amendment
+        reads RUN-SSIQ-a85692-b's raw-result.json (delta_map only) but
+        performs no delta_E search and does not touch any prior run's own
+        files.
+    New run id RUN-SSIQ-a85692-f. The Executor's own execution_report.yaml
+    must confirm this diff list against the code it actually wrote/ran, and
+    report any discrepancy rather than silently reconciling it. If the
+    corrected cross-check does NOT pass (contrary to the
+    corrected_equivalence_proof above), this is itself a REQUIRED,
+    EXPLICITLY DISCLOSED finding (per this task's own governing instruction
+    to stop and report a genuine underspecification or defect rather than
+    improvise past it), not a silently-absorbed anomaly -- and per PART B's
+    own precondition, would BLOCK the funnel diagnostic for that prime.
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.3
+    maximum_memory_gb: 2
+    maximum_runs: 1
+    note: >-
+      Graph reconstruction for 4 primes (~12-120s total, per
+      EXP-SSIQ-58b642's own measured figures, reused unchanged) plus pure
+      arithmetic on already-committed delta_map data, now including a
+      basin-assignment pass (O(N) per prime, same order as the existing
+      exhaustive cross-check) and a self-contained Pearson correlation
+      computation (O(n_local_minima) per prime). No delta_E search of any
+      kind. Generously sized against the actual work, matching v5's budget
+      exactly since the added computation is the same order of magnitude.
+  frozen_at: '2026-08-06'
+  freeze_note: >-
+    FROZEN, AFTER THREE PRE-FREEZE REVIEW ROUNDS. Round 1
+    (RT-PREFREEZE-EXP-SSIQ-a85692-v6.md) returned DO-NOT-FREEZE: PART A's
+    central mathematical claim was independently traced and confirmed
+    correct, but PART B introduced a defect of GD-12's own shape (PF-1),
+    plus a non-importable reuse instruction (PF-2) and an unreconciled
+    failure-handling model (PF-3). All three, plus advisory PF-4/PF-5/PF-6,
+    applied. Round 2 (RT-PREFREEZE-EXP-SSIQ-a85692-v6-round2.md)
+    independently re-derived and confirmed all five prior findings hold,
+    while finding two NEW blocking defects INSIDE the PF-3 fix's own text:
+    a reintroduced global-vs-per-prime ambiguity (PF-7) and a falsified
+    illustrative numeric claim (PF-8), the same "trace a fix's own
+    confidence-building prose" standard specification_v5.yaml's own PF-9
+    established for this lineage. Both, plus advisory PF-10/PF-11, applied.
+    Round 3 (RT-PREFREEZE-EXP-SSIQ-a85692-v6-round3.md) independently
+    re-verified all seven findings from fresh queries -- PF-8's four
+    illustrative pairs recomputed from scratch, not re-derived from round
+    2's own arithmetic -- and found NO further blocking defect, only two
+    advisory items (PF-12, PF-13), applied without a fourth review round
+    per this lineage's own established practice for advisory-only findings.
+    No prediction, tolerance, window, estimator, control, or failure
+    consequence in this amendment (or, unamended, in v1-v5) has been
+    touched since this freeze; a further change requires its own versioned
+    protocol amendment.

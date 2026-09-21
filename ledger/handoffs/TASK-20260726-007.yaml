@@ -1,0 +1,61 @@
+handoff:
+  id: "TASK-20260726-007"
+  from: "coordinator"
+  to: "coordinator"
+  goal_id: "GOAL-ECDLP-001"
+  batch_id: "BATCH-006"
+  authorized_by: "DEC-20260726-007"
+  objective: >-
+    Close the BATCH-004 archive-integrity gap by recovering the two archive commit
+    identities from Git, verifying them against the dispatcher's post-commit rules,
+    writing the commit_sha, parent_sha, and complete path_sha256 bindings into both
+    receipts, and promoting the two archive task cards from blocked to completed only
+    if verification passes.
+  uncertainty_reduced: >-
+    Whether the BATCH-004 snapshot and ledger archives satisfy the post-commit
+    verifier, and therefore whether EV-ECDLP-006 and DEC-20260726-004 rest on durable,
+    hash-bound commits or on an unverifiable receipt.
+  inputs:
+    - "coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/archives/TASK-20260726-002/snapshot_commit_receipt.json (commit_sha null)"
+    - "coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/archives/TASK-20260726-004/ledger_commit_receipt.json (commit_sha null, path_sha256 empty)"
+    - "coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/reviews/TASK-20260726-003/review_report.yaml, snapshot_validation block: commit 6a4f0705d6bbd1e7b72aa77b79c1a024a20b4faf, parent 3bc446881ac9ab4d6ba13adddd35299351c8be6f, verdict PASS"
+    - "coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/dispatch_queue.json, the state_reconciliation blocks written under DEC-20260726-007"
+    - "tools/research_dispatch.py, functions validate_archive_shape and GitRepositoryVerifier.verify_archive"
+    - "Git history of this repository"
+  constraints:
+    - "Recover commit identities from Git only. Do not accept the unverified candidate 9a848838 recorded in the queue without confirming it by inspecting the commit's changed paths and message."
+    - "For each archive task, run the full post-commit check: the commit resolves, is an ancestor of HEAD, has the declared first parent, changes exactly the declared archive plus source artifact paths with no extras and no deletions, matches the SHA-256 of every path computed from that commit's object content, and its message contains the task id and every archive.record_ids entry."
+    - "Compute every SHA-256 from Git object content at the archive commit, not from the current working tree, because ledger/goals/GOAL-ECDLP-001.yaml, ledger/hypotheses/H-IC-001.yaml, and experiments/EXP-IC-001/specification.yaml have all changed since BATCH-004."
+    - "Never invent, estimate, or back-fill a hash or a commit sha. Any value that cannot be computed stays null and is reported as such."
+    - "Never edit archive.record_ids, artifact_paths, commit messages, or any other declared expectation to make verification pass. If the recorded expectations do not match the actual commit, that mismatch is the finding."
+    - "Promote a card from blocked to completed only when its full check passes. If the snapshot check passes but the ledger check fails, promote only TASK-20260726-002 and leave TASK-20260726-004 blocked with the exact defect recorded."
+    - "Remove the path_sha256_incomplete helper key from a card only when its path_sha256 is complete."
+    - "Do not modify any ledger record, any BATCH-006 record, or any file outside the declared write scope. Do not change latest_verified_commit; only TASK-20260726-008 may."
+    - "This is bookkeeping. Nothing here is evidence for or against any hypothesis, and no failure found here is a mathematical result."
+  deliverables:
+    - "snapshot_commit_receipt.json updated with commit_sha, parent_sha, and a complete path_sha256 over all three BATCH-004 snapshot paths, or an explicit verification_failure block naming the first failing check"
+    - "ledger_commit_receipt.json updated with commit_sha, parent_sha, and a complete path_sha256 over all six BATCH-004 ledger paths, or an explicit verification_failure block naming the first failing check"
+    - "dispatch_queue.json with each archive card promoted to completed only where verification passed, and a recovery_result block per card recording exactly which checks passed and which did not"
+  artifact_paths:
+    - "coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/archives/TASK-20260726-002/snapshot_commit_receipt.json"
+    - "coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/archives/TASK-20260726-004/ledger_commit_receipt.json"
+    - "coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/dispatch_queue.json"
+  write_scope:
+    - "coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/"
+  archived_by: "TASK-20260726-008"
+  inference:
+    policy: "coordinator-ultra-code"
+    fallback_allowed: true
+    fallback_model: "fireworks-ai/accounts/fireworks/models/glm-5p2"
+    authorization_ref: "DEC-20260726-007"
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 900
+    memory_gb: 2
+    maximum_runs: 1
+  completion_gate:
+    - "Every recorded commit_sha and every recorded SHA-256 was computed from Git in this task; no value was copied from an unverified source."
+    - "Each archive card is either completed with a passing full verification or left blocked with the first failing check named."
+    - "The BATCH-004 queue validates under tools/research_dispatch.py with a repository verifier, or the exact validation error is recorded verbatim."
+    - "No ledger record and no file outside coordination/goals/GOAL-ECDLP-001/batches/BATCH-004/ was modified."
+  return_format: "Two updated archive receipt JSON files plus the reconciled BATCH-004 dispatch queue, with a per-card recovery_result."

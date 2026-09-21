@@ -1,0 +1,222 @@
+experiment:
+  id: EXP-AEADC-a6d508
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-f3ecc5; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-f3ecc5
+  question_id: RQ-AEADC-8db132
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure the distinguishing advantage bought by released unverified plaintext across four
+    decryption pipelines on a frozen scaled-down AEAD analogue, as a function of rejected-query count,
+    against a random-release null
+  objective: 'The one uncertainty a run reduces is whether release of unverified plaintext resolves,
+    at measurable resolution, into a graded per-query quantity rather than a binary property. Specifically:
+    (i) does an adversary with a strategy frozen before the run achieve a higher empirical distinguishing
+    advantage against a pipeline that releases the full candidate plaintext on tag failure than against
+    one that releases only the failure symbol, at any query budget inside the tested range, with non-overlapping
+    confidence intervals; (ii) is that advantage graded in the number of released rejected queries
+    -- does it bend, with a curvature ratio below the pre-registered threshold -- or does it jump
+    to its maximum at small q, which would say the counted-predicate framing adds nothing over the
+    binary one at these parameters; (iii) is the effect a property of the composition, established
+    by refilling the primitive slot with a seeded ideal permutation and requiring matched cells to
+    agree, and is it separable from the tag width by running two tag widths whose exact accept probabilities
+    are computed rather than measured. A run also reduces uncertainty about the instrument itself:
+    a random-release null that shows any advantage would establish that the adversary reads its own
+    sampling rather than the released structure, and that outcome is as informative as the signal
+    arm.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: on the frozen analogue at
+      the declared block and tag widths, with the declared plaintext properties and the declared frozen
+      adversary, the four pipelines produced the measured advantage curves with the stated intervals,
+      while the random-release null stayed at its stated baseline. What does NOT follow: nothing about
+      AES-GCM, ChaCha20-Poly1305, AES-GCM-SIV or any named AEAD; nothing about any implementation,
+      product, protocol or service, and in particular no claim that any of them releases unverified
+      plaintext; no attack, break or security consequence; no assertion that the measured advantages
+      are the best obtainable, since the adversary is fixed and suboptimal; and no transfer of any
+      number to full-size parameters, which this contract deliberately does not attempt.'
+  inputs:
+    procedure: 'STAGE 0, zero compute: freeze the analogue specification, both plaintext properties,
+      and the adversary strategy, recording file hashes in the manifest before any execution. STAGE
+      1, minutes: implement the analogue mode at 8-bit block and 8-bit tag; validate encryption-decryption
+      round trips and compute the exact accept probability at each tag width in closed form. STAGE
+      2, minutes: implement the four pipelines as four branches of one decrypt function, so all arms
+      are executable in a single invocation. STAGE 3, tens of minutes: run the crossed sweep over
+      pipeline and q in {1,4,16,64,256,1024,4096} at 500 games per cell, recording advantage, bootstrap
+      interval, and the count of distinct chaining relations pinned. STAGE 4, tens of minutes: repeat
+      the q sweep for the full-release pipeline at the second plaintext property, the second tag width,
+      and with a pinned real primitive in the slot. STAGE 5, zero compute: check measured accept probability
+      against the closed-form value, emit the advantage table, the curvature ratios, the pinned-relation
+      counts, and both control baselines into an immutable run record via harness/runner.py.'
+    instrument: Python 3, standard library only. One analogue mode module with a configurable block
+      width, tag width and chaining rule; one decrypt function with a four-way release branch; a seeded
+      lazily-sampled bijection for the ideal-primitive slot and a pinned pure-Python real primitive
+      validated against published test vectors for the substitution arm; a frozen adversary module;
+      bootstrap resampling in numpy if available and in pure Python otherwise. Orchestration, seeding
+      and manifest emission via harness/runner.py, following the control-runner pattern of harness/ctrl_valueshuffle.py.
+      No Sage, no network, no external service.
+    parameters: Block width 8 bits, tag widths 8 and 12 bits, message lengths 4, 8 and 16 blocks.
+      Query budgets q in {1,4,16,64,256,1024,4096}. Four pipelines. Two plaintext structural properties.
+      500 independent games per cell, 2000 bootstrap resamples. Prefix-release length fixed at half
+      the message length in blocks. Primitive-substitution arm at message length 8 blocks and tag
+      width 8 bits across the full q sweep. Total 112 primary cells plus 21 substitution and second-property
+      cells.
+  controls:
+  - Random-release null pipeline, identical interface and identical released volume, same invocation.
+  - Release-nothing pipeline as the floor arm, giving the advantage available from accept-or-reject
+    alone.
+  - Second plaintext structural property, to separate a pipeline effect from a property-specific artifact.
+  - Second tag width, to check that the release predicate is separable from the accept probability.
+  - 'Primitive-substitution arm: seeded ideal permutation versus pinned real primitive at matched
+    cells.'
+  - Round-trip and known-answer validation of the analogue mode before any game runs.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): A fourth pipeline, executed in the same invocation and driven by the
+    same adversary code, that releases uniform random bytes of exactly the released length on every
+    tag failure. This is the shape-matched random object: same interface, same volume of released
+    data, no mode structure. For the signal arms to mean anything, the random-release null must show
+    a distinguishing advantage indistinguishable from zero at every q, within its confidence interval.
+    A second null is the release-nothing pipeline, which must show exactly the advantage of an adversary
+    that only learns accept-or-reject, providing the floor the other arms are measured against.'
+  independent_variables:
+  - 'pipeline release policy: full, prefix, none, random'
+  - rejected-query budget q
+  - tag width
+  - plaintext structural property
+  - primitive slot occupant
+  metrics:
+    primary:
+    - empirical distinguishing advantage per cell with bootstrap confidence interval
+    - advantage curve curvature ratio in q
+    - count of distinct chaining relations pinned by released bytes per q
+    - random-release null advantage per q
+    - release-nothing floor advantage per q
+    secondary:
+    - measured versus closed-form accept probability per tag width
+    - wall-clock and game count per cell
+    - advantage difference between the two plaintext properties at matched cells
+    - advantage difference between primitive-slot occupants at matched cells
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The advantage of the random-release null, and the accept probability at each tag width.
+    formula: Random-release null advantage equals zero at every q, to within the bootstrap confidence
+      interval, because uniform released bytes carry no dependence on the hidden plaintext property.
+      Accept probability equals 2 raised to minus the tag width in bits, exactly, for a uniformly
+      chosen forged tag on the analogue; the measured rejection count over the game budget must match
+      this to within its binomial interval.
+    source: Pre-registered in the parent proposal IDEA-20260816-f3ecc5 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested at 8-bit blocks and 8- or 12-bit tags with messages of at most 16 blocks,
+      chosen as the largest analogue on which the distinguishing game can be scored against an exactly
+      computed accept probability and the pinned-relation count can be enumerated. The transfer assumption
+      is stated and then refused: the chaining structure that drives the predicted curvature is preserved
+      by the analogue by construction, but the numeric advantage values are properties of these parameters
+      only, and this contract performs no extrapolation to full-size block or tag widths and licenses
+      none.'
+    correspondence: null
+  tail_checks:
+  - Cells where the advantage approaches 1.0 are reported with one-sided intervals to avoid endpoint-induced
+    false significance.
+  - The q=1 cell is checked against the analytic single-query bound, where the released bytes can
+    pin at most one chaining relation.
+  - The largest-q cells are checked for exhaustion of the analogue state space, in which case the
+    adversary wins for a reason unrelated to release and the cell is reported separately.
+  - The 12-bit tag arm is checked for a rejected-query count too small to fill the budget, which would
+    silently shorten the sweep.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Halt and report the instrument invalid, without reporting the signal arms as evidence, if the
+    random-release null shows an advantage whose interval excludes zero.
+  - Halt if the measured accept probability disagrees with the closed-form value beyond its binomial
+    interval at either tag width.
+  - Cap total wall clock at six core-hours and report completed cells by name, with incomplete cells
+    listed as missing rather than as null results.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A completed four-pipeline sweep in which the random-release null is flat at zero,
+    the measured accept probabilities match their closed-form values, and the full-release arm exceeds
+    the release-nothing arm by at least 0.1 absolute advantage at q=1024 with non-overlapping confidence
+    intervals.
+  falsification_criterion:
+  - Full-release and release-nothing arms overlap at every q, retiring the counted-predicate framing
+    at these parameters.
+  - The random-release null shows nonzero advantage.
+  - The advantage jumps to its maximum by q=4 with curvature ratio above the pre-registered threshold,
+    indicating a binary rather than graded predicate at this resolution.
+  - Measured accept probability disagrees with the closed-form value.
+  - Matched cells differ beyond tolerance between the ideal and real primitive slots, relocating the
+    effect out of this bucket.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-f3ecc5
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The chaining rule of the analogue is described structurally but not fixed; the Coordinator must
+    pin it, because an accidentally trivial chaining makes all pipelines coincide and the run would
+    measure the analogue rather than the predicate.
+  - The two plaintext structural properties are named as a category, not specified; their detectability
+    sets the whole advantage scale.
+  - The curvature-ratio threshold of 0.5 is asserted and not derived from the sampling variance at
+    500 games per cell.
+  - The prefix-release length is set at half the message with no argument that this is the informative
+    choice relative to the chaining depth.

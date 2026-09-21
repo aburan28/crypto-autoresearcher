@@ -1,0 +1,549 @@
+experiment:
+  id: EXP-ICPERF-61c136
+  hypothesis_id: H-ICPERF-81de5c
+  goal_id: GOAL-ICPERF-e6b6a4
+  batch_id: BATCH-94168f
+  version: 1
+  title: >-
+    The exhaustive-core conflict law measured as a law: c = conflicts / 2^{3l}
+    per (cell, config, side, label) on CERTIFIED targets, the n-slope at fixed
+    l, the l-cancellation of T_rel, and the symmetry-breaking deficit -- every
+    exponent fitted on conflicts, never on seconds
+  status: draft
+  approved_by: null
+  approved_at: null
+  status_history:
+    - status: draft
+      at: '2026-09-16'
+      by: coordinator
+      note: >-
+        DESIGNED, NOT APPROVED. Ranked 2 by DEC-20260916-3c0cf5. It is not
+        approved because its instances do not yet exist: the certified-U and
+        certified-S targets at the new cells are EXP-ICPERF-2f2e40's
+        deliverable and that contract has not run. Designing is not approving
+        (AGENTS.md ECC instruction 3), and an approval recorded against a
+        protocol whose inputs are a promise is an approval of nothing.
+
+  approval_preconditions:
+    - id: AP-1
+      condition: >-
+        EXP-ICPERF-2f2e40 has RUN and its output has been INDEPENDENTLY
+        ACCEPTED by a committed Coordinator decision over at least one
+        independent validator report -- not the executor's self-report --
+        and that acceptance records, per admitted cell, that C-RECON
+        reproduced EV-ICPERF-390707 joint V1's counts and that C-CERT-EMIT
+        passed 100%.
+      why: >-
+        Every primary metric here is computed on CERTIFIED-U SIDE-0 targets.
+        If the certification is wrong, c is measured on instances that are not
+        what they are labelled, and the failure is invisible: a wrongly
+        labelled U instance that is actually satisfiable returns a small
+        conflict count and silently drags the cell median down -- i.e. it
+        fakes the L4 sub-exhaustive signal, which is the single outcome this
+        experiment most wants to find. That asymmetry is the reason the gate
+        is on independent acceptance rather than on delivery.
+      who_owns_it: BATCH-94168f, EXP-ICPERF-2f2e40, then a validator round this lane has not yet been given identifiers for
+    - id: AP-2
+      condition: >-
+        A PILOT has measured t_conf (seconds per conflict) and the observed
+        conflict count on TWO instances per candidate (cell, config), and the
+        per-(cell, config) plan has been sized from those measurements and
+        recorded in this contract as a versioned amendment.
+      why: >-
+        AR-1 below admits work at (cell, config) granularity and its predicate
+        needs a measured t_conf, which is not predictable from (n, l): it
+        grows with the ANF size and with MAX_ID. Sizing the plan from an
+        estimate is how a grid passes at its root and dies levels down
+        (DEC-20260915-d8d413, OBJ-5: "the feasibility rule is declared PER
+        CELL while acceptance probability is a function of NODE DEGREE, so
+        every cell passes at its root and dies four to six levels down").
+      who_owns_it: an executor pilot task; no identifier is allocated for it in this lane
+    - id: AP-3
+      condition: >-
+        A note recording WHAT THE VENDORED WDSat -b FLAG ACTUALLY ENFORCES,
+        read from
+        inputs/TRIMOSKA-WDSAT-2024/upstream/src/ and committed, exists before
+        the symmetry-breaking constant is interpreted.
+      why: >-
+        The prediction c(-b) in [0.17, 0.5] rests on whether -b enforces a
+        full or a partial ordering of the three blocks. Interpreting a
+        measured constant against an unread implementation is how a number
+        becomes an opinion. This one is cheap and the source is in the
+        repository -- it is a precondition rather than an impediment.
+      who_owns_it: the same executor task that runs this contract, as a first deliverable
+
+  objective: >-
+    Turn the SAT point-decomposition cost from a set of per-instance timings
+    into a LAW with one measured constant, and make the n-exponent of the
+    relation-search phase a fitted number rather than an assumption: measure
+    c = conflicts / 2^{3l} per (cell, config, side, label) on certified
+    targets, fit the n-slope at fixed l, compute T_rel from measured p, C_U
+    and C_S, check the l-cancellation, and report the symmetry-breaking
+    deficit. Observations only; the executor forms no conclusion.
+
+  disjointness_from_the_concurrent_lane:
+    other_lane: BATCH-a33cda (PDP instrument repair)
+    statement: >-
+      Writes only experiments/EXP-ICPERF-61c136/. Reads BATCH-a33cda's
+      committed outputs (RUN-ICPERF-305ca3's results.jsonl for C-RECON,
+      EV-ICPERF-390707) and writes none of them. Uses NO Groebner engine, so
+      it neither needs nor competes for the instrument under repair.
+    machine_headroom: >-
+      NO QUIET-HOST PRECONDITION, BY DESIGN AND AT A STATED COST. Every fitted
+      quantity -- c, both slopes, the l-cancellation, the -b deficit -- is
+      computed from CONFLICTS and DECISIONS, which are hardware-independent
+      counters (KN-LIT-6e036d) and are invariant under load. Wall and CPU
+      seconds are recorded with the loadavg at launch and enter NO fit and NO
+      ratio. The cost: this contract cannot contribute the seconds-valued
+      cells of the boundary table, and the t_conf figure it reports (used only
+      to translate conflicts into an order-of-magnitude wall estimate) is
+      explicitly flagged as load-contaminated wherever loadavg exceeded 2.
+      That is a real loss and it is what buys a lane that can run beside
+      BATCH-a33cda instead of waiting for it.
+
+  inputs:
+    instances: >-
+      experiments/EXP-ICPERF-2f2e40/runs/<RUN>/sampler/<cell>/ -- 20 certified-U
+      SIDE-0 and 20 certified-S targets per admitted cell, each with its
+      certificate block and, for S targets, the EXACT table count k. The exact
+      k per S instance is what makes HEUR-1 testable per k rather than only in
+      aggregate, and it exists only because the table exists.
+    shipped_reference: >-
+      experiments/EXP-ICPERF-66fd51/runs/RUN-ICPERF-305ca3/results.jsonl,
+      READ-ONLY, for control C-RECON. The frozen tree is never edited.
+    solver_source: >-
+      inputs/TRIMOSKA-WDSAT-2024/upstream/src/ (SRC-ICPERF-TRIMOSKA-WDSAT-2024),
+      rebuilt per cell with exact static sizing derived from each ANF
+    engines_named_and_versioned:
+      - WDSat @ 61c6ff3, DEFAULT configuration
+      - WDSat @ 61c6ff3, -b (symmetry breaking)
+      - WDSat @ 61c6ff3, noncore_first variable order (the known-false control)
+    engines_deliberately_absent:
+      - >-
+        No Groebner engine, no CryptoMiniSat, no CaDiCaL, no MiniSat. The law
+        is stated about WDSat's leaf count; an engine with clause learning
+        does not have a leaf count in this sense, and adding one would produce
+        a number that answers a different question. The Groebner analogue is a
+        separate measurement and, on this host, is gated on BATCH-a33cda.
+    code: experiments/EXP-ICPERF-61c136/code/ (to be written)
+
+  cells_and_configs:
+    shipped_for_reconstruction_only:
+      - {n: 15, l: 5}
+      - {n: 17, l: 6}
+      - {n: 19, l: 6}
+    measured:
+      note: >-
+        Exactly the cells EXP-ICPERF-2f2e40 admits AND for which it emits a
+        certified sampler. A cell whose table exists but whose sampler does
+        not (AR-2 refusal there) is NOT measurable here and is recorded as
+        such.
+      candidates: [{n: 17, l: 6}, {n: 19, l: 6}, {n: 21, l: 7}, {n: 23, l: 7}, {n: 25, l: 8}]
+    the_l_cancellation_needs_at_least_two_l_at_one_n: >-
+      Stated as a reachability fact, not assumed: the l-cancellation
+      prediction (T_rel within 1.5x across l at fixed n) requires two cells
+      sharing n and differing in l. NONE of the candidate list does. The
+      contract therefore declares the additional cells (23, 6) and (23, 8)
+      as REQUIRED FOR THAT PREDICTION ONLY, subject to the same admission
+      rules, and reports the l-cancellation prediction as NOT EVALUABLE with
+      the reason if either is refused. Both cells are carried on
+      EXP-ICPERF-2f2e40's candidate_new grid, because that is the only
+      contract that can admit or refuse them and emit their sampler; a cell
+      declared here alone would be unreachable rather than refused. Discovering this at design time is the
+      point of writing the grid down; discovering it after the run would have
+      left one prediction permanently unevaluable with no record of why.
+
+  admission_rules:
+    preamble: >-
+        DECLARED AT (cell, config) GRANULARITY, because that is where the cost
+        varies. The default and -b arms cost about c * 2^{3l} conflicts per
+        instance; the noncore_first arm costs AT LEAST 50x that at the same cell
+        (unreviewed prior observation). A per-CELL budget rule would admit
+        (25,8) on its default arm and then watch the known-false control die,
+        leaving the largest cell with its most important control censored and no
+        record of the prediction having been unreachable. This is the OBJ-5
+        failure of DEC-20260915-d8d413 in another dress and is refused here.
+    rules:
+      - id: AR-1
+        granularity: '(cell, config)'
+        pre_pass: >-
+          AP-2's pilot: two instances at that (cell, config), measured conflict
+          count and measured t_conf.
+        admit_if: >-
+          predicted_per_instance_seconds = measured_conflicts * measured_t_conf
+          <= PER_INVOCATION_TIMEOUT for that config, AND
+          predicted_per_instance_seconds * planned_instance_count <=
+          PER_CELL_CONFIG_BUDGET.
+        on_refusal: >-
+          Record the (cell, config) as not_admitted with both measured pilot
+          numbers and the binding term. The cell's OTHER configs are unaffected.
+          A cell admitted for `default` but refused for `noncore_first` carries,
+          in every statement about its c, the explicit annotation
+          "no order control at this cell".
+      - id: AR-2
+        granularity: '(cell, config, side, label)'
+        pre_pass: none needed
+        admit_if: >-
+          at least 10 instances of that (side, label) exist in the sampler
+          output for that cell
+        on_refusal: >-
+          the corresponding median is reported as NOT EVALUABLE with the
+          available count, never as a median over fewer than 10
+      - id: AR-3
+        granularity: '(cell)'
+        applies_to: HEUR-1's per-k validation only
+        admit_if: >-
+          the sampler emitted at least 20 S instances at that exact k for at
+          least two distinct values of k
+        on_refusal: >-
+          HEUR-1's per-k chi-square is NOT EVALUABLE at that cell; the aggregate
+          comparison is still reported, flagged as aggregate-only
+
+  controls:
+    - id: C-RECON
+      kind: reconstruction
+      what: >-
+        Recompute the per-cell WDSat default UNSAT medians from
+        RUN-ICPERF-305ca3's results.jsonl with this contract's row filter and
+        divide by 2^{3l}. Must reproduce c = 0.945 / 0.971 / 0.974 at
+        (15,5) / (17,6) / (19,6) to the last printed digit.
+      pass: exact agreement on all three
+      runs_first: yes -- before any new cell is measured
+      can_it_fail_on_a_correct_instrument: >-
+        YES. Its reference values are unreviewed observations produced by
+        another agent in another batch, and the row filter is this contract's.
+        A disagreement means the law is about to be fitted to the wrong
+        numbers, which is precisely what running it first prevents. It cannot
+        fire as a consequence of anything this run measures.
+    - id: C-NULL
+      kind: null_object
+      what: >-
+        Degree- and shape-matched random Boolean systems at every admitted
+        (cell, config), matched on variable count, block structure, degree
+        profile AND constant-term count. WDSat default and -b. The law must
+        NOT fit them: c outside [0.9, 1.0].
+      pass: reported per cell; a fit is a falsifier of L1's mechanism, not a stop
+      why_constant_matched: >-
+        EV-ICPERF-390707 joint V4 measured 0 of 18 of the predecessor's nulls
+        matching their template's constant-term count, all 18 in the same
+        direction (0.510 against 0.823). The predecessor's
+        `shape_matches_template` was correct under its own sizing tuple, which
+        excluded the constant. This contract matches BOTH families' worth in
+        one: constant-term count is part of the match, and the sizing tuple
+        used is recorded on every null row.
+      what_it_may_not_be_read_as: >-
+        EXPLICIT SCOPE BAR. Passing C-NULL shows the law is not a size
+        artifact. It does NOT attribute the law, or WDSat's advantage, to "the
+        descended structure": EV-ICPERF-390707's proves_too_much object 2
+        FAILED -- relabelling a structured instance's variable indices
+        reproduces the structured-versus-null gap. EXP-ICPERF-13f001 CH-7
+        removed that attribution from its row and this contract does not
+        reinstate it.
+      can_it_fail_on_a_correct_instrument: >-
+        Not as a consequence of the signal. The signal is that STRUCTURED
+        instances fit; the control is that DIFFERENT objects do not. Both are
+        measured, and a null that also fits is informative rather than
+        self-inflicted.
+    - id: C-KF-ORDER
+      kind: known_false
+      what: >-
+        The noncore_first (scrambled) variable order on 5 instances per
+        admitted (cell, config), at l <= 7 by AR-1. The leaf-count law must
+        FAIL there: conflicts far above 2^{3l}.
+      pass: >-
+        conflicts >= 10 * 2^{3l} on the median of the 5, or a recorded budget
+        stop (which is an infrastructure outcome and leaves the control
+        UNEVALUATED, never PASSED)
+      why: >-
+        It is the arm that breaks the observation collision: it establishes
+        that c ~ 1 is a property of the CORE-FIRST ORDER, not of the instance
+        size. Without it, "the solver visits 2^{3l} leaves" and "the solver
+        does about 2^{3l} work on an instance of this size" are the same
+        measurement.
+      can_it_fail_on_a_correct_instrument: >-
+        Not by the signal. If the scrambled order ALSO gives c in [0.9, 1.0],
+        that is a genuine falsifier of L1's reading, recorded as one.
+    - id: C-DEC
+      what: >-
+        DECISIONS counted beside conflicts on every row. Under the exhaustive
+        reading, decisions track the leaf count; under the
+        "pruning-offset-by-overhead" reading they do not.
+      pass: reported on every row; ratio decisions/conflicts reported per (cell, config)
+      why: the second half of the observation-collision break
+    - id: C-SIDE
+      what: >-
+        c computed on side-0 and side-1 U targets SEPARATELY, never pooled,
+        at every admitted cell, using the sampler's recorded side.
+      pass: both reported, or the missing one reported as unevaluable with its count
+      why: >-
+        The attack's targets are all side-0. The SHIPPED U mix is about half
+        twist-side, so a pooled c is a mixture of two populations and the
+        mixing ratio is a property of the benchmark rather than of the solver.
+        RQ-ICPERF-94c86e names pooling a composition artifact.
+    - id: C-SU
+      what: S and U reported separately in every table, every median, every fit.
+      pass: no aggregate anywhere pools them
+    - id: C-MAXID
+      kind: invalidation_guard
+      what: >-
+        Every WDSat build's reported MAX_ID compared against the ANF-derived
+        value; builds/*/config_used.json and make.log retained per cell.
+      pass: equal on every row; a mismatch invalidates that row
+      why: a mis-sized static build changes propagation cost and can change conflicts
+    - id: C-CERT-IN
+      what: >-
+        Every instance consumed carries EXP-ICPERF-2f2e40's certificate block,
+        and this contract RE-CHECKS it: for each certified-S instance the
+        generating triple's sum is re-verified with GF(2^n) arithmetic
+        independent of WDSat, and for each certified-U instance the recorded
+        table-absence is re-read from the committed table.
+      pass: 100%; any failure stops that cell and is reported
+      why: >-
+        A wrongly labelled U instance is satisfiable, returns few conflicts,
+        and drags the cell median DOWN -- i.e. it manufactures the exact L4
+        signal this experiment is looking for. The re-check is cheap and the
+        failure mode is the most expensive one available.
+    - id: C-LOAD
+      what: 1-minute load average recorded at every launch; rows above loadavg 2 flagged.
+      pass: reported; medians of CONFLICTS are reported without exclusion (conflicts are load-invariant) and t_conf is reported both including and excluding flagged rows
+
+  control_self_defeat_audit:
+    performed: true
+    performed_by: coordinator, BATCH-94168f, 2026-09-16
+    standard_applied: >-
+      DEC-20260915-d8d413, DEFECT-C-MEMO-OFF: a control whose metric
+      definitions make it fire exactly when the experiment finds its signal is
+      disqualifying on its own.
+    findings:
+      - control: C-NULL
+        verdict: >-
+          Not self-defeating, but ONE SELF-DEFEATING READING WAS IDENTIFIED
+          AND BARRED IN WRITING: reading a C-NULL pass as evidence that the
+          law is about the descended STRUCTURE. Under that reading the control
+          would confirm an attribution that a committed proves-too-much result
+          has already falsified, i.e. it would pass exactly when the claim it
+          is asked to support is unsupported. The bar is recorded in the
+          control's own `what_it_may_not_be_read_as`.
+      - control: C-KF-ORDER
+        verdict: >-
+          Not self-defeating. Note the asymmetry deliberately built in: a
+          BUDGET STOP on this arm leaves it UNEVALUATED, never PASSED. A
+          timed-out scrambled-order run superficially looks like the predicted
+          "far more than 2^{3l}" outcome, and counting it as a pass would let
+          an infrastructure failure discharge a scientific control.
+      - control: C-CERT-IN
+        verdict: >-
+          Not self-defeating, and deliberately hard-stopping, because its
+          failure mode manufactures the signal rather than hiding it.
+      - control: C-RECON
+        verdict: Not self-defeating; reference values predate this contract.
+      - rejected_control: >-
+            A "c must be lower on -b than on default" control was CONSIDERED AND
+            REJECTED as self-defeating: c(-b) < c(default) is the prediction, so a
+            control asserting it tests nothing and passes exactly when the
+            experiment succeeds. What is retained instead is the VALUE of c(-b)
+            against the two computable reference points (1/6 for a full ordering,
+            1 for none), which can land anywhere.
+
+  independent_variables:
+    - cell (n, l)
+    - WDSat configuration (default / -b / noncore_first)
+    - side of x_R (0 / 1)
+    - instance label (S / U)
+    - structured instance vs constant-matched null object
+    - for S instances - the exact table count k
+
+  metrics:
+    primary:
+      - conflicts (conf[0]) per row, with status
+      - decisions per row
+      - 'c = median conflicts / 2^{3l}, per (cell, config, side, label), with IQR and instance count'
+      - fitted slope of log2(median UNSAT conflicts) in n at fixed l, with standard error
+      - 'T_rel per cell computed from MEASURED p, C_U, C_S and N_rel; and its fitted slope in n at fixed l, with standard error'
+      - 'HEUR-1: empirical distribution of conflicts_S / 2^{3l} per exact k, against Beta(1, 6k)'
+      - 'HEUR-2: rank profile of the relation matrix to 1.5 * |Fb_E|/2, and `extra`'
+    secondary:
+      - wall seconds, cpu seconds, t_conf (s per conflict), peak RSS, exit status, timeout flag, loadavg at launch
+      - 'the DERIVED rho column: 0.886 * sqrt(r) with EV-ICPERF-390707 joint V6''s corrections, labelled `derived, not measured` on every row it appears'
+
+  heuristic_under_test: 'HEUR-1 and HEUR-2 of H-ICPERF-81de5c'
+
+  preregistered_prediction:
+    quantity: the eight predictions of H-ICPERF-81de5c, per admitted (cell, config, side, label)
+    formula: >-
+      c in [0.9, 1.0] default; c in [0.17, 0.5] under -b; UNSAT-conflict
+      n-slope 0.00 +- 0.05; T_rel n-slope 1.00 +- 0.10 against a DERIVED rho
+      slope of 0.50; l-cancellation within 1.5x; nulls outside [0.9, 1.0];
+      noncore_first >= 10x above 2^{3l}; HEUR-1 chi-square p above 0.01 per k.
+    source: >-
+      H-ICPERF-81de5c statement L1-L4, with the reconstruction reference
+      values (0.945 / 0.971 / 0.974) taken from RUN-ICPERF-305ca3, which was
+      archived on 2026-09-13 and cannot be fitted to this run's output.
+    every_clause_reports_evaluated_flag: >-
+      Inherited by reference from EXP-ICPERF-13f001 CH-5: `evaluated:
+      true|false` with a reason on every clause, an explicit `unevaluable:
+      [...]` list on every cell-quantified clause, and `holds: null` wherever
+      that list is nonempty.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      n <= 25, l <= 8, one curve, one solver, one host, m - 1 = 3. The fitted
+      exponents are fitted over three to five cells spanning at most 10 bits
+      of n. A slope over that range with that few points has a standard error
+      that must be reported and is reported; it is NOT a proof of an
+      asymptotic exponent, and H-ICPERF-81de5c's promotion_gate_position says
+      so explicitly.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      HEUR-1 tail: the fraction of S instances with conflicts above
+      0.9 * 2^{3l} against (0.1)^{6k}, per k, with its binomial sampling
+      error. The bulk of a Beta(1, 6k) fit is dominated by small k and can
+      look right while the tail is wrong.
+    - >-
+      The per-instance SPREAD of c within each (cell, config, side, label),
+      reported as IQR beside every median. A law asserted to 5% whose
+      instances spread by 50% is a different claim from one whose instances
+      spread by 5%, and only the spread distinguishes them.
+    - >-
+      The cell whose fitted slope residual is largest, reported with its
+      individual medians, so a slope decided by one cell is visible as such.
+    - >-
+      Where any arm is censored, the finishing count is reported beside every
+      median it enters and the censored rows' limits are listed.
+
+  replication:
+    seeds:
+      - null-object seeds - 20260916 * 1000 + 100 * n + l, recorded per cell, constant-matched family
+      - instance selection from the sampler - deterministic by sorted certificate id, recorded
+    independent_instances: >-
+      20 certified-U side-0 + 20 certified-S per admitted (cell, config), 5
+      per cell for C-KF-ORDER, plus the constant-matched nulls at equal count
+
+  budget:
+    enforcement: >-
+      Per-invocation subprocess wall-clock timeout plus a resident-set
+      watchdog; RLIMIT_AS unset. The RSS watchdog KIND is adopted from
+      EV-ICPERF-390707 joint V2's finding that RLIMIT_AS 6 GB aborted rows at
+      2.575 GiB resident; the VALUE here is small because WDSat's memory is
+      fixed at compile time (about 17 MB flat, KN-LIT-6e036d) and a WDSat
+      process approaching 2 GiB is a mis-sized build, not a hard instance.
+    wall_clock_seconds_per_run: 600
+    wall_clock_seconds_per_run_note: >-
+      The default and -b arms; the noncore_first arm's own key is set from
+      AP-2's pilot and is an amendment to this contract, not a value guessed
+      here.
+    total_cpu_hours: null
+    maximum_memory_gb: 2
+    maximum_memory_gb_basis: MACHINE PROTECTION. WDSat allocates statically; 2 GiB is a mis-sizing detector, not a research budget.
+    maximum_runs: 1
+    maximum_workers: 1
+    per_cell_config_budget_seconds: null
+    per_cell_config_budget_seconds_note: AP-2 work; sized from the pilot, recorded as a versioned amendment.
+    executor_wall_clock_seconds: null
+
+  stopping_rules:
+    - C-RECON fails - STOP before any new cell; report which value and both numbers.
+    - C-CERT-IN fails at a cell - stop that cell, report the instance, continue with the others.
+    - An (cell, config) refused by AR-1 - do not enter it; record the refusal with both pilot numbers.
+    - Executor wall clock reached - stop, keep results.jsonl, run the reduction, record which arms finished.
+    - >-
+      A whole arm is budget stops - continue to the next arm. Budget stops are
+      data about what the arm costs; they are NOT data about satisfiability
+      and NOT data about c.
+
+  invalidation_rules:
+    - results.jsonl absent or unparsable.
+    - Any WDSat row whose reported MAX_ID differs from the ANF-derived value.
+    - Any row measured on an instance lacking a certificate block, or whose certificate failed C-CERT-IN.
+    - A null-object row whose sizing tuple, INCLUDING constant-term count, does not match its template.
+    - A c value computed over pooled S and U, or over pooled sides.
+    - A fitted exponent computed on wall seconds rather than conflicts.
+    - manifest.yaml missing code.commit, the inference block, the per-cell build hashes and MAX_ID values, or the AP-2 pilot amendment.
+
+  success_criterion: >-
+    C-RECON reproduces the three reference c values or reports an exact
+    disagreement; every admitted (cell, config, side, label) carries c with
+    its IQR and instance count; both slopes are reported with standard errors
+    and with the residual per cell; the l-cancellation is reported or declared
+    unevaluable with its reason; the -b constant is reported against the read
+    -b semantics from AP-3; C-NULL and C-KF-ORDER are reported per cell as
+    pass / fail / unevaluated; HEUR-1 and HEUR-2 are reported per k and per
+    cell with their tail checks; and every prediction clause carries an
+    `evaluated` flag.
+
+  falsification_criterion: >-
+    Per H-ICPERF-81de5c falsification_conditions. The executor reports values;
+    the Coordinator decides. A timeout, a watchdog stop, a mis-sized build or
+    a refused (cell, config) is an INFRASTRUCTURE OUTCOME, falsifies nothing,
+    and a timed-out UNSAT run is never evidence about unsatisfiability.
+    SPECIFICALLY PRE-DECLARED: if c is measured below 0.5 at l = 7 or 8, that
+    is the L4 outcome, it is REPORTED AS THE HEADLINE, and it is NOT promoted
+    by this experiment -- see H-ICPERF-81de5c promotion_gate_position.
+
+  required_artifacts:
+    - experiments/EXP-ICPERF-61c136/code/ with a recorded sha256 per file
+    - manifest.yaml, results.jsonl, summary.json, environment.json, task-report.md, plan.json, phase_log.txt
+    - recon/c_reconstruction.json - the three reference c values recomputed, with both numbers on every line
+    - c_table.json - c per (cell, config, side, label) with median, IQR, n, and the finishing/censored counts
+    - slopes.json - both fitted slopes with standard errors and per-cell residuals
+    - trel.json - T_rel per cell with each measured factor (p, C_U, C_S, N_rel) shown separately, and the DERIVED rho column labelled as derived
+    - heur1/ - per-k conflict distributions against Beta(1, 6k) with the tail check
+    - heur2/ - the rank profile and `extra`
+    - nulls/ - constant-matched null rows with the sizing tuple recorded per row
+    - kf_order/ - the noncore_first rows with pass / fail / unevaluated per cell
+    - admission.json - every (cell, config) with admitted true/false, both pilot numbers, and the binding term on refusal
+    - notes/wdsat_symmetry_breaking.md - AP-3's reading of what -b enforces, with the source lines cited
+    - builds/*/config_used.json and make.log; logs/ (stdout and stderr per invocation)
+
+  assigned_to: executor
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+
+  dependencies:
+    - H-ICPERF-81de5c committed at `specified` or later
+    - EXP-ICPERF-2f2e40 run AND independently accepted (AP-1)
+    - AP-2's pilot amendment recorded in this contract
+    - AP-3's -b reading committed
+    - SRC-ICPERF-TRIMOSKA-WDSAT-2024 committed
+    - A snapshot of this contract at its approved version before execution
+
+  review_required: true
+  review_note: >-
+    Claim-relevant producer: it reports a fitted asymptotic exponent. An
+    independent validator round plus a red-team pass on the fitting
+    methodology and on the T_rel bookkeeping is owed before any evidence
+    record is composed. No reviewer identifiers were allocated to this lane,
+    so the review plan is not written here; writing it is a precondition of
+    the round, not of the design.
+
+  interpretation_limits:
+    - >-
+      Scoped to WDSat on S_4 Weil-descent instances over V = {deg x < l} at
+      l <= 8, m - 1 = 3, on one Koblitz curve and one host. Nothing about
+      Groebner engines, nothing about l >= 9, nothing about m != 3.
+    - >-
+      THE RHO COLUMN HERE IS DERIVED, NOT MEASURED, and is labelled as such on
+      every row. It may not enter the boundary table as a measured cell. The
+      measured rho column is ranked item (5) of GOAL-ICPERF-e6b6a4's
+      next_action.
+    - >-
+      No wall-clock number enters any fit or any ratio. t_conf is reported for
+      translation only and is flagged wherever loadavg exceeded 2.
+    - >-
+      A C-NULL pass licenses no attribution to structure. See the control's
+      own scope bar and EV-ICPERF-390707 proves_too_much object 2.
+    - >-
+      Fitted exponents over three to five toy cells are measurements with
+      standard errors, not asymptotic results. H-ICPERF-81de5c may reach
+      `analyzed` on this contract and no further.
+    - >-
+      Reported literature timings are reproduced nowhere and enter no ratio;
+      the Yokoyama et al. and Galbraith-Gebregiyorgis statements cited by
+      H-ICPERF-81de5c are context, not comparators.

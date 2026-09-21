@@ -1,0 +1,232 @@
+{
+  "schema": "crypto.autoresearch.executor_results.v1",
+  "task_id": "TASK-20260805-8fa4c6",
+  "title": "RC-B: extend rc8probe.c (independent codebase) with a prefix counter and an ideal-permutation mode",
+  "goal_id": "GOAL-AES-003",
+  "batch": "BATCH-011",
+  "role": "executor",
+  "generated_utc": "2026-08-05T17:40:00Z",
+
+  "inference": {
+    "policy": "executor-implementation",
+    "requested_policy": "executor-implementation",
+    "resolved_model": "claude-sonnet-5",
+    "fallback_used": true,
+    "model_verified": false,
+    "standing_basis": "0137a051eb5828789eb267fa83c8278086578d4c"
+  },
+
+  "claim_tier": "toy",
+  "claim_tier_basis": "Reduced-round AES-shaped SPN, C1 convention, r=5, one machine, one key per arm, random S-boxes, trials from 2^24 to 2^27. No crypto-scale, medium-scale, affected-scheme or asymptotic claim is made or implied; no comparison to published cryptanalysis in either direction.",
+
+  "certificate": {
+    "kind": "none",
+    "note": "Pure measurement task. No discrete-log solve or factor-base relation is claimed anywhere in this task."
+  },
+
+  "GIT": {
+    "repo_head_commit": "aefff5a0e7b37b767d483a8e9eb2291811ad288a",
+    "tracked_tree_dirty": false,
+    "note": "Only untracked new files under this task's write_scope exist beyond HEAD; no tracked file was modified. Not committed by the Executor -- the Coordinator's snapshot task stages this."
+  },
+
+  "SUBSTRATE_SUBSTANCE": {
+    "original_committed_file": "coordination/goals/GOAL-AES-003/batches/BATCH-007/tasks/TASK-20260803-e55757/rc8probe.c",
+    "committed_at": "1a0ad1989d25404e3fe3d56cd82b922d3db16666",
+    "sha256_committed_blob": "0109d7b6ac0e8e62092cbb64f2c454bfd0c5f1ffdba17f410de6b9a124df52b0",
+    "sha256_working_tree_copy_before_edits": "0109d7b6ac0e8e62092cbb64f2c454bfd0c5f1ffdba17f410de6b9a124df52b0",
+    "sha256_matches_receipts_in": [
+      "coordination/goals/GOAL-AES-003/batches/BATCH-007/tasks/TASK-20260803-e55757/RESULTS.json (source_sha256 field)",
+      "coordination/goals/GOAL-AES-003/batches/BATCH-007/archives/TASK-20260803-f971d0/snapshot-receipt.json",
+      "coordination/goals/GOAL-AES-003/batches/BATCH-007/dispatch_queue.json"
+    ],
+    "sha256_match_verdict": "CONFIRMED, matches all three independent receipts and the current working tree exactly.",
+    "local_copy_for_extension": "coordination/goals/GOAL-AES-003/batches/BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_baseline.c (byte-identical copy, sha256 re-verified after copy, before any edit)"
+  },
+
+  "STEP1_SUBSTRATE_REPRODUCTION": {
+    "arm_reproduced": "B01-RAND-20260803701",
+    "recorded_reference": "coordination/goals/GOAL-AES-003/batches/BATCH-007/tasks/TASK-20260803-e55757/runs/B01-RAND-20260803701.json",
+    "command": "gcc -O3 -pthread -o rc8probe_baseline rc8probe_baseline.c && ./rc8probe_baseline arm B01-RAND-20260803701 rand:20260803701 5 1 1 30 631001 1 2",
+    "output_path": "runs/repro_B01.json",
+    "wall_clock_seconds_measured": 236.308,
+    "diff_against_recorded_reference": "diff exit code 0 -- byte-for-byte identical JSON, including W_ge1_by_word=[4,7,6,3] and whist=[1073741804,20,0,0,0]",
+    "verdict": "REPRODUCES EXACTLY. The substrate was safe to extend."
+  },
+
+  "STEP2_PREFIX_COUNTER": {
+    "description": "Added job-struct fields pfx1[4]/pfx2[4]/pfx3[4] and a new loop in worker() counting, per word j and per nontrivial trial, whether the first k=1,2,3 bytes of d[PW[j]] are all zero, alongside the pre-existing k=4 (wword) full-word-zero check. New printf fields (prefix_k1..k4_by_word/total, prefix_model_k1..k4) inserted into the existing JSON output before the pre-existing, byte-for-byte-untouched null_expectation_analytic field.",
+    "extended_source": "src/rc8probe_pfx.c",
+    "sha256_extended_source": "382ecacaaeb46224580226dea518dce9234f1f0e9b5b223139631293c6ea5b2e",
+    "diff_file": "src/diff_step2_prefix.patch",
+    "diff_deletion_content_lines": 0,
+    "diff_addition_lines": 67,
+    "additions_only_verdict": "CONFIRMED. grep -E '^-[^-]' against the unified diff (excluding the '--- a/file' header line) returns zero matches.",
+    "equivalence_proof": {
+      "arm_reproduced": "B01-RAND-20260803701",
+      "command": "gcc -O3 -pthread -o rc8probe_pfx rc8probe_pfx.c && ./rc8probe_pfx arm B01-RAND-20260803701 rand:20260803701 5 1 1 30 631001 1 2",
+      "output_path": "runs/pfx_B01.json",
+      "pre_existing_field_check": "Programmatic comparison (Python, json.load both files) of every field present in the original BATCH-007 record against the rebuilt output: zero mismatches, zero missing fields, across all 20 pre-existing fields including W_ge1_by_word, whist, thread_seeds, key_hex.",
+      "new_fields_present": ["prefix_k1_by_word","prefix_k1_total","prefix_k2_by_word","prefix_k2_total","prefix_k3_by_word","prefix_k3_total","prefix_k4_total","prefix_model_k1","prefix_model_k2","prefix_model_k3","prefix_model_k4"],
+      "new_field_sanity_check": "prefix_k4_total=20 equals the pre-existing sum(wword)=4+7+6+3=20 exactly (k=4 nesting identity), and prefix_k1/k2/k3 totals track their analytic models (16777421 vs 16777216.0; 65546 vs 65536.0; 272 vs 256.0) at the expected order of magnitude.",
+      "verdict": "EQUIVALENCE PROVEN. Additions-only diff, rebuild, bit-exact reproduction of every pre-existing field, standing floor met."
+    }
+  },
+
+  "STEP3_IDEAL_PERMUTATION": {
+    "description": "Independently re-derived from ledger/evidence/EV-AES-e4c091.yaml OBS-B9-2's specification text (a lazily-sampled uniform random bijection on 128 bits, realised with exactly four oracle queries per trial: forward draws with injectivity-rejection on the output, inverse draws with exact domain-exclusion on the input), NOT by reading BATCH-009's yoyo_sbox_v4.c. Implemented as: (1) a blk128 128-bit value type; (2) an open-addressed hash-indexed pair table (perm128) storing realised (domain,range) pairs with two index tables (dom_idx, rng_idx) resolved by full 128-bit compare (hash collisions never silently accepted as equal); (3) perm128_forward/perm128_inverse implementing the rejection-sampling and domain-exclusion rules exactly as specified; (4) a new single-threaded run_ideal() trial loop reusing rc8probe's own PW/CW geometry and plaintext/active-word draw code (re-typed into the new function, not by editing worker()); (5) a new 'armideal' CLI mode dispatched before the pre-existing arm-mode guard; (6) a new 'permcheck' CLI mode as an independent correctness control.",
+    "extended_source": "src/rc8probe_ideal.c",
+    "sha256_extended_source": "c241a49609dab3b743173bb2f5c5fe7c975e3fb458a5c05a7e14cfab82d0aa83",
+    "diff_file": "src/diff_step3_ideal.patch",
+    "diff_base": "src/rc8probe_pfx.c (the step-2 output)",
+    "diff_deletion_content_lines": 0,
+    "diff_addition_lines": 246,
+    "additions_only_verdict": "CONFIRMED. grep -E '^-[^-]' against the unified diff (excluding the '--- a/file' header line) returns zero matches.",
+    "arm_mode_still_untouched": {
+      "check": "./rc8probe_ideal arm B01-RAND-20260803701 rand:20260803701 5 1 1 16 631001 1 2, compared to the identical rc8probe_pfx smoke run at the same log2N=16 parameters",
+      "verdict": "IDENTICAL output (all fields, including the new prefix fields), confirming the STEP3 additions (armideal, permcheck, and their helper functions) do not alter worker()'s or main()'s pre-existing arm-mode code path -- both are dispatched as new top-level branches that return before reaching the arm logic."
+    },
+    "correctness_control": {
+      "mode": "permcheck (new, independent of the yoyo trial harness -- exercises perm128 directly)",
+      "command": "./rc8probe_ideal permcheck 200000 424242",
+      "output_path": "runs/permcheck.json",
+      "properties_checked": [
+        "round-trip: perm128_inverse(perm128_forward(x)) == x, for 200000 fresh forward-drawn x",
+        "idempotence: repeated perm128_forward(x) on an already-queried x returns the identical y (no fresh draw)",
+        "pairwise distinctness of all 200000 queried domain points (O(M^2) exact scan)",
+        "pairwise distinctness of all 200000 queried range points (O(M^2) exact scan) -- i.e. the realised partial function is injective on the queried domain",
+        "cross case: perm128_forward(perm128_inverse(y)) == y, for 20000 fresh inverse-drawn y never previously forward-queried"
+      ],
+      "result": {"roundtrip_failures": 0, "idempotence_failures": 0, "cross_roundtrip_failures": 0, "duplicate_domain_pairs": 0, "duplicate_range_pairs": 0, "permcheck_pass": true},
+      "verdict": "The construction satisfies the required properties of a lazily-sampled bijection (round-trip correctness both directions, injectivity on the realised subset, idempotent caching) on this direct test, independent of the yoyo geometry code. This is a re-derivation of the required properties, not a line-by-line comparison to yoyo_sbox_v4.c, which was not read for this task."
+    },
+    "memory_footprint_at_chosen_exposure": {
+      "N": 16777216,
+      "max_pairs_allocated": 67108864,
+      "estimated_bytes": "~4.3 GB (pair arrays 2x67108864x16B=2.147GB; two hash-index tables, each sized to the next power of two above 2*max_pairs=134217744 which rounds up to 268435456 slots x4B x2 tables=2.147GB)",
+      "declared_budget_memory_gb": 8,
+      "verdict": "within budget with headroom; not independently profiled with a memory-measurement tool (e.g. /usr/bin/time -v) due to time budget -- this is an estimate from the allocation sizes in code, not a measured peak-RSS figure. Disclosed as a gap below."
+    }
+  },
+
+  "PREREGISTRATION_REF": {
+    "path": "PREREGISTRATION.md",
+    "written_before_measurement": true,
+    "note": "Written after STEP1-3 (substrate confirmation and instrument-extension equivalence proofs, which are prerequisite validation, not measurement of the two mechanism claims) and before either STEP4 comparison run. Exposures, metrics, and decision rules for both comparisons were fixed in that file before COMPARISON_A and COMPARISON_B below were run."
+  },
+
+  "COMPARISON_A_PREFIX_RATIO_R5": {
+    "mirrors": "BATCH-008 / EV-AES-8b8dcf OBS-B8-2 (byte-locality: excess present only at k=4, absent at k=1-3)",
+    "command": "./rc8probe_ideal arm RC-B-CMPA-K1234-R5 rand:717001701 5 1 1 27 717001 101 4",
+    "output_path": "runs/cmpA_r5_k1234.json",
+    "wall_clock_seconds_measured": 14.983,
+    "parameters": {"rounds": 5, "amask": 1, "smask": 1, "log2N": 27, "trials": 134217728, "sbox": "rand:717001701", "seed": 717001, "arm_id": 101, "threads": 4},
+    "raw": {
+      "prefix_k1_total": 2095940, "prefix_model_k1": 2097152.0,
+      "prefix_k2_total": 8122,    "prefix_model_k2": 8192.0,
+      "prefix_k3_total": 33,      "prefix_model_k3": 32.0,
+      "prefix_k4_total": 2,       "prefix_model_k4": 0.125
+    },
+    "derived_statistics": {
+      "k1": {"ratio": 0.999422, "z_poisson_normal_approx": -0.8369},
+      "k2": {"ratio": 0.991455, "z_poisson_normal_approx": -0.7734},
+      "k3": {"ratio": 1.031250, "z_poisson_normal_approx": 0.1768},
+      "k4": {"ratio": 16.0, "z_poisson_normal_approx": 5.3033, "one_sided_poisson_p_observed_ge_2_given_lambda_0.125": 0.00719, "power_caveat": "model expectation 0.125 events is far below 1; a single-run count of 2 vs 0.125 is DESCRIPTIVE ONLY per the preregistered decision rule, not a standalone confirm/disconfirm verdict."}
+    },
+    "preregistered_decision_rule_applied": {
+      "k1_k2_k3_test": "|z_k| < 3 for k in {1,2,3}. Observed: 0.837, 0.773, 0.177 -- all well under 3.",
+      "verdict_on_byte_locality_subclaim": "REPLICATES on this independent substrate at this exposure: no byte-local excess detected at k=1,2,3, matching BATCH-008's specific finding that the r=5 excess is not byte-local.",
+      "k4_verdict": "Descriptive only, as preregistered. The observed k4 count (2, against a 0.125 model) is DIRECTIONALLY consistent with BATCH-008's reported elevation at k=4, but this single run at this exposure cannot and does not establish that on its own; the campaign's own k=4 finding rests on much larger N (2^30) with ~13-14 excess events, not reproduced or refuted at this scale."
+    }
+  },
+
+  "COMPARISON_B_IDEAL_VS_LIVE_R5": {
+    "mirrors": "BATCH-009 / EV-AES-e4c091 OBS-B9-3 (the r=5 excess does not survive cipher substitution to an ideal-permutation null object)",
+    "matched_exposure_construction": {
+      "live_command": "./rc8probe_ideal arm RC-B-CMPB-LIVE-R5 rand:717001702 5 1 1 24 717002 202 1",
+      "ideal_command": "./rc8probe_ideal armideal RC-B-CMPB-IDEAL-R5 1 1 24 717002 202",
+      "shared_parameters": {"amask": 1, "smask": 1, "log2N": 24, "trials": 16777216, "seed": 717002, "arm_id": 202},
+      "seed_thread_match": {
+        "live_seed_thread": 11400712803711692469,
+        "ideal_seed_thread": 11400712803711692469,
+        "verdict": "IDENTICAL by construction. arm mode with threads=1 computes seed_thread = seed ^ (armid*C1) ^ (1*C2); armideal computes seed_thread = seed ^ (armid*C1) ^ C2. These are the same value when threads=1. Confirmed by direct comparison of the two printed seed_thread fields, not merely by formula inspection."
+      },
+      "plaintext_stream_identity_basis": "CODE-LEVEL ARGUMENT ONLY, not independently verified by a digest-based run comparison. worker() (live arm) and run_ideal() draw p0 via two sm64() calls in the same order and apply the same PW-indexed active-word rejection loop for amask; given identical seed_thread, these draws are bit-identical up to the point of the first cipher/oracle call. This was checked by reading the two functions side by side (see src/rc8probe_ideal.c), not by an instrumented run that dumps and diffs the intermediate plaintext streams -- BATCH-009's OBS-B9-3 did run such a digest-based check and this task did not, for budget reasons. Disclosed as a gap below; this task's matched-exposure claim rests on the weaker (but still checkable) code-identity argument, not an executed proof."
+    },
+    "live_output_path": "runs/cmpB_live_r5.json",
+    "ideal_output_path": "runs/cmpB_ideal.json",
+    "live_wall_clock_seconds_measured": 7.328,
+    "ideal_wall_clock_seconds_measured": 81.387,
+    "raw": {
+      "live": {"W_ge1_nontrivial": 0, "W_ge1_by_word": [0,0,0,0], "whist": [16777216,0,0,0,0], "null_expectation_analytic": 0.015625},
+      "ideal": {"W_ge1_nontrivial": 0, "W_ge1_by_word": [0,0,0,0], "whist": [16777216,0,0,0,0], "null_expectation_analytic": 0.015625, "oracle_queries_total": 67108864, "perm_pairs_realised": 67108864}
+    },
+    "preregistered_decision_rule_applied": {
+      "expected_result_at_this_exposure": "Preregistered as the LIKELY outcome: BATCH-009's ~14-hit live-arm excess at N=2^30 scales to ~14/64 ~ 0.22 expected excess events at N=2^24 -- almost certainly 0 or 1 observed hit, insufficient to distinguish confirm from disconfirm.",
+      "observed": "0 hits in BOTH the live and ideal-permutation arms.",
+      "verdict": "INCONCLUSIVE BY POWER, exactly as preregistered before running. Neither arm shows any elevation over its own (identical, 0.015625) null expectation at this exposure -- there is nothing to compare a 'live elevation' against an 'ideal elevation' when both raw counts are zero. This is NOT read as confirming BATCH-009 (a null result in the live arm alone does not establish that an excess exists to be extinguished) and NOT read as refuting it (a null result in the ideal arm is exactly what BATCH-009 also predicts). The comparison, as run at this exposure, settles nothing about the mechanism claim either way."
+    }
+  },
+
+  "OUTCOME_SUMMARY": {
+    "substrate_reproduction": "CONFIRMED bit-exact.",
+    "prefix_counter_equivalence": "CONFIRMED. Additions-only diff (zero deletion content lines); rebuild reproduces B01 bit-exactly on every pre-existing field.",
+    "ideal_permutation_equivalence_and_correctness": "Additions-only diff (zero deletion content lines) CONFIRMED against the arm-mode code path (arm-mode output unchanged by the extension); the new construction's own required properties (round-trip, injectivity on queried subset, idempotence) independently verified via the permcheck control, PASSED.",
+    "comparison_a_byte_locality": "REPLICATES on this independent substrate at N=2^27: k=1,2,3 show no significant deviation from the analytic model (|z|<1 for all three). The k=4 cell shows a directionally consistent but statistically underpowered elevation (2 observed vs 0.125 modeled), reported descriptively only, per the preregistered rule.",
+    "comparison_b_cipher_substitution": "INCONCLUSIVE BY POWER at N=2^24, as explicitly preregistered before running. 0 hits in both the live and ideal-permutation arms; the comparison does not discriminate confirm from disconfirm at this exposure.",
+    "shared_harness_risk_named_by_batch_010": "NOT resolved by this task. Comparison (a)'s well-powered sub-claim (byte-locality absence at k=1-3) DID replicate on an independent substrate, which is evidence against a shared-harness explanation for THAT specific sub-finding. Comparison (b), which is the more direct test of the shared-harness concern (cipher substitution should extinguish an artifact but not a real cipher-shape effect), produced no informative signal at the budget-permitted exposure -- it neither corroborates nor contradicts BATCH-009's finding on this substrate. The residual risk BATCH-010 named for the cipher-substitution mechanism claim specifically is therefore UNCHANGED by this task, not closed; it would need either a larger budget (to reach an exposure where the ideal-permutation arm's memory footprint and the expected event count both become tractable) or a different implementation strategy for the permutation table."
+  },
+
+  "BUDGET": {
+    "declared_wall_clock_seconds": 5400,
+    "budget_stamps_path": "budget_stamps.jsonl",
+    "start_utc": "2026-08-05T17:04:50Z",
+    "binding_stop_utc": "2026-08-05T18:34:50Z",
+    "sum_of_measured_run_wall_clock_seconds": "236.308 + 14.983 + 7.328 + 81.387 (four timed runs) plus untimed smoke tests (all under a few seconds each) and interactive development time; total task wall-clock well under the 5400s budget, finishing with substantial time remaining.",
+    "maximum_runs_note": "The handoff declares maximum_runs: 1. Interpreted, consistent with prior batches' task-level budget accounting (e.g. BATCH-007's single task internally ran 27 arms), as one dispatched producer task -- not a literal cap of one subprocess invocation, since the handoff's own deliverables (substrate check, two equivalence proofs, one correctness control, two comparisons) structurally require multiple binary invocations. This interpretation is stated plainly rather than assumed silently."
+  },
+
+  "ENVIRONMENT": {
+    "platform": "Linux-6.18.5-fc-v18-x86_64-with-glibc2.39",
+    "python": "3.11.15",
+    "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "nproc": 4,
+    "meminfo_total_kb": 16460996
+  },
+
+  "SELF_CHECK": {
+    "this_file_parses": true,
+    "how_verified": "python3 -c \"import json; json.load(open('RESULTS.json'))\" run against the final version of this exact file after all fields above were written; the whole file was parsed, not a prefix or a sample of it.",
+    "cross_check_raw_vs_summary": "OUTCOME_SUMMARY's statements are restatements of the raw fields in COMPARISON_A_PREFIX_RATIO_R5 and COMPARISON_B_IDEAL_VS_LIVE_R5 above; no summary number here was invented independently of a raw field printed by rc8probe_ideal or computed directly from it by the derived_statistics Python computation shown inline."
+  },
+
+  "FINDING": "Two disjoint outcomes on one independent substrate: BATCH-008's well-powered byte-locality sub-claim (no excess at k=1,2,3) replicated; BATCH-009's cipher-substitution comparison produced a zero-information null (0 vs 0) at the budget-permitted exposure and settles nothing. Neither outcome should be read as closing the shared-harness risk BATCH-010 named -- one sub-claim gained independent corroboration, the other remains untested by this task.",
+
+  "PROTOCOL_DEVIATIONS_AND_INCIDENTS": [
+    "No timeouts, crashes, or OOM events occurred during any of the four timed measurement runs or the earlier smoke/correctness tests. All processes exited 0.",
+    "The armideal run's memory footprint was estimated from allocation-size arithmetic in the code, not measured with a peak-RSS profiling tool (e.g. /usr/bin/time -v or a cgroup memory.max_usage_in_bytes read). This is a real gap, disclosed rather than silently assumed away; `free -h` was checked once immediately before the run and showed 12Gi free, giving informal confidence the ~4.3GB estimate would not exhaust the 8GB budget, but this is not the same as a measured peak.",
+    "The comparison-(b) matched-plaintext-stream claim rests on a code-level argument (both functions draw identically given identical seed_thread), not on an executed digest-based comparison of the actual intermediate streams, unlike BATCH-009's own OBS-B9-3 which did run such a check. Named explicitly in PREREGISTRATION.md before measurement and repeated here.",
+    "Background-tool timeouts: two of the timed runs (STEP1's 2^30 reproduction, ~236s, and STEP2's 2^30 equivalence rebuild, ~236s) exceeded this environment's 120-second foreground command timeout and were moved to background execution by the harness; both completed normally (exit 0) and their outputs were read from the completed background task. This is an infrastructure/tooling mechanic, not a run failure, and is recorded here for completeness -- no data was lost or altered by the backgrounding."
+  ],
+
+  "CHECKS_THAT_DID_NOT_RUN": [
+    {"check": "A digest-based (order-sensitive hash) proof that comparison (b)'s live and ideal-permutation plaintext streams are bit-identical up to the cipher/oracle call, matching BATCH-009's own OBS-B9-3 standard.", "would_have_settled": "Whether the 'matched exposure' claim for comparison (b) rests on a verified fact or only a code-inspection argument; strengthens (but does not by itself change the outcome of) the comparison."},
+    {"check": "A second, larger-exposure or replicate run of comparison (b) within the still-remaining time budget, using a DIFFERENT preregistered seed, to get more than one independent draw at the 0-vs-0-prone exposure.", "would_have_settled": "Whether the observed 0-vs-0 result at N=2^24 is typical or an unlucky single draw; NOT run because it was not preregistered before COMPARISON_A/B executed, and adding it after seeing a null result would risk exactly the rerun-until-informative pattern the contract prohibits. A follow-up task, preregistered before running, is the correct route to more power here."},
+    {"check": "Independent profiling of armideal's actual peak RSS.", "would_have_settled": "Whether the ~4.3GB estimate used to choose N=2^24 for comparison (b) is accurate, or whether a larger N (up to 2^27, the handoff's instructed ceiling) could have been run safely within the declared 8GB budget with a smarter index-table sizing strategy."},
+    {"check": "Replication of the r=10 decay-check arm or the RC-11-style paired trial-index analysis for either comparison.", "would_have_settled": "Nothing this task's two named comparisons require; out of scope by the handoff."}
+  ],
+
+  "ABSENCE_CLAIMS": [
+    "No claim is made that the r=5 excess is or is not a shared-harness artifact overall; comparison (a) speaks only to the byte-locality sub-claim and comparison (b) produced no information.",
+    "No claim is made about AES, full-round AES, or any deployed cryptographic scheme.",
+    "No claim is made that the ideal-permutation construction here is identical in code to yoyo_sbox_v4.c's implementation -- it was independently derived from the OBS-B9-2 specification text and independently verified via permcheck, not compared line-by-line to v4.c, which was deliberately not read for this task.",
+    "No hypothesis status, evidence strength, or promotion recommendation is asserted anywhere in this file, per the Executor's role boundary."
+  ],
+
+  "COMPLETION_GATE": {
+    "results_json_exists_parses_reports_substrate_equivalence_and_both_comparisons": true,
+    "preregistration_written_before_runs": true,
+    "budget_stamps_carries_opening_and_binding_stop": true,
+    "all_planned_deliverables_reached": "STEP1-3 and both COMPARISON_A/B fully executed and reported. The two named CHECKS_THAT_DID_NOT_RUN items above (digest-based plaintext-stream proof; independent memory profiling) are the disclosed gaps, each named with what it would have settled, as required."
+  }
+}

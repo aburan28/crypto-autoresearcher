@@ -1,0 +1,258 @@
+coordinator_decision:
+  id: DEC-20260815-cd90d4
+  goal_id: GOAL-AES-002
+  question_id: RQ-AES-002
+  batch_id: BATCH-2b0fd1
+  context: >-
+    DEC-20260810-334c34 authorised a three-step repair for TASK-20260810-c1cfd5
+    (invalid, empty archive block) and its successor TASK-20260815-aa30e8, and
+    explicitly flagged one design detail as untested: "the authoring session has
+    no shell and has NOT verified that research_dispatch.py accepts a coordinator
+    task with no archive block in this position... OPEN AND UNCHECKED... must be
+    probed before the repair is committed." The dispatching session (this one,
+    which has Bash) ran that probe, as instructed, before committing anything —
+    and needed two rounds to reach a shape that passes.
+  decision: supersede
+
+  supersedes:
+    record: DEC-20260810-334c34
+    scope: PARTIAL
+    what_is_superseded: >-
+      EXACTLY ONE ITEM: the instruction in `the_repair.steps[ii]` and
+      `why_no_archive_block_on_the_successor` that the repair successor carry NO
+      `archive` key at all, as a SINGLE task. That instruction is shown by direct
+      test to violate a structural invariant of the dispatcher, independent of
+      and prior to any GitRepositoryVerifier path-set check. DEC-20260810-334c34
+      is committed and immutable; it is not edited.
+    what_still_stands: >-
+      EVERYTHING ELSE in DEC-20260810-334c34, unqualified: the `official_outcome`
+      for TASK-20260810-c1cfd5 (`invalid`, empty archive block, backfill
+      forbidden while invalid stands); DEF-3 and DEF-4 and their statements; the
+      content verification inherited from DEC-20260810-17d5e8; steps (i) and
+      (iii) of `the_repair` in substance (c1cfd5 -> invalid; TASK-20260810-4a478d's
+      depends_on repointed to the repair chain); the successor's ROLE (re-attest
+      the 22 already-committed paths by citation, with no new hashing or
+      re-verification); and every standing constraint (SC-4 through SC-11).
+
+  the_test:
+    performed_by: THE DISPATCHING SESSION, WHICH HAS BASH.
+    round_1:
+      method: >-
+        A coordinator subagent (no Bash) authored the working-tree edit to
+        coordination/goals/GOAL-AES-002/batches/BATCH-2b0fd1/dispatch_queue.json
+        exactly as DEC-20260810-334c34 specified, literally: TASK-20260810-c1cfd5
+        -> `state: invalid` with an empty archive block and a completion_note;
+        a single new task TASK-20260815-aa30e8 inserted with NO `archive` key,
+        depends_on [TASK-20260810-095c67]; TASK-20260810-4a478d's depends_on
+        repointed to it; and the DEF-4 fix (TASK-20260810-9f661a's artifact_paths
+        gained its own missing receipt path). The dispatching session ran
+        `python3 tools/research_dispatch.py <queue> --output <scratch> --report
+        <scratch>` directly against this working-tree edit before any commit.
+      verbatim_error: >-
+        dispatch error: non-archive task TASK-20260815-aa30e8 must be assigned
+        exactly once to an archive task
+      mechanism_reported: >-
+        tools/research_dispatch.py (around line 593-597): every task without an
+        `archive` key is a `non_archive` task, and every non_archive task MUST be
+        named in some OTHER task's `archive.source_task_ids` list (with that
+        other task directly depending on it), or the queue is rejected before
+        GitRepositoryVerifier ever runs. A leaf task with no `archive` key and
+        nothing downstream to archive it is always rejected, regardless of what
+        its own artifact_paths declare — unrelated to DEF-3's specific
+        path-count mismatch. Named DEF-5 below.
+    round_2:
+      method: >-
+        First correction attempt (recorded transiently, not committed): give
+        TASK-20260815-aa30e8 a MINIMAL self-archiving `archive` block —
+        `kind: snapshot`, `source_task_ids: []`, `artifact_paths` exactly its
+        own one new receipt file. Re-ran the dispatcher against this edit.
+      verbatim_error: >-
+        dispatch error: tasks[2].archive.source_task_ids must be a nonempty
+        text list
+      mechanism_reported: >-
+        A schema-level check (before the semantic loop DEF-5 was found in)
+        additionally requires every archive task's `archive.source_task_ids` to
+        be NONEMPTY. An archive task can therefore never self-archive with no
+        source: it must always archive at least one OTHER, non-archive task
+        (and `is_archive(source)` forbids that source itself being an archive
+        task). This rules out a single self-contained "author-and-commit-itself"
+        task entirely, not just the empty-source variant. Named DEF-6 below.
+    round_3_passes: >-
+      Split the repair successor into TWO tasks, mirroring the shape used
+      throughout the rest of this batch (e.g. TASK-20260810-4a478d authors,
+      TASK-20260810-f7bc82 archives it): TASK-20260815-aa30e8 (non-archive,
+      writes the re-attestation content only, no `archive` key) and
+      TASK-20260815-0f5486 (archive, `source_task_ids: [TASK-20260815-aa30e8]`,
+      commits it). Re-ran the dispatcher against this shape: exit 0, all ten
+      dispatch gates pass, ready set is exactly `[TASK-20260815-aa30e8]`. Plan
+      SHA-256 `1df511c9d5f4baaf80c4f0c42c6723eca15e13818e80b1f7bd0d6466b54b75a7`,
+      recorded here for later cross-check, not as a claim of anything beyond
+      what the dispatcher itself reported.
+
+  named_defects:
+    - id: DEF-5
+      status: NEW — not anticipated in DEC-20260810-334c34, which named the
+        no-archive-block design as untested rather than as a defect
+      name: A LEAF TASK WITH NO ARCHIVE KEY MUST STILL BE ARCHIVED BY SOMETHING
+      statement: >-
+        The dispatcher's queue-shape validation (independent of the
+        GitRepositoryVerifier path-set check that produced DEF-3) requires every
+        non-archive task to be assigned to exactly one archive task. A leaf task
+        with no `archive` key and no downstream archiver is always rejected.
+      root_cause: >-
+        DEC-20260810-334c34's `why_no_archive_block_on_the_successor` reasoned
+        correctly about GitRepositoryVerifier (an archive block over the OLD 22
+        already-committed paths would reproduce DEF-3) but did not anticipate
+        this separate, structural must-be-archived invariant.
+    - id: DEF-6
+      status: NEW — found only by probing round 1's own proposed fix
+      name: AN ARCHIVE TASK CANNOT SELF-ARCHIVE WITH AN EMPTY source_task_ids
+      statement: >-
+        `archive.source_task_ids` must be a nonempty list, and its members must
+        themselves be non-archive tasks. A task therefore cannot both author new
+        content and commit it in one queue entry; authoring and archiving are
+        always two distinct tasks, the second depending on and sourcing the
+        first.
+      the_fix_that_avoids_def-3_def-5_and_def-6_together: >-
+        Two tasks. TASK-20260815-aa30e8 (non-archive) writes
+        `coordination/goals/GOAL-AES-002/batches/BATCH-2b0fd1/reattestation/BATCH-2b0fd1-opening-reattestation.yaml`,
+        the content that re-binds the 22 old paths by citation. TASK-20260815-0f5486
+        (archive, kind snapshot) depends on and sources exactly that one task, and
+        its own artifact_paths is its own new receipt,
+        `coordination/goals/GOAL-AES-002/batches/BATCH-2b0fd1/archives/TASK-20260815-0f5486/snapshot-receipt.json`.
+        `expected_paths` for TASK-20260815-0f5486 is therefore exactly those two
+        NEW, not-yet-existing files — nothing about the OLD 22 paths is
+        re-declared anywhere in either task's `archive` scope, so DEF-3's
+        mechanism (a queue's declared artifact_paths permanently unable to match
+        any real commit) cannot recur. TASK-20260810-4a478d's `depends_on` points
+        to TASK-20260815-0f5486 (the archive task), matching the pattern
+        elsewhere in this same queue where a producer task depends on the
+        archive task that commits its predecessor, not on the predecessor
+        itself.
+
+  official_outcome:
+    task_ids: [TASK-20260815-aa30e8, TASK-20260815-0f5486]
+    change: >-
+      TASK-20260815-aa30e8 (as authored by the coordinator subagent, unchanged
+      in its content-authoring role) carries no `archive` key. A new task
+      TASK-20260815-0f5486 is added, `archive.source_task_ids: [TASK-20260815-aa30e8]`,
+      its own `artifact_paths` its own snapshot receipt. TASK-20260810-4a478d's
+      `depends_on` is repointed to TASK-20260815-0f5486 (superseding the
+      transient round-1 repointing to TASK-20260815-aa30e8 directly, which was
+      never committed). TASK-20260810-c1cfd5's `invalid` outcome and empty
+      archive block, and the TASK-20260810-9f661a DEF-4 fix, are unchanged from
+      DEC-20260810-334c34 / the round-1 edit.
+    reprobed: >-
+      Re-ran tools/research_dispatch.py against this two-task working-tree
+      shape: exit 0, ten dispatch gates all `passed`, ready set exactly
+      `[TASK-20260815-aa30e8]`. Quoted in `the_test.round_3_passes` above.
+
+  rationale:
+    - >-
+      DEC-20260810-334c34 itself instructed exactly this: probe before commit,
+      and treat the untested design detail as open rather than assumed. Round 1
+      found DEF-5; round 2's own attempted fix, itself untested until run,
+      found DEF-6; round 3 passes. The correct response to each is a partial
+      supersession on the merits, not a silent deviation and not an edit to an
+      immutable record — and not stopping at the first fix that merely looks
+      plausible without re-running the probe.
+    - >-
+      The final fix does not reopen DEF-3: both new tasks' archive scopes cover
+      only brand-new, not-yet-existing files of their own; neither re-declares
+      the 22 old paths that DEF-3 showed can never again satisfy a fresh
+      commit's expected-path check.
+    - >-
+      The batch's scientific content remains untouched throughout all three
+      rounds. No producer has run, no measurement exists, no claim about AES has
+      been made or withdrawn. This is bookkeeping repair, verified by running
+      the actual tool rather than by reasoning about it.
+
+  evidence_refs:
+    - >-
+      The dispatching session's three direct executions of
+      tools/research_dispatch.py against successive working-tree edits of
+      coordination/goals/GOAL-AES-002/batches/BATCH-2b0fd1/dispatch_queue.json;
+      verbatim errors and the final passing plan SHA-256 are quoted in full
+      above under `the_test`.
+    - DEC-20260810-334c34, the decision partially superseded here.
+    - DEC-20260810-17d5e8, standing background, not re-litigated.
+  evidence_refs_note: >-
+    NO EV-* RECORD IS CITED because none exists and none is created. This is a
+    tooling and bookkeeping adjudication and produces no durable claim about
+    AES or any cryptographic object.
+
+  limitations:
+    - >-
+      This decision itself makes no commit. The queue edit, the new task card,
+      and the handoff records exist in the working tree at decision time; the
+      driving top-level session commits, pushes, and refreshes the PR
+      afterward, per agents/coordinator.md's division of labour.
+    - >-
+      Neither TASK-20260815-aa30e8 nor TASK-20260815-0f5486 has run yet; the
+      reattestation content and the snapshot receipt do not yet exist. This
+      decision authorises the corrected two-task shape, not their execution.
+    - >-
+      The round-1 and round-2 scratch edits were made directly to the working
+      tree (this branch is unpublished and nothing had been committed yet), not
+      to a separate throwaway scratch file as DEC-20260810-334c34's own probe
+      was. Functionally equivalent for a probe-before-commit purpose since no
+      commit existed at any point during the three rounds; recorded as a
+      difference in method rather than elided.
+
+  next_actions:
+    - >-
+      Commit this decision together with the corrected dispatch_queue.json,
+      the new task card, and the corrected handoff records (TASK-20260815-aa30e8
+      new, TASK-20260810-9f661a corrected), naming GOAL-AES-002, BATCH-2b0fd1,
+      DEC-20260810-17d5e8, DEC-20260810-334c34, DEC-20260815-cd90d4,
+      TASK-20260810-c1cfd5, TASK-20260815-aa30e8, TASK-20260815-0f5486 and
+      TASK-20260810-4a478d in the commit message; push and open/refresh the PR.
+    - >-
+      Dispatch TASK-20260815-aa30e8 (structurally valid and ready now, since its
+      sole dependency TASK-20260810-095c67 is already completed) to produce the
+      reattestation content, then TASK-20260815-0f5486 to commit it alone.
+    - >-
+      Once TASK-20260815-0f5486 is committed, dispatch TASK-20260810-4a478d, the
+      RANK 1 protocol act and BATCH-2b0fd1's first producing act.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      No knowledge entry is warranted. This is a tooling and bookkeeping
+      adjudication: it cites no EV-* record, rests on no run, reviews no
+      evidence, and produces no durable claim about AES or any cryptographic
+      object. The transferable lesson (author and archive are always two
+      distinct queue tasks; an archive task's source_task_ids is never empty)
+      is bound where it can act — on this repair — rather than promoted as a
+      general finding from one incident.
+
+  standing_constraints:
+    SC-4: SATISFIED VACUOUSLY. No margin is stated in any field.
+    SC-5: SATISFIED. No recalled literature figure is cited.
+    SC-6: SATISFIED. No published-state-of-the-art comparison appears.
+    SC-7: SATISFIED VACUOUSLY. No deliverable states a margin.
+    SC-8: SATISFIED. No reduced-round finding is asserted.
+    SC-9: >-
+      DISCHARGED. TASK-20260815-aa30e8's and TASK-20260815-0f5486's execution
+      and receipts are named as not yet performed, never as tried or negative.
+    SC-10: >-
+      DISCHARGED. All three verbatim errors and the passing plan SHA-256 are
+      quoted in full and not abbreviated; every other fact is drawn from the
+      two cited decisions or from this session's own direct tool execution.
+    SC-11: DISCHARGED. Amazon Bedrock was not selected, configured, probed,
+      contacted or used.
+
+  target_ids:
+    - GOAL-AES-002
+    - RQ-AES-002
+    - BATCH-2b0fd1
+    - DEC-20260810-17d5e8
+    - DEC-20260810-334c34
+    - TASK-20260810-c1cfd5
+    - TASK-20260815-aa30e8
+    - TASK-20260815-0f5486
+    - TASK-20260810-4a478d
+    - TASK-20260810-9f661a
+
+  decided_by: coordinator
+  decided_at: '2026-08-15'

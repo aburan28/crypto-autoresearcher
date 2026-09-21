@@ -1,0 +1,353 @@
+task_card:
+  id: TASK-20260817-c603c0
+  goal_id: GOAL-HQC-001
+  batch_id: BATCH-91929e
+  role: executor
+  subagent_type: executor
+  inference_policy: executor-implementation
+  requested_policy: executor-implementation
+  resolved_model_id: recorded_by_the_executing_session_in_its_own_run_manifest
+  resolved_model_id_note: >-
+    Requested policy and resolved model are SEPARATE fields. The Coordinator
+    does not pre-fill the executor's resolved model; the executing session
+    records the identifier its own launch resolved, by genuine self-report, in
+    run_manifest.yaml's inference block, alongside requested_policy. A mismatch
+    is a disclosed provenance finding with fallback_used: true and a reason --
+    never a silent substitution.
+  reasoning_effort: null
+  reasoning_effort_note: >-
+    Left null so the runtime binding resolves it from the role's policy, per
+    this goal's own convention (BATCH-174014 and BATCH-0e126d both leave
+    executor and coordinator effort null). Under the Claude Code binding this
+    resolves to `medium` for executor-implementation; retuning is done by
+    editing the policy, never the task card.
+  fallback_allowed: false
+  degraded_allowed: false
+  independent_session_required: false
+  status: preregistered_not_yet_dispatched
+  recorded_at: '2026-08-17'
+  priority: 1
+  depends_on: []
+  archived_by: TASK-20260817-f24a5e
+  handoff_path: ledger/handoffs/TASK-20260817-c603c0.yaml
+  review_required: true
+  reviewed_by:
+  - TASK-20260817-6f610c
+  - TASK-20260817-94c89e
+  binds_experiment: EXP-HQC-982268
+  authorized_by: DEC-20260815-176614
+  title: >-
+    Confound-breaking 2x2 (shard x transition regime) local-exponent factorial
+    on fresh disjoint trial ranges, plus a null-object control on the 2-point
+    local-exponent diagnostic itself
+
+  objective: >-
+    PART A: measure a complete, fully disjoint 2x2 factorial of (shard) x
+    (trial-count/batch-size transition regime) on fresh trial ranges strictly
+    above every previously consumed index, breaking the 100% collinearity
+    between shard identity and transition regime that DEC-20260815-176614 named
+    as BATCH-174014's centerpiece finding. PART B: calibrate the 2-point
+    local-exponent diagnostic itself against a decoder-free, shard-free,
+    defect-free i.i.d. null object with three analytically forced values.
+    Observations only.
+
+  part_a_constants:
+    shards:
+      arm_A: 5000
+      arm_A_pair: positive pair (5000, 6000), historical regime P only
+      arm_B: 8002
+      arm_B_pair: negative pair (8001, 8002), historical regime N only
+    variants: [unmodified decode_blocks, V3-defected wrapper]
+    START_INDEX: 30000
+    N_TOTAL_PER_CALL: 75000
+    discarded_prefix: '[0:30000)'
+    retained_windows:
+      P1: '[30000:35000)  -> T=5,000,  batch size 25'
+      P2: '[35000:45000)  -> T=10,000, batch size 50'
+      N1: '[45000:55000)  -> T=10,000, batch size 50'
+      N2: '[55000:75000)  -> T=20,000, batch size 100'
+    regimes:
+      regime_P: P1 -> P2, the 25->50 trials-per-batch transition (shards 5000/6000's historical regime)
+      regime_N: N1 -> N2, the 50->100 trials-per-batch transition (shards 8001/8002's historical regime)
+    analysis_calls: 4 (one per (shard, variant), n_trials=75000, ONE call each, never split)
+    verification_calls: 2 (shard 8002 only, n_trials=10000, one per variant, prior to and separate from the analysis calls)
+    warmup: 6 x 300 (one per run_arm invocation)
+    primary_cell_k: 17
+    k_range_reported: 2..26, intersected with each window's own evaluable_k
+    exponent_method: >-
+      alpha = -[log(SE_hi) - log(SE_lo)] / [log(T_hi) - log(T_lo)], the identical
+      2-point OLS-in-log-log method TASK-20260814-8bbdd2 and TASK-20260815-e61cca
+      used. Not re-derived, not varied.
+
+  part_a_why_START_INDEX_is_30000: >-
+    It is strictly above the previously consumed high-water index on BOTH
+    shards, and it is set EQUAL for both arms so that absolute trial-index
+    position is common to the two arms rather than confounded with which arm it
+    is. Shard 5000's consumed range is [0,5000) (TASK-20260809-a79e4f stage 1)
+    plus [5000,15000) (TASK-20260814-8bbdd2), high-water 15000. Shard 8002's is
+    [0,10000) (TASK-20260809-a79e4f stage 2) plus [10000,30000)
+    (TASK-20260815-e61cca), high-water 30000. The executor re-derives both from
+    the committed records and STOPS with a reported discrepancy if either
+    differs, rather than adjusting the constants silently.
+
+  part_a_preregistered_outputs:
+    four_fresh_cells:
+    - alpha(shard 5000, regime P)   -- fresh replication of the historical +2.836
+    - alpha(shard 5000, regime N)   -- CROSS-REGIME, required by the directive
+    - alpha(shard 8002, regime P)   -- CROSS-REGIME, required by the directive
+    - alpha(shard 8002, regime N)   -- fresh replication of the historical -0.8662355237627483
+    contrasts:
+      regime_main_effect: mean(P cells) - mean(N cells)
+      shard_main_effect: mean(5000 cells) - mean(8002 cells)
+      interaction: (alpha(5000,P) - alpha(5000,N)) - (alpha(8002,P) - alpha(8002,N))
+    cited_never_recomputed:
+      shard_5000_regime_P: 2.836            # EV-HQC-469c08 O6
+      shard_6000_regime_P: 1.402            # EV-HQC-469c08 O6
+      shard_8001_regime_N: -0.2682495157085447   # EV-HQC-927899 O3
+      shard_8002_regime_N: -0.8662355237627483   # EV-HQC-927899 O4
+
+  part_b_null_object:
+    it_is_not_optional: >-
+      It is half of the dispatched directive and the half on which the
+      interpretation of Part A depends. If Part A overruns, Part B is NOT the
+      thing that gets cut; the pre-registered reduction protocol applies, and if
+      that is insufficient Part A's scope is reduced instead, with the reasoning
+      recorded.
+    what_it_runs_against: >-
+      A decoder-free, shard-free, defect-free i.i.d. parametric object: per-trial
+      S drawn as the sum of n_e = 56 independent Bernoulli(p) block indicators,
+      i.e. S ~ Binomial(56, p). p is calibrated ONCE, before any ladder replicate,
+      by matching E[S] = n_e * p to the measured mean per-trial S of the real
+      UNDEFECTED arm on shard 5000's window P2 (T=10,000); it is then recorded in
+      design.md and FROZEN for every rung, every replicate, both arms and the
+      sensitivity leg. Both arms of every synthetic matched pair are drawn from
+      the IDENTICAL law and differ only in RNG stream. Independent blocks are
+      exactly the i.i.d. null under which A_k = 1 holds as an exact rational
+      identity (established in BATCH-003), so this is the "known-flat parametric
+      construction (e.g. adapting measure.py's 'A_k=1 is a theorem' object to the
+      paired-SE estimator)" that DEC-20260815-176614 next_actions item (2) names
+      as its first option.
+    the_pipeline_is_the_object_under_test: >-
+      Synthetic arrays are fed through the SAME arm_hists / evaluable_k /
+      log2_A_from_hists / matched_pair_stats / 2-point-OLS path Part A uses,
+      imported from the same pinned modules. No stage may be bypassed,
+      shortcut, approximated or reimplemented -- a null object that skips the
+      code being calibrated calibrates nothing.
+    forced_values:
+      forced_value_1_log2_A_k: >-
+        0 EXACTLY, at every k, per arm. A_k = 1 is a theorem on the
+        independent-block null. Reporting the measured deviation from 0 at every
+        rung is the direct, decoder-free test of whether log2_A_from_hists
+        carries a batch-size-dependent bias -- which would by itself be a
+        mechanism for the entire observed confound.
+      forced_value_2_paired_diff: >-
+        0 EXACTLY, at every k. Both arms share one law, so the true matched-pair
+        difference is identically zero.
+      forced_value_3_local_exponent: >-
+        alpha = 0.5. THIS IS THE FORCED VALUE THE CONTROL MUST RETURN. Both arms
+        are i.i.d. draws from one fixed law, so the true paired SE scales as
+        c * T^(-1/2) and a 2-point log-log slope on exact SEs returns exactly
+        0.5. Stated honestly: the T^(-1/2) law is exact only asymptotically,
+        with an O(T^(-1)) finite-T correction, which is precisely why the ladder
+        is run AT the same T values and batch sizes as the real arms instead of
+        asserting 0.5 from theory. The measured centre of the replicate
+        distribution quantifies the finite-T bias; its spread is the noise floor
+        that has never been measured and on which every number this task family
+        has produced depends.
+    ladder:
+      rungs_T: [5000, 10000, 20000, 40000]
+      batch_sizes: [25, 50, 100, 200]
+      adjacent_pairs:
+      - 5000->10000  == regime P exactly (25->50)
+      - 10000->20000 == regime N exactly (50->100)
+      - 20000->40000 == beyond both contested regimes (100->200)
+      replicates_R: 200
+      full_ladder_fit: >-
+        Four-rung OLS with 2 residual degrees of freedom, against the 2-point
+        slope's zero. The scatter of the 2-point estimates about this
+        well-determined line IS the calibration of the diagnostic in question.
+    it_is_also_a_direct_test_of_the_confound: >-
+      Comparing the null object's own alpha distribution at rung-pair
+      5000->10000 against rung-pair 10000->20000 is a decoder-free, shard-free,
+      defect-free test of whether batch-size regime alone shifts this diagnostic.
+      A shift there would show the confound is a property of the INSTRUMENT and
+      not of the cryptographic object at all -- the cheapest strong result
+      available in this batch. Required deliverable, not an optional extra.
+    sensitivity_leg_mandatory:
+      why: >-
+        FIFTH-INSTANCE RISK, NAMED IN ADVANCE. This campaign has recorded FOUR
+        consecutive controls found structurally blind to the defect class they
+        were built to catch (CTRL-BS, CTRL-POSHOM, CTRL-IDXMAP, BATCH-4b8ad3's
+        planted arm), with the pattern named at BATCH-4b8ad3: an invariance
+        strong enough to force a control's null also blinds it to any defect
+        sharing that invariance. A null object that can only ever return "about
+        0.5, looks fine" would be the fifth instance.
+      construction: >-
+        At the T=20,000 rung, generate a dispersion-scaled variant arm for each
+        pre-registered g in {1.25, 1.5, 2.0}; MEASURE (never predict) the
+        realized ratio rho_g = se_paired(planted, T=20000) /
+        se_paired(unmodified, T=20000) over the same R replicates.
+      forced_identity: >-
+        alpha_planted(10000 unmodified -> 20000 planted) =
+        alpha_unmodified(10000->20000) - log2(rho_g), exactly, since
+        log2(20000/10000) = 1. Report the residual of this identity: it uses
+        MEASURED inputs and requires no analytic prediction, so it is checkable
+        without additional assumptions.
+      fail_closed_blindness_rule: >-
+        If NO g produces a planted alpha distribution lying outside the
+        unmodified null 95% band at that rung pair, the null-object control is
+        reported BLIND, in those words, in confound_break_report.md, and its
+        null band carries no interpretive weight at the ledger archive. That is
+        a finding, not a failure to route around.
+    cost_projection_reduction_protocol:
+      trigger: after the first 20 replicates of the T=40000 rung, project total Part B cost from measured per-replicate cost
+      step_1: if the projection exceeds 60% of the 900 core-second authorization, reduce R to the largest multiple of 50 that fits, floor 50
+      step_2: if R would fall below 50, restore R=200, drop the T=40000 rung, and re-project
+      step_3: if still infeasible, report Part B as UNDERPOWERED with the achieved R and rungs, and do NOT present its band as a calibration
+      unconditional_write: >-
+        cost_projection.json is written UNCONDITIONALLY, recording
+        no_reduction_fired: true when no reduction fires, so this declared
+        artifact path can never be missing because a contingency did not occur.
+
+  validity_gates:
+    arm_A_direct_disjointness_proof:
+      strength: STRONG -- cross-run, cross-process, cross-session
+      check: >-
+        Slice [0:5000) from Arm A's own n_trials=75000 analysis call and assert
+        bit-identity, elementwise, against TASK-20260809-a79e4f stage_1's
+        COMMITTED per_trial_S array for shard 5000. Additionally check
+        [5000:15000) against TASK-20260814-8bbdd2's persisted array IF one
+        exists -- determine this by reading, report which, and never assume.
+      on_fail: infrastructure_error / invalid_measurement per AGENTS.md rule 5; ABORT before any Arm A statistic
+    arm_B_adapted_disjointness_proof:
+      strength: WEAKER, and must be stated as such -- within-task self-consistency plus a match against committed DERIVED statistics
+      step_1: dedicated n_trials=10000 verification call per (8002, variant), prior to and separate from the analysis call; recompute D2/D3/D3_cap/D3_max_w and matched_pair_stats at k=2..26 and assert exact integer match and full float64 bit-identity against the committed stage_2 shard_8002 values (a disclosed environment difference may force a tight stated tolerance, e.g. 1e-9 relative, disclosed AS A FINDING and never silently accepted)
+      step_2: assert the analysis call's [0:10000) prefix is bit-identical elementwise to the verification call's own raw per-trial S
+      step_3: fail-closed -- either step failing on either pair ABORTS Arm B
+      step_4_required_correction: >-
+        BINDING, AND THIS TASK'S OWN SCHEDULED CARRY-FORWARD.
+        DEC-20260815-176614 next_actions item (2) requires that when this
+        pattern is reused on a shard lacking a persisted raw array, design.md's
+        stated residual risk name the GENUINE same-process-vs-cross-process gap
+        -- the adapted proof only shows the analysis call is self-consistent
+        with a verification call made inside THIS SAME task's own process, not
+        with independently generated or previously committed raw data -- and NOT
+        numpy RNG or platform drift, which BATCH-174014's Red Team traced
+        directly and confirmed is not mechanistically live for CTRStream's pure
+        SHA-256 counter-mode construction. State it corrected in design.md and
+        in the report, citing DEC-20260815-176614.
+      step_5_honest_narrowing: >-
+        Arm A's direct check supplies a genuine cross-process determinism datum
+        on this machine, which NARROWS but does NOT CLOSE Arm B's gap, because
+        it is a different shard. Say exactly that; do not upgrade it.
+    f_structural_invariant:
+      check: F_defected[:, 0:n_e-1] == F_undefected[:, 0:n_e-1] elementwise, on every retained trial of every window
+      coverage: all eight (shard, window) combinations
+      expected_mismatches: 0
+      on_fail: infrastructure_error / invalid_measurement
+    hard_invariants: D2 and D3 stay ON and fail-closed on ALL SIX decoder calls; expected 0 violations on all six
+    selftests: both matched_pair.py fail-closed selftests run before any real trial is decoded
+
+  declared_limitations_the_executor_must_state:
+  - >-
+    ONE-CALL-VERSUS-TWO-CALL PROCEDURAL DIFFERENCE. In every historical cell the
+    two T-points of a local exponent came from DIFFERENT calls in DIFFERENT tasks
+    and processes; in all four fresh cells both T-points are sliced from ONE call
+    in ONE process. Trials are index-keyed and deterministic and arm_hists
+    applies N_JACK_BATCHES=200 to whatever slice it receives, so the data should
+    be identical either way -- CHECK that batching a 10,000-trial slice into 200
+    batches gives the same batch structure as a dedicated 10,000-trial call,
+    state the check performed, and name the difference as a limitation
+    regardless.
+  - >-
+    Only two of the four historically measured shards are represented. 6000 and
+    8001 are not tested at either regime by this task.
+  - >-
+    Arm A and Arm B share START_INDEX=30000, so absolute index position is
+    common to both arms but the windows still span different index ranges within
+    each call. Report every window's exact index range so a reviewer can check
+    this directly.
+  - >-
+    The null object's Binomial(56, p) law is not the real S distribution. It is
+    chosen because it makes three values analytically forced; whether the
+    calibration transfers to the real arms' distribution is a scoped question
+    the reviews are directed to attack.
+  - >-
+    Arm B's disjointness proof remains weaker than Arm A's, for the data-gap
+    reason above, and is not closed by this task.
+
+  execution_boundary:
+    experiment_runs_authorized: 2
+    decoder_calls_authorized: 6 (4 analysis at n_trials=75000, 2 verification at n_trials=10000)
+    official_status_change_authorized: false
+    evidence_promotion_authorized: false
+    hypothesis_status_change_authorized: false
+    reading_rule_application_authorized: false
+    standardized_parameter_runs_authorized: false
+    amazon_bedrock_selected_configured_probed_contacted_or_used: false
+
+  budget:
+    wall_clock_seconds: 1800
+    core_seconds: 900
+    memory_gb: 4
+    maximum_runs: 2
+    budget_basis: >-
+      Part A is about 321,800 trial-decodes (4 x 75,000 analysis + 2 x 10,000
+      verification + 6 x 300 warmup); at BATCH-174014's own MEASURED throughput
+      (162,400 trials in 94.020 wall-clock seconds, about 1,727 trials/second)
+      that projects to roughly 190 seconds. Part B performs no decoder calls but
+      its cost is genuinely uncertain, so it carries the pre-registered
+      reduction protocol above instead of an optimistic estimate. Expected total
+      roughly 300-800 wall-clock seconds against a 1,800-second authorization.
+    budget_fit: >-
+      campaign_budget.total_wall_clock_seconds is 10,800 and is a LIVE pause
+      condition; roughly 4,814.08 seconds remain per the goal head. 1,800 is
+      37.4% of that; even a full-cap spend leaves about 3,014 seconds. THE CAP
+      WILL NOT BE RAISED AND A RAISE IS NOT SELF-GRANTABLE. Only
+      EXECUTOR-MEASURED wall-clock is debited against the campaign budget;
+      reviewer and Coordinator session time never is.
+    spend_reporting_required: >-
+      Report actual core-seconds and wall-clock, split by Part, in
+      run_manifest.yaml, so the ledger archive debits a MEASURED number and
+      never an estimate.
+
+  observations_only_note: >-
+    THE EXECUTOR CONCLUDES NOTHING. Do not decide which of "shard-specific,"
+    "general estimator heterogeneity," or "batch-size/transition regime"
+    obtains; do not apply batch.yaml's pre-registered reading rule; do not
+    conclude anything about A17, HQC's decoding-failure rate, IND-CCA security,
+    or any standardized parameter set; do not recommend scaling, pausing, or
+    dispatching V1; and do not change any record's status. Read batch.yaml's
+    reading rule so you know which numbers the Coordinator needs, and shape no
+    reported number toward any branch.
+
+  claim_tier: toy
+  claim_tier_note: >-
+    TOY, HARD CEILING. PS-R3 reduced parameters only (n=7187, n_e=56, n_2=128,
+    dup=1, N=7168, k range 2..26, m_load_bearing_order=17), one defect class
+    (V3, last-block-window-read-early), one injection point. This task measures
+    the behaviour of a scaling-characterization INSTRUMENT this program built,
+    not a property of HQC.
+
+  write_scope:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/
+  artifact_paths:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/design.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/cross_regime_arms.py
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/cross_regime_arms_results.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/disjointness_proof_results.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/null_object_control.py
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/null_object_control_results.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/noc_replicate_summary.csv
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/cost_projection.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/confound_break_report.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/run_manifest.yaml
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/stdout.log
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/tasks/TASK-20260817-c603c0/stderr.log
+  artifact_paths_note: >-
+    ALL TWELVE ARE MANDATORY and every one is gated in the handoff's
+    completion_gate, including stderr.log (empty is acceptable) and the three
+    auxiliary probe outputs. Declared exhaustively up front because
+    GOAL-ECDLP-001 BATCH-7d9b78 and GOAL-MLKEM-005 BATCH-0d5018 both required
+    repair when a producer's actual writes did not match its declared
+    artifact_paths. Do not create additional files in this directory.

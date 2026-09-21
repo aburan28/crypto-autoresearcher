@@ -1,0 +1,133 @@
+component_to_F_map:
+  task_id: TASK-20260730-039
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-017
+  idea_id: IDEA-20260729-001
+  decision_ref: DEC-20260803-5d30b6
+  evidence_ref: EV-SSI-016
+  recovery_spec_ref: coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-017/recovery_spec.md
+  process_extraction_ref: coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-013/process_extraction.md
+  pinned_artifact:
+    name: CollimationSieve
+    commit: 6f9188e4eb5611bcfdf29a3e1ec3cd69a29a50e9
+    primary_path: src/Main.hs
+    coverage: local_recursive_sieve_report_only_not_end_to_end_key_recovery
+  common_event_F_definition: >-
+    F = { the procedure fails to return a k' with Verify(x,k')=true within its
+    declared stopping policy }. Success requires a true Verify result; a
+    report-only completion, unverified candidate, or exhausted residual search
+    is a failure constituent, not success (recovery_spec).
+  method: >-
+    For each recovery_spec F_* constituent, state whether inclusion into common
+    F is justified by an implemented end-to-end path, whether Verify(x,k')
+    exists in the pinned source, and whether any F_sim→F map exists. Honest
+    residual gaps from BATCH-012/013 (report-only / unimplemented) are retained.
+  verify_predicate:
+    required_by_recovery_spec: true
+    symbol: Verify(x, k')
+    implemented_in_pinned_source: false
+    evidence: >-
+      process_extraction.md: Main.hs constructs a schedule, calls sieve, and
+      emits statistics; it does not implement key verification or a final
+      key-recovery decision.
+  f_sim:
+    defined_in: BATCH-012 process_extraction
+    definition: >-
+      F_sim = { the invocation does not emit its complete declared simulator
+      report for the supplied arguments }.
+    maps_to_F: false
+    map_status: no_implementation_derived_implication
+    note: >-
+      Normal report production is F_sim^c and is not success under F, because
+      report-only completion is explicitly a failure mode relative to Verify.
+
+  constituents:
+    - id: F_input
+      recovery_spec_role: parse_or_parameter_failure
+      inclusion_into_common_F:
+        status: specified_not_instantiated
+        justified_by_implemented_path: false
+      verify_involved: false
+      residual_gap: >-
+        CLI/parse failures exist in the simulator and map to F_sim, not to F.
+        No path from malformed input to a failed Verify event is implemented.
+
+    - id: F_oracle
+      recovery_spec_role: oracle_or_label_approximation_or_implementation_failure
+      inclusion_into_common_F:
+        status: specified_not_instantiated
+        justified_by_implemented_path: false
+      verify_involved: false
+      residual_gap: >-
+        No oracle/label preparation stage or W_label/R_label objects in the
+        pinned source; F_oracle remains a checklist item only.
+
+    - id: F_cleanup
+      recovery_spec_role: retry_or_handoff_cleanup_failure
+      inclusion_into_common_F:
+        status: specified_not_instantiated
+        justified_by_implemented_path: false
+      verify_involved: false
+      residual_gap: >-
+        Lexical PhaseVector unreachability is not an FC0 cleanup-failure event
+        mapped into F. No explicit uncompute/verify-cleanup of W_* exists.
+
+    - id: F_stop
+      recovery_spec_role: stopping_policy_breach
+      inclusion_into_common_F:
+        status: specified_not_instantiated
+        justified_by_implemented_path: false
+      verify_involved: false
+      residual_gap: >-
+        Pinned artifact has local discard/retry but no declared end-to-end
+        stopping policy relative to Verify. QM-STOPPING remains a separate
+        open blocker; this batch does not close it.
+
+    - id: F_recovery
+      recovery_spec_role: algebraic_or_reconstruction_error
+      inclusion_into_common_F:
+        status: specified_not_instantiated
+        justified_by_implemented_path: false
+      verify_involved: false
+      residual_gap: Classical recovery/reconstruction is absent from the pinned source.
+
+    - id: F_tail
+      recovery_spec_role: tail_exhaustion_timeout_or_omitted_residual_branch
+      inclusion_into_common_F:
+        status: specified_not_instantiated
+        justified_by_implemented_path: false
+      verify_involved: false
+      residual_gap: Residual terminal enumeration / M_tail is absent.
+
+    - id: F_verify
+      recovery_spec_role: false_Verify_result_or_verification_fault
+      inclusion_into_common_F:
+        status: specified_not_instantiated
+        justified_by_implemented_path: false
+      verify_involved: true
+      residual_gap: >-
+        Verify(x,k') is not implemented; F_verify cannot be observed or
+        included via an executed predicate.
+
+  required_union_checklist:
+    expression: >-
+      F_input ∪ F_oracle ∪ F_cleanup ∪ F_stop ∪ F_recovery ∪ F_tail ∪ F_verify
+      ⊆ F
+    status: checklist_only_not_justified
+    dependency_assumptions_identified: []
+    note: >-
+      recovery_spec states this inclusion is only a checklist until an
+      end-to-end implementation and verification trace instantiate it. This
+      gate confirms the checklist is still uninstantiated against
+      CollimationSieve@6f9188e4.
+
+  summary:
+    any_constituent_inclusion_instantiated: false
+    verify_implemented: false
+    f_sim_to_F_map_exists: false
+    qm_error_reconciled: false
+    honesty_note: >-
+      BATCH-012 already recorded report-only sieve / no F_sim→F map;
+      BATCH-013 wrote recovery_spec as unimplemented. BATCH-017 executes the
+      gate and documents those residual gaps explicitly; it does not invent
+      inclusions.

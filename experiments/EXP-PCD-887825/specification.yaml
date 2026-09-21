@@ -1,0 +1,224 @@
+experiment:
+  id: EXP-PCD-887825
+  hypothesis_id: H-PCD-03be5a
+  version: 1
+  title: >-
+    Polynomial-calculus and Nullstellensatz refutation degree of the Semaev
+    decomposition system, measured by Macaulay rank against the F4 solving degree
+    and a shape-matched random null
+  status: review_required
+  objective: >-
+    Establish the Groebner-to-PC simulation constructively at toy scale; compute
+    PC and NS refutation degree by exact Macaulay rank with binary search on the
+    degree bound; compare against the measured F4 maximum degree on the identical
+    instances under a pre-registered two-branch rule; and measure the same
+    quantities on shape-matched random systems to determine whether the number
+    says anything about Semaev structure at all.
+  experiment_class: measurement
+  inputs:
+    instance_family: >-
+      The frozen toy Semaev family already used by the DREG lane, reused
+      unchanged so the numbers are comparable with existing records rather than
+      describing a fresh setup. Instances, factor base, targets and seeds are
+      taken from existing DREG run records and frozen into instances.json.
+    arities: [3, 4]
+    primes_log2: [10, 12, 14, 16]
+    encodings:
+      - E1: Semaev S_m in x-coordinates with factor-base membership and field equations
+      - E2: factor base given by an explicit vanishing polynomial rather than membership constraints
+      - E3: the DREG-lane Weil-restriction-style expansion
+    field_equation_convention: >-
+      Whether x^p - x is an axiom or is built into the ambient ring changes the
+      degree materially. The convention is FROZEN here before Stage 4 and is
+      reported with every number.
+    proof_systems: [polynomial calculus over F_p, PCR with dual variables, Nullstellensatz]
+  controls:
+    - id: C1_simulation_extraction
+      description: >-
+        Run F4 on one small unsatisfiable instance, log every polynomial
+        considered with its degree, and mechanically extract a PC refutation of
+        the same degree. BLOCKING AND FIRST: if the extraction fails, the whole
+        experiment ends here, because the extraction is the relation that makes
+        PC degree a bound on solvers at all.
+    - id: C2_satisfiable_control
+      description: >-
+        The same curve, factor base and arity with a target that DOES decompose.
+        The pipeline must report NO refutation at any tested degree. An
+        instrument returning a finite refutation degree for a satisfiable system
+        is broken. BLOCKING.
+    - id: C3_textbook_validation
+      description: >-
+        Instances of known refutation degree from the proof-complexity
+        literature, run through the identical pipeline before any Semaev system
+        is touched. Must return the known degrees. BLOCKING.
+    - id: C4_matched_random_null
+      description: >-
+        Random systems matched to S_m on number of variables, total degree,
+        per-variable degree, support size and Newton polytope (the BKK lane
+        already computes the last). Measured on the identical pipeline.
+        BLOCKING FOR INTERPRETATION: if PC degree agrees within 1, no
+        Semaev-specific claim may be made.
+    - id: C5_dreg_fixture
+      description: >-
+        The frozen DREG fixture: an existing run record's exact instance re-run
+        through both meters, requiring exact integer agreement between the
+        recorded degree of regularity and the newly measured F4 maximum degree.
+        BLOCKING: without it the two meters are not comparable and neither
+        OUTCOME branch is decidable.
+    - id: C6_two_solvers
+      description: >-
+        Two independent F4-class implementations must report the same maximum
+        degree on the same instances and seeds before any OUTCOME verdict is
+        recorded. Disagreement is an instrument failure, not a finding.
+  independent_variables:
+    - arity m (2 values)
+    - prime size (4 values)
+    - encoding (3 values)
+    - proof system (3 values)
+    - instance class (Semaev, matched random, satisfiable control, textbook)
+  metrics:
+    primary:
+      - >-
+        PC_degree(F): least D for which 1 lies in the row space of the degree-D
+        Macaulay matrix, per (instance, encoding, proof system).
+      - >-
+        outcome_branch: the pre-registered verdict from comparing PC_degree
+        against the measured F4 maximum degree -- OUTCOME 1 (agree within 1),
+        OUTCOME 2 (PC at least 2 below), or INCONCLUSIVE (difference exactly 1).
+    secondary:
+      - NS_degree(F), which is >= PC_degree and is the cheaper second number
+      - full Macaulay rank profile as a function of D, not only the threshold
+      - measured F4 maximum degree on the identical instance
+      - matched-random-null degrees on the identical pipeline
+      - encoding spread of PC_degree on the same instance
+      - Macaulay matrix dimensions, rank wall-clock, peak_rss_bytes
+  measured_vs_modeled:
+    measured:
+      - PC and NS degrees by exact rank
+      - F4 maximum degrees
+      - rank profiles, matrix dimensions, wall-clock, peak memory
+    modeled:
+      - the Groebner-to-PC simulation relation (established constructively at C1,
+        so it moves from modeled to measured once C1 passes -- and the report
+        must say which side it is on)
+      - HEUR-PCD-1's predicted monotonicity in m and o(log p) dependence
+    rule: measured and modeled never share a column; every modeled entry names its source
+  optimistic_assumptions:
+    - >-
+      Exact rank over F_p is computed with a fixed pivoting strategy. BIAS: none
+      on the value (rank is exact) but the reported wall-clock understates the
+      cost of a worse strategy. Direction: flatters feasibility, not the result.
+    - >-
+      The frozen DREG factor base is reused rather than re-optimised. BIAS: the
+      measured degrees describe THAT factor base, not the best possible one.
+      Direction: neutral for the comparison, which is within-instance.
+    - >-
+      Only three encodings are measured out of an unbounded space. BIAS: the
+      reported spread is a lower bound on the true encoding sensitivity.
+  optimistic_assumption_rule: >-
+    Every reported degree is labeled with its encoding and field-equation
+    convention, and the encoding spread is reported as a LOWER BOUND on encoding
+    sensitivity. The list above is reproduced in the results report with the
+    direction of each bias.
+  heuristic_under_test: HEUR-PCD-1
+  preregistered_prediction:
+    quantity: >-
+      The relation between PC_degree(F) and the measured F4 maximum degree on
+      the identical Semaev instance, and the relation between Semaev PC degree
+      and matched-random PC degree.
+    formula: >-
+      Branch rule, frozen: |PC_degree - F4_max_degree| <= 1 records OUTCOME 1;
+      F4_max_degree - PC_degree >= 2 records OUTCOME 2; a difference of exactly 1
+      is INCONCLUSIVE. Separately: PC_degree(Semaev) - PC_degree(matched random)
+      is predicted to be 0, and a Semaev-specific claim requires a gap >= 2.
+    source: >-
+      H-PCD-03be5a. Frozen before any run. Adjusting the branch thresholds after
+      seeing data requires a protocol_amendment and never re-scores executed runs.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Exact rank on the degree-D Macaulay matrix is feasible only at m in {3, 4}
+      and p <= 2^16; the matrix has binomial(n + D, D) columns and that is the
+      binding constraint. NOTHING here extrapolates to crypto-scale degrees, and
+      the record does not license an extrapolation. What the experiment can
+      support is a statement about the solver class at the measured instances.
+      Resulting evidence is capped at claim_tier toy.
+    correspondence: null
+  tail_checks:
+    - >-
+      The single largest encoding spread observed on any instance, reported by
+      name -- it bounds every conclusion drawn from a single-encoding number.
+    - >-
+      The instance with the largest PC-to-F4 gap, reported whether or not it
+      reaches the OUTCOME 2 threshold, so a lone extreme cell is visible rather
+      than absorbed into an average.
+    - >-
+      The smallest prime at which the measured degree stops depending on p,
+      testing HEUR-PCD-1's o(log p) claim at the end where small-field
+      degeneracies would bite.
+  replication:
+    seeds: [101, 103, 107, 109, 113]
+    independent_instances: 5
+    note: >-
+      PC degree is a deterministic function of the instance, so seeds vary the
+      INSTANCE (curve, factor base draw, target), not the computation. Five
+      instances per cell; the reported degree is the multiset across instances,
+      not a mean, because a degree is an integer and averaging it is meaningless.
+  budget:
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 400
+    maximum_memory_gb: 64
+    maximum_runs: 1200
+  stopping_rules:
+    - >-
+      HALT at C1 if the simulation extraction fails. The experiment ends there
+      and the failure is the reportable result.
+    - >-
+      Abandon a cell whose degree-D Macaulay matrix exceeds the memory cap before
+      the binary search resolves, and record it as INFRASTRUCTURE-LIMITED with
+      the D reached. Such a cell is never scored as a degree.
+    - >-
+      Stop the m = 4 arm if m = 3 already fails C5 (fixture comparability), since
+      neither OUTCOME branch would be decidable.
+    - Stop at the CPU-hour cap; report completed cells and name the incomplete ones.
+  invalidation_rules:
+    - C1, C2, C3, C5 or C6 failing invalidates every downstream verdict.
+    - >-
+      A degree reported without its encoding and field-equation convention is
+      invalid regardless of its value.
+    - >-
+      Memory exhaustion, crashes and timeouts are infrastructure outcomes under
+      AGENTS.md rule 5 and are never evidence about refutation degree.
+  success_criterion: >-
+    C1, C2, C3, C5 and C6 pass, and the experiment reports PC and NS degree with
+    full rank profiles for every completed cell across three encodings, the
+    matched-random null on the identical pipeline, and the pre-registered OUTCOME
+    verdict per instance. The experiment succeeds under OUTCOME 1, OUTCOME 2, or
+    a confirmed null; it fails only if a blocking control fails or if the m = 3
+    arm cannot be completed at any prime.
+  falsification_criterion: >-
+    The load-bearing relation is REFUTED if C1's extraction fails -- a degree-D
+    F4 run not yielding a degree-D PC refutation in the variant used. HEUR-PCD-1
+    is refuted independently by non-monotonicity in m or a p-dependence exceeding
+    o(log p). HEUR-PCD-2 is refuted by C6 disagreement. A matched-random null
+    agreeing within 1 does NOT refute anything -- it is the predicted outcome and
+    is recorded as a controlled null establishing that at this scale the degree
+    measures shape.
+  required_artifacts:
+    - the Stage-0 literature note on PC degree and any prior results on these systems
+    - frozen instances.json reusing the DREG-lane instances by reference
+    - the C1 extraction transcript: F4's degree log and the extracted refutation
+    - per-run manifest with command, commit, environment, seed, resolved model
+    - full Macaulay rank profiles, not only thresholds
+    - matched-random null degrees on the identical pipeline
+    - control outcomes C1-C6 with pass/fail and measured values
+    - measured-vs-modeled table, columns unmixed, with the simulation relation
+      explicitly moved to the measured side once C1 passes
+    - the optimistic-assumption list with the direction of each bias
+  assigned_to: executor
+  approved_by: null
+  approval_note: >-
+    Status is review_required. Approval authorises compute and is the user's
+    call; it has not been given. This is the most compute-hungry of the nine
+    drafts (400 CPU-hours, 64 GB) and its m = 4 arm is the part most likely to
+    hit the memory wall.

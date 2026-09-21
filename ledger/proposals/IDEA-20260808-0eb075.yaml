@@ -1,0 +1,150 @@
+idea:
+  id: IDEA-20260808-0eb075
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-MLKEM-003
+  goal_id: GOAL-MLKEM-005
+  title: The dual attack's FFT score landscape has at most N nonzero Fourier coefficients,
+    so its q^{k_fft} candidate scores are correlated and the effective trial count N_eff is
+    computable exactly from the dual vector set — a correction to the false-positive floor
+    that runs OPPOSITE to the independence-heuristic objection, and the corpus has recorded
+    only one of the two.
+  class: mechanism
+  claim: 'In the FFT dual attack the score f(s'') = sum_{i=1}^{N} cos(2 pi <w_i, .>/q) on
+    Z_q^{k_fft} is a trigonometric polynomial whose Fourier support is EXACTLY the set of
+    N used dual vectors. Its autocovariance is the exact computable function rho(delta) =
+    (1/N) sum_i cos(2 pi <w_i, delta>/q). CLAIM: the effective number of independent candidate
+    scores is N_eff = q^{k_fft} / |{delta : rho(delta) >= t}| for a reported threshold curve
+    in t, and N_eff < q^{k_fft} strictly; the false-positive floor is therefore set by a maximum
+    over N_eff trials, not q^{k_fft}, so the published analysis OVERSTATES the noise floor
+    — an attacker-favourable correction opposite in sign to the Ducas-Pulles independence
+    objection. DELIVERABLE: both corrections measured on the SAME instances, and their NET,
+    which twelve batches of GOAL-MLKEM-003 never produced.'
+  mechanism: The FFT evaluates all q^{k_fft} candidates at once and the standard analysis
+    takes the max over q^{k_fft} independent draws as the noise floor. But f is the inverse
+    DFT of a vector supported on N frequencies, hence a smooth function whose correlation
+    length is of order q/max_i ||w_i||_inf per coordinate; candidates inside that length share
+    one score. The effective cell count is a purely combinatorial property of the dual vector
+    set with no heuristic in its definition. The two known corrections then point opposite
+    ways — Ducas-Pulles show the correct-guess score law is not what independence says (attack
+    worse); correlation shows the noise floor is lower than independence says (attack better)
+    — and both follow from the single fact that the scores are lattice-structured.
+  why_not_a_renamed_known_approach: 'Nearest corpus record: IDEA-20260805-5a4409, which notes
+    that all p^{k_fft} scores are exactly the DFT of one table — the same algebraic fact,
+    used as an implementation CONTROL. This derives the statistical consequence (effective
+    trial count, hence the floor shift), which that record does not. IDEA-20260805-a102ec
+    corrects the dual vectors'' assigned LENGTHS; catalogue M3-4 charges the attack''s data
+    structures. Neither computes an autocovariance.'
+  predictions:
+  - observable: The exact autocovariance rho(delta) from a realised set of N dual vectors
+      at toy LWE dimension (m + k_lat in {40, 50, 60}, q in {127, 257} — the archived GOAL-MLKEM-004
+      parameter box, so instances are comparable to committed work).
+    metric: 'The level-set curve |{delta : rho(delta) >= t}| against t, and N_eff/q^{k_fft}.'
+    predicted: N_eff/q^{k_fft} strictly below 1 and decreasing as k_fft grows at fixed N.
+      A ratio of 1 falsifies the mechanism.
+  - observable: Empirical maximum of f over all candidates versus the independence prediction
+      sqrt(2 (N/2) ln(q^{k_fft})) and the corrected sqrt(2 (N/2) ln N_eff), plus the correct-guess
+      score law on the same instances.
+    metric: Which prediction the empirical max matches, in bits; and the NET of the two corrections,
+      signed.
+    predicted: The corrected prediction fits better. The NET's sign is undetermined a priori,
+      which is exactly why measuring only one correction would be incomplete.
+  minimal_test: Toy LWE at m + k_lat in {40,50,60}, q in {127,257}, small k_fft (e.g. 2).
+    (1) Produce N dual vectors by a pinned method and RECORD them. (2) Compute rho exactly
+    on the full grid; read the level-set curve and N_eff. (3) Compute the empirical max of
+    f over many instances against both predictions. (4) Compute the correct-guess score law
+    on the same instances. (5) Report the net, with the dual store (N vectors) and the FFT
+    accumulator (q^{k_fft} words) charged as memory in any cost statement.
+  controls:
+  - SHUFFLED-FREQUENCY NULL: replace the N dual vectors by N uniformly random vectors of the
+      same length; rho must collapse and N_eff approach q^{k_fft}. If not, the correlation
+      is being manufactured by the grid.
+  - N-SWEEP DECAY: N_eff/q^{k_fft} must approach 1 as N grows toward q^{k_fft}; insensitivity
+      to N is the artifact tell.
+  - KNOWN-ANSWER GATE at N = 1, where f is a single cosine and N_eff is computable in closed
+    form.
+  confounders:
+  - The threshold t in N_eff's definition is arbitrary; report the whole level-set curve and
+    derive the floor from it rather than quoting one number.
+  - Modulus switching and rounding change the effective frequency set; state which variant
+    is modelled.
+  - At toy dimension the dual vectors are shorter relative to q than at crypto scale, making
+    the landscape SMOOTHER and N_eff artificially small — a bias toward confirming the mechanism,
+    and the leading extrapolation risk.
+  falsification_conditions:
+  - N_eff/q^{k_fft} indistinguishable from 1 — no correlation; mechanism dead.
+  - The empirical max matches the independence prediction better — the correlation exists
+    but does not reach the extreme.
+  - The net is dominated by the independence-objection term in every cell — the correlation
+    term is immaterial and the lane closes.
+  interpretation_limits: 'TOY: dimensions 40-60 against ML-KEM''s several hundred, small k_fft
+    against the deployed one. The ALGEBRAIC statement (Fourier support equals the dual vector
+    set) is exact and dimension-free; the STATISTICAL consequence is toy-only and the smoothness
+    bias runs in the confirming direction. No claim about Kyber''s security follows. Memory
+    must be charged in any cost statement, per catalogue M3-4''s standing requirement in this
+    corpus.'
+  assumptions:
+  - The FFT dual attack computes scores as an inverse DFT of a table indexed by rounded dual-vector
+    inner products, as recorded at IDEA-20260805-5a4409.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: The maximum of a trigonometric polynomial with N frequencies over a grid of
+      q^{k_fft} points behaves like the maximum of N_eff independent Gaussians of matched
+      variance, with N_eff determined by the level sets of its autocovariance, uniformly for
+      N << q^{k_fft}.
+    rigorous_ingredient: rho(delta) is EXACT and needs no assumption; only the conversion
+      from a correlation length to an effective trial count is heuristic.
+    distribution_imitated: Classical extreme-value theory for stationary Gaussian fields,
+      where an expected-upcrossing count replaces the naive union bound over grid points.
+    validation_route: Compare the empirical distribution of max f over many independent toy
+      instances against both the naive and the N_eff-corrected Gumbel predictions by Kolmogorov
+      distance. TOY SCALE, labelled.
+    tail_checks: Compare the UPPER tail of the max specifically — the quantity of interest
+      is a false-positive rate, so bulk agreement is not the relevant check.
+  target_complexity:
+    time_exponent: No new algorithm. The claim shifts the dual attack's false-positive threshold,
+      changing the required N and hence the sieve block size; the deliverable is Delta beta,
+      signed, NET of the two corrections.
+    memory_exponent: N stored dual vectors plus a q^{k_fft} accumulator, both charged. A reduction
+      in required N is a MEMORY saving as well as a time saving and must be reported on both
+      axes.
+    best_known_baseline: The MATZOV-style dual attack cost with the independence-based false-positive
+      analysis, as pinned in GOAL-MLKEM-003's archived work (KN-FIND-014/015/016).
+    hidden_overhead_disclosure: The correlation-length-to-N_eff conversion hides a constant
+      possibly worth several bits; the deliverable must be a range, not a point.
+    time_memory_tradeoff: Fewer required dual vectors reduces both the block size and the
+      store, so this correction moves ALONG the frontier rather than trading against it.
+  sota_delta: Sign undetermined by construction; the deliverable is the NET of two corrections
+    of which the corpus records one. Zero attack implemented.
+  dominated_by: 'n/a (no attack-cost result claimed). Checked against IDEA-20260805-5a4409,
+    -a102ec, -bb7668, catalogue M3-4 and KN-FIND-014/015/016: all address the dual attack''s
+    cost model, none computes the score autocovariance, so none dominates on this axis.'
+  estimated_cost: 'Implementation: low-medium. Compute: low — everything is an FFT on a small
+    grid.'
+  recommended_priority: medium
+  honest_prior_of_survival: P(N_eff < q^{k_fft} measurably) ~ 0.85, close to algebraically
+    forced. P(it moves the floor by more than 2 bits at toy scale) ~ 0.45. P(it would matter
+    at crypto scale after the smoothness confound) ~ 0.2. The strongest reason to run it is
+    that the NET is the honest quantity and no corpus record has it.
+  novelty_status: unverified
+  novelty_screen: 'Read: EXISTING_PROPOSALS.txt (RQ-MLKEM-003 rows: IDEA-20260731-001, -20260801-012,
+    -20260805-5a4409, -a102ec, -bb7668, -f7c912, -fc6361, -20260807-8fbc86, -aea945), EXISTING_HYPOTHESES.txt
+    (H-MLKEM-010..014, -0c0a6e, -6d9364), CATALOGUE_TITLES.txt (M3-4), KNOWLEDGE_BARRIERS.txt
+    (KN-TECH-039, KN-OPEN-016, KN-FIND-012..016). WEB NOT SCREENED. Prior-art risk: the dual-attack
+    literature may already treat neighbouring-candidate correlation under modulus switching.'
+  discriminated_from: IDEA-20260805-5a4409 uses the DFT identity as an implementation control;
+    this derives the statistical consequence from it. IDEA-20260805-a102ec corrects the dual
+    vectors' LENGTHS; this concerns their DIRECTIONS as frequencies. KN-FIND-014 concerns
+    a normalisation defect in an author's code, not the analysis.
+  lossy_projection_test: 'PASSES. Tracked object: the autocovariance function rho — a projection
+    of the N-vector dual set onto one function on Z_q^{k_fft}, invariant under negation of
+    any w_i and under any permutation of the set, so the fibre is exponentially large. Discarded
+    compatibly, because the false-positive analysis depends on the landscape only through
+    its second-order structure, which is exactly rho, and rho propagates deterministically
+    under the FFT that produces the scores. Tracking the dual vector set itself loses nothing.'
+  source_refs:
+  - KN-TECH-039 (corpus, title) — the dual attack and the dual-sieve dispute.
+  - KN-OPEN-016 (corpus) — whether the improved dual attack beats the primal once its heuristics
+    are repaired; this supplies one half of that repair.
+  - IDEA-20260805-5a4409 (corpus proposal index) — the DFT identity this builds on.

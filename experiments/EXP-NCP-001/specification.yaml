@@ -1,0 +1,60 @@
+experiment:
+  id: EXP-NCP-001
+  hypothesis_id: H-NCP-001
+  version: 1
+  status: approved
+  title: "Noncommutative path-algebra (correspondence quiver) truncated NC word search vs commutative subset-sum baseline"
+  objective: >
+    Minimal falsifying experiment for candidate C3 (handoff TASK-20260717-C3).
+    Model translations T_{P_i} (i=1..B) and negation as arrows of the single-vertex
+    correspondence quiver acting on formal point-sums of E(F_p) via the affine map
+    X -> eps*X + beta*P (eps in {+1,-1}, beta in Z/n). Run a truncated (degree <= 6)
+    noncommutative word search (every word reduced to its affine normal form; the
+    exhaustive degree<=6 enumeration finds exactly the relation set a truncated
+    Bergman/NC-GB search certifies) and count Q-reaching relations (words w with
+    eval(w, P) = Q = k*P, i.e. v(w) = eps + beta == k mod n). Compare against a
+    commutative signed-subset-sum baseline (vectors a in Z^B, value eps + sum a_i s_i)
+    at equal op budget. Test whether the commutative quotient reproduces every
+    NC-found relation (bookkeeping test) and compute the promotion-gate arithmetic.
+  inputs:
+    primes: [101, 431]
+    quiver: "one vertex; arrows = {T_{P_i}, i=1..B} + {neg}; evaluation X -> eps*X + beta*P on E(F_p)"
+    B_grid: [4, 8]
+    max_word_degree: 6
+    seeds: [20260717, 20260718, 20260719]
+    instance_generation: >
+      Per (p, B, seed): seeded RNG picks curve y^2 = x^3 + a*x + b over F_p with
+      #E = cof*n, n = largest prime factor (floor n >= 13); P of exact order n;
+      k seeded in [2, n-2]; Q = k*P; factor base P_i = s_i*P with s_i distinct
+      nonzero seeded in Z/n. All of curve, N, n, k, s_i recorded in raw.json.
+  controls:
+    - positive: >
+        Word-evaluation engine verified on known k. Per instance: (a) 200 seeded
+        random words (degree <= 6) checked point-eval == scalar-eval (0 mismatches
+        required); (b) up to 200 stored Q-reaching words re-verified by point
+        arithmetic eval(w,P) == Q and v(w) == k mod n; (c) k recovered from the
+        first Q-reaching word must equal k mod n.
+    - negative: >
+        The commutative quotient must reproduce all NC-found relations:
+        (a) value-set inclusion S_nc subset S_comm (0 violations required);
+        (b) shadow replay of Q-reaching words (up to 20000): each word's signed
+        count vector a has l1 norm <= 6 and eps + sum a_i s_i == k mod n
+        (0 violations required). If 0 violations, C3 is bookkeeping over the
+        tested scope (scoped negative condition named by the candidate).
+  independent_variables: ["p in {101,431}", "B in {4,8}", "seed in {20260717,20260718,20260719}"]
+  metrics:
+    primary: ["ops_nc", "R_nc_qreaching", "cost_nc_per_rel (ops_nc/R_nc)", "ops_comm", "R_comm", "cost_comm_per_rel", "equal-op-budget R_comm_eq and radius reached", "charged exponent trend across p (log(cost_431/cost_101)/log(n_431/n_101))"]
+    secondary: ["distinct values reached", "total word-collision pairs", "value-histogram max/mean bucket"]
+  replication: {seeds: [20260717, 20260718, 20260719], independent_instances: 12}
+  budget: {wall_clock_seconds_per_run: 600, total_wall_clock_seconds: 2400, maximum_runs: 8}
+  stopping_rules:
+    - "Any single sage invocation running > 600 s: kill it, record as infrastructure timeout (NOT evidence against the hypothesis), reduce seeds (minimum 3: 20260717..20260719) or sizes, record the deviation in analysis.md and the EV record."
+  invalidation_rules:
+    - "Any positive-control mismatch (engine disagreement or failed k-recovery) -> validity_status: invalid (engine artifact)."
+    - "Negative-control value-inclusion failure or shadow-replay violation attributable to an engine bug -> invalid. (Algebraically impossible by construction; any occurrence is an artifact and must be reported as an unexpected observation.)"
+    - "ops_nc must equal sum_{d=0}^{6} (B+1)^d exactly (enumeration self-check); mismatch -> invalid."
+  success_criterion: "(promotion gate) an NC relation class with cost per relation < commutative harvest cost per relation at equal size AND charged exponent trend < 0.49."
+  falsification_criterion: "Commutative quotient reproduces all found relations (0 violations) AND (cost_nc_per_rel >= cost_comm_per_rel at equal size OR charged exponent >= 0.49) -> scoped negative: C3 is bookkeeping over the tested scope."
+  required_artifacts: [specification.yaml, ncp1_quiver_gb.sage, runs/RUN-NCP-001-a/manifest.yaml, runs/RUN-NCP-001-a/raw.json, runs/RUN-NCP-001-a/stdout.txt, runs/RUN-NCP-001-a/stderr.txt, analysis.md]
+  assigned_to: executor
+  approved_by: coordinator

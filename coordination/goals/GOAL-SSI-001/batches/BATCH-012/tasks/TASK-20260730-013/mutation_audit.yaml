@@ -1,0 +1,102 @@
+mutation_audit:
+  task_id: TASK-20260730-013
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-012
+  idea_id: IDEA-20260729-001
+  artifact_commit: 6f9188e4eb5611bcfdf29a3e1ec3cd69a29a50e9
+  zero_compute: true
+
+  C2:
+    name: heavy_tail_stopping_mutation
+    mutation: "Pr[tau=n] = 1/(n(n+1)), n >= 1"
+    status: remains_live
+    checks:
+      explicit_local_kernel_found: true
+      end_to_end_tau_found: false
+      uniform_conditional_progress_lower_bound_found: false
+      conditional_tail_bound_found: false
+      finite_expected_retry_count_proved: false
+      finite_joint_Q_S_P_C_proved: false
+    reason: >-
+      `collimate` and `sieve'` fix the local random branch and same-level
+      retry, but the repository contains no proof or test that every reachable
+      internal state has keep probability bounded below by one common positive
+      epsilon. `main` reports a realized discard fraction only after
+      termination. The repository also omits recovery and terminal-tail
+      transitions. Therefore the audit cannot exclude an infinite-mean
+      complete stopping tail.
+    interpretation_limit: >-
+      remains_live means the required tail implication is unproved; it does
+      not claim that Peikert's code realizes the displayed heavy-tail law.
+    rejection_condition: >-
+      Prove from the pinned kernel a history-uniform positive progress bound
+      at every recursive retry and supply a finite end-to-end recovery/tail
+      law, or provide an equivalent summable tail bound.
+
+  C3:
+    name: delayed_cleanup_overlap_mutation
+    mutation: >-
+      Retain every failed retry/recovery object while respecting each
+      individual vector cap.
+    status: rejected
+    scope: source_level_simulator_phasevector_references_only
+    checks:
+      failed_vector_stored_in_collection: false
+      failed_vector_passed_to_retry: false
+      fixed_recursion_depth: true
+      lexical_phasevector_root_bound: D_plus_3
+      explicit_runtime_gc_deadline: false
+      quantum_object_schedule_present: false
+      terminal_tail_present: false
+    reason: >-
+      In `sieve'`, a failed `v` has no source use after the discard counter and
+      is not an argument of the same-level retry. At most one completed child
+      is retained per active ancestor, and local collimation roots v1, v2, and
+      v. Hence an unbounded list of failed PhaseVector roots contradicts the
+      pinned source control flow.
+    residual_memory_gap: >-
+      This rejection does not clear QM-MEMORY-MAP. Haskell garbage-collector
+      timing and parallel-library temporaries have no hard schedule, while
+      coherent W, QRACM R, and M_tail are not implemented. No complete
+      W/R/B/M_tail peak follows.
+    interpretation_limit: >-
+      rejected is limited to lexical references in this classical simulator,
+      not a claim about an unimplemented quantum key-recovery procedure.
+
+  error_map:
+    name: common_operational_event_audit
+    status: remains_live
+    artifact_event:
+      name: F_sim
+      definition: simulator fails to emit its complete declared report
+      covered_paths:
+        - argument_parse_or_pattern_failure
+        - explicit_empty_schedule_error
+        - random_generator_or_range_error
+        - vector_limit_allocation_or_runtime_failure
+        - arithmetic_index_or_machine_int_failure
+        - recursive_retry_nontermination
+    required_event:
+      name: F
+      definition: final end-to-end key-recovery failure
+    missing_maps:
+      - F_sim_to_F
+      - oracle_error_to_F
+      - sieve_approximation_error_to_F
+      - recovery_error_to_F
+      - verification_error_to_F
+      - residual_tail_error_to_F
+    reason: >-
+      The artifact normally ends with statistics rather than a recovered and
+      verified key. Typing implementation failures into F_sim cannot be
+      promoted to a probability bound on F.
+    rejection_condition: >-
+      Pin an end-to-end recovery implementation or specification with a
+      verification predicate and derive every component-to-F implication.
+
+  aggregate:
+    C2_status: remains_live
+    C3_status: rejected
+    error_map_status: remains_live
+    query_memory_cleared: false
+    disposition: FC0_QUERY_MEMORY_SEMANTICS_UNRECONCILED

@@ -1,0 +1,315 @@
+schema: crypto.autoresearch.ecdlp.implementation_boundary.v1
+status: planned_not_yet_built
+dispatchable: false
+as_of: '2026-08-09'
+purpose: >-
+  Record the exact implementation and certificate boundary for the proposed
+  automorphism-quotiented rho census and isogeny-class transfer search. This
+  file is a protocol input, not a run receipt: every missing or insufficient
+  implementation is a refusal before a walk, target solve, or comparison.
+claim_boundary: >-
+  The rows below assert only implementation readiness conditions and known
+  refusal cases. They are not evidence for or against an ECDLP hypothesis and
+  must not be counted as mathematical results.
+
+entrypoints:
+  - arm: A
+    name: automorphism_quotiented_rho_census
+    entrypoint: harness/run_ecdlp_endo_census_v2.py
+    status: planned_not_yet_built
+    required_modes: [ordinary, negation, full]
+    required_behavior:
+      ordinary: >-
+        Run the baseline rho walk without any canonicalizer or quotient
+        action. It is the matched generic-field control.
+      negation: >-
+        Canonicalize only under the verified identity/negation pair and carry
+        the -1 subgroup multiplier through representative changes.
+      full: >-
+        Canonicalize only under a verified F_p-defined automorphism certificate
+        with order, eigenvalue, stabilizer, and subgroup-action fields. If no
+        admissible action exists, emit a refusal row rather than inventing one.
+    pre_walk_refusals:
+      - missing_entrypoint
+      - supporting_module_hash_mismatch
+      - instance_manifest_row_count_or_order_mismatch
+      - control_manifest_mismatch
+      - absent_public_instance_or_subgroup_certificate
+      - absent_automorphism_field_order_eigenvalue_or_stabilizer_certificate
+
+  - arm: B
+    name: isogeny_class_transfer_search
+    entrypoint: harness/run_ecdlp_isogeny_transfer_v2.py
+    verifier: harness/verify_isogeny_transfer_v2.py
+    status: planned_not_yet_built
+    required_behavior:
+      candidate_freeze: >-
+        Enumerate and serialize every candidate, rejection, null, truncation,
+        and unsupported row before the first target-side solve; bind the
+        canonical candidate manifest hash.
+      transfer: >-
+        Transfer the source instance only after a complete certificate proves
+        the declared map and preserves the scalar relation.
+      even_degree: >-
+        Degrees 2 and 4 require dedicated independently tested formulas. Until
+        those exist, emit unsupported_implementation receipts and retain the
+        rows in the manifest; never route them through an odd-degree helper,
+        return identity, or silently drop them.
+    pre_target_refusals:
+      - missing_entrypoint
+      - missing_independent_verifier
+      - source_manifest_hash_mismatch
+      - arm_a_snapshot_hash_mismatch
+      - candidate_manifest_not_frozen
+      - unsupported_degree_formula
+      - incomplete_transfer_certificate
+
+known_implementation_boundary:
+  source: harness/isogeny_class.py
+  observations:
+    - >-
+      velu_odd accepts only odd ell and returns sorted kernel x-coordinates;
+      it does not supply a complete independent transfer certificate.
+    - >-
+      velu_image expects full kernel points, so using velu_odd output as its
+      kernel input is a type/semantic mismatch unless a separate point-kernel
+      construction is recorded.
+    - >-
+      verify_transport derives its target curve by calling the forward
+      implementation again, assumes an odd degree from kernel-list length, and
+      therefore is not an independent dual/inverse verifier for this protocol.
+    - >-
+      verify_transport checks only that N annihilates the mapped point; it does
+      not establish that the point has exact order N, that N is the measured
+      prime subgroup order, or that the target subgroup is the intended one. A
+      future verifier must make exact-order and subgroup checks explicit.
+    - >-
+      velu_image's kernel-membership shortcut compares x-coordinates and
+      assumes the supplied list is the complete nonzero kernel. Completeness,
+      subgroup closure, and the declared degree must therefore be independently
+      checked before an image or cost is admitted.
+  treatment: >-
+    These observations define implementation refusals only. Existing helpers
+    may be reused by a future implementation after source hashes, API
+    contracts, and independent verification are recorded; they cannot satisfy
+    the Arm-B certificate gate as-is.
+
+arm_a_dependency_boundary:
+  source: harness/rho.py
+  observations:
+    - >-
+      rho.solve exposes a generic RhoResult with walk and total group-operation
+      counts, but it has no canonicalizer hook, verified automorphism orbit
+      input, subgroup eigenvalue transport, stabilizer accounting, or
+      fruitless-cycle counter. Its result therefore cannot be relabeled as a
+      full quotient run.
+    - >-
+      rho.solve does not emit the field-operation, canonicalization, map-
+      evaluation, serialized-byte, or peak-memory components required by the
+      Arm-A cost vector. Its total_group_operations value is not a substitute
+      for the frozen vector and may not be silently expanded into one.
+    - >-
+      rho.solve's built-in restart loop and success certificate are useful
+      generic-baseline semantics, but the Arm-A entrypoint must bind its own
+      deterministic restart seed, mode, control, stabilizer, and scalar-replay
+      fields for every trial.
+  required_v2_interface:
+    - >-
+      The new entrypoint must implement ordinary, negation, and full policies
+      behind one explicit mode interface and refuse a missing full-action
+      certificate before the first walk.
+    - >-
+      Every walk receipt must expose raw and sqrt(N_subgroup)-normalized cost
+      vectors, canonicalization comparisons, automorphism evaluations,
+      fruitless collisions, deterministic restarts, and independent scalar
+      replay status.
+    - >-
+      Any reuse of rho.solve must be limited to separately documented generic
+      arithmetic or baseline checks; it cannot provide the full-mode result or
+      satisfy the Arm-A source-hash/cost contract by itself.
+
+certificate_contract:
+  required_fields:
+    - source_manifest_sha256
+    - source_curve_digest
+    - target_curve_digest
+    - field_p
+    - degree_ell
+    - source_order
+    - target_order
+    - gcd_degree_with_N_subgroup
+    - twist_membership_check
+    - kernel_points_complete
+    - kernel_intersection_with_subgroup
+    - forward_image
+    - independent_dual_or_inverse_replay
+    - scalar_replay_kP_equals_Q_on_source
+  acceptance: >-
+    A candidate is countable only when every field is present, independently
+    recomputed by verify_isogeny_transfer_v2.py, and bound to the frozen source
+    and candidate manifests. Any failed or missing field is a validity/refusal
+    record, never a solve result.
+
+fixture_contract:
+  status: planned_not_yet_built
+  run_allowed: false
+  purpose: >-
+    Turn the certificate boundary into deterministic pre-execution tests. The
+    fixtures below are implementation conformance cases, not ECDLP runs and
+    not evidence for a speedup. A v2 verifier must make the declared decision
+    without consulting a target-side discrete-log oracle.
+  provenance:
+    experiment_id: EXP-ECDLP-3c1bc0
+    run_id: RUN-ECDLP-3c1bc0-001
+    source_paths:
+      - experiments/EXP-ECDLP-3c1bc0/specification.yaml
+      - experiments/EXP-ECDLP-3c1bc0/code/audit_special_j_isogeny_closure.py
+      - experiments/EXP-ECDLP-3c1bc0/runs/RUN-ECDLP-3c1bc0-001/raw-result.json
+    use: >-
+      Fixture provenance only. The prior run is a toy structural audit whose
+      review/ledger chain is not complete here; it is not reused as an Arm-B
+      transport certificate, DLP result, or special-target advantage.
+  positive_fixture_materialization:
+    required_before_acceptance:
+      - complete_serialized_full_point_kernel
+      - source_and_target_curve_coefficients
+      - source_and_target_orders
+      - prime_N_subgroup_and_gcd_certificate
+      - source_P_and_Q
+      - planted_scalar_k_for_replay_only
+      - independent_map_and_dual_or_inverse_materialization
+    provenance_limit: >-
+      RUN-ECDLP-3c1bc0-001 records kernel_generator and kernel_point_count but
+      does not serialize the full kernel or an ECDLP P,Q,N_subgroup,k fixture.
+      Its row therefore seeds fresh fixture materialization; it is not itself
+      POS-ODD-COMPLETE.
+  cases:
+    - id: POS-ODD-COMPLETE
+      kind: positive_conformance
+      selector: >-
+        Prior-run row with p=103, family=j0, source=(a=0,b=1), ell=7,
+        source_order=84, target=(a=0,b=9); the fixture builder must regenerate
+        and serialize the complete full-point kernel and fresh scalar-replay
+        fields before this case can be accepted.
+      expected: >-
+        Accept only after independently recomputing source/target curves,
+        source and target orders, kernel completeness, gcd(ell,N_subgroup),
+        forward images, dual/inverse replay, and kP=Q scalar replay.
+      result_status_before_v2_execution: provenance_only
+    - id: NEG-TARGET-TRACE-MUTATION
+      kind: mutation_rejection
+      mutation: >-
+        Replace the declared target coefficients with a same-field curve of a
+        different trace while retaining the source, kernel, and image fields.
+      expected: reject_target_order_or_trace_before_any_solve
+    - id: NEG-KERNEL-X-ONLY
+      kind: type_and_completeness_rejection
+      mutation: >-
+        Supply the x-coordinate list returned by velu_odd where the verifier
+        contract requires complete (x,y) kernel points.
+      expected: reject_incomplete_kernel_representation
+    - id: REF-EVEN-DEGREE
+      kind: unsupported_implementation_refusal
+      selector: degrees 2 and 4
+      expected: >-
+        Emit unsupported_implementation with the degree and source-instance
+        keys; never call velu_odd, return identity, or count the row.
+    - id: NEG-GCD-DEGREE-SUBGROUP
+      kind: subgroup_validity_rejection
+      mutation: choose ell with gcd(ell,N_subgroup) != 1
+      expected: reject_before_transfer_and_before_target_side_rho
+    - id: NEG-INCOMPLETE-KERNEL
+      kind: kernel_intersection_rejection
+      mutation: remove one nonzero kernel point or inject a point outside the declared subgroup
+      expected: reject_kernel_completeness_or_intersection
+    - id: NEG-POINT-IN-KERNEL
+      kind: source-instance_validity_rejection
+      mutation: set P or Q equal to a nonzero point of the declared isogeny kernel
+      expected: reject_kernel_intersection_before_scalar_replay_or_target_solve
+    - id: NEG-TWIST-MISMATCH
+      kind: target_twist_rejection
+      mutation: replace the target with a twist representative while retaining the source map and target image fields
+      expected: reject_twist_or_target_curve_membership_before_transfer_cost_is_counted
+    - id: NEG-SCALAR-REPLAY
+      kind: correctness_rejection
+      mutation: alter Q or the recovered scalar while preserving serialized map fields
+      expected: reject_when_source_curve_scalar_replay_kP_equals_Q_fails
+    - id: REF-STRUCTURAL-ONLY
+      kind: missing_fixture_refusal
+      selector: any prior structural row without P,Q,N_subgroup,k and full kernel bytes
+      expected: >-
+        Emit missing_scalar_replay_fixture and do not count the row as a
+        transport certificate or target-side DLP result.
+  acceptance_gate: >-
+    All positive and negative cases must execute through the independent
+    verifier entrypoint, produce machine-readable decisions, and be bound by
+    the source manifest before an Arm-B Executor can be admitted. A missing
+    fixture or ambiguous decision blocks dispatch and is not evidence against
+    the transfer hypothesis.
+  independence_requirements:
+    - >-
+      verify_isogeny_transfer_v2.py must not call velu_odd, velu_image, or the
+      Arm-B forward driver to derive target coefficients, kernel points, or
+      images. The verifier may consume their serialized outputs only as
+      untrusted claims to be recomputed.
+    - >-
+      Target order/trace must be recomputed by a separate exact path and
+      compared with the source order; the verifier must not infer target
+      coefficients from kernel-list length or from the forward implementation.
+    - >-
+      At least one replay check must use an independently implemented dual,
+      inverse, or alternate-map path, and its source hash must be listed in the
+      verifier source manifest.
+    - >-
+      The verifier must reject a certificate that contains a scalar recovered
+      only by solving the target DLP; scalar replay is a check of a declared
+      source relation, not a source of an unknown scalar.
+
+source_hash_gate:
+  algorithm: SHA-256
+  required_files:
+    - harness/run_ecdlp_endo_census_v2.py
+    - harness/run_ecdlp_isogeny_transfer_v2.py
+    - harness/verify_isogeny_transfer_v2.py
+    - harness/rho.py
+    - harness/toycurve.py
+    - harness/isogeny_class.py
+    - harness/runner.py
+  required_manifest: >-
+    The Executor must emit a canonical UTF-8 JSON source_manifest.json listing
+    every required file, byte hash, repository commit, dirty-tree state, and
+    resolved runtime provenance. Dispatch remains blocked while any required
+    file is absent or any hash is unbound; this protocol input intentionally
+    does not predeclare hashes for files that have not been built.
+  verification_order:
+    - verify_required_files_exist
+    - compute_and_freeze_source_hashes
+    - verify_input_manifest_hashes
+    - verify_independent_certificate_entrypoint
+    - only_then_admit_walk_or_target_solve
+
+refusal_semantics:
+  implementation_not_built: >-
+    No run is started. The receipt records the missing path and the frozen
+    input identifiers.
+  unsupported_implementation: >-
+    The declared row remains in the manifest with the exact unsupported reason;
+    it is excluded from comparisons without being treated as a negative.
+  certificate_failure: >-
+    The candidate is invalid for inference. Its observed setup and verifier
+    diagnostics remain in the refusal table, and no scalar or timing result is
+    admitted.
+  backend_unavailable: >-
+    Harness preflight blocks dispatch. This is an operational blocker and
+    carries no mathematical interpretation.
+
+source_records:
+  - harness/isogeny_class.py
+  - harness/rho.py
+  - harness/toycurve.py
+  - harness/runner.py
+  - experiments/EXP-ECDLP-3c1bc0/specification.yaml
+  - experiments/EXP-ECDLP-3c1bc0/code/audit_special_j_isogeny_closure.py
+  - experiments/EXP-ECDLP-3c1bc0/runs/RUN-ECDLP-3c1bc0-001/raw-result.json
+  - coordination/goals/GOAL-ECDLP-001/proposals/NON-INDEX-ECDLP-IV-20260808/amendments/EXP-ECDLP-51921d-v2.yaml
+  - coordination/goals/GOAL-ECDLP-001/proposals/NON-INDEX-ECDLP-IV-20260808/amendments/EXP-ECDLP-2156e3-v2.yaml

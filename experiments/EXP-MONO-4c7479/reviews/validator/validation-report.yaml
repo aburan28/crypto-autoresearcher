@@ -1,0 +1,648 @@
+validation_report:
+  id: VAL-20260830-mono4c7479
+  task_id: validator-mono-4c7479
+  experiment_id: EXP-MONO-4c7479
+  hypothesis_id: H-MONO-0b3def
+  joint_owned: J1-correctness-and-consistency
+  scope_note: >-
+    This report renders a verdict ONLY on J1 (correctness and internal
+    consistency of what was actually executed): Stage-0 symbolic identities,
+    arm (a)/arm (b) independence, P1/P2/P3 recomputation, F_p^4 arithmetic
+    correctness, determinism across the two runs, and budget/stopping-rule
+    compliance. It does NOT adjudicate whether DEV-1 (the matched-ordered-
+    base-control anomaly) or the class-density anomaly falsifies
+    H-MONO-0b3def, nor the deep Galois-theoretic question of whether the
+    control's chosen object is a faithful reproduction of KN-FIND-a8990a
+    Theorem B -- both are explicitly the concurrent Red Team session's
+    remit. Where this report's own recomputation bears on how DEV-1 should
+    be READ (see finding F1 below), that is reported as a fact about the
+    record's internal consistency, not as a re-adjudication of what DEV-1
+    would mean for the hypothesis if it were real.
+
+  snapshot_verification:
+    snapshot_commit: 1dabdb7e227f817677faaac573bb4a4cd1020bef
+    snapshot_commit_reachable_from_head: true
+    snapshot_commit_message: >-
+      snapshot(TASK-20260830-8c214e): bind EXP-MONO-4c7479 execution (2 runs,
+      Stage 0-1) before independent review
+    working_tree_matches_committed_snapshot: true
+    method: >-
+      git merge-base --is-ancestor 1dabdb7e2 HEAD (true); git status
+      --porcelain on experiments/EXP-MONO-4c7479/ and
+      ledger/hypotheses/H-MONO-0b3def.yaml (clean); recomputed sha256 of all
+      44 non-null path_sha256 entries in
+      coordination/tasks/TASK-20260830-8c214e/snapshot-receipt.json against
+      the working tree -- 0 mismatches.
+    verdict: >-
+      This is a genuine Coordinator-committed snapshot, not a working-tree-
+      only receipt. Refusal condition does not apply.
+
+  artifact_checks:
+    - check: all 44 declared archive_artifact_paths present and hash-matched
+      result: PASS
+      detail: 44/44 sha256 matches against coordination/tasks/TASK-20260830-8c214e/snapshot-receipt.json.
+    - check: exactly 2 run directories exist (maximum_runs 2)
+      result: PASS
+      detail: "RUN-MONO-4c7479-20260830 and RUN-MONO-4c7479-20260831 only."
+    - check: amendments/ directory empty (no versioned protocol_amendment ever filed)
+      result: NOTED
+      detail: >-
+        experiments/EXP-MONO-4c7479/amendments/ is empty and has never been
+        committed to. Both out-of-band edits to specification.yaml (see F1)
+        were made as direct commits, not as protocol_amendment records, in
+        violation of the frozen contract's own approval_status text ("Any
+        later change...requires a versioned protocol_amendment...never a
+        silent edit").
+
+  metric_recomputations:
+    - id: stage0-hand-rederivation
+      description: >-
+        Independent, from-scratch (pen-and-paper, cross-checked with a fresh
+        symbolic expansion, NOT by re-reading stage0.py/mpoly.py) derivation
+        of the three claimed identities using e1=t1+t2, e2=t1*t2:
+        T2=(t1-t2)^2=e1^2-4e2; T1=-2[(t1+t2)(t1t2+A)+2B]=-2[e1(e2+A)+2B];
+        T0=(t1t2-A)^2-4B(t1+t2)=(e2-A)^2-4Be1; c1=f(t1)+f(t2)=e1^3-3e1e2+Ae1+2B
+        (via t1^3+t2^3=e1^3-3e1e2); c0=f(t1)f(t2)=e2^3+Ae2(e1^2-2e2)+B(e1^3-3e1e2)+A^2e2+ABe1+B^2
+        (full expansion in s=e1,q=e2 carried out termwise). Then
+        disc_T(S3)=T1^2-4*T2*T0 was expanded fully in s,q,A,B and shown
+        term-by-term identical to 16*c0.
+      result: CONFIRMED
+      detail: >-
+        All three T-coefficient forms and both c1, c0 forms match the
+        contract's claimed formulas exactly; disc_T(S3) = 16*f(t1)*f(t2)
+        confirmed as an exact polynomial identity in Z[t1,t2,A,B] by my own
+        expansion (16q^3-32Aq^2+16A^2q+16Bs^3-48Bqs+16Aqs^2+16ABs+16B^2 on
+        both sides). Then cross-checked against the actual committed
+        stage0_transcript.json in both run directories: all 8 sub-checks
+        (s3_is_exactly_quadratic_in_x3, T2/T1/T0_..._matches_e1e2_form,
+        c1_equals_f_t1_plus_f_t2, c0_equals_f_t1_times_f_t2,
+        disc_T_S3_equals_16_f_t1_f_t2, c0_claimed_scaled_16_equals_disc_T)
+        report PASS, and are byte-identical between both runs (seed-free,
+        as required).
+    - id: p1-p2-p3-exhaustive-recompute-p101-A1-B1
+      description: >-
+        Full exhaustive independent recomputation of all 10,201 (e1,e2) in
+        F_101^2 for the p=101,A=1,B=1 cell, using freshly-written code (never
+        importing arm_a.py/arm_b.py/fp_common.py/polymod.py): a fresh
+        Frobenius-permutation classifier (own Fp/Fp2/Fp4 tower, own square
+        roots via brute-force tables) for "arm a", and a DELIBERATELY
+        DIFFERENT algorithm for "arm b" -- direct biquadratic Z=Y^2
+        substitution plus Legendre-symbol tests on the two Z-roots, rather
+        than polymod.py's distinct-degree factorization -- so the two checks
+        share no code path with each other OR with the repo's arms.
+      result: CONFIRMED, ZERO MISMATCHES
+      detail: >-
+        stratum_i=101 (expected p), stratum_ii=0, stratum_iii=101 (expected
+        p); P1_compared=9999 (matches execution_report.yaml exactly),
+        P1_disagree=0; P2=8 distinct permutations found (explicit list:
+        identity, 2 x sigma_i, sigma1_sigma2, 2 x block_swap_involution, 2 x
+        four_cycle -- matches |D4|=8 structurally); P3 ratio 1.0 over all
+        10,100 points off strata i/ii (recipe agreed with arm-a class at
+        every point, including stratum iii). Row-by-row cross-check against
+        the ACTUAL logged runs/RUN-MONO-4c7479-20260830/per_base_point_log/p101_A1_B1.ndjson:
+        0 mismatches out of 10,100 stratum="none" rows between my
+        independent classification and the Executor's real logged
+        arm_a_class/arm_b_label for every single point.
+    - id: p1-p2-recompute-p211-A1-B1
+      description: >-
+        Same fully independent method extended to the p=211,A=1,B=1 cell
+        (all 44,521 points), to extend confidence to the second, larger
+        prime named in the falsification_criterion (f) p-ladder.
+      result: CONFIRMED, ZERO MISMATCHES
+      detail: >-
+        stratum_i=211, stratum_ii=0, stratum_iii=211 (all match); P1_compared=44101
+        (matches execution_report.yaml exactly); P1_disagree=0; P2=8; 0
+        mismatches against the actual logged p211_A1_B1.ndjson rows over all
+        44,521 points.
+    - id: five-point-hand-spotcheck-p101-A1-B1
+      description: >-
+        Per the task's minimum requirement, 5 concrete (e1,e2) pairs at
+        p=101,A=1,B=1 spanning split-both-plus (identity), split-one-minus
+        (sigma_i), split-both-minus (sigma1_sigma2), inert-chi(c0)=+1
+        (block_swap_involution), inert-chi(c0)=-1 (four_cycle), found by a
+        fresh search script and verified by independent frobenius-orbit
+        computation, then cross-read against the actual ndjson rows.
+      result: CONFIRMED (subsumed by the exhaustive recompute above, reported
+        separately since it was the explicitly requested minimum)
+      detail: >-
+        (e1,e2)=(0,1): split, chi(f1)=chi(f2)=+1, predicted+observed=identity
+        (row also flags stratum=iii, since 0^2-1+1=0 -- arm_a still classifies
+        correctly there, arm_b's degenerate label is correctly excluded from
+        P1 by the stratum-iii flag). (0,6): split, one -1, predicted+observed=
+        sigma_i. (0,4): split, both -1, predicted+observed=sigma1_sigma2.
+        (0,3): inert, chi(c0)=+1, predicted+observed=block_swap_involution.
+        (0,2): inert, chi(c0)=-1, predicted+observed=four_cycle. All 5 rows
+        read from runs/RUN-MONO-4c7479-20260830/per_base_point_log/p101_A1_B1.ndjson
+        match my independent hand/script derivation exactly, including the
+        recipe agreement flag.
+    - id: fp4-sqrt-and-frobenius-hand-verification
+      description: >-
+        For (e1,e2)=(0,2), p=101,A=1,B=1 (the concrete inert chi(c0)=-1
+        instance above): imported ONLY fp_common.py's Fp2/Fp4 classes
+        (isolated, no other module) to obtain the code's actual
+        fp4.sqrt_of_fp2_nonsquare(f1) output and fp4.e/fp4.s constants, then
+        (a) verified f1's square root by multiplying the code's returned
+        root using MY OWN independently-written Fp4 multiplication formula
+        (not calling fc.Fp4.mul), and (b) independently re-derived and
+        computed the genuine Frobenius formula frob(A,B)=(conj(A),conj(B)*s)
+        with s=e^{(p-1)/2}, verified s^2 = conj(e)/e algebraically and
+        numerically, and compared my own independent frob() against the
+        code's fp4.frob() on the concrete y1.
+      result: CONFIRMED
+      detail: >-
+        (a) my_fp4_mul(y1,y1) == (f1,(0,0)) exactly: y1=((0,0),(94,18)),
+        y1^2 recovers f1=(1,91) precisely. (b) my_frob(y1) == fp4.frob(y1)
+        == ((0,0),(31,22)) exactly; frob^2(y1), frob^3(y1) are both distinct
+        from y1 and from each other, frob^4(y1)==y1 (genuine order-4
+        behaviour on this element, necessary for a 4-cycle). Explicitly
+        constructed the WRONG hypothesis -- naive Fp2-conjugation reapplied
+        with NO s-twist -- and showed it gives frob^2(y1)==y1 (order <=2,
+        CANNOT produce a 4-cycle), confirming the *s factor is not a
+        cosmetic detail but the exact ingredient that makes frob genuinely
+        order-4 on Fp4\Fp2 elements, and that the actual code is NOT the
+        naive-conjugation bug. Also built the full 4-point permutation for
+        this instance independently (own Fp4 tower, own labelled points) and
+        confirmed it is a genuine single 4-cycle: 0->2->1->3->0, matching
+        the ndjson row's arm_a_class=four_cycle exactly.
+    - id: matched-ordered-base-control-full-recompute-p101-A1-B1
+      description: >-
+        Full independent recomputation of the matched-ordered-base control's
+        cycle-type counts for p=101,A=1,B=1 (enumerating every split t-pair
+        from (e1,e2), both orderings, off strata i/ii, via a freshly-written
+        classify_from_t_pair-equivalent).
+      result: CONFIRMED, EXACT MATCH
+      detail: >-
+        Independent recompute: {'1^4': 2652, '2^2': 2352, '2.1.1': 5096},
+        n_instances=10100. Executor-reported (execution_report.yaml, same
+        cell): count_1_4=2652, count_2_2=2352, count_2_1_1=5096,
+        n_instances=10100. EXACT match on every count. The raw DATA behind
+        DEV-1 is correct and reproducible; see finding F1 for what this
+        implies about the DEV-1 anomaly's framing, which is a separate
+        question from the data's correctness.
+
+  control_checks:
+    - control: arm-independence (approval_requirements item 3)
+      result: PASS
+      detail: >-
+        arm_a.py imports only `fp_common`; grep confirms no occurrence of
+        `c1`, `c0`, `arm_b`, or `polymod` anywhere in arm_a.py. arm_b.py
+        imports only `polymod`; grep confirms no occurrence of `t1`, `t2`,
+        `f_of`, or `lift_y` anywhere in arm_b.py. fp_common.py (shared by
+        both) contains only generic Fp/Fp2/Fp4 field arithmetic with no
+        notion of t1/t2/c1/c0, matching the contract's own "shared mulmod"
+        carve-out. run_experiment.py calls `arm_a.classify_point(...)` and
+        `arm_b.classify_point(...)` as two independently-produced results
+        and only COMPARES them (`arm_a_shape == arm_b_label`) -- it never
+        feeds one arm's intermediate into the other. recipe.py IS fed
+        quantities from both arms (f1,f2 from arm a; c0 from arm b), which
+        the contract explicitly permits since it is declared a third,
+        non-independence-bound check, not one of the two arms being tested
+        for agreement. The exhaustive zero-mismatch recomputation above
+        (fresh code, structurally different arm-b algorithm) additionally
+        rules out the specific risk named in the task ("both arms silently
+        agree because of a shared bug") -- a shared-bug artifact would not
+        also reproduce correctly against a THIRD, differently-coded
+        classifier.
+    - control: excluded-strata accounting (approval_requirements item 4)
+      result: PASS
+      detail: >-
+        Stratum i (e1^2-4e2=0) counted separately, exactly p at every cell,
+        both runs, independently reproduced (101 at p=101, 211 at p=211).
+        Stratum ii (f(t1)f(t2)=0) counted separately with f's actual root
+        count reported per curve, consistent (0/1/3 roots -> 0/p/3p points
+        exactly) -- independently reproduced for p101_A1_B1 (0 roots -> 0
+        points) and p211_A1_B1 (0 roots -> 0 points). Stratum iii
+        (e1^2-e2+A=0) counted separately, exactly p at every cell, both
+        runs, independently reproduced. P1 excludes stratum iii only (as the
+        contract specifies -- arm b is invalid there by construction, arm a
+        is not); P3 is computed off strata i/ii only, per its own text.
+        Overlaps (0-3 points) reported per cell, not double-counted.
+    - control: matched-ordered-base control data integrity
+      result: PASS (data); see finding F1 for the anomaly-framing question
+      detail: See metric_recomputations id matched-ordered-base-control-full-recompute-p101-A1-B1.
+    - control: factor-base-sublocus control
+      result: PASS (not independently recomputed at full scale; spot-checked
+        conceptually)
+      detail: >-
+        100% identity reported at every cell, both runs; declared
+        non-discriminating in advance and not reported as an independent
+        finding, per the invalidation_rules. This is a re-filter of already-
+        verified Stage-1 data (chi(f1)=chi(f2)=+1 forces "identity" by the
+        already-confirmed S6 recipe), so it is not separately re-derived
+        here beyond noting internal consistency with the P3 recomputation
+        above (which already exhaustively confirms recipe correctness,
+        including on this exact sublocus, for the two cells recomputed).
+    - control: random-quartic S_4 null control
+      result: PASS
+      detail: >-
+        Independently recomputed the binomial-SE band check for
+        p=101/run-20260830's histogram ({'1^4':88,'2.1.1':506,'2^2':235,
+        '3+1':673,'4':498}, n=2000) against forced densities
+        (1/24,1/4,1/8,1/3,1/4): all 5 deviations (4.67, 6.0, -15.0, 6.3,
+        -2.0 raw counts vs expected 83.3/500/250/666.7/500) fall within 3
+        binomial standard errors (8.94/19.36/14.79/21.08/19.36 respectively)
+        by direct computation. 3+1 is emitted at every (prime,run) cell (4/4),
+        satisfying the instrument-adequacy gate. This is the null-object
+        control required by docs/inventor-protocol.md S3: it is drawn from
+        the same shape (uniform random monic squarefree quartic) with no
+        elliptic-curve structure, classified by literally the same code path
+        as the Semaev arm, and its passing licenses interpreting arm (b)'s
+        output at all. It is NOT itself the "parameter meant to destroy the
+        signal" control (there is no such decay-parameter test in this
+        toy-scale exhaustive census; see limitations).
+    - control: determinism across the two replication runs
+      result: PASS
+      detail: >-
+        Independently diffed (not merely re-read the Executor's own
+        determinism_check claim): per_base_point_log/p211_A2_B3.ndjson byte-
+        identical (diff empty); stage0_transcript.json byte-identical;
+        curve_construction_transcript.json byte-identical; raw-result.json
+        identical after stripping master_seed, total_wall_seconds,
+        peak_rss_bytes, random_quartic_control, and per-cell wall_seconds
+        (the only documented run-varying fields). sha256 of all 6
+        per_base_point_log files matched exactly across both run
+        directories (computed independently via shasum). Random-quartic
+        histograms DIFFER between runs as required (e.g. p=101 '1^4': 88 vs
+        78), and both runs still emit 3+1 and pass the SE band.
+
+  budget_and_stopping_rule_checks:
+    - check: wall-clock budget (1200s/run cap)
+      result: PASS
+      detail: "Run 1: 36.28s. Run 2: 36.12s. Both far under the 1200s cap; no timeout."
+    - check: memory budget (1GB cap)
+      result: PASS
+      detail: "Run 1: 68,616,192 bytes peak RSS. Run 2: 68,698,112 bytes. Both ~6.4% of the 1GB (1,073,741,824 byte) cap."
+    - check: maximum_runs (2)
+      result: PASS
+      detail: "Exactly 2 run directories exist; manifest.yaml for each records status completed_valid."
+    - check: no infrastructure failure, timeout, or crash
+      result: PASS
+      detail: "Both manifests: budget_breach false; execution_report.yaml: infrastructure_failures/timeouts/crashes all empty lists."
+    - check: random-quartic control stopping rule ("must emit 3+1")
+      result: PASS
+      detail: >-
+        Independently recomputed binomial SE bands (see random-quartic
+        control check above) confirm all 4 (prime x run) histograms fall
+        within 3 s.e. of forced S4 Chebotarev densities and all emit 3+1;
+        the stage_1 terminates_the_run_if clause was therefore correctly
+        NOT triggered, and Stage-1 Semaev-arm results were correctly not
+        stopped from interpretation.
+    - check: Stage-0 gate correctly evaluated as PASS before Stage-1 ran
+      result: PASS
+      detail: >-
+        stage0_transcript.json (byte-identical both runs) shows all 8
+        sub-checks PASS, matching my own independent symbolic re-derivation;
+        raw-result.json confirms stage1_executed=true, consistent with the
+        stated gate logic in run_experiment.py (stage 1 only proceeds if
+        stage0_result["all_pass"] is true).
+
+  findings:
+    - id: F1
+      severity: material
+      title: >-
+        The out-of-band-edit disclosure is incomplete and materially
+        mischaracterizes what specification.yaml text the Executor actually
+        ran against; DEV-1's "anomaly" framing does not hold against the
+        specification text that was actually in force.
+      scope_statement: >-
+        This is a pure record-consistency finding within J1's mandate to
+        "verify command, revision... against the frozen contract." It takes
+        NO position on whether the matched-ordered-base control's CHOSEN
+        OBJECT (arm a's 4-point machinery fed an ordered pair) is a Galois-
+        theoretically faithful reproduction of KN-FIND-a8990a Theorem B --
+        that remains squarely the Red Team's remit.
+      evidence:
+        - >-
+          git log --all -- experiments/EXP-MONO-4c7479/specification.yaml
+          shows exactly three commits touching this file: e367f28bb (freeze/
+          approve, 2026-08-30 12:26:58 -0700, Dispatch Test), 5f0d0dec1
+          (Cursor Agent <cursoragent@cursor.com>, 2026-08-30 19:36:59 UTC =
+          12:36:59 -0700), and a1269ac26 (Cursor Agent, 2026-08-30 19:43:19
+          UTC = 12:43:19 -0700).
+        - >-
+          coordination/tasks/TASK-20260830-8c214e/snapshot-receipt.json's
+          out_of_band_edit_disclosure names ONLY a1269ac26 as "the" out-of-
+          band edit ("a commit (a1269ac26...) edited the FROZEN, approved
+          specification.yaml... This is the SECOND out-of-band edit by this
+          same external git identity found in this session"). It does not
+          mention 5f0d0dec1 anywhere. The count of out-of-band edits to THIS
+          experiment's frozen contract is therefore undercounted by one: two
+          edits, not one, both by the same unauthorized external identity,
+          both committed directly with no versioned protocol_amendment
+          (experiments/EXP-MONO-4c7479/amendments/ is empty).
+        - >-
+          `git merge-base --is-ancestor 5f0d0dec1 d810634a6` returns true,
+          and `git diff 5f0d0dec1 d810634a6 -- specification.yaml` is empty:
+          the specification.yaml tree state at d810634a6 (the commit BOTH
+          run manifests record as "the Executor's start commit" / code.commit)
+          is BYTE-IDENTICAL to 5f0d0dec1's post-edit version, not to
+          e367f28bb's original frozen text.
+        - >-
+          The disclosure states: "the Executor built and ran against the
+          ORIGINAL (pre-edit) specification text at commit d810634a6...and
+          never saw this edit." This is FALSE for 5f0d0dec1: that edit
+          predates d810634a6 and IS the text at d810634a6. It is true only
+          of a1269ac26 (which lands 18s after d810634a6, and whose content
+          is a smaller, second-order propagation of 5f0d0dec1's correction
+          into claim_ceiling/cost_note/environment_preconditions prose, per
+          `git diff 5f0d0dec1 a1269ac26`).
+        - >-
+          5f0d0dec1's diff against e367f28bb (`git diff e367f28bb 5f0d0dec1
+          -- specification.yaml`) is the commit that actually introduces
+          BOTH corrections the receipt's content_assessment attributes to
+          "the edit": (i) the explicit F_{p^4}-arithmetic requirement in
+          `arms_and_controls.arm_a_direct_group_arithmetic` ("This second
+          lift is NOT optional...an implementation lacking F_{p^4}
+          arithmetic cannot realize the 4-cycle class at all and would
+          false-falsify P2"), and (ii) the matched_ordered_base_control
+          FORCED-value correction from "exactly 2 distinct cycle types
+          {1^4,2^2}, zero 2.1.1" to "exactly zero 4-cycles, and every
+          realized type drawn from {1^4, 2.1.1, 2^2}". a1269ac26 only
+          propagates consequences of these into other paragraphs; it does
+          not introduce either correction itself.
+        - >-
+          Consequence for arm (a)'s F_{p^4} implementation: the Executor's
+          arm_a.py was NOT built independently of this edit as the
+          disclosure implies ("independently corroborated... reached the
+          same substantive conclusions independently"); the frozen text the
+          Executor actually read from its own recorded start commit already
+          explicitly instructed building F_{p^4} arithmetic and named the
+          exact bug to avoid ("Conjugation on the Fp2 basis is NOT the
+          p-power map of Fp4 and MUST NOT be substituted for it"). The
+          arithmetic itself is independently verified CORRECT by this
+          report regardless of provenance (see fp4-sqrt-and-frobenius-hand-
+          verification above) -- this finding is about the disclosure's
+          narrative of independence, not about whether the code works.
+        - >-
+          Consequence for DEV-1: execution_report.yaml's
+          matched_ordered_base_control_summary states "OBSERVED RESULT DOES
+          NOT MATCH THE CONTRACT'S FORCED VALUE... The forced value is
+          'exactly two distinct cycle types {1^4, 2^2}, zero 4-cycles, zero
+          2.1.1... types.'" and every per-cell row in execution_report.yaml
+          carries `matches_forced_value: false`. That quoted "forced value"
+          is the PRE-5f0d0dec1 wording. It is not the wording of
+          specification.yaml as currently committed, NOR as it stood at the
+          Executor's own recorded start commit d810634a6 -- both of which
+          read "FORCED: exactly zero 4-cycles, and every realized type drawn
+          from {1^4, 2.1.1, 2^2}." The observed data (independently
+          recomputed above: types {1^4,2.1.1,2^2} realized, zero 4-cycles,
+          at every cell) SATISFIES that clause exactly. `grep -rn
+          "matches_forced_value" implementation/` returns nothing: this
+          field is not computed anywhere in the code or present in
+          raw-result.json; it is an assertion added only in the human-
+          authored execution_report.yaml, and it does not match the
+          specification text that governed the run.
+      recommendation: >-
+        (1) The Coordinator's ledger archive should record a corrected
+        out-of-band-edit disclosure naming BOTH 5f0d0dec1 and a1269ac26,
+        and correcting the false "ran against the ORIGINAL pre-edit text"
+        claim. (2) DEV-1, as currently written in execution_report.yaml and
+        implementation.md/ordered_base_control.py's docstring, should be
+        read by Red Team/Coordinator as comparing observed data against a
+        SUPERSEDED forced-value wording, not the wording actually in force;
+        under the wording in force, the numeric result is NOT an anomaly.
+        Whether the underlying CONTROL OBJECT choice (arm a's 4-point
+        machinery on an ordered pair, versus the smaller literal Theorem-B
+        object) is itself a valid reproduction of KN-FIND-a8990a Theorem B
+        is unaffected by this finding and remains open for Red Team's
+        Galois-theoretic adjudication.
+    - id: F2
+      severity: minor
+      title: HEUR-WREATH-2 interpretation (DEV-2) is a declared, in-advance choice, not a silent substitution
+      evidence: >-
+        implementation.md item 2 and execution_report.yaml DEV-2 both state,
+        before results are reported, that an F_{p^2}-rational-base exhaustive
+        census (p^4 points) is infeasible within budget and was not costed
+        in the contract's own cost_note; the substitute (split-vs-inert
+        partition disjointness/coverage check on the existing F_p-base
+        census) is declared as the reading used. This is disclosed
+        appropriately per AGENTS.md rule 8 ("Unexpected observations must be
+        recorded, not silently discarded") and core rule 2 (deviations
+        documented, not silently absorbed); not a correctness defect.
+      recommendation: none required; correctly disclosed.
+
+  heuristic_validation_checks:
+    - check: pre-registered prediction
+      result: PASS
+      detail: >-
+        preregistered_prediction block in the frozen, approved specification
+        (approved 2026-08-30, before any run) states the Stage-0 identity,
+        P1=0, P2=8, P3=1.000, the five class densities, the matched-ordered-
+        base and random-quartic forced values, all BEFORE either run
+        executed. Both runs post-date approval.
+    - check: sample/enumeration integrity
+      result: PASS
+      detail: >-
+        Stage 1 is exhaustive (not sampled) over all p^2 points at both
+        primes -- seed-free by construction and independently confirmed
+        deterministic above. The only seeded component (random-quartic
+        control) has its exact SHA256-domain seed rule recorded in the
+        specification and reproduced in random_quartic_control.py; domain
+        strings differ per run (run-20260830 vs run-20260831) as specified.
+    - check: correspondence validity (N/A)
+      result: NOT_APPLICABLE
+      detail: >-
+        No substitute-sampling correspondence (e.g. Deuring) is used in this
+        contract; it is a direct exhaustive census, not a correspondence
+        trick.
+    - check: scale binding
+      result: PASS
+      detail: >-
+        field_bits recorded for both primes (101: 7 bits, 211: 8 bits) in
+        every run manifest; claim_ceiling.tier and scale_relevance.tier are
+        both "toy"; the specification explicitly states no transfer to
+        cryptographic-scale p and no m>=4 claim.
+    - check: cost-unit honesty (N/A -- no concrete-cost table)
+      result: NOT_APPLICABLE
+      detail: >-
+        This contract makes no attack-cost claim; asymptotic_claim is null
+        and the record explicitly disclaims any ECDLP/exponent/cost content.
+        The heuristic-validation cost-model checks in agents/validator.md
+        apply to Wesolowski-exemplar-style cost tables, which this record
+        does not attempt.
+
+  null_object_control_check:
+    applies: true
+    detail: >-
+      The random-quartic control is the null-object-of-the-same-shape
+      control required by docs/inventor-protocol.md S3 for the Chebotarev-
+      density claim (a uniformly random monic squarefree quartic, classified
+      by the SAME code path as the Semaev arm, with no elliptic-curve
+      structure). It passed (see control_checks above).
+    decay_parameter_check: >-
+      This toy-scale exhaustive census (fixed p in {101,211}, exhaustive not
+      sampled) does not itself include a "parameter meant to destroy the
+      signal, does the signal decay" sweep -- the falsification_criterion
+      (f) names the intended decay axis (class-density deviation should be
+      O(1/p), not O(p^{-1/2}), as p grows across the {101,211} ladder), and
+      execution_report.yaml reports the raw per-class deviations (up to
+      ~10.2 s.e. for `identity`/`sigma1_sigma2` at 5 of 6 cells) without
+      adjudicating O(1/p) vs O(p^{-1/2}) -- correctly, since a 2-point ladder
+      has "limited but nonzero power" per the contract's own text and
+      because that adjudication is a red-team/coordinator judgment on scope,
+      not a J1 correctness question. I flag, per docs/inventor-protocol.md's
+      "a quantity that does not decay when it should is the canonical
+      artifact tell": whether these deviations decay correctly across
+      {101,211} (and whether they would with a third ladder point at
+      p=1009, as future_work already names) is NOT adjudicated in this
+      report and should not be silently absorbed by whichever party reads
+      this record next.
+
+  scale_relevance_confirmation: >-
+    Confirmed against the frozen contract: toy tier, p in {101,211} only,
+    m=3 only, 6 generic-ordinary (curve,prime) cells. No transfer to
+    cryptographic scale is claimed anywhere in the executed artifacts, and
+    none is asserted by this report.
+
+  verdict: holds
+  verdict_qualifier: >-
+    J1 HOLDS for all computational/mathematical content actually executed:
+    Stage-0 identities (independently hand-rederived and matched), arm (a)/
+    arm (b) independence (verified by direct code reading, not docstring
+    trust), P1=0/P2=8/P3=1.000 (independently, exhaustively recomputed with
+    a structurally different arm-b algorithm for 2 of 6 cells with ZERO
+    mismatches against the real per-row logs, plus 5 hand-verified spot
+    points), F_{p^4} arithmetic (independently verified correct, including
+    ruling out the specific "naive conjugation" bug the task asked about),
+    determinism across both runs (independently diffed/hashed), and budget/
+    stopping-rule compliance (independently recomputed SE bands). This
+    verdict is qualified, not unqualified, because of finding F1: the
+    snapshot receipt's out-of-band-edit disclosure is materially incomplete
+    (omits 5f0d0dec1) and factually wrong about which specification text the
+    Executor built against, and the Executor's own DEV-1 anomaly framing
+    (matches_forced_value: false) does not hold against the specification
+    text that was actually in force at any relevant time. F1 is a genuine
+    J1-scoped internal-consistency defect in the RECORD (not in the
+    arithmetic), and it must be corrected before Red Team/Coordinator
+    compose a final reading of DEV-1.
+
+  limitations:
+    - >-
+      Exhaustive independent recomputation of P1/P2/P3 and the matched-
+      ordered-base control was performed for 2 of the 6 (curve,prime) cells
+      (p101_A1_B1, p211_A1_B1) plus 5 hand-verified spot points on
+      p101_A1_B1; the remaining 4 cells were checked only via determinism
+      (bit-identical across runs) and via the strata/P1/P2/P3 SUMMARY
+      figures in execution_report.yaml, not via a fully independent
+      per-point recomputation. Given the uniformity of the algorithm across
+      cells and the zero-mismatch result on the two cells checked (one per
+      prime), I judge this sufficient for a J1 holds verdict within the
+      90-minute budget, but a reviewer wanting full exhaustive coverage of
+      all 6 cells would need to extend the recompute scripts in this
+      report's runtime-session-receipt.json.
+    - >-
+      This report does not adjudicate: (a) whether the class-density
+      deviations (up to ~10.2 s.e. for two of five classes at five of six
+      cells) indicate an O(p^{-1/2}) rather than O(1/p) effect --
+      falsification_criterion (f) -- since a confident answer needs the
+      deferred p=1009 rung; (b) whether the matched-ordered-base control's
+      chosen object faithfully reproduces KN-FIND-a8990a Theorem B; (c)
+      whether DEV-1 or the class-density anomaly falsifies H-MONO-0b3def.
+      All three are named in the task as Red Team's/Coordinator's remit.
+    - >-
+      review_attestation.resolved_model_id is self-reported by this session
+      (per its own system-level disclosure) and could not be independently
+      probe-verified from within this sandboxed environment; see that
+      block's model_verified field and the noted discrepancy against
+      `orchestration.adapter resolve`.
+    - >-
+      I did not read experiments/EXP-MONO-4c7479/reviews/red-team/ (it
+      exists and is non-empty as of this report, created concurrently by
+      the sibling Red Team task); per the blindness requirement I did not
+      open any file under it, and this report was produced without
+      knowledge of its contents.
+
+  artifact_paths:
+    - experiments/EXP-MONO-4c7479/specification.yaml
+    - ledger/hypotheses/H-MONO-0b3def.yaml
+    - experiments/EXP-MONO-4c7479/execution_report.yaml
+    - experiments/EXP-MONO-4c7479/implementation.md
+    - experiments/EXP-MONO-4c7479/implementation/arm_a.py
+    - experiments/EXP-MONO-4c7479/implementation/arm_b.py
+    - experiments/EXP-MONO-4c7479/implementation/fp_common.py
+    - experiments/EXP-MONO-4c7479/implementation/mpoly.py
+    - experiments/EXP-MONO-4c7479/implementation/polymod.py
+    - experiments/EXP-MONO-4c7479/implementation/recipe.py
+    - experiments/EXP-MONO-4c7479/implementation/ordered_base_control.py
+    - experiments/EXP-MONO-4c7479/implementation/random_quartic_control.py
+    - experiments/EXP-MONO-4c7479/implementation/stage0.py
+    - experiments/EXP-MONO-4c7479/implementation/run_experiment.py
+    - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/
+    - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260831/
+    - coordination/tasks/TASK-20260830-8c214e/snapshot-receipt.json
+    - knowledge/findings/KN-FIND-a8990a.md
+    - experiments/EXP-MONO-4c7479/reviews/validator/validation-report.yaml
+    - experiments/EXP-MONO-4c7479/reviews/validator/runtime-session-receipt.json
+
+  review_attestation:
+    task_id: validator-mono-4c7479
+    role: validator
+    verdict: holds
+    joints_owned:
+      - J1-correctness-and-consistency
+    sources_read:
+      - AGENTS.md
+      - agents/validator.md
+      - ledger/hypotheses/H-MONO-0b3def.yaml
+      - experiments/EXP-MONO-4c7479/specification.yaml
+      - coordination/tasks/TASK-20260830-8c214e/snapshot-receipt.json
+      - experiments/EXP-MONO-4c7479/execution_report.yaml
+      - experiments/EXP-MONO-4c7479/implementation.md
+      - experiments/EXP-MONO-4c7479/implementation/arm_a.py
+      - experiments/EXP-MONO-4c7479/implementation/arm_b.py
+      - experiments/EXP-MONO-4c7479/implementation/fp_common.py
+      - experiments/EXP-MONO-4c7479/implementation/mpoly.py
+      - experiments/EXP-MONO-4c7479/implementation/polymod.py
+      - experiments/EXP-MONO-4c7479/implementation/recipe.py
+      - experiments/EXP-MONO-4c7479/implementation/ordered_base_control.py
+      - experiments/EXP-MONO-4c7479/implementation/random_quartic_control.py
+      - experiments/EXP-MONO-4c7479/implementation/stage0.py
+      - experiments/EXP-MONO-4c7479/implementation/run_experiment.py
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/manifest.yaml
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/command.txt
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/environment.json
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/stage0_transcript.json
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/curve_construction_transcript.json
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/raw-result.json
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/per_base_point_log/*.ndjson (spot-read + programmatic full read of p101_A1_B1.ndjson and p211_A1_B1.ndjson)
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260830/random_quartic_control/p101.json
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260831/manifest.yaml
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260831/command.txt
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260831/stage0_transcript.json
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260831/raw-result.json
+      - experiments/EXP-MONO-4c7479/runs/RUN-MONO-4c7479-20260831/per_base_point_log/*.ndjson (spot-read)
+      - knowledge/findings/KN-FIND-a8990a.md
+      - git history of experiments/EXP-MONO-4c7479/specification.yaml and ledger/hypotheses/H-MONO-0b3def.yaml (commits e367f28bb, 5f0d0dec1, a1269ac26, 1dabdb7e2), via `git log`/`git show`/`git diff`
+    read_sibling_reports: false
+    sibling_review_dir_observed: >-
+      experiments/EXP-MONO-4c7479/reviews/red-team/ exists and is non-empty
+      as of this report's writing (created concurrently). Its contents were
+      NOT read, per the blindness requirement; noted here for transparency
+      per agents/validator.md ("If you encounter one, say so in the
+      attestation rather than quietly proceeding").
+    blind_from_respected: not_applicable
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    model_verification_note: >-
+      This session self-identifies as claude-sonnet-5 (per its own system-
+      level disclosure). `python3 -m orchestration.adapter resolve --role
+      validator --independent-session` in this same working tree resolves
+      review-adversarial/xhigh to `anthropic:claude-opus-5`, NOT
+      claude-sonnet-5. I cannot independently probe which model actually
+      served this session from inside the sandbox, so I record the
+      discrepancy rather than asserting either value as verified:
+      resolved_model_id is the session's own self-report, model_verified is
+      false, and this is flagged as a fallback/degradation the Coordinator
+      should reconcile (AGENTS.md: "never silently downgrades a requested
+      policy... recorded as fallback_used").
+    fallback_used: true
+    fallback_reason: >-
+      Adapter-declared binding for review-adversarial/xhigh
+      (anthropic:claude-opus-5) does not match this session's self-reported
+      model (claude-sonnet-5); see model_verification_note. This was not a
+      choice made by this agent -- it reflects however this session was
+      actually launched -- and is reported per AGENTS.md's prohibition on
+      silent substitution.
+    independent_session: true

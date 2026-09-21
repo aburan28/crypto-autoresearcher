@@ -1,0 +1,262 @@
+idea:
+  id: IDEA-20260816-c7ddc2
+  question_id: RQ-FNDSA-001
+  added: '2026-08-16'
+  title: 'Precision is not one number: split the sampler''s floating point into three separable roles,
+    the once-per-key tree constants, the per-signature recursion arithmetic, and the base sampler''s
+    comparison constants, then lower each alone to find which role carries the divergence and which
+    can be cheapened for free.'
+  class: mechanism
+  claim: '(A) A Klein or tree-recursive sampler uses real arithmetic in at least three structurally
+    distinct roles: ROLE 1, the once-per-key precomputation of tree constants, meaning the Gram-Schmidt
+    or LDL quantities and the per-leaf widths; ROLE 2, the per-signature recursion arithmetic propagating
+    centers down the tree; ROLE 3, the base sampler''s internal constants and comparison thresholds.
+    The roles differ in how often they execute, in whether their error is fixed per key or refreshed
+    per signature, and in whether it is common-mode across leaves or independent across them. (B)
+    Therefore the divergence induced by lowering precision is NOT a function of a single precision
+    number. Lowering ROLE 1 alone injects a KEY-CORRELATED, SIGNATURE-CONSTANT perturbation; lowering
+    ROLE 2 alone injects a per-signature independent one; lowering ROLE 3 alone injects a per-draw
+    one. These have different statistical signatures and, critically, different scaling in the number
+    of signatures collected under one key: a signature-constant perturbation does not average away,
+    a fresh one does. (C) The claim is that at a fixed total divergence budget the three roles are
+    NOT interchangeable, and that one dominates by a measurable factor, so a single scalar precision
+    requirement is a lossy summary of a three-dimensional design space. The deliverable is the three-way
+    ablation table: divergence as a function of the three role precisions with the other two held
+    at reference. (D) WHAT IS NOT CLAIMED: no claim that any released implementation makes this distinction,
+    no claim about what any specification requires, no claim that a cheaper role assignment is secure,
+    and no attack. The table is a statement about the sampler family at the tested toy parameters.
+    (E) The negative outcome is usable: if the three roles produce divergence curves coinciding within
+    error, that is a measured statement that precision IS effectively scalar for this sampler at these
+    parameters, retiring a plausible design freedom and telling the rest of the batch to stop distinguishing
+    roles.'
+  mechanism: 'STAGE ONE instruments one toy sampler so each role reads its precision from an independent
+    parameter, with all rounding performed by the shared emulator. STAGE TWO establishes the reference
+    cell with all three roles at 53 bits and confirms it agrees with exact arithmetic to within the
+    enumeration instrument''s resolution. STAGE THREE runs three one-dimensional ablations: lower
+    role one alone across a grid while the others stay at 53, then role two alone, then role three
+    alone, measuring divergence against exact arithmetic in each cell. STAGE FOUR adds the measurement
+    that separates role one from roles two and three: for each ablation, measure divergence both per
+    signature and after averaging a frozen statistic over N signatures from the SAME key, and check
+    whether the deviation grows like N, the signature of a key-fixed common-mode error, or like the
+    square root of N, the signature of an independent per-signature error. That growth exponent is
+    the mechanism-level discriminator and does not depend on knowing the size of the error. STAGE
+    FIVE fills a small two-dimensional slice to test whether roles compose additively in divergence
+    or interact. Refutation is clean: if the three ablation curves coincide and the growth exponents
+    are equal, the role decomposition is measurement-irrelevant at these parameters and the claim
+    fails.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read RQ-FNDSA-001 in full, including its openings list which treats floating-point precision
+      as one independent variable. Read H-FNDSA-6a9cbb's assumptions block, which records that area
+      FNDSA holds zero experiments, zero runs and zero evidence records. Extracted all twelve RQ-FNDSA-001
+      proposal titles. Ran grep -ril for precision, floating-point, LDL, ffSampling, base sampler
+      and rounding over ledger/proposals/. Read the framing lines of IDEA-20260813-aaf02e and IDEA-20260813-d50a10.
+    results: IDEA-20260813-aaf02e composes NODEWISE rounding through the ffLDL tree into an end-to-end
+      budget, decomposing by tree node but not by functional role, and in particular not separating
+      once-per-key precomputation from per-signature arithmetic. IDEA-20260813-d50a10 couples an exact
+      and a reformulated sampler and localizes the FIRST disagreement, again by position in the recursion
+      rather than by role. IDEA-20260808-e7ba81 models per-leaf width error as a low-rank covariance
+      spike and notes that errors shared across a subtree are what floating-point or table defects
+      produce, which is adjacent to the common-mode idea but is a claim about RANK rather than about
+      the key-fixed versus signature-fresh distinction. Nothing in the corpus separates the three
+      roles or uses a per-key growth exponent as the discriminator.
+    verdict: UNVERIFIED. No statement is made about outside literature; separating fixed from fresh
+      error sources is elementary statistics. What is claimed new HERE is the three-role decomposition
+      of a Gaussian sampler's floating point as an experimentally SEPARABLE set of independent variables,
+      and the use of the growth exponent of divergence in the number of signatures per key, N against
+      the square root of N, as the role discriminator. The low-rank intuition is assembled from IDEA-20260808-e7ba81;
+      the nodewise composition idea is assembled from IDEA-20260813-aaf02e; the role separation and
+      the growth-exponent discriminator are the parts no record contains.
+  object_first_candidate:
+    tracked_object: 'The ERROR SOURCE LABEL attached to each perturbation of the sampler''s output
+      law: a triple recording which of the three roles produced it, whether it is fixed across signatures
+      under one key, and whether it is common-mode across leaves. Followed through the recursion and
+      then through aggregation over many signatures under one key.'
+    lossiness: 'The projection discards the numeric VALUE of every rounding error and keeps only its
+      provenance label and correlation class. Two runs with completely different error magnitudes
+      but the same label structure map to the same object. That is lossy compatibly with the target
+      operation because the operation of interest, averaging a statistic over N signatures from one
+      key, acts on the correlation class alone: fixed errors add coherently and fresh errors add incoherently
+      regardless of their size. What is discarded is exactly the magnitude, which is why the object
+      yields a growth EXPONENT and not a divergence value, and the value is supplied separately by
+      the ablation table.'
+    propagation: One step is one signature. Acting on the tracked object, a signature leaves role-one
+      labels untouched, since those constants were computed once, and refreshes role-two and role-three
+      labels with independent draws. Aggregating a statistic over N signatures therefore multiplies
+      the role-one contribution by N and the role-two and role-three contributions by the square root
+      of N in standard-deviation terms, so the ratio of the two grows like the square root of N and
+      the labels separate at large N no matter how small either was at a single signature.
+    survival_score: 'The label structure survives every step of the recursion and every signature,
+      because it is defined by the code path rather than by a numerical quantity, so it never dissolves
+      in the usual sense. What limits it is RESOLUTION: the two growth laws are distinguishable only
+      once N is large enough that N and its square root differ by more than the estimator noise, which
+      at a 5 percent relative estimator error needs N of order 400 or more. Concretely the object
+      becomes measurable at N around 10^3, is comfortable at 10^5, and dissolves below about 10^2
+      where the two laws are indistinguishable.'
+  null_object_control: The null arm is a sampler with ALL THREE roles at the reference precision 53,
+    run through the identical ablation pipeline and the identical growth-exponent fit. The null must
+    show no growth of divergence with N beyond the estimator's own square-root noise floor, and its
+    fitted exponent must be consistent with the no-signal value within its confidence interval. A
+    second null ablates a role that provably cannot affect the output, for example the precision of
+    a quantity used only for logging, which must produce identically zero divergence. A positive control
+    injects a known constant per-key bias and must produce a fitted growth exponent of 1.0, and a
+    second injects a fresh per-signature bias and must produce 0.5.
+  discriminated_from:
+  - IDEA-20260813-aaf02e decomposes rounding by TREE NODE and bounds the composition analytically.
+    This decomposes by FUNCTIONAL ROLE and measures rather than bounds; a node-level budget cannot
+    see the key-fixed versus signature-fresh distinction at all, because both roles touch the same
+    nodes.
+  - 'IDEA-20260813-d50a10 localizes the first disagreement by position in the recursion. Position
+    and role are orthogonal labels: role-one and role-two errors can both first surface at the same
+    node.'
+  - IDEA-20260808-e7ba81 models shared-across-subtree error as a low-rank covariance spike. Rank is
+    a spatial property of the perturbation; the growth exponent used here is a temporal property across
+    signatures, and a rank-one spike can be either fixed or fresh.
+  - 'H-FNDSA-6a9cbb concerns the exact-arithmetic defect and explicitly excludes finite precision.
+    This proposal has no content in exact arithmetic at all: every cell is defined by a precision
+    assignment.'
+  - The enumeration entry in this batch treats precision as one scalar applied uniformly. This entry
+    says that scalar is a projection of a three-dimensional variable and measures whether the projection
+    loses anything.
+  assumptions:
+  - The three roles are separable in the implementation, meaning each real-valued quantity can be
+    assigned to exactly one role without ambiguity; quantities that genuinely straddle roles are enumerated
+    and assigned by a rule frozen before any run.
+  - Divergence at the reference cell is small enough not to mask the ablated cells, checked against
+    the enumeration instrument.
+  - Toy bases and widths are constructed in-run and are NOT claimed to be FN-DSA keys, and no property
+    of the deployed key distribution is imported.
+  - The statistic aggregated over N signatures is chosen and frozen before any run; the growth-exponent
+    argument is valid for a statistic linear in the per-signature perturbation and is not valid for
+    arbitrary nonlinear statistics.
+  - Reducing a role's precision does not change the sampler's control flow so drastically that the
+    recursion structure differs, which would make the roles incomparable.
+  predictions:
+  - metric: fitted growth exponent of the divergence statistic in N, under role-one ablation
+    direction: higher
+    minimum_effect: 1.0, forced by the coherent-addition argument, tolerance plus or minus 0.15
+  - metric: fitted growth exponent of the divergence statistic in N, under role-two or role-three
+      ablation
+    direction: lower
+    minimum_effect: 0.5, forced by the incoherent-addition argument, tolerance plus or minus 0.15
+  - metric: ratio of divergence under the most damaging role ablation to the least damaging, at equal
+      precision reduction
+    direction: different
+    minimum_effect: at least a factor of 4, otherwise the roles are declared measurement-equivalent
+      and the claim is refuted
+  - metric: additivity residual on the two-dimensional slice, meaning joint divergence minus the sum
+      of the two single-role divergences
+    direction: different
+    minimum_effect: 'no pre-committed value. Refusal reason: whether the roles interact is the open
+      question the slice exists to answer, and pre-committing a residual would make the slice confirmatory.'
+  minimal_test:
+    design: 'The cheapest discriminating measurement drops the divergence value entirely and measures
+      only the growth exponent. Fix d = 8, sigma = 2, one toy key, and freeze the statistic as the
+      mean of a single fixed linear functional of the signature. Run three arms, one per role, each
+      with that role at 16 bits and the others at 53, drawing N = 10, 100, 1000, 10000 and 100000
+      signatures per arm and refitting the statistic''s deviation from its exact-arithmetic expectation
+      at each N. Fit log deviation against log N. Run the all-53 null and the logging-only null in
+      the same invocation. This costs a few million cheap sampler calls, needs no enumeration and
+      no exact arithmetic beyond one reference expectation, and it discriminates the whole claim:
+      exponents of 1.0 and 0.5 in the predicted arms confirm role separation; three coincident exponents
+      refute it; a null with a nonzero exponent voids the instrument.'
+    controls:
+    - All-53 null arm through the identical pipeline, fitted growth exponent must be consistent with
+      no signal.
+    - 'Logging-only ablation null: lower the precision of a quantity that cannot reach the output,
+      must produce identically zero divergence.'
+    - Positive control with an injected constant per-key bias of known size, must fit growth exponent
+      1.0.
+    - Positive control with an injected fresh per-signature bias of known size, must fit growth exponent
+      0.5.
+    - 'Key-resampling control: repeat the role-one arm over ten independent keys and confirm the fitted
+      exponent is stable, since a key-fixed effect must not depend on which key.'
+    required_metrics:
+    - divergence of the frozen statistic from its exact-arithmetic expectation, at each N
+    - fitted growth exponent in N with confidence interval, per role
+    - three-way ablation table of divergence against the three role precisions with two held at 53
+    - additivity residual on the two-dimensional slice
+    - across-key variance of the role-one divergence
+    - count of quantities assigned to each role and the count that required the tie-breaking rule
+  falsification_conditions:
+  - The all-53 null shows a growth exponent inconsistent with no signal, voiding the instrument.
+  - The logging-only ablation produces nonzero divergence, proving the role assignment leaks.
+  - Either injected-bias positive control fails to produce its forced exponent within tolerance.
+  - The three role ablations produce divergence within a factor of four of each other at equal precision
+    reduction, refuting role separability at these parameters.
+  - The fitted role-one exponent is not distinguishable from the role-two exponent at N = 10^5, refuting
+    the coherent-versus-incoherent mechanism.
+  - More than a quarter of real-valued quantities require the tie-breaking rule, meaning the roles
+    are not well separated and the design is unsound as specified.
+  confounders:
+  - 'Ambiguous role assignment: a quantity used both in precomputation and in the recursion contaminates
+    two arms at once.'
+  - Control-flow change under low precision, which alters the recursion and makes arms incomparable
+    rather than measuring the intended effect.
+  - Key-to-key variation masquerading as a role-one effect; the key-resampling control targets this.
+  - A statistic nonlinear in the perturbation, for which the growth-exponent argument does not hold
+    and the exponents mean something else.
+  - An estimator noise floor rising with N in the divergence estimate itself, which can imitate a
+    growth exponent.
+  interpretation_limits:
+  - The ablation table describes the toy implementation written for this run at the tested dimensions
+    and widths, and is not a statement about any released implementation's internal structure.
+  - A measured role dominance says where divergence comes from, not what precision is required for
+    security; no security consequence follows.
+  - The growth exponent distinguishes correlation structure, not magnitude; a role can dominate the
+    exponent while contributing negligible absolute divergence, and both numbers must be read together.
+  - No statement about any specification's precision requirement is made or implied, and the contract
+    has no step that could produce one.
+  target_complexity:
+    time_exponent: 'No attack exponent is claimed. Instrument cost only: linear in the number of signatures
+      per cell and linear in the number of cells, with no exponential factor, so this arm reaches
+      larger dimensions than the enumeration arm.'
+    memory_exponent: No attack memory exponent is claimed. Instrument memory is linear in dimension
+      per signature with streaming accumulation of the statistic.
+    best_known: Inside this repository the incumbents are IDEA-20260813-aaf02e for rounding composition
+      and IDEA-20260808-e7ba81 for the low-rank error model. No claim is made about anything outside
+      this repository.
+    hidden_overhead: 'The role assignment is the hidden cost and it is a judgment call disguised as
+      bookkeeping: several quantities genuinely straddle roles, and the tie-breaking rule chosen before
+      the run silently determines part of the answer. The record makes that visible by requiring the
+      count of tie-broken quantities as a reported metric, which is the only honest defense available.'
+  dominated_by: 'n/a (no attack result claimed). Pareto check across the three instrument axes: against
+    the enumeration entry, dominated on exactness and dominating on dimension reach; against the flip-counting
+    entry, comparable in compute and dominating on interpretability, since a growth exponent names
+    a mechanism while a flip rate names a bound; against interval-arithmetic bounding, dominated on
+    compute and dominating on resolution. No attack frontier row is claimed to be beaten, and no attack
+    frontier is engaged.'
+  sota_delta: 'No attack; conceptual and measurement contribution only. The quantitative delta is
+    in what the measurement returns: a scalar precision sweep returns one curve, this returns a three-role
+    table plus two growth exponents, and the exponents separate correlation classes at a cost of order
+    10^5 signatures, negligible against the order 10^12 a direct distributional estimate of the same
+    divergence would need.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Separate parts. That the three roles can be cleanly separated in a toy
+    implementation: about 0.75, the residual risk being straddling quantities. That the growth exponents
+    come out at 1.0 and 0.5 as forced: about 0.85, since this is a coherence argument rather than
+    an empirical guess. That the three roles differ in divergence by at least a factor of four: about
+    0.55, genuinely uncertain and the reason the experiment is worth running. That any of this transfers
+    to deployed dimension: not claimed and not estimated, because the contract contains no transfer
+    step.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FNDSA-001
+  - H-FNDSA-6a9cbb
+  - IDEA-20260813-aaf02e
+  - IDEA-20260813-d50a10
+  - IDEA-20260808-e7ba81
+  - KN-TECH-023
+  - docs/inventor-protocol.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FALCON-537872

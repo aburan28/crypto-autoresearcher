@@ -1,0 +1,172 @@
+validation_report:
+  id: VAL-20260804-018
+  task_id: TASK-20260804-018
+  run_id: RUN-ICI-001
+  experiment_id: EXP-ICI-e622fd
+  hypothesis_id: H-ICI-063e91
+  batch_id: BATCH-051
+  snapshot_commit: de12becfa
+  verdict: COMPLETED_VALID_SCOPED
+  blocks_ledger_record: false
+
+  # ── Quantitative cross-check summary ─────────────────────────────────────
+  # All values derived independently from augmentation_table.json + stdout.log
+  # (both committed in snapshot de12becfa).  raw-result.json per_replication
+  # section is NOT used (see finding F-DEV3 below).
+  #
+  #   cell               aug     null    expected   |null-exp|  |aug-null|
+  #   bits=20 B=0.1     1.8976  1.9014   1.9000      0.0014      0.0038
+  #   bits=20 B=0.2     1.8007  1.7994   1.8000      0.0006      0.0013
+  #   bits=20 B=0.3     1.7003  1.6991   1.7000      0.0009      0.0013
+  #   bits=24 B=0.1     1.8996  1.9004   1.9000      0.0004      0.0008
+  #   bits=24 B=0.2     1.8005  1.8009   1.8000      0.0009      0.0004
+  #   bits=24 B=0.3     1.7002  1.7020   1.7000      0.0020      0.0018
+  #   bits=28 B=0.1     1.9000  1.8997   1.9000      0.0003      0.0003
+  #   bits=28 B=0.2     1.8001  1.7995   1.8000      0.0005      0.0006
+  #   bits=28 B=0.3     N/A (resource_exhaustion — all 10 reps, infrastructure)
+  # ─────────────────────────────────────────────────────────────────────────
+
+  findings:
+    - id: F-1
+      subject: provenance
+      status: CLOSED
+      detail: >-
+        manifest.json batch_id="BATCH-051" and task_id="TASK-20260804-017"
+        both match the handoff.  Snapshot commit de12becfa confirmed reachable
+        from HEAD; it staged exactly the eight run artifacts (manifest, raw-result,
+        augmentation_table, command, environment, stdout, stderr, execution_report).
+
+    - id: F-2
+      subject: negation control
+      status: CLOSED
+      detail: >-
+        mean_negation_ratio = 1.0 at all 9 cells in augmentation_table.json;
+        manifest negation_control_passed=true; rationale "x(-P) = x(P) so
+        (-F) = F exactly" is algebraically correct for any factor base defined
+        by x-coordinate threshold.  Per-replication values in stdout.log confirm
+        negation_ratio=1 throughout.
+
+    - id: F-3
+      subject: null-map baseline
+      status: CLOSED
+      detail: >-
+        Null-map ratios verified against the independence baseline 2 - B_fraction
+        for all 8 data cells.  Maximum deviation: |null - (2-B_frac)| = 0.0020
+        (bits=24, B=0.3), consistent with the declared sampling SE ≈ 0.01 (DEV-1).
+        The [k]-map control correctly tracks the random-bijection prediction.
+
+    - id: F-4
+      subject: augmentation ≈ null-map
+      status: confirmed
+      detail: >-
+        |aug - null| ≤ 0.0038 across all 8 completed cells; maximum at bits=20,
+        B=0.1 (|1.8976 - 1.9014| = 0.0038).  All deltas are well below the
+        0.01 threshold specified in the falsification criterion.  The Elkies
+        ℓ-isogeny preimage augments the factor base no more than a random scalar
+        map of the same density.
+
+    - id: F-5
+      subject: resource exhaustion not negative evidence
+      status: CLOSED
+      detail: >-
+        bits=28 / B_frac=0.3: all 10 replications timed out at ≈300 s
+        (compute_sizes timed_out=True confirmed in raw-result.json global_errors
+        and stdout.log).  augmentation_table.json records
+        mean_augmentation_ratio=null, mean_null_map_ratio=null for this cell.
+        DEV-2 labels severity="minor_resource_limit" and explicitly states it
+        does not change the conclusion.  Falsification is based on success_cells_count
+        (0 < 3 per amendment C-5), so this cell's absence does not affect
+        the outcome classification.
+
+    - id: F-6
+      subject: outcome classification
+      status: CLOSED
+      detail: >-
+        success_cells_count = 0 < 3 threshold → falsification_criterion_met = true
+        per amendment PA-ICI-e622fd-v2-rc51, change C-5.  Independently: the
+        original specification falsification criterion (aug ≤ null + 0.01 at
+        all completed cells) is also satisfied — |aug - null| ≤ 0.0038 ≪ 0.01
+        at every valid cell.  Both routes agree.  inconclusive = false (0 < 3,
+        not 3–5).
+
+    - id: F-7
+      subject: claim ceiling
+      status: CLOSED
+      detail: >-
+        claim_tier = "toy" in manifest, amendment, and specification.
+        dominated_by = "Pollard rho at exponent 1/2"; sota_delta.time_exponent
+        and memory_exponent both "not_applicable".  Outcome description names
+        "NO structural factor-base augmentation advantage" — no sub-rho, no
+        asymptotic, no crypto-scale claim anywhere in the artifact set.
+        specification.yaml claim_ceiling explicitly lists OPEN gates for all
+        four asymptotic promotion requirements.
+
+    - id: F-8
+      subject: NBN-3 scope note (ell vs 2 isogeny)
+      status: noted
+      detail: >-
+        H-ICI-063e91 and the original specification objective name a "2-isogeny".
+        Amendment C-1 (PA-ICI-e622fd-v2-rc51) explicitly replaces 2-isogenies
+        with Elkies ℓ-isogenies (ℓ ∈ {3…23}) and explains why: prime-order
+        curves have no F_p-rational 2-torsion, making 2-isogenies algebraically
+        impossible in this setting.  manifest.json outcome_description correctly
+        scopes the result to "Elkies ell-isogeny".  However, no run artifact
+        explicitly records that the ORIGINAL 2-isogeny mechanism of H-ICI-063e91
+        was not tested (because untestable, not because falsified) and remains
+        open.  Required narrowing RN-2 below addresses this.
+
+  additional_findings:
+    - id: F-DEV3
+      subject: raw-result.json per-replication reconstruction artifact
+      detail: >-
+        79 of 80 valid per_replication entries in raw-result.json have B_fraction=0
+        and augmentation_ratio=1.0 — inconsistent with the correct cell means of
+        1.70–1.90 shown in augmentation_table.json and stdout.log.  This is
+        disclosed in protocol deviation DEV-3: "Cells 1-8 results were
+        reconstructed from captured stdout and hardcoded in the recovery script";
+        the reconstruction incorrectly set B_fraction to 0 and augmentation_ratio
+        to 1 as defaults.  Consequence: raw-result.json per_replication cannot
+        be used to independently verify cell-level augmentation ratios.  The
+        authoritative per-replication record is stdout.log (committed in snapshot
+        de12becfa), which is fully consistent with augmentation_table.json.
+        Ledger record must cite stdout.log + augmentation_table.json as primary
+        evidence sources; it must NOT cite raw-result.json per_replication for
+        cell-level ratios.
+
+  required_narrowings:
+    - id: RN-1
+      subject: per_replication evidence sourcing
+      text: >-
+        The ledger evidence record must cite stdout.log and augmentation_table.json
+        (both in snapshot de12becfa) as the authoritative per-replication and
+        cell-level quantitative evidence.  raw-result.json per_replication entries
+        for cells 1-8 contain reconstruction artifacts (B_fraction=0, aug=1.0)
+        and must not be cited for augmentation ratio values.
+
+    - id: RN-2
+      subject: ell-isogeny scope boundary and 2-isogeny open status
+      text: >-
+        The ledger record must explicitly state: (a) the falsification result
+        applies to Elkies ℓ-isogenies with ℓ ∈ {3, 5, 7, 11, 13, 17, 19, 23}
+        over prime-order ordinary curves at toy bit sizes {20, 24, 28}; (b) the
+        2-isogeny mechanism originally named in H-ICI-063e91 was untestable in
+        this setting (no F_p-rational 2-torsion exists for prime-order curves)
+        and its status remains OPEN; and (c) no inference about ℓ-isogenies with
+        ℓ > 23 or at cryptographic bit sizes is supported by this run.
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    reasoning_effort: xhigh
+    independent_session: true
+    model_verified: false
+    fallback_used: false
+    degraded_allowed: false
+    note: >-
+      Policy review-adversarial requires xhigh reasoning.  Model
+      amazon-bedrock/us.anthropic.claude-sonnet-4-6 is the bound backend;
+      probe verification was not run in this session (model_verified: false).
+
+  recorded_at: "2026-08-04"
+  validator_task: TASK-20260804-018
+  reviewed_snapshot: de12becfa

@@ -1,0 +1,1226 @@
+red_team_report:
+  id: RT-20260907-ee1ca7
+  id_note: >-
+    Derived from this task id, following the convention of
+    coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-958bac/red_team_report.yaml.
+    tools/allocate_id.py has no `redteam` type: this is a review artifact, not a
+    ledger record, and it mints no ledger identifier.
+  task_id: TASK-20260907-ee1ca7
+  goal_id: GOAL-ECDLP-bbc21f
+  batch_id: BATCH-8f3e86
+  experiment_id: EXP-ECDLP-612fb1
+  contract: experiments/EXP-ECDLP-612fb1/amendments/v2_to_v3.yaml
+  role: red-team
+  recorded_at: '2026-09-07'
+  reviewed_snapshot_commit: fe6cdf59f
+  session_independence:
+    independent_session: true
+    originated_the_claim: false
+    read_sibling_reports: false
+    blindness_declared_in_plan: 'lifted_for: []'
+  citation_provenance_note: >-
+    Every quantity in this report is provenance `internal` -- read from committed
+    artifacts under experiments/EXP-ECDLP-612fb1/ and ledger/, or computed by this
+    Red Team's own scratch diagnostics under this task directory. No external
+    source was opened. The one external result named anywhere in my joints is the
+    Corrigan-Gibbs--Kogan preprocessing ceiling, cited via the v1/v2 contracts as
+    KN-LIT-013 with provenance `internal`: this Red Team did not open the corpus
+    entry and it backs nothing here.
+
+  # ---------------------------------------------------------------- policy
+  inference:
+    requested_policy: review-breakthrough
+    requested_reasoning_effort: max
+    routing_rule: unrecoverable-result-review
+    routing_basis: >-
+      the result can contradict validated evidence EV-ECDLP-2e9680 and
+      EV-ECDLP-f6b3f5
+    degradable: false
+    fallback_allowed: false
+    fallback_used: false
+    degraded_requirements: []
+    served:
+      runtime: claude_code
+      subagent: red-team-breakthrough
+      resolved_model_id: claude-opus-5
+      provider: anthropic
+      reasoning_effort: max
+      effort_binding_source: >-
+        .claude/agents/red-team-breakthrough.md frontmatter `effort: max`, which
+        tools/check_runtime_bindings.py holds equal to review-breakthrough's
+        `reasoning_effort: max` in orchestration/model-policies.yaml
+      configuration_resolution_checked: >-
+        `python3 -m orchestration.adapter resolve --role red-team --policy
+        review-breakthrough --independent-session` returned
+        `review-breakthrough -> anthropic:claude-opus-5 (effort=max)`
+      model_verified: false
+      model_verified_note: >-
+        This is a CONFIGURATION resolution, not a probe. I did not run
+        `doctor --probe` and I cannot verify from inside the session that the
+        effort actually applied. I report what the binding declares and mark it
+        unverified rather than asserting a probe I did not run.
+    accepted: true
+    refusal: null
+    refusal_note: >-
+      The policy is degradable: false and I was instructed to refuse rather than
+      proceed at a lower tier. I did not refuse: the resolved binding is the one
+      the policy requires and no fallback or degradation was applied.
+
+  # ---------------------------------------------------------------- claim
+  claim_under_review: >-
+    That the G3 feasibility predicate returns PASS at N = 2^24, T = 256,
+    T_sel = 128, r = 2 on the frozen v2 splitmix64 instrument with exact basins
+    over seeds {1..5}, at a = 1/16 (5/5) and a = 1/8 (5/5), and FAIL at
+    a = 3/16 (0/5) and a = 1/4 (0/5); that the same grid at N = 2^20 gives
+    5/5, 4/5, 1/5, 0/5; and that the declared controls -- proves-too-much,
+    NULL_A_G3, NULL_B_G3 and DECAY_G3 -- returned the outcomes the contract
+    requires.
+  joints_owned: [J4, J5, J6]
+  joints_not_owned: [J1, J2, J3]
+  joints_not_owned_note: >-
+    J1 (predicate fidelity), J2 (blind re-derivation) and J3 (the 2^20
+    replication) belong to TASK-20260907-b2a8ad. I did not read that task
+    directory and I take no position on those joints. Several of my conclusions
+    are explicitly conditional on them.
+
+  # ---------------------------------------------- per-joint verdicts
+  per_joint_verdicts:
+    - joint: J4
+      name: proves-too-much
+      verdict: holds
+      qualifier: >-
+        holds with a measured and material limitation on the control's power,
+        which I then closed with a control I built and ran
+      reason: >-
+        The control did not fire as executed and I could not make it fire on the
+        frozen draw. But the Section 6 set as a whole is weak: it detects a
+        uniform upward bias in the margin only once that bias reaches 0.017737,
+        while a bias of only 0.005128 would manufacture the a = 1/8 PASS. That
+        leaves a blind band 2.46x as wide as the a = 1/8 PASS headroom. I then
+        constructed a much stronger known-false object (NULL_T, see J5) whose
+        bias-to-fire is 0.000869 -- 5.9x SMALLER than the a = 1/8 headroom -- and
+        it returned FAIL at every a. Under that strengthened control the blind
+        band is empty at both primary cells. The claim survives a control
+        materially stronger than the one the contract froze.
+      artifact: j4_proves_too_much.json
+    - joint: J5
+      name: nulls and decay
+      verdict: holds
+      qualifier: >-
+        holds as written; a structural gap in the control SET is reported as a
+        finding, and the missing control was supplied and run
+      reason: >-
+        NULL_A_G3 relabels the SAME pool draw (verified by code reading), its
+        margin exceeds the signal margin in 120/120 rows, and the Coordinator's
+        named artifact tell -- margin_null not materially larger than margin --
+        does not fire. NULL_B_G3's 120/120 is a genuine invariance between two
+        materially different implementations, not two names for one path.
+        DECAY_G3 destroys the sign, not merely the magnitude. The gap: all three
+        declared controls act on the ESTIMATOR loss and none touches the HALVING
+        loss, which is what produces the a-dependence the claim is about. I built
+        NULL_T to close that gap and it returned 0/5 at every a.
+      artifact: j5_controls_audit.json
+    - joint: J6
+      name: cost, scope, and what a PASS licenses (including U1)
+      verdict: breaks
+      breaks_on: >-
+        NOT the producer's package, which I could not break. It breaks on the
+        frozen amendment's own residual R3, whose premise the batch's numbers
+        refute.
+      reason: >-
+        I audited the Executor's package for the four failure modes the review
+        plan named -- ceiling read as mechanism, a bare ratio without its
+        frontier tuple, measured and modeled mixed, scope overreach -- and found
+        none of them. The break is one level up: R3 asserts STAGE 3B is a third
+        INDEPENDENT angle with a different random-function family and basin-closure
+        implementation. Exactly one of its three stated differences is true (the
+        experiment identifier). STAGE 3B imports source_v2/instrument.py
+        unchanged, which is the same module EV-ECDLP-2e9680 records
+        EXP-ECDLP-6ac801's production arm as reusing. The bitwise agreement U1
+        flags is the proof, not a coincidence.
+      artifact: j6_cost_scope_audit.md
+  terminal_verdict_on_my_joints: >-
+    J4 holds, J5 holds, J6 breaks on the contract's premise for U1 and holds on
+    everything the producer wrote. I attacked the measured claim on four
+    independent routes -- control power under a uniform bias model, fifteen fresh
+    seeds, a null object nobody had built, and the cost/scope audit -- and it
+    survived all four. I could not break the measured result. That is different
+    from saying it is correct: correctness at the predicate level is J1 and J2,
+    which I am blind to by construction, and every statement below is conditional
+    on them.
+
+  # ---------------------------------------------------------------- objections
+  objections:
+    - id: O1
+      joint: J4
+      severity: material
+      status: raised_and_then_closed_by_a_control_this_red_team_built_and_ran
+      statement: >-
+        The six Section 6 known-false objects do not protect the a = 1/8 PASS.
+        Under a uniform additive bias model, the binding object (a = 3/16,
+        r = 2, N = 2^24) fires only at bias b = 0.017737, whereas b = 0.005128
+        already manufactures the a = 1/8 PASS. Every uniform upward bias in
+        (0.005128, 0.017737) -- a band 2.46x the PASS headroom -- would produce
+        the reported a = 1/8 result with all six controls still returning FAIL.
+      why_it_matters: >-
+        a = 1/8 is the load-bearing new cell: it is the cell where
+        EV-ECDLP-2e9680 records a blind/production disagreement, so it is
+        precisely where an undetected common-mode bias would do the most damage.
+      a_1_16_by_contrast:
+        blind_band: [0.017437577, 0.017736971]
+        width: 0.000299394
+        width_over_pass_headroom: 0.01717
+        reading: >-
+          almost fully protected -- the band is 1.7% of the headroom
+      bias_model_limits: >-
+        A uniform additive bias is ONE model of how the argument could be wrong.
+        A bias that varies with a is not covered by this analysis and would need
+        a different control. I state the model rather than implying generality.
+      falsification_route_cheapest: >-
+        Add NULL_T (O3 below) to the declared proves-too-much set. Its
+        bias-to-fire is 0.000869 at a = 1/8 and 0.000626 at a = 1/16, both
+        strictly below the corresponding PASS headrooms, so the blind band
+        becomes empty at both primary cells. Cost: 20 measure_cell calls,
+        114.6 s wall on this container -- already run, see scratch/tail_null.json.
+      outcome: >-
+        Closed. Under the strengthened control the objection does not stand.
+        I report it because the CONTRACT's set was insufficient and a later
+        reader should not take "proves-too-much did not fire" as protection it
+        did not provide.
+    - id: O2
+      joint: J4
+      severity: material
+      status: open
+      statement: >-
+        a = 3/16 at r = 2, N = 2^24 is not decisively known-false at five seeds.
+        Over 20 seeds, 4 have margin >= 0 (seeds 13, 15, 17, 20); over all
+        C(20,5) = 15504 five-seed draws, 16 return G3 PASS -- a measured type-I
+        error rate of 1.03e-3 for the control at this object. The frozen draw's
+        m(4) is -0.017737 but the MEDIAN draw's m(4) is -0.008719, so the
+        contract froze a draw that is roughly twice as favourable to the control
+        as a typical one.
+      answers_the_handoff_question: >-
+        The handoff asks whether a known-false object landing 5.5e-5 from the
+        sign boundary means the control passed or nearly failed. Neither, as
+        stated: -5.525e-5 is a SINGLE-SEED maximum and the frozen ">= 4 of 5"
+        rule cannot see it. Moving that one seed across zero takes pass_count
+        from 0 to 1, still FAIL. The object's real distance from firing is
+        0.017737 in m(4) -- it was not close. The genuine concern is the
+        different one this objection states: over draws it is much closer than
+        the frozen draw shows.
+      why_it_matters: >-
+        Any later reading that treats "a = 3/16 FAILS 0/5" as a sharp separator
+        between feasible and infeasible a is reading more than the data supports.
+      falsification_route: >-
+        Raise the seed count at the known-false cells from 5 to 20 in any
+        successor contract. Already measured here: it does not change any
+        verdict, and it converts a boolean into a rate.
+      what_survives_unchanged: >-
+        a = 1/4 is 0 of 20 seeds positive and 0 of 15504 draws PASS.
+        EV-ECDLP-60e266's obstruction is corroborated at four times the seed
+        count, not eroded. a = 1/16 is 20/20 and 15504/15504; a = 1/8 is 19/20
+        and 15504/15504. Both PASS cells are robust to the draw.
+    - id: O3
+      joint: J5
+      severity: material
+      status: raised_and_answered_by_a_null_this_red_team_built_and_ran
+      statement: >-
+        The declared control set has a structural gap. Writing
+        margin = [TopShare(T) - StaticCov(T, r)] - [TopShare(T) - TopShare(T_sel)]
+        = ESTIMATOR loss - HALVING loss, all three declared controls act on the
+        estimator loss and none touches the halving loss. NULL_A drives the
+        estimator loss to its uninformative maximum; DECAY_G3 shrinks it by
+        improving the comparator; NULL_B checks the selection that produces it.
+        But the halving loss is what carries the a-dependence, and therefore what
+        the claim is about.
+      mechanism_this_makes_visible: >-
+        The estimator loss SATURATES near 0.099 for every a >= 1/8 at BOTH tested
+        N (0.0955 / 0.1038 / 0.0990 at N = 2^20, T = 64; 0.0991 / 0.0982 / 0.0993
+        at N = 2^24, T = 256), while the halving loss tracks TopShare(T) and grows
+        with a. G3 is feasible exactly where TopShare(T) is small enough that
+        roughly a third of it sits under that ~0.099 ceiling. The crossing lies
+        between TopShare(T) = 0.271 (a = 1/8, PASS) and 0.339 (a = 3/16, FAIL).
+      falsification_route_taken: >-
+        I constructed NULL_T, a tail null: keep N, the map, the DP set, the pool
+        draw, w(d), the tie-break, the selected table, the reachable basin mass M
+        and the DP count D exactly as measured; replace only the basin SIZES with
+        a uniform multinomial allocation of M over D basins, preserving rank
+        order. Prediction declared before the run: if the stated mechanism
+        produces the PASS, NULL_T must FAIL at every a including a = 1/16.
+      result: >-
+        NULL_T returns 0/5 at every a. The margin collapses from +0.020565 to
+        -0.000626 (a = 1/16) and from +0.006933 to -0.000869 (a = 1/8). The
+        halving loss collapses from 0.0659 to 0.00069 and from 0.0922 to 0.00092.
+        Basin-size tail concentration is what produces the PASS.
+      honest_limit: >-
+        The FAIL is close to structurally forced -- under a flat allocation every
+        T-subset covers about T*(M/D)/N and TopShare(T_sel) about half of that,
+        so a negative margin is near-inevitable. Its value is attribution and
+        control power, not surprise, and I do not present it as a surprising
+        result.
+    - id: O4
+      joint: J5
+      severity: material
+      status: open
+      statement: >-
+        DECAY_G3's power is materially weaker than it looks. instrument.
+        generate_pools generates ONE walk sequence and snapshots it at each target
+        size -- its own docstring says pools for larger r extend the smaller ones
+        -- so the r = 4 and r = 8 pools are supersets of the r = 2 pool, not
+        independent draws. And TopShare_s(T_sel) is BITWISE IDENTICAL across
+        r = 2, 4, 8 at every (N, a, seed): at N = 2^24, a = 1/16, seed 1 it is
+        0.12206727266311646 at all three r. So r acts only on the comparator
+        StaticCov(T, r), never on the signal.
+      consequence: >-
+        A monotone decrease of the margin in r is close to structurally forced:
+        more pool can only improve a top-T selection from it, while the oracle
+        term is fixed. The control cannot fail to decay for reasons that have
+        anything to do with the hypothesis.
+      what_it_still_licenses: >-
+        The sign does flip -- 40/40 rows monotone non-increasing, FAIL by r = 4
+        at all eight (N, a) cells, every per-seed margin negative at r = 4 and
+        r = 8. That is destruction, not attenuation, and it does rule out the
+        specific artifact of a margin that never decays. It just does not test
+        the mechanism.
+      falsification_route: >-
+        Vary r with INDEPENDENT pool draws per r rather than nested snapshots,
+        and separately sweep T_sel/T at fixed r so that a parameter acts on the
+        oracle term. Either would give the decay control power it currently lacks.
+        Cost: one flag in generate_pools and a re-run of the r-sweep,
+        ~ 5 minutes at N = 2^24.
+    - id: O5
+      joint: J5
+      severity: low_on_the_package_material_on_the_review_chain
+      status: open
+      statement: >-
+        The "pooled ratio margin/margin_null of 0.32-0.36 at r = 2" that the
+        review chain is carrying is the a = 1/16 row ONLY -- 0.3180 at N = 2^20
+        and 0.3599 at N = 2^24. At a = 1/8, the load-bearing new cell, the ratio
+        is 0.0651 [0.0072, 0.0958] and 0.0888 [0.0604, 0.1200]: four to five
+        times lower.
+      not_a_producer_defect: >-
+        The producer published all four ratios in the analysis artifacts. This is
+        a summarisation risk in the review chain, not an overclaim in the package.
+        I flag it because the summary figure is the one that travels.
+      reading_of_the_ratio_asked_for_by_the_handoff:
+        does_w_carry_real_signal: 'YES'
+        basis: >-
+          The Coordinator's named artifact tell is margin_null NOT materially
+          larger than margin, i.e. a ratio near 1. Measured ratios are 0.36 and
+          0.09 at N = 2^24, margin_null exceeds margin in 120/120 rows, and w(d)
+          recovers 64% (a = 1/16) and 91% (a = 1/8) of the gap between an
+          information-free selection and the ceiling. The tell does not fire and
+          the comparator is not degenerate.
+        the_adversarial_reading_of_the_same_number: >-
+          The ratio also measures how much of the instrument's dynamic range the
+          claim survives on. At a = 1/8 the PASS rests on the last 8.9% of the
+          gap between random selection and the ceiling; at a = 1/16 on 36.0%.
+          Read that way the null says the a = 1/16 PASS is about four times more
+          robust than the a = 1/8 PASS -- the SAME ordering my independent J4 bias
+          analysis produces from the verdict statistic (headroom 0.017438 against
+          0.005128). Two unrelated routes agreeing is worth more than either alone.
+        what_the_ratio_does_NOT_license: >-
+          NULL_A tests "is w(d) better than an information-free selection". That
+          is a low bar and clearing it was close to a priori certain. It is NOT a
+          null for the SIGN of the margin, which is the load-bearing quantity.
+          Passing NULL_A licenses "the comparator is not degenerate" and nothing
+          stronger.
+    - id: O6
+      joint: J6
+      severity: material
+      status: open_and_unresolved_by_this_batch
+      statement: >-
+        U1: STAGE 3B is not a third independent angle. The amendment's residual
+        R3 describes it as "a different experiment identifier, a different
+        random-function family, a different basin-closure implementation from
+        either 6ac801 arm." Exactly one of the three is true. Section 3's
+        reading_P1_frozen_instrument REQUIRES STAGE 3B to use v2's splitmix64 map
+        and DP predicate verbatim and REQUIRES run_stage3.py to import
+        source_v2/instrument.py unchanged; g3_predicate.exact_basins is a one-line
+        delegation to I.exact_basins. EV-ECDLP-2e9680's
+        a_1_8_disagreement.root_cause records EXP-ECDLP-6ac801's production Stage
+        B as reusing that same module unchanged.
+      the_numbers_confirm_it: >-
+        STAGE 3B's r = 2 margins at N = 2^24 reproduce 6ac801's PRODUCTION
+        margins to all six quoted decimals at every a (U1), and STAGE 3A
+        reproduces the committed a-scan bitwise, maximum absolute difference
+        exactly 0.0 over 20 rows (U3). Two deterministic programs sharing a
+        module, a seed policy and a pool draw agreeing bitwise is a determinism
+        check, not corroboration. It is a valuable determinism check -- it proves
+        the new driver did not corrupt the frozen instrument -- but it carries no
+        independence.
+      three_consequences:
+        - >-
+          STAGE 3B does not resolve the a = 1/8 disagreement inside
+          EV-ECDLP-2e9680. That disagreement is blind (1/5) against production
+          (5/5); STAGE 3B re-executes the production side. Re-running one side of
+          a disagreement cannot settle it, however many decimals it reproduces.
+          The Executor states this correctly and claims nothing else.
+        - >-
+          R3 is still owed. The amendment's own text is what asserted it had been
+          discharged.
+        - >-
+          Whether this batch delivers ANY independent angle rests entirely on the
+          Validator's J2 blind re-derivation, which I am blind to by construction.
+          I cannot judge it and I record the limit rather than filling it. The
+          frozen plan already discloses that J2's independence is itself partial:
+          the re-deriver must read the amendment, whose Section 1 quotes the prior
+          lane's per-seed margins.
+      falsification_route: >-
+        A genuinely independent angle needs a different random-function family
+        (not splitmix64) and an independently written basin-closure, run by an
+        agent that has not read source_v2/instrument.py. Until that exists, R3 is
+        open. This is not expensive -- the predicate is ~200 lines -- but it
+        cannot be satisfied by anything already in this batch.
+      is_this_producer_error: false
+      producer_conduct_note: >-
+        The Executor flagged the bitwise coincidence itself, as U1, without
+        drawing the conclusion. The defect is in the frozen contract's premise.
+    - id: O7
+      joint: J6
+      severity: material_for_transfer_only
+      status: open
+      statement: >-
+        The load-bearing extrapolation is that estimator_loss(T, r = 2) stays
+        near 0.099 as T grows. It is measured at exactly two points, T = 64 and
+        T = 256 -- 2 bits of T -- where it is remarkably flat (0.099049 ->
+        0.099258 at a = 1/4). Any transfer of the a-crossing to larger parameters
+        rests on that flatness continuing over roughly 77 further bits of T. Two
+        points do not carry a trend and I do not read one.
+      falsification_route_cheapest_of_all_i_identified: >-
+        A T-sweep at fixed N = 2^24, T in {64, 128, 256, 512, 1024}, r = 2, five
+        seeds. Exact basins already cost 0.46 GiB and ~24 s per seed and are
+        computed once per seed regardless of T, so the marginal cost is one extra
+        sort per (T, seed): minutes, not hours. If estimator_loss drifts
+        materially with T, the a-crossing moves with T and nothing about this
+        result transfers. That single measurement discriminates more than another
+        PASS/FAIL at another N would.
+    - id: O8
+      joint: J6
+      severity: low
+      status: open
+      statement: >-
+        H-ECDLP-37dc01.test_boundary.boundary_amendments carries exactly one
+        entry, dated 2026-09-07, widening a to include {1/16, 1/8, 3/16}, and it
+        names experiment_id: EXP-ECDLP-6ac801. It does not name EXP-ECDLP-612fb1
+        or its v3 item. The widening is disclosed, but a later reader auditing
+        "which experiments were evaluated outside the stated boundary" would miss
+        this one.
+      addressed_to: the ledger-archive task TASK-20260907-33a736, not the producer
+    - id: O9
+      joint: J6
+      severity: low
+      status: open
+      statement: >-
+        S_bits_oracle_T_sel_table, S_bits_static_T_table and
+        S_peak_bits_pool_working_storage sit in cost_table.json's `measured` block
+        but are pure arithmetic in (T_sel, T, r, n) -- nothing was measured to
+        obtain them. The producer followed the contract exactly: the amendment's
+        required_artifacts_per_run.notes classifies bit counts as MEASURED. The
+        contract's classification is what is loose, and a later reader could take
+        "measured storage" for an observation.
+  objections_i_looked_for_and_did_not_find:
+    - >-
+      A sentence anywhere in the producer's package reading the ceiling result as
+      a mechanism result. DEC-20260907-9b1b02 recorded exactly that slide once in
+      the concurrent lane, so I searched for it specifically rather than
+      generically. All seven hits are disclaimers.
+    - >-
+      A bare advice ratio without its frontier tuple. No ratio appears anywhere in
+      the package, because the producer quotes none.
+    - >-
+      A measured/modeled column collision in cost_table.json. The blocks are
+      disjoint; `modeled` holds only N, T, T_sel, W, theta, cap and the formula.
+    - >-
+      A claim reaching outside the run cells. tested_parameters is exact,
+      transfer_assumptions_made_by_this_report is `none`, and cells_not_run is
+      empty with every planned cell executed.
+    - >-
+      Weakening of EV-ECDLP-60e266. a = 1/4 returns 0/5 at both N with every
+      per-seed margin negative, and my own 20-seed diagnostic extends that to
+      0/20 seeds and 0/15504 draws.
+    - >-
+      NULL_B_G3 being two names for one code path. instrument.numpy_select is a
+      three-line numpy lexsort on (keys, -weights) returning order[:t];
+      instrument.CountedSelector.select is a hand-written streaming selection.
+      Materially different implementations; 120/120 agreement is a genuine
+      invariance. Its scope is narrow -- it cannot detect a shared conceptual
+      error in what w(d) should be -- and I found no defect.
+
+  # ------------------------------------------------------- controls
+  required_controls:
+    - id: RC1
+      control: >-
+        Add NULL_T, or an equivalent halving-loss null, to the declared control
+        set of any successor contract.
+      rationale: >-
+        It is simultaneously the missing null for J5 (the only declared control
+        that touches the halving loss) and by far the strongest proves-too-much
+        object for J4 (bias-to-fire 0.000869 against the Section 6 set's
+        0.017737). One control closes both gaps.
+      already_run_here: true
+      artifact: scratch/tail_null.json
+    - id: RC2
+      control: >-
+        Raise the seed count at known-false cells from 5 to 20 and report the
+        control's type-I error rate rather than a boolean.
+      rationale: O2 -- the frozen five-seed draw at a = 3/16 is unusually
+        favourable to the control and the boolean hides a 1.03e-3 firing rate.
+      already_run_here: true
+      artifact: scratch/seed_dispersion_analysis.json
+    - id: RC3
+      control: >-
+        Re-run the r-sweep with independent pool draws per r, and separately sweep
+        T_sel/T at fixed r.
+      rationale: O4 -- as built, r acts only on the comparator and the pools are
+        nested, so the decay is close to structurally forced.
+      already_run_here: false
+    - id: RC4
+      control: >-
+        A genuinely independent implementation -- different random-function
+        family, independently written basin closure, written by an agent that has
+        not read source_v2/instrument.py.
+      rationale: O6 -- residual R3 is still owed and nothing in this batch can
+        discharge it.
+      already_run_here: false
+
+  # ------------------------------------------- counterexamples and mutations
+  counterexample_or_mutation:
+    summary: >-
+      I constructed and ran three objects the batch did not have. Two are
+      known-false objects for J4; one is a null for J5. All three ran through the
+      producer's own frozen g3_predicate.measure_cell on the same code path as the
+      primary cells, so a difference cannot be an instrumentation difference.
+    objects:
+      - id: KF-A
+        kind: additional known-false object (seed extension at a declared
+          known-false cell)
+        construction: >-
+          The SAME cell the contract declares known-false -- a = 3/16, T_sel = 128,
+          r = 2, N = 2^24, frozen v2 instrument -- evaluated on FIFTEEN FRESH
+          SEEDS {6..20}, disjoint from the frozen {1..5}. The cell, not the seed
+          index, is what the contract declares known-false, so a different valid
+          five-seed draw at the same cell is the same known-false object.
+        returned: >-
+          4 of 20 seeds have margin >= 0. 16 of the 15504 five-seed draws return
+          G3 PASS, e.g. seeds {1, 13, 15, 17, 20} with m(4) = +0.002615. There
+          EXIST valid five-seed draws at a cell the contract declares known-false
+          on which the predicate returns PASS.
+        honest_reading: >-
+          Those 16 were found by MAXIMISING over 15504 draws, and finding them at
+          a 1.0e-3 rate is exactly what a 1.0e-3 false-positive rate predicts. This
+          is a MEASUREMENT OF THE CONTROL'S TYPE-I ERROR, not a demonstration that
+          the control fired. It did not fire: the contract's frozen draw is
+          governing and it returned 0/5. I report the firing rate, not a firing.
+        artifact: scratch/dispersion_s6_s20.json,
+          scratch/seed_dispersion_analysis.json
+      - id: KF-B
+        kind: nearby-object control at the cell where the conclusion must be false
+        construction: >-
+          The same seed extension applied to a = 1/4, r = 2, N = 2^24 -- the cell
+          carrying EV-ECDLP-60e266's standing obstruction.
+        returned: >-
+          0 of 20 seeds positive, 0 of 15504 five-seed draws PASS. The nearby
+          object where the effect must be absent produces a decisively different
+          number from the primary cells (20/20 and 19/20 positive). The measurement
+          is not an artifact of the instrument.
+        artifact: scratch/seed_dispersion_analysis.json
+      - id: NULL-T
+        kind: null object of the same shape (halving-loss null)
+        construction: >-
+          Keep N, the map, the DP set, the pool draw, w(d), the tie-break, the
+          selected table, the total reachable basin mass M and the DP count D
+          exactly as measured. Replace ONLY the basin sizes with a uniform
+          multinomial allocation of M over D basins, preserving rank order.
+          Null stream seed 900, declared before the run.
+        prediction_declared_before_running: >-
+          if the amendment's stated mechanism is what produces the PASS, NULL_T
+          must FAIL at every a including a = 1/16
+        returned: >-
+          0/5 at every a. Margin collapses +0.020565 -> -0.000626 (a = 1/16) and
+          +0.006933 -> -0.000869 (a = 1/8). Halving loss collapses 0.0659 ->
+          0.00069 and 0.0922 -> 0.00092. Estimator loss collapses to ~5e-5.
+          Prediction confirmed.
+        also_serves_as_the_strongest_proves_too_much_object:
+          null_T_bias_to_fire_a_1_16: 0.000626266
+          null_T_bias_to_fire_a_1_8: 0.000869393
+          section_6_binding_object_bias_to_fire: 0.017736971
+          a_1_16_pass_headroom: 0.017437577
+          a_1_8_pass_headroom: 0.005128205
+          blind_band_under_NULL_T_a_1_16: empty
+          blind_band_under_NULL_T_a_1_8: empty
+          reading: >-
+            NULL_T fires at a uniform bias 5.9x smaller than the bias that would
+            manufacture the a = 1/8 PASS and 27.8x smaller than the one that would
+            manufacture the a = 1/16 PASS. As a proves-too-much object it is
+            roughly 20x stronger than the whole frozen Section 6 set, and under it
+            neither primary cell has a blind band at all.
+        honest_limit: >-
+          The FAIL is close to structurally forced. Its value is attribution and
+          control power, not surprise.
+        artifact: scratch/tail_null.json
+    the_single_cheapest_falsification_i_identified:
+      for_the_claim_as_stated: >-
+        Re-run a = 1/8 and a = 1/16 at N = 2^24, r = 2 on a pre-declared fresh
+        five-seed draw. Cost: ~2 minutes of the container's time. If the PASS is a
+        property of the frozen seeds rather than of the cell, it fails.
+      i_ran_it: true
+      it_did_not_refute: >-
+        Extended to seeds {6..20}: a = 1/16 is positive on 20/20 seeds and PASSes
+        15504/15504 five-seed draws; a = 1/8 is positive on 19/20 and PASSes
+        15504/15504. The verdicts are not a property of the frozen draw. Note the
+        batch's own verdicts are computed on seeds {1..5} only and nothing here
+        re-scores them -- these are statements about the sampling behaviour of the
+        frozen rule.
+      for_what_remains_unresolved: >-
+        The T-sweep of O7. That is now the cheapest experiment that could still
+        overturn the interesting part of the claim, and nobody has run it.
+
+  # ------------------------------------------------- baseline / Pareto
+  baseline_comparison:
+    dominated_by: not_applicable_stated_rather_than_null
+    dominated_by_reason: >-
+      This batch produces NO point on the achievable frontier. The only quantity
+      that turns positive at a in {1/16, 1/8} is TopShare(T_sel), an ORACLE over
+      exact basin sizes that no selection rule attains, and zero online arms ran.
+      There is therefore nothing to dominate and nothing to be dominated. Writing
+      `dominated_by: null` would be technically defensible on the achievable
+      (P, S, coverage) tuple -- all four measured rows sit on a monotone trade
+      curve, so none dominates another -- and would be misleading, so I do not
+      record it.
+    frontier_rows_actually_checked:
+      - {row: 1, cell: 'N=2^24, a=1/4, r=2, STATIC(T)', coverage: 0.290613,
+         S_bits: 12288, S_peak_bits: 49152, P_over_sqrt_NT: 1.2430, W: 128,
+         source: RUN-ECDLP-612fb1-v3-g3x24-s1..s5, achievable: true}
+      - {row: 2, cell: 'N=2^24, a=3/16, r=2, STATIC(T)', coverage: 0.241024,
+         P_over_sqrt_NT: 1.0288, achievable: true}
+      - {row: 3, cell: 'N=2^24, a=1/8, r=2, STATIC(T)', coverage: 0.172186,
+         P_over_sqrt_NT: 0.7898, achievable: true}
+      - {row: 4, cell: 'N=2^24, a=1/16, r=2, STATIC(T)', coverage: 0.096880,
+         P_over_sqrt_NT: 0.5266, achievable: true}
+      - {row: 5, cell: 'N=2^24, a=1/16, r=2, ORACLE(T/2)', coverage: 0.117445,
+         S_bits: 6144, achievable: false}
+      - {row: 6, cell: 'N=2^24, a=1/8, r=2, ORACLE(T/2)', coverage: 0.179119,
+         S_bits: 6144, achievable: false}
+      - {rows: '7-14', cell: 'all eight N=2^20 counterparts',
+         source: RUN-ECDLP-612fb1-v3-rep20-s1..s5}
+      - row: 15
+        cell: "EV-ECDLP-60e266's own recorded frontier quantities"
+        detail: >-
+          rho_ORACLE = T_sel/T at which ORACLE(T_sel) matches STATIC(T), and
+          rho_T(U) steady-state and cumulative, which already frame this lane as
+          a ceiling calculation ("fixed-advice re-selection can buy at most
+          1 - rho_ORACLE ~ 0.45 of the advice at a = 1/4")
+    judged_as_a_ceiling_the_small_a_cells_are_beaten_by_a_row_this_lane_holds:
+      normalisation_per_unit_W:
+        a_1_16_oracle_ceiling: 0.0018351
+        a_1_4_achieved_static: 0.0022704
+        reading: the UNATTAINABLE a = 1/16 ceiling is 19.2% BELOW the ATTAINED
+          a = 1/4 static table
+      normalisation_per_unit_P_over_sqrt_NT:
+        a_1_16_oracle_ceiling: 0.2230
+        a_1_4_achieved_static: 0.2338
+        reading: 4.6% worse
+      the_one_axis_small_a_wins: >-
+        advice size, 6144 bits against 12288, exactly 2x. That is a genuine trade,
+        not a free lunch, and it must be quoted as a trade.
+    sota_delta:
+      on_every_achievable_axis: 0.000
+      on_every_achievable_axis_reason: >-
+        time, memory, data, advice and queries alike -- no achievable object was
+        produced.
+      measured_ceiling_delta_which_is_what_the_batch_establishes:
+        - a: 0.0625
+          N: '2^24'
+          r: 2
+          delta: 0.020565104
+          bca_ci_95: [0.016374624, 0.025305235]
+          units: >-
+            exact single-walk hit probability, of the best-possible 128-entry
+            table over the w(d)-selected 256-entry table, at HALF the advice
+            (6144 vs 12288 bits), W = 64, P/sqrt(NT) = 0.527
+        - a: 0.125
+          N: '2^24'
+          r: 2
+          delta: 0.006932771
+          bca_ci_95: [0.004496968, 0.009939158]
+          units: same, W = 90.51, P/sqrt(NT) = 0.790
+        - a: 0.1875
+          N: '2^24'
+          r: 2
+          delta: -0.009995234
+          units: negative
+        - a: 0.25
+          N: '2^24'
+          r: 2
+          delta: -0.019306540
+          units: >-
+            negative -- and this is where the previously claimed operating point
+            sits
+      ci_method: >-
+        BCa, 10000 resamples, bootstrap seed 20260907, resampling unit = seed
+        (the producer's disclosed deviation D3), from a maximum of 5^5 = 3125
+        distinct resamples. The CI is narrower than five seeds honestly support
+        and I read it as indicative, not as a five-seed confidence statement.
+      delta_against_the_prior_state_of_knowledge: >-
+        Narrower still. a = 1/16 was already CONFIRMED G3-feasible twice inside
+        EV-ECDLP-2e9680 (blind 5/5 and production 5/5), and STAGE 3B reproduces
+        the production arm bitwise, so it adds reproducibility rather than
+        corroboration (O6). The genuinely new measurements in this batch are the
+        first null-object and decay controls ever applied to the G3 margin
+        (residual R5) and the first red-team pass on this lead (residual R2),
+        which is this report.
+
+  # ------------------------------------------------------- cost model
+  cost_model_challenges:
+    - id: C1
+      severity: material
+      uncharged_term: >-
+        The cost of FINDING the T_sel table. TopShare(T_sel) is the top 128 basins
+        by TRUE EXACT SIZE. Obtaining it requires exact basin computation, which
+        is Theta(N) time and Theta(N) memory. The advertised cost tuple charges
+        S = 6144 bits of advice and P = 34509-51762 group operations of pool
+        generation. It does not charge the Theta(N) term at all.
+      is_it_recorded_anywhere: >-
+        Yes, as a run resource: 23.7 s CPU and 497 MB peak RSS per seed at
+        N = 2^24 in cost_table.json measured_run_resources. It is measured and
+        disclosed. It is simply not in any S or P column.
+      why_it_matters: >-
+        This is precisely why the result is a CEILING and not a MECHANISM, and it
+        is the single largest uncharged term in the package. At cryptographic
+        scale Theta(N) = Theta(2^256), which is worse than the ECDLP instance the
+        table is meant to help solve. Any reader who takes the S and P columns as
+        the cost of the a = 1/16 object is off by the entire problem.
+      producer_at_fault: false
+      producer_at_fault_note: >-
+        The Executor asserts no mechanism and disclaims attainment explicitly. The
+        risk is in how the cost table reads to a later consumer, not in what was
+        written.
+    - id: C2
+      severity: material
+      uncharged_term: >-
+        The online cost of USING the table -- the batch size U and the per-query
+        walk cost. No online arm of any kind ran. EV-ECDLP-60e266's rho_T(U)
+        steady-state and cumulative terms are the relevant quantities and none of
+        them is in this batch.
+      why_it_matters: >-
+        "Batch ECDLP with precomputation" is a statement about amortising over U
+        targets. This batch measures a single-walk hit probability and says
+        nothing about U.
+    - id: C3
+      severity: low
+      uncharged_term: >-
+        Inverse success probability. The >= 4-of-5 rule tolerates one failing
+        seed, so an instance drawn at random from the same family carries a
+        per-seed success rate, not 1. Measured over 20 seeds it is 20/20 at
+        a = 1/16 and 19/20 at a = 1/8, so the correction is between 1.00x and
+        1.05x -- small here, but it is set to 1 implicitly rather than derived.
+      why_it_matters: >-
+        Small at these parameters; named because per-attempt cost times inverse
+        success probability is the bookkeeping the target profile requires and it
+        is currently absent rather than negligible-by-argument.
+    - id: C4
+      severity: low
+      uncharged_term: >-
+        Capped walks. capped_walk_fraction_mean is reported (0.2-0.4% at r = 2)
+        but the cost of a capped walk is folded into P rather than accounted
+        separately, and a capped walk contributes no DP.
+      why_it_matters: minor at this cap (8W); would matter if the cap were tightened
+
+  # ------------------------------------------------- scope and reduction
+  reduction_and_scope_challenges:
+    - >-
+      No group. The instrument is a keyed random function on Z_N with an
+      independently keyed DP predicate. There is no curve arm, no cryptographic
+      N, and no named scheme. Nothing in this batch is an ECDLP result, and the
+      producer does not say it is.
+    - >-
+      No exponent. Every statement is a constant-factor statement under the
+      Corrigan-Gibbs--Kogan S*T^2 = Omega~(eps*N) preprocessing ceiling
+      (KN-LIT-013, cited via the v1/v2 contracts; provenance internal -- this Red
+      Team did not open the corpus entry). No asymptotic promotion gate is
+      engaged, so the coordinator's asymptotic promotion gates do not apply and
+      must not be recorded as passed.
+    - >-
+      The scale gap, in orders of magnitude. Tested N spans 2^20 -> 2^24: a factor
+      of 16, 1.2 orders of magnitude. A cryptographically relevant group order is
+      about 2^256, another ~70 orders of magnitude, with T = N^(1/3) moving from
+      256 to about 2^85 -- roughly 25 orders of magnitude in T. The batch's entire
+      N-dependence evidence is two points: the pooled a = 1/8 margin is +0.004724
+      at N = 2^20 and +0.006933 at N = 2^24. It did not shrink. Two points do not
+      carry a trend and I do not read one.
+    - >-
+      What breaks first, named: estimator_loss(T, r = 2). See O7. If it drifts
+      with T the a-crossing moves with T and nothing transfers.
+    - >-
+      claim_tier: toy is correctly stated and correctly scoped. 4-core container,
+      N <= 2^24, five seeds, one instrument family.
+
+  # ----------------------------------------------------- heuristics / proof
+  heuristic_challenges:
+    - >-
+      There is no numbered heuristic in this batch to challenge, and no
+      conditional theorem. The amendment states a predicate and measures it. I
+      record this rather than manufacturing a heuristic objection: the
+      exemplar-style heuristic inventory does not apply to a pure measurement
+      batch, and pretending it does would be a fabricated objection.
+    - >-
+      The one implicit modelling assumption I did find is the a-monotonicity of
+      feasibility, which the known-false labelling depends on. I checked it:
+      mean per-seed margin over 20 seeds at N = 2^24, r = 2 is +0.020494,
+      +0.009196, -0.006078, -0.018394 for a = 1/16, 1/8, 3/16, 1/4. Monotone
+      decreasing. The known-false labelling is consistent with the measured
+      ordering.
+  proof_architecture_challenges:
+    - >-
+      No proof, lemma decomposition, or asymptotic argument is offered in this
+      batch, so there is no proof architecture to attack and no proves-too-much
+      test to run against an ARGUMENT. The proves-too-much control here is run
+      against OBJECTS, which is J4, and is answered there.
+
+  # ---------------------------------------------------------- obstruction
+  obstruction:
+    name: estimator-loss saturation
+    what_it_obstructs: >-
+      G3 feasibility at a >= 3/16 under this instrument, T_sel = T/2, r = 2 --
+      and, if the saturation persists in T, the transfer of the a-crossing to
+      larger parameters.
+    quantity: >-
+      estimator_loss = TopShare(T) - StaticCov(T, r), the coverage the w(d)
+      selection gives up against a full-table oracle
+    units: exact single-walk hit probability (dimensionless coverage fraction of N)
+    measured_values:
+      N_2_24_T_256_r_2_five_frozen_seeds:
+        - {a: 0.0625, mean: 0.086427, sd: 0.005424, min: 0.080709, max: 0.093891}
+        - {a: 0.1250, mean: 0.099115, sd: 0.002594, min: 0.095507, max: 0.102094}
+        - {a: 0.1875, mean: 0.098247, sd: 0.010995, min: 0.088372, max: 0.111361}
+        - {a: 0.2500, mean: 0.099258, sd: 0.011700, min: 0.084919, max: 0.112768}
+      N_2_20_T_64_r_2_five_frozen_seeds:
+        - {a: 0.0625, mean: 0.080968}
+        - {a: 0.1250, mean: 0.095537}
+        - {a: 0.1875, mean: 0.103840}
+        - {a: 0.2500, mean: 0.099049}
+    error_bars: >-
+      sample standard deviation over the five frozen seeds, quoted above. With
+      n = 5 these are indicative only; the 20-seed extension I ran covers the
+      margin, not the decomposition, so I do not quote a tighter interval than
+      the data supports.
+    source_runs:
+      - RUN-ECDLP-612fb1-v3-g3x24-s1
+      - RUN-ECDLP-612fb1-v3-g3x24-s2
+      - RUN-ECDLP-612fb1-v3-g3x24-s3
+      - RUN-ECDLP-612fb1-v3-g3x24-s4
+      - RUN-ECDLP-612fb1-v3-g3x24-s5
+      - RUN-ECDLP-612fb1-v3-rep20-s1
+      - RUN-ECDLP-612fb1-v3-rep20-s2
+      - RUN-ECDLP-612fb1-v3-rep20-s3
+      - RUN-ECDLP-612fb1-v3-rep20-s4
+      - RUN-ECDLP-612fb1-v3-rep20-s5
+    derivation_note: >-
+      recomputed by this Red Team from each measurement run's own raw-result.json;
+      the decomposition is arithmetic on quantities the runs already record and
+      introduces no new measurement.
+    claimed_scope: >-
+      The frozen v2 splitmix64 instrument with an independently keyed DP
+      predicate, exact basins, T in {64, 256}, T_sel = T/2, r = 2, N in
+      {2^20, 2^24}, five seeds. NOTHING outside that. In particular this is not
+      claimed for any group, any curve, any other selection weight, or any T
+      beyond the two measured.
+    reading: >-
+      The estimator loss saturates near 0.099 for every a >= 1/8 at BOTH tested N
+      while the halving loss tracks TopShare(T) and grows with a. G3 is feasible
+      exactly where TopShare(T) is small enough that roughly a third of it sits
+      under that ~0.099 ceiling. The crossing lies between TopShare(T) = 0.271
+      (a = 1/8, PASS) and 0.339 (a = 3/16, FAIL).
+    resource_check:
+      examined: true
+      which_theory_reads_this_as_an_asset: >-
+        A ~0.099 saturating estimator loss that is nearly INDEPENDENT of a and of
+        N is a much more interesting object than the boolean it was reduced to.
+        If it is genuinely a constant of the w(d) estimator rather than a
+        parameter-dependent quantity, then it is a reusable budget: it says how
+        much coverage ANY w(d)-selected table gives up, and it converts the
+        feasibility question at any (a, T) into the single arithmetic test
+        "is the halving loss below the constant?". That would make the crossing
+        predictable rather than measurable-only, and would let a successor
+        predict the crossing a for parameters too large to measure. The same
+        saturation that kills a >= 3/16 is the hypothesis of that successor.
+      what_would_have_to_be_true: >-
+        estimator_loss(T, r = 2) must stay near 0.099 as T grows. Measured at
+        exactly two T points. This is the same quantity as O7 and the same
+        experiment tests both: the asset reading and the transfer claim stand or
+        fall together, which is convenient rather than suspicious -- one T-sweep
+        resolves both.
+      recorded_as_a_resource_not_a_verdict: true
+
+  # --------------------------------------------------- narrowest statement
+  narrowest_supported_statement: >-
+    CONDITIONAL on J1 and J2, which I am blind to: at N = 2^24, on the frozen v2
+    splitmix64 keyed-random-function instrument with an independently keyed DP
+    predicate, T = 256, T_sel = 128, r = 2, exact basins and the five declared
+    seeds, the exact single-walk coverage of the best-possible 128-entry table
+    reached or exceeded the exact coverage of the w(d)-selected 256-entry table at
+    a = 1/16 (5/5, pooled margin +0.020565) and at a = 1/8 (5/5, pooled margin
+    +0.006933), and did not at a = 3/16 (0/5) or a = 1/4 (0/5). This is a
+    statement about the basin-size distribution and the w(d) estimator's loss at
+    those parameters and nothing else. It survives four independent attacks I ran:
+    a uniform-bias control-power analysis, a 15-seed extension, a halving-loss null
+    the batch did not have, and a cost/scope audit. It licenses NO mechanism (the
+    T_sel table is an oracle and zero online arms ran), NO exponent, NO statement
+    about any group or curve, and NO statement about batch ECDLP with
+    precomputation at cryptographic scale, which is roughly 70 orders of magnitude
+    in N and 25 in T beyond the tested cells.
+  remaining_uncertainty_named_rather_than_rounded:
+    - >-
+      I could not break the measured result. That is NOT the same as saying it is
+      correct. Correctness at the predicate level -- does g3_predicate implement
+      the contract's G3 -- is J1, and independent re-derivation is J2. Both are
+      the Validator's and I am blind to both. If the predicate is wrong, every
+      control I ran is wrong in the same direction, because they all run on the
+      producer's code path.
+    - >-
+      All four of my attacks share that single point of failure. Running my
+      controls through the producer's own measure_cell was the right call for
+      comparability -- a difference cannot then be an instrumentation difference --
+      but it means my agreement with the producer carries no independence about
+      the instrument itself. Only J2 can supply that.
+    - >-
+      The a = 1/8 PASS is roughly four times less robust than the a = 1/16 PASS on
+      two unrelated measures (verdict-statistic headroom 0.005128 vs 0.017438;
+      NULL_A ratio 0.089 vs 0.360). Both PASS; they should not be quoted as
+      equally strong.
+    - >-
+      R3 is open. This batch supplies no independent angle from my side, and
+      whether it supplies one at all depends entirely on J2.
+    - >-
+      Whether any of this transfers rests on estimator_loss(T) flatness measured
+      at two T values.
+  did_the_claim_survive: >-
+    Yes, on my joints, with the qualifications above. I attacked the mechanism
+    rather than the presentation, built the control the contract was missing,
+    built two known-false objects the contract did not have, and measured the
+    frozen control's type-I error rate. The claim survived all of it, and it
+    survived a proves-too-much object roughly 20x stronger than the one it was
+    given. The thing this batch does NOT have -- and the amendment asserted it
+    would -- is an independent implementation.
+
+  next_concrete_action:
+    ranked:
+      - rank: 1
+        action: >-
+          Run the T-sweep of O7: T in {64, 128, 256, 512, 1024} at fixed
+          N = 2^24, r = 2, five seeds, reporting estimator_loss and halving_loss
+          separately rather than the boolean.
+        why_first: >-
+          It is the cheapest experiment that could still overturn the interesting
+          part of the claim, it discharges the obstruction's resource_check, and
+          exact basins are already affordable at these parameters. Minutes of
+          compute.
+      - rank: 2
+        action: >-
+          Discharge residual R3 with a genuinely independent implementation --
+          different random-function family, independently written basin closure,
+          written by an agent that has not read source_v2/instrument.py.
+        why: >-
+          R3 is open and this batch cannot close it. Until it is closed, the
+          a = 1/8 disagreement inside EV-ECDLP-2e9680 stands unresolved.
+      - rank: 3
+        action: >-
+          Adopt RC1 and RC2 in any successor contract: NULL_T (or an equivalent
+          halving-loss null) in the declared control set, and 20 seeds at
+          known-false cells with the type-I rate reported.
+      - rank: 4
+        action: >-
+          Report the zero-crossing rho_ORACLE(a) = t*/T instead of the boolean at
+          t = T/2. EV-ECDLP-60e266 already names this quantity; it is continuous,
+          far more informative, and costs one extra sort per (a, seed) once the
+          exact basins exist. Four numbers in place of four bits.
+      - rank: 5
+        action: >-
+          Ledger housekeeping (O8): record EXP-ECDLP-612fb1 in
+          H-ECDLP-37dc01.test_boundary.boundary_amendments alongside
+          EXP-ECDLP-6ac801.
+    what_i_do_not_recommend: >-
+      I do not recommend closing this lane, and I record that explicitly. Nothing
+      I found is a named obstruction against the direction; the one obstruction I
+      measured reads at least as well as a resource (see resource_check) as it
+      does as a barrier. A negative reading of this batch would be premature
+      closure.
+
+  # --------------------------------------------------------------- artifacts
+  artifact_paths_note: >-
+    These four are the declared artifacts and the only files I treat as
+    deliverables. I also emitted a scratch/ directory that is NOT in this list;
+    it is disclosed as a scope expansion immediately below, under
+    `undeclared_output_disclosure`, with a recommendation to the Coordinator.
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-ee1ca7/j4_proves_too_much.json
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-ee1ca7/j5_controls_audit.json
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-ee1ca7/j6_cost_scope_audit.md
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-ee1ca7/red_team_report.yaml
+  undeclared_output_disclosure:
+    what_happened: >-
+      I emitted a `scratch/` directory inside my write scope holding the code and
+      outputs behind my J4 seed extension, the 15504-draw enumeration, the
+      control-power analysis and the NULL_T tail null. My declared artifact_paths
+      names only the four report files. The scratch directory is therefore an
+      UNDECLARED OUTPUT: inside the write scope, outside the declared artifact
+      set. I am reporting it rather than deleting it or passing over it.
+    is_this_a_write_scope_violation: false
+    is_this_a_scope_expansion_of_the_declared_artifact_set: true
+    why_it_matters_on_the_merits: >-
+      My strongest J4 finding -- a measured type-I error rate of 1.03e-3 at a cell
+      the contract calls known-false -- and my J5 answer to the missing-control
+      gap are both derived quantities, not readings from a committed artifact. If
+      the code that produced them is not archived, neither is reproducible by
+      anyone, and a later reader has only my word for them. That is exactly the
+      standing this program does not give to a number.
+    all_of_it_is_diagnostic_not_evidence: >-
+      None of these files is a run record, none is evidence, and none changes any
+      verdict. The batch's verdicts are computed on seeds {1..5} by the producer's
+      own runs and nothing here re-scores them. Every diagnostic below calls the
+      producer's frozen experiments/EXP-ECDLP-612fb1/source_v3/g3_predicate.py
+      unchanged, which is deliberate -- a difference cannot then be an
+      instrumentation difference -- and is also the limitation recorded under
+      remaining_uncertainty.
+    carries_evidence_a_reader_needs_to_reproduce_my_findings:
+      - path: scratch/rt_seed_dispersion.py
+        bytes: 3671
+        sha256_prefix: c5a71e02d50f783e
+        reproduces: >-
+          the seeds 6-20 extension at N = 2^24, r = 2 across all four a values;
+          the generator for every 20-seed number in this report
+        supports: O2, KF-A, KF-B, finding_F4 (a-monotonicity)
+      - path: scratch/dispersion_s6_s20.json
+        bytes: 31698
+        sha256_prefix: 6a8e31a2629409a9
+        reproduces: its raw output -- the per-seed margins for seeds 6-20
+        supports: O2, KF-A, KF-B
+      - path: scratch/rt_dispersion_analysis.py
+        bytes: 5740
+        sha256_prefix: c60a899c94990e8e
+        reproduces: >-
+          the exhaustive enumeration of all C(20,5) = 15504 five-seed draws and
+          the m(4) statistics over them
+        supports: >-
+          O2 and KF-A -- THE TYPE-I ERROR RATE OF 1.03e-3 (16 of 15504 draws)
+          IS COMPUTED HERE AND NOWHERE ELSE
+      - path: scratch/seed_dispersion_analysis.json
+        bytes: 5334
+        sha256_prefix: de37b20c3ed45e7a
+        reproduces: its output, including the 16 PASSing draws and the median m(4)
+        supports: O2, KF-A, KF-B
+      - path: scratch/rt_control_power.py
+        bytes: 6146
+        sha256_prefix: cd91156290597ee1
+        reproduces: >-
+          the uniform-additive-bias model, the binding known-false object and the
+          blind bands
+        supports: O1 and the whole of finding_F1
+      - path: scratch/control_power.json
+        bytes: 6926
+        sha256_prefix: ef27032c2a1475d0
+        reproduces: its output -- the 0.017737 firing threshold and both bands
+        supports: O1
+      - path: scratch/rt_tail_null.py
+        bytes: 6697
+        sha256_prefix: f105fb87bd25f5b3
+        reproduces: >-
+          the NULL_T construction itself -- the uniform multinomial reallocation
+          of reachable basin mass M over D basins at fixed rank order, null stream
+          seed 900
+        supports: >-
+          O3, finding_F6, and the strengthened proves-too-much object that closes
+          the J4 blind band. WITHOUT THIS FILE NULL_T IS A DESCRIPTION, NOT A
+          CONSTRUCTION, AND CANNOT BE ADOPTED AS RC1
+      - path: scratch/tail_null.json
+        bytes: 17474
+        sha256_prefix: 681ee68f09777a75
+        reproduces: >-
+          its per-seed output, and the estimator/halving loss decomposition that
+          the obstruction block's measured values are computed from
+        supports: O3, finding_F5, finding_F6, the obstruction block
+    incidental:
+      - path: scratch/dispersion.log
+        bytes: 3644
+        sha256_prefix: b3c9ccccf9e22306
+        why_incidental: stdout of rt_seed_dispersion.py; the JSON carries the data
+      - path: scratch/tailnull.log
+        bytes: 2823
+        sha256_prefix: 9e0f1fd19006d8c1
+        why_incidental: stdout of rt_tail_null.py; the JSON carries the data
+      - path: scratch/sanity.json
+        bytes: 2493
+        sha256_prefix: a885d8cbca938de6
+        why_incidental: >-
+          a two-seed smoke test I ran before the full sweep, superseded by
+          dispersion_s6_s20.json. Retained because deleting an intermediate
+          observation is not mine to do, but it supports no finding.
+      - path: scratch/rt_emit.py
+        bytes: 29265
+        sha256_prefix: fe1f4e0eaba45c6d
+        why_incidental: >-
+          the compiler that assembled j4_proves_too_much.json and
+          j5_controls_audit.json from the artifacts above. It computes no new
+          quantity; it is a formatter. Useful for auditing how a deliverable field
+          was populated, not needed to reproduce any number.
+    recommendation:
+      to: coordinator
+      decision_is_not_mine: >-
+        Extending the declared artifact set is a Coordinator act. I recommend and
+        do not decide, and I have changed nothing outside my four declared files.
+      recommendation: >-
+        EXTEND the declared artifact set for TASK-20260907-ee1ca7 to archive the
+        eight files listed under
+        `carries_evidence_a_reader_needs_to_reproduce_my_findings`, in the
+        snapshot commit that archives this report, and archive the four
+        `incidental` files with them rather than sorting them out.
+      reason_for_the_eight: >-
+        Three findings in this report are load-bearing for what the batch is worth
+        and none of them can be checked without this code: the 1.03e-3 type-I
+        error rate that qualifies the frozen proves-too-much control (O2/KF-A),
+        the blind-band analysis that shows the Section 6 set did not protect the
+        a = 1/8 PASS (O1), and NULL_T (O3/RC1), which I recommend adopting into
+        the declared control set of any successor contract. A control cannot be
+        adopted from a paragraph describing it.
+      reason_for_taking_the_incidental_four_as_well: >-
+        Separating them buys nothing -- they total 38 KB -- and a partial archive
+        invites the question of what was left out and why. Archiving the directory
+        whole is cheaper to audit than archiving a curated subset.
+      what_must_be_recorded_if_the_recommendation_is_accepted: >-
+        That these are RED-TEAM DIAGNOSTICS, not run records and not evidence.
+        They must not acquire the standing of an experiment run by being committed
+        next to one: they carry no run manifest, no seed policy of their own beyond
+        what each file declares, and no independent instrument. Each JSON already
+        states `is_a_run_record: false` and `changes_any_verdict: false` in its own
+        first two fields, which is the property that should survive archiving.
+      if_the_recommendation_is_declined: >-
+        Then the three findings above should be read as UNREPRODUCIBLE assertions
+        by this session and weighted accordingly -- which is a materially weaker
+        standing than the report otherwise claims for them, and the Coordinator
+        should say so in the composing decision rather than leaving the numbers
+        looking checkable. I would rather the finding be discounted than be relied
+        on without the means to check it.
+    reproduction_note: >-
+      Every diagnostic was run from the repository root with the frozen v3
+      predicate on the snapshot tree at fe6cdf59f, single worker, on the same
+      4-core container. Total additional compute: 463.5 s wall across the three
+      measuring diagnostics -- 21.036 s (sanity.json), 327.8 s
+      (dispersion_s6_s20.json) and 114.645 s (tail_null.json), each read from
+      that file's own `wall_seconds_total`. The two analysis scripts
+      (rt_dispersion_analysis.py, rt_control_power.py) do no measurement and run
+      in under a second on the JSON above.
+  wrote_outside_write_scope: false
+  committed_anything: false
+  changed_any_research_status: false
+  edited_any_raw_artifact: false
+
+  # ------------------------------------------------------- attestation
+  review_attestation:
+    task_id: TASK-20260907-ee1ca7
+    joints_owned_note: >-
+      Each entry below is the plan's own `joint` string, copied verbatim from
+      review_plan.joints in ledger/handoffs/TASK-20260907-ee1ca7.yaml, because
+      tools/check_review_independence.py matches on that exact text. The short
+      labels J4/J5/J6 used elsewhere in this report are the same three joints.
+    joints_owned:
+      - "J4 -- PROVES-TOO-MUCH. The same predicate, the same code path, the same pool procedure and the same analysis must return G3 FAIL on the objects where G3-feasibility is KNOWN FALSE: a = 1/4 at r = 2, N = 2^24; a = 3/16 at r = 2, N = 2^24; and every tested a at r = 8."
+      - "J5 -- CONTROLS BEFORE BELIEF: the null objects and the decay control. NULL_A_G3 (relabelled evidence pairs on the IDENTICAL pool draw) must show margin_null materially ABOVE margin; NULL_B_G3 (two independent selection code paths over the same weights and keys) must give set-identical selections; DECAY_G3 must show margin NON-INCREASING in r over {2, 4, 8} at every (N, a, seed), with the cell verdict FAIL by r = 8."
+      - "J6 -- COST, SCOPE AND WHAT A PASS LICENSES. Every headline number carries its storage and precomputation siblings (S, S_peak in bits, P/sqrt(NT), W) rather than a bare ratio; the claim tier stays TOY; the result is reported as a CEILING and never as a mechanism; the a-widening outside H-ECDLP-37dc01's stated test_boundary is disclosed; and EV-ECDLP-60e266's standing obstruction at a = 1/4 is neither reopened nor weakened."
+    sources_read:
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-ee1ca7/task_card.yaml
+      - ledger/handoffs/TASK-20260907-ee1ca7.yaml
+      - experiments/EXP-ECDLP-612fb1/amendments/v2_to_v3.yaml
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-aad514/execution_report.yaml
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-aad514/artifact_inventory.json
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/archives/TASK-20260907-7bf406/snapshot-receipt.json
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-analysis-001/g3_verdict_table.json
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-analysis-001/proves_too_much_table.json
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-analysis-001/null_table.json
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-analysis-001/decay_table.json
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-analysis-001/cost_table.json
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-analysis-001/stdout.log
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-g3x24-s1..s5/raw-result.json
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v3-rep20-s1..s5/raw-result.json
+      - experiments/EXP-ECDLP-612fb1/source_v3/g3_predicate.py
+      - experiments/EXP-ECDLP-612fb1/source_v3/IMPLEMENTATION.md
+      - experiments/EXP-ECDLP-612fb1/source_v2/instrument.py
+      - ledger/evidence/EV-ECDLP-60e266.yaml
+      - ledger/evidence/EV-ECDLP-2e9680.yaml
+      - ledger/hypotheses/H-ECDLP-37dc01.yaml
+      - AGENTS.md
+      - docs/inventor-protocol.md
+      - agents/red-team.md
+      - templates/research-records.md
+      - orchestration/model-policies.yaml
+      - .claude/agents/red-team-breakthrough.md
+    read_sibling_reports: false
+    read_sibling_reports_note: >-
+      I did not open
+      coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-8f3e86/tasks/TASK-20260907-b2a8ad/
+      or any file beneath it. Its artifacts were visible as untracked paths in
+      `git status` output while I was checking my own working-tree state; I read
+      none of their contents. The plan declares `blindness.lifted_for: []` and
+      nothing was lifted.
+    incidental_disclosure_from_running_the_checker: >-
+      I was instructed to run tools/check_review_independence.py against the whole
+      batch, and it scans every YAML under it. Its output therefore told me two
+      things about TASK-20260907-b2a8ad that I did not seek and could not avoid:
+      that a file named validation_report.yaml exists there, and that the checker
+      considers its declared sources_read to intersect the plan's blind_from. I
+      have not opened that file and I know NOTHING of its findings, its verdicts,
+      or its re-derived values. I record this because an undisclosed partial read
+      is worse than a disclosed one, and because a later auditor comparing my
+      report against the checker output would otherwise have to wonder. My
+      `read_sibling_reports: false` above stands: a tool's pass/fail line about a
+      file is not a read of that file, and nothing in it could bias a finding of
+      mine, all of which were written and their numbers computed before I ran the
+      checker.
+    my_own_findings_were_final_before_the_checker_ran: true
+    blind_from_respected: null
+    blind_from_respected_note: >-
+      not applicable -- this is not a re-derivation task and the plan declares no
+      blind_from for it
+    verdict: breaks
+    verdict_by_joint:
+      J4: holds
+      J5: holds
+      J6: breaks
+    verdict_scalar_note: >-
+      The checker reads ONE scalar `verdict` per attestation, and my three joints
+      do not share a verdict. I set the scalar to the WORST of them, `breaks`,
+      because that is the only aggregation that cannot overstate the review:
+      an attestation covering a joint that breaks has not returned `holds`.
+      `verdict_by_joint` above carries the per-joint results unchanged, and they
+      are unchanged from what I reported before this format fix -- J4 holds,
+      J5 holds, J6 breaks. Nothing was softened to make the checker pass.
+    verdict_prose: >-
+      J4 holds, J5 holds, J6 breaks (on the amendment's residual R3, not on the
+      producer's package). This is a verdict on my three joints only. I cannot see
+      J1, J2 or J3 and I offer no whole-claim verdict; the Coordinator composes.
+    procedure_deviations:
+      - >-
+        FORMAT-ONLY REVISION after the first submission. tools/
+        check_review_independence.py rejected this report on two machine-checked
+        fields: joints_owned carried my short labels J4/J5/J6 rather than the
+        plan's verbatim joint strings, and verdict carried prose rather than one
+        of holds|breaks|inconclusive. Both are now conformed. NO FINDING, NUMBER,
+        VERDICT OR RECOMMENDATION WAS CHANGED. The scalar verdict is `breaks`,
+        the worst of my three joints, not the most convenient; J4 and J5 remain
+        `holds` and J6 remains `breaks` in verdict_by_joint and in
+        per_joint_verdicts. Recorded because a report revised after a checker ran
+        is not self-documenting, and a reader is entitled to know which parts
+        moved.
+      - >-
+        The frozen plan does not name U1 as a joint. The snapshot receipt for
+        TASK-20260907-7bf406 records that gap and routes the question to the
+        nearest owned joint, J6. I answered it there. Recorded as a deviation
+        because it is an addition to my assignment, disclosed in advance by the
+        Coordinator rather than taken unilaterally.
+      - >-
+        The handoff invites constructing additional known-false objects if the
+        frozen six are not discriminating. I did so (KF-A, KF-B) and additionally
+        constructed a null object (NULL_T) that the handoff did not ask for, under
+        J5's "controls before belief" obligation. All three ran inside my write
+        scope on the producer's frozen code path. None is a run record and none
+        changes a verdict.

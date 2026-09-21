@@ -1,0 +1,137 @@
+experiment:
+  id: EXP-ECDLP-IDEA-006-PREFLIGHT
+  hypothesis_id: ECDLP-IDEA-006
+  lane: high_risk
+  version: 1
+  title: Elliptic-net displacement-rank and index-location preflight
+  status: review_required
+  objective: >-
+    Determine whether normalized target-indexed rank-two elliptic-net blocks have exact
+    displacement order and an index-location procedure whose complete measured time and
+    memory exponents can fall below 1/2, while separating recurrence prediction from
+    recovery of the hidden scalar shift.
+  claim_boundary:
+    evidence_scale: toy
+    model_status: heuristic_model_bound
+    novelty_status: novelty_unverified
+    breakthrough_claim: false
+  inputs:
+    subgroup_bit_sizes: [12, 14, 16, 18, 20, 22, 26, 30, 34]
+    independent_curves_per_size: 100
+    target_shifts_per_curve: 100
+    exhaustive_rank_max_bits: 22
+    block_side_lengths: [4, 8, 16, 32, 64]
+    anchor_rules:
+      - consecutive_from_zero
+      - deterministic_quadratic_stride
+      - seed_bound_uniform_indices
+    normalizations:
+      - minimal_integral_net_normalization
+      - projective_scale_randomized_control
+    seeds: [2026071761, 2026071762, 2026071763]
+    finite_size_fit: preregistered log-log slope with inverse-log correction and leave-largest-size-out sensitivity
+  controls:
+    - planted linear-recurring sequences with known displacement rank and hidden shift
+    - exhaustive rank-two elliptic nets with every candidate shift checked
+    - random periodic sequences with matched period, alphabet, and normalization
+    - ordinary EDS recurrence evaluation without index recovery
+    - randomized valid projective rescalings of each elliptic net
+    - oracle-labeled eigenvalue indices used only as an instrumentation upper bound
+  independent_variables:
+    - subgroup bit size
+    - curve instance
+    - target shift
+    - block side length
+    - anchor rule
+    - normalization
+    - exact versus structured rank backend
+  metrics:
+    primary:
+      - exact minimal displacement order r
+      - fitted order exponent rho in r=N^rho
+      - block and anchor construction exponent a
+      - applicable structured linear algebra exponent omega_s
+      - public target-block exponent q
+      - index-location and ambiguity exponent tau
+      - full time exponent lambda=max(a,omega_s*rho,q,tau)
+      - memory exponent mu including explicit blocks, anchors, and candidates
+    secondary:
+      - withheld-block prediction correctness
+      - number of surviving shift candidates
+      - fraction of instances requiring an order-N eigenvalue discrete logarithm
+      - normalization-induced rank changes
+      - accepted and rejected target-shift counts
+      - peak resident memory
+  replication:
+    independent_instances: 900
+    targets_per_instance: 100
+    rerun_same_seed: true
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 300
+    maximum_memory_gb: 48
+    maximum_runs: 90000
+    maximum_output_gb: 60
+  stopping_rules:
+    - Stop larger exact-rank cells after two consecutive sizes exceed 44 GB median peak memory; retain them as censored_by_budget and continue only the preregistered structured backend.
+    - Stop an instance when exact rank or index location reaches 3600 seconds; record a timeout, never a favorable rank or ambiguity value.
+    - Halt after any reported singleton shift fails independent curve verification and audit implementation validity before inference.
+  invalidation_rules:
+    - A target block that uses the known toy shift outside the verifier is invalid.
+    - An annihilator that predicts sequence values but leaves an order-N eigenvalue discrete logarithm does not count as index recovery.
+    - A normalization chosen after observing rank or target success invalidates that cell.
+    - A crash, unsupported curve, timeout, or dependency failure is infrastructure or coverage evidence only.
+  success_criterion: >-
+    Exact withheld-block prediction and zero incorrect recovered shifts; at least 1000
+    independently recovered target shifts at each of the two largest completed sizes;
+    upper 95 percent bounds rho<=0.18, a<=0.30, q<=0.20, tau<=0.40,
+    omega_s<=2.2, lambda<=0.45, and mu<=0.45; and no order-N discrete logarithm in
+    eigenvalue labeling, ambiguity resolution, or verification; conclusions must remain
+    stable under the preregistered finite-size sensitivity.
+  falsification_criterion: >-
+    Lower 95 percent displacement-order slope rho>=0.25 with omega_s>=2; any accepted
+    singleton shift is incorrect after implementation validation; index location reduces
+    to an order-N field or group discrete logarithm; or every complete-cost configuration
+    has lower 95 percent lambda>=0.50.
+  required_artifacts:
+    - ideas/artifacts/ECDLP-IDEA-006/implementation.md
+    - ideas/artifacts/ECDLP-IDEA-006/runs/<run-id>/manifest.yaml
+    - ideas/artifacts/ECDLP-IDEA-006/runs/<run-id>/command.txt
+    - ideas/artifacts/ECDLP-IDEA-006/runs/<run-id>/environment.json
+    - ideas/artifacts/ECDLP-IDEA-006/runs/<run-id>/blocks.jsonl
+    - ideas/artifacts/ECDLP-IDEA-006/runs/<run-id>/ranks.jsonl
+    - ideas/artifacts/ECDLP-IDEA-006/runs/<run-id>/shifts.jsonl
+    - ideas/artifacts/ECDLP-IDEA-006/runs/<run-id>/stdout.log
+    - ideas/artifacts/ECDLP-IDEA-006/runs/<run-id>/stderr.log
+    - ideas/artifacts/ECDLP-IDEA-006/analysis.md
+  assigned_to: executor
+  approved_by: null
+
+handoff:
+  id: TASK-20260717-006
+  from: coordinator
+  to: executor
+  objective: Implement and run the elliptic-net rank and index-location preflight exactly after approval.
+  uncertainty_reduced: Whether sequence compression locates the hidden shift below rho rather than only predicting recurrence values.
+  inputs:
+    - ideas/ECDLP-IDEA-006_elliptic_net_short_annihilator_hypothesis.md
+    - ideas/contracts/ECDLP-EXP-CONTRACT-006_elliptic_net_rank_preflight.yaml
+  constraints:
+    - Do not run while status is review_required.
+    - Preserve every normalization, failed target, candidate shift, timeout, and eigenvalue-labeling trace.
+    - Do not interpret recurrence correctness or low toy rank as promotion.
+  deliverables:
+    - immutable net-block and rank records
+    - withheld-prediction and target-shift report
+    - index-location circularity audit
+    - full rho and BSGS cost fit
+  budget:
+    wall_clock_seconds: 1080000
+    memory_gb: 48
+    maximum_runs: 90000
+  completion_gate:
+    - Every planned cell has a terminal state.
+    - Every singleton shift independently verifies on the source curve.
+    - Raw results, resource metrics, and summaries agree.
+    - All required artifact paths exist and are checksummed.
+  return_format: execution_report

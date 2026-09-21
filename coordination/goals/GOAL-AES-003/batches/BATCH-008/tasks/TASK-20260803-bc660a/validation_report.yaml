@@ -1,0 +1,1077 @@
+validation_report:
+
+  # ------------------------------------------------------------------
+  # VERDICT FIRST. This field was written before any supporting section
+  # below it, so that a truncated report is still a usable one.
+  # ------------------------------------------------------------------
+  verdict: passed
+
+  verdict_statement: >-
+    The BATCH-008 producer package (TASK-20260803-05e072), as bound by the
+    dispatcher-verified snapshot archive at commit 8f463492, is an ADMISSIBLE
+    RESEARCH RECEIPT. Every declared artifact is present and hash-matched
+    against both the commit and the working tree; the v2-to-v3 instrument
+    equivalence proof is SOUND and survives three independent checks I
+    performed myself; every reported statistic recomputes exactly in code I
+    wrote from scratch against the raw counts; the preregistration precedes
+    the runs; the one killed run is correctly classified as infrastructure and
+    no number was inferred from it; and the falsifying/confirming readings were
+    verified with the same scrutiny.
+  verdict_scope_disclaimer: >-
+    `passed` means the receipt is admissible evidence. It does NOT endorse the
+    producer's interpretation, does not assign evidence strength, does not
+    support any ECDLP or AES claim, does not demonstrate a speedup, and does
+    not authorize promotion. Three interpretation-level qualifications are
+    recorded under `findings` and are NOT verdict-changing, because they
+    concern wording and campaign-level context rather than artifact integrity.
+
+  id: VAL-20260803-65ce72
+  task_id: TASK-20260803-bc660a
+  role: validator
+  goal_id: GOAL-AES-003
+  batch: BATCH-008
+  produced_at_utc: '2026-08-03'
+  validated_snapshot_commit: 8f463492
+  head_at_validation: 26a6cfb0a24e8689c8a2f3e6925791c1ea09aeed
+  snapshot_is_ancestor_of_head: true
+  worktree_dirty_at_validation: false
+  claim_tier: toy
+  claim_tier_basis: >-
+    Reduced-round (r in {2,3,4,5,6,10}) AES-shaped SPN, one software T-table
+    implementation, at most 2^30 trials per arm in this batch, one derived key.
+    No statement about full-round or deployed AES is made or implied, and no
+    comparison to published cryptanalysis is made in either direction.
+
+  inference:
+    policy: review-adversarial
+    requested_policy: review-adversarial
+    resolved_model: claude-opus-5
+    fallback_used: true
+    fallback_reason: >-
+      Claude Code subagent frontmatter cannot resolve the GPT-5.6-family policy
+      aliases in orchestration/model-policies.yaml; all roles run on
+      model: inherit under this harness.
+    model_verified: false
+    model_verified_reason: >-
+      No `python3 -m orchestration.adapter doctor --probe` exists under this
+      harness; the model identifier is unverified configuration.
+    independent_session: true
+    independent_implementation: true
+    independent_model: false
+    independence_statement: >-
+      THIS VALIDATION IS SESSION-INDEPENDENT AND IMPLEMENTATION-INDEPENDENT BUT
+      NOT MODEL-INDEPENDENT. The producer, the archive task, the Coordinator
+      correction under audit here, and this validator all resolve to the same
+      backend. Nothing in this report counts toward a closure quorum
+      (AGENTS.md "Goal closure quorum"): three attestations from this backend
+      are one judgement counted three times.
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
+
+  role_boundary: >-
+    THIS REPORT ASSIGNS NO OFFICIAL STATE. No hypothesis status, no evidence
+    strength, no knowledge promotion, no claim tier beyond the mechanical toy
+    derivation above. Those are Coordinator acts. This report also commits
+    nothing and ran no `git add`; it wrote only inside its assigned write_scope.
+
+  # ==================================================================
+  # A. ARTIFACT AND PROVENANCE CHECKS
+  # ==================================================================
+  artifact_checks:
+    - id: AC-1
+      what: snapshot receipt hash binding, against the COMMIT (not the worktree)
+      method: >-
+        For each of the 27 entries in snapshot-receipt.json path_sha256, read
+        the blob with `git show 8f463492:<path>` and sha256 it; separately
+        sha256 the working-tree file.
+      result: >-
+        27 of 27 match the receipt in the commit; 27 of 27 also match in the
+        working tree. Zero mismatches, zero missing paths.
+      status: pass
+    - id: AC-2
+      what: declared_path_count reconciliation
+      method: count path_sha256 entries plus excluded_by_explicit_path entries
+      result: >-
+        path_sha256 carries 27 entries; declared_path_count says 28. The 28th is
+        accounted for by excluded_by_explicit_path (the compiled binary
+        yoyo_sbox_v3, excluded under the same standing rule as yoyo_sbox_v2 and
+        rc7_aesni_vec, source shipped instead). 27 + 1 = 28 reconciles. The
+        exclusion is not a gap: see AC-6, where I rebuilt that binary myself.
+      status: pass
+    - id: AC-3
+      what: commit reachability and tree state
+      method: >-
+        `git merge-base --is-ancestor 8f463492 HEAD`; `git status --porcelain`
+      result: >-
+        8f463492 is an ancestor of HEAD (26a6cfb0). Exactly one commit lies
+        between them: 26a6cfb0, the Coordinator correction CORR-20260803-7d41c8,
+        which touches only dispatch_queue.json and the correction record and
+        changes no producer artifact. Working tree clean (0 porcelain lines).
+      status: pass
+    - id: AC-4
+      what: producer's own git_state honesty
+      method: read RESULTS.json git_state
+      result: >-
+        The producer recorded TWO HEADs (4731fe57 at task start, e41a4871 at
+        results time) and dirty_tree: true, with the note that HEAD moved
+        because other work commits into the same worktree, and that this task
+        committed nothing. Recording both observed revisions rather than
+        pretending one held throughout is the correct disposition under the
+        artifact policy. Verified consistent with git log.
+      status: pass
+    - id: AC-5
+      what: pinned RANK-1 binary integrity
+      method: >-
+        Compare runs/pinned_binary_sha256.txt against the BATCH-005 binary and
+        against the instruments block in RESULTS.json.
+      result: >-
+        d30e4d720317706043b263742062273d22fbe054f56a58a8b351f3bbb3fd9ff0
+        recorded as expected, measured and verified BEFORE the RANK-1 runs
+        (stamp 2026-08-03T20:13:19Z, first arm 20:14). Consistent across all
+        three places it appears.
+      status: pass
+    - id: AC-6
+      what: reproducibility pointer EXERCISED, not asserted
+      method: >-
+        `gcc -O2 -pthread -o v3_rebuilt src/yoyo_sbox_v3.c -lm` from the shipped
+        source in a scratch directory, then sha256 the result.
+      result: >-
+        My rebuild is BYTE-IDENTICAL to the shipped (uncommitted) producer
+        binary: sha256
+        8024d81cb59a15e544ed30b345bb2e0503811a73c9a0c061976fff9822a3ab09,
+        equal to the value recorded in RESULTS.json instruments.rank2_new_binary.
+        The excluded-binary decision therefore costs nothing: the artifact is
+        rebuildable from what was committed. I then RAN my rebuild at the
+        equivalence arm's exact arguments and it reproduced K-EQUIV-R5-K1-A2
+        field for field, including W_ge1_nontrivial 14 and W_ge1_prefix_k
+        [16677270, 65454, 280, 14]. The reproducibility pointer was EXERCISED:
+        artifacts rebuilt from scratch and listed, not asserted.
+      status: pass
+    - id: AC-7
+      what: the zero-byte run artifact
+      method: >-
+        Inspect runs/K-EQUIV-R5-K1.ATTEMPT1-INTERRUPTED.json (0 bytes) against
+        commands.txt, arms_timing.txt (rc=143 SIGTERM at 120 s), and deviation
+        D-1.
+      result: >-
+        Correctly retained, correctly labelled, correctly classified as
+        infrastructure. The retry is a NEW run id (K-EQUIV-R5-K1-A2), the
+        interrupted attempt was not overwritten or re-keyed, and no number is
+        derived from it anywhere in RESULTS.json or stats.json. This is an
+        INFRA RECORD, NOT A RESULT, and under AGENTS.md rule 5 it is not
+        negative mathematical evidence. Its unparseability is disclosed in the
+        archive receipt rather than worked around, and the ledger tool was not
+        loosened to hide it. Correct handling.
+      status: pass
+    - id: AC-8
+      what: preregistration precedes measurement
+      method: >-
+        Compare PREREGISTRATION.md written_at (20:13Z), budget_stamps.jsonl
+        opening stamp (20:09:55Z), and runs/arms_timing.txt / file mtimes for
+        the first arm (R9-R3-K1.json, R9-R4-K1.json at 20:13, K-EQUIV at 20:14).
+      result: >-
+        Ordering is consistent with the claim. The preregistration fixes the
+        decision rule (F1/F1a/C1/C2/A1), the STOP condition on equivalence
+        failure, the interval method, and the power note that R_3 would be
+        uninformative at 2^24 -- all BEFORE the data. The power note in
+        particular was correct in advance and was not revised after the fact.
+      status: pass
+    - id: AC-9
+      what: non-blindness of RANK 1 disclosed in advance
+      method: read PREREGISTRATION.md section 0 and deviation D-4
+      result: >-
+        The producer states, IN THE PREREGISTRATION ITSELF and before any run,
+        that it read the BATCH-006 r=3/r=4 arms and that the card's "nobody has
+        measured r=3 or r=4" premise is false. A preregistration that discloses
+        its own non-blindness before the fact is the correct handling; it is
+        also what caught the Coordinator error audited in section E.
+      status: pass
+    - id: AC-10
+      what: full parse of every structured producer artifact
+      method: >-
+        json.load on RESULTS.json, stats.json, all 6 non-empty runs/*.json;
+        line-wise json.loads on budget_stamps.jsonl.
+      result: >-
+        All parse. The single unparseable file is the deliberately-retained
+        zero-byte infra artifact of AC-7.
+      status: pass
+
+  # ==================================================================
+  # B. PRIORITY 1 -- THE EQUIVALENCE PROOF
+  # ==================================================================
+  equivalence_ruling:
+    ruling: SOUND
+    ruling_statement: >-
+      The added k-byte prefix counters CANNOT perturb the pre-existing k=4
+      count, and I establish that from the source and from independent
+      re-execution rather than by inferring it from the producer's own
+      equivalence run. v3 is the same instrument as v2 on every pre-existing
+      field.
+    checks:
+      - id: EQ-1
+        what: the shipped diff is the WHOLE difference (no hidden change)
+        method: >-
+          Independently diffed src/yoyo_sbox_v2.c.readonly_copy against
+          src/yoyo_sbox_v3.c in full, and separately applied
+          src/v2_to_v3.diff to a fresh copy of the v2 file with `patch -p0`
+          and byte-compared the result to the shipped v3 source.
+        result: >-
+          v2 + v2_to_v3.diff == v3 EXACTLY. The full-file diff contains exactly
+          the 30 changed lines the shipped diff contains and nothing else. There
+          is no change outside the shipped hunks.
+        status: pass
+      - id: EQ-2
+        what: the ONE apparent deletion
+        method: read the -/+ pair in hunk 5 character by character
+        result: >-
+          The deletion is the format string only. Deleted:
+          printf("  \"null_expectation_analytic\": %.10f\n", (double)(N-trivial)*4.0/4294967296.0);
+          Added:
+          printf("  \"null_expectation_analytic\": %.10f,\n", (double)(N-trivial)*4.0/4294967296.0);
+          The sole difference is the comma inside the string literal, required
+          so the JSON object stays valid once fields follow it. THE VALUE
+          EXPRESSION IS CHARACTER-IDENTICAL. Nothing else was removed anywhere
+          in the file.
+        status: pass
+      - id: EQ-3
+        what: can the added branch share state with, or reorder, the k=4 counter?
+        method: read the added worker() block in context of the whole trial loop
+        result: >-
+          NO, on five independent grounds.
+          (i) PLACEMENT. The block sits at the very END of the trial-loop body,
+          strictly AFTER `if(trivial){ J->trivial++; continue; }`, after
+          `J->whist[W]++` and after `if(W>=1) J->wge1++`. It therefore cannot
+          change which trials reach the existing counters, nor their order.
+          (ii) NO RANDOMNESS. The block contains no call to sm64() and no other
+          RNG consumer. The splitmix64 stream is a function of (seed, armid,
+          thread) and of the draw-rejection loop only, both untouched, so every
+          trial's plaintext pair is bit-identical to v2. This is the failure
+          mode that would have silently corrupted the count, and it is absent.
+          (iii) WRITE SET. The block writes exactly one object, J->wgek[k-1].
+          It reads only d[], PW[][], and its own locals kmax/j/p/k. It does not
+          touch whist, wword, trivial, wge1, W, or any cipher buffer.
+          (iv) NO SHADOWING HAZARD. Its `j`, `p`, `k` are declared inside a
+          nested block that terminates the loop body, so even if they shadowed
+          an outer name (they do not shadow p0/p1/q0/q1), no later code in the
+          iteration could observe it.
+          (v) INITIALIZATION. jobs is allocated with calloc(nthr,sizeof(job)),
+          so the newly added wgek[4] field is zero-initialized. Adding a field
+          changes struct size and layout but not any value; it can only affect
+          cache behaviour, and timing is not a reported statistic here.
+        status: pass
+      - id: EQ-4
+        what: is the k=4 prefix counter TAUTOLOGICALLY the W>=1 event?
+        method: >-
+          Compare the added kmax computation with the pre-existing W computation
+          at line 241 of v3.
+        result: >-
+          Yes, and I verified it rather than accepting the comment. Pre-existing:
+          W counts j with d zero on ALL FOUR of PW[j][0..3]. Added: kmax is the
+          max over j of the length of the leading run of zero bytes of d along
+          PW[j], and wgek[k-1] increments for all k <= kmax, i.e. wgek[k-1]
+          counts trials where SOME j has its first k bytes zero. At k=4 that is
+          exactly "some j has all four bytes zero", i.e. W>=1. The two are the
+          same event by construction, so `prefix_k4_equals_W_ge1` is an internal
+          consistency assertion and NOT the equivalence proof -- which the
+          producer states correctly and does not lean on.
+        status: pass
+      - id: EQ-5
+        what: MY OWN independent reimplementation of the prefix statistic
+        method: >-
+          I wrote a separate instrumented variant (validator_variant) from the
+          v2 read-only copy using a DIFFERENT algorithm -- for each (j,k) an
+          explicit AND over the first k bytes, union-ed via per-k flags, with no
+          kmax and no monotone fill -- plus a per-(k,j) breakdown v3 does not
+          emit. Built and run at the equivalence arm's exact arguments
+          (aes 5 1 1 30 531001 1 2).
+        result: >-
+          IDENTICAL ON EVERY FIELD. My variant returns W_ge1_nontrivial = 14,
+          whist [1073741810,14,0,0,0], W_ge1_by_word [4,4,2,4], key_hex
+          bdf3823182ad657dab3d556b3886ba72, thread_seeds
+          [11400714758317678269,4354685486758533762], and prefix counts
+          [16677270, 65454, 280, 14] -- bit-equal to v3's W_ge1_prefix_k. Two
+          independently written counting algorithms agree exactly. My per-word
+          breakdown additionally shows k=4 by word [4,4,2,4] summing to 14 with
+          no trial double-counted (consistent with whist[2..4] all zero), and
+          k=3 by word [68,82,57,73] summing to 280.
+          I ALSO re-executed the NULL OBJECT arm (aes 10 1 1 30 531001 1 2)
+          with the same variant and it likewise reproduces exactly:
+          W_ge1_nontrivial = 1, whist [1073741823,1,0,0,0], prefix counts
+          [16674529, 65204, 253, 1], per-word k=4 [0,0,0,1]. Both 2^30 arms
+          that the mechanism claim rests on are therefore independently
+          re-executed, not merely re-read.
+        status: pass
+      - id: EQ-6
+        what: cross-batch reproduction of the SAME arm
+        method: compare the v3 equivalence run to two prior committed v2 runs
+        result: >-
+          K-EQUIV-R5-K1-A2 reproduces BOTH
+          BATCH-005/.../runs/D-AES-K1.json AND
+          BATCH-006/.../runs/A0-REPRO-R5-K1.json on all 20 pre-existing fields,
+          including key_hex, thread_seeds, whist and W_ge1_by_word [4,4,2,4].
+          Three runs across three batches, two binaries, and one rebuild agree
+          exactly. The producer's equivalence_check.txt is accurate as written;
+          I reproduced its comparison independently rather than trusting it.
+        status: pass
+      - id: EQ-7
+        what: >-
+          the preregistered STOP condition, checked for the case where it SHOULD
+          have fired
+        method: >-
+          Confirm there is no field on which v2 and v3 differ that was excluded
+          from the comparison.
+        result: >-
+          The four v3-only keys (W_ge1_prefix_k, prefix_k4_equals_W_ge1,
+          null_expectation_prefix_k_exact, instrument) are pure additions; every
+          field present in the v2 output is compared and matches. No field was
+          quietly dropped from the comparison to make it pass.
+        status: pass
+    consequence: >-
+      Because equivalence holds, the RC-10 numbers are interpretable. Had it
+      failed, the preregistered STOP would have required withdrawing all of
+      them; it did not fail, and I confirm that independently.
+
+  # ==================================================================
+  # C. PRIORITY 2 -- THE MECHANISM CLAIM, RECOMPUTED IN MY OWN CODE
+  # ==================================================================
+  metric_recomputations:
+    method_statement: >-
+      I did NOT re-run the producer's analyze.py. I wrote my own script
+      (Lentz continued-fraction regularized incomplete beta, bisection
+      inversion, Clopper-Pearson, exact Poisson tails; scipy is absent from
+      this image) and drove it from the raw counts in runs/*.json only. Every
+      number below is my arithmetic, then compared to the producer's.
+    interval_method_ruling:
+      construction: >-
+        The producer forms R(k -> k+1) = n_k / n_{k+1} and puts an exact
+        Clopper-Pearson interval on the CONDITIONAL BINOMIAL n_{k+1} | n_k,
+        inverting q -> 1/q to get the ratio interval.
+      is_conditioning_on_n_k_correct: >-
+        YES, and it is the right choice rather than merely a defensible one.
+        The k+1 event is NESTED inside the k event: if some j has its first
+        k+1 bytes zero, that same j has its first k bytes zero. With iid
+        trials, conditional on N_k = n the count N_{k+1} is exactly
+        Binomial(n, p_{k+1}/p_k). So the conditional-binomial interval is
+        EXACT, not approximate, and it correctly avoids treating two nested
+        counts as two independent Poisson means -- which would have produced
+        intervals that are too wide and a ratio test that is simply wrong.
+        The producer states this reasoning in stats.json and it is correct.
+      is_the_inversion_correct: >-
+        YES. R = 1/q is strictly decreasing in q on (0,1], so the interval maps
+        endpoint-to-endpoint reversed: [q_lo, q_hi] -> [1/q_hi, 1/q_lo]. That is
+        what was done. Coverage is preserved exactly; no delta-method or
+        log-normal approximation is used anywhere. Degenerate cases are handled
+        correctly: n_{k+1} = 0 yields q_lo = 0 and hence R_hi = infinity, and
+        the producer reports the r=5/r=10 2^24 rungs as UNDEFINED rather than
+        printing a finite point estimate.
+      residual_caveat: >-
+        The construction tests the conditional extension probability q against
+        its model value. Under an alternative in which the excess is not a
+        simple rate multiplier, "R excludes 256" should be read as "the k+1 cell
+        is elevated relative to the k cell", which is the intended reading here.
+        This is a wording caveat, not an error.
+    r10_null_object_2p30:
+      raw_counts_k1_to_k4: [16674529, 65204, 253, 1]
+      nontrivial_trials: 1073741824
+      my_model_p_k: [1.553368545137e-02, 6.103375928035e-05, 2.384185577853e-07, 9.313225746155e-10]
+      my_model_successive_ratios: [254.5097, 255.9942, 256.0000]
+      my_rungs:
+        - {rung: '1->2', R: 255.7286, ci95: [253.7770, 257.6990], model: 254.5097, covers_model: true}
+        - {rung: '2->3', R: 257.7233, ci95: [227.9064, 292.6144], model: 255.9942, covers_model: true}
+        - {rung: '3->4', R: 253.0000, ci95: [45.8204, 9993.4662], model: 256.0000, covers_model: true}
+      my_per_k_obs_over_model:
+        - {k: 1, ratio: 0.999722, ci95: [0.999246, 1.000198]}
+        - {k: 2, ratio: 0.994957, ci95: [0.987335, 1.002623]}
+        - {k: 3, ratio: 0.988281, ci95: [0.870244, 1.117863]}
+        - {k: 4, ratio: 1.000000, ci95: [0.025318, 5.571646]}
+      agreement_with_producer: >-
+        EXACT to every digit the producer printed (255.73 [253.78,257.70];
+        257.72 [227.91,292.61]; 253.0 [45.82,9993.47]; and the 0.9997 / 0.9950
+        per-cell figures). Independently confirmed.
+    r5_live_arm_2p30:
+      note_on_provenance: >-
+        This arm IS the equivalence run (K-EQUIV-R5-K1-A2). Same seed, same
+        derived key, same thread seeds, and therefore the SAME 14 events already
+        reported as D-AES-K1 in BATCH-005 and A0-REPRO-R5-K1 in BATCH-006. See
+        finding F-2: this is a k-decomposition of one previously-observed
+        sample, not a fresh independent observation of the excess.
+      raw_counts_k1_to_k4: [16677270, 65454, 280, 14]
+      my_per_k_obs_over_model:
+        - {k: 1, ratio: 0.999886, ci95: [0.999410, 1.000362]}
+        - {k: 2, ratio: 0.998772, ci95: [0.991135, 1.006453]}
+        - {k: 3, ratio: 1.093750, ci95: [0.969378, 1.229655]}
+        - {k: 4, ratio: 14.000000, ci95: [7.653926, 23.489629]}
+      my_rungs:
+        - {rung: '1->2', R: 254.7937, ci95: [252.8530, 256.7532], model: 254.5097, covers_model: true}
+        - {rung: '2->3', R: 233.7643, ci95: [207.9833, 263.6943], model: 255.9942, covers_model: true}
+        - {rung: '3->4', R: 20.0000, ci95: [12.1257, 36.2297], model: 256.0000, covers_model: false}
+      agreement_with_producer: >-
+        EXACT. R(3->4) = 20.0 [12.13, 36.23] is confirmed as the only rung
+        anywhere in this task whose interval excludes the model, and the
+        per-cell 14.0x [7.65, 23.49] is confirmed.
+    low_exposure_arms_2p24:
+      r10_counts: [260899, 996, 5, 0]
+      r5_counts: [260856, 1082, 4, 0]
+      my_finding: >-
+        Both k=4 cells empty, as the producer PREREGISTERED they would be. All
+        rungs cover the model; R(3->4) is undefined at this exposure. The
+        preregistered power note was correct in advance and the producer did not
+        rewrite it after the fact. Nothing here is upgraded or discarded.
+    model_free_check_i_added:
+      what: >-
+        The r=5 and r=10 arms at 2^30 share seed 531001 and identical thread
+        seeds, so they consume the SAME plaintext/swap stream at the same
+        exposure. That makes 14-vs-1 at k=4 a matched-exposure comparison that
+        needs no analytic null at all.
+      my_result: >-
+        Conditional binomial 14 of 15: exact two-sided p vs p = 0.5 is
+        9.766e-04. Ratio (r=5 rate)/(r=10 rate) CI95 = [2.13, 591.97],
+        reproducing the producer's own [2.13, 591.97] exactly.
+      reading: >-
+        The DIRECTION of the r=5 k=4 elevation survives without the analytic
+        null, at about p = 1e-3. Its MAGNITUDE does not: model-free, the ratio
+        is pinned only to within two-and-a-half orders of magnitude.
+    can_14_events_carry_the_headline:
+      answer: >-
+        PARTLY, AND THE TWO HALVES OF THE CLAIM HAVE VERY DIFFERENT POWER. This
+        is the single most important thing in this section.
+      negative_half_is_strong: >-
+        "The excess is NOT byte-local" rests on 16.68 million (k=1) and 65
+        thousand (k=2) events. My intervals put the r=5 k=1 rate at
+        [0.99941, 1.00036] of model and k=2 at [0.99114, 1.00645]. A byte-local
+        mechanism inflating the rate by anything like 14x is excluded by four
+        orders of magnitude. This half of the claim is very well powered and,
+        if anything, is UNDERSTATED by the producer, which reports it as
+        "not present" without quantifying how brutally the alternative dies.
+      positive_half_is_thin: >-
+        "There IS a word-level excess" rests on 14 events against a modeled 1.0.
+        Against the analytic null that is P(X >= 14 | Poisson(1.0)) = 4.52e-12,
+        but that leans on the null, which is exactly what RC-10 set out to test
+        (circularity avoided only because the null is separately validated at
+        k=1 and k=2 to 0.03% and 0.5%). Model-free against the matched r=10 arm
+        it is p = 9.8e-4 with a ratio CI of [2.13, 592]. So: the EXISTENCE of a
+        k=4 elevation at r=5 is supported at roughly the 1e-3 level model-free
+        and far more strongly if the null is granted; the MAGNITUDE "14x" is not
+        pinned better than a factor of about 3 (model-based) or 20 (model-free).
+      the_middle_is_not_resolved: >-
+        THE k=3 RUNG CANNOT DISTINGUISH "word-level" FROM "three-byte-level",
+        and this is arithmetic, not opinion. Two facts I computed:
+        (i) POWER. The k=3 model count is 256 with Poisson sd 16. The absolute
+        k=4 excess at r=5 is 14 - 1.0 = 13 events, i.e. 0.8 sd at k=3. An excess
+        of exactly the observed size is INVISIBLE at k=3 by construction.
+        (ii) NESTING. Because the events are nested, those 13 extra k=4 trials
+        are NECESSARILY also counted at k=3. Removing them leaves 280 - 14 = 266
+        k=3-but-not-k=4 events against a model 255.0, z = +0.69 (the r=10 null
+        object gives 252 against 255.0, z = -0.19). So the k=3 cell is fully
+        consistent with "null plus exactly the k=4 events", and equally
+        consistent with a small genuine k=3 effect.
+        CONCLUSION: the data establishes that the excess is not present at k=1
+        or k=2. Whether it "switches on" at k=3 or only at k=4 is NOT resolved
+        by this measurement, and the k=3 rung contributes essentially nothing to
+        the localization. The producer's own body text says a small k=3 effect
+        is not excluded; its HEADLINE sentence ("a full-32-bit-word coincidence")
+        is one notch stronger than the data supports. See finding F-1.
+
+  # ==================================================================
+  # D. PRIORITY 3 -- WHAT THE ROUND PROFILE CAN AND CANNOT DISTINGUISH
+  # ==================================================================
+  round_profile_ruling:
+    rank1_recomputation:
+      arms:
+      - arm: R9-R3-K1
+        rounds: 3
+        nontrivial_trials: 1044466
+        W_ge1_nontrivial: 1044466
+        rate: 1.0
+        my_recomputed_analytic_null: 0.0009727348
+        binary_reported_null: 0.0009727348
+        my_recomputed_excess: 1073741824.0
+        whist: [0, 0, 0, 1044466, 0]
+        W_ge1_by_word: [0, 1044466, 1044466, 1044466]
+      - arm: R9-R4-K1
+        rounds: 4
+        nontrivial_trials: 4194304
+        W_ge1_nontrivial: 4194304
+        rate: 1.0
+        my_recomputed_analytic_null: 0.00390625
+        binary_reported_null: 0.00390625
+        my_recomputed_excess: 1073741824.0
+        whist: [0, 0, 0, 4194304, 0]
+        W_ge1_by_word: [0, 4194304, 4194304, 4194304]
+      arithmetic_agreement: >-
+        My independently recomputed nulls equal the binary's to 1e-9, and both
+        excess factors equal 2^30 = 1073741824 exactly.
+    what_the_saturated_points_actually_are:
+      observation: >-
+        At r=3 and r=4 the histogram is whist = [0, 0, 0, N, 0] with
+        W_ge1_by_word = [0, N, N, N]: EVERY nontrivial trial returns W = 3, with
+        the three inactive words zero and the active word (amask = 1, j = 0)
+        nonzero. This is not a statistical excess. It is a DETERMINISTIC
+        property of the construction at these round counts, holding on every
+        single one of 5.2 million trials here and on 2^30 and 2^31 trials in
+        BATCH-006 and BATCH-001, and holding equally with a RANDOM S-box
+        (BATCH-006 A5-R4-R1-K1, rate 1.0).
+      arithmetic_consequence: >-
+        When rate = 1.0 the "excess factor" is identically 1 / p_null = 2^32/4 =
+        2^30, independent of the exposure and independent of the data. Both my
+        recomputations return exactly 2^30, at 2^20 and at 2^22, as does
+        BATCH-001 at 2^32 and BATCH-006 at 2^30. THE NUMBER 1073741824x IS A
+        PROPERTY OF THE NULL, NOT A MEASUREMENT. The producer says this itself
+        under optimistic_assumptions_carried and is correct to; it should never
+        be quoted as a magnitude.
+    the_ruling:
+      question: >-
+        Does the monotone profile separate (A) a genuine round-limited decay
+        from (B) an instrument that simply reads high whenever the cipher is
+        weak enough?
+      answer: >-
+        NO, IT DOES NOT SEPARATE THEM, AND AT r <= 4 IT CANNOT EVEN TRY.
+      reasoning:
+        - >-
+          At r = 2, 3, 4 the statistic is pinned at its ceiling (rate exactly
+          1.0). Hypotheses (A) and (B) make the IDENTICAL prediction there --
+          rate 1.0 -- so those three points carry zero discriminating
+          information about magnitude. The task card's own framing is right:
+          r <= 4 saturating means those rounds say nothing about how large the
+          underlying phenomenon is.
+        - >-
+          Worse for the design: the preregistered falsifier F1 (X4 <= X5) was
+          STRUCTURALLY INCAPABLE OF FIRING. Saturation at r=4 was already
+          established at 2^30 in BATCH-006 (A2-R4-K1) and at 2^32 in BATCH-001,
+          and the producer had READ those files before preregistering (its own
+          deviation D-4). A falsifier whose non-firing is guaranteed in advance
+          carries no evidential weight, and "the falsifier did not fire" should
+          not be read as corroboration. The producer disclosed the
+          non-blindness honestly, which is to its credit; what it did not say is
+          that the consequence is a test with zero discriminating power. The
+          Coordinator's correction gets closer, saying the falsifier "could not
+          have" fired.
+        - >-
+          The only points carrying magnitude information are r=5 (elevated),
+          r=6 (BATCH-004 Y-AES-main-r6: 1 event vs 2.0 modeled at 2^31, i.e.
+          0.5x on ONE event; BATCH-001: 3 vs 4.0 and 10 vs 8.0; BATCH-002 arm_A2
+          6 vs 4.0, arm_A2b 7 vs 8.0) and r=10 (BATCH-008 1 vs 1.0; BATCH-001 3
+          vs 4.0 and 13 vs 8.0; BATCH-002 arm_A3 5 vs 8.0, arm_A3b 7 vs 8.0).
+          So the informative content of the entire "profile" reduces to two
+          statements: r=5 is elevated, and r >= 6 is at the null.
+        - >-
+          Hypothesis (B) as stated is in any case close to a redescription
+          rather than a rival: the yoyo statistic IS a weakness measure, so
+          "reads high when the cipher is weak" and "decays with rounds" are not
+          separated by ANY monotone profile. The rival that actually matters --
+          "the statistic reads high on objects with no exploitable structure",
+          i.e. an artifact -- is tested by null OBJECTS, not by the round
+          profile. Those controls exist and are addressed below.
+      what_the_profile_does_establish: >-
+        One thing, and it is not nothing: the quantity DECAYS TO THE NULL as the
+        parameter meant to destroy it (round count) increases. Under
+        docs/inventor-protocol.md section 3 that is the canonical artifact test,
+        and this statistic PASSES it -- a quantity that failed to decay would be
+        the artifact tell. It is a necessary condition that is met, not a
+        sufficient one.
+
+  # ==================================================================
+  # E. PRIORITY 4 -- AUDIT OF CORR-20260803-7d41c8
+  # ==================================================================
+  correction_audit:
+    record: ledger/corrections/CORR-20260803-7d41c8.yaml
+    overall: >-
+      SUBSTANTIALLY CORRECT AND PROPERLY SCOPED ON RC-9. UNDER-CORRECTED ON
+      RC-10: the correction restates an absence claim about RC-10's premise in a
+      form that is broader than the red team's own words and that the
+      repository's own prior runs refute. That is the second absence-claim
+      restatement inside the document whose stated lesson is that absence claims
+      must cite the directories searched.
+    verified_true:
+      - claim: BATCH-006 already measured r=3 and r=4
+        my_verification: >-
+          CONFIRMED by direct read. A2-R4-K1.json: rounds 4, amask 1, smask 1,
+          sbox aes, log2N 30, seed 531001, arm_id 1, threads 2,
+          key_hex bdf3823182ad657dab3d556b3886ba72, thread_seeds
+          [11400714758317678269, 4354685486758533762], W_ge1_nontrivial
+          1073741824 of 1073741824, W_ge1_by_word [0, N, N, N]. Every one of
+          those fields is identical to BATCH-005 D-AES-K1 EXCEPT rounds. The
+          correction's stronger sub-claim -- that the pairing is confirmed by
+          the shared DERIVED KEY and not merely by the shared parameters -- is
+          also true; I checked key_hex on both.
+          A3-R3-MAIN.json: rounds 3, seed 431001, 2^24, 16711503 of 16711503,
+          rate 1.0. A1-R4-MAIN (2^31) and A4-R2-MAIN (r=2, 2^20) likewise.
+        status: correct
+      - claim: RC-9 in BATCH-008 is a replication at a second exposure
+        my_verification: >-
+          CONFIRMED, and my recomputation shows the BATCH-008 readings agree
+          with the BATCH-006 arms rather than conflicting with them. The
+          correction is right to call this corroboration.
+        status: correct
+      - claim: the framing "the statistic PEAKS at r=5" is withdrawn
+        my_verification: >-
+          CORRECT AND WELL MADE. With r <= 4 at rate 1.0 there is no interior
+          maximum; r=5 is the largest r with a sub-saturated above-null reading.
+          I additionally note the correction's own profile line quotes "r=6 at
+          ~0.5x", which is ONE event against 2.0 modeled at 2^31 (BATCH-004
+          Y-AES-main-r6). Quoting it as "0.5x" without that exposure gives it
+          more apparent precision than it has; other r=6 arms read 1.25x
+          (BATCH-001) and 1.5x / 0.875x (BATCH-002 arm_A2 / arm_A2b). The honest
+          summary of r=6 is "consistent with the null", not "0.5x".
+        status: correct_with_a_precision_caveat
+      - claim: the producer caught it unprompted
+        my_verification: >-
+          CONFIRMED from PREREGISTRATION.md section 0, which was written before
+          any run of the task and names the specific files.
+        status: correct
+      - claim: no measurement, statistic or interval in BATCH-008 is affected
+        my_verification: CONFIRMED by my full recomputation in section C.
+        status: correct
+    over_or_under_corrected:
+      - id: UC-1
+        severity: material
+        the_claim_as_written: >-
+          "RC-10's premise -- that the analytic null 4*2^-32 had never been
+          checked against measurement -- was NOT falsified by the BATCH-006 arms
+          and remains correct as stated."
+        my_finding: >-
+          THE FIRST HALF IS TRUE AND THE SECOND HALF IS NOT. It is true that the
+          BATCH-006 r=3/r=4 arms do not check the null (they saturate). But the
+          premise does NOT "remain correct as stated", because the analytic null
+          HAD been checked against measurement, repeatedly, elsewhere in this
+          same repository, before BATCH-008.
+        directories_i_searched: >-
+          I scanned 4858 JSON files under coordination/goals/GOAL-AES-003/**
+          and experiments/** for any record carrying both `rounds` and
+          `W_ge1_nontrivial` with rounds >= 6 (i.e. any null-object arm).
+        what_i_found:
+          - >-
+            BATCH-001/tasks/yoyo5/analysis.json (dated 2026-08-02) already
+            carried r=6 and r=10 arms at 2^32 and 2^33: W_ge1 = 3 vs modeled
+            4.0; 3 vs 4.0; 10 vs 8.0; 13 vs 8.0.
+          - >-
+            BATCH-002/tasks/TASK-20260802-e4fa63: arm_A2 (r=6, 2^32) 6 vs 4.0;
+            arm_A2b (r=6, 2^33) 7 vs 8.0; arm_A3 (r=10, 2^33) 5 vs 8.0;
+            arm_A3b (r=10, 2^33) 7 vs 8.0.
+          - >-
+            BATCH-004/tasks/TASK-20260803-367b1b: Y-AES-main-r6 1 vs 2.0;
+            Y-R1-main-r6 2 vs 2.0; Y-R2-main-r6 0 vs 2.0 (all 2^31).
+          - >-
+            AGGREGATED over those eleven prior null-object arms: 57 observed
+            against 58.0 modeled. That pins the analytic 4*2^-32 at the k=4
+            endpoint to roughly +/-26% at 2 sd. It is a real prior check, not
+            an absent one.
+          - >-
+            SEPARATELY, BATCH-001's analysis.json carried a per-byte zero-count
+            check at r=5 (Z_observed_pooled vs Z_expected_pooled over the
+            16-byte zero-count histogram, chi2 = 6.73 on 4 dof) and at r=10
+            (chi2 = 2.79 on 4 dof). That is a byte-level test of the same
+            independence assumption RC-10's k=1 rung tests, and it was already
+            consistent.
+        what_IS_new_in_RC10_and_i_verified_it_is_new: >-
+          I grepped every JSON under coordination/ and experiments/ for prefix
+          fields: no instrument in this campaign emitted a k-byte PREFIX
+          statistic before yoyo_sbox_v3. So the producer's OWN blindness claim
+          for RANK 2 -- "no k-byte-prefix measurement exists anywhere in this
+          repository" -- is TRUE, and RC-10's genuinely new content is (i) the
+          word-aligned prefix decomposition, (ii) the successive-ratio-of-2^8
+          test, and (iii) a roughly 500-fold tightening of the constant, from
+          +/-26% to +/-0.05% at k=1 and +/-0.8% at k=2. That is a large and real
+          contribution.
+        the_correction_i_am_recommending_to_the_coordinator: >-
+          Restate as: "the analytic null had been checked only at its 2^-32
+          endpoint, to about +/-26% aggregated over eleven prior r>=6 arms, and
+          never in its byte-scaling structure; RC-10 tightens it by about 500x
+          and tests a structure never previously tested." Do NOT restate it as
+          "never checked against measurement".
+        why_this_matters_beyond_pedantry: >-
+          The BATCH-008 dispatch objective says "if it does not [scale by 2^8],
+          the null is wrong and every excess factor in five batches is wrong by
+          the same factor". Under the true prior state, a null error large
+          enough to explain a 14x excess was ALREADY excluded to +/-26% by the
+          existing r>=6 arms. The batch's stakes were therefore lower than its
+          objective claimed. THIS IS AN INSTANCE OF THE CAMPAIGN UNDERSTATING
+          ITS OWN EVIDENCE, which is the failure mode I was told to look for.
+      - id: UC-2
+        severity: minor
+        the_claim_as_written: >-
+          "The red team's underlying worry ... was well posed; the falsifier
+          simply did not fire, and could not have, since the relevant arms
+          already existed."
+        my_finding: >-
+          The conclusion is right but the reason given is not quite the reason.
+          F1 could not fire because r <= 4 SATURATES DETERMINISTICALLY, which
+          would have been true whether or not the prior arms existed; the prior
+          arms are why it was KNOWN in advance, not why it was impossible. Small
+          wording point, recorded because the difference matters for whether
+          RC-9 should ever be re-commissioned (it should not, at any exposure,
+          in this geometry).
+        status: wording
+
+  # ==================================================================
+  # F. CONTROLS
+  # ==================================================================
+  control_checks:
+    - id: CC-1
+      control: negative / null-object control at matched exposure and seed
+      required_by: >-
+        docs/inventor-protocol.md section 3 -- a statistical signal without a
+        null object of the same shape is not evidence.
+      present: true
+      what_it_is: >-
+        K-R10-NULL-P30, r=10 at 2^30, SAME seed 531001, SAME derived key, SAME
+        thread seeds, therefore the SAME plaintext/swap stream as the r=5 arm.
+        A null object of exactly the same shape.
+      result: >-
+        k=4 gives 1 event against the r=5 arm's 14. All k=1..3 cells agree
+        between the two arms to within their intervals. This is a properly
+        constructed control and it is the reason the mechanism claim is
+        checkable at all.
+      caveat_i_add: >-
+        The two arms share a stream by construction, so the comparison is
+        PAIRED data analysed UNPAIRED (trial indices are not logged; the red
+        team's RC-11 remains unrun). Unpaired analysis is conservative in width
+        here, so this does not inflate the finding. The producer discloses this
+        itself.
+      status: pass
+    - id: CC-2
+      control: does the quantity DECAY as the parameter meant to destroy it grows?
+      present: true
+      result: >-
+        Yes: r=5 elevated at k=4; r=6 at the null (aggregating BATCH-001/002/004:
+        consistent with modeled); r=10 at the null (1 vs 1.0 here, and 25 vs
+        28.0 across BATCH-001/002). The canonical artifact tell -- a quantity
+        that refuses to decay -- is ABSENT. The report does state what the
+        quantity should do as rounds increase, and it does it.
+      status: pass
+    - id: CC-3
+      control: >-
+        null object in the OTHER direction -- is the r=5 excess specific to the
+        AES S-box, or generic to the 5-round SPN shape?
+      present_in_this_batch: false
+      present_in_the_campaign: true
+      what_exists: >-
+        BATCH-006/tasks/TASK-20260803-0764fc/runs/B01..B27-RAND-*.json: 27
+        random-S-box arms at r=5, 2^30, seed 631001, plus B0-AES-REF at the same
+        seed. Random-S-box W_ge1 counts range 6 to 25 with mean 15.5; the AES
+        reference reads 12, and the AES arm at seed 531001 reads 14.
+        P(X >= 14 | Poisson(15.5)) = 0.68, i.e. AES sits at or slightly BELOW
+        the random-S-box mean.
+      what_that_means_for_this_batch: >-
+        The r=5 k=4 elevation is NOT a property of the AES S-box. It is a
+        property of the 5-round SPN SHAPE, shared by random bijective S-boxes.
+        RC-10 correctly localizes the elevation to the 4-byte word; it says
+        nothing about WHICH object produces it, and the existing control says
+        the answer is "the round structure, not the S-box". The producer's
+        RESULTS.json does not mention the random-S-box arms at all (zero
+        occurrences of "rand:"), which is defensible as card scope but leaves
+        the mechanism sentence readable as more AES-specific than the campaign's
+        own controls allow.
+      status: pass_with_context
+    - id: CC-4
+      control: positive control / instrument sanity
+      present: true
+      result: >-
+        The r <= 4 saturated arms function as a positive control: the instrument
+        does register the known deterministic yoyo property at rate 1.0, so a
+        null reading at r=10 is not the instrument failing to fire. The pinned
+        AES S-box KAT (sbox_first8 [99,124,119,123,242,107,111,197]) and the
+        derived key_hex reproduce across every arm and every batch checked.
+      status: pass
+    - id: CC-5
+      control: internal tautology check prefix_k4 == W_ge1
+      present: true
+      result: >-
+        true in all four v3 arms, and reproduced by my independent variant. As
+        the producer says, this is a consistency assertion, not the equivalence
+        proof; it is not load-bearing and is not treated as such.
+      status: pass
+
+  # ==================================================================
+  # G. FINDINGS -- AUDITED IN BOTH DIRECTIONS
+  # ==================================================================
+  findings:
+    overstatements:
+      - id: F-1
+        where: RESULTS.json SECOND_LINE, final sentence
+        text: >-
+          "The r=5 signal is a full-32-bit-word coincidence, not a byte-local
+          one, and the four-byte framing is doing the work."
+        my_ruling: >-
+          "Not byte-local" is STRONGLY supported (k=1 and k=2 pinned to
+          [0.9994,1.0004] and [0.9911,1.0065] of model). "Full-32-bit-WORD", as
+          opposed to three-byte, is NOT established: the k=3 cell has Poisson sd
+          16 against a k=4 absolute excess of 13 events, so it has no power to
+          see an effect of the observed size, and by nesting those 13 events are
+          themselves inside the k=3 count (266 vs 255.0 modeled once removed,
+          z = +0.69). The correct headline is "the excess is not byte-local; it
+          lives at k=3 or k=4 and the data cannot say which". The producer's own
+          body text (what_this_does_NOT_establish, third bullet) concedes
+          precisely this, so the defect is in the headline sentence only.
+        severity: wording, not verdict-changing
+      - id: F-2
+        where: RESULTS.json SECOND_LINE, "THE MECHANISM QUESTION IS ANSWERED AT 2^30"
+        my_ruling: >-
+          The 2^30 r=5 arm IS the equivalence arm, at the same seed and key as
+          BATCH-005 D-AES-K1 and BATCH-006 A0-REPRO-R5-K1. Its 14 events are
+          the SAME 14 events, not new ones. What BATCH-008 adds is a
+          decomposition of a previously observed sample, which is legitimate and
+          valuable, but "answered" overstates the independence: the mechanism
+          reading has been observed on exactly one (key, stream) realization,
+          which the producer's own scope_statement and
+          optimistic_assumptions_carried both concede.
+        severity: framing, not verdict-changing
+      - id: F-3
+        where: FIRST_LINE, "excess 2^30 = 1073741824x over the modeled null"
+        my_ruling: >-
+          Arithmetically exact and I reproduce it, but at rate 1.0 this number
+          is identically 1/p_null and carries no information beyond "saturated".
+          The producer flags this explicitly under
+          optimistic_assumptions_carried, which is the right disposition; the
+          risk is a downstream reader quoting "10^9x" as a magnitude. Recorded
+          so that cannot happen quietly.
+        severity: presentation, already self-flagged
+    understatements:
+      - id: F-4
+        what: >-
+          How hard the byte-local alternative dies. The producer reports k=1 and
+          k=2 as "NOT present" and gives the intervals, but does not say that
+          those intervals exclude a byte-local mechanism of the observed
+          magnitude by roughly four orders of magnitude. That is the strongest
+          result in the batch and it is reported in the flattest language.
+      - id: F-5
+        what: >-
+          The prior state of the analytic null. See UC-1. Eleven prior r>=6 arms
+          across BATCH-001, BATCH-002 and BATCH-004 already pinned the k=4
+          endpoint null to about +/-26% (57 observed vs 58.0 modeled), and
+          BATCH-001 already carried a byte-level chi-square consistent with it.
+          Both the BATCH-008 objective and the Coordinator correction present
+          the null as previously unchecked. The campaign has more prior evidence
+          for its own null than it credits itself with.
+      - id: F-6
+        what: >-
+          The decay control (CC-2) is a clean pass of the inventor-protocol
+          section 3 artifact test and is not claimed as one anywhere in the
+          package.
+    neutral_observations:
+      - id: F-7
+        what: >-
+          Deviation D-2 (the unpreregistered r=10 2^30 arm) is correctly
+          classified. It is an ADDITION of exposure with both readings reported,
+          taken before any 2^30 r=10 number was seen, and the 2^24 result it
+          supplements is reported unchanged. It is not selective re-running. I
+          checked that the 2^24 arms are reported in full and are not
+          contradicted by the 2^30 arms.
+      - id: F-8
+        what: >-
+          arm_invocations_used = 7 against maximum_runs 30 declared in the
+          preregistration; the dispatch card's handoff budget says
+          maximum_runs 20. Either ceiling is satisfied with room to spare, so
+          the discrepancy between the two declared ceilings has no effect here,
+          but the producer's preregistration should have quoted the card's 20.
+      - id: F-9
+        what: >-
+          Memory was not sampled (no /usr/bin/time on the image) and the
+          producer says so rather than estimating. Correct under the Validator
+          prohibition on substituting an estimate for a missing measurement.
+          The instrument's allocation is trivially under the 8 GB cap.
+
+  # ==================================================================
+  # H. HEURISTIC-VALIDATION AND COST-MODEL CHECKS
+  # ==================================================================
+  heuristic_validation_checks:
+    - id: HV-1
+      check: pre-registered prediction (validator contract, heuristic checks 1)
+      result: >-
+        PASS. The theoretical prediction p_k = 1 - (1 - 2^-8k)^4 with successive
+        ratios 254.51 / 255.99 / 256.00, the falsification condition, and the
+        power note that R_3 would be uninformative at 2^24 are all in
+        PREREGISTRATION.md section 2, written before the runs. The prediction
+        was not fitted after seeing data; I recomputed p_k myself and get
+        [1.5534e-02, 6.1034e-05, 2.3842e-07, 9.3132e-10], matching.
+    - id: HV-2
+      check: sample integrity (heuristic check 2)
+      result: >-
+        PASS. Sample sizes, seeds, arm ids, thread counts, derived keys and
+        per-thread seeds are all in the run manifests. I recomputed the
+        empirical rates and all rungs from raw counts rather than copying the
+        report, and independently re-derived the raw prefix counts themselves
+        with my own instrumented binary (EQ-5).
+    - id: HV-3
+      check: correspondence validity (heuristic check 3)
+      result: >-
+        NOT APPLICABLE. No correspondence or substitute sampler is used; the
+        instrument samples the object directly.
+    - id: HV-4
+      check: scale binding (heuristic check 4, AGENTS rule 7)
+      result: >-
+        PASS. Claim tier is declared `toy` in PREREGISTRATION.md and
+        RESULTS.json with an explicit basis, and the scope_statement names the
+        round counts, the single key, the single stream, the exposures and the
+        single implementation. No full-round or deployed-AES statement appears
+        anywhere in the package, and no comparison to published cryptanalysis is
+        made in either direction. I make none either.
+    - id: HV-5
+      check: certificate obligation (docs/claims-and-verification.md)
+      result: >-
+        PASS. certificate.kind = none, with the reason stated: both ranks are
+        pure counting measurements, no solve, relation or key recovery is
+        claimed, so there is nothing to certify. No evidence record here asserts
+        above its claim tier.
+  cost_model_checks:
+    - id: CM-1
+      check: is there a concrete cost table requiring unit declaration?
+      result: >-
+        NOT APPLICABLE in the exemplar sense. There is no complexity or
+        cost-model claim in this package: no speedup is asserted, no asymptotic
+        exponent is moved, and no per-attempt-cost x inverse-success-probability
+        bookkeeping is required because nothing is claimed to succeed.
+    - id: CM-2
+      check: resource records
+      result: >-
+        PARTIAL BY DISCLOSURE. Wall clock is recorded per arm
+        (runs/arms_timing.txt, 649.672 s total measured) and budget stamps carry
+        the opening and binding stop. Peak RSS was NOT sampled and the producer
+        says so explicitly instead of estimating it. Recorded as a limitation,
+        not as a failure: memory is not a binding constraint at under 1 MB
+        allocation and no memory-dependent claim is made.
+    - id: CM-3
+      check: >-
+        forward cost honesty for the measurement that would close the remaining
+        gap
+      result: >-
+        PASS AND UNUSUALLY GOOD. The producer prices the missing k=3->k=4 rung
+        at roughly 2^38 trials, about 20 hours on this hardware, derived from
+        its own measured 335 s per 2^30, and names exactly what it would settle.
+        That is per-unit cost extrapolated from a measured rate rather than
+        asserted, and it is flagged as the loosest link rather than buried.
+  proof_architecture_checks:
+    - id: PA-1
+      result: >-
+        NOT APPLICABLE. This is a measurement task, not a proof-oriented task
+        under docs/inventor-protocol.md section 8; there is no lemma
+        decomposition, boundary specialization, or strictness witness to check.
+        The one structural obligation that does apply -- baseline fixture
+        reproduction -- is the v2/v3 equivalence, checked exhaustively in
+        section B and it reproduces EXACTLY rather than approximately.
+
+  # ==================================================================
+  # I. SCALED-DOWN-LADDER APPLICABILITY
+  # ==================================================================
+  inventor_protocol_section6_check:
+    applicable: false
+    why: >-
+      The section 6 ladder governs a claimed improvement that cannot be executed
+      at the scale where it would matter. NO IMPROVEMENT AND NO SPEEDUP IS
+      CLAIMED ANYWHERE IN THIS PACKAGE. There is consequently no step-2
+      scaled-down measured ratio to demand, and no real-scale partial run whose
+      cheats would need classifying as completeness-preserving or
+      soundness-losing. Recorded explicitly so that the absence of that ladder
+      is not later read as an omission. If any successor task claims that this
+      statistic yields an attack advantage, the ladder becomes binding and a
+      measured ratio against a baseline -- not this excess factor -- is what it
+      will owe.
+
+  # ==================================================================
+  # J. LIMITATIONS OF THIS VALIDATION
+  # ==================================================================
+  limitations:
+    - >-
+      NOT MODEL-INDEPENDENT. Producer, archive task, Coordinator correction and
+      this validator all resolve to claude-opus-5. This report is one backend's
+      judgement and counts for nothing toward a closure quorum.
+    - >-
+      I re-executed the r=5 2^30 arm with my own independently written variant
+      binary and reproduced every count, and I rebuilt the producer binary
+      byte-identically; but all executions were on the SAME machine, the same
+      gcc 13.3.0, and the same libc. A compiler- or platform-dependent defect
+      shared by v2, v3 and my variant would not be caught by any check in this
+      report. The instrument has never been replicated on a second engine or
+      architecture in this campaign.
+    - >-
+      Both 2^30 arms (r=5 and r=10) were independently re-executed with my own
+      variant binary and reproduced exactly. The 2^24 arms and the two RANK-1
+      arms were NOT re-executed; their numbers in section C and D are
+      recomputed from the committed raw counts. Stated rather than glossed.
+    - >-
+      Every conclusion is scoped to r in {2,3,4,5,6,10}, amask 1, smask 1, one
+      derived key bdf3823182ad657dab3d556b3886ba72, one plaintext/swap stream,
+      one software T-table SPN implementation, exposures 2^20 to 2^33, on one
+      machine. Nothing here speaks to other keys, other geometries, other
+      implementations, full-round AES, or deployed AES.
+    - >-
+      The k=3 vs k=4 localization is NOT resolved by this data (section C) and
+      I do not resolve it either. Settling it needs roughly 2^38 trials at the
+      producer's own measured rate.
+    - >-
+      I did not audit BATCH-003, BATCH-007, or the ledger records outside
+      ledger/corrections/CORR-20260803-7d41c8.yaml. My absence claims in this
+      report are confined to the directories I name in
+      correction_audit.directories_i_searched.
+    - >-
+      The BATCH-005 red_team_report.yaml RC-9 status field still reads "NEVER
+      RUN, and never previously named by any reviewer". CORR-20260803-7d41c8
+      lists it under `affects` but records are immutable, so the false field
+      remains readable in place. Anyone reading that file without the correction
+      will inherit the error. This is a Coordinator matter; I flag it and change
+      nothing.
+
+  # ==================================================================
+  # K. SELF-CHECKS
+  # ==================================================================
+  self_checks:
+    parse_confirmation: >-
+      THIS ENTIRE FILE WAS PARSED IN FULL with yaml.safe_load AFTER THE LAST
+      EDIT TO IT, not merely the region last edited, and the parse succeeded.
+      In addition the loaded document was walked recursively and asserted to
+      contain a top-level `validation_report` mapping whose `verdict` key is
+      present and is one of {passed, failed, incomplete, invalid} and is not
+      the string PLACEHOLDER, and whose every `status` field resolves. This
+      guard exists because the BATCH-005 validation report claimed in prose to
+      parse and did not, and shipped `verdict: PLACEHOLDER`.
+    verdict_is_not_placeholder: true
+    id_freedom_checked: >-
+      VAL-20260803-65ce72 was drawn as a random 6-hex token and grep-verified
+      free across the repository before use.
+    wrote_only_inside_write_scope: >-
+      coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-bc660a
+      only. Scratch work was done under the session scratchpad, outside the
+      repository.
+    committed_nothing: true
+    ran_git_add: false
+    assigned_no_official_state: true
+
+  run_ids:
+    - R9-R3-K1
+    - R9-R4-K1
+    - K-EQUIV-R5-K1.ATTEMPT1-INTERRUPTED
+    - K-EQUIV-R5-K1-A2
+    - K-R10-NULL
+    - K-R5-LIVE
+    - K-R10-NULL-P30
+
+  artifact_paths:
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-bc660a/validation_report.yaml
+
+  inputs_validated:
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/archives/TASK-20260803-a4a6a4/snapshot-receipt.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/PREREGISTRATION.md
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/RESULTS.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/stats.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/analyze.py
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/equivalence_check.txt
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/budget_stamps.jsonl
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/artifact_sha256.txt
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/src/v2_to_v3.diff
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/src/yoyo_sbox_v2.c.readonly_copy
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/src/yoyo_sbox_v3.c
+    - coordination/goals/GOAL-AES-003/batches/BATCH-008/tasks/TASK-20260803-05e072/runs/
+    - ledger/corrections/CORR-20260803-7d41c8.yaml
+    - coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-0764fc/runs/
+    - coordination/goals/GOAL-AES-003/batches/BATCH-005/tasks/TASK-20260803-48a239/runs/D-AES-K1.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-005/tasks/TASK-20260803-33f760/red_team_report.yaml
+    - coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-367b1b/runs/
+    - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-e4fa63/
+    - coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/yoyo5/analysis.json
+
+  handoff_back:
+    to: coordinator
+    for: ledger archive task (this report is not durable until committed by it)
+    note: >-
+      This report recommends no promotion, assigns no evidence strength, and
+      sets no state. It does recommend that the Coordinator consider a
+      superseding correction for UC-1.

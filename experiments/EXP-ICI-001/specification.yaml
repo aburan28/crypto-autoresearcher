@@ -1,0 +1,99 @@
+experiment:
+  id: EXP-ICI-001
+  hypothesis_id: H-ICI-001
+  version: 1
+  title: >-
+    Best-IC-exponent with CIs: crossbred vs MITM total exponents on an extended
+    n-ladder, bootstrap CIs, honest full-cost accounting.
+  status: approved
+  objective: >-
+    Reduce the uncertainty in RQ-ICI-001: pin the crossbred (~0.863) and MITM
+    (~0.667) total exponents with bootstrap 90% CIs at the largest feasible n,
+    extending past the current measurement ceiling (T23 arm folded in).
+  inputs:
+    solver_paths: crossbred (bitpacked_solver.py + crossbred_real_cost.py),
+      MITM (crossbred_exponent.py MITM arm, 1/2+1/t family, t swept).
+    instances: ">=3 toy curves, >=8 targets per n, n-ladder extended past the
+      current ceiling by at least one size class per path."
+    baseline: T24-verified rho constants (H040 anchor).
+  controls:
+    - Rho baseline on the same instances (exponent must sit at 0.5).
+    - Matched random polynomial system (T11-certified null) for the solve stage.
+    - Same-seed re-run (determinism / infrastructure-failure separation).
+  independent_variables:
+    - solver path (crossbred | mitm)
+    - n (extended ladder per path)
+    - crossbred k-fraction; MITM t
+    - target R (>=8 per cell)
+  metrics:
+    primary:
+      - fitted total exponent per path (cost ~ l^alpha) + bootstrap 90% CI
+      - CI lower/upper bounds vs 0.5 at >=4 ladder points
+    secondary:
+      - per-stage cost breakdown (relation / solve / linear algebra / memory)
+      - exponent drift between the legacy ladder and the extension arm
+      - wall time and peak RSS per cell
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: ">=3 curves x >=8 targets per n"
+  budget:
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 120
+    maximum_memory_gb: 40
+    maximum_runs: 120
+  stopping_rules:
+    - Cells past the solver ceiling that exceed the wall/memory cap are censored
+      and reported; the ladder stops after two consecutive censored sizes.
+    - If the extension arm's point estimate leaves the legacy CI, the
+      confirmation arm (all 8 targets, 3 seeds) runs before any conclusion.
+  invalidation_rules:
+    - Timeout/OOM = failed_infrastructure, excluded from fits (AGENTS rule 5).
+    - Any stage left uncharged in the cost model invalidates the run.
+    - Solve-only numbers never enter the total-exponent fit.
+  success_criterion: >-
+    Any solver path with fitted total exponent whose bootstrap 90% CI upper
+    bound is < 0.5 on >=4 ladder points (alive at the bar; triggers H096).
+  falsification_criterion: >-
+    Both paths CI-separated above 0.5, or CIs overlapping 0.5 with point
+    estimates stable across the extension: quantified KILL; the stacked-constants
+    "loses by 2^k" statements become CI-backed.
+  required_artifacts:
+    - runs/<run-id>/manifest.yaml (command, commit, dirty-tree, env, seeds, params)
+    - runs/<run-id>/raw.json (per-cell costs by stage, fitted exponents, CIs)
+    - runs/<run-id>/stdout.txt and stderr.txt
+    - analysis.md (fits, CIs, legacy-vs-extension comparison, censoring table,
+      verdict against the frozen criteria)
+  assigned_to: executor
+  approved_by: coordinator   # DEC-20260717-002
+
+handoff:
+  id: TASK-20260717-003
+  from: coordinator
+  to: executor
+  objective: >-
+    Run the extended-ladder crossbred and MITM exponent fits with bootstrap CIs
+    and full stage-charged accounting.
+  uncertainty_reduced: >-
+    Whether the best IC exponent's CI lower bound is below or above 0.5 —
+    the number every "loses by 2^k" statement and the H096 gate rest on.
+  inputs:
+    - experiments/EXP-ICI-001/specification.yaml
+    - ecdlp-autolab src/: crossbred_real_cost.py, crossbred_exponent.py,
+      bitpacked_solver.py, crossbred_kfrac_sweep.py, review_stacked_compat.py
+    - T24-verified rho baseline
+  constraints:
+    - All stages charged; solve-only numbers labeled and separated.
+    - Do not run while status is review_required (status is approved).
+  deliverables:
+    - per-path exponent table with bootstrap 90% CIs on the extended ladder
+    - stage-cost breakdown and legacy-vs-extension drift analysis
+    - analysis.md with the frozen-criteria verdict and censoring table
+  budget:
+    wall_clock_seconds: 432000
+    memory_gb: 40
+    maximum_runs: 120
+  completion_gate:
+    - Every planned cell has a terminal state (measured | censored | invalid).
+    - Both solver paths fitted on >=4 ladder points or the shortfall disclosed.
+    - Raw results, resource metrics, and summaries agree; artifacts checksummed.
+  return_format: execution_report

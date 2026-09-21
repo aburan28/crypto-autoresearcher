@@ -1,0 +1,233 @@
+idea:
+  id: IDEA-20260815-bf1328
+  question_id: RQ-PAIR-21313f
+  added: '2026-08-15'
+  title: >-
+    RE-RUN exTNFS POLYNOMIAL SELECTION FOR BLS12-381 AND BN254 WITH MEMORY
+    CHARGED, BECAUSE EVERY PUBLISHED SECURITY ESTIMATE FOR THESE CURVES
+    COUNTS OPERATIONS AND THE SIEVE'S MEMORY IS THE BINDING RESOURCE
+  class: cost-model
+
+  claim: >-
+    Published exTNFS estimates for BLS12-381 and BN254 count relation-
+    collection and linear-algebra operations. The relation-collection
+    stage's memory footprint is rarely charged, and the linear algebra's
+    memory is what actually bounds a real attack. A memory-charged re-run
+    can move the effective security level in either direction and is what a
+    deployment decision needs.
+
+  mechanism: >-
+    Re-run polynomial selection for both target fields. For each candidate
+    polynomial pair, cost relation collection and linear algebra under one
+    model that charges memory explicitly. Report the effective security
+    level per memory-cost model and compare against the published operation-
+    count estimates.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Read of GOAL-PAIR-001 objective; grep 'exTNFS' (13), 'polynomial
+      selection' (16), 'Tower NFS' (6), 'pairing-friendly' (46).
+    results: >-
+      The goal names this as its objective and it is not executed. exTNFS
+      and its application to these curves are well published; memory
+      charging for them is not present in this corpus.
+    verdict: >-
+      ADAPTATION. exTNFS and its polynomial selection are published; the
+      contribution is memory-charged re-costing in this program's full-
+      cost framework.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE EFFECTIVE SECURITY LEVEL of each target field as a function of
+      the memory-cost model.
+    lossiness: >-
+      Reducing a full attack pipeline to one security level discards the
+      stage structure, so per-stage costs are reported alongside it.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while polynomial selection is reproducible and both stages
+      are costable; sensitive to the memory model, which is swept.
+
+  null_object_control: >-
+    NULL 1 -- free memory, which must reproduce the published operation-
+    count estimates; failure means the harness differs from the published
+    one. NULL 2 -- a field where the published estimate is uncontested, as a
+    calibration target. NULL 3 -- an infeasible memory charge, under which
+    no attack is feasible, bounding the sweep.
+
+  discriminated_from:
+    - >-
+        Published exTNFS estimates for these curves, which count
+        operations; this record charges memory and reports the difference.
+    - >-
+        KN-OPEN-025 (Galois symmetry in TNFS linear algebra), which asks
+        about a speedup in one stage; this record costs both stages under
+        memory charging and should consume that lane's result rather than
+        duplicate it.
+
+  assumptions:
+    - >-
+        Polynomial selection is reproducible for both fields within
+        budget.
+    - >-
+        A defensible memory-cost model exists; since it is not unique,
+        several are swept and the spread reported as the honest answer.
+
+  predictions:
+    - metric: >-
+        free-memory null against published estimates
+      direction: different
+      minimum_effect: >-
+        FORCED to reproduce them; failure blocks the record.
+    - metric: >-
+        effective security level under charged memory
+      direction: different
+      minimum_effect: >-
+        The measurement; reported per memory model, never as a single
+        number.
+    - metric: >-
+        stage that binds under each memory model
+      direction: different
+      minimum_effect: >-
+        Identifies whether relation collection or linear algebra is the
+        real bottleneck, which determines where any future speedup would
+        matter.
+
+  minimal_test:
+    design: >-
+      One field (BN254, the smaller) with two memory models and the free-
+      memory calibration. Enough to see whether charging moves the level
+      at all.
+    controls:
+      - >-
+          Free-memory calibration against published estimates.
+      - >-
+          Uncontested-field calibration target.
+      - >-
+          Several memory-cost models reported together.
+      - >-
+          Per-stage costs reported, not only the aggregate.
+    required_metrics:
+      - >-
+          Effective security level per field and memory model.
+      - >-
+          Per-stage cost breakdown.
+      - >-
+          Binding stage per model.
+      - >-
+          The cost model, stated once and applied uniformly.
+
+  falsification_conditions:
+    - >-
+        The free-memory null does not reproduce published estimates.
+        Harness differs; halt.
+    - >-
+        Charged memory moves the effective level materially. A deployment-
+        relevant finding requiring independent review before any security-
+        level statement.
+    - >-
+        The level is unchanged across all memory models. Memory is not
+        binding for these fields, which is a clean and useful negative.
+    - >-
+        Polynomial selection is not reproducible in budget. Report rather
+        than substitute published polynomials without saying so.
+
+  confounders:
+    - >-
+        MEMORY-MODEL ARBITRARINESS: the answer is a function of a
+        modelling choice, so a single quoted level would be indefensible.
+    - >-
+        SELECTION QUALITY: a worse polynomial pair than the published one
+        inflates the security level in the direction that flatters the
+        curves.
+
+  interpretation_limits:
+    - >-
+        Costs published attacks under charged memory; proposes no new
+        attack.
+    - >-
+        Scoped to the tested fields and swept memory models.
+    - >-
+        A changed security level is a cost-model statement and requires
+        review before informing any deployment.
+
+  heuristic_assumptions:
+    - id: HEUR-PAIR-MEM-1
+      statement: >-
+        The exTNFS relation-collection and linear-algebra stages are
+        jointly captured by one model counting core operations plus a
+        memory-access penalty proportional to a power of the working-set
+        size.
+      rigorous_support: >-
+        Rigorous ingredient: the published stage complexities for
+        exTNFS. THE GAP: the memory-access penalty exponent is a
+        hardware modelling choice with no canonical value, and the
+        sieve's access pattern is far from uniform, so a single exponent
+        may misprice relation collection specifically.
+      falsification_condition: >-
+        A memory model under which the effective level is non-monotone
+        in field size, indicating misspecification.
+      validation_plan: >-
+        SAMPLE: >= 3 memory models x both fields. COMPARISON: level per
+        model against the free-memory calibration. TAIL CHECK: models
+        giving extreme levels, reported with assumptions. TRANSFER: none
+        beyond the tested fields.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is polynomial selection plus symbolic stage
+      costing.
+    memory_exponent: >-
+      Selection working set; modest at these field sizes.
+    best_known: >-
+      Incumbents are the published exTNFS security estimates for these
+      curves, reproduced and re-costed here rather than improved.
+    hidden_overhead: >-
+      Polynomial selection quality is the dominant hidden term: an
+      inferior pair silently raises the reported security level.
+    tradeoff_note: >-
+      Charging memory buys realism and costs a modelling choice that
+      determines the answer; the sweep is the only honest response.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As security estimates: dominated by the
+    published exTNFS analyses, which are deeper. As memory-charged re-
+    costing: none exists here. Not null on any axis.
+  sota_delta: >-
+    No attack novelty, no exponent. Content delivered: memory-charged
+    effective security levels for two deployed pairing-friendly curves, per-
+    stage cost breakdowns, and identification of which stage binds under
+    each memory model.
+
+  estimated_cost:
+    implementation: high
+    compute: high
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.6 that polynomial selection is reproducible in budget, the dominant
+    risk. 0.85 that the free-memory null calibrates. 0.35 that charging
+    moves the level materially, which would be deployment-relevant and would
+    need review.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-PAIR-21313f
+    - RQ-PAIR-f2e31f
+    - GOAL-PAIR-001
+    - KN-OPEN-025
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

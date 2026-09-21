@@ -1,0 +1,127 @@
+experiment:
+  id: EXP-ECRANK-e1e30e
+  hypothesis_id: H-ECRANK-28dba7
+  version: 1
+  title: >-
+    Certified elliptic curves of Mordell-Weil rank >= 31 over multiquadratic
+    number fields, and the minimal field degree the method reaches
+  status: executed
+  objective: >-
+    Produce an explicit elliptic curve E/Q and an explicit number field K with a
+    machine-checkable certificate of rank E(K) >= 31, and measure how small
+    [K:Q] can be made by this method. The construction uses the Galois
+    eigenspace decomposition of E(K) for K multiquadratic: for squarefree d the
+    twist E^(d)(Q) injects into E(K) as a chi_d-eigenvector, so non-torsion
+    points attached to DISTINCT classes d are Z-independent with no height
+    computation. The search is over (base curve, coset of a k-dimensional
+    subgroup of Q*/(Q*)^2) and the deliverable is the certificate, not the
+    search trace.
+  inputs:
+    base_curve_pool: >-
+      all E with a1 in {0,1}, a2 in {-1,0,1}, a3 in {0,1}, |a4| <= 20,
+      |a6| <= 50 whose PARI ellrank lower bound is >= 3, deduplicated by
+      j-invariant, plus five named seed curves (conductors 53, 79, 389, 5077,
+      234446)
+    support: [-1, 2, 3, 5, 7, 11, 13]
+    subgroup_dimensions: [3, 4, 5, 6]
+    descent_engine: PARI/GP 2.15.4 ellrank via cypari
+  controls:
+  - >-
+    NULL-OBJECT CONTROL. The same pipeline is run at k = 3 (degree 8), where the
+    method is expected to FAIL to reach 31. A method that "succeeds" at every
+    degree would be measuring the pipeline, not the mathematics.
+  - >-
+    The exact verifier (source/verify_certificate.py) shares no code and no
+    library with the search: it is pure-Python exact rational arithmetic and
+    never calls PARI. It re-derives every claim from the certificate alone.
+  - >-
+    Non-torsion is certified by Mazur's theorem (a torsion point of E/Q has
+    order in {1..10,12}), by exhibiting m*P != O for m = 1..12 -- not by
+    trusting the descent engine's classification.
+  - >-
+    The subgroup V is checked to be closed under multiplication modulo squares
+    and to contain the trivial class, so K really is the multiquadratic field
+    claimed and the characters really are distinct.
+  independent_variables:
+  - subgroup dimension k (field degree 2^k)
+  - base curve / twist coset representative
+  - certificate mode (eigenspace-only vs eigenspace-plus-regulator)
+  metrics:
+    primary:
+    - certified_rank_lower_bound
+    - field_degree
+    secondary:
+    - n_classes_with_point
+    - sum_with_multiplicity
+    - verifier_error_count
+    - timed_out_classes
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: >-
+      NOT APPLICABLE AS A STATISTICAL PREDICTION, and stated here rather than
+      left null because the reason matters. This experiment makes no inference
+      from a sample: it exhibits a witness. The certificate is checkable on its
+      own terms by a verifier that never sees the search, so the order in which
+      candidates were examined cannot inflate the result. Selection over
+      candidates is the SEARCH, not the CLAIM. What the search order does affect
+      is the OPTIMALITY claim (smallest degree reached), which is therefore
+      reported as a lower bound achieved by this pipeline and explicitly NOT as
+      a proof of minimality.
+    formula: null
+    source: >-
+      Galois-eigenspace decomposition of E(K) (x) Q as a Q[Gal(K/Q)]-module;
+      Mazur, Modular curves and the Eisenstein ideal, IHES 1977 (torsion orders
+      over Q)
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The claim-tier table in docs/claims-and-verification.md is indexed by
+      ECDLP field bit-size and does not apply to this result; `toy` is recorded
+      as the least-asserting available label. The honest scope statement is the
+      one that governs: the result is an EXACT algebraic certificate about two
+      explicit curves over two explicit number fields, not a measurement
+      extrapolated to a larger regime. Nothing here is claimed about rank over
+      Q, where rank >= 30 is open.
+    correspondence: null
+  tail_checks:
+  - >-
+    k = 3 (degree 8) run to confirm the method's reach ends before degree 8,
+    rather than reporting only the degrees where it works.
+  - >-
+    Regulator determinants recomputed at 64-digit precision for every class
+    contributing more than one point; any singular determinant invalidates the
+    multiplicity-based bound but not the eigenspace bound.
+  replication:
+    seeds: [deterministic-exhaustive]
+    independent_instances: 2
+  budget:
+    wall_clock_seconds_per_run: 5400
+    total_cpu_hours: 4
+    maximum_memory_gb: 8
+    maximum_runs: 8
+    maximum_workers: 1
+  stopping_rules:
+  - stop the pool scan when the curve pool is exhausted
+  - >-
+    per-twist descent is guarded by PARI alarm(); a timeout contributes ZERO to
+    every score and is recorded as timed_out, never as rank 0
+  invalidation_rules:
+  - >-
+    any verifier error (point off curve, torsion point, class outside V, V not a
+    subgroup) invalidates the whole certificate
+  - >-
+    a singular height regulator invalidates the multiplicity bound for that
+    class; the eigenspace bound survives
+  success_criterion: >-
+    an explicit (E, K) with the exact verifier reporting rank E(K) >= 31 and
+    zero errors
+  falsification_criterion: >-
+    no configuration reaches 31 with zero verifier errors, or the exact verifier
+    contradicts the search engine on any certificate
+  required_artifacts:
+  - certificates/*.json
+  - runs/*/manifest.yaml
+  - runs/*/raw-result.json
+  - source/*.py
+  assigned_to: executor
+  approved_by: coordinator

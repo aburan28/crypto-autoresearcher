@@ -1,0 +1,558 @@
+idea:
+  id: IDEA-20260805-ee2018
+  question_id: RQ-MLKEM-002
+  added: '2026-08-05'
+  title: >-
+    The periodicity of the silent set, not its size: the reduction-deficit
+    mechanism sitting in GOAL-MLKEM-002's own archived NEON data was never made
+    a search predicate, is stride- and parameter-set-independent, and gives the
+    isolation-versus-systemic question a non-empty population
+  class: mechanism
+
+  claim: >-
+    GOAL-MLKEM-002 defined its defect-mechanism neighborhood as "fixed-bound
+    hand-written vector comparison tails" -- a statement about COVERAGE -- and
+    searched for a second implementation matching it. The same batch's own
+    founding evidence record contains a SECOND, structurally different defect in
+    the SAME library that the predicate cannot express. EV-MLKEM-005 states that
+    pre-fix wolfSSL mlkem_cmp_neon "loads the full length but reduces with
+    ins v9.b[0], v8.b[1]" -- coverage complete, REDUCTION incomplete -- and
+    measures its silent cardinalities as 384, 544 and 784 at ML-KEM-512, -768
+    and -1024. Those are EXACTLY L/2 for L = 768, 1088, 1568. A reduction
+    deficit that inspects a fraction phi of the accumulator lanes has forced
+    silent-set size L*(1-phi), proportional to L, independent of the vector
+    stride, and present at EVERY parameter set -- so it is untouched by the
+    divisibility obstruction of IDEA-20260805-3c957e and it is 24.5 times larger
+    at ML-KEM-1024 than the AVX2 coverage defect that the goal actually chased
+    (784 bytes versus 32). It also has a distinguishing observable the goal's
+    gate threw away: the silent set of a reduction deficit is PERIODIC in the
+    byte index (a union of residue classes modulo the lane width), whereas a
+    coverage or bound defect is always a TOP-OF-BUFFER SUFFIX. EV-MLKEM-005
+    records the NEON pattern as "(i mod 64) >= 32", i.e. periodic, and the AVX2
+    pattern as {1536..1567}, i.e. a suffix. This proposal is to track the
+    PERIODICITY of the silent set rather than its cardinality, to use
+    lane-coverage fraction as the neighborhood predicate, and thereby to restore
+    a non-empty, machine-decidable population for the isolation-versus-systemic
+    question that the goal recorded as second_impl_unavailable.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE PERIOD STRUCTURE OF THE SILENT SET: the smallest p such that
+      S(impl, L) is the intersection of [0, L) with a union of residue classes
+      modulo p, together with the residue set itself. Two derived scalars are
+      reported per implementation: the lane-coverage fraction
+      phi = 1 - |S|/L, and the suffix indicator (whether S is an interval ending
+      at L-1). The whole GOAL-MLKEM-002 lineage tracked |S| and a boolean
+      "silent indices present"; the period is a strictly finer projection of the
+      same measurement, obtainable from data the existing instrument already
+      produces.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: (a) coverage- and bound-based neighborhood
+      predicates in every phrasing, including the goal's own strict order --
+      this proposal exists precisely because that family cannot express the
+      mechanism; (b) the multi-class mutation-generator hardening family
+      (EXP-MLKEM-003 through -006), whose repeated failure mode was that the
+      precedence list decided the outcome before the data did; (c) further
+      repairs of the instrument-adequacy control, settled for GNU ld --wrap on
+      linux/amd64 by EV-MLKEM-010 and here consumed rather than revisited;
+      (d) every cryptanalytic and physical-side-channel lens, excluded by
+      RQ-MLKEM-002's constraints.
+    newness_score: >-
+      The reduction-deficit mechanism is not new as an observation -- it is
+      written down in EV-MLKEM-005 in one clause. What is new is (i) recognising
+      that it is a SEPARATE MECHANISM CLASS rather than a second instance of the
+      same defect, (ii) deriving its forced signature L*(1-phi) and matching it
+      to the three archived numbers with zero residual, (iii) noticing that the
+      goal's search predicate cannot express it, and (iv) proposing periodicity
+      as the tracked object. None of the four appears anywhere in
+      GOAL-MLKEM-001, GOAL-MLKEM-002, RQ-MLKEM-002, H-MLKEM-002 through -009, or
+      EV-MLKEM-005 through -010.
+    testability_score: >-
+      High and cheap. The forced signature is checkable against archived numbers
+      at zero compute. The predicate is decidable from source by reading one
+      reduction expression, and from behaviour by the existing single-byte
+      differential instrument, which already emits per-index tables -- the period
+      is a post-hoc analysis of data the goal's own runs produced.
+    survival_score: >-
+      Survives to every SIMD comparison in any library on any target, because
+      every one of them reduces a vector accumulator to a scalar verdict and the
+      question "does the reduction inspect all lanes" is always well posed. It
+      does not survive to purely scalar comparisons, which have no lanes -- and
+      that boundary is itself the population definition.
+
+  mechanism: >-
+    DERIVED HERE; THE ARCHIVED NUMBERS ARE QUOTED, THE ARITHMETIC WAS EXECUTED
+    ON THIS MACHINE.
+
+    (1) THE ANATOMY OF AN OPTIMIZED CONSTANT-TIME COMPARISON. Every SIMD
+    equality comparison in this family has the same three-part shape:
+      LOAD/ACCUMULATE: h <- h OR (a_block XOR b_block), over blocks of w bytes;
+      REDUCE:          r <- some_reduction(h), collapsing the vector register
+                       to one bit or one word;
+      FINALIZE:        return a constant-time function of r.
+    PQClean's AVX2 verify, quoted verbatim in
+    experiments/EXP-MLKEM-009/analysis/second_implementation_selection.md, is
+    exactly this: `h = _mm256_or_si256(h, f)` over `len/32` blocks, then
+    `r = 1 - _mm256_testz_si256(h, h)`, then a scalar remainder, then
+    `r = (-r) >> 63`.
+    A defect can enter at each part, and the three entry points are DIFFERENT
+    MECHANISMS with different signatures:
+      C-COV / C-BND -- the accumulate step never sees some bytes;
+      C-RED         -- the accumulate step sees every byte, but the reduce step
+                       inspects only some lanes of h;
+      C-FIN         -- both are complete but the finalize step loses the bit
+                       (not pursued here; recorded as a fourth class).
+
+    (2) THE FORCED SIGNATURE OF C-RED. Suppose the accumulator holds nlanes
+    lanes and the reduction inspects a subset Lambda of them, |Lambda| =
+    phi*nlanes. Byte index i lands in lane (i mod nlanes) under the standard
+    contiguous load. Then
+        S = { i in [0, L) : (i mod nlanes) not in Lambda },
+    so |S| = L*(1 - phi) up to one partial period, and S IS PERIODIC WITH
+    PERIOD nlanes. Two forced consequences, both stated before any measurement:
+      (a) SIZE IS PROPORTIONAL TO L. Unlike C-COV (bounded by w) and C-BND
+          (L minus a constant), a reduction deficit scales with the ciphertext,
+          so it is present at every parameter set and its profile across
+          parameter sets is a straight line through the origin.
+      (b) SHAPE IS PERIODIC, NOT A SUFFIX. C-COV and C-BND always produce a
+          top-of-buffer interval. C-RED produces residue classes. THE SHAPE
+          SEPARATES THE CLASSES AT A SINGLE PARAMETER SET, which is exactly
+          what the cardinality alone cannot do -- and the cardinality alone is
+          what the goal's gate reported.
+
+    (3) THE ARCHIVED DATA ALREADY CONTAINS BOTH SHAPES, AND MATCHES (a) AND (b)
+    EXACTLY. From EV-MLKEM-005, read in full:
+      AVX2 pre-fix: "silent set exactly {1536..1567} (32 indices...)" at
+        ML-KEM-1024, "all other pre-fix parameter-set combinations show zero".
+        Profile (0, 0, 32). SUFFIX SHAPE. Consistent with C-COV/C-BND.
+      NEON pre-fix: "silent cardinalities 384, 544, and 784 following the
+        (i mod 64) >= 32 half-block pattern plus the ML-KEM-1024 remainder".
+        Profile (384, 544, 784) = (768/2, 1088/2, 1568/2) EXACTLY. PERIODIC
+        SHAPE with period 64. Consistent with C-RED at phi = 1/2 and with
+        nothing else: no C-BND(N) can produce a profile proportional to L, and
+        no C-COV(w) can produce a silent set exceeding w.
+      Post-fix, both backends: "zero silent indices ... coverage fraction 1.0
+        for all three parameter sets and both seeds". Profile (0, 0, 0),
+        phi = 1.
+    Three distinct profiles, one instrument, one library, one batch. The
+    comparator spread is measured and nonzero, which is the check the
+    lossy-projection mirror failure demands.
+
+    (4) THE SOURCE-LEVEL CAUSE, AS RECORDED. EV-MLKEM-005: mlkem_cmp_neon
+    "loads the full length but reduces with ins v9.b[0], v8.b[1] at v5.9.1 and
+    with ext v9.16b, v8.16b, v8.16b, #8 at v5.9.2". The v5.9.2 form rotates the
+    128-bit accumulator by 8 bytes before folding, so both halves reach the
+    verdict; the v5.9.1 form moves a single byte lane. THE FIX CHANGED THE
+    REDUCTION, NOT THE COVERAGE. Under the goal's strict predicate -- "fixed-
+    bound hand-written vector comparison tails" -- this routine is not even a
+    candidate: it has no fixed bound and its tail is not the problem. The
+    predicate is blind to the larger of the two defects in its own founding
+    instance. THE INSTRUCTION MNEMONICS ABOVE ARE QUOTED FROM EV-MLKEM-005 AND
+    NOT INDEPENDENTLY READ HERE; re-reading armv8-mlkem-asm.S at the pinned
+    peeled commits is a stage of the paired experiment.
+
+    (5) WHY THIS RESTORES DECIDABILITY. The goal's criterion 2 was satisfiable
+    by a disjunction -- find a second implementation in the neighborhood, OR
+    record that none exists. Because the neighborhood was defined by a source-
+    style phrase, "none exists" was reachable by a taste judgement, and it was
+    reached: five candidates rejected as "length-parameterized",
+    strict_fixed_bound_disposition = empty_preferred_public_neighborhood. The
+    C-RED predicate has none of that structure. Membership is "the comparison
+    reduces a SIMD accumulator", which is decidable by inspection and true of
+    every optimized backend; the MEASURED quantity is phi, which is 1 for a
+    correct implementation and < 1 for a defective one. The population is
+    non-empty by construction, both answers are reachable worlds, and a null
+    result is a real measured null (every audited implementation has phi = 1)
+    rather than an absence of candidates. PQClean's AVX2 verify is already a
+    worked instance: `_mm256_testz_si256(h, h)` tests the whole register, so
+    phi = 1 by construction and it is a MEASURED PASS, not a non-candidate.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      EV-MLKEM-005 (this repository, READ IN FULL). Source of every archived
+      number and of the two assembly mnemonics quoted in mechanism (4). Internal,
+      empirical, claim_tier laboratory_implementation_conformance, read
+      independently by coordinator, validator and red team per its own text.
+    - >-
+      experiments/EXP-MLKEM-009/analysis/second_implementation_selection.md
+      (this repository, READ). Source of the verbatim PQClean AVX2 verify body
+      quoted in mechanism (1), of the five strict-order rejections, and of
+      strict_fixed_bound_disposition = empty_preferred_public_neighborhood.
+    - >-
+      EV-MLKEM-009 and EV-MLKEM-010 (this repository, READ). Source of the
+      instrument-adequacy history: call-site INTERPOSE_COMPARE refuted as a
+      probe-local multiplicity construction (OBJ-RT006-001/002), GNU ld --wrap
+      admitted on linux/amd64 with wrap_call_counts mlkem_cmp_avx2 = 4. Any
+      instrument this proposal uses must be the admitted one.
+    - >-
+      ARM AArch64 semantics of `ins` and `ext`, and Intel semantics of
+      `_mm256_testz_si256`. RECALLED, UNVERIFIED. The reading in mechanism (4)
+      -- that `ins v9.b[0], v8.b[1]` moves one byte lane while
+      `ext ..., #8` rotates by 8 bytes so both halves fold -- is a MODEL OF WHY
+      the measured halving occurs, not a verified decode. It is testable: it
+      predicts phi = 1/2 and period 64, and the archived numbers are exactly
+      L/2 with an (i mod 64) pattern. Confirming the decode against the
+      architecture manuals is a stage of the paired experiment.
+    - >-
+      No external literature search was performed for prior work on
+      lane-coverage as a conformance predicate. No external novelty is claimed.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      A comparison implementation --> its silent set S(L) subset of [0, L) -->
+      the pair (minimal period p of S, residue set R modulo p), plus the derived
+      scalars phi = 1 - |S|/L and is_suffix(S).
+    what_is_discarded: >-
+      The routine itself, its instruction mix, its constant-time properties, all
+      multi-byte and joint behaviour, all timing, and -- at the final step --
+      every aspect of S except its periodic structure and density.
+    why_genuinely_lossy: >-
+      Genuinely lossy: infinitely many reductions inspect the same lane subset,
+      and every one of them maps to the same (p, R). The fibre over
+      (p = 64, R = {32..63}, phi = 1/2) contains at least the `ins`-style
+      one-lane fold, a mask-and-test that clears the upper half, and a
+      horizontal add that saturates -- three different implementations, one
+      observable.
+    why_compatible_with_the_operations: >-
+      The retained structure propagates deterministically under the operations
+      the target applies. Changing the parameter set changes L, and a periodic S
+      simply extends -- p and R are invariant, |S| scales. Changing the backend
+      changes the lane count, and p tracks it. This is what makes (p, R) a
+      tracked object and not a summary: it is the part that survives the
+      transformations of interest, and its behaviour under them is predictable
+      in advance.
+    is_it_only_a_change_of_coordinates: >-
+      NO, and both failure modes were checked explicitly. It is not the
+      (Delta, Pi) = (x xor y, x*y) failure: the implementation is not
+      recoverable from (p, R, phi), as the three-member fibre above shows, so
+      information is genuinely destroyed. It is not the mirror failure either --
+      the projection is demonstrably NOT constant across instances, because the
+      archived data realizes three distinct values on one instrument: (p
+      undefined, suffix, phi = 1 - 32/1568) for pre-fix AVX2 at ML-KEM-1024,
+      (p = 64, R = upper half, phi = 1/2) for pre-fix NEON, and (S empty,
+      phi = 1) for both post-fix builds. That is a measured comparator spread,
+      not an assumed one, and it is the specific check
+      IDEA-20260805-e805b6 names as the one the lossy-projection test is least
+      equipped to catch on its own.
+
+  assumptions:
+    - >-
+      That EV-MLKEM-005's NEON cardinalities and its "(i mod 64) >= 32" pattern
+      description are accurate. Committed and thrice-read, so this is the best
+      input available; the paired experiment nonetheless re-derives the pattern
+      from the archived per-index tables where they exist, because the pattern
+      as stated does not by itself account for the extra 16 indices at
+      ML-KEM-1024 (24 full 64-byte periods contribute 768, and the record's
+      total is 784) -- a discrepancy this record REPORTS rather than resolves,
+      and which the record's own phrase "plus the ML-KEM-1024 remainder" flags.
+    - >-
+      That the byte-to-lane map is the contiguous one, i mod nlanes. True for a
+      straight loadu-based accumulator; false for a routine that deinterleaves
+      or transposes. Where it is false the period is still well defined but its
+      value is not nlanes, and the record must say which was observed.
+    - >-
+      That lane coverage is a meaningful predicate only for SIMD comparisons.
+      Purely scalar comparisons have no lanes and are out of the population by
+      definition, not by rejection.
+
+  proof_search_map_note: >-
+    This proposal is mechanism-and-measurement rather than proof-oriented; the
+    hypothesis it pairs with, H-MLKEM-d9062d, carries the full four-audit
+    proof_search_map, and the observation-collision audit there covers the
+    C-RED fibre described above.
+
+  predictions:
+    - metric: >-
+        NEON_profile_residual: max over L in (768, 1088, 1568) of
+        | L*(1 - phi) - archived_silent_cardinality | at phi = 1/2
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0 at all three cells: 384, 544, 784. Not a tolerance. phi = 1/2
+        is FIXED BEFORE the comparison by the reading of the v5.9.1 reduction,
+        with no parameter fitted to the archived numbers. Any nonzero residual
+        refutes C-RED as an account of the NEON arm.
+    - metric: >-
+        cross_class_exclusion: the number of members of {C-BND(N) : N in
+        [1, 1568]} union {C-COV(w) : w in {8,...,512}} whose forced profile
+        equals (384, 544, 784)
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0, derived: C-BND gives L minus a constant, whose profile has
+        constant successive differences equal to the differences of L; C-COV
+        gives a value bounded by w and constant in L once w is fixed. Neither
+        can be proportional to L with ratio 1/2 at three distinct L. If any
+        member is found, the taxonomy is not separated by this observable and
+        the proposal's central claim -- that shape identifies mechanism -- is
+        false.
+    - metric: >-
+        shape_discrimination: whether is_suffix(S) separates the archived AVX2
+        arm from the archived NEON arm at the SINGLE parameter set ML-KEM-1024
+      direction: different
+      minimum_effect: >-
+        MUST SEPARATE. AVX2: S = {1536..1567}, a suffix, is_suffix = true.
+        NEON: S has 784 elements in [0, 1568) with a mod-64 pattern,
+        is_suffix = false. If a single-parameter-set observable does not
+        separate them, the cardinality-only reporting the goal used loses
+        nothing and this proposal has no content.
+    - metric: >-
+        population_size: the number of publicly fetchable ML-KEM
+        implementations whose comparison reduces a SIMD accumulator on at least
+        one supported backend, i.e. the size of the C-RED-predicate population
+      direction: higher
+      minimum_effect: >-
+        AT LEAST 2, and that floor is already met before any fetch by the two
+        implementations named in committed records: wolfSSL (AVX2 and NEON) and
+        PQClean ml-kem-1024 avx2. The point of the prediction is the contrast:
+        the strict coverage predicate returned a population of ZERO and the
+        campaign closed on second_impl_unavailable, while this predicate returns
+        at least two on the same evidence base. If the population is below 2 the
+        predicate has been misdefined.
+    - metric: >-
+        measured_phi_census: the number of implementations in that population
+        with measured phi < 1 at any parameter set on any backend
+      direction: higher
+      minimum_effect: >-
+        NO NUMBER IS PREDICTED for unmodified upstream code, and the refusal is
+        deliberate: 0 is the expected and entirely acceptable outcome. A census
+        returning phi = 1 everywhere is a MEASURED NULL over a non-empty
+        population -- which is the deliverable GOAL-MLKEM-002 wanted and did not
+        get, and is categorically stronger than second_impl_unavailable. Any
+        value above 0 triggers the RQ-MLKEM-002 escalation clause immediately
+        and is not published by any agent.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest decisive first. STAGE A (zero compute): compute
+      L*(1-phi) for phi in {1, 1/2, 1/4, 1/8} at the three lengths, compare to
+      the archived NEON and post-fix numbers, and verify cross_class_exclusion
+      by enumerating C-BND and C-COV. Terminates the line if C-RED does not fit.
+      STAGE B (zero compute, archived data only): recover the index-level silent
+      sets from the archived per-index tables of EXP-MLKEM-002 where they exist,
+      compute the minimal period and residue set of each, and evaluate
+      shape_discrimination. This uses only data already committed. STAGE C
+      (minutes, gcc only): build planted comparators with lane-coverage phi in
+      {1, 7/8, 3/4, 1/2, 1/4} and confirm the forced sizes and periods under the
+      single-byte differential instrument linked via GNU ld --wrap, the method
+      admitted by EV-MLKEM-010, never the call-site INTERPOSE_COMPARE method
+      refuted by EV-MLKEM-009. STAGE D (bounded by fetch budget): source census
+      of the reduction expression of every fetchable ML-KEM comparison, with
+      measured confirmation wherever a build succeeds.
+    controls:
+      - >-
+        NULL OBJECT (same shape, forced value pre-derived, CAN FAIL): a planted
+        comparator with phi = 1 -- a full-register reduction, structurally
+        identical to PQClean's `_mm256_testz_si256(h, h)` -- measured on the
+        identical instrument at all three lengths. FORCED: silent set EMPTY,
+        period undefined, phi = 1. It can fail: if the instrument reports any
+        silent index for a comparator that is complete by construction, the
+        instrument is broken and no negative may be reported. The archived
+        post-fix AVX2 and NEON cells, at zero silent indices and coverage
+        fraction 1.0, are the committed precedent for what a pass looks like.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR: a
+        planted comparator at phi = 1/2 with period 64. FORCED before the run:
+        silent cardinalities exactly 384, 544, 784 and a silent set that is a
+        union of residue classes modulo 64 -- the archived pre-fix NEON numbers,
+        reproduced by construction on a different toolchain and target. If the
+        instrument does not reproduce them, it cannot see the mechanism and NO
+        census result, positive or null, may be reported from it.
+      - >-
+        GRADED CONTROL, THREE INTERIOR POINTS, MONOTONICITY REPORTED:
+        phi in {1, 7/8, 3/4, 1/2, 1/4} with forced |S| at L = 1568 of
+        (0, 196, 392, 784, 1176). The relation is exactly linear in (1 - phi),
+        so the pre-registered finding is STRICT MONOTONICITY AND LINEARITY, and
+        the check is the regression residual, not the ordering. A non-linear
+        response localises an instrument artifact -- most likely a probe that
+        saturates once any silent index is found.
+      - >-
+        NEARBY OBJECT WHERE THE CONCLUSION MUST FAIL (inventor protocol section
+        8, audit 4): a purely scalar byte-at-a-time comparator, which has no
+        lanes. The predicate must return "out of population", NOT "phi = 1". A
+        predicate that scores a scalar loop as a passing member of the SIMD
+        population has not identified the load-bearing structure and is
+        measuring nothing.
+      - >-
+        ORDERING CONTROL: the forced table of Stage A and the planted-comparator
+        expectations of Stage C are committed and hashed before any census fetch
+        in Stage D. Any census result read before the null and positive controls
+        have been scored is inadmissible.
+      - >-
+        ARCHIVE CHECK: enumerate every prior measurement of lane coverage in the
+        corpus. Expected: none as such -- EV-MLKEM-005's "coverage fraction 1.0"
+        is a different quantity (mutation coverage of the generator, not lane
+        coverage of the reduction) and conflating the two would be an error this
+        record must not make.
+    required_metrics:
+      - forced L*(1-phi) table with the script and its hash
+      - minimal period and residue set of every archived silent set recoverable from committed per-index tables
+      - planted-comparator measured versus forced sizes and periods, per arm, with seeds
+      - the census fetch list with every repository attempted and every failure
+      - the wrap-attest call counts proving library symbols were actually invoked, per EV-MLKEM-010's admitted method
+
+  falsification_conditions:
+    - >-
+      Nonzero residual for C-RED at phi = 1/2 against the archived NEON profile.
+      The mechanism model is wrong and the proposal is withdrawn.
+    - >-
+      Some C-BND or C-COV member reproducing (384, 544, 784). The classes are
+      not separated and shape carries no information beyond size.
+    - >-
+      is_suffix failing to separate the two archived arms at ML-KEM-1024. The
+      periodicity object adds nothing over the cardinality the goal already
+      reported.
+    - >-
+      The planted phi = 1/2 positive control failing to reproduce 384/544/784.
+      Instrument failure; no negative and no census result may be reported at
+      all.
+    - >-
+      The predicate scoring a scalar comparator as an in-population pass. The
+      population is misdefined and must be restated before any census.
+    - >-
+      Fetches failing or builds failing. INFRASTRUCTURE outcome under AGENTS.md
+      rule 5, never negative evidence about any implementation. Stages A and B
+      run on committed data only and still complete.
+
+  confounders:
+    - >-
+      THE 784 DISCREPANCY, REPORTED NOT RESOLVED. Under a pure "(i mod 64) >=
+      32" rule over [0, 1568) the silent count is 24*32 = 768 from the 24 whole
+      periods plus 0 from the final 32 bytes, i.e. 768, while EV-MLKEM-005
+      records 784. The record's own phrase "plus the ML-KEM-1024 remainder"
+      acknowledges an additional contribution. 784 is exactly 1568/2, so the
+      phi = 1/2 model fits and the "(i mod 64) >= 32" prose does not, quite. The
+      honest position is that the archived cardinality and the archived pattern
+      description are not obviously consistent with each other, this record does
+      not adjudicate them, and Stage B's index-level recomputation is what
+      settles it. AGENTS.md retrieval policy item 7 applies: report the
+      contradiction, do not pick a side.
+    - >-
+      ASSEMBLY DECODE IS RECALLED. The account of `ins` versus `ext` is a model
+      of the measurement, not a verified decode, and is labelled so wherever it
+      appears.
+    - >-
+      LANE MAPPING. If a routine deinterleaves, the period is not the lane
+      count and the naive predicate mis-reports. The measurement reports the
+      observed period rather than assuming it.
+    - >-
+      A NULL CENSUS IS THE LIKELY OUTCOME AND MUST NOT BE DRESSED UP. If every
+      fetchable implementation reduces its whole accumulator -- which is what
+      PQClean's testz does -- the finding is "phi = 1 across the fetched
+      population", a measured null over n implementations. That is the honest
+      deliverable and it is worth having; it is not an isolation proof and the
+      record must not phrase it as one.
+    - >-
+      SELECTION BY FETCHABILITY. The census can only see what it can fetch and
+      build. Its result is a floor, always stated as such.
+
+  interpretation_limits:
+    - >-
+      NOT AN ATTACK, NOT AN ORACLE, NOT AN EXPLOITATION PATH, NOT A COST
+      ESTIMATE, NOT A STATEMENT ABOUT MLWE HARDNESS OR PASSIVE ML-KEM SECURITY.
+      RQ-MLKEM-002's constraints bind unchanged. Any newly observed conformance
+      deficiency is escalated to the coordinator and published by no agent; the
+      paired experiment carries that clause as a stopping rule, not as advice.
+    - >-
+      NO STATUS CHANGE is proposed for GOAL-MLKEM-002, its closure decisions, or
+      any hypothesis or evidence record. Nothing here is offered as H-MLKEM-004
+      support, and EV-MLKEM-008/009/010 are not paraphrased.
+    - >-
+      A phi = 1 census does NOT establish that comparison code is correct. It
+      establishes that one mechanism class is absent across the fetched
+      population at the tested parameter sets under single-byte probing. The
+      bound-literal class, the coverage class at strides above 32, the finalize
+      class C-FIN, and every multi-byte cancellation remain untested.
+    - >-
+      Claim tier laboratory / toy, not raisable by citation. Toy and laboratory
+      conformance evidence is never crypto-scale evidence.
+
+  heuristic_assumptions:
+    - id: HEUR-RED-1
+      statement: >-
+        For a comparison whose accumulator has nlanes lanes under a contiguous
+        byte-to-lane map and whose reduction inspects lane subset Lambda, the
+        single-byte silent set is exactly
+        { i in [0, L) : (i mod nlanes) not in Lambda }, of size L*(1 - phi) up
+        to one partial period, with minimal period dividing nlanes.
+      rigorous_support: >-
+        Elementary given the shape in mechanism (1): the OR-accumulate makes
+        lane j's final value nonzero iff some byte mapping to lane j differed;
+        a reduction that never reads lane j therefore cannot see any of those
+        bytes, and a reduction that does read lane j sees all of them. The
+        argument requires the accumulator to be OR-like and non-saturating
+        across lanes, which is the observed shape in the one implementation
+        quoted verbatim but is NOT verified for others.
+      validation_plan: >-
+        Stage C measures five planted comparators exhaustively at L = 768 over
+        all 255 nonzero single-byte deltas per index and compares the measured
+        (size, period, residue set) against the forced triple. A mismatch
+        corrects the closed form via a new record.
+    - id: HEUR-RED-2
+      statement: >-
+        The archived pre-fix NEON arm of EV-MLKEM-005 is an instance of C-RED
+        with phi = 1/2, rather than of C-COV or C-BND.
+      rigorous_support: >-
+        Its cardinalities are exactly L/2 at three distinct L, which no C-BND
+        (L minus a constant) or C-COV (bounded by the stride) can produce; and
+        EV-MLKEM-005 states independently that the routine "loads the full
+        length", which excludes a coverage deficit at the source level.
+      validation_plan: >-
+        Stage B recomputes the index-level pattern from the archived per-index
+        tables; Stage D optionally re-reads armv8-mlkem-asm.S at the pinned
+        peeled commits. Until then the classification is stated with its
+        provenance and the 784-versus-768 discrepancy attached.
+
+  target_complexity:
+    time_exponent: >-
+      n/a. NO EXPONENT IS MOVED and no attack is proposed; RQ-MLKEM-002 forbids
+      attack-cost estimation. Stated plainly. The value is that it supplies a
+      non-empty, machine-decidable population for a question that was closed on
+      an empty one, at a cost of one arithmetic table plus a few hundred lines
+      of C.
+    memory_exponent: n/a
+    best_known: n/a -- no competing statement of lane coverage exists here.
+    hidden_overhead: >-
+      n/a. Stage C's compute is dominated by 3 * 1568 * 255 single-byte probes
+      per arm, well under a second each.
+    tradeoff_note: n/a
+
+  dominated_by: >-
+    n/a (no result claimed; no algorithm, no cost, hence no Pareto point across
+    time, memory, or data/queries). Rows checked inside this repository on
+    2026-08-05 for a prior statement that reduction deficit is a distinct
+    mechanism class or that lane coverage could serve as the neighborhood
+    predicate: EV-MLKEM-005 through EV-MLKEM-010; GOAL-MLKEM-002 and its four
+    checkpoints; RQ-MLKEM-002; H-MLKEM-002 through H-MLKEM-009;
+    IDEA-20260724-001 and IDEA-20260724-002; and
+    experiments/EXP-MLKEM-009/analysis/second_implementation_selection.md.
+    EV-MLKEM-005 describes the NEON reduction in one clause and treats it as a
+    second instance of the same audited defect; no record separates the classes
+    or proposes a predicate. No external search was performed and no external
+    novelty is claimed.
+  sota_delta: >-
+    No attack; mechanism-taxonomy and search-design contribution only.
+    Quantitatively, against the goal's own instrument: the mechanism it names
+    has a silent set 784 bytes wide at ML-KEM-1024 versus the 32 bytes the goal
+    pursued, a factor of 24.5, and is present at all three parameter sets rather
+    than one. Against the goal's own search: the coverage predicate returned a
+    population of 0 and the campaign closed on second_impl_unavailable; the
+    lane-coverage predicate returns a population of at least 2 from committed
+    records alone, before any fetch, so both outcome worlds become reachable.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.8 that C-RED at phi = 1/2 is the correct account of the archived NEON arm
+    and that no C-BND or C-COV member can reproduce its profile. It is that high
+    because 384/544/784 are exactly L/2 at three distinct L, which is a strong
+    signature, and because EV-MLKEM-005 independently says the routine loads the
+    full length; it is not higher because the record's own pattern description
+    ("(i mod 64) >= 32") gives 768 rather than 784 at ML-KEM-1024, so the model
+    and the record's prose disagree by 16 indices and that is unresolved here.
+    Separately, 0.85 that the periodicity observable separates the two archived
+    arms at a single parameter set, and 0.15 that the census finds any
+    unmodified upstream implementation with phi < 1 -- a null census is the
+    expected outcome and is the deliverable either way.

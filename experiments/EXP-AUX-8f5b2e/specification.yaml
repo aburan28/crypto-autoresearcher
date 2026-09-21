@@ -1,0 +1,203 @@
+experiment:
+  id: EXP-AUX-8f5b2e
+  hypothesis_id: H-AUX-4a0506
+  version: 1
+  title: >-
+    The auxiliary triple as a design-time screen: derive Kani's input
+    requirement, audit the ECDLP's three obstructions, and census the surviving
+    assumptions with SIDH as the positive control
+  status: review_required
+  objective: >-
+    Obtain Kani's input requirement from primary text and express it as the
+    triple (r, rho, delta) or halt; write out and check the three ECDLP
+    obstructions symbolically, with a toy-curve verification of the eigenspace
+    argument; run the screen mechanically on SIDH/SIKE and on a constructed
+    adversarial toy protocol; and fill a seven-column census over the assumptions
+    in scope with an explicit verdict and, for every UNDETERMINED, the exact
+    missing fact.
+  experiment_class: control
+  inputs:
+    primary_text: >-
+      The higher-dimensional embedding criterion (KN-TECH-026 sources), obtained
+      at Stage 0. If the requirement cannot be expressed as a triple, the
+      experiment HALTS at Stage 0 at zero compute and reports that.
+    specifications: >-
+      SIKE, standardised prime-field ECDH/ECDSA curve parameters, GLV/GLS curve
+      definitions, CSIDH, CGL, SQIsign, and any masked-torsion variants recorded
+      in this corpus. Each row cites an exact specification version and field, in
+      the style IDEA-20260805-244f78 uses for SQIsign's byte inventory.
+    toy_curve: >-
+      One GLV curve with an efficiently computable endomorphism psi, for the
+      direct check that psi(P) lies in <P>.
+    adversarial_toy_protocol: >-
+      A deliberately unsafe construction publishing a second independent torsion
+      image together with the secret map's degree. Built for the purpose of being
+      caught.
+  controls:
+    - id: C1_sidh_positive
+      description: >-
+        SIDH/SIKE must be classified IN_KANI_REGIME by the screen applied
+        MECHANICALLY, with all three components read off the specification and
+        not from memory of the attack. BLOCKING: a screen that does not classify
+        the one scheme it was built from cannot detect anything, and the census
+        is void.
+    - id: C2_ecdh_negative
+      description: >-
+        A standardised prime-field ECDH/ECDSA parameter set must be classified
+        NOT_IN_KANI_REGIME with all three obstructions cited by name.
+    - id: C3_adversarial_toy
+      description: >-
+        The constructed unsafe protocol must be FLAGGED. BLOCKING: a screen that
+        has never flagged a constructed positive has not been shown able to fail,
+        and its negative verdicts are uninformative.
+    - id: C4_eigenspace_toy_check
+      description: >-
+        On the GLV curve, verify by direct computation that psi(P) lies in <P>
+        for the efficiently computable endomorphism, for every P of the declared
+        prime order. This is a sanity check on the derivation, NOT evidence for
+        it -- the derivation is the evidence and the computation only catches a
+        transcription error.
+    - id: C5_masked_degree_nearby_object
+      description: >-
+        A scheme with rank-2 images and a masked degree. The screen must
+        distinguish it from SIDH, and by something the record can name. If the
+        only difference the screen sees is the delta bit, its verdicts on masked
+        schemes carry no information and must be reported as UNDETERMINED rather
+        than NOT_IN_KANI_REGIME.
+  independent_variables:
+    - assumption under census (>= 6 rows plus 2 constructed controls)
+    - specification version, per row
+  metrics:
+    primary:
+      - >-
+        tau(A) = (r, rho, delta) per row, with the source line cited for each
+        component.
+      - >-
+        kani_regime_verdict per row: IN / NOT_IN / UNDETERMINED, and for
+        UNDETERMINED the exact missing fact.
+      - >-
+        ecdlp_obstruction_count: the number of the three obstructions surviving
+        the Stage-1 symbolic audit. Predicted 3.
+    secondary:
+      - the three-question design-time checklist, as a reusable artifact
+      - other-known-attack-surfaces column, non-empty on every row
+      - the (r = 2, delta = 0) open cell, stated as a successor question
+  measured_vs_modeled:
+    measured:
+      - the toy-curve eigenspace check (C4)
+      - the mechanical screen outputs on C1, C2, C3, C5
+    modeled:
+      - Kani's input requirement, from the Stage-0 primary text
+      - the three ECDLP obstructions, derived symbolically in H-AUX-4a0506
+      - HEUR-AUX-1's rho < 1 counting statement
+    rule: >-
+      Measured and modeled never share a column. This experiment is
+      derivation-dominated: almost every number is modeled, and the report must
+      make that visible rather than letting a census table read as measurement.
+  optimistic_assumptions:
+    - >-
+      Published-data inventories are read from the named specification version
+      only. BIAS: a scheme may publish more in an implementation than in its
+      specification. Direction: understates r and delta, so it flatters the
+      NOT_IN_KANI_REGIME verdict.
+    - >-
+      The triple is treated as decisive for THIS machinery only. BIAS: none for
+      the stated claim, but a reader may over-read it. Mitigated by the mandatory
+      other-attack-surfaces column.
+  optimistic_assumption_rule: >-
+    Every NOT_IN_KANI_REGIME verdict is reported as "not in the regime where this
+    machinery applies, on the data published in specification version X", never
+    as a safety statement, and the list above is reproduced in the results report
+    with the direction of each bias.
+  heuristic_under_test: HEUR-AUX-1
+  preregistered_prediction:
+    quantity: >-
+      The fraction of scalars k in [1, N-1] with k^2 < N, i.e. the fraction for
+      which the rho obstruction does NOT apply.
+    formula: >-
+      #{k : k^2 < N} / (N - 1) = floor(sqrt(N-1)) / (N-1) ~ N^{-1/2}.
+    source: >-
+      HEUR-AUX-1 in H-AUX-4a0506, elementary counting. Frozen before execution.
+      Verified by exact enumeration at toy N, where the largest k with k^2 < N
+      must equal floor(sqrt(N-1)) exactly.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The only computations are a toy-curve eigenspace check and an exact count
+      at toy N; both are verification of derivations rather than measurements of
+      a phenomenon. What carries to any scale is the DERIVATION, not the
+      computation, and the record says so. Resulting evidence is capped at
+      claim_tier toy even though the screen's conclusions are about deployed
+      specifications -- because those conclusions rest on reading documents, and
+      the evidence tier governs what the RUNS may assert.
+    correspondence: null
+  tail_checks:
+    - >-
+      The census row closest to the regime boundary, reported by name -- it is
+      the row where a specification change would flip the verdict, and it is the
+      one worth re-checking when a scheme version moves.
+    - >-
+      The largest k with k^2 < N at each toy N, required to equal
+      floor(sqrt(N-1)) exactly. An off-by-one here would silently change the
+      obstruction count.
+  replication:
+    seeds: [2, 4, 8]
+    independent_instances: 3
+    note: >-
+      Three toy curves for the eigenspace check. The census itself is a
+      derivation over documents and is not replicated by seeds; it is replicated
+      by requiring each component to cite a source line that a reviewer can
+      independently re-read.
+  budget:
+    wall_clock_seconds_per_run: 300
+    total_cpu_hours: 2
+    maximum_memory_gb: 2
+    maximum_runs: 50
+  stopping_rules:
+    - >-
+      HALT at Stage 0 if Kani's requirement is not expressible as the triple.
+      Zero compute spent; the halt is the reportable result.
+    - >-
+      HALT before the census if C1 (SIDH) does not classify IN_KANI_REGIME.
+    - >-
+      Stop and escalate immediately if a rank-1 instantiation of the machinery is
+      found: that supersedes the entire census and becomes its own record.
+  invalidation_rules:
+    - C1 or C3 failing invalidates every census verdict.
+    - >-
+      A census row reported without its other-known-attack-surfaces column, or
+      without a cited specification version and field, is invalid regardless of
+      its verdict.
+    - >-
+      A NOT_IN_KANI_REGIME verdict phrased as a safety claim invalidates the
+      report until rewritten.
+  success_criterion: >-
+    Stage 0 yields the triple; C1-C5 pass; the three ECDLP obstructions are
+    written out and audited with the surviving count reported; and the
+    seven-column census is filled for every assumption in scope with an explicit
+    verdict, cited sources, and named missing facts for every UNDETERMINED. The
+    experiment succeeds whichever way the verdicts fall.
+  falsification_criterion: >-
+    H-AUX-4a0506 is REFUTED if any surviving assumption in scope is
+    IN_KANI_REGIME on its published data, or if fewer than three ECDLP
+    obstructions survive the symbolic audit (a weaker but still reportable
+    closure), or if a rank-1 instantiation of the embedding is exhibited (which
+    refutes the first obstruction and is escalated immediately). HEUR-AUX-1 is
+    refuted independently by a scheme whose key generation is demonstrably
+    non-uniform in k. Instrument failures at C1 or C3 refute nothing and report
+    nothing.
+  required_artifacts:
+    - the Stage-0 knowledge entry stating Kani's requirement and its citation
+    - the written-out derivations of all three ECDLP obstructions
+    - the seven-column census with per-component source citations
+    - the three-question design-time checklist
+    - C1-C5 outcomes with pass/fail
+    - the toy-curve eigenspace verification data
+    - exact counts of #{k : k^2 < N} at each toy N against floor(sqrt(N-1))
+    - measured-vs-modeled table making the derivation-dominance visible
+  assigned_to: executor
+  approved_by: null
+  approval_note: >-
+    Status is review_required. This is the cheapest of the nine drafts (2
+    CPU-hours) and is almost entirely derivation and specification reading; its
+    real cost is obtaining primary text this repository may not hold.

@@ -1,0 +1,178 @@
+coordinator_decision:
+  id: DEC-20260908-a617fa
+  decision: approve
+  decided_by: coordinator
+  decided_at: '2026-09-09T05:09:17.102832+00:00'
+  target_ids:
+  - TASK-20260908-692ab6
+  - TASK-20260908-68944a
+  - EXP-ECDLP-0c717c
+  - EXP-ECDLP-709063
+  - EXP-ECDLP-184fc4
+  - EXP-ECDLP-1e6502
+  - EXP-ECDLP-2c3d20
+  context: Close the shared group-OOM supervisor implementation prerequisite while existing experiment source/definition
+    owners continue.
+  rationale:
+  - Archived local controls establish an8GiB limit readback and a separately scoped64MiB OOM, but the later
+    readback shows memory.oom.group=0 and there is no external supervisor implementation.
+  - The exact experiment contract requires an external supervisor to configure all three worker values before
+    migration. Merely changing the running launcher profile would not implement that ordering.
+  - This infrastructure source task is ranked ahead of adding proposals because it addresses a common launch
+    prerequisite for five approved definitions. It admits no additional scientific experiment and fits the
+    existing BATCH-635652 concurrency2 alongside BSGS source work.
+  - Standing authorization covers source implementation and fixed mocks. A broad cgroup bind is not permission
+    to write outside the exact task-created container subtree. Live operational execution is explicitly deferred
+    until source snapshot, independent review and a new committed operational handoff.
+  approved_source_protocol:
+    objective: Implement a narrowly scoped supervisor for later bounded operational verification of the exact
+      worker cgroup profile. This source task performs no live Docker or cgroup operation.
+    image: docker.io/library/python@sha256:c89921a0c7b42f27338ed8c279fb370e69e941c92460f91895d08304e844b0b4
+    platform: linux/arm64
+    endpoint: unix:///Users/adamburan/.docker/run/docker.sock
+    invocation: Future root Coordinator verifies exact source/image hashes and owns a separately committed
+      operational handoff/claim. This package exposes callable helpers only; no new custom approval format
+      or scientific CLI is introduced. Ordinary import performs no Docker, network, process, filesystem or
+      cgroup mutation.
+    container:
+      user: 0:0 for supervisor bootstrap only
+      network: none
+      read_only_root: true
+      cap_drop: ALL
+      cap_add:
+      - SETUID
+      - SETGID
+      no_new_privileges: true
+      cgroup_namespace: host
+      pid_namespace: private
+      pids_limit: 32
+      cpu_quota_cores: 1
+      outer_memory_bytes: 8589934592
+      outer_memory_swap_total_bytes: 8589934592
+      tmpfs: /tmp:rw,size=16m
+      mounts:
+      - type: bind
+        source: /sys/fs/cgroup
+        target: /host-cgroup
+        read_only: false
+      forbidden:
+      - privileged
+      - SYS_ADMIN
+      - host PID namespace
+      - host network
+      - Docker socket mount
+      - host home/repository/private material mounts
+      - daemon setting changes
+    startup:
+    - Host creates exactly named/labelled container with stdin open, obtains full64hex ID from Docker create,
+      independently inspects image/config/label, then starts attached with public expected container ID and
+      task ID on stdin. No discovery by substring or short ID.
+    - Before cgroup mutation the in-container helper validates Linux, expected task/ID syntax and own /proc/self/cgroup
+      against exactly /docker/<ID> or /system.slice/docker-<ID>.scope. The resolved /host-cgroup path must
+      stay in that exact subtree with no symlink component; the mount must be actual cgroup2. Refuse root/parent/traversal/missing/ambiguous
+      paths.
+    - All cgroup writes use validated directory descriptors and O_NOFOLLOW, with fixed allowlisted filenames.
+      No write outside the independently identified container subtree. Require exactly the supervisor as direct
+      member and no pre-existing guard-supervisor or guard-worker child; unexpected contents are refusal, not
+      cleanup targets.
+    - Require available memory controller and an initially empty subtree_control. Create guard-supervisor,
+      move only the current helper PID into it, then enable +memory on the verified container root. Create
+      guard-worker; write memory.max, memory.swap.max and memory.oom.group, read all three back, and capture
+      baseline memory.events/current/peak and cpu.stat availability before spawning work.
+    - Fork one worker behind a pipe barrier. Move only that child into guard-worker before releasing it; confirm
+      its membership and readback. Close inherited writable cgroup descriptors in the child, clear supplementary
+      groups, drop GID then UID to65534, verify effective identities/capabilities and oom_score_adj != -1000,
+      then execute only the fixed operational case body. The supervisor remains in guard-supervisor throughout
+      and never enters guard-worker.
+    - Use a retained supervisor-side event transcript and external host command transcript. Record absoluteUTC,monotonic
+      boundaries,actual fork/migration/profile/drop ordering and every failure. Parent polls owned child and
+      worker counters with a bounded cadence; no missing metric becomes zero. No scientific allocation or experiment
+      runtime exists in the case body.
+    future_cases:
+    - id: exact_profile
+      worker_memory_bytes: 8589934592
+      swap_bytes: 0
+      oom_group: 1
+      expected:
+      - 8589934592
+      - 0
+      - 1
+      action: Read the profile and membership from the worker after migration and privilege drop, then exit0
+        without stress allocation.
+      pass_condition: Correct actual profile, ordering,worker identity and supervisor separation; worker exits0;
+        supervisor retains complete receipt.
+    - id: group_zero_refused
+      worker_memory_bytes: 8589934592
+      swap_bytes: 0
+      oom_group: 0
+      expected:
+      - 8589934592
+      - 0
+      - 1
+      action: The same worker checker must emit typed memory_guard_unavailable and exit42 before any buffer
+        or auxiliary child.
+      pass_condition: Exact group0 mismatch retained,exit42,zero stress allocations and no false admission.
+    - id: small_group_oom
+      worker_memory_bytes: 67108864
+      swap_bytes: 0
+      oom_group: 1
+      expected:
+      - 67108864
+      - 0
+      - 1
+      action: After matching profile, worker forks one auxiliary child in the same worker subgroup. The auxiliary
+        touches16MiB and signals readiness. Both tasks retain membership and oom_score_adj != -1000. The worker
+        flushes its before-allocation marker then requests/touches128MiB. The supervisor stays outside and
+        retains counters/termination.
+      pass_condition: Before-allocation marker and both members established; direct worker killed bySIGKILL;
+        worker memory.events increments oom_group_kill>=1 and oom_kill>=2; worker subtree becomes unpopulated;
+        supervisor survives to write receipt. Missing counters,manual/watchdog kill or outer-container OOM
+        are not PASS.
+    observation_limits:
+      case_watchdog_seconds: 60
+      worker_watchdog_seconds: 45
+      maximum_started_containers: 6
+      planned_suite_containers: 3
+      maximum_concurrent_containers: 1
+      maximum_scientific_runs: 0
+      expected_peak_pressure_bytes: 201326592
+      interpretation: 8GiB configuration and64MiB pressure are different scopes. Ancestor/physical memory constraints
+        remain disclosed; the observed VM has7529156608bytes and no8GiB physical-availability claim is made.
+    cleanup: Retain all child wait statuses,cgroup counters and partial transcript before cleanup. Kill only
+      exact task-owned remaining children on watchdog, classify as watchdog. Remove guard-worker only after
+      verified unpopulated. Disable only the +memory delegation this helper enabled, move the supervisor back
+      to its verified container root, and remove only its created empty guard-supervisor directory. Record
+      failures; never sweep unrelated cgroups. Host inspects terminal container state and removes only the
+      exact created container ID after custody. No ordinary failure may skip partial transcript retention.
+    limitations: The readonly bind and controller delegation may be unavailable on the local Docker VM; this
+      is a typed infrastructure outcome requiring a separately justified next action. Do not add privileges,remount,change
+      daemon settings or use a new backend as an automatic fallback.
+  source_bindings:
+  - path: coordination/experiment-reserve/BATCH-635652/runtime-bindings/DEC-20260908-a617fa/interface-sources.md
+    sha256: 0221173b81704e6288bc713ae26fe74a6f8c6be5761a6d2e22750740b264c129
+  - path: coordination/experiment-reserve/admission-20260907/linux-oom-group-readback.json
+    sha256: 56c394c49792094302080f1c3057003d2d1900d5cabec06fa78896da9caef973
+  - path: coordination/experiment-reserve/BATCH-635652/runtime/TASK-20260908-e7e0db/probe-receipt.json
+    sha256: decc4774b3bbb060d86a663d611d0517f5cc47f15976b8aafb04331ec8327344
+  evidence_refs: []
+  knowledge_promotion:
+    promoted: []
+    not_warranted: Operational source prerequisite only.
+  inference_choice:
+    role: executor
+    policy: executor-implementation
+    native_model_requested: gpt-5.6-terra
+    reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+    model_verified: false
+  approval_scope:
+    source_implementation: true
+    fixed_mock_checks: true
+    live_container_execution: false
+    live_cgroup_mutation: false
+    scientific_execution: false
+  next_actions:
+  - Implement TASK-20260908-692ab6 and archive under TASK-20260908-68944a.
+  - Independent review of ordering,path confinement,privilege drop,counter custody and failure cleanup before
+    authorizing the three live operational cases.

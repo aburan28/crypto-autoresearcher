@@ -1,0 +1,346 @@
+red_team_report:
+  task_id: TASK-20260804-51d266
+  producer_task_id: TASK-20260804-ff2c2b
+  snapshot_commit: 4d5defb29cbdc012dfe9180827b7f397f6bde135
+  verdict: blocking_objections
+  summary: >
+    The null control confirms variance inflation is not specific to the correct secret
+    (ratio_null = 1.53), but this does NOT resolve OBJ-QEMU: both QEMU-artifact and
+    genuine-sieve-correlation hypotheses identically predict ratio_null > 1 and
+    ratio_correct > 1 with comparable magnitudes; the observed difference
+    ratio_null − ratio_correct = 0.141 is not statistically significant (F(49,149) = 1.10,
+    p = 0.32); native x86_64 hardware execution — priority-1 action from the
+    batch-3 red team — was not run.
+  reviewed_at: '2026-08-04'
+  reviewed_by: TASK-20260804-51d266
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: true
+    fallback_reason: >
+      Policy review-adversarial requires xhigh reasoning. Executing model is
+      amazon-bedrock/us.anthropic.claude-sonnet-4-6 (claude-sonnet-4-6 via Bedrock).
+      No alternative backend available. Fallback recorded per AGENTS.md model policy.
+    independent_session: true
+    model_verified: false
+
+  # -------------------------------------------------------------------------
+  # Verified arithmetic
+  # -------------------------------------------------------------------------
+  verified_arithmetic:
+    # These match the snapshot receipt and recomputation in TASK-20260804-b1a981 (validator).
+    ratio_correct: 1.3916   # batch-3, n=150, chi2=207.345, df=149, p=0.001123
+    ratio_null: 1.5332      # batch-4, n=50,  chi2=75.125,  df=49,  p=0.009589
+    F_stat_ratio_of_ratios: 1.1017   # (chi2_null/df_null) / (chi2_correct/df_correct)
+    F_df_numerator: 49
+    F_df_denominator: 149
+    F_p_value_one_sided: 0.3237      # H1: ratio_null > ratio_correct
+    F_p_value_two_sided: 0.6473
+    F_critical_95pct: 1.4396         # F(49,149) at 95th percentile
+    ratio_correct_div_ratio_null: 0.9077  # after normalising by respective predicted variances
+    # (< 1.0: correct-secret variance is LOWER than null-secret variance, after normalisation)
+    null_mean_TN: 4175.5
+    null_std_TN: 110.7
+    correct_mean_TN: 7551.1
+    correct_std_TN: 92.2
+    mean_ratio_null_over_correct: 0.553  # T_N^null/T_N^correct: 55.3%
+
+  # -------------------------------------------------------------------------
+  # Outlier seed cross-check (Test B × null distribution)
+  # -------------------------------------------------------------------------
+  outlier_seed_cross_check:
+    - seed: 2941775225
+      T_N_correct: 7789.567
+      z_correct: +2.59     # vs batch-3 correct distribution
+      T_N_wrong: 4167.083
+      z_null: -0.08        # vs null distribution (mean=4175.5, sd=110.7)
+      note: T_N_wrong indistinguishable from null mean despite high T_N_correct.
+            Inconsistent with "better sieve quality" as the sole driver of the outlier.
+    - seed: 26883012
+      T_N_correct: 7791.775
+      z_correct: +2.61
+      T_N_wrong: 4433.895
+      z_null: +2.33
+      note: Both T_N_correct AND T_N_wrong elevated. Consistent with sieve quality
+            improvement for this seed. Seed is ~110x smaller than the other two
+            outlier seeds; QEMU-specific PRNG handling cannot be excluded.
+    - seed: 2418421570
+      T_N_correct: 7789.812
+      z_correct: +2.59
+      T_N_wrong: 4238.163
+      z_null: +0.57
+      note: T_N_correct very high; T_N_wrong only marginally elevated.
+            Same pattern as seed 2941775225. Sieve quality alone does not explain
+            why T_N_correct is selectively elevated while T_N_wrong stays near mean.
+    - seed: 1873347320
+      T_N_correct: 7420.548
+      z_correct: -1.42     # run-0 reference seed, below correct mean
+      T_N_wrong: 4178.842
+      z_null: +0.03        # exactly at null mean
+      note: Baseline reference seed; consistent across both distributions.
+    cross_check_observation: >
+      For two of the three outlier seeds (2941775225, 2418421570), T_N_correct is
+      ~2.6σ above the correct-secret mean while T_N_wrong is at the null mean (z < 0.6).
+      A "better sieve quality" mechanism would elevate both. The inconsistency suggests
+      these seeds produce sieve vectors with selectively smaller |x·e| projections,
+      not globally shorter or better-quality vectors. This does NOT resolve the
+      QEMU-vs-genuine ambiguity: QEMU could selectively alter the phase distribution
+      for specific seeds without changing overall sieve timing.
+
+  # -------------------------------------------------------------------------
+  # Objections
+  # -------------------------------------------------------------------------
+  objections:
+
+    - id: OBJ-NULL-CANNOT-DISTINGUISH
+      severity: blocking
+      carries_forward: OBJ-QEMU from BATCH-68471b
+      title: >
+        ratio_null > 1 does NOT distinguish QEMU-artifact from genuine-sieve-correlation;
+        both hypotheses identically predict ratio_null > 1 and ratio_correct > 1 with
+        similar magnitudes.
+      description: >
+        The two competing hypotheses are:
+
+          (H1) QEMU artifact: QEMU's JIT translation of AVX2 SIMD instructions
+          introduces run-to-run variation in sieve quality, inflating Var[T_N] for
+          ALL cosine-sum statistics. Under H1, any scoring function of the form
+          T = sum_i f(sieve_vectors_i, secret) would exhibit Var[T] > predicted,
+          including both the correct-secret and null-secret variants.
+
+          (H2) Genuine sieve-vector correlation: the bgj1_sieve database contains
+          positively correlated vectors across different sieve runs. Under H2,
+          T_N^correct AND T_N^null both sum over the SAME correlated sieve vectors;
+          the correlation inflates the variance of both regardless of which
+          secret is scored.
+
+        Under BOTH H1 and H2, the observation ratio_null > 1 and ratio_correct > 1
+        with comparable magnitudes is the expected outcome. There is no configuration
+        of the data that would be predicted by one hypothesis but not the other: both
+        predict the same qualitative outcome (both ratios elevated, neither secretspecific).
+
+        The null control was designed to test "is the inflation secret-specific?" and
+        answers that question correctly: No, it is not secret-specific (ratio_null > 1).
+        But "secret-specific" was never the distinguishing prediction between H1 and H2.
+        OBJ-QEMU asks whether the inflation is ENVIRONMENT-specific. The null control
+        provides zero additional resolving power on that question.
+
+        This is the central issue: Test A was deployed against the wrong hypothesis.
+        The correct test for OBJ-QEMU is native hardware execution. Test A was
+        the correct test for "is the signal driving the inflation?" which is a
+        different, logically prior question. Answering it correctly (No: signal is
+        not the driver) is valuable context, but does not close OBJ-QEMU.
+      renders_interpretation_blocked: true
+      decisive_test_still_required: native_x86_64_hardware
+
+    - id: OBJ-RATIO-DIFFERENCE-NONSIG
+      severity: blocking
+      title: >
+        The observed difference ratio_null (1.533) − ratio_correct (1.392) = 0.141
+        is NOT statistically significant; no interpretation can be built on it.
+      description: >
+        Under the null hypothesis that both variance inflation factors are equal
+        (ratio_null = ratio_correct = R), the ratio of chi2 statistics follows an
+        F distribution:
+
+          F = (chi2_null / df_null) / (chi2_correct / df_correct)
+            = (75.125 / 49) / (207.345 / 149)
+            = 1.5332 / 1.3916
+            = 1.1017
+
+        This F statistic has df1=49, df2=149. The 95th percentile of F(49,149) is 1.44.
+        The one-sided p-value (H1: ratio_null > ratio_correct) is 0.32.
+        The two-sided p-value is 0.65.
+
+        The difference is completely consistent with sampling noise given n=50 (null)
+        and n=150 (correct). The 95% CIs overlap enormously:
+          ratio_null:    [1.07, 2.38]  (wide; n=50 gives poor precision)
+          ratio_correct: [1.12, 1.77]
+
+        Any argument of the form "ratio_null > ratio_correct, therefore H1 more likely
+        than H2" is unsupported: the data are equally consistent with ratio_null =
+        ratio_correct (as H2 predicts) given sampling error.
+
+        Additionally, note the direction of the NORMALIZED ratio:
+          ratio_correct / ratio_null = 1.3916 / 1.5332 = 0.908
+
+        After normalising by the respective independence predictions, the
+        correct-secret variance is 9% LOWER than the null-secret variance. This
+        direction is opposite to what a genuine Ducas-Pulles violation specific
+        to the correct secret would predict (which would require ratio_correct >
+        ratio_null), though the difference is not significant. The data are
+        weakly more consistent with the inflation being purely environmental (H1)
+        than with a correct-secret-specific extra correlation (H2), but the
+        uncertainty is too large to draw any conclusion.
+      renders_interpretation_blocked: true
+
+    - id: OBJ-NO-NATIVE-HARDWARE
+      severity: blocking
+      carries_forward: OBJ-QEMU.cheapest_check from BATCH-68471b
+      title: >
+        Native x86_64 execution (priority-1 action from batch-3 red team) was NOT
+        run; it remains the only decisive test for OBJ-QEMU.
+      description: >
+        The batch-3 red team (TASK-20260804-1bb63d, OBJ-QEMU) stated as its
+        priority-1 action: "Run exactly seeds {1873347320, 2941775225, 26883012,
+        2418421570} plus 6-10 other batch-3 seeds on native Linux x86_64 hardware
+        (not QEMU). [...] This is the decisive falsification of OBJ-QEMU."
+
+        This test costs ~4-6 minutes on any x86_64 machine (AWS c5.large, GCP
+        n2-standard-2, or any bare-metal Linux x86_64). Batch 4 instead ran a
+        null control (useful, but not resolving) and an outlier seed re-run
+        (confirms determinism, but in the same QEMU environment).
+
+        Predictions for the native hardware test:
+          Under H1 (QEMU artifact):
+            Native T_N_correct for seeds 2941775225, 26883012, 2418421570
+            should be ~107 units higher (near native mean ~7658) with no systematic
+            outlier clustering. The variance ratio in native execution would be
+            expected to be closer to 1.0.
+          Under H2 (genuine sieve correlation):
+            Native T_N_correct for the same seeds would reproduce the elevated
+            values (~7790) relative to the native mean. The variance ratio in
+            native execution would remain ~1.39 (or consistent with it).
+
+        If native execution produces T_N_correct for these seeds near the native
+        mean (~7658 ± 92) rather than near 7790, the outliers are QEMU-specific
+        artifacts, blocking interpretation. If native values remain ~7790 above
+        the native mean, the outliers are real and the variance inflation survives.
+
+        With 2 batches remaining (5 and 6), this is the only test that can close
+        OBJ-QEMU. If it cannot be run, the campaign closes with the primary
+        blocking objection unresolved.
+      renders_interpretation_blocked: true
+      cost_estimate: "4-6 minutes on any x86_64 machine; AWS c5.large ~$0.12/hr"
+
+    - id: OBJ-PAIRED-TEST-NOT-RUN
+      severity: concern
+      title: >
+        Comparing ratio_correct (n=150, different seeds) against ratio_null
+        (n=50, different seeds) is an unpaired, asymmetric comparison; a paired
+        test using matched seeds would be far more powerful.
+      description: >
+        The batch uses 150 different seeds for the correct-secret experiment (batch-3)
+        and 50 different seeds for the null-secret experiment (batch-4). Because
+        different sieve runs produce different vector sets, the comparison
+        Var[T_N^correct] / predicted_correct vs Var[T_N^null] / predicted_null
+        confounds sieve-vector variation with the score-type effect.
+
+        The paired design — compute T_N_correct AND T_N_null for EXACTLY the same
+        50 seeds — would enable direct computation of:
+
+          D_i = T_N_correct(seed_i) - T_N_null(seed_i)  (for each seed)
+          Var[D] = Var[T_N_correct] + Var[T_N_null] - 2·Cov[T_N_correct, T_N_null]
+
+        If the inflation is PURELY environmental (H1), then T_N_correct and T_N_null
+        for the same seed would be positively correlated (same sieve vectors → same
+        quality → both elevated or both depressed), making Cov[T_N_correct, T_N_null]
+        large and Var[D] small relative to Var[T_N_correct] + Var[T_N_null].
+
+        If there is a genuine SECRET-SPECIFIC extra correlation (Ducas-Pulles), then
+        T_N_correct would have ADDITIONAL variation beyond what T_N_null shows for the
+        same seed, increasing Var[D] beyond what H1 predicts.
+
+        Test B already computed (T_N_correct, T_N_wrong) for 4 seeds. Extending this
+        to all 50 null seeds would provide the paired test. This was not done.
+
+        The paired test is cheaper and more powerful than the unpaired batch-3 vs
+        batch-4 comparison that was run, and directly addresses the remaining
+        ambiguity without requiring native hardware.
+      renders_interpretation_blocked: false
+      batch_5_action: >
+        Run 50-100 matched-seed runs: for each seed, compute T_N_correct AND T_N_null.
+        Use a paired variance test (Pitman's test or equivalent) to test whether
+        Var[T_N_correct] > Var[T_N_null] after accounting for sieve-quality correlation.
+        Predicted test statistic under H2 (genuine correlation): p < 0.05.
+        Predicted result under H1 (QEMU artifact): Var[D] ≈ 0 (high correlation),
+        paired variance ratio ≈ 1.0.
+
+    - id: OBJ-INTERPRETATION-NOTE-WRONG
+      severity: minor
+      carries_forward: validator_Q-1_from_TASK-20260804-b1a981
+      title: >
+        outlier_rerun_results.json interpretation note states wrong expectation for T_N_wrong.
+      description: >
+        The note reads: "T_N_wrong is a null object control: expected near batch-3 T_N
+        mean (~7551) if wrong-secret scores are unstructured."
+        This is factually incorrect. If wrong-secret scores are unstructured (no signal),
+        T_N_wrong should be near the NULL mean (~4175), not the correct-secret mean (~7551).
+        A T_N_wrong near 7551 would indicate the wrong secret scores IDENTICALLY to the
+        correct secret — i.e., it would imply the wrong secret IS the correct secret.
+        The correct expectation for an unstructured null is T_N_wrong ≈ 0 (phases
+        random ± q/2), and the observed T_N_wrong ≈ 4175 reflects a partial-overlap
+        structure from 2/25 matching coordinates plus lattice residuals.
+        The validator (TASK-20260804-b1a981, Q-1) flagged this already. Data is correct;
+        the description is inverted.
+      renders_interpretation_blocked: false
+
+  # -------------------------------------------------------------------------
+  # What batch 5 must address
+  # -------------------------------------------------------------------------
+  what_batch_5_must_address:
+
+    - priority: 1_blocking
+      action: native_x86_64_hardware
+      description: >
+        Run seeds {2941775225, 26883012, 2418421570, 1873347320} and 10-15 additional
+        batch-3 seeds on native Linux x86_64 hardware (NO QEMU: AWS c5.large, GCP
+        n2-standard-2, or any bare-metal x86_64 machine). Record:
+          (a) T_N_correct for each seed
+          (b) variance_ratio across all native runs
+          (c) whether outlier seeds produce T_N_correct still ~2.6σ above native mean
+        This resolves OBJ-QEMU. Predictions are crisp and distinguishing (see OBJ-NO-NATIVE-HARDWARE).
+      falsification_condition: >
+        H1 falsified if: outlier seeds produce T_N_correct near [native_mean + 107] ± 92
+        and variance ratio > 1.3 natively.
+        H2 falsified if: outlier seeds produce T_N_correct near native mean ± 92
+        and/or variance ratio ≈ 1.0 natively.
+      cost: ~4-6 minutes compute; must use non-QEMU x86_64
+
+    - priority: 2_strongly_recommended
+      action: paired_correct_null_test
+      description: >
+        For each of 50-100 siever seeds (shared with the native run above if possible),
+        compute BOTH T_N_correct and T_N_wrong in the same sieve run.
+        Compute the paired ratio_correct / ratio_null using matched-seed data.
+        Test: does T_N_correct − T_N_null show SECRET-SPECIFIC extra variance beyond
+        sieve-quality variation?
+        If paired ratio_correct / ratio_null is significantly > 1.0 (p < 0.05 with
+        matched pairs), there is genuine secret-specific extra correlation even after
+        accounting for environment.
+      note: >
+        This test is complementary to native hardware: it can run IN QEMU (since it
+        controls for sieve-quality variation within environment) and provides additional
+        evidence even if native hardware cannot be obtained.
+
+    - priority: 3_needed_for_clean_interpretation
+      action: per_run_var_computation
+      description: >
+        Record within-run Var[s_i] for each of the 50-100 runs (both correct and null).
+        Compute CV of per-run Var[s_i]. If CV > 5%, the denominator must be the mean
+        per-run Var[s_i], not run-0 alone. This resolves OBJ-DENOM from batch-3
+        (TASK-20260804-1bb63d, OBJ-DENOM).
+
+  # -------------------------------------------------------------------------
+  # Narrowest supported statement
+  # -------------------------------------------------------------------------
+  narrowest_supported_statement: >
+    In the QEMU linux/amd64 emulation environment used across batches 2, 3, and 4,
+    Var[T_N^correct] / (N × Var[s_i^correct]) = 1.3916 (CI [1.12, 1.77], p = 0.001,
+    n = 150) and Var[T_N^null] / (N × Var[s_i^null]) = 1.5332 (CI [1.07, 2.38],
+    p = 0.010, n = 50). The variance inflation is NOT specific to the correct secret
+    (F(49,149) = 1.10, p = 0.32 for ratio_null = ratio_correct). The inflation
+    affects ALL cosine-sum statistics over bgj1 sieve vectors in this environment.
+    Whether the inflation originates from QEMU emulation or from genuine structural
+    correlation in bgj1 sieve vectors is UNRESOLVED and requires native x86_64 execution.
+    No claim about the Ducas-Pulles independence assumption or ML-KEM security is made
+    or warranted from these data.
+
+  states_a_finding: false
+  no_ml_kem_security_claim: true
+  rule12_status: UNMET_AND_UNWAIVED
+  note_on_rule12: >
+    No finding is stated by either the executor or this red team. Rule 12 is not
+    triggered. All results are observations in a confounded QEMU environment.
+    No breakthrough, closure result, or contradiction of established evidence is claimed.

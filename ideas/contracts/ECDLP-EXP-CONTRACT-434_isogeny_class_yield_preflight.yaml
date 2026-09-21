@@ -1,0 +1,115 @@
+experiment:
+  id: EXP-ECDLP-IDEA-434-PREFLIGHT
+  hypothesis_id: ECDLP-IDEA-434
+  lane: representation_changing
+  version: 1
+  title: Isogeny-class decomposition-yield invariance preflight
+  status: review_required
+  objective: >-
+    Decide whether the mean m-th Semaev decomposition yield under one canonical
+    factor-base rule is constant on an F_p isogeny class, or varies by a ratio
+    that grows with p.
+  claim_boundary:
+    evidence_scale: toy
+    model_status: heuristic_model_bound
+    novelty_status: novelty_unverified
+    breakthrough_claim: false
+  inputs:
+    phase_0: derivation_review_no_runs
+    class_invariance_derivation_from_monodromy: unresolved
+    canonical_factor_base_rule: x_coordinate_interval_fixed_B
+    yield_estimator: exact_fibering_per_KN-FIND-008
+    factor_base_beta_targets: [0.18, 0.20, 0.22]
+    future_field_bit_sizes: [14, 16, 18]
+    future_m_values: [3, 4]
+    future_curve_indices_per_size: "0..19"
+    deterministic_seed_rule: 'sha256("ECDLP-IDEA-434" || field_bits || curve_index || "20260809")'
+    future_prng: ChaCha20-IETF
+    future_prng_nonce_hex: "000000000000000000000000"
+    future_prng_initial_counter: 0
+    future_byte_mapping: unsigned_big_endian_rejection_sampling
+  controls:
+    - same curve under two Weierstrass models, which must reproduce KN-FIND-007 conservation
+    - curves outside the isogeny class with different group order, as estimator sensitivity calibration
+    - closed-form expected hit counts recorded before sampling, per KN-FIND-008
+    - Pollard rho and BSGS on every instance
+  independent_variables:
+    - curve instance within the frozen isogeny class
+    - volcano level and ell-isogeny path length
+    - field size p and summation index m
+    - factor-base bound B at fixed rule
+  metrics:
+    primary:
+      - mean decomposition yield Y(E, B, m) per curve, with the estimator resolution floor
+      - max/min yield ratio across the class, stratified by volcano level
+      - growth fit of that ratio across at least three p
+      - lambda=max(s,v,beta+delta+q,ell,beta)
+      - mu=max(s_m,beta,q_m,ell_m)
+    secondary:
+      - class enumeration cost, instance transport cost, and per-curve evaluation cost
+  replication:
+    derivation_instances: 1
+    future_independent_curves_per_size: 20
+    future_total_curve_size_cells: 60
+    future_relation_queries_at_each_of_two_largest_sizes: 1000
+    future_independently_verified_accepted_rows_at_each_of_two_largest_sizes: 1000
+    future_relation_attempt_ceiling_at_each_of_two_largest_sizes: 1000000
+    future_target_descents_at_each_of_two_largest_sizes: 0
+    independent_verifier: required
+  budget:
+    derivation_review_wall_clock_seconds: 604800
+    maximum_runs: 0
+    future_maximum_memory_gb: 16
+    future_maximum_output_gb: 20
+  stopping_rules:
+    - Do not run while status is review_required.
+    - Stop if the monodromy records KN-FIND-a1f3c2 / KN-FIND-a8990a already determine Y as a class invariant on paper; convert to a derivation task instead.
+    - A yield ratio not clearing the pre-registered estimator floor is inconclusive and non-promoting.
+  invalidation_rules:
+    - Per-curve tuning of B or of the coordinate makes this a factor-base-geometry arm and invalidates it.
+    - Unlogged volcano level invalidates the stratification.
+    - Ambient sampling instead of exact fibering invalidates the estimator.
+    - Omitted class-enumeration or instance-transport cost invalidates the cost model.
+  success_criterion: >-
+    A yield ratio bounded away from 1 whose growth with p is fitted across at
+    least three well-separated p, with volcano level controlled and the
+    estimator floor cleared, and with complete time and memory exponents at
+    most 0.45 after charging class enumeration and instance transport.
+  falsification_criterion: >-
+    Constant yield across the class within the pre-registered floor, or a
+    constant-factor ratio that does not grow with p, falsifies this version and
+    promotes the KN-FIND-007 isogeny-class extension instead.
+  required_artifacts:
+    - ideas/artifacts/ECDLP-IDEA-434/yield_estimator_spec.md
+    - ideas/artifacts/ECDLP-IDEA-434/isogeny_class_enumerator.py
+    - ideas/artifacts/ECDLP-IDEA-434/preregistration.md
+    - ideas/artifacts/ECDLP-IDEA-434/cost_analysis.md
+  assigned_to: none
+  approved_by: null
+
+handoff:
+  id: TASK-20260809-434
+  from: coordinator
+  to: executor
+  objective: Preserve the representation-changing preflight; do not dispatch it before independent approval.
+  uncertainty_reduced: Whether decomposition-yield conservation extends from the factor-base-geometry axis to the isogeny-class axis.
+  inputs:
+    - ideas/ECDLP-IDEA-434_isogeny_class_decomposition_yield_invariance_hypothesis.md
+    - ideas/contracts/ECDLP-EXP-CONTRACT-434_isogeny_class_yield_preflight.yaml
+  constraints:
+    - Do not run while status is review_required.
+    - Apply one identical factor-base rule to every curve; no per-curve tuning.
+    - Charge class enumeration, curve selection, and instance transport.
+  deliverables:
+    - derivation review of whether monodromy records already settle class invariance
+    - pre-registered statistic, estimator floor, and smallest p triple that clears it
+    - complete cost receipt and independent review
+  budget:
+    wall_clock_seconds: 604800
+    memory_gb: 16
+    maximum_runs: 0
+  completion_gate:
+    - Every derivation obligation is proved, disproved, or explicitly unresolved.
+    - No experiment or scaling run occurred under this review-required contract.
+    - All required artifact paths exist and are checksummed.
+  return_format: derivation_review

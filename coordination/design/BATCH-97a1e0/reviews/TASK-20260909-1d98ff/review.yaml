@@ -1,0 +1,231 @@
+red_team_report:
+  id: EV-ECDLP-e19cb5
+  task_id: TASK-20260909-1d98ff
+  claim_under_review: >-
+    The BATCH-local Oracle-L v2 grammar repair is sufficient to close the
+    label/query/response, dictionary-key, control-outcome, and verdict-
+    precedence defects identified by TASK-20260909-e49972.
+  review_joint: oracle_l_closed_grammar_and_verdict_precedence_v2
+  reviewed_scope: source-only grammar and control review; no simulator, source,
+    fixture, canonical record, or experiment execution was read or run.
+  verdict: breaks
+  objections:
+    - id: OBJ-V2-NO-AUTHORITATIVE-GRAMMAR
+      severity: blocking
+      finding: >-
+        The repair does not declare an authoritative v2 grammar or a
+        supersession/mapping for the draft's incompatible v1 fields and
+        verdict names. The draft requires query_id/opcode/input_labels and
+        uses equal/known_operation, while the repair requires
+        operation/ordered_input_labels and uses add/negate/equality. The
+        draft response requires query_id/result_kind/result, while the repair
+        requires result_kind/output_label/operation_cost. Likewise the draft
+        uses O1_SIMULABLE, NONCONSTANT_SIMULABLE, and
+        NOT_SIMULABLE_UNDER_DECLARED_MODEL, whereas the repair uses
+        CONSTANT_OVERHEAD, NONCONSTANT_OVERHEAD, and NOT_SIMULABLE.
+      attack: >-
+        Submit a legacy neg query with v1 fields, or a v2 negate query with
+        v2 fields. Both have a plausible reading in the combined packet, but
+        the packet supplies no parser-selection rule, field mapping, or
+        required disposition.
+      consequence: >-
+        Exact-key closure and absent-operation handling remain
+        implementation-dependent, so the claimed closed interface is not
+        established.
+      repair_required: >-
+        Publish one versioned authoritative grammar that explicitly
+        supersedes the v1 fields and verdict labels, or provides a total,
+        one-to-one v1-to-v2 migration and refusal rule for mixed records.
+    - id: OBJ-LABEL-PREIMAGE-UNDEFINED
+      severity: blocking
+      finding: >-
+        A label is specified as the SHA-256 of "canonical opaque transcript
+        bytes", but those bytes, their serializer, and their relation to an
+        individual label are undefined. If they mean the entire transcript,
+        all labels have the same preimage and the transcript contains the
+        labels being defined; if they mean a label-specific preimage, no
+        domain separator, ordinal, or record binding is given.
+      attack: >-
+        Supply two 64-character lowercase hexadecimal labels without a
+        declared preimage construction, or derive a label from a
+        representation-dependent preimage and expose only its digest. Both
+        satisfy the lexical rule, yet the packet provides no deterministic
+        way to verify opaque provenance, uniqueness, or distinguish an
+        invalid label from a refusal.
+      consequence: >-
+        The fixed-length spelling rule alone cannot close label identity or
+        support the invalid-label control.
+      repair_required: >-
+        Define a non-self-referential label preimage grammar, canonical byte
+        serializer/version, domain separation, label-universe uniqueness, and
+        a deterministic invalid-label disposition.
+    - id: OBJ-QUERY-KEY-NOT-A-FUNCTION
+      severity: blocking
+      finding: >-
+        The repair names canonical JSON as a dictionary key but does not
+        specify its canonicalization algorithm or require exactly one
+        transcript output per key. The base rows are unique only by step; two
+        rows may share operation and inputs while producing different outputs.
+      attack: >-
+        Construct two step-distinct rows for the same add/input-label pair
+        with different output labels. A first-match, last-match, refusal, or
+        transcript scan implementation can each be defended from the packet,
+        and the stated operation_cost string does not decide among them.
+      consequence: >-
+        The dictionary lookup is not a deterministic bounded operation and
+        the positive control cannot demonstrate the claimed constant-overhead
+        classification.
+      repair_required: >-
+        Pin a canonical JSON algorithm and byte encoding; define operation
+        arities; require a validated total partial-map invariant from each
+        query key to at most one output; and specify duplicate-key refusal
+        before lookup.
+    - id: OBJ-RESPONSE-UNION-OPEN
+      severity: blocking
+      finding: >-
+        EQUALITY_BOOLEAN has no Boolean payload in the exact three-key v2
+        response object. "output_label ... exactly as result_kind requires"
+        is circular because no per-kind requirement is supplied. REFUSAL also
+        has no closed reason/payload rule.
+      attack: >-
+        A valid equality response must either add a Boolean member, violating
+        exact_keys, or encode the Boolean in an undocumented output_label or
+        operation_cost field. An extra response member therefore cannot be
+        classified solely by the packet as invalid-interface versus refusal.
+      consequence: >-
+        Response closure and the extra-response-member control are not
+        established.
+      repair_required: >-
+        Define a tagged, mutually exclusive response union with exact payload
+        fields and lexical grammars for GROUP_LABEL, EQUALITY_BOOLEAN, and
+        REFUSAL, including a deterministic extra/missing-field disposition.
+    - id: OBJ-CONTROL-OUTCOMES-CONTRADICT
+      severity: blocking
+      finding: >-
+        The fixed-basis and undeclared-response controls retain contradictory
+        outcomes. The base fixed-basis control expects
+        OUTSIDE_GENERIC_TRANSCRIPT, the repair's coordinate_or_fixed_basis
+        rule also assigns OUTSIDE_GENERIC_TRANSCRIPT, yet its
+        trivial_fixed_basis rule assigns CONSTANT_OVERHEAD when the response
+        meets the response schema. The base undeclared-response control
+        expects NOT_SIMULABLE_UNDER_DECLARED_MODEL while the repair assigns
+        INVALID_INTERFACE. No rule states whether control_resolution overrides
+        the base control or how the new precedence list resolves those
+        contradictions.
+      attack: >-
+        Use a schema-conforming fixed-basis response and an undeclared-field
+        response. Each triggers two declared result paths. The ordered list of
+        verdict tokens does not say whether it applies before or after control
+        resolution, so it cannot supply a unique expected outcome.
+      consequence: >-
+        Fixed-basis and undeclared-response known-false controls cannot
+        falsify a misclassifier because the expected result is not unique.
+      repair_required: >-
+        Replace every v1 control expected value with one v2 token, state a
+        validation order, and make representation-dependent/fixed-basis input
+        unconditionally OUTSIDE_GENERIC_TRANSCRIPT if that is the intended
+        boundary.
+    - id: OBJ-COST-VERDICT-UNBOUND
+      severity: blocking
+      finding: >-
+        operation_cost is only an unconstrained nonnegative decimal string.
+        It is not bound to a declared algorithm, transcript size, lookup
+        count, trace, or an independently checkable cost rule.
+      attack: >-
+        Give the variable-length scan control operation_cost: '1'. It meets
+        the stated lexical grammar, and nothing in the packet prevents a
+        CONSTANT_OVERHEAD disposition despite a scan-dependent construction.
+      consequence: >-
+        The nonconstant-scan control cannot establish the stated overhead
+        distinction.
+      repair_required: >-
+        Remove producer-declared cost as the classifier input or bind it to a
+        closed static algorithm class and fixed lookup/scan bounds, with a
+        deterministic rule that a scan-dependent path is
+        NONCONSTANT_OVERHEAD.
+  required_controls:
+    - control: coordinate_spelling
+      result: breaks
+      evidence: >-
+        A 64-hex digest does not establish opaque, non-coordinate provenance
+        because its preimage and transcript binding are unspecified.
+    - control: extra_response_member
+      result: breaks
+      evidence: >-
+        The response union lacks an equality Boolean payload, so an extra
+        member can be needed for semantic validity; invalid versus refusal is
+        not deterministically assigned.
+    - control: absent_operation
+      result: breaks
+      evidence: >-
+        The v1/v2 operation alphabets and query-field grammars conflict with
+        no migration or refusal rule.
+    - control: invalid_label
+      result: breaks
+      evidence: >-
+        Lexical length is defined, but label preimage, universe uniqueness,
+        and invalid-label verdict mapping are not.
+    - control: fixed_basis
+      result: breaks
+      evidence: >-
+        The base control and two v2 rules assign incompatible outcomes to a
+        schema-conforming fixed-basis response.
+    - control: undeclared_response
+      result: breaks
+      evidence: >-
+        The base control expects NOT_SIMULABLE_UNDER_DECLARED_MODEL while v2
+        assigns INVALID_INTERFACE without supersession or precedence.
+    - control: scan_cost
+      result: breaks
+      evidence: >-
+        A producer-supplied decimal cost is not bound to scan behavior, so a
+        nonconstant scan can claim constant overhead.
+  counterexample_or_mutation: >-
+    A packet with two conflicting same-key add rows, a 64-hex label with no
+    defined preimage, a schema-conforming fixed-basis payload, and
+    operation_cost: '1' for a transcript scan receives no single mandatory
+    parser outcome or verdict from the combined draft and repair.
+  baseline_comparison: not applicable; this is a zero-run syntax review and no
+    ECDLP, Pollard-rho, BSGS, or specialized-algorithm claim is under review.
+  heuristic_challenges: []
+  cost_model_challenges:
+    - The claimed O(1)/nonconstant separator has no closed, checkable binding
+      from interface data to lookup or scan cost.
+  reduction_and_scope_challenges: []
+  proof_architecture_challenges:
+    - The recalled GGM-result object remains unverified in the packet and has
+      no path to affect any Oracle-L mock verdict. This proves-too-much
+      control holds only at that narrow non-promotional boundary.
+  narrowest_supported_statement: >-
+    The packet remains a BATCH-local, source-only proposed repair which
+    correctly leaves historical GGM material unverified and grants no
+    implementation or scientific-execution authority. It does not yet define
+    a closed Oracle-L v2 interface or uniquely specified mock-control
+    outcomes.
+  next_concrete_action: >-
+    Create an additive v3 source-only grammar amendment resolving the six
+    objections, then pre-register a fresh independent review that attempts
+    the same malformed and conflicting packets. Do not create canonical
+    records, implement a simulator, or run a mock until that review holds and
+    the separate admission gates are met.
+  artifact_paths:
+    - coordination/design/BATCH-97a1e0/reviews/TASK-20260909-1d98ff/review.yaml
+review_attestation:
+  task_id: TASK-20260909-1d98ff
+  role: red-team
+  review_joint: oracle_l_closed_grammar_and_verdict_precedence_v2
+  verdict: breaks
+  independent_session: true
+  requested_policy: review-adversarial
+  reasoning_effort: xhigh
+  resolved_model_id: unavailable_to_red_team
+  model_verified: false
+  paths_read:
+    - coordination/design/BATCH-97a1e0/oracle-l-v2-review-plan-TASK-20260909-1d98ff.yaml
+    - ledger/handoffs/TASK-20260909-1d98ff.yaml
+    - coordination/design/BATCH-97a1e0/tasks/TASK-20260909-0d20ac/specification.yaml
+    - coordination/design/BATCH-97a1e0/tasks/TASK-20260909-0d20ac/specification-v2-grammar-repair.yaml
+    - ledger/decisions/DEC-20260909-1c3bb4.yaml
+  read_sibling_reports: false
+  sibling_reports_read: []
+  procedure_deviations: []

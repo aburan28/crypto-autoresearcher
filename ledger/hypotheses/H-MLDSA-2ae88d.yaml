@@ -1,0 +1,638 @@
+hypothesis:
+  id: H-MLDSA-2ae88d
+  question_id: RQ-MLDSA-ffa0f5
+
+  statement: >-
+    SCOPE: FIPS 204 Section 6.1's assertion that the low-order bits of t "can
+    be reconstructed from a small number of signatures and, therefore, need not
+    be regarded as secret", evaluated at ML-DSA-44 / -65 / -87. CLAIM TIER
+    crypto for the derived floors and the hint-weight measurements (both at the
+    real parameters), toy for the reduced-cell Bayesian arm. NO ATTACK, NO KEY
+    RECOVERY, NO EXPONENT, NO STATEMENT ABOUT MLWE / MSIS / SelfTargetMSIS.
+    THE CLAIM, IN THREE PARTS.
+    (Q1) CHANNEL IDENTIFICATION. Given the public key and the verifier's own
+    reconstruction A z - c t1 2^d = w - <<c s2>> + <<c t0>>, the hint vector h
+    is the ONLY component of an ML-DSA signature whose value depends on t0;
+    c~ is a hash of (mu, w1) and z = y + <<c s1>> involve t0 nowhere.
+    (Q2) UNCONDITIONAL FLOOR. FIPS 204 Algorithms 20 and 21 make the decodable
+    hint set exactly the binary vectors of length 256k with at most omega ones,
+    so H(h) <= log2 sum_{i<=omega} C(256k, i); with H(t0) <= 256 k d, data
+    processing and subadditivity give
+    N >= ceil(256 k d / log2 sum_{i<=omega} C(256k, i)) signatures for ANY
+    adversary of ANY computational power. Evaluated: 34 / 60 / 58 at
+    ML-DSA-44 / -65 / -87, with the NON-MONOTONE ordering (the floor at -65
+    exceeds the floor at -87) forced by omega dropping from 80 to 55 and rising
+    to 75.
+    (Q3) THE GAP IS THE DELIVERABLE. Against the relayed published recovery
+    cost of 200,000-500,000 signatures the floors sit a factor of
+    3.4 x 10^3 to 1.5 x 10^4 below. Both endpoints are correct about different
+    things -- one bounds information, the other measures one algorithm -- and
+    the honest replacement for the standard's "a small number of signatures" is
+    that pair together with the statement that the distance between them is
+    UNEXPLAINED. Under the additional heuristic HEUR-MLDSA-HINT the tighter
+    entropy floors are 39 / 77 / 71, reported alongside and never instead of
+    the unconditional ones.
+    NONE OF THIS IS A BREAK: t0 is treated as public by the security argument
+    and recovering it is not key recovery.
+
+  mechanism: >-
+    DERIVED IN-REPO FROM THE PRIMARY STANDARD. FIPS 204 was obtained by the
+    generating session on 2026-08-06 (HTTP 200 from nvlpubs.nist.gov,
+    3,291,746 bytes, sha256
+    57239b9f84c03227eda3ca0991204dc7764c79af9ce2e6824eda774918d46b6b) and its
+    text extracted after installing a fresh `cryptography` package into a local
+    --target directory to shadow the system one, whose import aborts with
+    pyo3_runtime.PanicException and blocks pypdf and pdfminer.six alike. EVERY
+    QUOTATION IS A RE-VERIFICATION TARGET UNTIL AN EXECUTOR REPEATS THE FETCH.
+
+    STEP 1 -- THE ASSERTION, VERBATIM (Section 6.1): "The vector t is
+    compressed in the actual public key by dropping the d least significant
+    bits from each coefficient, thus producing the polynomial vector t1. This
+    compression is an optimization for performance, not security. The low-order
+    bits of t can be reconstructed from a small number of signatures and,
+    therefore, need not be regarded as secret." No number, no parameter-set
+    dependence, no citation. That is the object.
+
+    STEP 2 -- THE CHANNEL IS ONE COMPONENT WIDE (Q1). A signature is
+    sigEncode(c~, z, h). Algorithm 8 Line 9 computes
+    w'_Approx = A z - c t1 2^d; substituting z = y + <<c s1>> and
+    t1 2^d = t - t0 with t = A s1 + s2,
+      A z - c t1 2^d = A y + c A s1 - c(A s1 + s2) + c t0
+                     = w - <<c s2>> + <<c t0>>,
+    which is exactly MakeHint's second argument at Algorithm 7 Line 27. c~ is
+    H(mu || w1Encode(w1)) with w1 = HighBits(A y), and z = y + <<c s1>>;
+    neither involves t0. Therefore h = MakeHint(-<<c t0>>,
+    w - <<c s2>> + <<c t0>>) is the sole t0-bearing component. This is what
+    makes the counting bound tight enough to be worth stating rather than a
+    trivial "a signature is at most 2420 bytes" argument.
+
+    STEP 3 -- THE CHANNEL CAPACITY (Q2). Algorithm 20 (HintBitPack) takes "a
+    polynomial vector h in R_2^k ... collectively at most omega nonzero
+    coefficients" and emits omega + k bytes; Algorithm 21 (HintBitUnpack)
+    returns perp if a cumulative count is below the running index or above
+    omega, if indices within a polynomial are not strictly increasing, or if
+    any unused byte among the first omega is nonzero; Algorithm 8 Line 3
+    returns false on perp. So the decodable set is EXACTLY the binary vectors
+    of length 256k with at most omega ones, and
+      H(h) <= log2 sum_{i=0}^{omega} C(256 k, i).
+    Data processing gives I(h ; t0) <= H(h). Subadditivity of Shannon entropy
+    gives I(h_1..h_N ; t0) <= N H(h) WITHOUT any independence assumption on the
+    signatures, which is exactly where such arguments usually smuggle one in.
+    Determining t0 requires I >= H(t0), and H(t0) <= 256 k d because each
+    coefficient takes one of 2^d values (Algorithm 24's declared range has
+    width exactly 2^d = 8192). Hence
+      N >= 256 k d / log2 sum_{i<=omega} C(256k, i).
+
+    STEP 4 -- THE FIVE NUMBERS PER SET. From Table 1 with d = 13.
+    GENERATOR-COMPUTED, OUTSIDE THE HARNESS, NO RUN RECORD, RE-DERIVATION
+    REQUIRED:
+      ML-DSA-44  k=4  omega=80  256k=1024:  H(t0)=13312, cap=400.7, floor 33.22 -> 34
+      ML-DSA-65  k=6  omega=55  256k=1536:  H(t0)=19968, cap=338.0, floor 59.08 -> 60
+      ML-DSA-87  k=8  omega=75  256k=2048:  H(t0)=26624, cap=459.7, floor 57.92 -> 58
+    The NON-MONOTONICITY is a structural prediction and not a rounding
+    artifact: the floor rises from -44 to -65 and falls again at -87, tracking
+    omega/256k rather than the security category. A re-derivation that produces
+    a monotone sequence has made an arithmetic error, which makes this the
+    cheapest available check on the whole computation.
+
+    STEP 5 -- THE TIGHTER, CONDITIONAL FLOOR. h is not uniform on its support.
+    Coefficient h_j fires when adding <<c t0>>_j crosses a HighBits boundary of
+    width 2 gamma2, so under HEUR-MLDSA-HINT
+      P(h_j = 1) ~ E|<<c t0>>_j| / (2 gamma2),
+      E|<<c t0>>_j| = sqrt(tau (2^{2d} - 1)/12) * sqrt(2/pi),
+    giving expected weights 63.4 / 38.7 / 57.1 out of 1024 / 1536 / 2048 and
+    per-signature entropies 256k * H2(p) = 343 / 261 / 376 bits, which are
+    14 / 23 / 18 per cent BELOW the capacities of STEP 4 -- the right direction
+    and a plausible margin, which is itself a consistency check. The
+    corresponding floors are 39 / 77 / 71. Both versions are carried; they are
+    never averaged and never presented as one number.
+
+    STEP 6 -- THE GAP (Q3). Against the relayed 200,000-500,000:
+      ML-DSA-44: 6.0 x 10^3 to 1.5 x 10^4
+      ML-DSA-65: 3.4 x 10^3 to 8.5 x 10^3
+      ML-DSA-87: 3.5 x 10^3 to 8.6 x 10^3.
+    NOTHING IS WRONG WITH EITHER ENDPOINT and the record must not imply
+    otherwise. The floor is what an unbounded adversary needs; the published
+    figure is what one polynomial-time algorithm needs. The operational
+    difference the gap encodes is the one RQ-MLDSA-ffa0f5's motivation names:
+    an adversary holding 34 signatures from a certificate chain and an
+    adversary with a 500,000-query signing oracle are not in the same threat
+    model, and every side-channel result that assumes "t0 known" inherits
+    whichever of the two is actually attainable.
+
+    STEP 7 -- WHY THE GAP MIGHT BE REAL, STATED AS A QUESTION AND NOT AS A
+    RESULT. Each signature supplies at most ~343 bits at ML-DSA-44, but they
+    arrive as 1024 THRESHOLD INDICATORS whose thresholds depend on w -- fresh
+    ExpandMask randomness the observer never sees. The information is therefore
+    smeared across all 13312 unknown bits rather than addressed to particular
+    ones, so a decoder faces a noisy combinatorial inference rather than a
+    read-off. Whether the factor 10^3-10^4 is intrinsic to that structure or is
+    slack in one published algorithm is the open question this hypothesis
+    CREATES and does not answer. It is named as the successor rather than
+    smuggled into the conclusion.
+
+    WHAT IS NOT DERIVED, AND IS THE WEAKEST LINK. STEP 2 is an algebraic claim
+    about a real algorithm rather than a counting fact, and everything rests on
+    it: if any other signature component depends on t0, the channel is wider
+    and the floor is not the floor. It is checkable symbolically and by direct
+    computation on a single signature, and Stage 1 does both before any number
+    is quoted.
+
+  assumptions:
+  - >-
+    The extracted FIPS 204 text faithfully reproduces the published PDF. Stage
+    0 re-reads Section 6.1 verbatim with its page, and re-reads k, d and omega
+    from Table 1, recording the extraction command and file hash.
+  - >-
+    Algorithm 21's perp conditions are exactly as transcribed, so the decodable
+    set is exactly the at-most-omega-ones set. DIRECTION OF ERROR IS KNOWN: if
+    the true constraints are tighter the capacity is smaller and the floor
+    RISES; if looser it falls. Stage 1 verifies by exhaustive enumeration at a
+    reduced cell that the decodable count equals sum_{i<=omega} C(256k, i).
+  - >-
+    H(t0) <= 256 k d, forced by Algorithm 24's declared range of width exactly
+    2^d. DIRECTION OF ERROR IS KNOWN: if t0 is measurably non-uniform its true
+    entropy is LOWER and the floor FALLS, so the stated floor is the
+    conservative side for anyone claiming reconstruction is hard, which is the
+    side a bound of this kind should err on. The null control measures it.
+  - >-
+    ONE INTERNAL CONSISTENCY CHECK LANDS AND IS REPORTED AS ONE: the heuristic
+    entropies of STEP 5 fall 14-23 per cent below the capacities of STEP 4, in
+    the required direction and by a plausible margin. That is a check on the
+    arithmetic, not independent evidence for either number.
+
+  proof_search_map:
+    bottleneck: >-
+      Whether the t0-bearing channel in an ML-DSA signature is one component or
+      several. Every quantitative statement in this hypothesis is downstream of
+      it: if h is the whole channel the capacity bound is tight enough to be
+      interesting; if some other component also depends on t0, the bound still
+      holds but bounds the wrong thing and the floor loses its meaning. This is
+      the one step whose removal changes the deliverable rather than one number
+      in it.
+    baseline_embedding:
+      parameter_slice: >-
+        The degenerate slice k = 1, 256 -> 16 coefficients per polynomial,
+        omega scaled proportionally, where the posterior over t0 is fully
+        enumerable (16 coefficients x 8192 values) and the exact number of
+        signatures needed for information-theoretic determination can be
+        computed rather than bounded. That slice reproduces the classical
+        setting the bound abstracts: a channel with known capacity feeding an
+        enumerable unknown.
+      reproduction_check: >-
+        EXACT, not a resemblance. At the reduced cell, run the explicit
+        Bayesian update from observed hints and check that the number of
+        signatures at which the posterior collapses to a point is at least the
+        floor computed by the same formula at those reduced parameters. If the
+        measured number falls BELOW the floor, the bound is wrong -- an
+        arithmetic impossibility that would indicate an implementation error
+        and halt the package as invalid_measurement rather than as a discovery.
+    observation_collision:
+      observable: >-
+        The per-signature hint vector h, and the accumulated posterior over t0
+        it induces.
+      distinct_preimage_search: >-
+        A COLLISION EXISTS BY CONSTRUCTION AND IT IS THE ENTIRE REASON THE
+        FLOOR IS FINITE RATHER THAN ONE. Fix a signature stream and ask which
+        t0 values are consistent with the observed hints: for N below the floor
+        the answer is an exponentially large set, so distinct ground-truth t0
+        vectors produce IDENTICAL transcripts, and no algorithm of any cost can
+        separate them. The bound is precisely a count of how long that
+        collision persists. The separating condition is more signatures, and
+        nothing else -- not more computation. THE MIRROR SEARCH IS ALSO RUN AND
+        IS THE NULL CONTROL: hold t0 fixed and vary everything else (message,
+        randomness, attempt counter) and confirm the hint distribution DOES
+        change with t0, since a hint distribution independent of t0 would mean
+        the channel carries nothing and the floor would be infinite rather than
+        34.
+    constructive_transforms:
+    - transform: representation_reduction
+      proposed_object: >-
+        Move from "how many signatures does the published attack need" to "what
+        is the capacity of the only channel that carries t0", where the
+        hypothesis becomes an exact inequality between two closed-form
+        quantities rather than a claim about an algorithm.
+      predicted_gain: >-
+        Converts an unquantified sentence in a standard into two integers per
+        parameter set, computable in milliseconds, valid against every present
+        and future recovery algorithm. Encoding obligation: the decodable hint
+        set is exactly characterised (Stage 1 enumerates it at a reduced cell).
+        Completeness obligation: h is the whole channel (STEP 2, Stage 1).
+        Soundness obligation: subadditivity requires no independence (proved).
+        Transfer obligation to COMPUTATIONAL cost is DECLARED UNMET -- the
+        bound constrains information only, and saying otherwise would be the
+        error this transform is most likely to invite.
+    - transform: observable_fiber
+      proposed_object: >-
+        Hold the observable (the hint stream) fixed and vary the forgotten
+        structure (t0), asking what intrinsic invariant of t0 the stream
+        determines after N signatures. The graded control instantiates exactly
+        this by resampling a fraction f of t0's coefficients.
+      predicted_gain: >-
+        If the measured information about the true t0 does not fall as f rises,
+        the instrument is reading something other than t0 and the whole leak
+        measurement is an artifact -- caught before any number is quoted.
+    quantifier_order: >-
+      CLAIMED, IN THIS ORDER: FOR ALL adversaries A of unbounded computational
+      power, FOR ALL parameter sets P, THERE IS NO strategy by which A
+      determines t0 from fewer than floor(P) signatures with probability
+      bounded away from the prior. The bound floor(P) does NOT depend on the
+      adversary, on the key, on the message stream, or on any computational
+      assumption -- it depends only on (k, d, omega), all parameter-set
+      constants. That is the strong order and it is what makes Q2
+      unconditional.
+      THE CONVERSE IS EXPLICITLY NOT CLAIMED, AND CONFLATING THE TWO IS THE
+      SINGLE MOST LIKELY MISREADING OF THIS RECORD: the hypothesis does NOT
+      claim that THERE EXISTS an adversary succeeding at floor(P) signatures.
+      "t0 can be recovered from 34 signatures" is FORBIDDEN; "no algorithm of
+      any cost recovers t0 from fewer than 34 signatures at ML-DSA-44" is what
+      is claimed. Q3's gap is a statement about the distance between those two
+      quantifier orders, and its whole interest is that the distance is
+      unexplained.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: a per-parameter-set lower bound on the signature count for
+        information-theoretic determination of t0, plus a measured
+        per-signature hint-weight distribution at the real parameters, plus a
+        pilot-scale measurement of realised information at a reduced cell. It
+        CANNOT certify that any algorithm achieves the floor, cannot certify
+        that the published 200,000-500,000 figure is loose (only that it is far
+        from the floor, which is not the same thing), cannot certify anything
+        about MLWE / MSIS / SelfTargetMSIS, and cannot certify that FIPS 204's
+        policy conclusion is right or wrong.
+      nearby_object_control: >-
+        THE NEARBY OBJECT WHERE THE HOPED-FOR CONCLUSION FAILS is t0 resampled
+        independently of the key: same shape, same range, same encoding, same
+        hint machinery, same signature format -- and the hoped-for conclusion
+        (the transcript determines t0) is FALSE there, because the transcript
+        determines the t0 the SIGNER used and not the resampled one. Any leak
+        statistic that cannot separate that pair is measuring the apparatus. A
+        SECOND nearby object, in the opposite direction: s2, which also enters
+        the hint through <<c s2>> and which is genuinely secret. If the
+        instrument reports recovering s2 as easily as t0, it is not tracking
+        the compression map at all, and the sharp asymmetry the design expects
+        (t0 recoverable, s2 not) is a check the method must pass.
+    proof_obligations:
+    - claim: >-
+        A z - c t1 2^d = w - <<c s2>> + <<c t0>>, hence h is the only
+        t0-bearing signature component.
+      responsibility: correctness
+    - claim: >-
+        The decodable hint set is exactly the binary vectors of length 256k
+        with at most omega ones, per Algorithms 20-21.
+      responsibility: interface
+    - claim: >-
+        H(h) <= log2 sum_{i<=omega} C(256k, i) and I(h;t0) <= H(h).
+      responsibility: size
+    - claim: >-
+        I(h_1..h_N ; t0) <= N H(h) without assuming independence, by
+        subadditivity.
+      responsibility: correctness
+    - claim: >-
+        H(t0) <= 256 k d from Algorithm 24's range of width exactly 2^d.
+      responsibility: size
+    - claim: >-
+        The floors evaluate to 34 / 60 / 58 and the ordering is non-monotone.
+      responsibility: baseline
+    - claim: >-
+        The bound constrains information and not computation; the gap to any
+        published algorithm is not evidence that the algorithm is loose.
+      responsibility: scope
+    - claim: >-
+        The reduced-cell arm is pilot-tier and carries no crypto-tier weight.
+      responsibility: scope
+    not_applicable_reason: null
+
+  rerandomization: null
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Deliberately null. NO COMPLEXITY CLAIM AND NO EXPONENT MOVES. This
+    hypothesis supplies a counting bound where a fielded standard supplies an
+    adjective. It makes no recovery algorithm faster, no lattice problem
+    easier, and no forgery cheaper; sota_delta is zero on every attack axis
+    because no attack is proposed, and dominated_by is not applicable because
+    no Pareto point is claimed. The quantity it moves is the precision of a
+    sentence in FIPS 204.
+
+  heuristic_assumptions:
+  - id: HEUR-MLDSA-CHAN
+    formal_statement: >-
+      NONE LOAD-BEARING FOR Q2. The chain H(t0) <= 256 k d,
+      I(h_1..h_N ; t0) <= N H(h), H(h) <= log2 sum_{i<=omega} C(256k, i),
+      N >= H(t0)/H(h) uses only Algorithm 24's declared range, Algorithms
+      20-21's decoding constraints, the data-processing inequality and
+      subadditivity of Shannon entropy. This entry records that the headline is
+      UNCONDITIONAL and that its residual assumptions are evidentiary -- correct
+      transcription of the standard and correctness of STEP 2's algebra --
+      rather than mathematical.
+    random_model_justification: >-
+      Not applicable: no random model is used. Recorded explicitly rather than
+      omitted, so that a reader cannot mistake an absent field for an
+      overlooked one.
+    supporting_results: []
+    validation_experiment_ids: [EXP-MLDSA-8c8fa2]
+    falsification_condition: >-
+      Exhibition of a signature component other than h whose value depends on
+      t0; or an exhaustive enumeration at a reduced cell in which the number of
+      decodable hint vectors differs from sum_{i<=omega} C(256k, i); or a
+      reduced-cell measurement in which t0 is determined by FEWER signatures
+      than the floor computed at those same reduced parameters.
+  - id: HEUR-MLDSA-HINT
+    formal_statement: >-
+      FOR the distribution induced by KeyGen and SampleInBall, the hint
+      coefficients satisfy P(h_j = 1) = E|<<c t0>>_j| / (2 gamma2) with
+      <<c t0>>_j distributed as a signed sum of tau independent uniforms on
+      [-2^(d-1)+1, 2^(d-1)], and the 256k indicators are close enough to
+      independent that the per-signature hint entropy is 256k * H2(p).
+      LOAD-BEARING ONLY FOR THE TIGHTER FLOORS 39 / 77 / 71 AND FOR THE
+      PREDICTED HINT WEIGHTS.
+    random_model_justification: >-
+      PROVED HALF: for t uniform on Z_q the law of t mod+- 2^d is exactly
+      uniform except for a 1/1023 excess at the single class 0, because
+      q - 1 = 8380416 = 1023 * 8192; the excess is at the centre and cannot
+      inflate the weight. NOT PROVED: that t = A s1 + s2 is close to uniform
+      (the usual argument is MLWE indistinguishability, which RQ-MLDSA-ffa0f5
+      forbids this question from invoking, so it is not invoked); and the
+      independence of the 256k indicators, which is FALSE in detail since they
+      share t0 coefficients. CONSEQUENCE OF THE DEPENDENCE IS KNOWN AND
+      CONSERVATIVE: true entropy is lower, so the tighter floor as stated is
+      optimistic for the adversary and the bound direction is safe.
+    supporting_results: []
+    validation_experiment_ids: [EXP-MLDSA-8c8fa2]
+    falsification_condition: >-
+      The measured mean hint weight over 10^4 signatures per parameter set
+      departs from 63.4 / 38.7 / 57.1 by more than three standard errors, or
+      the measured standard deviation departs from 7.71 / 6.14 / 7.45 in a way
+      not explained by the known dependence (a variance materially BELOW
+      binomial is the expected signature of that dependence and is reported as
+      such, not as a refutation). On failure the tighter floors are withdrawn
+      and only the unconditional floors may be quoted; Q1 and Q2 are
+      UNAFFECTED.
+
+  structural_ingredients:
+  - description: >-
+      FIPS 204 Section 6.1 (the t0-secrecy assertion, verbatim), Table 1
+      (k, d, omega), Algorithm 7 Line 27, Algorithm 8 Lines 3 and 9,
+      Algorithms 20-21 (hint encoding and perp conditions), Algorithm 24
+      (t0 range).
+    citation: >-
+      FIPS 204, Module-Lattice-Based Digital Signature Standard, NIST,
+      2024-08-13, doi:10.6028/NIST.FIPS.204. READ by the generating session
+      from the primary PDF; fetch receipt, byte count and sha256 in the
+      mechanism. NOT YET FILED AS KN-LIT -- the Coordinator's call, and
+      GOAL-MLDSA-002's declared next_action.
+    role: source of the assertion, of the channel constraint and of every parameter
+  - description: >-
+      Data-processing inequality and subadditivity of Shannon entropy; the
+      identification bound N >= H(X)/H(Y) for determining X from N observations
+      of a channel of entropy at most H(Y).
+    citation: >-
+      Standard information theory. No specific textbook theorem number is
+      asserted here because none was checked; the two inequalities are stated
+      in the form used and are re-derived in Stage 1 rather than cited.
+    role: converts the channel constraint into a signature-count floor
+  - description: >-
+      "Uncompressing Dilithium's public key" (eprint 2024/1373): the t0
+      recovery, the 200,000-500,000 signature range, and the reported
+      observation that the FIPS 204 claim has never been formally studied.
+    citation: >-
+      NOT READ -- RELAYED CLAIM, via a search-tool excerpt recorded in
+      RQ-MLDSA-ffa0f5.provenance on 2026-08-04. Used ONLY as the comparator
+      endpoint of Q3, always with that label attached. If Stage 0 cannot obtain
+      it, the gap is reported against the relayed range with the provenance
+      stated, never as this program's own measurement.
+    role: upper comparator for the gap
+  - description: >-
+      KN-TECH-047 (lattice attacks with side information) and KN-TECH-019
+      (HNP / nonce leakage), the corpus's nearest recovery machinery.
+    citation: >-
+      Present in the corpus; NOT READ by this session and NOT USED. Named
+      because a bound on any recovery algorithm necessarily bounds theirs, and
+      because pointing KN-TECH-047 at t0 recovery is the natural successor --
+      which this hypothesis is not.
+    role: named successor, explicitly not a support
+
+  reduction_chain:
+    core_problem: >-
+      Lower-bound the number of ML-DSA signatures from which t0 can be
+      determined by any adversary, at each approved parameter set, and compare
+      it with the best relayed algorithmic cost.
+    corollaries: []
+    corollaries_note: >-
+      DELIBERATELY EMPTY. There is no reduction from any statement here to
+      MLWE, MSIS, SelfTargetMSIS, EUF-CMA or SUF-CMA, and none is claimed.
+      Recovering t0 is not key recovery and is consistent with a security
+      argument that treats t0 as public; a floor on the signature count for
+      recovering it therefore implies nothing about the scheme's security in
+      either direction. RQ-MLDSA-ffa0f5's claim_tier_ceiling makes this binding.
+
+  predictions:
+  - metric: >-
+      Q2-1 -- unconditional floor ceil(256 k d / log2 sum_{i<=omega} C(256k,i))
+      at each parameter set, in exact integer arithmetic
+    direction: different
+    minimum_effect: >-
+      EXACTLY 34 / 60 / 58, with intermediates H(t0) = 13312 / 19968 / 26624
+      bits and capacities 400.7 / 338.0 / 459.7 bits. The ORDERING must be
+      non-monotone (floor at -65 strictly above floor at -87); a monotone
+      sequence indicates an arithmetic error and halts the ladder.
+  - metric: >-
+      Q2-2 -- decodable hint count at a reduced cell, by exhaustive enumeration
+      against sum_{i<=omega'} C(n', i)
+    direction: different
+    minimum_effect: >-
+      EXACT EQUALITY. Any discrepancy means Algorithm 21's constraints were
+      mis-transcribed and the capacity term is wrong.
+  - metric: >-
+      Q2-3 -- heuristic-entropy floor under HEUR-MLDSA-HINT
+    direction: different
+    minimum_effect: >-
+      39 / 77 / 71, from per-signature entropies 343 / 261 / 376 bits, which
+      must fall 14-23 per cent BELOW the capacities. An entropy exceeding its
+      own capacity is an arithmetic impossibility and halts the ladder.
+  - metric: >-
+      Q2-4 -- measured mean and standard deviation of the hint weight,
+      10^4 signatures per parameter set
+    direction: different
+    minimum_effect: >-
+      63.4 / 38.7 / 57.1 and 7.71 / 6.14 / 7.45 within three standard errors.
+      This arm can genuinely fail and is reported BEFORE any floor is quoted.
+  - metric: >-
+      Q3-1 -- gap ratio, relayed published count divided by the unconditional
+      floor
+    direction: different
+    minimum_effect: >-
+      Between 3.4 x 10^3 and 1.5 x 10^4 across the three sets and the
+      2 x 10^5 - 5 x 10^5 range. Every appearance carries the label
+      "upper endpoint NOT READ -- relayed".
+  - metric: >-
+      Q3-2 -- reduced-cell realised information per signature, as the drop in
+      posterior entropy of t0 under an explicit Bayesian update
+    direction: higher
+    minimum_effect: >-
+      Strictly positive and strictly below the measured H(h) at the same cell.
+      Two forced bounds bracket it before the run; a value above capacity is an
+      instrument error and invalidates the arm rather than constituting a
+      finding.
+  - metric: >-
+      Q3-3 -- graded control: realised information about the TRUE t0 as a
+      function of the resampled fraction f in {0, 0.25, 0.5, 0.75, 1}
+    direction: lower
+    minimum_effect: >-
+      Strictly decreasing in f, reaching EXACTLY zero at f = 1 within
+      estimator noise. A statistic that fails to decay is the canonical
+      artifact tell and withdraws every leak number in the package.
+
+  test_boundary:
+    instances:
+    - >-
+      ML-DSA-44, ML-DSA-65, ML-DSA-87 exactly as specified in FIPS 204, for the
+      floors, the capacities and the hint-weight measurements. These carry the
+      crypto-tier claim.
+    - >-
+      A reduced cell (k = 1, 16 coefficients per polynomial, omega scaled
+      proportionally) for the Bayesian realised-information arm and the
+      exhaustive decodable-hint enumeration. PILOT TIER, and no crypto-tier
+      statement rests on it.
+    - >-
+      Graded null arms with a fraction f of t0's coefficients resampled
+      independently of the key, f in {0, 0.25, 0.5, 0.75, 1}.
+    parameters:
+      q: 8380417
+      d: 13
+      k_by_set: {ML-DSA-44: 4, ML-DSA-65: 6, ML-DSA-87: 8}
+      omega_by_set: {ML-DSA-44: 80, ML-DSA-65: 55, ML-DSA-87: 75}
+      tau_by_set: {ML-DSA-44: 39, ML-DSA-65: 49, ML-DSA-87: 60}
+      gamma2_by_set: {ML-DSA-44: 95232, ML-DSA-65: 261888, ML-DSA-87: 261888}
+      t0_entropy_bits: {ML-DSA-44: 13312, ML-DSA-65: 19968, ML-DSA-87: 26624}
+      hint_capacity_bits: {ML-DSA-44: 400.7, ML-DSA-65: 338.0, ML-DSA-87: 459.7}
+      unconditional_floor: {ML-DSA-44: 34, ML-DSA-65: 60, ML-DSA-87: 58}
+      heuristic_floor: {ML-DSA-44: 39, ML-DSA-65: 77, ML-DSA-87: 71}
+      all_values_provenance: >-
+        Parameters read from FIPS 204 Table 1 and derived quantities computed
+        by the generating session OUTSIDE the harness, with no run record.
+        Stage 0 re-reads and Stage 2 re-derives every one of them.
+    implementation: >-
+      Pure Python 3.11 on the standard library: hashlib.shake_128 and
+      hashlib.shake_256 supply every XOF FIPS 204 needs, so ML-DSA requires no
+      third-party dependency. numpy 2.4.6 is present and verified importable in
+      this container but no stage may REQUIRE it -- the ANGLE-BRIEF records two
+      sweeps disagreeing about this container's inventory, so each stage
+      declares its dependency and degrades to pure Python. The floors use exact
+      Python integers throughout; no floating-point value is load-bearing.
+    budget:
+      stage0_wall_clock_seconds: 1800
+      stage1_wall_clock_seconds: 1800
+      stage1_compute: "zero: symbolic derivation plus exact integer arithmetic"
+      stage2_wall_clock_seconds: 300
+      stage3_wall_clock_seconds: 5400
+      maximum_memory_gb: 4
+      explicitly_out_of_budget: >-
+        Reproducing the published 200,000-500,000-signature t0 recovery at real
+        parameters. At pure-Python signing speed that is days of wall clock for
+        signature generation alone, before any recovery. DECLARED OUT OF BUDGET
+        IN ADVANCE; under AGENTS.md rule 5 that is a budget outcome and never
+        evidence about the leak. GOAL-MLDSA-002's second completion criterion
+        asks for an independently reproduced recovery, and this hypothesis
+        supplies the bound and the pilot rather than the reproduction, saying
+        so plainly rather than under-delivering silently.
+
+  falsification_conditions:
+  - >-
+    F1 (ZERO COMPUTE, PRIMARY) -- a signature component other than h is shown
+    to depend on t0. Q1 falls, the floor bounds a narrower channel than the
+    real one, and the record is superseded rather than amended.
+  - >-
+    F2 (ZERO COMPUTE) -- the floors do not recompute to 34 / 60 / 58, or the
+    non-monotone ordering fails to reproduce.
+  - >-
+    F3 -- exhaustive enumeration at the reduced cell gives a decodable hint
+    count different from sum_{i<=omega'} C(n', i). The capacity term is wrong.
+  - >-
+    F4 -- the reduced-cell positive control fails to determine t0 at any
+    signature count. The instrument cannot see the leak and NO negative result
+    about it may be reported at any scale.
+  - >-
+    F5 -- the f = 1 null shows a nonzero leak about the true t0. Every leak
+    number in the package is an artifact and is withdrawn before it is quoted.
+    This control is run and its verdict committed BEFORE the f = 0 arm is
+    examined.
+  - >-
+    F6 -- the measured hint weights depart from HEUR-MLDSA-HINT's predictions
+    beyond the stated bands. The tighter floors are withdrawn; Q1 and Q2 are
+    UNAFFECTED, and the record must state which half survived.
+  - >-
+    F7 (NOT A FAILURE, PRE-REGISTERED) -- eprint 2024/1373 is obtained and
+    reports a signature count within an order of magnitude of the floor. The
+    headline gap evaporates, FIPS 204's "small number" is vindicated
+    quantitatively, and THAT becomes the deliverable. This reading is fixed
+    here, before any evaluation, and may not be selected after seeing the
+    result.
+  - >-
+    F8 (THE PLANNED NEGATIVE) -- if the hypothesis survives, the batch must
+    still emit the statement that GOAL-MLDSA-002's second completion criterion
+    is only PARTIALLY served: the floors and the leak-rate measurement are
+    delivered, the full-scale independent recovery is priced and declared out
+    of budget, and the criterion's remaining part is named with its cost. A
+    pass that does not produce that statement HAS NOT FINISHED.
+
+  interpretation_limits:
+  - >-
+    CLAIM TIER crypto for the floors, the capacities and the hint-weight
+    measurements (all at the real parameters), toy for the reduced-cell
+    Bayesian arm. The two must never be merged, and no downstream citation may
+    raise the pilot arm's tier.
+  - >-
+    NOT A BREAK AND NOT KEY RECOVERY. t0 is treated as public by the security
+    argument. Nothing here bears on MLWE, MSIS or SelfTargetMSIS in any
+    direction, and under RQ-MLDSA-ffa0f5's claim_tier_ceiling any downstream
+    sentence readable as such is defective regardless of what it measured.
+  - >-
+    THE FLOOR BOUNDS INFORMATION, NOT COMPUTATION. The sentence "t0 can be
+    recovered from 34 signatures" is NOT licensed by anything here and is
+    forbidden. The licensed sentence is "no algorithm of any computational
+    power recovers t0 from fewer than 34 signatures at ML-DSA-44".
+  - >-
+    THE GAP IS NOT A CRITICISM OF THE PUBLISHED ATTACK. A factor of 10^3-10^4
+    between an information floor and an algorithm's cost is unremarkable in
+    isolation; it is recorded because FIPS 204's sentence is naturally read at
+    the floor's end and the operational threat model lives at the algorithm's
+    end. Whether the gap is intrinsic is stated as OPEN.
+  - >-
+    THE POLICY QUESTION IS NOT ANSWERED. Whether t0 "need not be regarded as
+    secret" is a design judgement. This hypothesis supplies the number the
+    sentence omits and stops there.
+  - >-
+    NO STATUS CHANGE to any record is proposed or implied, and no criticism of
+    eprint 2024/1373 is made or intended: that paper has NOT been read by this
+    program.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+  - ledger/proposals/IDEA-20260805-630606.yaml
+  - ledger/proposals/IDEA-20260805-bb52fa.yaml
+  - ledger/questions/RQ-MLDSA-ffa0f5.yaml
+  - ledger/goals/GOAL-MLDSA-002.yaml
+  - knowledge/literature/KN-LIT-056.md
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+
+  inference:
+    requested_policy: research-deep
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to one model.
+      Recorded, never silently substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; the session did not run
+      `python3 -m orchestration.adapter doctor --probe`.

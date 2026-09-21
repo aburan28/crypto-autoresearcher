@@ -1,0 +1,832 @@
+idea:
+  id: IDEA-20260829-cb2a65
+  question_id: RQ-ECDLP-001
+  added: '2026-08-29'
+  title: >-
+    THE RANK INSTRUMENT IS THE WRONG SHAPE, AND THAT IS WHY 12 GiB WAS NOT ENOUGH:
+    column-chunked dense M4RI elimination costs memory proportional to
+    rank times rows, which at the 768,212-column monomial space of the failed
+    GOAL-DREG-001 n=15 D=6 rung is tens of gigabytes no matter how the columns are
+    chunked, whereas a black-box Krylov rank costs memory proportional to the
+    NUMBER OF NONZEROS -- and the cheapest way to find out whether that is true
+    here costs zero rank computations, because the nonzero count can be read off
+    the generator without building a matrix at all
+  class: tooling
+
+  claim: >-
+    (A) THE DIAGNOSIS, READ OFF THE COMMITTED SOURCE RATHER THAN INFERRED. The
+    program's exact GF(2) Macaulay rank instrument
+    (h012c_block_m4ri.chunked_block_m4ri, driven by ctrlb_execute.py) sweeps
+    columns in chunks and maintains a persistent PIVOT CARRIER across chunks; its
+    own audit checks assert that the number of carrier pivots equals rank_acc.
+    A carrier holding r pivot rows over an n-column space costs r times n bits
+    regardless of the chunk width, so column chunking bounds the WORKING SET but
+    not the ACCUMULATOR. At n = 768,212 columns, a rank of order 7x10^5 gives a
+    carrier of about 7x10^5 times 7.7x10^5 divided by 8 bytes, i.e. about 67 GB.
+    An 8 GiB contract, and a 12 GiB host ceiling, are therefore not merely tight
+    -- they are two orders of magnitude away, and no chunk-width tuning closes
+    that gap. THE OBSERVED FAILURE IS CONSISTENT WITH THIS AND IS NOT EXPLAINED BY
+    IT: all six runs of the 2026-08-28 n=15 D=6 attempt terminated as
+    resource_exhaustion at peak RSS 11.73 and 12.22 GiB with the rank kernel NEVER
+    INVOKED, so no rank value exists and none is asserted here. That is an
+    INFRASTRUCTURE STOP under AGENTS.md rule 3 and is never negative mathematical
+    evidence about d_reg, about H-DREG-001, or about anything else.
+    (B) THE PROPOSED SHAPE CHANGE. Compute the rank as a BLACK BOX: never form or
+    store an echelon basis, and access the matrix only through matrix-vector
+    products. With Wiedemann-style Krylov rank under Kaltofen-Saunders
+    preconditioning, memory is O(nnz) for the matrix plus O(n) words of vectors,
+    and time is O(n) matrix-vector products. Predicted memory at the failed cell,
+    IF the matrix has d nonzeros per row and R rows: about 4 times R times d bytes
+    for column indices plus a handful of n-bit vectors. At R about 10^6 and
+    d about 30 that is about 120 MB plus 1 MB of vectors -- a predicted reduction
+    of order 500x against the carrier, and comfortably inside an 8 GiB contract.
+    (C) THE ZERO-RANK-COMPUTATION PRE-TEST, WHICH IS THE ACTUAL PROPOSAL. The
+    entire viability of (B) turns on ONE unmeasured number: the nonzero density d
+    of the D = 6 Macaulay rows at n = 15. That number can be obtained by streaming
+    the existing generator and COUNTING, without allocating any matrix, in a run
+    whose peak RSS is bounded by one row at a time. PRE-REGISTERED DECISION RULE,
+    committed before the count is taken: d/n at most 0.001 makes the black-box
+    route viable and the instrument worth building; d/n at least 0.05 makes it
+    strictly worse than dense elimination and KILLS this proposal outright;
+    between those the measured crossover decides and is reported as such. This is
+    the cheapest possible discriminator and the most likely single outcome of the
+    whole record is a clean negative.
+    (D) WHY THIS IS FILED UNDER RQ-ECDLP-001 AND VALIDATED THERE FIRST. A new rank
+    kernel must be calibrated against a system whose answer is known
+    independently, and RQ-ECDLP-001's S_3 systems supply exactly that: the
+    companion proposal IDEA-20260829-bdca13 derives, from the Chinese Remainder
+    Theorem, that the toy S_3 quotient ring is the product of |Z| copies of F_p,
+    so the Macaulay rank at each degree has a CLOSED FORM computed from the group
+    law with no linear algebra at all. Calibrating a black-box rank kernel against
+    a closed form -- rather than against another implementation of the same
+    routine -- is the strongest available correctness check, it costs seconds, and
+    it is the reason this tooling proposal belongs to this question.
+    (E) BOTH OUTCOMES ARE DELIVERABLES. Viable: the DREG-class memory wall is a
+    tooling artifact with a named replacement, and the n=15 and n=18 rungs that
+    are currently recorded as INFRA-LIMITED become reachable within contract.
+    Not viable: the wall is a genuine density property of the boolean Semaev
+    Macaulay matrices at D = 6, which is a measured structural fact about those
+    systems that nobody currently has, and it retires the black-box route by
+    argument instead of by fatigue.
+
+  mechanism: >-
+    THE TRACKED OBJECT AND THE LOSSY-PROJECTION TEST. The tracked object is the
+    SPARSITY PATTERN of the Macaulay matrix -- which columns each row touches,
+    with all coefficient values discarded -- together with the Krylov sequence of
+    bilinear forms that a black box exposes. This is catalogue object O5 reused
+    for an INSTRUMENT rather than for an attack, and that reuse is disclosed
+    rather than presented as new. It is genuinely lossy: over GF(2) the pattern IS
+    the matrix, so the honest lossy object here is the Krylov sequence, which
+    collapses an R by n matrix to 2n field elements and from which the matrix
+    cannot be recovered. It is lossy COMPATIBLY because rank is determined by the
+    minimal polynomial of a preconditioned matrix, and the minimal polynomial is
+    determined by the Krylov sequence -- so the retained part propagates
+    deterministically under exactly the operation (matrix-vector product) the
+    method performs. A projection that would FAIL the test, and is not used: the
+    row echelon form, which loses nothing about the row space and is precisely the
+    object whose storage is the problem.
+    WHY MEMORY, NOT TIME, IS THE BINDING CONSTRAINT AND WHY THE FIX IS STRUCTURAL.
+    Dense elimination on an n-column space costs Theta(rank times n) bits of
+    accumulator and Theta(rank squared times n) bit operations; at n about
+    7.7x10^5 the time is also out of reach (of order 10^17 bit operations), so the
+    current instrument is not merely memory-blocked at this cell -- it is blocked
+    on both axes, and a larger machine would not rescue it. Black-box Krylov
+    changes both exponents at once: memory Theta(nnz) and time
+    Theta(n times nnz). At d = 30 that is 2 times 7.7x10^5 times 3x10^7, about
+    4.6x10^13 elementary operations, which with 64-way bit packing and 14 cores is
+    hours, not centuries -- an estimate that MUST be measured and is a required
+    metric, not an assertion.
+    THE GF(2) DIFFICULTY, NAMED RATHER THAN GLOSSED. Wiedemann's analysis is
+    weakest over small fields: random preconditioners drawn from a two-element
+    field do not give the same probability guarantees as over large fields, and
+    the standard remedies are (i) working over a small extension GF(2^k) for the
+    scalar sequence, which multiplies memory by k, or (ii) BLOCK Wiedemann with
+    block size 64, which is also the natural bit-packing width and so costs
+    nothing extra in memory while raising the success probability. The proposal
+    selects (ii) as the primary route and (i) as the fallback, and treats the
+    success probability as a measured quantity via repeated trials with fresh
+    preconditioners rather than as a quoted bound.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: >-
+        coordination/goals/GOAL-DREG-001/batches/BATCH-005/tasks/TASK-20260731-016/ctrlb_execute.py
+      provenance: internal
+      claim: >-
+        The instrument is named in that file's own header as
+        h012c_block_m4ri.chunked_block_m4ri with the process_subchunk kernel; the
+        header states it computes the full-column exact GF(2) rank of the null
+        D=6 Macaulay matrix and explicitly forbids the unchunked DREG_dff.sage
+        path. Its rank_loop sweeps columns in chunks (default width 12000)
+        maintaining a `carries` structure across chunks with accumulator
+        rank_acc; its own audit asserts both that the summed chunk widths match
+        rank_acc and that the carrier pivot count equals rank_acc. That last
+        assertion is the direct evidence that the accumulator holds rank_acc pivot
+        rows, which is the memory term this proposal identifies.
+      verified_by: >-
+        Read this session (Grep tool with context, 2026-08-29): file header lines
+        1 to 25 and the rank_loop and audit body around lines 326 to 465. HEADER
+        AND RANK-LOOP READ, NOT A FULL-FILE READ; the kernel file
+        src/h012c_block_m4ri.py itself was NOT opened, so the per-row storage
+        layout is inferred from the audit assertions and must be confirmed before
+        the memory arithmetic in (A) is quoted anywhere.
+    - ref: GOAL-DREG-001 (goal record) and its BATCH-005 checkpoint
+      provenance: internal
+      claim: >-
+        Records the standing infrastructure constraint verbatim, that the
+        un-chunked DREG_dff.sage first-fall instrument is host-unsafe at the D6
+        level with RAM going to root-swap, so the n=18 gap rung and the null
+        first-fall are infra-limited and not measured; and separately that the
+        chunked block-m4ri D6 cells with peak RSS about 7 GB completed cleanly.
+        So the instrument's measured peak at n = 12 D = 6 is already about 7 GB,
+        and n = 15 raises the column count substantially -- which is the trend
+        this proposal's diagnosis predicts and which makes the 2026-08-28 failure
+        unsurprising rather than anomalous. The completion criterion requires n in
+        {12, 15, 18} with at least 3 seeds, so the memory wall is currently the
+        binding obstacle to closing the goal. The committed BATCH-005 cell values
+        are rank_null_restricted = 156520 and rank_sem = 138573.
+      verified_by: >-
+        Read in full this session (Read tool, 2026-08-29), file
+        ledger/goals/GOAL-DREG-001.yaml, all 879 lines including the
+        execution_status.infra_note and the BATCH-005 checkpoint.
+    - ref: >-
+        GOAL-DREG-001 n=15 D=6 attempt, 2026-08-28, run id
+        RUN-DREG-001-MEASURE-N15-NULL-2026: 6 of 6 runs resource_exhaustion, peak
+        RSS 11.73 and 12.22 GiB against an 8 GiB contract, monomial space 768,212
+        columns, rank kernel never invoked
+      provenance: internal
+      claim: >-
+        These figures are the measured facts this proposal is aimed at. THEY WERE
+        NOT READ BY THIS SESSION AND ARE NOT VERIFIED BY IT. They do not exist on
+        this worktree's branch (ideas-elliptic-curve-20260829); the Coordinator
+        reports that they live on the unmerged branch
+        goal-dreg-001-batch007-repair-20260828 at the paths
+        coordination/goals/GOAL-DREG-001/batches/BATCH-006/tasks/TASK-20260828-955d56/execution-report.md,
+        coordination/goals/GOAL-DREG-001/batches/BATCH-006/reviews/TASK-20260828-c7c3a9/review-report.yaml,
+        experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N15-NULL-2026/raw-result.json
+        and
+        experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N15-NULL-2026/run_manifest.yaml.
+        This record carries them as REPORTED, on the Coordinator's pointer, and
+        NOT as checked. Before any budget is spent on this proposal, the executing
+        session must open those artifacts on that branch and re-cite the figures
+        by RUN-* id; if they differ, the memory arithmetic in (A) must be redone
+        against the real numbers. Whatever they turn out to be, the failure
+        remains an infrastructure stop under AGENTS.md rule 3 and is never
+        negative mathematical evidence.
+      verified_by: >-
+        NOT VERIFIED THIS SESSION, and the pointer is second-hand. Searched (Grep
+        and Glob, 2026-08-29) for the column count 768212, for
+        resource_exhaustion, and for a BATCH-007 path under coordination/ and
+        experiments/; nothing matching was found on this worktree's branch, which
+        is correct and expected because the material is on the unmerged branch
+        named above. No file listed in this citation was opened by this session.
+        Recorded as an open verification obligation discharged by Stage 0c, not as
+        a fact.
+    - ref: KN-FIND-a8990a and the companion proposal IDEA-20260829-bdca13
+      provenance: internal
+      claim: >-
+        KN-FIND-a8990a supplies the exact m=3 discriminant identity
+        disc_T S_3 = 16 f(x1) f(x2), verified exactly in Z[x1,x2,A,B], and
+        Theorem C (complete splitting on the factor-base locus), from which
+        IDEA-20260829-bdca13 derives that the toy S_3 quotient is the product of
+        |Z| copies of F_p with dimension |Z| computed from the group law. This is
+        the closed-form calibration target for the new kernel. IDEA-20260829-bdca13
+        is a PROPOSAL filed in the same session and has no evidence behind it; if
+        its structure theorem is falsified, this record loses its calibration
+        target and must find another before proceeding.
+      verified_by: >-
+        KN-FIND-a8990a read in full this session (Read tool, 2026-08-29), all 248
+        lines. IDEA-20260829-bdca13 is authored in this same session and is
+        unreviewed.
+    - ref: 'ideas/catalogue-20260805/A1-index-calculus.md (entry A1-9)'
+      provenance: internal
+      claim: >-
+        Establishes object O5 (the sparsity hypergraph, coefficient values
+        discarded) and argues the c_LA times B squared Krylov charge is forced
+        because the iteration count is at least the rank and each matrix-vector
+        product costs Theta(mB). The same arithmetic, read as an instrument rather
+        than an attack cost, is what makes black-box rank O(n) matvecs. It also
+        records that random m-uniform hypergraphs with Theta(B) edges have
+        treewidth Theta(B), which is about RELATION matrices and not Macaulay
+        matrices; that transfer is not made here.
+      verified_by: >-
+        Read in full this session (Read tool, 2026-08-29), file
+        ideas/catalogue-20260805/A1-index-calculus.md, all 931 lines.
+    - ref: >-
+        Wiedemann (1986) sparse linear algebra over finite fields;
+        Kaltofen-Saunders preconditioners for rank; block Wiedemann
+        (Coppersmith); Eberly et al., "Black Box Linear Algebra: Extending
+        Wiedemann's Analysis of a Sparse Matrix Preconditioner for Computations
+        over Small Fields" (arXiv:1607.04514); "A block Wiedemann rank algorithm"
+        (ISSAC 2006)
+      provenance: recalled
+      claim: >-
+        Recalled: rank of a sparse matrix over a finite field is computable by
+        Wiedemann's method with random preconditioners in O(n) matrix-vector
+        products and O(nnz + n) space; the small-field case needs strengthened
+        preconditioner analysis, which is the subject of arXiv:1607.04514; block
+        Wiedemann is the standard remedy and is coupled with Groebner/Macaulay
+        linear algebra in practice (the Sparse FGLM line and Magma's dense-F4 plus
+        block Wiedemann combination). A WebSearch run this session (2026-08-29)
+        returned titles and one-line summaries consistent with all of this. NONE
+        OF THESE PAPERS WAS OPENED OR READ, no theorem statement or probability
+        bound is transcribed, and no bound from them is used as support anywhere
+        in this record: the success probability is treated as a MEASURED quantity
+        via repeated trials. Recorded so a referee can supply the exact
+        preconditioner theorem this instrument would need.
+      verified_by: null
+
+  assumptions:
+    - >-
+      The failed cell's matrix is genuinely sparse. THIS IS THE PROPOSAL'S ENTIRE
+      LOAD-BEARING ASSUMPTION and it is unmeasured; the whole minimal test is
+      built to measure it first and to kill the proposal if it is false.
+    - >-
+      The existing system generator (h012_peel_rank.build_system and the boolean
+      null path) can be streamed row by row without materialising the matrix. If
+      it cannot, a streaming adapter is the first implementation task and its cost
+      is charged here, not hidden.
+    - >-
+      Rank over GF(2) of the Macaulay matrix is the quantity the DREG lane needs.
+      This record takes that from the goal's own admissibility rule, which admits
+      evidence only from full-column exact ranks, the graded pivot-degree Hilbert
+      function, or the q-to-s collapse, and does not reopen it.
+    - >-
+      The host is 14 cores and 48 GB; contracts are 8 GiB. A method that needs
+      67 GB is out of reach on this host regardless of contract, which is why the
+      diagnosis matters more than the contract.
+    - >-
+      No result of this proposal is mathematical evidence about d_reg. It produces
+      an instrument; the measurements it would enable are separate work under
+      GOAL-DREG-001's own approval, which this record does not and cannot grant.
+
+  proof_search_map:
+    bottleneck: >-
+      The accumulator in exact GF(2) rank computation: storing rank times n bits
+      of pivot rows. Removing that single storage requirement is the whole of the
+      proposed change; everything else in the pipeline is untouched.
+    baseline_embedding:
+      parameter_slice: >-
+        The n = 12, D = 6 cell, which the current instrument COMPLETED cleanly at
+        peak RSS about 7 GB and whose committed values are
+        rank_null_restricted = 156520 and rank_sem = 138573 (GOAL-DREG-001
+        BATCH-005 checkpoint, evidence EV-DREG-008). The new kernel must reproduce
+        BOTH integers exactly. This is an exact-integer regression fixture against
+        committed evidence, not a curve that looks similar.
+      reproduction_check: >-
+        Exact integer equality on both ranks at n = 12 D = 6, plus exact equality
+        with the closed-form Macaulay ranks of the RQ-ECDLP-001 S_3 systems where
+        the answer is derived rather than computed. Two independent kinds of
+        ground truth -- one committed measurement, one closed form. Any mismatch
+        on either halts the line and NOTHING is reported about n = 15.
+    observation_collision:
+      observable: >-
+        A single integer, the rank.
+      distinct_preimage_search: >-
+        Trivially and massively colliding -- an enormous number of distinct
+        matrices share any given rank -- and that is exactly why an integer
+        agreement at ONE cell is weak evidence of kernel correctness. The
+        separation is supplied by (i) reproducing TWO different committed integers
+        at n = 12, (ii) the closed-form S_3 ladder where the predicted rank varies
+        cell by cell with |Z|, and (iii) the deletion mutation below. An
+        implementation validated on one rank value has not been validated.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace the explicit row-echelon representation of the row space by its
+          Krylov representation, in which rank becomes the degree of a minimal
+          polynomial of a preconditioned operator. Obligations kept separate:
+          encoding (the preconditioner must preserve rank), completeness (the
+          Krylov space must reach the full invariant subspace), soundness (a
+          degenerate preconditioner must be detected, not silently returned),
+          transfer (the GF(2) small-field probability), cost loss (O(n) matvecs
+          instead of O(rank squared times n) bit operations).
+        predicted_gain: >-
+          Memory from Theta(rank times n) to Theta(nnz + n); time from
+          Theta(rank squared times n) to Theta(n times nnz). At the failed cell
+          this is a predicted memory factor of order 500 and a predicted time
+          factor of order 10^4 -- BOTH PREDICTIONS, both required metrics, both
+          able to fail.
+      - transform: specialization_pack
+        proposed_object: >-
+          Build a problem-specific resource measure -- peak RSS as an explicit
+          function of rows, columns, nonzeros per row and block size -- realise it
+          by instrumenting the run, and charge memory only over proved-disjoint
+          allocation blocks (matrix storage, Krylov vectors, minimal-polynomial
+          buffer). A contract that is a formula rather than a number is what makes
+          the next cell's feasibility predictable instead of discovered by OOM.
+        predicted_gain: >-
+          Converts "will n = 18 fit" from an experiment into an arithmetic
+          question answered before any budget is spent.
+    quantifier_order: >-
+      CLAIMED: FORALL cells (n, D) in the DREG ladder, IF the generated Macaulay
+      matrix has nonzero density below the pre-registered threshold, THEN THERE
+      EXISTS a black-box rank procedure whose peak resident memory is bounded by
+      c1 times nnz plus c2 times n bits for absolute constants c1, c2 measured on
+      the calibration set, and whose output equals the exact rank with probability
+      at least 1 minus epsilon over its own randomness, epsilon measured by
+      repeated trials.
+      NOT CLAIMED, and the distinction is where black-box methods usually go
+      wrong: FORALL cells THERE EXISTS a procedure that is exact
+      deterministically. The method is Monte Carlo in its preconditioner; a
+      returned rank is a LOWER BOUND that is correct with high probability, and
+      repeated trials with fresh preconditioners raise but never eliminate the
+      doubt. Every reported rank carries its trial count and the maximum over
+      trials, and is labelled probabilistic. Under
+      docs/claims-and-verification.md that is a strictly weaker claim tier than
+      the current instrument's exact elimination, and the DREG lane's own
+      admissibility rule may not accept it -- which is a CONTRACT-LEVEL risk this
+      record flags rather than assumes away.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "For matrices of the measured density, exact GF(2) rank is obtainable
+        within an 8 GiB contract with probability at least 1 minus epsilon per
+        trial, epsilon measured." It can NEVER certify a rank deterministically,
+        never certify anything about matrices denser than the measured threshold,
+        and never produce mathematical evidence about d_reg by itself.
+      nearby_object_control: >-
+        A DENSE matrix of the same dimensions with a KNOWN rank, planted. The
+        method must be visibly WORSE on it -- higher memory and higher time than
+        dense elimination -- and must still return the correct rank. A kernel that
+        looks good on the dense control is not exploiting sparsity and its
+        sparse-case numbers are meaningless. Second nearby object: a matrix that
+        is sparse but has a large nilpotent part, where naive Krylov rank is known
+        to be delicate.
+    proof_obligations:
+      - claim: >-
+          The nonzeros per row of the n=15 D=6 generated system, measured by
+          streaming.
+        responsibility: feasibility
+      - claim: >-
+          Peak RSS is bounded by the specialised formula on every calibration cell.
+        responsibility: memory
+      - claim: >-
+          Rank equals 156520 and 138573 exactly at the committed n=12 D=6 cell.
+        responsibility: baseline
+      - claim: >-
+          Rank equals the closed form on the RQ-ECDLP-001 S_3 ladder.
+        responsibility: correctness
+      - claim: >-
+          The one-column deletion mutation lowers the reported rank by exactly 1.
+        responsibility: soundness
+      - claim: >-
+          Measured failure probability per trial over at least 30 fresh
+          preconditioners.
+        responsibility: success_probability
+      - claim: >-
+          Wall time per cell, measured, against the predicted n times nnz.
+        responsibility: runtime
+      - claim: >-
+          Every reported rank is labelled probabilistic with its trial count, and
+          the DREG lane's admissibility rule is checked against that label BEFORE
+          any DREG cell is run.
+        responsibility: interface
+      - claim: >-
+          The dense nearby-object control shows the method is worse there.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        mean and maximum nonzeros per row of the D = 6 Macaulay system at n = 15,
+        measured by streaming the existing generator with no matrix allocation
+      direction: different
+      minimum_effect: >-
+        PRE-REGISTERED THREE-WAY DECISION RULE, COMMITTED BEFORE THE COUNT IS
+        TAKEN: density d/n at most 0.001 means black-box viable, proceed; d/n at
+        least 0.05 means black-box strictly worse than dense elimination, PROPOSAL
+        DEAD and the density is recorded as a structural fact about boolean Semaev
+        Macaulay matrices at D = 6; in between, report the measured crossover
+        against the cost model and take no decision. The band is fixed here so
+        neither branch can be reached by moving the threshold afterwards.
+    - metric: peak resident memory of the streaming density count itself
+      direction: lower
+      minimum_effect: >-
+        PREDICTED under 1 GiB, i.e. at least 11 times below the 11.73 GiB reported
+        failure. If the count itself exhausts memory, the generator cannot be
+        streamed, and that is a first-order finding about the pipeline that must
+        be fixed before any rank method is discussed.
+    - metric: >-
+        exact rank returned by the black-box kernel at the committed n = 12, D = 6
+        cell
+      direction: different
+      minimum_effect: >-
+        FORCED EXACT: 156520 for rank_null_restricted and 138573 for rank_sem, the
+        integers committed in the BATCH-005 checkpoint and EV-DREG-008. Off by any
+        amount, in any direction, halts the line. This is the single hardest gate
+        in the proposal.
+    - metric: >-
+        rank returned on the RQ-ECDLP-001 S_3 calibration ladder versus the closed
+        form derived from the size of Z
+      direction: different
+      minimum_effect: >-
+        FORCED EXACT on every cell of a ladder in which the predicted rank VARIES
+        cell by cell (through |Z| taking values 0, 1, 2, 3), so that agreement is
+        not a coincidence of one number. A kernel validated only where the answer
+        is constant is not validated.
+    - metric: >-
+        one-column deletion mutation, deleting one column from an early unit and
+        re-running
+      direction: lower
+      minimum_effect: >-
+        REQUIRED TO DROP THE RANK BY EXACTLY 1. This is the discriminating
+        mutation the GOAL-DREG-001 BATCH-006 ranking already names as its ranked
+        winner (item B, CTRL-013-OPTIONAL-RERANK), which has NOT been authorized
+        to run and is NOT authorized by this record; it is adopted here as a
+        correctness check on the NEW kernel only, applied to the calibration cells
+        this record proposes and to nothing else.
+    - metric: >-
+        measured peak RSS versus the specialised formula c1 times nnz plus c2
+        times n
+      direction: different
+      minimum_effect: >-
+        Formula must predict the measured peak within 25% across the whole
+        calibration set spanning at least a 100x range of nnz. A formula that only
+        fits at one size predicts nothing about n = 18 and the feasibility claim
+        for that rung must be withdrawn.
+    - metric: >-
+        measured failure rate over at least 30 independent preconditioner draws on
+        cells with known rank
+      direction: different
+      minimum_effect: >-
+        Reported as a number with a Clopper-Pearson interval, never as a quoted
+        theoretical bound. A measured failure rate above 10% makes the method
+        unusable under the DREG lane's exactness rule and the record says so.
+    - metric: >-
+        dense nearby-object control of the same dimensions with planted rank
+      direction: higher
+      minimum_effect: >-
+        The black-box kernel must be MEASURABLY WORSE there (higher time and no
+        memory advantage) while still returning the correct rank. If it looks good
+        on the dense control it is not exploiting sparsity and every sparse number
+        is suspect.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero rank computations, minutes, THE WHOLE POINT). Stream the
+      existing generator for the n = 15, D = 6 system and COUNT nonzeros per row.
+      Allocate no matrix. Report mean, median, maximum and the full histogram, and
+      apply the pre-registered three-way decision rule. IF THE DENSITY IS ABOVE
+      THE KILL THRESHOLD, STOP HERE: the record's deliverable is then the measured
+      density, filed as an obstruction with its value, units, run id and scope per
+      the inventor-protocol section 4 measurement standard, and the black-box
+      route is closed with a mechanism instead of a shrug.
+      STAGE 0b (minutes). Independently confirm the accumulator diagnosis by
+      reading src/h012c_block_m4ri.py's carrier storage layout, which this session
+      did NOT open. If the carrier is not rank times n bits, the memory arithmetic
+      in claim (A) is wrong and must be redone before anything else.
+      STAGE 0c (minutes, VERIFICATION OBLIGATION, BLOCKING BEFORE ANY SPEND).
+      The n=15 figures used in claim (A) -- 768,212 columns, peak RSS 11.73 and
+      12.22 GiB, 6 of 6 runs resource_exhaustion, rank kernel never invoked -- are
+      NOT on this worktree's branch (ideas-elliptic-curve-20260829) and were NOT
+      read by the authoring session. They are reported to live on the unmerged
+      branch goal-dreg-001-batch007-repair-20260828 at
+      coordination/goals/GOAL-DREG-001/batches/BATCH-006/tasks/TASK-20260828-955d56/execution-report.md,
+      coordination/goals/GOAL-DREG-001/batches/BATCH-006/reviews/TASK-20260828-c7c3a9/review-report.yaml,
+      experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N15-NULL-2026/raw-result.json
+      and
+      experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N15-NULL-2026/run_manifest.yaml.
+      Check out or fetch that branch, open those artifacts, and re-cite every
+      figure by the run id RUN-DREG-001-MEASURE-N15-NULL-2026. If any figure
+      differs, redo the memory arithmetic in (A) before proceeding. Whatever they
+      say, the failure stays an infrastructure stop under AGENTS.md rule 3 and is
+      never negative mathematical evidence.
+      STAGE 1 (hours, calibration on KNOWN answers only). Implement block
+      Wiedemann rank over GF(2) with 64-wide bit packing. Validate in this order,
+      each a hard gate: (a) tiny matrices with hand-computed rank; (b) the
+      RQ-ECDLP-001 S_3 Macaulay ladder against the closed form from |Z|, where the
+      predicted rank varies cell by cell; (c) the committed n = 12 D = 6 cell
+      against 156520 and 138573 exactly; (d) the one-column deletion mutation,
+      requiring a drop of exactly 1; (e) the dense nearby-object control, where the
+      method must be worse.
+      STAGE 2 (hours). Fit and freeze the peak-RSS formula c1 times nnz plus c2
+      times n across a 100x range of nnz, then PREDICT the n = 15 and n = 18 peaks
+      and record the predictions BEFORE running either.
+      STAGE 3 (measured failure rate). At least 30 independent preconditioner
+      draws on cells with known rank; report the rate with a Clopper-Pearson
+      interval.
+      STAGE 4 (NOT PART OF THIS PROPOSAL). Running the n = 15 or n = 18 DREG cells
+      is GOAL-DREG-001 work requiring that goal's own Coordinator approval. This
+      record delivers a calibrated instrument and a feasibility prediction and
+      stops there. Nothing here authorizes a run, moves a hypothesis, or asserts
+      anything about d_reg.
+      ENVELOPE. Stage 0 is bounded by one row of the generator. Stage 1's S_3
+      calibration matrices are bivariate and under 10^3 monomials. The only large
+      object in the entire proposal is the n = 12 D = 6 regression cell, which the
+      existing instrument already completed at about 7 GB and which the new kernel
+      is predicted to complete far below that -- a prediction that is itself a
+      reported metric.
+    controls:
+      - >-
+        CLOSED-FORM CALIBRATION LADDER (blocking): the RQ-ECDLP-001 S_3 systems,
+        where the rank is derived from the size of Z rather than computed, and
+        where the predicted value VARIES across cells.
+      - >-
+        COMMITTED-INTEGER REGRESSION (blocking): exact reproduction of 156520 and
+        138573 at n = 12 D = 6.
+      - >-
+        ONE-COLUMN DELETION MUTATION (blocking): rank must fall by exactly 1.
+      - >-
+        DENSE NEARBY-OBJECT CONTROL (blocking): the method must be visibly worse
+        on a dense matrix of the same dimensions with planted rank.
+      - >-
+        DETERMINISM AND SEED NULLS: a fixed preconditioner seed must give a
+        bit-identical result across runs, and changing the seed must change the
+        internal Krylov sequence while leaving the returned rank unchanged. If the
+        returned rank moves with the seed on a known cell, the failure rate is
+        being observed and must be reported as such.
+      - >-
+        MEMORY CONTRACT AS A FORMULA, frozen before the n = 15 and n = 18
+        predictions are made.
+      - >-
+        BRANCH-PROVENANCE GATE (blocking, Stage 0c): the n=15 figures must be
+        re-cited from the artifacts on
+        goal-dreg-001-batch007-repair-20260828 by run id before any spend.
+    required_metrics:
+      - 'nonzeros per row: mean, median, max, full histogram, and d/n'
+      - 'peak RSS of the streaming count itself'
+      - 'exact rank per calibration cell and its closed-form or committed reference'
+      - 'deletion-mutation rank delta, required to be exactly 1'
+      - 'peak RSS and wall time per cell, and the fitted c1, c2 with residuals'
+      - 'predicted n=15 and n=18 peak RSS, recorded before those cells are attempted'
+      - 'measured failure rate over at least 30 preconditioner draws, with interval'
+      - 'dense-control time and memory, and its correctness result'
+      - 'the claim tier of every reported rank, labelled probabilistic'
+      - 'Stage 0c re-cited n=15 figures with their run id and branch'
+
+  falsification_conditions:
+    - >-
+      Measured density d/n at least 0.05. The black-box route is strictly worse
+      than dense elimination here and the proposal is DEAD. The measured density
+      is filed as an obstruction with value, units, runs and scope, and the
+      forward guidance names what remains (symmetry reduction of the monomial
+      space, degree-graded splitting, a different encoding, or a larger host).
+    - >-
+      The generator cannot be streamed without materialising the matrix. Stage 0
+      is impossible; the pipeline defect is the finding.
+    - >-
+      src/h012c_block_m4ri.py's carrier is NOT rank times n bits. Claim (A)'s
+      memory diagnosis is wrong and the record must be rewritten around the real
+      cause before any kernel is built.
+    - >-
+      Stage 0c finds the n=15 figures materially different from those reported
+      here. The memory arithmetic in (A) is redone against the real numbers before
+      anything else proceeds; the citation is superseded by reference, never
+      edited.
+    - >-
+      The new kernel fails to reproduce 156520 or 138573 exactly. It is not
+      computing rank; nothing about n = 15 may be said.
+    - >-
+      The deletion mutation does not lower the rank by exactly 1. The kernel is
+      not tracking column deletions and its ranks are not trustworthy.
+    - >-
+      Measured failure rate above 10% per trial. Unusable under the DREG lane's
+      exact-rank admissibility rule, and the record says so rather than proposing
+      to relax the rule.
+    - >-
+      The peak-RSS formula misses by more than 25% anywhere in the calibration
+      range. The n = 18 feasibility prediction is withdrawn.
+    - >-
+      The dense control shows no disadvantage. The kernel is not exploiting
+      sparsity and its sparse-case numbers mean nothing.
+    - >-
+      Everything passes. A calibrated, memory-predictable, probabilistic rank
+      instrument exists, with a formula that says in advance which ladder rungs fit
+      in contract -- and the currently INFRA-LIMITED rungs become a budget
+      question rather than a wall.
+
+  confounders:
+    - >-
+      DENSITY IS CELL-DEPENDENT. Nonzero density at D = 6 n = 15 need not predict
+      D = 6 n = 18 or D = 7. The count is taken per cell and no cell's density is
+      extrapolated to another; the memory formula is fitted across measured cells
+      only and its extrapolation range is stated.
+    - >-
+      FILL-IN HAS NO ANALOGUE HERE, WHICH CUTS BOTH WAYS. Black-box methods never
+      fill in, which is their advantage; they also never exploit structure that
+      elimination orderings can find, so on a matrix with excellent separators
+      dense-with-good-ordering could still win. Catalogue A1-9's finding that
+      random m-uniform hypergraphs have treewidth Theta(B) suggests separators are
+      absent, but that is about relation matrices, NOT Macaulay matrices, and the
+      transfer is not made here.
+    - >-
+      PROBABILISTIC VERSUS EXACT IS A CONTRACT ISSUE, NOT A TUNING ISSUE.
+      GOAL-DREG-001's objective admits evidence only from full-column exact ranks,
+      the graded pivot-degree Hilbert function, or the q-to-s collapse. A Monte
+      Carlo rank may not satisfy "exact" as that goal's Coordinator reads it. This
+      must be settled by that goal's owner BEFORE any DREG cell is run, and this
+      record does not presume the answer.
+    - >-
+      RSS IS NOT THE ONLY MEMORY. Page cache, temporary files and the SageMath
+      TMPDIR issue already recorded in GOAL-DREG-001's infra_note (a host ENOSPC
+      event) can dominate. Peak RSS, peak virtual size and temporary disk are all
+      reported.
+    - >-
+      IMPLEMENTATION QUALITY CONFOUNDS THE COMPARISON. A slow new kernel versus a
+      tuned M4RI kernel measures programming effort, not asymptotics. The
+      comparison reported is MEMORY, where the difference is structural, and the
+      time comparison is reported with an explicit caveat that it is
+      implementation-bound.
+    - >-
+      CROSS-BRANCH PROVENANCE. The diagnosis is anchored on figures held on a
+      branch this worktree does not carry. Reading them requires a fetch or
+      checkout, and a session that skips Stage 0c would be building on a
+      second-hand pointer -- which is exactly the failure mode this record
+      pre-empts by making Stage 0c blocking.
+
+  interpretation_limits:
+    - >-
+      THIS IS TOOLING. It produces no mathematical result, no evidence about
+      d_reg, no evidence about H-DREG-001 or H-SIG-001, and no ECDLP claim of any
+      kind. The 2026-08-28 failure it addresses is an INFRASTRUCTURE STOP under
+      AGENTS.md rule 3 and remains one whatever this record finds.
+    - >-
+      It authorizes nothing. Running any GOAL-DREG-001 ladder cell requires that
+      goal's own Coordinator approval, which this record neither has nor requests.
+    - >-
+      A probabilistic rank is a weaker claim tier than an exact one and every
+      number it produces must be labelled as such, per
+      docs/claims-and-verification.md.
+    - >-
+      The n=15 figures used in claim (A) are UNVERIFIED BY THIS SESSION, are held
+      on the unmerged branch goal-dreg-001-batch007-repair-20260828, and are
+      carried on a Coordinator pointer rather than on a read. Stage 0c exists to
+      fix that before spending, and nothing in this record may be quoted as though
+      those figures had been checked here.
+    - >-
+      NOVELTY IS NOT ADJUDICATED. Black-box rank is textbook and no novelty is
+      claimed for it; what is proposed is its application and calibration here.
+      The external papers were surfaced by search and not read, so the honest
+      status is unverified.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The GF(2) Macaulay matrices generated by the boolean chained Semaev
+        pipeline at D = 6 have nonzero count per row bounded by a quantity that
+        grows polynomially in the number of variables and is independent of the
+        number of columns, so that nnz is O(rows times polylog) rather than
+        Theta(rows times cols).
+      rigorous_support: >-
+        The RIGOROUS ingredient is structural and elementary: a Macaulay row is a
+        single input polynomial multiplied by a single monomial, so its support
+        size is exactly the support size of that input polynomial, before any
+        reduction by field equations. Boolean reduction can only merge terms,
+        never create them, so the row's nonzero count is bounded by the input's
+        term count -- a quantity fixed by the system generator and completely
+        independent of the D = 6 monomial space size. The CLASSICAL STATEMENT
+        IMITATED is the standard sparsity assumption underlying every sparse-FGLM
+        and block-Wiedemann application to polynomial system solving: that
+        Macaulay matrices inherit the sparsity of their generators. The GAP: the
+        boolean chained Semaev system's input polynomials may themselves be dense
+        in the relevant variables, in which case the assumption fails outright --
+        which is precisely what Stage 0 measures and why no budget is committed
+        before it.
+      validation_plan: >-
+        SAMPLE: stream 100% of the rows of the n = 15 D = 6 system (not a sample
+        -- an exhaustive count), plus the n = 12 D = 6 system whose rank is
+        already committed, plus at least two smaller cells, so the density is
+        measured across at least a 100x range of column counts. COMPARISON: the
+        term counts of the generating polynomials themselves, computed
+        independently from the generator's inputs; the row density must not exceed
+        the input term count. TAIL CHECKS: the maximum row density (not the mean)
+        against the memory formula, since peak memory is driven by the tail; and
+        the histogram's upper decile reported separately, because a heavy tail can
+        defeat a mean-based contract. SAMPLED PARAMETERS RECORDED: n, D, t, ti,
+        seed, generator commit, rows, columns, nnz, per-row histogram. TRANSFER:
+        NONE. No cell's density is extrapolated to another and the memory
+        formula's fitted range is stated with every prediction it is used for.
+    - id: H2
+      statement: >-
+        For the preconditioned matrices arising here, block Wiedemann with block
+        size 64 over GF(2) returns the exact rank with probability at least
+        1 minus epsilon per trial, with epsilon small enough that a small constant
+        number of trials makes the maximum over trials correct with high
+        probability.
+      rigorous_support: >-
+        THE RIGOROUS INGREDIENT IS NOT QUOTED HERE, DELIBERATELY. Wiedemann's
+        analysis is weakest over small fields, the strengthened preconditioner
+        analysis lives in literature this session did not open (arXiv:1607.04514
+        and the ISSAC 2006 block Wiedemann rank algorithm), and transcribing a
+        probability bound from memory would be exactly the fabrication AGENTS.md
+        rule 5 forbids. The assumption is therefore stated as a purely empirical
+        one whose only support in this record is measurement. The CLASSICAL
+        STATEMENT IMITATED is the generic behaviour of random preconditioners over
+        large fields; the gap to GF(2) is the whole risk and is named.
+      validation_plan: >-
+        SAMPLE: at least 30 independent preconditioner draws on each of at least 5
+        cells whose rank is known independently (the S_3 closed-form ladder and the
+        committed n = 12 cell). COMPARISON: the empirical failure rate against a
+        Clopper-Pearson 95% interval; the distribution of returned ranks (a
+        black-box rank failure is a strict UNDERESTIMATE, so the maximum over
+        trials is the estimator and its bias is one-sided and reportable).
+        TAIL CHECK: the worst single trial per cell, reported individually and not
+        averaged. If any cell shows a failure rate above 10%, the method is
+        reported unusable for that cell class rather than rescued by more trials.
+        TRANSFER: the measured rate on calibration cells is NOT assumed to hold on
+        the n = 15 cell; that would have to be measured there too, and the fact
+        that it cannot be (no independent rank exists at n = 15) is stated as the
+        residual and is the strongest argument for keeping a dense cross-check at
+        the largest cell that still fits.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this is an instrument and it attacks nothing.
+      Instrument complexity, stated exactly and comparatively for an R by n GF(2)
+      matrix of rank r with z nonzeros: column-chunked dense elimination costs
+      Theta(r squared times n) bit operations; block-Wiedemann rank costs
+      Theta(n times z) bit operations. At the failed cell (n about 7.7x10^5, r
+      assumed of the same order, z about 3x10^7 IF H1 holds) that is about
+      4.6x10^17 versus about 2.3x10^13, a predicted factor of order 10^4 --
+      entirely conditional on H1 and required to be measured before it is quoted
+      anywhere.
+    memory_exponent: >-
+      Dense chunked: Theta(r times n) bits for the pivot carrier, independent of
+      chunk width -- about 67 GB at the failed cell. Black-box: Theta(z + n)
+      words -- about 120 MB at the same cell IF H1 holds. Predicted factor of
+      order 500. This is the axis the proposal exists for, and the exact
+      accounting is frozen as the formula c1 times nnz plus c2 times n before any
+      prediction is made.
+    best_known: >-
+      For exact GF(2) rank of large sparse matrices the standing methods are dense
+      M4RI elimination (this program's current instrument, measured at about 7 GB
+      peak at n = 12 D = 6) and black-box Krylov methods. This record proposes no
+      new algorithm and claims no improvement over the published state of sparse
+      linear algebra; it proposes applying the second family where the first is
+      being used, and measuring whether it fits.
+    hidden_overhead: >-
+      DISCLOSED. (i) The entire time and memory advantage is conditional on H1,
+      which is UNMEASURED, and the proposal's first stage exists to kill the record
+      if H1 is false. (ii) The rank returned is PROBABILISTIC, a strictly weaker
+      claim tier, and the DREG lane's admissibility rule may not accept it at all.
+      (iii) The constant factors of a fresh kernel against a tuned M4RI are
+      unknown and could be 10x or worse, which is why the reported comparison is
+      memory and not time. (iv) The n=15 figures anchoring the diagnosis are
+      unverified by the authoring session and sit on an unmerged branch.
+    tradeoff_note: >-
+      This is a genuine time-memory trade in the instrument, not in an attack:
+      black-box rank buys a factor of order 500 in memory and pays with a
+      probabilistic answer and a serial Krylov dependence. Parallelisation: the
+      matrix-vector product parallelises across rows with near-linear speedup on
+      14 cores, but the Krylov iteration is inherently serial in the index, so the
+      Amdahl ceiling sits at the sequence length 2n/64 and the achievable speedup
+      is bounded by the matvec's own parallel fraction. Block size 64 doubles as
+      the bit-packing width, so the blocking that raises the success probability
+      is free in memory -- the one place where the two constraints cooperate.
+
+  dominated_by: >-
+    CHECKED ROW BY ROW AGAINST EVERY FRONTIER ENTRY ENUMERATED IN CATALOGUE A1-13.
+    As an ATTACK: n/a (no result claimed) -- this record mounts no attack, so every
+    ECDLP frontier row (rho, multi-target rho, BSGS, vOW, the preprocessing
+    frontier, MITM index calculus, two-term index calculus) dominates it trivially
+    on time, memory and data/queries, and none is relevant to what it does. As an
+    EXACT-RANK INSTRUMENT: dominated on CLAIM TIER by the incumbent chunked
+    block-M4RI kernel, which returns a deterministic exact rank where this returns
+    a probabilistic one, and which is already calibrated and already has committed
+    evidence behind it; dominating the incumbent on MEMORY by a predicted factor
+    of order 500 and on TIME by a predicted factor of order 10^4, both conditional
+    on the unmeasured density H1 and both required to be measured before quoting.
+    As sparse-linear-algebra research: fully dominated by the published black-box
+    literature, from which nothing is claimed as new. Not null on any axis.
+  sota_delta: >-
+    Zero on every ECDLP cost axis; no attack, no exponent, no mathematical result.
+    Instrument delta, stated as numbers and all conditional on the Stage 0 density
+    measurement: memory for exact GF(2) Macaulay rank from
+    Theta(rank times columns) to Theta(nonzeros + columns), predicted 67 GB down
+    to about 120 MB at the 768,212-column cell (factor about 500); time from
+    Theta(rank squared times columns) to Theta(columns times nonzeros), predicted
+    about 4.6x10^17 down to about 2.3x10^13 bit operations (factor about 10^4);
+    claim tier degraded from deterministic-exact to probabilistic with a measured
+    per-trial failure rate; and, if the density is above the pre-registered kill
+    threshold, the delta is instead one measured obstruction -- the nonzero
+    density of boolean Semaev D=6 Macaulay matrices, a number nobody currently
+    has, recorded with value, units, runs and scope.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-29'
+  source_refs:
+    - RQ-ECDLP-001
+    - RQ-DREG-001
+    - GOAL-DREG-001
+    - EV-DREG-008
+    - EXP-DREG-001
+    - RUN-DREG-001-MEASURE-N15-NULL-2026
+    - KN-OPEN-002
+    - KN-FIND-a8990a
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+    - docs/claims-and-verification.md
+    - docs/target-result-profile.md
+    - ideas/catalogue-20260805/A1-index-calculus.md
+    - IDEA-20260829-bdca13
+  id_allocation_provenance: >-
+    Identifier supplied pre-minted and pre-verified by the tasking Coordinator
+    (stated as verified free before this session began). No state was scanned by
+    this session for a "next free number".

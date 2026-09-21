@@ -1,0 +1,49 @@
+name: claude
+
+# Interactive agent: responds to "@claude" in an issue, PR comment, or review.
+# Distinct from claude-pr-review.yml, which reviews every PR unprompted.
+#
+# This agent may fix harness and tooling code. It may not touch the research
+# record: workers never commit into shared research paths, and only the
+# Coordinator stages ledger, experiment, or knowledge artifacts (AGENTS.md,
+# "Durable research commits"). That boundary is stated below as an instruction,
+# which is guidance rather than a hard gate — branch protection or a CODEOWNERS
+# rule on those paths is the enforcing control.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read # so Claude can read CI results on a PR
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: |
+            --max-turns 30
+            --append-system-prompt "This repository is a reproducible ECDLP research program governed by AGENTS.md; read it before doing research work. You are running as an unprivileged worker with no research authority. You may read anything. You may write to tools/, harness/, orchestration/, src/, tests/, docs/, and .github/. You must NOT create, edit, or delete anything under ledger/, experiments/, knowledge/, or coordination/, and must NOT change the status of any hypothesis or experiment or write a decision record — those are Coordinator-only actions requiring a handoff and an archival commit. If a request needs one of them, explain what the Coordinator would have to do and stop. Never fabricate a command, output, timing, statistic, citation, or run: missing data stays missing and is reported as missing."

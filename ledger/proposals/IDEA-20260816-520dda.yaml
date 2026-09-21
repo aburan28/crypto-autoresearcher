@@ -1,0 +1,241 @@
+idea:
+  id: IDEA-20260816-520dda
+  question_id: RQ-MDFIVE-6870c1
+  added: '2026-08-16'
+  title: Measure the local steerability of a k-bit difference constraint against a k-bit value constraint
+    at the same step of the same function, using one identical local-modification routine for both,
+    and test whether the collision-preimage gap is a property of constraint type rather than of the
+    primitive.
+  class: theory
+  claim: '(A) The collision setting and the preimage setting differ in what the attacker must force.
+    A collision path imposes constraints on state DIFFERENCES; a preimage imposes constraints on state
+    VALUES. This proposal takes constraint type as the object and asks whether the two are equally
+    steerable by local message modification when everything else is held fixed. Concretely: at step
+    t of a fixed primitive, pick a k-bit predicate on the state and ask how many local tweaks of an
+    unconsumed message word are needed, on average, before the predicate holds. Run the identical
+    routine twice, once with the predicate reading a difference between two parallel executions and
+    once with the predicate reading a value in one execution. (B) The claim under test is that difference
+    predicates are satisfiable at materially lower expected tweak count than value predicates of the
+    same width at the same step, because a difference is invariant under any change common to both
+    executions while a value is not, so the effective search space the local routine explores differs
+    even though the routine is byte-for-byte the same. (C) If the two costs coincide, the constraint-type
+    reading of the asymmetry is closed with a measured ratio, and the record redirects to the schedule
+    and mode candidates that the sibling records in this batch measure. If they diverge, the ratio
+    as a function of k and t is a reusable quantity: it says how much of the gap is explained by what
+    is being forced, before anything about MD5''s specific design enters. (D) EXPLICITLY NOT CLAIMED:
+    no attack of any kind, no complexity, no statement that difference constraints are always cheaper,
+    and nothing about MD5''s preimage resistance. A tweak-count ratio measured by one local routine
+    is a statement about that routine and that predicate family. It is not a lower bound and must
+    never be cited as one.'
+  mechanism: 'STAGE 1 fixes a local-modification routine with no knowledge of constraint type: it
+    takes a state, a step index, an unconsumed message word index, and a predicate, and it tries randomly
+    drawn values of that word until the predicate holds or a budget is exhausted, reporting tweak
+    count. STAGE 2 defines two predicate families of matched width k: a difference family, which fixes
+    k bits of the XOR between two executions differing in a declared input difference, and a value
+    family, which fixes k bits of the state in one execution. STAGE 3 sweeps k = 1..16 and t across
+    the rounds, sampling 10^4 instances per cell in each family, recording mean and median tweak counts
+    and the exhaustion rate. STAGE 4 runs the null. The measurement is refuted cleanly if the two
+    families'' tweak-count curves lie on top of each other, and refuted differently if the difference
+    family is cheaper only because the declared input difference happens to make some predicate bits
+    trivially satisfied, which is why a trivially-satisfied-bit count is recorded per cell and subtracted
+    before the ratio is reported.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -rl MDFIVE and grep -ril md5 over ledger/proposals/, both empty. grep -ril 'message
+      modification' over knowledge/techniques/ returning KN-TECH-066. Read KN-TECH-066 in full on
+      message modification and freedom-degree spending, read RQ-MDFIVE-6870c1 in full, read docs/inventor-protocol.md
+      sections 2 and 3.
+    results: No ledger proposal touches MD5, MD4 or hash message modification. KN-TECH-066 states
+      the principle that in the unkeyed setting the attacker constructs pairs rather than collecting
+      them and that the spent resource is freedom, and describes message modification as forcing early
+      expensive conditions deterministically; it frames all of this within the collision setting and
+      does not pose the value-constraint counterpart or define a comparative cost. KN-TECH-062 through
+      KN-TECH-064 are keyed-setting differential technique notes. IDEA-20260808-95a21c concerns Merkle-Damgard
+      prefix amortisation and per-attempt cost accounting, a different question at a different level.
+    verdict: 'UNVERIFIED. That differences are invariant under common changes while values are not
+      is elementary, and message modification as a technique is established in KN-TECH-066; both are
+      assembled parts. What is claimed new is only the controlled comparison: one routine, two matched
+      predicate families, a swept width and step index, a trivial-bit correction, and a null that
+      says what coincidence would mean. No claim is made about the published literature and none can
+      be checked here.'
+  object_first_candidate:
+    tracked_object: The expected number of local message-word tweaks required to satisfy a k-bit predicate
+      at step t, carried as a function of (constraint type, k, t) rather than as a single number.
+    lossiness: 'Lossy. The object discards which particular predicate was drawn, which state was visited
+      and which tweak succeeded, retaining only a count and its distribution. Distinct predicates
+      of the same width at the same step map to one cell. The retained part propagates because the
+      routine is memoryless and identical across cells, so the count is a property of the (type, k,
+      t) triple plus sampling noise. The genuine limit, recorded rather than hidden: expected tweak
+      count under uniformly drawn word values is not the cost a competent attacker pays, because a
+      real attack chooses tweaks structurally. The object therefore measures a lower-effort baseline
+      uniformly across both families, and its value is precisely that it is unfair to both in the
+      same way.'
+    propagation: The tracked operation is one tweak, not one step. A tweak resamples a single unconsumed
+      message word, which leaves every state before step t untouched and re-derives every state from
+      t onward. For a difference predicate the resample is applied identically to both executions,
+      so any part of the state common to them is unchanged in the difference even though it changes
+      in each execution separately; for a value predicate there is no such cancellation. That cancellation,
+      or its absence, is the entire propagation content of the object and is what the measurement
+      is built to see.
+    survival_score: The object is informative while the predicate width k is small enough that the
+      budget is reached with nonzero probability, which at a per-cell budget of 2^16 tweaks means
+      k up to about 16 for value predicates and further for difference predicates if the claim holds.
+      Beyond that the cell censors and reports an exhaustion rate rather than a count, and the record
+      states the censoring boundary explicitly per family instead of extrapolating a curve past it.
+  null_object_control: The null object is a primitive of the same shape whose step function is a fresh
+    random bijection per step keyed by the message word, so no algebraic cancellation between two
+    parallel executions is available. The identical routine, the identical predicate families and
+    the identical sweep run against it in the same invocation. The null must show the difference-family
+    and value-family tweak-count curves coinciding at every (k, t), because with a random bijection
+    a difference predicate of width k is satisfied with probability 2^-k just as a value predicate
+    is. If the null shows a separation, the measurement is reading the routine or the predicate construction
+    and not the primitive, and the signal arm is uninterpretable.
+  discriminated_from:
+  - 'KN-TECH-066''s message modification: that describes spending freedom to satisfy path conditions
+    in the collision setting. This record does not follow a path at all, satisfies isolated predicates,
+    and its point is the comparison between two predicate types rather than the technique itself.'
+  - 'The freedom-and-conditions accounting record in this batch: that counts conditions and free bits
+    symbolically with no execution. This one executes and measures a cost per condition, and would
+    give different answers for two primitives with identical freedom curves.'
+  - 'The forward-backward wavefront record in this batch: that perturbs one bit and watches diffusion
+    with no predicate and no search. This one searches for predicate satisfaction and never measures
+    diffusion.'
+  - Generic birthday-versus-exhaustive-search accounting, which explains a gap of 2^{n/2} from output
+    length alone and is identical for every primitive of that output length; the quantity here varies
+    with step index and would be visible on a primitive with any output length.
+  - 'Boomerang and rebound frameworks named in KN-TECH-066, which construct two-sided or inbound-outbound
+    structures. Nothing here is two-sided in that sense: the routine is a single local resample and
+    is deliberately weaker than any of those methods.'
+  assumptions:
+  - Uniformly sampled predicates of width k are representative enough of the predicate families to
+    make a ratio meaningful; structured predicates would give different absolute costs and the record
+    claims nothing about them.
+  - The declared input difference for the difference family does not by itself trivially satisfy predicate
+    bits, which is measured and subtracted rather than assumed.
+  - A memoryless resample routine is an acceptable common baseline, chosen because it is the only
+    routine that is manifestly identical across the two families.
+  - Step t is chosen so that at least one unconsumed word is available; steps where none is available
+    are excluded and reported as excluded.
+  predictions:
+  - metric: ratio of mean tweak count for value predicates to difference predicates at matched (k,
+      t), averaged over t in round 1
+    direction: higher
+    minimum_effect: 2.0
+  - metric: the same ratio in the random-bijection null
+    direction: different
+    minimum_effect: forced value 1.0 within sampling error; any null ratio outside [0.8, 1.25] invalidates
+      the signal arm
+  - metric: growth of the ratio with predicate width k
+    direction: higher
+    minimum_effect: 'explicit refusal to pre-commit a functional form: the program has no prior on
+      whether the ratio grows, saturates or is flat in k, and inventing an exponent here would be
+      fabrication; the shape is reported as observed'
+  - metric: trivially-satisfied-bit fraction in the difference family
+    direction: lower
+    minimum_effect: 0.25
+  minimal_test:
+    design: 'Implement one routine of about thirty lines: given a primitive, a step index, a free
+      word index and a predicate closure, resample the word uniformly until the predicate holds or
+      the budget is spent. Build two predicate factories of matched width. Sweep k in {1, 2, 4, 8,
+      12, 16} and t in {2, 6, 10, 14} within round 1, where free words are guaranteed available, with
+      10^4 instances per cell and a budget of 2^16 tweaks. That is at most 6 x 4 x 10^4 x 2^16 step
+      evaluations in the worst case, so the budget must be enforced and the exhaustion rate reported;
+      in practice the small-k cells dominate the measured means and the large-k cells contribute censoring
+      statistics. Run the random-bijection null over the identical sweep in the same invocation. The
+      comparison discriminates on one number per cell, and the null decides whether that number belongs
+      to the primitive or to the harness.'
+    controls:
+    - Random-bijection null primitive with the identical routine, predicates and sweep, in the same
+      invocation.
+    - Trivial-bit accounting per cell, so difference predicates that are free by construction are
+      subtracted before any ratio is formed.
+    - A width-matched control in which the value predicate is placed on a different word of the state
+      than the difference predicate, checking that the effect is not an artefact of predicate placement.
+    - XOR-ablated primitive, isolating whether the cancellation depends on modular addition.
+    - A shuffled-budget control in which the budget is halved, confirming that reported means are
+      not budget-truncation artefacts.
+    required_metrics:
+    - mean and median tweak count per (type, k, t)
+    - exhaustion rate per cell
+    - value-to-difference ratio per cell and pooled over round 1
+    - trivially-satisfied-bit fraction per cell
+    - all of the above for the null and each ablation
+  falsification_conditions:
+  - Pooled value-to-difference ratio is below 2.0 for MD5 in round 1.
+  - The random-bijection null shows a ratio outside [0.8, 1.25], invalidating the instrument.
+  - More than 25 percent of difference-predicate bits are trivially satisfied, meaning the family
+    is not width-matched in effect.
+  - The ratio vanishes under the XOR ablation and also under the rotation ablation, leaving no structural
+    attribution at all.
+  - Exhaustion rates exceed 50 percent in the cells carrying the reported ratio, making the means
+    uninterpretable.
+  confounders:
+  - Predicate placement, since some state words are updated at step t and others merely shifted, which
+    changes satisfiability independently of constraint type.
+  - Trivial satisfaction from the declared input difference, addressed by explicit accounting and
+    subtraction.
+  - Budget censoring at large k, which biases means downward asymmetrically if the two families censor
+    at different rates.
+  - Round identity, since F, G, H and I have different algebraic behaviour and pooling across rounds
+    could manufacture or hide a ratio.
+  - The choice of a memoryless routine, which is deliberately weak and may compress a real difference
+    between the families toward one.
+  interpretation_limits:
+  - The ratio describes one deliberately weak routine and is not a bound on what any technique can
+    achieve in either setting.
+  - Results are scoped to uniformly drawn predicates of the declared widths at the declared steps
+    and say nothing about structured path conditions.
+  - A large ratio would locate part of the gap in constraint type; it would not account for the remainder,
+    and the record may not present it as a full explanation.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The deliverable is an expected-tweak-count ratio,
+      dimensionless, per predicate width and step.
+    memory_exponent: No attack memory exponent is claimed; the routine is memoryless by construction,
+      which is itself part of the design.
+    best_known: The incumbent is the qualitative statement in KN-TECH-066 that freedom is spent to
+      force conditions, which does not distinguish constraint type, together with the prose gap described
+      in RQ-MDFIVE-6870c1. No quantitative incumbent for this ratio exists in this repository.
+    hidden_overhead: 'The compute figure hides the fact that the tweak budget dominates everything:
+      the value-predicate arm at k = 16 spends up to 2^16 resamples per instance and censors, so the
+      reported mean is a truncated mean and the truncation is asymmetric between the two families.
+      That asymmetry is a lower-order term that can produce or erase the whole effect if unreported.
+      The larger hidden cost is human: constructing two predicate families that are genuinely width-matched
+      in effect rather than in nominal width is a design problem with no mechanical check, and a session
+      that gets it subtly wrong will produce a clean-looking ratio that measures its own predicate
+      construction. The trivial-bit accounting exists to expose that, and reading it honestly costs
+      more attention than running the sweep costs cycles.'
+  dominated_by: n/a (no result claimed). Both MD5 frontier rows this program holds were checked, the
+    UNVERIFIED 2^123.4 preimage figure and the seconds-scale collision figure in RQ-MDFIVE-6870c1.
+    A dimensionless tweak-count ratio occupies no axis on either, so no Pareto relation exists; writing
+    null here would be a fabrication.
+  sota_delta: no attack; conceptual/measurement contribution only. The result is a ratio between two
+    measured counts under one weak routine and is not comparable to any complexity figure.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  honest_prior_of_survival: 'Split by part. That the routine and the two predicate families can be
+    implemented so as to be genuinely identical apart from what they read: about 0.7, and the main
+    risk is that width matching is subtly unfair. That the null shows a ratio near 1.0, i.e. the instrument
+    is clean: about 0.8, since a random bijection should give 2^-k satisfaction for both families.
+    That MD5 shows a pooled ratio at or above 2.0: about 0.45, since the cancellation argument is
+    sound but a memoryless routine may be too weak to expose it. That the effect survives the XOR
+    ablation attribution in an interpretable way: about 0.35. Joint survival as stated: about 0.2.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-MDFIVE-6870c1
+  - GOAL-MD5-001
+  - KN-TECH-066
+  - KN-TECH-062
+  - KN-TECH-056
+  - IDEA-20260808-95a21c
+  - docs/inventor-protocol.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-MDFIVE-5aae9d

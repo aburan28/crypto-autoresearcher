@@ -1,0 +1,372 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style type=text/css>
+body{font-family:sans-serif;font-size:1em}
+h1{font-size:1.7em;}
+h2{font-size:1.4em;}
+h3{font-size:1.1em;}
+p{font-size:0.8em;line-height:1.5em;}
+blockquote{font-size:0.8em;line-height:1.5em;}
+ul{font-size:0.8em;line-height:1.5em;}
+ol{font-size:0.8em;line-height:1.5em;}
+pre{font-family:monospace,monospace;font-size:0.8em;}
+tt{font-family:monospace,monospace;font-size:1em;}
+</style>
+<title>
+SafeCurves:
+Ladders
+</title>
+</head>
+<body>
+<table width="100%">
+  <tr valign=top width=100%>
+    <td align=left><h1>SafeCurves:<br>choosing safe curves for elliptic-curve cryptography</h1></td>
+  </tr>
+</table>
+<hr>
+<table width="100%"><tr>
+<td width="12%" align=left valign=top><table border width="100%" bgcolor="#aaaaff"><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><a href="index.html" style="text-decoration:none"><font size=2 color="#000080">Introduction</font></a></td></tr>
+</table></td></tr><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><font size=2 color="#000000"><b>Curve parameters:</b></font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="field.html" style="text-decoration:none"><font size=2 color="#000080">Fields</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="equation.html" style="text-decoration:none"><font size=2 color="#000080">Equations</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="base.html" style="text-decoration:none"><font size=2 color="#000080">Base points</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="primeproofs.html" style="text-decoration:none"><font size=2 color="#000080">Prime proofs</font></a></td></tr>
+</table></td></tr><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><font size=2 color="#000000"><b>ECDLP security:</b></font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="rho.html" style="text-decoration:none"><font size=2 color="#000080">Rho</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="transfer.html" style="text-decoration:none"><font size=2 color="#000080">Transfers</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="disc.html" style="text-decoration:none"><font size=2 color="#000080">Discriminants</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="rigid.html" style="text-decoration:none"><font size=2 color="#000080">Rigidity</font></a></td></tr>
+</table></td></tr><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><font size=2 color="#000000"><b>ECC security:</b></font></td></tr>
+<tr><td width="100%" bgcolor="#ffff80"><font size=2 color="#000000">Ladders</font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="twist.html" style="text-decoration:none"><font size=2 color="#000080">Twists</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="complete.html" style="text-decoration:none"><font size=2 color="#000080">Completeness</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="ind.html" style="text-decoration:none"><font size=2 color="#000080">Indistinguishability</font></a></td></tr>
+</table></td></tr><tr><td width="100%"><table width="100%">
+<tr><td width="100%" bgcolor="#aaaaff"><font size=2 color="#000000"><b>More information:</b></font></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="refs.html" style="text-decoration:none"><font size=2 color="#000080">References</font></a></td></tr>
+<tr><td width="100%" bgcolor="#aaaaff"><a href="verify.html" style="text-decoration:none"><font size=2 color="#000080">Verification</font></a></td></tr>
+</table></td></tr></table>
+</td><td align=left valign=top>
+<h2>Ladders</h2>
+<p>
+The most important computation in ECC is single-scalar multiplication:
+computing the curve point nP given an integer n and a curve point P.
+This is the bottleneck in
+<ul>
+<li>
+key generation: n is Alice's secret key, P is a standard base point, nP is Alice's public key;
+<li>
+signing: n is a nonce, P is a standard base point, nP is part of the signature;
+<li>
+DH: n is Alice's secret key, P is Bob's public key,
+some hash of nP is the secret key shared between Alice and Bob.
+</ul>
+<p>
+Montgomery curves y^2=x^3+Ax^2+x
+support a very simple scalar-multiplication method,
+the <b>Montgomery ladder</b>,
+introduced by
+<a href="refs.html#1987/montgomery-speeding">1987 Montgomery</a>.
+There are several reasons that the Montgomery ladder is simpler
+than, e.g., the standard short-Weierstrass scalar-multiplication methods:
+<ul>
+<li>The standard short-Weierstrass methods have two input coordinates, x(P) and y(P).
+The Montgomery ladder has only one input coordinate, x(P).
+<li>To avoid inner-loop divisions
+the standard short-Weierstrass methods internally use three coordinates, X and Y and Z,
+to represent x = X/Z^2 and y = Y/Z^3.
+The Montgomery ladder uses only two coordinates, X and Z,
+to represent x = X/Z.
+<li>There are actually many different standard short-Weierstrass methods,
+using many different addition-subtraction-doubling chains.
+The simpler chains are slower and leak secret data through timing.
+The Montgomery ladder uses a single standard chain,
+always following a simple, highly efficient double-add pattern.
+</ul>
+<p>
+SafeCurves requires curves to
+support simple, fast, constant-time single-coordinate single-scalar multiplication,
+avoiding conflicts between simplicity, efficiency, and security.
+This is not a requirement specifically to use Montgomery curves:
+there are other types of curves that support simple, fast, constant-time ladders.
+"Fast" means that implementations of scalar multiplication
+for the same curve cannot be much faster,
+and "simple" means that reasonably fast implementations of scalar multiplication
+for the same curve cannot be much more concise.
+At this time there are no examples close enough to the edge
+to warrant quantification of "much".
+<h3>Isomorphism (and birational equivalence)</h3>
+<p>
+One can sometimes convert a short Weierstrass curve y^2=x^3+ax+b
+to a Montgomery curve as follows.
+Find r satisfying r^3+ar+b=0.
+Find s satisfying s^2=3r^2+a.
+Define u=(x-r)/s, B=1/s^3, and A=3r/s.
+Then By^2=u^3+Au^2+u.
+One can perform x-coordinate scalar multiplication on y^2=x^3+ax+b
+by converting x to u,
+performing u-coordinate scalar multiplication on By^2=u^3+Au^2+u
+with the Montgomery ladder,
+and converting back.
+<p>
+The reason this does not always work is that,
+for the majority of curves,
+the field F_p does not contain suitable elements r and s.
+One can work around this by replacing F_p with an extension field,
+but this requires much less simple field operations
+inside scalar multiplication.
+<p>
+In particular,
+curves of prime order or 2*prime order
+can never be converted to Montgomery curves over F_p:
+Montgomery curves always have order divisible by 4.
+<h3>The Brier&ndash;Joye ladder</h3>
+<p>
+<a href="refs.html#2003/brier-ladder">2003 Brier&ndash;Joye</a>
+presented a constant-time x-coordinate ladder
+applicable to every short Weierstrass curve y^2=x^3+ax+b.
+However, the Brier&ndash;Joye ladder is much slower than the Montgomery ladder:
+it requires 19 field operations per bit,
+many more field operations than standard addition chains for short Weierstrass curves.
+It thus creates a conflict between efficiency and security.
+<h3>Specific curves</h3>
+<p>
+The following table reports the ladder support for various existing curves:
+<table border>
+<tr>
+<th><p>Curve</p></th>
+<th><p>Montgomery ladder?</p></th>
+<th><p>Cofactor</p></th>
+</tr>
+<tr>
+<td><p>
+Anomalous
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+1
+</p></td>
+</tr>
+<tr>
+<td><p>
+M-221
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+2^3
+</p></td>
+</tr>
+<tr>
+<td><p>
+E-222
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+2^2
+</p></td>
+</tr>
+<tr>
+<td><p>
+NIST P-224
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+1
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve1174
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+2^2
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve25519
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+2^3
+</p></td>
+</tr>
+<tr>
+<td><p>
+BN(2,254)
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+1
+</p></td>
+</tr>
+<tr>
+<td><p>
+brainpoolP256t1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+1
+</p></td>
+</tr>
+<tr>
+<td><p>
+ANSSI FRP256v1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+1
+</p></td>
+</tr>
+<tr>
+<td><p>
+NIST P-256
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+1
+</p></td>
+</tr>
+<tr>
+<td><p>
+secp256k1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+1
+</p></td>
+</tr>
+<tr>
+<td><p>
+E-382
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+2^2
+</p></td>
+</tr>
+<tr>
+<td><p>
+M-383
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+2^3
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve383187
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+2^3
+</p></td>
+</tr>
+<tr>
+<td><p>
+brainpoolP384t1
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+1
+</p></td>
+</tr>
+<tr>
+<td><p>
+NIST P-384
+</p></td>
+<td><p>
+<font color=red><b>False</b></font>
+</p></td>
+<td><p>
+1
+</p></td>
+</tr>
+<tr>
+<td><p>
+Curve41417
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+2^3
+</p></td>
+</tr>
+<tr>
+<td><p>
+Ed448-Goldilocks
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+2^2
+</p></td>
+</tr>
+<tr>
+<td><p>
+M-511
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+2^3
+</p></td>
+</tr>
+<tr>
+<td><p>
+E-521
+</p></td>
+<td><p>
+<font color=green>True<font size=5>&#x2714;</font></font>
+</p></td>
+<td><p>
+2^2
+</p></td>
+</tr>
+</table>
+<hr><font size=1><b>Version:</b>
+This is version 2013.10.13 of the ladder.html web page.
+</td></tr></table>
+</body>
+</html>

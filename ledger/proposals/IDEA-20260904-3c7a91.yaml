@@ -1,0 +1,727 @@
+idea:
+  id: IDEA-20260904-3c7a91
+  added: '2026-09-04'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-SATIC-1ae57a
+  title: >-
+    The pdp CNF-XOR model admits no above-leaf pruning: the "SAT solver" is a
+    complete enumerator of V^m modulo S_m with a unit-propagation leaf test, so
+    the search exponent is exactly ml - log2|G| and no solver engineering can
+    move it
+
+  class: mechanism
+
+  claim: >-
+    SCOPE: symmetrized S_{m+1} pdp over F_{2^n}, Weil-descended to F_2, in the
+    CNF-XOR model of SRC-SATIC-TRIMOSKA-2019 section 3.2 and in the
+    non-symmetrized chained/direct model built by src/semaev_tree.py; m = 3 and
+    m = 4; l in 6..9; DPLL/CDCL solvers branching on the ml core variables.
+    CLAIM TIER toy. NO ATTACK, NO EXPONENT IMPROVEMENT, NO PRIME-FIELD TRANSFER.
+
+    (A) THE STRUCTURAL CLAIM. In this model, unit propagation from a PARTIAL
+    assignment of the ml core variables c_{i,j} essentially never produces a
+    conflict: conflicts occur only at, or within O(1) levels of, the leaf depth
+    d = ml. Therefore the number of conflicts a complete DPLL/CDCL search
+    reports on an UNSATISFIABLE instance is
+
+        N_conf(l, m) = (1 +- eps) * 2^{ml} / |G|,     eps <= 0.05,
+
+    where |G| is the order of the symmetry group the solver quotients by
+    (|G| = 1 with no symmetry breaking, |G| = m! with the lexicographic
+    tree-pruning of section 4 of the source). The constraints coming from the
+    curve do NOT prune the search; they only decide leaves.
+
+    (B) THE CONSEQUENCES, EACH INDEPENDENTLY FALSIFIABLE.
+      B1. N_conf is INDEPENDENT of n at fixed (l, m), to within 1%, across any
+          range of n for which the model is defined.
+      B2. N_conf is INDEPENDENT of the curve, of the target point R, of the
+          field basis alpha and of the instance seed, on UNSAT instances, to
+          within 1%.
+      B3. On SATISFIABLE instances the conflict count is a random variable with
+          mean approximately N_conf/2 and a large coefficient of variation,
+          because the planted solution sits at a uniformly random position in a
+          complete enumeration.
+      B4. The pruned fraction 1 - N_conf/(2^{ml}/|G|) SHRINKS toward zero as l
+          grows and does not grow as n (the number of equations) grows. A
+          constraint set whose pruning power falls as more constraints are added
+          is the canonical artifact tell of docs/inventor-protocol.md section 3,
+          and here it is being asserted as the FINDING rather than feared as an
+          artifact.
+      B5. Two solvers that both branch on the ml core variables report conflict
+          counts within a few percent of each other, whatever their clause
+          learning, restart policy or XOR module. Any wall-clock difference
+          between them is therefore entirely a cost-per-conflict difference.
+
+    (C) THE CEILING, WHICH IS THE POINT OF THE RECORD. If (A) holds, the pdp
+    solving exponent under this model is exactly ml - log2|G| bits of complete
+    enumeration and is not reachable by better search. The only levers that move
+    it are (i) reducing ml (smaller factor-base dimension l, or smaller arity m,
+    both of which cost decomposition probability), and (ii) enlarging |G| (the
+    m! symmetry of the source; the 2-torsion / 4-torsion action on the factor
+    base of Galbraith-Gebregiyorgis, which the source names as its own open
+    problem, would multiply |G| by the order of the induced orbit action). This
+    converts an open-ended solver-engineering question into a closed arithmetic
+    one, and it makes an out-of-sample prediction for every future variant
+    before it is run.
+
+    (D) MOTIVATING ARITHMETIC, DERIVED BY THIS AGENT FROM THE AUTHORS' REPORTED
+    NUMBERS AND NOT REPRODUCED ANYWHERE. Dividing the UNSAT conflict counts of
+    Table 3 of the frozen source (WDSat with symmetry breaking, m = 3) by
+    2^{3l}/6 gives, at l = 6,7,8,9,10,11 respectively, ratios
+    1.0042/1.0079, 1.0052/1.0021, 1.0015/1.0026, 1.0012..1.0009,
+    1.00035..1.00062, 1.00031..1.00037. Dividing the Table 2 UNSAT counts
+    (WDSat with Prop. 1, NO symmetry breaking) by 2^{3l} gives 0.9715, 0.9746,
+    0.9885, 0.9857, 0.9934, 0.9945. The same Table 2 rows for CMS with Prop. 1
+    give 0.995, 0.991, 0.9907, 0.9871, 0.9987, 1.0004. At l = 9 the four
+    reported n values 37, 47, 59, 67 give UNSAT counts spanning a ratio of
+    1.00069. THESE ARE THE AUTHORS' NUMBERS ON THE AUTHORS' HARDWARE; the
+    division is this agent's arithmetic; nothing here is a measurement made in
+    this repository, and no timing ratio is formed. The arithmetic is recorded
+    as the REASON to run the experiment, never as its result.
+
+  mechanism: >-
+    WHY THERE IS NO ABOVE-LEAF PRUNING. Proposition 1 of the source (claim C1)
+    says the ml variables c_{i,j} form what the SAT literature calls a STRONG
+    BACKDOOR with respect to unit propagation: every total assignment of them
+    reduces the formula to a unit-propagation decision. The proposition is
+    stated for TOTAL assignments, and the source draws only the upper bound
+    2^{ml} from it. This idea is about the complementary and unstated fact:
+    what a PARTIAL assignment propagates.
+
+    Follow the four clause sets of section 3.2. A substitution variable c'
+    standing for a conjunction c_{i1,j1} AND ... AND c_{ik,jk} is forced to
+    FALSE as soon as any one of its factors is false, but is forced to TRUE only
+    when ALL k factors are true; a d' variable over the d_{i,j} is one further
+    level removed, and the d_{i,j} themselves are XOR-determined by the c and c'
+    variables (the E-X-relation set). The F-set parity constraints -- the only
+    clauses carrying the curve, since they are the Weil-descended coefficients
+    of S'_{m+1} -- are XORs over d and d' variables. A single F-set XOR clause
+    becomes unit, and can therefore fire or conflict, only when every one of its
+    literals but one is determined. Under the block branching order the source
+    requires (leading bit of x_1 through trailing bit of x_m), the top-degree
+    monomials of S'_{m+1} touch all m blocks and so are undetermined until the
+    LAST block is finished. Hence the F-set is inert until depth ml - O(l), and
+    the residual pruning within the last block is the 1-3% deficit visible in
+    (D).
+
+    In one sentence: the model achieves its minimality (ml variables) by pushing
+    all of the curve's content into monomials that are functionally determined
+    only at the bottom of the tree, and that is exactly the property that
+    destroys early conflict detection. MINIMAL BACKDOOR AND EARLY PROPAGATION
+    ARE IN TENSION, and the source's headline is the first half of that trade
+    reported without the second.
+
+    THE LOSSY-PROJECTION TEST (docs/inventor-protocol.md section 2). The tracked
+    object proposed here is the CONFLICT-DEPTH HISTOGRAM: the map from a search
+    node to the integer depth in the core-variable order at which the solver
+    reported a conflict, accumulated over the run. It is genuinely lossy -- 2^d
+    distinct partial assignments collapse to the single value d, and which
+    variables took which values is discarded entirely. It is discarded
+    COMPATIBLY with the target's operations, because depth is the one quantity
+    that DPLL's decide/propagate/backtrack triple acts on deterministically:
+    decide increments it, backtrack sets it to the asserting level, and neither
+    consults the identity of the variables. So the retained part propagates
+    deterministically and the projection is a new object, not a change of
+    coordinates. Contrast the projection that fails the test: "the current
+    partial assignment restricted to the core variables" loses nothing, because
+    Proposition 1 says the rest is recoverable from it -- that is a change of
+    coordinates and is why it cannot be the object.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: SRC-SATIC-TRIMOSKA-2019
+      provenance: internal
+      claim: >-
+        Proposition 1 (claim C1) - the ml core variables c_{i,j} propagate all
+        remaining variables of the CNF-XOR model; Table 2, Table 3 and Table 4
+        conflict counts and the m! symmetry-breaking construction (claims C2,
+        C4). All numbers are the authors' own and are not reproduced here.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04; read
+        inputs/SATIC-TRIMOSKA-2019/paper_fulltext.md and source_record.yaml in
+        full.
+    - ref: arXiv:2001.11229
+      provenance: retrieved
+      claim: >-
+        Abstract page states the WDSat branching rule is a Minimal-Vertex-Cover
+        preprocessing that acts as "a DLL branching selection rule that leads to
+        quick linearization of the underlying algebraic system", and that "in
+        some cases Gaussian Elimination on SAT instances does not work as well
+        as Gaussian Elimination on algebraic systems". ABSTRACT ONLY - the body
+        of this paper was not read, and it may already contain a search-tree-size
+        analysis that anticipates part (A).
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04, fetched
+        https://arxiv.org/abs/2001.11229
+    - ref: "Williams, Gomes, Selman, Backdoors to typical case complexity, IJCAI 2003"
+      provenance: recalled
+      claim: >-
+        Defines a strong backdoor set with respect to a polynomial-time
+        subsolver; with unit propagation as the subsolver this is the exact
+        notion Proposition 1 establishes for the ml core variables. RECALLED,
+        NOT READ - the name is offered so a reviewer can check whether the
+        backdoor literature already contains a bound of the form asserted in
+        (A).
+      verified_by: null
+    - ref: EXP-ALBIN-007
+      provenance: internal
+      claim: >-
+        An imported (not re-executed) Autolab CNF-XOR encoder and pycryptosat
+        harness for the NON-symmetrized descended Semaev system exists at
+        experiments/EXP-ALBIN-007/source/bin_exp007_wdsat.sage, with Tseitin AND
+        gates and a weak MSB-only symmetry break. It sets no branching order, so
+        it is a candidate |G|=1, no-Prop-1 datapoint for (B5) and a reusable
+        encoder skeleton. Its reported timings were not produced in this
+        repository.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04; read the
+        script and experiments/EXP-ALBIN-007/analysis.md.
+    - ref: KN-TECH-071
+      provenance: internal
+      claim: >-
+        "An algebraic attack's cost is the solving cost, and solving cost is not
+        predicted by the ease of writing the system down"; SAT-solver timings
+        are not complexities.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04.
+
+  assumptions:
+    - >-
+      The solver is complete and its reported "conflict" counter increments once
+      per backtrack-inducing event. Solvers whose counters mean different things
+      (e.g. counting restarts, or counting propagations) must be normalised
+      against a common leaf counter instrumented in the harness, not compared on
+      their own counters.
+    - >-
+      The branching order is restricted to the ml core variables. Without that
+      restriction the claim is not made and (B5) does not apply.
+    - >-
+      For m = 3 the enumerated space under lexicographic symmetry breaking is
+      the multiset count C(2^l + 2, 3), which exceeds 2^{3l}/6 by a factor
+      (1 + 2/2^l)(1 + 1/2^l). The prediction band eps <= 0.05 is stated wide
+      enough to contain both forms; distinguishing them is a secondary
+      measurement, not the claim.
+
+  proof_search_map:
+    bottleneck: >-
+      The number of leaves a complete DPLL/CDCL search must visit on one pdp
+      instance. Every reported cost in the source is (that number) x (a
+      per-leaf constant), and every improvement the source reports moves one of
+      the two factors. Deciding which factor a proposed enhancement moves is
+      upstream of every other question this RQ asks, and it is the step whose
+      removal would change the theorem.
+    baseline_embedding:
+      parameter_slice: >-
+        m = 3, l = 6, |G| = 1 (no symmetry breaking), core-variable branching
+        order: the exact configuration reported in Table 2 of the source as
+        "WDSat with Prop.1" and "CMS with Prop.1". At this slice the claim
+        predicts N_conf = (1 +- 0.05) * 2^18 = 262144 +- 13107, which brackets
+        both of the source's reported values (254686 and 255491) and both of
+        CMS's (260843 and 259688). The second slice is |G| = m! at l = 6,
+        predicting 43691 +- 2185, bracketing the source's 43875 and 44034.
+      reproduction_check: >-
+        A frozen regression fixture: the closed form N(l, m, |G|) = 2^{ml}/|G|
+        is evaluated in pure integer arithmetic at (l, m, |G|) in
+        {6,7,8,9} x {3} x {1, 6} BEFORE any solver is run, committed, and then
+        compared to the harness's own instrumented leaf counter. This is an
+        exact-integer check against a parameter-free formula, not a curve that
+        resembles a curve.
+    observation_collision:
+      observable: >-
+        The pair (total conflict count, conflict-depth histogram) on an UNSAT
+        instance.
+      distinct_preimage_search: >-
+        A COLLISION IS PREDICTED AND IS THE POINT: the observable is claimed to
+        be IDENTICAL for the Semaev system and for any shape-matched random
+        Boolean system with the same core-variable backdoor and the same
+        block-monomial-support pattern. That collision is what
+        IDEA-20260904-b40e6d exists to exhibit, and it is a direct falsifier of
+        any reading of this observable as evidence of elliptic-curve structure.
+        The collision searched for on the OTHER side is two systems with the
+        same conflict count but different backdoor sizes; the claim forbids it,
+        since N_conf is a function of ml alone, so finding such a pair falsifies
+        (A). Same failure shape as the one H-DREG-152cff records for Macaulay
+        column counts: an observable determined by block incidence cannot
+        distinguish the sem from a matched null, and must never be cited as if
+        it could.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace "the DPLL search tree", an object that must be built and
+          traversed, by the integer pair (ml, log2|G|) plus a measured pruning
+          deficit delta(l, n). The cost prediction then becomes an exact
+          arithmetic identity with one measured residual, rather than an
+          empirical timing.
+        predicted_gain: >-
+          Encoding: exact for the leaf count. Completeness: the harness counts
+          leaves directly, so no leaf is missed. Soundness: delta is REPORTED,
+          never fitted; a delta that grows with n voids the transform rather
+          than being absorbed into it. Transfer: DECLARED UNMET for solvers not
+          restricted to the core-variable order, and for any model in which the
+          F-set constraints touch fewer than m blocks. Cost loss: none; the
+          identity is free at every l, including l beyond the solvable range.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold N_conf fixed and vary the forgotten structure -- curve, target R,
+          basis alpha, seed, n. The intrinsic invariant proposed to distinguish
+          the resulting instances is NONE on UNSAT instances; on SAT instances
+          the distinguishing invariant is the position of the planted solution
+          in the enumeration order, which is claimed to be uniform.
+        predicted_gain: >-
+          A prohibition, which is the useful kind: it forbids any future record
+          in this program from reading curve-specific or model-specific content
+          out of an UNSAT conflict count.
+    quantifier_order: >-
+      CLAIMED, IN THIS ORDER: EXISTS one function N(l, m, |G|) = 2^{ml}/|G|,
+      fixed and parameter-free and written before any measurement, FORALL
+      (n, curve E, target R, basis alpha, seed, complete solver S restricted to
+      the ml core variables) in the declared boundary, such that the measured
+      UNSAT leaf count lies within 5% of N. The witness may NOT depend on n, on
+      the curve, or on the solver. The weaker order -- FORALL configurations
+      EXISTS a constant -- is vacuous and is explicitly NOT claimed. THE
+      QUANTIFIER AT RISK IS THE ONE OVER SOLVERS: a solver with an inprocessing
+      step that eliminates substitution variables could in principle prune
+      earlier, and if one does, (A) is false for that solver and the record says
+      so rather than excluding it after the fact.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: a toy-tier, m in {3,4}, l <= 9 statement that on the tested
+        instances the complete search visits (1 +- eps) 2^{ml}/|G| leaves and
+        that the constraint set contributes no measurable above-leaf pruning. It
+        cannot certify that NO solver can prune this model, cannot certify
+        anything at cryptographic l, cannot bound the per-leaf cost, and cannot
+        support any statement about ECDLP hardness. A ceiling measured over a
+        tested solver set is not a lower bound.
+      nearby_object_control: >-
+        THE NEARBY OBJECT ON WHICH THE CONCLUSION MUST FAIL is a Boolean system
+        with the same ml core variables in which the constraints are DELIBERATELY
+        prunable: take the same descended Semaev system and adjoin l redundant
+        linear equations c_{1,j} = c_{2,j} (a system that is still solvable by
+        the same backdoor but whose conflicts must now occur at depth ~2l, not
+        ml). The claim predicts the conflict count collapses by 2^l on this
+        object. A measurement that returns 2^{ml}/|G| there too is responding to
+        the backdoor size alone and has not identified the load-bearing
+        structure; NO result is reported in that case. A second control at zero
+        compute: the same instance with a randomly permuted (non-block)
+        branching order, where the source's own symmetry-breaking algorithm is
+        stated to be incorrect, so |G| must revert to 1.
+    proof_obligations:
+      - claim: >-
+          Under the block core-variable order, no F-set XOR clause has all but
+          one literal determined before depth ml - l.
+        responsibility: correctness
+      - claim: >-
+          The leaf counter instrumented in the harness agrees with each solver's
+          own conflict counter to within 1% on a fixture where the true leaf
+          count is enumerable by brute force (l = 3, m = 3).
+        responsibility: interface
+      - claim: >-
+          N_conf is 2^{ml}/|G| and not the multiset count C(2^l + m - 1, m);
+          which of the two the data selects is reported, not assumed.
+        responsibility: size
+      - claim: >-
+          Independence from n holds across a factor-two range of n at fixed l.
+        responsibility: strictness
+      - claim: >-
+          A timeout or memory abort is recorded as an infrastructure outcome and
+          contributes NOTHING to any conflict-count statistic and NEVER
+          establishes unsatisfiability (AGENTS.md rule 3). UNSAT cells are
+          admissible only when the solver terminated with a completed search.
+        responsibility: scope
+      - claim: >-
+          Nothing transfers to prime fields, to non-subspace factor bases, or to
+          solvers that are not restricted to the core-variable order.
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        ratio_unsat_leaves_to_closed_form = (measured UNSAT leaf count) /
+        (2^{ml}/|G|), at m = 3, l in {6, 7, 8}, |G| in {1, 6}
+      direction: different
+      minimum_effect: >-
+        In [0.95, 1.05] at every cell. A measured ratio below 0.80 at any cell
+        falsifies (A) and is the more interesting outcome, because it means the
+        curve's constraints DO prune and the pruning is a quantity worth
+        chasing.
+    - metric: >-
+        n_sensitivity = max/min of the UNSAT leaf count over n spanning at
+        least a factor 1.8 at fixed (l, m)
+      direction: lower
+      minimum_effect: >-
+        <= 1.01. A value >= 1.10 falsifies (B1).
+    - metric: >-
+        conflict_depth_mass_at_top = fraction of conflicts occurring at core
+        depth >= ml - l
+      direction: higher
+      minimum_effect: >-
+        >= 0.95. A value <= 0.70 falsifies the mechanism even if the total count
+        happens to match, and is the outcome that would redirect the whole RQ
+        toward early-propagation engineering.
+    - metric: >-
+        sat_to_unsat_leaf_ratio, over >= 20 planted-solution instances per cell
+      direction: different
+      minimum_effect: >-
+        Mean in [0.35, 0.65] with a coefficient of variation >= 0.4. A tight
+        distribution with small mean would indicate the solver finds planted
+        solutions faster than chance, falsifying (B3).
+    - metric: >-
+        cross_solver_leaf_agreement = max/min of the UNSAT leaf count over
+        {pycryptosat with forced core-variable order, a CDCL solver with
+        learning disabled, a plain DPLL reference enumerator written in the
+        harness}
+      direction: lower
+      minimum_effect: >-
+        <= 1.10. A spread >= 2 falsifies (B5) and relocates the explanation of
+        the source's anomaly 2 from cost-per-conflict back to search quality.
+    - metric: >-
+        pruning_deficit_trend = delta(l) = 1 - ratio_unsat_leaves_to_closed_form
+        at |G| = 1, as l increases
+      direction: lower
+      minimum_effect: >-
+        delta is non-increasing in l across l = 6, 7, 8 and delta(8) <= 0.02. An
+        increasing delta would mean pruning strengthens with scale, which is the
+        single result that would make solver engineering worth pursuing here.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute, gates everything). Evaluate 2^{ml}/|G| and
+      C(2^l + m - 1, m) at every planned cell and commit the table BEFORE any
+      run. If this stage is skipped the experiment is uninterpretable, because
+      the numbers are then post hoc.
+
+      STAGE 1 (instrument validity). Build the CNF-XOR encoder for the
+      symmetrized model of section 3.2 of the source (four clause sets: X-subs,
+      E-X-relation, E-subs, F) on top of src/semaev_tree.py's field, curve,
+      subspace and descent routines, reusing the Tseitin AND-gate pattern of
+      experiments/EXP-ALBIN-007/source/bin_exp007_wdsat.sage. At m = 3, l = 3,
+      n = 11 enumerate the 2^9 core assignments by brute force, count the true
+      leaves, and require the harness's instrumented leaf counter to match
+      exactly. Verify every SAT answer with a decomposition certificate: recover
+      the m x-coordinates, lift to points on E, sum them, and compare to R using
+      curve arithmetic that does not touch the encoder or the solver
+      (docs/claims-and-verification.md). A failed certificate makes the run
+      invalid_measurement, not a negative observation.
+
+      STAGE 2 (the discriminator). At m = 3 and l in {6, 7, 8}, for each l take
+      n in {3l - 1, 3l + 2, 4l, 5l} (four values spanning at least 1.8x), 20
+      instances per cell, 10 with a planted decomposable target from
+      gen_decomposable_R and 10 with a random target from gen_random_R.
+      Configurations: (i) forced core-variable block order, |G| = 1;
+      (ii) forced core-variable block order plus the lexicographic m! tree
+      pruning of section 4, |G| = 6; (iii) same as (i) with clause learning
+      disabled; (iv) a plain DPLL reference enumerator with no learning at all,
+      written in the harness as the null instrument. Record for every run: the
+      instrumented leaf count, the solver's own conflict counter, the
+      conflict-depth histogram, wall clock with pinned solver version/commit/
+      hardware/seed, and the termination reason.
+
+      STAGE 3 (the ceiling test, only if stages 1-2 pass). At m = 4, l = 6,
+      predict 2^{24}/24 = 699051 leaves under |G| = 4! BEFORE running, then run
+      one cell. This is the only fully out-of-sample prediction in the design
+      and is the cell that most cheaply kills the law.
+    controls:
+      - >-
+        NULL INSTRUMENT: the plain DPLL reference enumerator, which by
+        construction visits exactly 2^{ml}/|G| leaves. If the real solvers do
+        not match it within 10%, the discrepancy is the finding.
+      - >-
+        PRUNABLE-SYSTEM CONTROL: the same descended system plus l redundant
+        linear equations c_{1,j} = c_{2,j}. Leaf count must collapse by
+        approximately 2^l. If it does not, the instrument cannot detect pruning
+        and no conclusion may be drawn from its absence.
+      - >-
+        PERMUTED-ORDER CONTROL: random non-block branching order with symmetry
+        breaking DISABLED (the source states the symmetry algorithm is incorrect
+        under any other order). Predicts leaf count 2^{ml}, i.e. |G| reverts to
+        1.
+      - >-
+        CERTIFICATE CONTROL: every SAT answer re-verified by independent curve
+        arithmetic; every UNSAT answer accepted only from a terminated complete
+        search, never from a timeout.
+      - >-
+        SEED CONTROL: >= 5 seeds per cell, with the seed-to-seed spread reported
+        BEFORE the deviation from the closed form, so that a deviation smaller
+        than the spread cannot be reported as a law violation.
+    required_metrics:
+      - instrumented_leaf_count
+      - solver_reported_conflicts
+      - conflict_depth_histogram
+      - core_decision_count_and_fraction
+      - wall_clock_seconds_with_pinned_version_commit_hardware_seed
+      - termination_reason (completed | timeout | memory_abort | crash)
+      - certificate_verified (bool, independent recompute)
+      - n, l, m, |G|, seed, curve_id, target_kind (planted | random)
+
+  falsification_conditions:
+    - >-
+      F1. ratio_unsat_leaves_to_closed_form outside [0.95, 1.05] at any tested
+      cell with a terminated complete search. (A) is false as stated and is
+      restated with the measured pruning fraction, or rejected.
+    - >-
+      F2. The conflict-depth histogram puts more than 30% of its mass below
+      depth ml - l. The mechanism is wrong even if the total matches, and the
+      RQ redirects to early-propagation engineering.
+    - >-
+      F3. n_sensitivity >= 1.10 at any fixed (l, m). (B1) is false and the curve
+      equations do constrain the search.
+    - >-
+      F4. cross_solver_leaf_agreement >= 2. (B5) is false; the source's anomaly
+      2 is then a search-quality story after all, and the ablation of
+      IDEA-20260904-7fd218 must be re-scoped.
+    - >-
+      F5. The prunable-system control does NOT collapse. Instrument failure: no
+      result is reported in either direction.
+    - >-
+      F6. The m = 4 out-of-sample cell misses 2^{24}/24 by more than 10%. The
+      law does not extend in m and the record says so, naming the measured
+      value.
+    - >-
+      F7 (PRE-REGISTERED NEGATIVE). If the law fails, the deliverable is NOT
+      "the search must be measured". It is the exhibited cell, the measured
+      pruning fraction with error bars, the conflict-depth histogram at that
+      cell, and a corrected predicate. A negative that names no cell has not
+      finished and its honest status is unverified.
+
+  confounders:
+    - >-
+      Conflict counters are not comparable across solvers: CDCL solvers count
+      conflicts after clause learning and restarts, a DPLL enumerator counts
+      leaves. This is why the harness instruments its own leaf counter and why
+      solver counters are recorded but never used as the primary metric.
+    - >-
+      Preprocessing and inprocessing (variable elimination, blocked clause
+      elimination, XOR recovery) can silently change the effective variable set
+      and destroy the core-variable order. All preprocessing must be DISABLED
+      and the disabling verified by comparing the post-preprocessing variable
+      count to the pre-processing one.
+    - >-
+      Restart policies change the traversal order and therefore the SAT-instance
+      conflict count, without changing the UNSAT total. SAT and UNSAT are
+      analysed separately for this reason, per the RQ constraint.
+    - >-
+      The encoder itself is a confounder: a different Tseitin encoding, or a
+      different choice of which monomials to substitute, changes the clause
+      count without changing the backdoor. Both the symmetrized model and the
+      direct model of src/semaev_tree.py must be encoded and both reported,
+      because a law that holds for one and not the other is a statement about
+      the encoding.
+    - >-
+      A "half the instances are satisfiable" design is not the same as "the
+      instance is a uniformly random target"; planted targets from
+      gen_decomposable_R are drawn from a specific distribution over
+      decomposable points and are not representative of relation-collection
+      practice. Reported as a scope limit, never averaged with the random arm.
+    - >-
+      At small l the sub-leading terms of the multiset count are not negligible
+      (at l = 6 the two candidate closed forms differ by 4.7%, inside the stated
+      band). Cells at l <= 6 therefore cannot distinguish the two forms and are
+      not used for that secondary question.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER toy, and no downstream citation may raise it. Fields are
+      2^{17}..2^{40}; this is far below any cryptographic size and the law is
+      asserted only over the tested cells plus the explicitly labelled
+      arithmetic extrapolation.
+    - >-
+      THIS IS NOT A LOWER BOUND. Measuring that a tested solver set does not
+      prune is not a proof that no solver can. Every statement is scoped to the
+      solvers, versions, encodings and orders actually run, and the record must
+      not be cited as "SAT cannot do better on the pdp".
+    - >-
+      NO EXPONENT IS IMPROVED. If (A) holds it is a CEILING result: it says the
+      published approach's search size is exactly what its own worst-case bound
+      says, and that solver engineering cannot move it. sota_delta on every
+      attack axis is zero; Pollard rho remains the ECDLP baseline.
+    - >-
+      The observable cannot distinguish the Semaev system from a shape-matched
+      random system; that is asserted here and tested by
+      IDEA-20260904-b40e6d. Until that null runs, NOTHING in this record may be
+      described as a property of elliptic curves.
+    - >-
+      No end-to-end index-calculus statement follows. Relation yield, linear
+      algebra and a matched rho baseline live in RQ-RELN-001 and RQ-ICEX-001,
+      and KN-FIND-007 already bounds what yield engineering can contribute.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        LEAF-CONCENTRATION. For the symmetrized CNF-XOR pdp model at arity m and
+        factor-base dimension l, under a block core-variable branching order,
+        the probability that unit propagation from a uniformly random partial
+        assignment of depth d < ml yields a conflict is O(2^{-(ml-d)}),
+        uniformly over n in the range m(l-1) <= n <= 6l and over curves with
+        j-invariant != 0. Consequently the expected number of above-leaf
+        conflicts is O(2^{ml}/2^{l}) = o(2^{ml}), and the total leaf count is
+        (1 + O(2^{-l})) 2^{ml}/|G|.
+      rigorous_support: >-
+        Proposition 1 of SRC-SATIC-TRIMOSKA-2019 (claim C1) rigorously fixes the
+        backdoor at exactly ml variables and therefore fixes the tree height,
+        giving the RIGOROUS UPPER bound 2^{ml} and, with the section-4 argument,
+        2^{ml}/m!. What is assumed here is the matching LOWER behaviour, i.e.
+        that the upper bound is essentially attained. The rigorous half is the
+        height; the assumed half is the absence of early conflicts. The
+        classical statement being imitated is the standard random-CNF one: a
+        constraint whose variables are not yet all assigned is satisfied by a
+        uniformly random completion with probability 1/2 per parity constraint,
+        so a conflict at depth d requires all n F-set parities to be decided,
+        which the substitution structure forbids until the last block closes.
+      validation_plan: >-
+        SAMPLE: the conflict-depth histogram, which is the direct empirical
+        content of H1, at m = 3, l in {6,7,8}, n in {3l-1, 3l+2, 4l, 5l}, 20
+        instances and >= 5 seeds per cell, on UNSAT (random-target) runs only.
+        SHORTCUT MAKING LARGER PARAMETERS FEASIBLE: at l >= 9 the full run is
+        out of budget, so H1 is probed instead by SAMPLING partial assignments
+        directly -- draw 10^6 uniformly random depth-d prefixes for
+        d = ml - 3l, ml - 2l, ml - l, ml - l/2, run unit propagation ONLY (no
+        search), and record the empirical conflict rate. This costs O(10^6)
+        propagations rather than O(2^{ml}) and reaches l = 11 and m = 4.
+        COMPARISON DISTRIBUTION: the empirical conflict rate at depth d is
+        compared against the geometric prediction 2^{-(ml-d)} and, as the null,
+        against the same measurement on a shape-matched random Boolean system
+        (IDEA-20260904-b40e6d). TAIL CHECKS: report the SHALLOWEST conflict
+        observed over all 10^6 samples at each cell, and check it against the
+        predicted probability of a conflict at that depth; a shallow conflict
+        occurring far more often than 2^{-(ml-d)} predicts is the tail signature
+        of real pruning and falsifies H1 before the expensive runs start.
+        SAMPLED PARAMETERS AND TRANSFER: recorded explicitly as
+        (m, l, n, seed, curve_id); TRANSFER ASSUMPTION, STATED AND NOT PROVED --
+        that the propagation-only conflict rate measured on uniformly random
+        prefixes equals the rate the solver experiences on the prefixes its own
+        traversal actually visits. Those are different distributions and the
+        difference is not modelled here.
+    - id: H2
+      statement: >-
+        SYMMETRY-QUOTIENT EXACTNESS. The lexicographic tree-pruning of section 4
+        of the source removes exactly the factor m! from the enumerated space
+        and nothing else, so the leaf count with symmetry breaking equals the
+        leaf count without it divided by m!(1 + O(2^{-l})), uniformly in n.
+      rigorous_support: >-
+        Rigorous half: out of the m! permutations of a solution multiset,
+        exactly one satisfies x_1 <= ... <= x_m when the entries are distinct,
+        so the quotient is exact up to the multiset boundary. The classical
+        statement imitated is the elementary count of multisets,
+        C(2^l + m - 1, m) = 2^{ml}/m! (1 + O(m^2/2^l)), i.e. the boundary where
+        two of the m points coincide has density O(m^2 2^{-l}) and vanishes as
+        l grows.
+      validation_plan: >-
+        SAMPLE: the ratio (leaf count at |G| = 1) / (leaf count at |G| = m!) on
+        UNSAT instances, at m = 3 (predict 6) and m = 4 (predict 24), l in
+        {6,7,8} for m = 3 and l = 6 for m = 4, >= 5 seeds. COMPARISON: the ratio
+        is compared against both m! and the exact multiset ratio
+        2^{ml}/C(2^l + m - 1, m), which differ by 4.7% at l = 6, m = 3 and by
+        0.3% at l = 8; the design therefore distinguishes them only at l >= 8,
+        and that limitation is stated up front. TAIL CHECK: the fraction of
+        planted instances whose m points are NOT distinct is counted directly
+        from the certificate and compared to the predicted O(m^2 2^{-l}); an
+        excess would explain any shortfall in the ratio without impugning the
+        law. TRANSFER: none claimed beyond the tested m and l.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS IMPROVED, AND THIS RECORD EXISTS TO SAY SO PRECISELY. The
+      claim is a CEILING: pdp solving cost under this model is
+      (2^{ml}/|G|) x c_leaf, i.e. the exponent is exactly ml - log2|G| bits,
+      with c_leaf a per-leaf constant that solver engineering can move and the
+      exponent that it cannot. In the source's own parameterisation (l = n/m,
+      one relation per 2^{ml}/(m! 2^n) targets) that reproduces the published
+      Theorem 1 figure of Otilde(2^{n+l}) for the whole relation-collection
+      phase, and the point of the record is that this figure is TIGHT for the
+      method, not pessimistic.
+    memory_exponent: >-
+      O(poly(l, n, m)) -- the model's variable and clause counts are polynomial
+      in l (Table 1 of the source: 767 to 3247 variables for l = 6..11), and a
+      DPLL enumerator with learning disabled stores only the trail. This is the
+      genuine Pareto advantage of the approach and it is preserved by this
+      claim. With clause learning enabled the memory is bounded by the learnt
+      clause budget and is a tuning parameter, not a property of the model.
+    best_known: >-
+      For the SAME step, with the SAME poly memory: an (m-1)-fold enumeration
+      over the factor base with a GF(2) subspace-membership test, at
+      2^{(m-1)l}/(m-1)! curve operations -- a factor 2^l/m fewer operations,
+      derived and costed in IDEA-20260904-96c4f3. For the whole ECDLP: Pollard
+      rho / van Oorschot-Wiener at ~2^{n/2} group operations with negligible
+      memory, which dominates everything in this lane at every n considered.
+    hidden_overhead: >-
+      The (1 +- eps) band hides whatever above-leaf pruning does exist; the
+      source's own Table 2 numbers suggest 1-3% at l = 6..8 and shrinking, but
+      that is the AUTHORS' data and not a measurement here. c_leaf hides the
+      entire per-leaf cost -- propagation over 2364 to 10784 clauses per leaf at
+      l = 6..11 by Table 1 -- and is exactly what the ablation of
+      IDEA-20260904-7fd218 is for. The o(1) in "2^{ml}" hides nothing; ml is an
+      integer.
+    tradeoff_note: >-
+      The method sits at the extreme poly-memory end of the pdp frontier. The
+      time-memory tradeoff it does NOT take is the table-based one: precomputing
+      all pair sums gives 2^{2l} memory and reduces relation collection to
+      Otilde(2^{n-l}) at m = 3 (IDEA-20260904-96c4f3). Parallelisation is
+      embarrassing and exact -- the core cube splits into 2^k independent
+      subcubes by fixing k core variables, with no communication and no shared
+      state, giving linear speedup to 2^{ml} processors; that is a property of
+      complete enumeration and is itself a corollary of (A), since a search with
+      real learning would not parallelise this cleanly.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+
+  recommended_priority: high
+
+  implementation_notes: >-
+    WHAT EXISTS AND WHAT DOES NOT, STATED HONESTLY. src/semaev_tree.py provides
+    build_field_and_curve, S3_char2, build_chained_system_symbolic,
+    weil_descend_to_F2, make_V_subspace, gen_decomposable_R and gen_random_R --
+    everything up to the descended Boolean system. There is NO CNF-XOR encoder
+    in src/, NO solver binding, NO leaf/conflict instrumentation and NO
+    symmetrized S'_{m+1} model (semaev_tree builds the chained/tree model, not
+    the elementary-symmetric model of section 2 of the source). The nearest
+    existing artifact is the imported, never-re-executed
+    experiments/EXP-ALBIN-007/source/bin_exp007_wdsat.sage, whose Tseitin
+    AND-gate encoder and pycryptosat binding are directly reusable but which
+    encodes the direct (non-symmetrized) model and sets no branching order.
+    WDSat itself has not been fetched or built in this repository. Forcing a
+    branching order requires either a solver with that API or a patch; if no
+    such binding is available, the harness's own DPLL reference enumerator is
+    sufficient for the primary metric and the solver arms become secondary --
+    that fallback is declared here so that an unavailable binding is an
+    infrastructure outcome and not a failed experiment.
+
+  dominated_by: >-
+    On the pdp step at matched poly memory: an (m-1)-fold enumeration over the
+    subspace factor base with an O(l n) GF(2) membership test, costing
+    2^{(m-1)l}/(m-1)! curve operations against this model's 2^{ml}/m! leaves --
+    a factor 2^l/m fewer operations, i.e. 2^11/3 ~ 683x at l = 11, m = 3. That
+    row is derived in IDEA-20260904-96c4f3, is elementary, and is very likely
+    folklore; it is stated here rather than omitted. On the whole ECDLP:
+    Pollard rho / van Oorschot-Wiener at ~2^{n/2}. Checked against the frontier
+    rows this program records for the pdp step: Grobner F4 (time reported worse,
+    memory > 200GB at l = 8 per claim C5), generic CDCL, the CNF model of
+    Galbraith-Gebregiyorgis, and the internal BKK-sparse results KN-FIND-2a8b7e
+    and KN-FIND-8f2c90 (prime field, m-fold, constant factor 3-5x, not
+    comparable at this step). Setting this field to null would be an unchecked
+    null.
+
+  sota_delta: >-
+    Zero on every attack axis: no algorithm is proposed and no cost is reduced.
+    The quantitative deliverable is a CEILING with error bars -- the statement
+    that the tested solver set visits (1 +- eps) 2^{ml}/|G| leaves with
+    eps <= 0.05, plus a measured conflict-depth histogram and a measured
+    n-sensitivity <= 1.01. Its value is that it converts an open-ended
+    "which solver is best" question into an arithmetic identity that every
+    future proposal in this lane must beat by a stated factor, and it supplies
+    the obstruction measurement (the pruning deficit delta(l, n), with units and
+    error bars) that docs/inventor-protocol.md section 4 requires of a closure.
+
+  honest_prior_of_survival: >-
+    About 0.85 that the total-count law (A) holds within 5% at m = 3 for the
+    solvers and orders tested, because the source's own reported counts already
+    sit within 1% of the closed form at six values of l. About 0.6 that the
+    conflict-depth histogram is as concentrated as the mechanism says, because
+    the total could match while the depth distribution differs. About 0.3 that
+    the m = 4 out-of-sample cell lands within 10%, because m = 4 changes the
+    Semaev degree and the substitution structure and has never been measured
+    anywhere in this program. About 0.05 that anything here moves an exponent;
+    it is explicitly a ceiling record.

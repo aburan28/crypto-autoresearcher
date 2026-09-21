@@ -1,0 +1,193 @@
+protocol_amendment:
+  experiment_id: EXP-MONO-8ec0e5
+  version_from: 1
+  version_to: 2
+  filed_at: '2026-09-04'
+  filed_by: coordinator
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-09-04'
+  approval_note: >-
+    Approved after RUN-MONO-8ec0e5-1's own disclosed resource_exhaustion
+    outcome (863.6s wall, 91 of 278 declared primes searched, zero
+    qualifying curves found under the corrected filter) and the Executor's
+    own explicit escalation for a Coordinator decision rather than a
+    unilateral scope widening. Nothing in this amendment was written after
+    seeing which curves DO or DO NOT qualify beyond p=641 -- the change
+    below is a computational-method substitution, verified equivalent on
+    already-examined small primes, not a re-targeting of the search toward
+    any particular outcome.
+  applies_to: >-
+    FUTURE RUNS ONLY. RUN-MONO-8ec0e5-1 is retained unchanged and its own
+    resource_exhaustion classification stands exactly as recorded
+    (AGENTS.md rule 4). This amendment adds a verified-equivalent
+    computational speedup to Stage 0; it changes no declared input, no
+    search order, no search range, no qualifying filter, and no
+    pre-registered prediction.
+
+  reason: >-
+    RUN-MONO-8ec0e5-1's own execution_report.yaml (protocol_deviations)
+    and the Executor's own dispatch message trace the resource exhaustion
+    to `cubic_roots(A, B, p)`: an O(p) scan over range(p) called
+    UNCONDITIONALLY for every non-singular (A, B) pair, purely to
+    determine Z (the number of rational roots of f). This is the dominant
+    cost -- NOT the brute-force 4-torsion count (`count_4_torsion_
+    bruteforce`), which the existing code already gates correctly behind
+    the cheap character-based filter (`h_pair_from_characters`) and calls
+    only for the rare FILTER_AUDIT_N=250 audit sample plus the still-rarer
+    candidates the fast filter itself accepts. Summed over
+    O(p^2) (A,B) pairs per prime, an O(p) per-pair root scan gives O(p^3)
+    per prime -- consistent with the measured 13,961,419 pairs over 91
+    primes consuming 863.6s wall before the budget was exhausted at
+    p=641, with 187 further declared primes (up to 2000) unreached.
+
+  changes:
+  - id: A1
+    field: implementation (NOT search order, range, or filter)
+    kind: substitution
+    from: >-
+      For every non-singular (A,B) pair, call `cubic_roots(A,B,p)`
+      (O(p) scan of range(p)) to determine whether f=X^3+AX+B splits into
+      exactly 3 distinct F_p-rational roots (Z=3), before any other test
+      runs.
+    to: >-
+      For every non-singular (A,B) pair, first test whether f splits
+      completely over F_p via the standard fast criterion: f splits
+      completely into distinct linear factors over F_p if and only if
+      X^p ≡ X (mod f(X)) AND gcd(f, f') = 1 (f squarefree, guaranteed
+      here by the non-singularity check already performed). X^p mod f(X)
+      is computed by fast modular exponentiation (repeated-squaring,
+      O(log p) multiplications of degree-<=2 polynomials mod f(X), each
+      multiplication itself O(1) since deg f = 3) -- O(log p) total per
+      (A,B) pair instead of O(p). ONLY when this fast test says "splits
+      completely" does the code fall back to the existing, unmodified
+      `cubic_roots(A,B,p)` to obtain the actual root VALUES (needed
+      downstream for n_+/n_-/h_+/h_- and the Q_e(T) construction) --
+      this happens for roughly 1/6 of non-singular pairs (the S_3-random
+      density of "identity cycle type"), not for all of them.
+    rationale: >-
+      This is the standard splitting test used in polynomial
+      factorization over finite fields (the "distinct-degree"
+      test underlying Cantor-Zassenhaus and Berlekamp), reduces the
+      dominant per-pair cost from O(p) to O(log p), and touches NOTHING
+      about which (A,B) pairs qualify or in what order they are visited
+      -- it only changes how the SAME boolean ("does f split completely")
+      is computed for each pair in the SAME fixed order.
+  - id: A2
+    field: verification (new, required before trusting A1)
+    kind: addition
+    to: >-
+      MANDATORY SR-A1 EQUIVALENCE GATE, RUN FIRST, BLOCKING: before Stage
+      0 is allowed to use the fast splitting test for the real search, the
+      Executor must independently cross-check it against the existing,
+      already-trusted `cubic_roots`-based Z-determination on EVERY
+      non-singular (A,B) pair for a substantial sample of SMALL primes
+      already fully examined in RUN-MONO-8ec0e5-1 (at minimum: all primes
+      in [101, 199], exhaustively, both methods, every non-singular pair
+      -- this is cheap, since it reuses already-budgeted small-p compute).
+      Any disagreement between the fast test's "splits completely / does
+      not" verdict and `cubic_roots`'s own len(roots)==3 result on ANY
+      examined pair is a STOP-and-report `specification_error` -- Stage 0
+      may not proceed to the real search on an unverified speedup.
+    rationale: >-
+      This program's own established practice (FILTER_AUDIT_N in every
+      prior experiment in this sub-thread) is to never trust a fast
+      surrogate for an expensive, already-correct computation without an
+      explicit, disclosed equivalence check first. The same discipline
+      applies here to a NEW piece of code, not previously reviewed.
+
+  definitions_frozen:
+    fast_splits_completely_test: >-
+      Represent f(X) = X^3 + A X + B as a coefficient list mod p.
+      Represent the polynomial ring F_p[X]/(f(X)) via ordinary
+      degree-<3 polynomial arithmetic mod p, reducing any product of two
+      degree-<3 polynomials modulo f(X) using f's own defining relation
+      (X^3 = -A X - B mod f). Compute X^p mod f(X) by repeated squaring
+      of the element X in this ring, using the binary representation of
+      p. f splits completely over F_p iff this result equals X exactly
+      (as a reduced polynomial, i.e. the tuple (0,1,0) in the {1,X,X^2}
+      basis) AND f has no repeated root (guaranteed here since the
+      caller only reaches this test after the non-singularity check,
+      which already excludes repeated roots for a short-Weierstrass
+      cubic).
+
+  frozen_decision_rule:
+    if_sr_a1_gate_passes: >-
+      Proceed to the real Stage-0 search using the fast test as the
+      PRIMARY splitting check, falling back to `cubic_roots` only for
+      pairs it accepts, exactly as declared in change A1. The declared
+      search order, range, and qualifying filter (Z=3 AND h_+>=1 AND
+      h_->=1 AND max(h_+,h_-)>=2) are UNCHANGED from specification.yaml
+      version 1.
+    if_sr_a1_gate_fails: >-
+      STOP. Report `specification_error` with the exact (p,A,B) pair(s)
+      where the fast test and `cubic_roots` disagree. Do not attempt a
+      third implementation without a further Coordinator-reviewed
+      amendment.
+
+  parameters_frozen:
+    equivalence_check_range: primes in [101, 199], all non-singular (A,B) pairs, both methods
+    search_range_unchanged: "[101, 2000], same as specification.yaml v1"
+    search_order_unchanged: "prime ascending, then A ascending, then B ascending"
+    qualifying_filter_unchanged: "Z=3 AND h_+>=1 AND h_->=1 AND max(h_+,h_-)>=2"
+
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 1
+    maximum_memory_gb: 0.125
+    maximum_runs: 1
+    budget_note: >-
+      Unchanged from specification.yaml v1's own 900s/900s/128MiB budget.
+      The entire point of this amendment is that the corrected algorithm
+      should complete the FULL declared [101,2000] range comfortably
+      inside that already-approved budget, not that more budget is
+      needed.
+
+  invalidation_rules:
+    - SR-A1's own equivalence gate fails on any examined pair -> INVALID, specification_error.
+    - Any change to the declared search order, range, or qualifying filter -> INVALID.
+    - Any post-hoc adjustment of A1/A2 after seeing which curve the corrected search finds -> INVALID.
+    - A timeout, crash, or OOM -> resource_exhaustion or failed_infrastructure, retained with partial artifacts, NEVER negative evidence (AGENTS.md rule 3).
+
+  required_artifacts:
+    - experiments/EXP-MONO-8ec0e5/runs/RUN-MONO-8ec0e5-2/manifest.yaml
+    - experiments/EXP-MONO-8ec0e5/runs/RUN-MONO-8ec0e5-2/raw-result.json (including the SR-A1 equivalence-gate result explicitly)
+    - command.txt, environment.json, stdout.log, stderr.log
+
+  affected_runs:
+    - >-
+      NONE ARE RE-SCORED. RUN-MONO-8ec0e5-1 is retained unchanged; its
+      resource_exhaustion classification is not revised by this
+      amendment. This amendment authorizes a second run
+      (RUN-MONO-8ec0e5-2) under a verified-equivalent, faster
+      implementation of the SAME declared search.
+
+  confirmatory_status: exploratory_only
+  confirmatory_status_note: >-
+    This amendment's own change is a computational-method substitution,
+    not a scientific one. It carries no prediction of its own; the
+    pre-registered predictions in specification.yaml v1 (M1-M3) are
+    unchanged and unaffected.
+
+  what_this_amendment_does_not_do:
+    - It does not widen, narrow, or reorder the declared Stage-0 search.
+    - It does not change H-MONO-dd666a's own falsification condition or predictions.
+    - It does not re-score or invalidate RUN-MONO-8ec0e5-1.
+    - It does not authorize any change beyond the Z-splitting-test substitution and its mandatory equivalence gate.
+
+  refs:
+    - GOAL-MONO-001
+    - RQ-MONO-001
+    - EXP-MONO-8ec0e5
+    - H-MONO-dd666a
+    - CORR-20260904-b9f9c1
+    - TASK-20260904-e063c0
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    reasoning_effort: high
+    runtime: claude_code
+    resolved_model_id: claude-sonnet-5
+    model_verified: true
+    fallback_used: false
+    degraded_requirements: []

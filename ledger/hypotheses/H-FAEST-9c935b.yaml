@@ -1,0 +1,484 @@
+hypothesis:
+  id: H-FAEST-9c935b
+  question_id: RQ-FAEST-001
+
+  statement: >-
+    SCOPE: the MATCHED BASELINE against which any FAEST forgery cost is
+    compared, at the twelve deployed parameter sets, in FAEST's own
+    adversary model. CLAIM TIER: derivation from primary implementation
+    source plus arithmetic, with ONE external figure (the data complexity of
+    the biclique full-AES-128 attack) that this program has not read and
+    whose retrieval may fail. NO ATTACK, NO FORGERY, NO EXPONENT.
+    CLAIM, in three parts.
+    (B1) DATA BUDGET. The number of independent OWF input/output block pairs
+    a FAEST public key publishes is nu = beta: nu = 1 for faest_128s,
+    faest_128f and all six EM sets; nu = 2 for faest_192s/f and
+    faest_256s/f. Signing publishes no further evaluation of the OWF under
+    the secret. Consequently a key-recovery attack requiring D > nu pairs is
+    NOT AVAILABLE to a FAEST forger and is inadmissible as its matched
+    baseline.
+    (B2) PREIMAGE MULTIPLICITY. Under HEUR-FF-1 the expected number of
+    secrets consistent with the published public key is
+    E[S] = 1 + (2^{kappa} - 1) * 2^{-c} with kappa the secret bit length and
+    c = 8 * owf_output_size, giving E[S] = 2 - 2^{-kappa} for TEN of the
+    twelve sets and E[S] = 1 + 2^{-64} for faest_192s and faest_192f ALONE.
+    Where E[S] ~ 2 the expected exhaustive search for ANY admissible witness
+    is 2^{kappa}/(E[S]+1) evaluations, about 0.58 bits below the
+    unique-solution value and about 1 bit below the convention that charges
+    2^{kappa}.
+    (B3) CONSEQUENCE. The admissible matched baseline for the 128-bit sets is
+    therefore in the range 2^{126.4} to 2^{127.0} depending on a declared
+    cost convention, and is NOT 2^{126.1}. The figure 2^{126.1} currently
+    written into IDEA-20260731-002, -003, -004, -005 and the
+    GOAL-FAEST-001 BATCH-001 checkpoint is a full-AES-128 key-recovery cost
+    at an UNSTATED and UNREAD data complexity; it is admissible only if that
+    data complexity is at most nu.
+    FALSIFIER, PRE-REGISTERED: if the biclique attack turns out to need at
+    most 8 pairs, (B1) is void, 2^{126.1} stands, and only (B2)'s ~0.6-bit
+    correction survives. That is the most likely single failure.
+
+  mechanism: >-
+    PRIMARY SOURCE, READ THIS SESSION 2026-08-06 over raw.githubusercontent.com
+    from faest-ref at the MOVING ref 'main' (HTTP 200 on README.md, owf.c,
+    owf.h, faest_impl.c, faest_impl.h, instances.c, instances.h, bavc.c,
+    meson.build). NO COMMIT SHA WAS PINNED; pinning one is stage 0. The FAEST
+    SPECIFICATION PDF WAS NOT READ, so every number below is an
+    IMPLEMENTATION constant and a specification/implementation divergence is
+    itself a first-class finding.
+
+    (i) WHAT THE PUBLIC KEY PUBLISHES. faest_impl.h declares
+    faest_verify(msg, msglen, sig, owf_input, owf_output, params), and
+    faest_impl.c's hash_mu() hashes owf_input and owf_output into mu, so both
+    are public per key pair. meson.build gives owf_input_size /
+    owf_output_size = 16/16 for faest_128s/f and faest_em_128s/f, 16/32 for
+    faest_192s/f and faest_256s/f, 24/24 for faest_em_192s/f, 32/32 for
+    faest_em_256s/f, with BETA = 1 except BETA = 2 for the four non-EM
+    192/256 sets. owf.c confirms the shapes: owf_128 is one AES-128 ECB
+    block; owf_192/owf_256 emit two blocks at output and output + IV_SIZE;
+    owf_em_* expand the round keys FROM THE PUBLIC INPUT and encrypt the
+    SECRET.
+    (ii) WHY nu = beta AND NOT MORE. The OWF is evaluated once, at key
+    generation. Signing consumes the WITNESS (the secret and its derived
+    AES trace), not fresh OWF evaluations on new inputs. A signature
+    therefore adds transcript material about the SAME evaluation, not a new
+    (plaintext, ciphertext) pair under the secret key. THIS IS HEUR-FF-2 AND
+    IS NOT PROVED HERE: VOLE openings reveal masked linear functions of
+    witness bits, and whether any subset reconstitutes an AES evaluation on a
+    fresh input is IDEA-20260731-005's question, not this one's.
+    (iii) THE MULTIPLICITY COUNT, EXACTLY. Fix the public input(s). Under
+    HEUR-FF-1 (AES_k(x) uniform in k for fixed x) each wrong secret satisfies
+    the published constraints with probability 2^{-c}, so by LINEARITY OF
+    EXPECTATION ALONE -- no independence needed --
+    E[S] = 1 + (2^{kappa} - 1) 2^{-c}. Substituting the verified table:
+      kappa = c = 128: faest_128s/f, faest_em_128s/f  -> E[S] = 2 - 2^{-128}
+      kappa = c = 192: faest_em_192s/f                -> E[S] = 2 - 2^{-192}
+      kappa = c = 256: faest_em_256s/f, faest_256s/f  -> E[S] = 2 - 2^{-256}
+      kappa = 192, c = 256: faest_192s/f              -> E[S] = 1 + 2^{-64}
+    A FAEST forgery needs a witness satisfying the OWF relation, not the
+    signer's particular secret; therefore the relevant search is for ANY
+    element of S, whose expected cost is 2^{kappa}/(E[S]+1) under the same
+    idealisation.
+    (iv) THE ADMISSIBILITY GATE. For each published AES key-recovery attack
+    with cost T and data requirement D (in plaintext/ciphertext pairs under
+    the target key), the gate is the boolean D <= nu. The matched baseline is
+    the minimum of T over admissible attacks, together with exhaustive search
+    at (T = 2^{kappa}/(E[S]+1), D = nu, M = O(1)). The gate consumes only
+    (T, D) and no mechanism.
+    (v) THE COST BOOKKEEPING AND THE UNIT PROBLEM. Every number above is
+    "expected AES evaluations". Which unit the NIST category convention uses,
+    and whether it charges 2^{kappa} or 2^{kappa-1} for key search, IS NOT
+    KNOWN TO THIS PROGRAM AND MUST BE READ. The deliverable is therefore a
+    SMALL TABLE indexed by convention, not a single number, and the
+    convention is declared before any comparison is made.
+    (vi) RECORD INTEGRITY OF THE INHERITED FIGURE. knowledge/literature/
+    KN-LIT-2701.md was READ IN FULL AS A FILE by this session. Measured, not
+    recalled: authors recorded with footnote markers merged into names
+    ("Andrey Bogdanov**", "Christian Rechberger**"); year null; venue null;
+    all four identifier fields null; tags include "pairing" and "quantum";
+    the "## Relevance to this program" section describes MOV/Frey-Ruck and
+    GLV/GLS, i.e. ECDLP material on an AES paper; front matter says
+    citation_verified: read while the body says claims are relayed from the
+    abstract without independent verification; local copies point at three
+    untracked files under downloads/. The string KN-LIT-2701 occurs in 14
+    files under ledger/, knowledge/, experiments/ and docs/ (measured
+    2026-08-06). THE ENTRY RECORDS NO DATA COMPLEXITY FOR ANY OF ITS
+    ATTACKS -- which is exactly the number the gate needs.
+
+  assumptions:
+    - >-
+      That faest-ref's parameter table matches the FAEST v2.0 specification.
+      NOT VERIFIED. Divergence is a finding.
+    - >-
+      That signatures publish no additional OWF pair (HEUR-FF-2).
+    - >-
+      That AES_k(x) is uniform in k for fixed x, to first moment only
+      (HEUR-FF-1).
+    - >-
+      That the biclique data complexity can be obtained. ePrint PDFs are
+      recorded as HTTP 403 from this harness in
+      scratchpad/scout/ANGLE-BRIEF.md section 1; failure to obtain it is an
+      INFRASTRUCTURE outcome and closes nothing (AGENTS.md rule 5).
+
+  proof_search_map:
+    bottleneck: >-
+      The single inequality "forgery_cost >= matched_baseline" that four
+      existing FAEST proposals are built to evaluate. Its right-hand side is
+      currently a number with no adversary model attached. Fixing the
+      right-hand side is upstream of all four and consumes none of their
+      budgets; leaving it unfixed means any of them could report a
+      sign-flipped conclusion from a correct computation.
+    baseline_embedding:
+      parameter_slice: >-
+        nu = infinity (unlimited chosen-plaintext access) reproduces exactly
+        the standard AES cryptanalytic setting in which 2^{126.1} was
+        derived, and c >> kappa reproduces the unique-witness setting in
+        which "key recovery" and "witness search" coincide. At that slice the
+        proposal's two corrections both vanish and the incumbent figure is
+        recovered.
+      reproduction_check: >-
+        SYMBOLIC AND EXACT: at nu = infinity every published attack is
+        admissible and the baseline is min T = 2^{126.1} as relayed; at
+        c -> infinity, E[S] -> 1 and 2^{kappa}/(E[S]+1) -> 2^{kappa}/2. Both
+        limits must be reproduced by the implementation as a frozen fixture
+        before any deployed cell is computed.
+    observation_collision:
+      observable: >-
+        The pair (log2 T, log2 D) per attack, plus E[S] per parameter set.
+      distinct_preimage_search: >-
+        Collisions are expected and harmless on the attack axis (many attacks
+        share a (T, D) point) because the gate consumes only that pair. The
+        collision that WOULD matter, and that is checked: do two parameter
+        sets with genuinely different structure share the same E[S]? YES --
+        faest_128f (AES-128, one block) and faest_em_256f (Rijndael-256, one
+        block) both give E[S] = 2 - 2^{-kappa}, so E[S] alone does not
+        identify the set and must never be used as a fingerprint for one. The
+        separating quantity is (kappa, c) jointly, and the audit reports the
+        pair everywhere. The nearby pair that DOES separate is
+        faest_192f (E[S] ~ 1) versus faest_256f (E[S] ~ 2) -- same family,
+        different multiplicity -- and it is the designed null.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          Specialise the general question "what is AES's key-recovery cost"
+          to the FAEST-specific question "what is the cost of finding ANY
+          preimage of a published OWF value at nu pairs". The specialised
+          problem has a different answer (by E[S]) and a different admissible
+          attack set (by D <= nu).
+        predicted_gain: >-
+          A baseline that is correct for the adversary FAEST actually faces,
+          replacing one that is correct for a different adversary. Gain is
+          ~1 bit and a binary admissibility verdict, not an exponent.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the baseline value fixed and vary the forgotten structure (the
+          adversary model). If the baseline is invariant under changing nu
+          from 1 to infinity, then the data budget is not load-bearing and
+          correction (B1) is void.
+        predicted_gain: >-
+          A direct cheap falsifier of (B1) that needs only the one unread
+          number.
+    quantifier_order: >-
+      CLAIMED, IN THIS ORDER: FOR ALL parameter sets p, FOR ALL published
+      AES key-recovery attacks a, IF data(a) > nu(p) THEN a is inadmissible
+      as the matched baseline for p. The witness (the attack) is quantified
+      INSIDE, so no single attack needs to be identified for the statement to
+      hold; and the conclusion is a statement about admissibility, not about
+      cost. THE ORDER THAT IS NOT CLAIMED, and would be false: "there exists
+      a baseline value valid for all adversary models". THE TRAP BEING
+      HUNTED: a security-category claim of the form "as hard as AES-128 key
+      search" is a claim about ONE adversary model; quoting a cost derived in
+      a DIFFERENT model against it silently swaps the quantifier over
+      adversaries. That swap is the defect this hypothesis names.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: a corrected, convention-indexed matched-baseline table for
+        the twelve deployed parameter sets, with an explicit admissibility
+        gate and a stated multiplicity correction. It CANNOT certify that
+        FAEST is secure, cannot certify any forgery cost, and cannot certify
+        that 2^{126.1} is wrong AS A STATEMENT ABOUT AES -- only that it is
+        the wrong comparator for FAEST if its data requirement exceeds nu.
+      nearby_object_control: >-
+        THE NEARBY OBJECT WHERE THE MULTIPLICITY CONCLUSION MUST FAIL is
+        faest_192s / faest_192f, the only two sets with c > kappa, where
+        E[S] = 1 + 2^{-64} and there is NO multiplicity correction. The
+        method must report ~2 for ten sets and ~1 for exactly those two. A
+        method that reports the same value everywhere is responding to the
+        family name rather than to (kappa, c). SECOND NEARBY OBJECT: a
+        synthetic set with c = kappa - 8, where the correction MUST be ~8
+        bits; if the instrument cannot see an 8-bit effect it cannot be
+        trusted to see a 0.58-bit one.
+    proof_obligations:
+      - claim: nu = beta for all twelve sets, read from a pinned commit.
+        responsibility: baseline
+      - claim: >-
+          E[S] = 1 + (2^{kappa}-1) 2^{-c}, first moment only, no independence
+          assumed.
+        responsibility: correctness
+      - claim: >-
+          Expected search for any element of S is 2^{kappa}/(E[S]+1) under the
+          stated idealisation.
+        responsibility: success_probability
+      - claim: >-
+          The cost convention is declared before any comparison and every
+          number is reported relative to it.
+        responsibility: strictness
+      - claim: >-
+          Signatures add no OWF pair -- DECLARED UNPROVEN and routed to
+          IDEA-20260731-005.
+        responsibility: interface
+      - claim: >-
+          Nothing here is a statement about AES's security, only about which
+          comparator FAEST admits.
+        responsibility: scope
+      - claim: >-
+          Failure to obtain the biclique data figure is reported as
+          infrastructure, never as a result.
+        responsibility: runtime
+    not_applicable_reason: null
+
+  rerandomization: null
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Deliberately null. NO EXPONENT MOVES: the corrections total about one
+    bit on a 2^{128} baseline. The hypothesis is worth testing because that
+    one bit is the right-hand side of the inequality four other proposals
+    exist to evaluate, and because the binary admissibility verdict is not a
+    bit at all -- it either permits the incumbent comparator or forbids it.
+
+  heuristic_assumptions:
+    - id: HEUR-FF-1
+      formal_statement: >-
+        For each parameter set, with the public input(s) x fixed, and for
+        every secret k' distinct from the true secret,
+        Pr[OWF_{k'}(x) = y] = 2^{-c} where c = 8 * owf_output_size, the
+        probability taken over the choice of the true instance.
+      random_model_justification: >-
+        The standard ideal-cipher / random-function idealisation under which
+        exhaustive-search costs and NIST's category definitions are stated.
+        AES's key schedule is emphatically NOT a random function and the
+        marginals are not independent across k'. WHAT IS USED HERE IS ONLY
+        THE FIRST MOMENT, for which linearity of expectation suffices and
+        independence is never invoked; the variance of S, which WOULD need
+        independence, is not used anywhere.
+      supporting_results: []
+      validation_experiment_ids: [EXP-FAEST-ae5d9f]
+      falsification_condition: >-
+        At reduced scale (an AES-like permutation with kappa = c = 16,
+        exhaustively enumerable), the empirical mean of S over >= 1000 random
+        (x, y) instances deviates from 2 - 2^{-16} by more than three
+        standard errors. The multiplicity correction must then be restated as
+        a measured quantity rather than a derived one.
+    - id: HEUR-FF-2
+      formal_statement: >-
+        FOR ALL parameter sets and FOR ALL polynomially many signatures, the
+        transcript yields no evaluation of the OWF under the secret at an
+        input other than the published one; hence the adversary's data budget
+        is exactly nu = beta.
+      random_model_justification: >-
+        Structural, from owf.c and faest_impl.c: the OWF is evaluated at key
+        generation and the signature proves a statement about that one
+        evaluation. NOT A PROOF -- VOLE openings publish masked linear
+        functions of witness bits by construction, and no argument is given
+        here that no subset reconstitutes a fresh evaluation.
+      supporting_results: []
+      validation_experiment_ids: []
+      falsification_condition: >-
+        Exhibition of a transcript-derived (plaintext, ciphertext) pair under
+        the secret at a fresh input. nu rises, the gate weakens, and the
+        finding would be far more important than this hypothesis. Routed to
+        IDEA-20260731-005, which owns the partial-opening lane; NOT
+        discharged here and labelled undischarged everywhere it is used.
+
+  structural_ingredients:
+    - description: >-
+        FAEST parameter tables and OWF shapes (beta, owf_input_size,
+        owf_output_size, lambda) for all twelve deployed sets.
+      citation: >-
+        faest-ref meson.build, instances.c/h, owf.c/h, FETCHED AND READ
+        2026-08-06 at moving ref 'main' over raw.githubusercontent.com,
+        HTTP 200. NO COMMIT SHA PINNED. KN-LIT-7619 records the repository
+        and states code contents were not fetched or audited.
+      role: supplies nu and c per set
+    - description: >-
+        Expected number of preimages of a random function, by linearity of
+        expectation.
+      citation: Elementary; derived in this record. No external citation asserted.
+      role: the multiplicity correction
+    - description: >-
+        Biclique cryptanalysis of the full AES: reported costs 2^{126.1},
+        2^{189.7}, 2^{254.4} and 2^{124.9} (8-round AES-128).
+      citation: >-
+        knowledge/literature/KN-LIT-2701.md -- CORPUS ENTRY READ IN FULL;
+        THE PAPER WAS NOT READ. Its own body states claims are relayed from
+        the abstract without independent verification. The DATA COMPLEXITY,
+        which is the number this hypothesis needs, IS ABSENT FROM THE ENTRY.
+        A recalled value of 2^{88} exists in model memory and is treated as
+        a CANDIDATE TO CHECK, never as an authority.
+      role: the incumbent comparator whose admissibility is under test
+
+  reduction_chain:
+    core_problem: >-
+      Determine the matched baseline a FAEST forgery must be compared
+      against, in FAEST's own adversary model, at the twelve deployed
+      parameter sets.
+    corollaries: []
+    corollaries_note: >-
+      DELIBERATELY EMPTY. A corrected baseline implies nothing about FAEST's
+      security by itself; it changes the right-hand side of an inequality
+      other lanes evaluate. No downstream conclusion follows without that
+      lane's own work.
+
+  predictions:
+    - metric: nu(parameter_set) for all twelve sets, from a pinned commit
+      direction: different
+      minimum_effect: >-
+        FORCED: nu = 1 for faest_128s/f and all six EM sets; nu = 2 for
+        faest_192s/f and faest_256s/f. Any deviation voids the reading.
+    - metric: E[S] per parameter set
+      direction: different
+      minimum_effect: >-
+        FORCED: 2 - 2^{-kappa} for ten sets, 1 + 2^{-64} for faest_192s and
+        faest_192f ALONE. The prediction that exactly two of twelve sets have
+        a unique witness is sharp and can fail.
+    - metric: >-
+        D_biclique, data complexity in pairs of the full-AES-128 attack
+        quoted at 2^{126.1}, read from the paper
+      direction: higher
+      minimum_effect: >-
+        Predicted >= 2^{32}. D <= 8 falsifies (B1) outright. If the paper
+        cannot be obtained, the value is reported as UNAVAILABLE and no
+        admissibility verdict is issued for that attack.
+    - metric: admissible_baseline_bits per set under a declared convention
+      direction: higher
+      minimum_effect: >-
+        >= 126.4 for the 128-bit sets under the convention
+        2^{kappa}/(E[S]+1), i.e. strictly above the recorded 2^{126.1}.
+        Reported as a table over conventions, never as one number.
+    - metric: >-
+        empirical mean of S at reduced scale (kappa = c = 16, >= 1000
+        instances) versus the forced value 2 - 2^{-16}
+      direction: different
+      minimum_effect: >-
+        Within three standard errors. This is HEUR-FF-1's validation and it
+        can fail.
+    - metric: >-
+        synthetic positive control: E[S] at c = kappa - 8
+      direction: higher
+      minimum_effect: >-
+        ~257, i.e. an 8.0-bit reduction in admissible baseline. If the
+        instrument does not report it, no negative may be reported anywhere.
+
+  test_boundary:
+    instances:
+      - All twelve deployed FAEST v2.0 parameter sets, as listed in faest-ref meson.build.
+      - >-
+        NULL CELL: faest_192s / faest_192f, the only sets with c > kappa, where
+        the multiplicity correction MUST vanish.
+      - >-
+        POSITIVE-CONTROL CELL: synthetic (kappa, c) = (kappa, kappa - 8).
+      - >-
+        GRADED CELLS: c in {kappa-16, kappa-8, kappa, kappa+8, kappa+16}.
+      - >-
+        REDUCED-SCALE VALIDATION CELL: an AES-like permutation with
+        kappa = c = 16, exhaustively enumerable, for HEUR-FF-1.
+    parameters:
+      nu_by_set: {faest_128s: 1, faest_128f: 1, faest_em_128s: 1, faest_em_128f: 1, faest_192s: 2, faest_192f: 2, faest_em_192s: 1, faest_em_192f: 1, faest_256s: 2, faest_256f: 2, faest_em_256s: 1, faest_em_256f: 1}
+      kappa_by_set: {faest_128s: 128, faest_128f: 128, faest_em_128s: 128, faest_em_128f: 128, faest_192s: 192, faest_192f: 192, faest_em_192s: 192, faest_em_192f: 192, faest_256s: 256, faest_256f: 256, faest_em_256s: 256, faest_em_256f: 256}
+      c_bits_by_set: {faest_128s: 128, faest_128f: 128, faest_em_128s: 128, faest_em_128f: 128, faest_192s: 256, faest_192f: 256, faest_em_192s: 192, faest_em_192f: 192, faest_256s: 256, faest_256f: 256, faest_em_256s: 256, faest_em_256f: 256}
+      parameter_source: >-
+        faest-ref meson.build and owf.c, fetched 2026-08-06 at moving ref
+        'main'; commit sha NOT pinned (stage-0 obligation).
+    implementation: >-
+      Pure Python 3.11 standard library: exact integer and Fraction
+      arithmetic for E[S] and the baseline table; a 2^16-entry lookup for the
+      reduced-scale validation. No solver, no network dependency except the
+      optional stage that fetches the biclique paper.
+    budget:
+      stage0_wall_clock_seconds: 900
+      stage1_wall_clock_seconds: 1800
+      stage2_wall_clock_seconds: 1800
+      stage3_wall_clock_seconds: 900
+      maximum_memory_gb: 1
+      note: >-
+        NOT authorized for execution by this record. Coordinator approval
+        required (AGENTS.md rule 1).
+
+  falsification_conditions:
+    - >-
+      F1: the biclique attack requires at most 8 pairs. (B1) is void,
+      2^{126.1} is admissible, and the deliverable shrinks to (B2). THE MOST
+      LIKELY SINGLE FAILURE.
+    - >-
+      F2: the pinned faest-ref table gives different nu or c values. The
+      reading is wrong; supersede, do not patch.
+    - >-
+      F3: HEUR-FF-1's reduced-scale validation fails. The multiplicity
+      correction becomes a measured rather than derived quantity and must be
+      restated.
+    - >-
+      F4: the positive control does not report E[S] ~ 257 at c = kappa - 8.
+      Instrument broken; nothing reported.
+    - >-
+      F5: the null cell (faest_192s/f) reports E[S] ~ 2. The computation is
+      keyed to the set name rather than to (kappa, c); nothing reported.
+    - >-
+      F6: HEUR-FF-2 is refuted -- a transcript-derived fresh OWF pair is
+      exhibited. nu rises and the gate must be recomputed. This outcome
+      would be far more valuable than the hypothesis and is routed to
+      IDEA-20260731-005.
+
+  interpretation_limits:
+    - >-
+      NO ATTACK, NO FORGERY, NO EXPONENT. The corrections total about one
+      bit plus a binary admissibility verdict.
+    - >-
+      NOTHING HERE IS A CLAIM ABOUT AES. If the biclique attack is real at
+      2^{126.1}, it remains real; the claim is only about which comparator
+      FAEST's adversary model admits.
+    - >-
+      NO STATUS CHANGE IS PROPOSED to KN-LIT-2701, to KN-LIT-7619, to
+      IDEA-20260731-002..005, or to GOAL-FAEST-001's pause conditions. The
+      record-integrity observations are reported for a Coordinator to act on
+      (AGENTS.md rule 1); a superseding literature entry, if warranted, is
+      that role's to mint.
+    - >-
+      A failure to fetch the biclique paper is an INFRASTRUCTURE outcome. It
+      leaves the admissibility verdict UNDETERMINED and closes nothing
+      (AGENTS.md rule 5).
+    - >-
+      The corrected baseline is convention-relative. Any citation of it must
+      carry the convention.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260805-59fa23.yaml
+    - ledger/proposals/IDEA-20260731-002.yaml
+    - ledger/proposals/IDEA-20260731-003.yaml
+    - ledger/proposals/IDEA-20260731-004.yaml
+    - ledger/proposals/IDEA-20260731-005.yaml
+    - ledger/questions/RQ-FAEST-001.yaml
+    - ledger/goals/GOAL-FAEST-001.yaml
+    - ledger/evidence/EV-FAEST-001.yaml
+    - knowledge/literature/KN-LIT-2701.md
+    - knowledge/literature/KN-LIT-7619.md
+    - docs/claims-and-verification.md
+    - docs/inventor-protocol.md
+    - templates/research-records.md
+
+  inference:
+    requested_policy: research-deep
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml. Recorded, never silently
+      substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session.

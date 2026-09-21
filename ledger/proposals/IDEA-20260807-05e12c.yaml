@@ -1,0 +1,99 @@
+idea:
+  id: IDEA-20260807-05e12c
+  question_id: RQ-MLKEM-001
+  added: '2026-08-07'
+  title: >-
+    Conditioning on the ciphertext: FIPS 203's Compress partitions
+    ciphertext-side u-coordinates into a public two-class noise mixture, and
+    d_u = 11 makes one class exactly noiseless
+  class: control
+
+  claim: >-
+    FIPS 203's Compress_d(x) = round(2^d x / q) mod 2^d has non-uniform fibres
+    because q = 3329 is not a power of two. At d_u = 11 (ML-KEM-1024), 767 of
+    the 3329 residues have a singleton fibre, so 23.04% of every compressed
+    ML-KEM-1024 u-coordinate pins the underlying value exactly and carries
+    zero compression noise; the remaining 77% carry a 1-of-2 ambiguity. Which
+    coordinates fall in which class is a public label, readable from the
+    ciphertext with no oracle, no secret and no chosen ciphertext. The
+    ciphertext-side lattice is therefore not "LWE plus i.i.d. rounding noise"
+    but a two-class mixture whose labels are public, and the honest treatment
+    is a partial dimension reduction (clean coordinates are CBD-only LWE
+    samples) rather than a rescaling. Recomputing the ciphertext-side uSVP
+    block size under three noise models (single marginal variance;
+    per-class rescaling; clean-samples-only with reduced sample count) is
+    predicted to give a small (2 to 4 core-SVP bit, ML-KEM-1024; under 1 bit,
+    ML-KEM-512/768) reduction relative to the single-marginal model, and the
+    ciphertext-side lattice is predicted to remain worse-positioned than the
+    key-side lattice at every parameter set (verdict CLOSED). NO CLAIM IS MADE
+    THAT ANY KEY OR MESSAGE IS RECOVERABLE; this is a noise-model correction
+    and its price, evaluated against the real FIPS 203 parameters. sota_delta
+    0.
+
+  mechanism: >-
+    Compress_d(x) = round(2^d x / q) mod 2^d partitions Z_q into 2^d fibres of
+    size floor(q/2^d) or ceil(q/2^d); for d = 11, 2^11 = 2048 < q = 3329, so
+    767 fibres have size 1 (singleton: Decompress recovers x exactly) and 1281
+    have size 2 (a 1-of-2 ambiguity), summing to 767 + 2*1281 = 3329 = q
+    exactly. The ambiguity classes are what an honest sender's ciphertext
+    reveals about its own rounding noise, without any secret material: the
+    map c |-> S(c) = {i : Compress_{d_u}^{-1}(c_i) is a singleton} is
+    computable from c alone. This is a THIRD defect/effect mechanism distinct
+    from the decryption-failure marginal (EV-MLKEM-004), which integrates the
+    compression error out over the fibre; here the fibre is instead
+    conditioned on, using the public label the attacker (or estimator) can
+    read off the transmitted ciphertext, which a failure-rate computation must
+    never do and never does.
+
+  novelty_status: unverified
+
+  question_id: RQ-MLKEM-001
+  source_refs:
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/M1.md
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/REDTEAM.md
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/DEDUP.md
+    - ledger/evidence/EV-MLKEM-004.yaml
+    - ledger/hypotheses/H-MLKEM-001.yaml
+    - ledger/goals/GOAL-MLKEM-005.yaml
+    - ledger/questions/RQ-MLKEM-001.yaml
+
+  review_refs: []
+
+  disposition: proposed
+  disposition_note: >-
+    Initial ledger recording of a proposal that already passed an internal,
+    non-ledger idea-catalogue dedup pass and a red-team adversarial pass
+    (REDTEAM.md section 4c, "STRONGEST -- entries I could not break", item 1;
+    the census 767 singletons / 1281 doubles / 3329 residues at d_u = 11 was
+    independently re-verified there). It has NOT yet had independent
+    ledger-level review (VAL-*/RT-* against a committed run), so disposition
+    is `proposed`, not accepted, and no experiment attached to it may execute
+    until separately approved.
+
+  interpretation_limits:
+    - >-
+      No entry-level statement is made or permitted about recovering any key
+      or any message; the deliverable is a noise-model correction (a labelled
+      block-size readout under a declared conversion instrument) and its
+      price in core-SVP bits under one named cost model, not an attack.
+    - >-
+      The census (767/1281/3329 at d_u = 11) is exact integer arithmetic on
+      actual FIPS 203 parameters and is not toy-extrapolated, but the
+      block-size conversion is a labelled model readout, not a measured
+      attack cost; nothing here revises any published security estimate.
+    - >-
+      This proposal does not touch and does not contradict GOAL-MLKEM-005's
+      proven convexity ceiling G <= log2 M (a best-of-M ciphertext-selection
+      result); it concerns the noise model of a SINGLE ciphertext's u-side
+      compression, a different mechanism class entirely, and claims no
+      exponent-level or M-dependent gain of any kind.
+    - >-
+      The expected verdict, stated in advance, is CLOSED: the ciphertext-side
+      lattice starts from a materially worse position than the key-side
+      lattice (it carries Var(e1) + Var(delta_u) against Var(e) alone) and the
+      predicted 2-4 bit (ML-KEM-1024) / <1 bit (ML-KEM-512/768) gain does not
+      close that gap. A CLOSED verdict recorded with the exact number is the
+      deliverable, not a failure of the proposal.
+
+  recorded_by: coordinator
+  recorded_at: '2026-08-07'

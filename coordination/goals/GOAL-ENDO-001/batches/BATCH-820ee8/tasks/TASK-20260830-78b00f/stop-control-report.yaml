@@ -1,0 +1,196 @@
+schema: crypto.autoresearch.stop_control_report.v1
+stop_control:
+  id: TASK-20260830-78b00f-stop-control
+  task_id: TASK-20260830-78b00f
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-820ee8
+  evaluated_against: >-
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-90392b/tasks/TASK-20260825-74615f/j3-closure-v5.yaml
+    operation_schema_v2.host_binding
+  execution_kind: static_construction_against_v5_rule_text
+  experiment_runs_executed: 0
+  scientific_result: false
+  producer_code_executed: false
+  network_used: false
+
+  v5_rule_text_cited:
+    binding_rule_v2: >-
+      "host_observation.host_id, host_observation.filesystem_id, and
+      host_observation.filesystem_mount (each normalized as above) must be
+      exactly equal to the corresponding normalized
+      runtime-session-receipt.json host_binding.* fields. Equality against
+      any other source (including a caller-declared 'active binding' field)
+      is rejected."
+    caller_input_is_never_authoritative: true
+    forbidden_source: "host_observation object supplied by the caller/consumer"
+    missing_receipt_field: STOP
+    receipt_field_absent_handling: >-
+      "If runtime-session-receipt.json lacks host_binding.host_id,
+      host_binding.filesystem_id, or host_binding.filesystem_mount, the
+      validity check itself is unevaluable and STOPs; no fallback host
+      source is substituted."
+
+  cases:
+
+    - case: a
+      label: caller-supplied-binding
+      construction: >-
+        Constructed exactly as the BATCH-90392b red team did in
+        control-rerun-v5.yaml KF-HOST-BINDING-FORGERY: a caller-shaped
+        host_observation object whose host_id, filesystem_id, and
+        filesystem_mount are internally self-consistent and match a
+        caller-declared "active binding" field, but do NOT match this
+        task's runtime-session-receipt.json host_binding.* fields (which
+        were produced by emit_host_binding.sh from the host's own
+        identity surfaces).
+      concrete_object:
+        receipt_host_binding:
+          host_id: "Adams-MacBook-Pro.local"
+          filesystem_id: "/dev/disk5s1"
+          filesystem_mount: "/Volumes/SSD990"
+          source: "emit_host_binding.sh on this host"
+        caller_host_observation:
+          host_id: "evil-host.example.com"
+          filesystem_id: "/dev/fakedev"
+          filesystem_mount: "/mnt/fake"
+        caller_declared_active_binding:
+          host_id: "evil-host.example.com"
+          filesystem_id: "/dev/fakedev"
+          filesystem_mount: "/mnt/fake"
+      v5_rule_evaluated: binding_rule_v2
+      evaluation: >-
+        The caller_host_observation does NOT equal the receipt_host_binding
+        (all three fields differ). The caller_host_observation DOES equal
+        the caller_declared_active_binding (all three fields match). Under
+        binding_rule_v2, the host_observation must equal the receipt
+        host_binding.* — it does not. Equality against the caller-declared
+        active binding is explicitly rejected ("Equality against any other
+        source (including a caller-declared 'active binding' field) is
+        rejected"). caller_input_is_never_authoritative is true;
+        forbidden_source is "host_observation object supplied by the
+        caller/consumer."
+      outcome: STOP
+      v2_weakening: none
+      v2_weakening_note: >-
+        The v2 schema and emit procedure do not weaken this STOP. The
+        emit_host_binding.sh script reads the host's own identity surfaces
+        and accepts no caller arguments, so a caller cannot supply values
+        THROUGH the procedure. The binding_rule_v2 is unchanged from v5
+        and rejects equality against any non-receipt source. The residual
+        self-attestation gap (a compromised session hand-writing a receipt
+        with caller-supplied values that match a caller-supplied
+        observation) is the disclosed limitation, not a weakening of this
+        STOP: the binding_rule_v2 would pass on equality, but the source
+        rule ("emitted by the runtime harness at session start") is
+        violated. That violation is detectable only by independent
+        reviewer verification, not by the binding rule itself.
+
+    - case: b
+      label: missing-binding
+      construction: >-
+        A v1-shaped receipt with only the absence note in host_binding,
+        lacking host_binding.host_id, host_binding.filesystem_id, and
+        host_binding.filesystem_mount. This is the shape of the
+        BATCH-90392b review receipts (e.g.
+        TASK-20260825-0d566b/runtime-session-receipt.json host_binding
+        block: { "note": "..." }).
+      concrete_object:
+        host_binding:
+          note: >-
+            This session has no live runtime harness; no
+            host_binding.host_id/filesystem_id/filesystem_mount fields are
+            asserted.
+        has_host_id: false
+        has_filesystem_id: false
+        has_filesystem_mount: false
+      v5_rule_evaluated: missing_receipt_field
+      evaluation: >-
+        The receipt lacks host_binding.host_id, host_binding.filesystem_id,
+        and host_binding.filesystem_mount. Under receipt_field_absent_handling,
+        "the validity check itself is unevaluable and STOPs; no fallback
+        host source is substituted." missing_receipt_field is STOP.
+      outcome: STOP
+      v2_weakening: named
+      v2_weakening_note: >-
+        The v2 parser accepts this v1-shaped receipt as SCHEMA-VALID
+        (backward compatible: the host_binding object with only a "note"
+        field parses without error). The v5 missing_receipt_field STOP
+        still fires at the BINDING-RULE layer, not at the schema-parser
+        layer. The weakening is NAMED, not hidden: v2 schema-validity does
+        NOT imply v5 binding-rule satisfaction. A consumer that treats
+        "parses under v2" as "binding is present and authoritative"
+        silently weakens the v5 STOP. The mitigation (stated in
+        receipt-schema-v2.yaml) is that any consumer MUST evaluate the v5
+        binding_rule_v2 and missing_receipt_field rule AFTER parsing; a
+        v1-shaped receipt that parses under v2 but lacks the three
+        authoritative fields MUST still STOP under the binding rule.
+
+    - case: c
+      label: v1-receipt-under-v2-schema
+      construction: >-
+        An actual v1 receipt from the BATCH-90392b review corpus
+        (TASK-20260825-0d566b/runtime-session-receipt.json, schema:
+        crypto.autoresearch.runtime_session_receipt.v1) parsed under the
+        v2 schema. This tests whether v1 backward compatibility weakens
+        the v5 STOP for real corpus receipts, not just constructed ones.
+      concrete_object:
+        source_file: >-
+          coordination/goals/GOAL-ENDO-001/batches/BATCH-90392b/reviews/TASK-20260825-0d566b/runtime-session-receipt.json
+        schema: "crypto.autoresearch.runtime_session_receipt.v1"
+        host_binding_keys: ["note"]
+        has_host_id: false
+        has_filesystem_id: false
+        has_filesystem_mount: false
+      v5_rule_evaluated: missing_receipt_field
+      evaluation: >-
+        The v1 receipt's host_binding block contains only a "note" key
+        (the absence note). It lacks host_binding.host_id,
+        host_binding.filesystem_id, and host_binding.filesystem_mount.
+        Under receipt_field_absent_handling, "the validity check itself is
+        unevaluable and STOPs; no fallback host source is substituted."
+        missing_receipt_field is STOP. The v2 parser accepts this receipt
+        as schema-valid (v1 backward compatibility: no v1 field is removed,
+        renamed, or reinterpreted).
+      outcome: STOP
+      v2_weakening: named
+      v2_weakening_note: >-
+        Same weakening as case (b), confirmed against a real corpus
+        receipt rather than a constructed object. The v2 parser's
+        acceptance of the v1 receipt as schema-valid does NOT satisfy the
+        v5 binding rule. The STOP fires at the binding-rule layer. The
+        weakening — that schema-validity is necessary but not sufficient
+        for binding-rule satisfaction — is the SAME weakening named in
+        case (b) and in receipt-schema-v2.yaml
+        v1_compatibility_weakening_of_v5_stop. It is disclosed, not
+        hidden. No ADDITIONAL weakening is introduced by parsing a real
+        v1 corpus receipt versus a constructed v1-shaped object.
+
+  summary:
+    all_three_cases: STOP
+    v5_stop_survives_under_v2: true
+    weakening_introduced: >-
+      One named weakening, applying to cases (b) and (c): v2
+      schema-validity does not imply v5 binding-rule satisfaction. A
+      v1-shaped receipt (with only host_binding.note) parses under v2 but
+      still STOPs under the v5 missing_receipt_field rule. The weakening
+      is at the schema-parser layer (the parser accepts the v1 shape);
+      the v5 STOP is preserved at the binding-rule layer (the binding rule
+      still demands the three fields and STOPs on their absence). The
+      mitigation is that consumers MUST evaluate the binding rule after
+      parsing, not treat schema-validity as binding-satisfaction.
+    no_hidden_weakening: >-
+      No case shows a v2 optionality that silently weakens a v5 STOP
+      without being named. The one weakening (schema-validity ≠
+      binding-rule satisfaction) is named in
+      receipt-schema-v2.yaml.v1_compatibility_weakening_of_v5_stop,
+      in emit_procedure.md, and here.
+    residual_self_attestation_gap: >-
+      Case (a) confirms the v5 STOP fires on a caller-supplied binding
+      that does not match the receipt. The residual gap — a compromised
+      emitting session hand-writing a receipt with values that match a
+      caller-supplied observation — is NOT a weakening of the v5 STOP
+      (the binding_rule_v2 would pass on equality, but the source rule is
+      violated). It is the disclosed self-attestation limitation carried
+      forward from the v5 closure and narrowed, not closed, by this
+      package. Independent reviewer verification is the detection
+      mechanism, not automatic enforcement.

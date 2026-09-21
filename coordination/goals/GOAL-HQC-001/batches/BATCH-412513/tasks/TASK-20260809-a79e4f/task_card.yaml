@@ -1,0 +1,184 @@
+task_card:
+  id: TASK-20260809-a79e4f
+  role: executor
+  goal_id: GOAL-HQC-001
+  batch_id: BATCH-412513
+  experiment_id: EXP-HQC-982268
+  hypothesis_id: H-HQC-18d1b4
+  authorized_by: DEC-20260809-46e85c
+  handoff_record: ledger/handoffs/TASK-20260809-a79e4f.yaml
+  dispatch_queue: coordination/goals/GOAL-HQC-001/batches/BATCH-412513/dispatch_queue.json
+  state: queued
+  priority: 1
+  depends_on: []
+  review_required: true
+  claim_tier: toy
+  claim_tier_note: 'HARD CEILING. PS-R3 reduced parameters only. Nothing this task produces bears on
+    HQC''s IND-CCA security, its decoding-failure rate, assumption A17 or A5, or any standardized
+    parameter set. Standardized-parameter runs are OUT OF SCOPE and unauthorized.'
+  title: 'Matched-pair measurement at the V3/decode_blocks injection point: deterministic zero-entropy
+    reconstruction of the pilot''s own shards, then a pre-registered-size matched-pair extension'
+  objective: 'Measure the defected-minus-true difference in log2_Ahat_k at the load-bearing order
+    k = m = 17 using a MATCHED-PAIR design -- the same underlying random draws decoded once through the
+    unmodified decode_blocks and once through the V3-defected wrapper -- in two pre-registered stages.
+    Report observations only; the Coordinator applies the decision rule.'
+  why_this_task_and_not_the_v1_positive_control: 'DEC-20260806-9a4551 named a V1 positive-control pilot
+    as step (3), conditional on genuine ambiguity remaining after steps (1) and (2). That precondition
+    is MET (EV-HQC-dd85c1). DEC-20260809-46e85c nonetheless sequences THIS task first, for two reasons
+    that did not exist when the three steps were written. First, a deterministic zero-new-entropy
+    reconstruction of the pilot''s own committed shards is available, and its feasibility is not an
+    assumption: the BATCH-2ecaa1 Validator already reproduced both committed S-histograms bit-identically
+    from the shard indices alone. Second, at the measured throughput of about 2,100 trials/core-second
+    the derived matched-pair T_req costs roughly 20-40 core-seconds, so the design that can actually
+    discriminate the two competing explanations is now reachable inside one bounded task. THE V1 CONTROL
+    IS SEQUENCED, NOT SHELVED: DEC-20260809-46e85c commits in advance that V1 is dispatched in the
+    immediately following batch under branches B and C2, and is unnecessary only under branch A, where
+    the pipeline will have demonstrably rung on its own.'
+  stages:
+  - id: stage_1
+    name: deterministic zero-entropy reconstruction of the pilot's own shards
+    new_randomness: none
+    what: 'Re-decode the ALREADY-COMMITTED shards through the OPPOSITE decode variant from the one
+      TASK-20260806-77a574 used: shard 5000 (the pilot''s defected arm) through the UNMODIFIED
+      decode_blocks, and shard 6000 (the pilot''s undefected arm) through the DEFECTED wrapper. Each
+      shard then has both members of every pair, giving 5,000 genuine matched pairs per shard and 10,000
+      in total, on draws that already exist in the committed record.'
+    determinism_gate: 'FAIL-CLOSED, RUN FIRST. Before computing anything from the crossed arms,
+      reproduce the ORIGINAL configuration (shard 5000 defected, shard 6000 undefected) and assert the
+      resulting whole-arm S-histograms are BIT-IDENTICAL to pilot_results.json''s
+      MEASUREMENT.defected.S_histogram and MEASUREMENT.undefected.S_histogram. If they are not, ABORT.
+      Per AGENTS.md rule 5 that is an infrastructure or environment regression and is NEVER reported as
+      a result about the mathematics.'
+    retention_requirement: 'Persist per-trial S in TRIAL ORDER for every stage-1 arm. This is the exact
+      retention gap that made TASK-20260806-77a574''s data unpairable after the fact (EV-HQC-dd85c1 O2);
+      it must not repeat. Pairing must be auditable from the artifacts, not asserted in prose.'
+    what_it_can_and_cannot_show: 'STATED IN ADVANCE. Under the 1/sqrt(T) assumption and the Red Team''s
+      SE of 0.1982 at T=5,000, the pooled SE over 10,000 pairs is about 0.140 and the minimum detectable
+      effect at z=1.96 is about 0.275 -- ABOVE both existing point estimates (0.1922 and 0.2069). STAGE 1
+      THEREFORE CANNOT PRODUCE A NULL THAT EXCLUDES A ~0.19-0.21 EFFECT, whatever it observes, and is
+      unlikely to reach significance. It is calibration and replication, not the primary test. Do not
+      describe it as resolving anything.'
+  - id: stage_2
+    name: matched-pair extension at a pre-registered size
+    new_randomness: 'yes -- fresh, previously-unused shard indices, chosen and written into design.md
+      BEFORE stage 1 runs'
+    trial_count_rule: 'T2 = clamp(round(10000 * (SE_pooled_measured * 2.80 / 0.20) ** 2), 20000, 60000),
+      where SE_pooled_measured is stage 1''s own pooled matched-pair jackknife SE at k=17 over the 10,000
+      reconstructed pairs. delta = 0.20, z = 2.80, floor 20,000 and cap 60,000 are FIXED IN ADVANCE by
+      DEC-20260809-46e85c and are not the executor''s to choose. The ONLY input from stage 1 is the
+      measured SE.'
+    why_this_size: 'At T2 of order 3.9e4 the SE is about 0.069 and the minimum detectable effect at
+      z=1.96 is about 0.135 -- BELOW both existing point estimates. Both a significant detection AND a
+      null whose interval excludes 0.19 become reachable, for the first time in this campaign.'
+  primary_cell: k = m = 17 (is_prespecified_cell, matching PS-R3's own load-bearing order)
+  primary_statistic: 'log2_Ahat_17(defected) - log2_Ahat_17(true) on matched pairs, with the standard
+    error from a matched-pair jackknife (leave-one-batch-out) taken on the per-batch DIFFERENCE, not
+    from separately-jackknifed arms combined in quadrature. The latter is precisely the misspecification
+    the BATCH-2ecaa1 Red Team identified.'
+  secondary_deliverables:
+  - 'The UNPAIRED SE (independent-arm quadrature) on the same data alongside the paired SE, and their
+    ratio, at k=17. This is the replication of the Red Team''s 2.78x and is a primary deliverable in its
+    own right: that ratio is the single unreplicated number, from one uncommitted scratch script on one
+    shard, that the whole required-T derivation rests on (EV-HQC-dd85c1 O8).'
+  - 'The fitted exponent of SE against trial count across the three available points (5,000 per shard,
+    10,000 pooled, T2), reported WHATEVER the primary outcome. This is the first empirical test the
+    1/sqrt(T) assumption underlying every required-T figure has ever received (EV-HQC-dd85c1 O7).'
+  - 'Measured core-seconds and wall-clock per stage, so the ledger archive can debit a measured number
+    against campaign_budget.total_wall_clock_seconds instead of carrying an estimate forward again.'
+  parameters:
+    parameter_set: PS-R3
+    n: 7187
+    n_e: 56
+    N: 7168
+    m_load_bearing_order: 17
+    k_range: 2..26
+    defect_class: V3 (last-block-window-read-early), block index n_e-1
+    injection_point: decode_blocks
+    committed_shards_reused: [5000, 6000]
+    stage_2_shards: 'fresh, declared in design.md before stage 1 runs; must be disjoint from 0-3, 900,
+      999, 1000-1007, 4900, 4901, 5000, 6000, 7777, 7778, 424242'
+  read_scope:
+  - experiments/EXP-HQC-982268/specification.yaml
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260806-77a574/
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/tasks/TASK-20260807-db4230/
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/reviews/TASK-20260806-92aecb/red_team_report.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-2ecaa1/reviews/TASK-20260806-8d4d48/validation_report.yaml
+  - ledger/evidence/EV-HQC-dd85c1.yaml
+  - ledger/evidence/EV-HQC-67a6ec.yaml
+  - ledger/evidence/EV-HQC-bfb257.yaml
+  - ledger/decisions/DEC-20260809-46e85c.yaml
+  - ledger/decisions/DEC-20260806-9a4551.yaml
+  write_scope:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/
+  artifact_paths:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/design.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/matched_pair.py
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/matched_pair_results.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/matched_pair_report.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/run_manifest.yaml
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/stdout.log
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/stderr.log
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 2
+    maximum_runs: 2
+    core_seconds: 400
+    expected_core_seconds: '30-80, by arithmetic on the committed throughput of about 2,100
+      trials/core-second (executor 2,097.6 / 2,105.6; Validator 4-repeat means 2,090.8 / 2,096.6).
+      Stage 1 is roughly 10,000 trials generated with two decode passes each; stage 2 is of order 3.9e4
+      trials likewise. The decode-only fraction has never been measured separately in this campaign and
+      is NOT estimated here, so the upper end assumes a full second pipeline pass.'
+    budget_note: 'campaign_budget.total_wall_clock_seconds is 10,800 and is a LIVE pause condition.
+      reanalysis_report.md section 0 states roughly 4,973 seconds remained at BATCH-2ecaa1''s close;
+      that is THAT REPORT''S figure, carried forward from BATCH-2ecaa1''s checkpoint, and it is NOT
+      independently re-derived here. Report actual spend so a measured number can be debited.'
+  pre_registered_decision_rule_applied_by_coordinator: 'The executor does NOT apply this; it is recorded
+    here so the executor can see what its numbers will be used for and cannot be asked afterwards for a
+    quantity nobody requested. Primary evaluation is on STAGE 2 at k=17. BRANCH A, DETECTED: |z| >= 1.96
+    with sign agreeing with stage 1''s pooled sign. BRANCH B, NULL WITH A STATED MINIMUM DETECTABLE
+    EFFECT: |z| < 1.96 AND |diff| + 1.96 * SE < 0.19. BRANCH C, STILL AMBIGUOUS: |z| < 1.96 AND
+    |diff| + 1.96 * SE >= 0.19; C1 if |diff| >= 0.10 with sign consistent with stage 1, C2 if
+    |diff| < 0.10. BRANCH D, INVALID/INFRASTRUCTURE: the stage-1 determinism gate fails, or a D2/D3
+    violation, or a crash, or a budget overrun -- infrastructure signal, never a negative mathematical
+    result, no branch fires. BRANCH E, ANOMALY: stage 1''s two shards disagree in sign with each
+    individually at |z| >= 1.96 -- recorded under AGENTS.md rule 8, not interpretable, A/B/C do not fire.
+    The fitted SE-versus-T exponent SUPERSEDES A/B/C if it falls outside [0.4, 0.6].'
+  completion_gate:
+  - design.md exists and predates matched_pair_results.json, and states the crossed stage-1
+    configuration, the bit-identity gate, the stage-2 sizing formula with delta=0.20 / z=2.80 / clamp
+    [20000, 60000], the primary cell k=m=17, the matched-pair jackknife construction, and the fresh
+    stage-2 shard indices
+  - Stage 1's determinism gate is reported as PASS with the reproduced S-histograms shown bit-identical
+    to pilot_results.json's committed arrays, or the run is reported ABORTED as an infrastructure outcome
+  - Per-trial S arrays in trial order are persisted for every stage-1 arm, so the pairing is auditable
+  - matched_pair_results.json carries per-shard and pooled matched-pair diff, paired SE, unpaired SE,
+    their ratio, and z at k=17 and across k=2..26, for both stages
+  - The fitted SE-versus-trial-count exponent across the three trial counts is reported
+  - The stage-2 trial count actually run equals the pre-registered clamp formula applied to stage 1's
+    measured pooled SE, with the substitution shown
+  - matched_pair.py reuses stage_a.py and measure.py via sha256-pinned read-only import, with only the
+    injection wrapper, driver, and matched-pair jackknife as new code
+  - run_manifest.yaml carries command, git commit and dirty-tree state, environment, seeds and shard
+    indices, timings, per-stage core-seconds and wall-clock, and validity status
+  - No file outside the task's write_scope was created or modified
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  archived_by: null
+  archived_by_note: 'The snapshot archive task ID is not yet minted. See
+    dispatch_queue.json.review_chain_pending: the Coordinator session that authored this batch had no
+    shell and therefore no tools/allocate_id.py, and AGENTS.md rule 14 forbids inventing an identifier
+    without allocating it. The driving session allocates the four review/archive task IDs, appends them
+    to the queue, and sets this field BEFORE dispatch. A producer with no archival task must not be
+    dispatched, and no review may read an uncommitted working tree.'
+  review_chain_required: 'review_required is true. An independent Validator AND an independent Red Team
+    pass are required before any evidence record interprets this task''s output, with a snapshot archive
+    committed before either review reads it and a ledger archive after both. Their exact charges are in
+    dispatch_queue.json.review_chain_pending.tasks_to_append.'
+  owner: coordinator
+  created_at: '2026-08-09'

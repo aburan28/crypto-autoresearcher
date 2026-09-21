@@ -1,0 +1,133 @@
+experiment:
+  archive_retry_note: >-
+    This design package was re-snapshotted after the first unadmitted archive
+    attempt omitted required task identifiers from its commit message.
+  id: EXP-XOR-4ded1d
+  hypothesis_id: H-XOR-2c2c85
+  version: 1
+  title: >-
+    Right-table random-from-F_p null for toy x-oracle MITM correlation
+  status: draft
+  frozen: false
+  approved_by: null
+  claim_tier: toy
+  objective: >-
+    Design, but do not yet execute, a matched A/B/D toy experiment that tests
+    whether the x-oracle MITM's observed behavior depends on the true
+    left-to-right x-coordinate association rather than on generic table
+    filtering or key-distribution effects.
+  source_design: ledger/proposals/IDEA-20260808-4f3ef4.yaml
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The declared primes are 7-8 bit toy fields. Results can only adjudicate
+      the exact toy strategy/null boundary and cannot support crypto-scale
+      ECDLP claims.
+    correspondence: null
+  inputs:
+    cells:
+      m_values: [3]
+      primes: [101,103,107,211]
+      b_values: [0.4,0.5]
+      seeds: [1,2,3,4,5]
+    curve_selection_rule: >-
+      Reuse EXP-SEMAEV-f48dd1's deterministic find_curve rule byte-for-byte;
+      a future implementation must record the source commit and hash before
+      execution and may not silently choose a different curve.
+    factor_base_rule: >-
+      Reuse EXP-SEMAEV-f48dd1's deterministic factor-base rule byte-for-byte;
+      record the point list and x-coordinate list in every run.
+    right_pair_rule: >-
+      Enumerate every ordered (P2,P3) in the factor base exactly once. Arm B
+      keys the pair by x(P2+P3). Arm D keeps the same pair object but keys it by
+      u_i = SHA-256(seed || cell_id || tuple_index) mod p, with replacement.
+    left_query_rule: >-
+      Arms B and D query with the true x(P1) for every ordered left tuple. No
+      left-side random predictor is used in this successor; Arm C from
+      EXP-SEMAEV-f48dd1 remains a historical comparator only.
+  controls:
+    - id: CTRL-A-B-RELATION-SET
+      method: >-
+        A exhaustive relation set and B's verified relation set must agree
+        exactly on every valid cell, including multiplicity and tuple order.
+      pass_condition: relation_set_A_equals_B
+    - id: CTRL-B-D-RIGHT-PAIR-CARDINALITY
+      method: >-
+        B and D enumerate identical ordered right-pair lists and table sizes.
+      pass_condition: right_pair_count_B == right_pair_count_D and pair_hashes_equal
+    - id: CTRL-D-KEY-INDEPENDENCE
+      method: >-
+        Recompute each D key from the recorded seed, cell identifier, tuple
+        index, and p; no curve or point bytes may enter the key input.
+      pass_condition: independent_recompute_exact
+    - id: CTRL-D-OCCUPANCY
+      method: >-
+        Record exact key occupancy and collision counts; compare against the
+        pre-registered uniform-with-replacement generator, never suppressing
+        collisions.
+      pass_condition: occupancy_replay_exact
+    - id: CTRL-B-D-QUERY-MATCH
+      method: B and D use the same number of left queries and candidate-verification path.
+      pass_condition: query_count_equal and verification_code_path_equal
+    - id: CTRL-DETERMINISTIC-RERUN
+      method: A same-seed rerun must reproduce raw results and hashes byte-for-byte.
+      pass_condition: raw_result_hash_equal
+  independent_variables:
+    - arm: [A, B, D]
+    - prime: [101,103,107,211]
+    - b: [0.4,0.5]
+    - seed: [1,2,3,4,5]
+  metrics:
+    primary:
+      - relation_yield: relations_found / |F|^m, same denominator across A/B/D
+      - relation_set_recall_B_vs_A
+      - yield_B_minus_D_by_independent_group
+    secondary:
+      - field_operations
+      - hash_operations
+      - key_generation_operations
+      - oracle_queries
+      - candidates_verified
+      - hash_table_hits
+      - false_positives
+      - right_pair_count
+      - unique_D_keys
+      - D_key_collision_count
+      - peak_memory_bytes
+      - wall_clock_seconds
+  replication:
+    seeds: [1,2,3,4,5]
+    independent_instances: 8
+    independent_unit: prime_and_b_group_mean
+    rerun_policy: >-
+      Repeat one complete cell from a clean detached source tree before the
+      full grid; any byte mismatch is an infrastructure/provenance signal.
+  budget:
+    wall_clock_seconds_per_run: 300
+    total_wall_clock_budget_seconds: 36000
+    maximum_memory_gb: 4
+    maximum_runs: 120
+  stopping_rules:
+    - Stop an arm at 300 seconds and record resource_exhaustion, never as negative evidence.
+    - Stop the grid at 10 hours total wall time.
+    - Stop before execution if any control or provenance binding is unresolved.
+  invalidation_rules:
+    - Missing command, environment, manifest, stdout, stderr, or raw-result invalidates the run.
+    - Any A/B relation-set mismatch invalidates the cell and blocks interpretation.
+    - Any D key that depends on curve or point bytes invalidates the D null.
+    - Any seed collision or source-hash mismatch is infrastructure/provenance failure.
+  success_criterion: >-
+    All valid cells pass the controls, B reproduces A's exact relation set, D's
+    key stream replays exactly, and the pre-registered B-D group comparison is
+    reported with field-operation and memory charges.
+  falsification_criterion: >-
+    A valid, fully controlled result with B-D indistinguishable weakens the
+    claim that the true right-table association explains the prior contrast.
+    No infrastructure failure can falsify the hypothesis.
+  required_artifacts:
+    - experiments/EXP-XOR-4ded1d/specification.yaml
+    - experiments/EXP-XOR-4ded1d/implementation/arm_d_grid.py
+    - experiments/EXP-XOR-4ded1d/runs/RUN-XOR-4ded1d-grid/manifest.yaml
+    - experiments/EXP-XOR-4ded1d/runs/RUN-XOR-4ded1d-grid/raw-results.json
+    - experiments/EXP-XOR-4ded1d/runs/RUN-XOR-4ded1d-grid/analysis.yaml
+  assigned_to: executor

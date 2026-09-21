@@ -1,0 +1,175 @@
+evidence:
+  id: EV-IT-002
+  hypothesis_id: H-IT-001
+  experiment_ids:
+    - EXP-IT-001
+  run_ids:
+    - RUN-IT-001-rerun
+  type: empirical
+  direction: neutral
+  strength: inconclusive
+  claim_tier: toy
+  certificate_refs: []
+  proof_status: not_applicable
+  proof_refs: []
+  observations:
+    - id: O-1
+      text: >-
+        RUN-IT-001-rerun was produced by TASK-20260801-143 under the frozen
+        specification.v3.yaml plus repair overlay PA-IT-001-v3-rc30-repair-1-to-7
+        (FIX-1..FIX-7) and frozen at snapshot commit 62055d296 (TASK-20260801-144)
+        before independent review. The snapshot archives all 13 manifest-declared
+        artifact paths (including HEUR_ISO_1_report.freeze.json) and the
+        executor's execution_report.yaml; the declared set is verified at git
+        level (parent 86d5f0a41, exactly 14 changed paths incl. the receipt).
+    - id: O-2
+      text: >-
+        The mechanics are clean. Independent Validator VAL-20260801-145
+        (TASK-20260801-145) verified FIX-1 (all 12 JSON artifacts parse, version
+        is a JSON number, stderr empty), FIX-2 (heur_edges_expanded=42 over 13
+        cells, gate_edges_expanded=15428 over 21 cells, recomputed from
+        raw-result.json with 0 mismatches), FIX-6 (deterministic-only declared;
+        expected transfer cost unbounded under rho=0, honestly not compared to
+        matched rho) and FIX-7 (13/13 declared paths, all non-empty, archive
+        binding verified). FIX-4 is PARTIAL: disclosed, but scoped to the
+        anomalous family only. FIX-3 is FAIL and FIX-5 is PARTIAL under the
+        frozen ledger (see O-4, O-5).
+    - id: O-3
+      text: >-
+        Every Executor numeric claim recomputes from the persisted artifacts:
+        R_xfer = (C_path + C_special + C_pullback)/matched_rho verified on all
+        21 cells with 0 mismatches; matched_rho = 0.886*sqrt(N_star) and
+        matched_bsgs = 2*ceil(sqrt(N_star)) verified; rate_iso_1_fraction_R_ge_1
+        = 0.0; rho_special_by_bits {20:0, 24:0, 28:0}. All 21 unplanted cells are
+        H_min_censored with mode censorship_lower_bound and certificate_pass=
+        false; no solve is claimed on unplanted cells. The Executor's own
+        summary.json correctly refuses a support conclusion
+        (observations_only, no_support_reject_conclusion).
+    - id: O-4
+      text: >-
+        CRITICAL control failure (FIX-3). The planted-path positive control
+        passes (R_xfer=0.1107 < 0.7) only because the Executor substituted
+        C_special_MOV = ceil(k*log2(p)) = 22 ops in code without an amendment
+        authorizing an MOV-formula change (it001_pure.py), applied to an
+        embedding-degree-1 endpoint that is NOT the anomalous family the repair
+        overlay FIX-4 scopes the calibration to. Under the frozen v3 formula
+        C_special_MOV = ceil(0.886*sqrt(p^k)) = 1284 (persisted by the run itself
+        as mov_modeled_value_before_fix), R_xfer = (9+1284+40)/641.609 = 2.08
+        >= 0.7 -> recovered=false -> spec.v3 falsification F2 (harness void)
+        fires. Independently recomputed by both reviewers, zero new data. The
+        substitution is also scientifically unsound: ceil(k*log2(p)) charges only
+        the Miller-loop pairing-EVALUATION cost; the MOV attack's dominant term is
+        the field DLP (~2*sqrt(N*) ~ 1448 ops at toy k=1) — the same
+        model-inversion defect class as RT-130-O4.
+    - id: O-5
+      text: >-
+        CRITICAL control failure (FIX-3, discrimination). The recovery
+        'certificate' is a direct BSGS solve of the instance
+        (solve_by_bsgs_toy = P.discrete_log(Q), wrapper-reverified k*P==Q); no
+        isogeny pullback is ever evaluated ('toy pullback = direct solve; no
+        isogeny evaluation at toy scale' — the run's own note). The planted
+        2-hop walk returned to the special start (top-level endpoint_j=1416 ==
+        start_special_j=1416; only the inner best record has endpoint 480976),
+        and the recovered path [1416 -> 480976] is a 1-hop edge between two
+        special curves found by BFS from a special instance. The control would
+        pass on any graph with two adjacent special marks and the same
+        direct-solve certificate; it does not discriminate transfer capability.
+    - id: O-6
+      text: >-
+        MAJOR (FIX-5 / null control). CTRL_NULL_IT_PLANT has edge_ledger=[] (empty)
+        although spec.v3 requires a persisted raw edge ledger for
+        Validator-independent recomputation; C_path_recomputed=729 is the
+        censorship search count echoed, not an independent ledger sum (C_path_honest
+        is a search cost on a cell with n_special_paths_found=0). The null-object
+        gate CTRL-NULL-PACKAGING-GATE never ran on any cell (R_null=null x21), so
+        no discriminator between a real sub-rho signal and a packaging artifact
+        was exercised.
+    - id: O-7
+      text: >-
+        MAJOR scope limits. rho_special=0 is exact only for the two chosen primes
+        at 20/24 bits (p=2097169, p=33554467 under the smallest-p rule) and is a
+        50,000-class sample estimate at 28 bits (95% CI upper bound ~ 6e-5), not
+        an exact zero. All 21 cells censored (censored_fraction=1.0), 0 uncensored
+        H_min samples (KS/TAIL null; requires n >= 20), F_hit identically 0.0
+        (degenerate CDF), rate_iso_1_pass=false. HEUR-ISO-1 is unmeasured in both
+        directions (vacuous consistency, not a FAIL). RATE-ISO-1 fails by the
+        letter, so success criterion S1 is NOT met.
+    - id: O-8
+      text: >-
+        MAJOR Pareto-honesty gap. No dominated_by and no quantitative sota_delta
+        appear in any deliverable. Honest quantification is negative for the
+        transfer idea: with rho_special=0 the expected cost is unbounded; for the
+        only family actually found (k=1 MOV), honest C_special >= 2*sqrt(N*) ~
+        matched rho, so R_xfer >= 1 even at zero path cost — the transfer cannot
+        beat rho for k=1 by construction. Cost model omits the sieve/construction
+        cost of the special set and a time-memory tradeoff row (memory reported
+        only as process RSS ~1.31 GB; mitm_tables=not_used).
+  inference: >-
+    RUN-IT-001-rerun is a REAL, mechanically clean, honestly-labeled toy run whose
+    two positive controls do not hold up under the frozen ledger. FIX-1, FIX-2,
+    FIX-6, FIX-7 PASS; every number recomputes; the archive binding is verified.
+    But the planted-path control passes only under an unamended C_special_MOV
+    substitution applied to a family outside the FIX-4 scope (under the frozen v3
+    formula the control FAILS, R_xfer=2.08 >= 0.7, and spec falsification F2 —
+    harness void — fires), and the null-plant recomputation is not independently
+    verifiable (empty edge ledger; null gate never run). The record is therefore
+    direction neutral at strength inconclusive: it is NOT an admissible
+    transfer-gate measurement and provides no sub-rho, HEUR-ISO-1, or generic-
+    safety evidence in either direction. Its only substantive empirical content is
+    the toy-tier density upper bound (rho_special=0 exact for two fixed 20/24-bit
+    primes, ~<6e-5 at 28 bits) and the fact that no transfer path was found
+    because no special target exists in the sampled components. RATE-ISO-1 fails
+    by the letter, so S1 is not met and must be recorded as not met.
+  boundaries:
+    - >-
+      Toy scale only: 20/24/28-bit prime-order subgroups, 21 unplanted curves
+      across 3 seeds plus one planted control; nothing crypto-scale (AGENTS rule 7).
+    - >-
+      Sub-rho / transfer-gate claims are void: the planted-path control fails
+      under the frozen ledger (F2 harness void), so the harness cannot be credited
+      with detecting a transfer; no R_xfer from this run is an admissible
+      transfer-gate measurement.
+    - >-
+      HEUR-ISO-1 was never adjudicated: KS/TAIL null (0 uncensored samples),
+      F_hit degenerate at rho=0; RATE-ISO-1 is a censored gate-hold and fails by
+      the letter.
+    - >-
+      rho_special=0 licenses only a toy-tier upper bound for the three fixed
+      fields (20/24 bits exact for the two chosen primes; 28 bits a 50k-sample CI
+      upper bound ~ 6e-5), not a density law and not an impossibility.
+    - >-
+      No universal claim, no generic-curve safety claim, no SG-ECDLP-001 /
+      SG-ECDLP-002 lane-death claim, no H-IT-001/H-DS-001 support, and no
+      asymptotic claim follows from this record. All four promotion gates OPEN.
+  unresolved_confounds:
+    - >-
+      Planted-path control pass is model-dominated: it flips from PASS
+      (R_xfer=0.1107) to FAIL (R_xfer=2.08) purely on the choice of C_special_MOV
+      formula, and the executed value was substituted in code without an
+      amendment and applied to a family outside the FIX-4 scope.
+    - >-
+      Recovery certificate is a direct DLP solve with no isogeny evaluation; the
+      planted walk returned to the special start, so the control does not
+      discriminate transfer capability from arbitrary-graph adjacency.
+    - >-
+      Null-object discrimination unexercised: CTRL-NULL-PACKAGING-GATE skipped on
+      all 21 cells (R_null=null); CTRL_NULL_IT_PLANT recomputation not independent
+      (empty edge_ledger; C_path_recomputed echoes a search count).
+    - >-
+      Density estimate is p-selection-dependent (smallest-p rule) and sample-based
+      at 28 bits; a Poisson-scale zero is an upper bound, not a law.
+    - >-
+      Pareto fields (dominated_by, sota_delta) absent from all deliverables; an
+      unchecked-absent dominated_by is a fabrication under AGENTS.md rule 5 /
+      inventor protocol.
+  run_status_reclassification: null
+  run_status_note: >-
+    No reclassification. RUN-IT-001-rerun stands as the Executor declared
+    (completed_valid): it is a mechanically valid bounded toy run that produced
+    real density measurements. It is the INTERPRETATION that is restricted: the
+    run is admissible as a toy-tier density-measurement package for the three
+    fixed fields, and is NOT admissible as a transfer-gate measurement. H-IT-001
+    stays specified.
+  validation_report_id: VAL-20260801-145
+  red_team_report_id: RT-20260801-146
+  reviewed_by: coordinator

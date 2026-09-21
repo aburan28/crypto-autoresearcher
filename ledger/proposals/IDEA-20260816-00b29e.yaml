@@ -1,0 +1,261 @@
+idea:
+  id: IDEA-20260816-00b29e
+  question_id: RQ-NTRU-9015ee
+  added: '2026-08-16'
+  title: Transport one fixed NTRU instance across the modulus axis by modulus switching instead of
+    resampling it, and test whether the density signature follows the lattice or follows the sampling,
+    since a transition that is a property of the parameter set and one that is a property of each
+    drawn key are different objects
+  class: composition
+  claim: '(A) Every sweep in q that this goal contemplates resamples a fresh key at each modulus,
+    so each cell contains a different secret in a different lattice. That confounds two things: how
+    the lattice''s density changes with q, and how the population of keys changes with q. They can
+    be separated by composing the instance with a second operation, modulus switching, which changes
+    q while holding the secret fixed.
+
+    (B) Concretely: from an instance with public h and modulus q, form h'' = round((q''/q) h) modulo
+    q'' for q'' < q. The exact NTRU relation g = f h does not survive rounding; what survives is g
+    approximately equal to f h'' modulo q'' with an error whose size is computable from the rounding
+    and from f''s norm. The transported object is therefore a bounded-distance instance rather than
+    an exact NTRU instance, and the claim is that this is a feature rather than a defect, because
+    the error''s contribution to the planted vector''s norm is exactly computable and can be added
+    to the density accounting.
+
+    (C) The claim under test is a comparison of two curves as functions of the modulus: the density
+    signature of freshly sampled instances at each q'', and the density signature of one fixed instance
+    transported to each q''. If the two curves agree within their spread, the transition is a property
+    of the lattice geometry at that modulus and the key population is incidental. If they diverge
+    systematically, the transition is partly a property of the sampling, and every resampled sweep
+    in this goal is measuring a mixture of two effects with no way to separate them after the fact.
+
+    (D) What is NOT claimed: no attack, and specifically not that modulus switching is a useful attack
+    step; it is used here purely as a transport map to hold a secret fixed. It is not claimed that
+    the transported instance is equivalent to a fresh instance, which it demonstrably is not because
+    of the rounding error; the whole design is built around measuring the difference that error makes.
+    No security consequence of any kind follows, and nothing is asserted about deployed parameters.'
+  mechanism: 'Stage 1, exact accounting: derive the transported planted vector. Writing g = f h +
+    q k for an integer vector k, the switched instance satisfies g'' = f h'' + e with e determined
+    by the rounding of (q''/q) h times f plus the modulus bookkeeping. Compute e exactly for each
+    instance rather than bounding it, since it is available in the clear. The transported planted
+    vector is then (f, g'') and its norm is measured, not estimated.
+
+    Stage 2: compute the density signature on the transported lattice using the covolume advantage
+    envelope from the companion entry in this batch, which needs no reduction, so a full transport
+    chain costs milliseconds per step.
+
+    Stage 3: build two curves per starting instance. The transport curve takes one key from q down
+    through a ladder of q'' values. The resample curve draws fresh keys at each q'' from the same
+    distribution. Both curves are computed by the identical code path on the identical grid.
+
+    Stage 4: compare. The primary statistic is the difference between the transport curve''s crossing
+    abscissa and the median resample crossing abscissa, over many starting keys, with the rounding
+    error''s norm contribution reported alongside so that a divergence can be attributed to it or
+    not.
+
+    Stage 5, the control: run the identical transport chain on the matched independent-plant lattice,
+    where the same rounding applies but no ring structure does. If transport and resample diverge
+    equally there, the divergence is a property of modulus switching, not of NTRU, and the record
+    is a controlled null.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read all nine RQ-NTRU-9015ee proposals by title and class. grep -ril 'modulus switching',
+      'modulus reduction', 'rescale', 'transport', 'fixed secret' over ledger/proposals/ and ledger/hypotheses/.
+      Read KN-OPEN-026 for whether modulus switching appears in the structure-discount discussion.
+      Read IDEA-20260809-2e974b closely since it is the one existing proposal that treats q as the
+      axis of a design tradeoff.
+    results: No proposal under RQ-NTRU-9015ee uses modulus switching or any transport map; all of
+      them vary q by resampling. IDEA-20260809-2e974b plots correctness against fatigue as two constraints
+      on the q axis, which is a design-space statement rather than an instance-level transport. 'modulus
+      switching' returned no hit in ledger/proposals/ on this screen. KN-OPEN-026 concerns hybrid-attack
+      preprocessing amortisation and ring-accelerated guessing and does not mention modulus switching.
+      The blacklist item about ML-KEM decryption-failure reruns and lattice-estimator re-executions
+      does not apply, since no estimator is invoked anywhere in this entry.
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature; modulus switching is a standard
+      operation in the lattice world and its use as an analysis transport may well be known. What
+      is claimed new relative to this repository is the specific experimental separation it enables,
+      holding the secret fixed while moving q so that the sampling-versus-geometry confound in every
+      resampled sweep becomes measurable, together with the exact rather than bounded treatment of
+      the rounding error. Assembled from known parts: modulus switching, the covolume envelope from
+      the companion entry, and the matched independent-plant control.'
+  object_first_candidate:
+    tracked_object: The pair (transported planted vector norm, covolume advantage envelope crossing)
+      for one fixed secret carried down a ladder of moduli by rounding, as opposed to the same pair
+      for freshly drawn secrets at each rung.
+    lossiness: 'Lossy in the same way as the companion envelope object, discarding all directional
+      information and the entire lattice outside the plant, and additionally discarding the rounding
+      error''s direction while retaining only its norm contribution. The retained part propagates
+      compatibly with the transport operation because rounding acts coefficientwise and its norm contribution
+      is additive in the accounting to first order, which is checked exactly rather than assumed.
+      What is not discarded, and this is worth saying plainly: the secret f itself is carried unchanged
+      down the ladder, so this object is less lossy than the resampled one by exactly the degree of
+      freedom the experiment is trying to hold fixed. That is not a change of coordinates, because
+      the envelope still collapses the lattice to n scalars.'
+    propagation: One step of the target operation is a rung of the modulus ladder, q -> q' with ratio
+      fixed. Under it h is rescaled and rounded, the planted vector acquires an additional error term
+      whose norm is computed exactly, and the lattice's determinant drops from q^n to q'^n. The envelope's
+      intercepts therefore change by a computable amount from the plant's norm growth while its slopes
+      are unchanged, so the crossing abscissa moves in a way that decomposes cleanly into a determinant
+      part and a plant-norm part. That decomposition is the propagation statement and is the quantity
+      reported.
+    survival_score: 'Survives down the ladder until the rounding error''s norm contribution becomes
+      comparable to the secret''s own norm, at which point the transported plant is no longer short
+      and the object dissolves. That point is computable in advance from f''s norm and the ratio q''/q,
+      and reporting where it sits is part of the deliverable: concretely, the ladder is expected to
+      survive a few rungs of factor two and to dissolve within about log2(q/||f||) rungs, which the
+      run measures rather than assumes.'
+  null_object_control: 'The matched independent-plant lattice, transported down the identical ladder
+    by the identical code path in the same invocation: same dimension, determinant, modulus schedule,
+    planted rank and per-vector norm, differing only in that the plant is n independent vectors rather
+    than an orbit. If the transport-versus-resample divergence is the same on this arm, the divergence
+    is a property of the transport map and not of ring structure, and the honest record is a controlled
+    null. A second forced null: transport with ratio exactly 1 must reproduce the original instance
+    bit for bit and must give zero divergence, gating the transport implementation before any ladder
+    is run.'
+  discriminated_from:
+  - IDEA-20260809-2e974b treats q as an axis on which two design constraints are plotted; this entry
+    treats q as an axis along which a single instance is moved, and its deliverable is a confound
+    separation rather than a design window.
+  - IDEA-20260809-26de01 measures transition width by resampling at each q; the entire point here
+    is that resampling is what confounds the measurement, so this entry supplies the control that
+    width measurement lacks.
+  - IDEA-20260809-2b4624 varies the secret distribution as an independent variable; here the secret
+    is held numerically fixed, which is a stronger form of control than distributional matching and
+    is available only through a transport map.
+  - 'The blacklisted ML-KEM decryption-failure and estimator-rerun space is not touched: no estimator
+    is called, no decryption failure is computed, and the object is a lattice density quantity rather
+    than a scheme-level failure rate.'
+  - A plain rescaling of the lattice by a scalar would change nothing structurally; modulus switching
+    is not a scaling, because the rounding is what makes q' a genuinely different modulus and it is
+    the rounding that the accounting must handle.
+  assumptions:
+  - The rounding error can be computed exactly for each instance because the secret is known by construction,
+    which is true here and would not be true in any adversarial setting; this is stated because it
+    is what makes the measurement possible and simultaneously what prevents it from being an attack.
+  - The covolume envelope from the companion entry is a meaningful density signature, which is itself
+    unvalidated; if that entry's controlled null comes back negative, this entry's primary statistic
+    must be recomputed against whatever signature survives.
+  - First-order additivity of the error's norm contribution to the plant's norm, which is checked
+    exactly at every rung rather than assumed.
+  - A ladder with a fixed ratio is the right transport schedule; alternatives such as a single large
+    jump are included as a secondary arm to check that the ladder itself does not create the effect.
+  predictions:
+  - metric: divergence between transport-curve crossing and median resample crossing, in log2 q, before
+      the plant's norm growth exceeds 20 percent
+    direction: different
+    minimum_effect: no pre-commitment on magnitude; the pre-committed statement is that the divergence
+      will be reported with a CI and compared against the resample spread, since guessing a magnitude
+      here would be invention
+  - metric: number of ladder rungs surviving before the transported plant's norm doubles
+    direction: different
+    minimum_effect: forced by arithmetic to approximately log2(q/(2||f||)) rungs at ratio two; the
+      measured value must match the computed value within one rung or the accounting is wrong
+  - metric: divergence on the matched independent-plant control relative to the NTRU arm
+    direction: different
+    minimum_effect: 0.5
+  - metric: divergence under ratio exactly 1
+    direction: different
+    minimum_effect: forced value exactly 0; nonzero invalidates the transport implementation
+  minimal_test:
+    design: One invocation, no reduction. Fix n = 32, ring Z[x]/(x^n - 1), ternary fixed-weight secrets,
+      and a starting modulus of 2^20. For each of 200 keys, transport down a ladder of ratio two for
+      as many rungs as the plant's norm growth permits, computing at each rung the exact rounding
+      error, the transported plant's norm and the covolume envelope crossing. Alongside, draw 200
+      fresh keys at each rung's modulus and compute the same envelope crossing. Run the identical
+      two-curve procedure on the matched independent-plant control. Gate everything on the ratio-one
+      forced null returning exact zero. Report, per rung, the transport-minus-resample crossing difference
+      with bootstrap CIs, together with the measured plant-norm growth so that a divergence can be
+      attributed to norm growth or not. The discriminating comparison is whether the NTRU arm's divergence
+      exceeds the control arm's by more than half a log2 unit before the plant's norm has grown appreciably.
+    controls:
+    - Matched independent-plant lattice transported down the identical ladder in the same invocation.
+    - Ratio-one forced null, required to reproduce the instance exactly and give zero divergence.
+    - Single-jump arm, transporting directly to the final modulus, to check that the ladder schedule
+      does not create the effect.
+    - Exact rounding-error computation per rung, cross-checked against the residual g' minus f h'
+      modulo q' recomputed independently.
+    - Plant-norm growth reported at every rung so that divergence can be decomposed into determinant
+      and norm contributions.
+    required_metrics:
+    - exact rounding error norm per rung
+    - transported plant norm per rung
+    - envelope crossing abscissa on the transport curve
+    - envelope crossing abscissa distribution on the resample curve
+    - transport minus resample difference with CI, per rung and arm
+    - rungs survived before the plant norm doubles
+  falsification_conditions:
+  - The ratio-one forced null gives nonzero divergence, invalidating the transport implementation.
+  - The transport and resample curves agree within the resample spread at every rung, which is a clean
+    negative saying the sampling-versus-geometry confound is immaterial at these parameters and licenses
+    resampled sweeps.
+  - The matched control shows the same divergence as the NTRU arm, recording a controlled null attributing
+    divergence to the transport map.
+  - The measured rung count before plant-norm doubling disagrees with the computed value by more than
+    one rung, meaning the error accounting is wrong and the whole curve is unreliable.
+  - The single-jump arm disagrees with the ladder arm at the same final modulus, meaning the schedule
+    creates the effect.
+  confounders:
+  - Plant-norm growth from rounding is itself a determinant-independent shift of the envelope, so
+    a divergence could be entirely a norm effect; the decomposition into determinant and norm contributions
+    is the countermeasure and must be reported.
+  - Fixed-weight secrets have pinned norms before transport but not after, so the transported population
+    has a different norm distribution from the resampled one by construction; this must be reported
+    and cannot be fully removed.
+  - Rounding of h introduces correlations across coefficients that a fresh sample would not have,
+    which could shift the envelope for reasons unrelated to ring structure; the matched control shares
+    this and is the main defence.
+  - The choice of starting modulus determines how many rungs are available and thus the range over
+    which the comparison is made, so a divergence appearing only at the last rung must be reported
+    as range-limited.
+  interpretation_limits:
+  - Transported instances are bounded-distance instances, not NTRU instances, so any conclusion is
+    about the transported family and its relation to the fresh family, not about NTRU alone.
+  - Nothing here bears on whether modulus switching is useful for anything; it is used as an experimental
+    transport and nothing else.
+  - The result is scoped to the tested n, starting modulus, ladder ratio and secret distribution.
+  target_complexity:
+    time_exponent: No attack exponent claimed. Transport costs O(n log n) per rung and the envelope
+      O(n^3) exact-integer operations once per instance per rung.
+    memory_exponent: No attack memory exponent claimed; memory is O(n^2) exact integers per instance.
+    best_known: There is no incumbent separation of the sampling and geometry contributions to a q-sweep
+      in this repository; every proposed sweep resamples, which is precisely the gap.
+    hidden_overhead: 'The rounding-error accounting is where the difficulty hides: it is easy to write
+      down a bound and hard to compute the error exactly and consistently at every rung, and a subtly
+      wrong accounting would produce a confident and meaningless divergence. The second hiding place
+      is that fixed-weight secrets stop being fixed-weight after transport, which no amount of care
+      removes.'
+  dominated_by: 'n/a (no attack result claimed). Frontier check across time, memory and data: no attack
+    quantity is produced. Against in-repository alternatives for separating sampling from geometry
+    there is nothing to compare with, since no alternative exists; asserting dominance over the resampled
+    sweeps would be wrong, because they measure a different and also legitimate mixture.'
+  sota_delta: 'No attack; measurement-design contribution only. The delta is a decomposition: a q-sweep
+    result would come with a measured statement of how much of it is geometry and how much is key
+    population, where currently that split is unmeasured.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the transport is implementable with exact error accounting and passes
+    the ratio-one null: 0.85. That the ladder survives at least three rungs before the plant norm
+    doubles at the stated starting modulus: 0.8, since it is essentially arithmetic. That transport
+    and resample curves diverge measurably in the NTRU arm: 0.45, genuinely uncertain, and the negative
+    branch is the more useful one because it licenses every resampled sweep in the goal. That any
+    divergence exceeds the matched control''s by half a log2 unit, making it attributable to ring
+    structure rather than to the transport map: 0.25. Joint prior for a positive, attributable divergence:
+    about 0.2.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-NTRU-9015ee
+  - IDEA-20260809-2e974b
+  - IDEA-20260809-26de01
+  - IDEA-20260809-2b4624
+  - IDEA-20260809-28289c
+  - docs/inventor-protocol.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-NTRUL-f76d97

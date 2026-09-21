@@ -1,0 +1,256 @@
+hypothesis:
+  id: H-QRE-6265e5
+  question_id: RQ-QRE-6dba8c
+  derived_from_idea: IDEA-20260809-593de3
+  status: proposed
+  added: '2026-08-25'
+
+  statement: >-
+    SCOPE. Reversible circuits for modular addition, modular multiplication and
+    modular exponentiation at bit widths n in {4, 6, 8, 10, 12, 16}, constructed
+    inside this program from published construction schemas, over Toffoli/CNOT/X gate
+    sets, simulated classically on the computational basis. CLAIM TIER toy for every
+    simulated behaviour, derivation tier for the closed-form count. NO QUANTUM
+    FEASIBILITY CLAIM, NO TIMELINE, NO RESOURCE ESTIMATE.
+
+    THE HYPOTHESIS, IN THREE PARTS.
+    (Q1) CORRECTNESS. Each constructed circuit computes its intended modular function
+      reversibly on the computational basis: for every tested input the measured
+      output equals the classically computed reference, and the circuit is invertible
+      on every tested input, with all ancillae returned to |0> (clean uncomputation).
+    (Q2) COUNT AGREEMENT. Two independently implemented gate counters - one by
+      post-hoc traversal of the emitted circuit, one by accumulation at construction
+      time - agree EXACTLY on the Toffoli count, the CNOT count and the ancilla count
+      at every tested width.
+    (Q3) THE EXTRAPOLABLE FORM, WHICH IS THE PART THAT CAN FAIL. The measured Toffoli
+      count is a closed form in n of the shape the construction dictates. Concretely:
+      a closed form fitted on a FITTING SET of widths predicts the exact integer count
+      at HELD-OUT widths with zero residual. Only a formula that survives held-out
+      prediction may be used to state a count at a width that was never built.
+
+    PRE-REGISTERED PREDICTION. Zero held-out residual, because a gate count is
+    combinatorial rather than empirical. A nonzero held-out residual is not noise: it
+    means the construction contains a width-dependent branch the formula does not
+    capture, and the formula must not be extrapolated. That outcome is the informative
+    one and is exactly what the held-out split exists to detect.
+
+  mechanism: >-
+    A reversible modular-arithmetic circuit is assembled from a fixed schema:
+    controlled-adder blocks composed into a modular adder, modular adders composed by
+    shift-and-add into a modular multiplier, and multipliers composed by
+    square-and-multiply into a modular exponentiator, with uncomputation of every
+    intermediate. Because the schema is deterministic in n, the gate count is a sum
+    over blocks with block counts that are explicit functions of n, and the total is
+    therefore a closed form rather than a measured quantity. TWO INDEPENDENT FAILURE
+    MODES MAKE THE COUNT UNTRUSTWORTHY AND BOTH ARE ADDRESSED DIRECTLY. First, a
+    transcription or composition error produces a circuit that is not the intended
+    function; classical simulation on the computational basis detects this, because a
+    reversible circuit over Toffoli/CNOT/X maps basis states to basis states and can
+    be simulated exactly at these widths. Second, a counting error - double counting a
+    shared block, or missing an uncomputation pass - produces a wrong count for a
+    correct circuit; two independent counters detect this only if they are genuinely
+    independent, which is why one counts the emitted gate list and one accumulates at
+    build time. The third and least obvious failure is a formula that fits the widths
+    it was derived from and diverges elsewhere, which is why the fit is scored on
+    held-out widths and never on the fitting set.
+
+  assumptions:
+    - >-
+      The circuits are simulable classically at the tested widths because they are
+      over a basis-state-preserving gate set; this is what makes the correctness check
+      possible and it does not extend to circuits containing Hadamard or phase gates.
+    - >-
+      The intended function reference (modular addition, multiplication,
+      exponentiation) is computed by an independent implementation, not by the same
+      code path that builds the circuit.
+    - >-
+      Ancilla accounting is part of the count. A construction that leaves ancillae
+      dirty is not usable in the fault-tolerant setting and its Toffoli count is not
+      comparable to one that does.
+    - >-
+      Gate counts are construction-dependent. A count measured here characterizes THE
+      CONSTRUCTION IMPLEMENTED HERE and says nothing about any other construction,
+      published or otherwise.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      This hypothesis is purely empirical and instrumental. It asserts no theorem, no
+      asymptotic bound, no reduction and no closure argument; its strongest claim is
+      that a constructed circuit computes what it is supposed to compute and that its
+      gate count follows a closed form that survives held-out prediction. The four
+      section-8 audits (baseline reproduction, observation collision, quantifier
+      order, method ceiling) are recorded here as not applicable in that strict sense,
+      with one exception carried explicitly in the contract: the counting collision -
+      two different circuits can share a Toffoli count - which is why correctness is
+      checked separately from the count and never inferred from it.
+    bottleneck: null
+    baseline_embedding:
+      parameter_slice: null
+      reproduction_check: null
+    observation_collision:
+      observable: null
+      distinct_preimage_search: null
+    constructive_transforms: []
+    quantifier_order: null
+    method_ceiling:
+      strongest_certifiable_claim: null
+      nearby_object_control: null
+    proof_obligations: []
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Explicitly null. A gate count is one input to a resource estimate, not a resource
+    estimate, and no complexity claim about any cryptographic problem is made or
+    implied. The parent proposal's own interpretation_limits say so and they bind.
+
+  heuristic_assumptions: []
+  heuristic_assumptions_note: >-
+    Empty. Nothing here is conditioned on a distributional or unproved assumption; the
+    count is combinatorial and the correctness check is exhaustive-or-sampled
+    simulation with a stated sample size.
+
+  predictions:
+    - metric: >-
+        classical simulation agreement, defined as the fraction of tested inputs on
+        which the circuit output equals the independent reference
+      direction: different
+      minimum_effect: >-
+        Exactly 1.000 at every width and every circuit family. Anything below 1.000
+        invalidates the count for that family entirely - a count of a circuit that
+        computes the wrong function is not a count of anything.
+    - metric: ancilla cleanliness, the fraction of tested inputs on which every ancilla returns to zero
+      direction: different
+      minimum_effect: >-
+        Exactly 1.000. A dirty ancilla makes the Toffoli count incomparable to
+        published fault-tolerant counts and the family is reported as unusable.
+    - metric: agreement between the two independent gate counters
+      direction: different
+      minimum_effect: >-
+        Exact integer agreement at every width for Toffoli, CNOT and ancilla counts.
+        Disagreement means at least one counter is wrong and no count is reported.
+    - metric: >-
+        held-out residual of the fitted closed form, defined as predicted minus
+        measured Toffoli count at widths excluded from the fit
+      direction: lower
+      minimum_effect: >-
+        Exactly 0 at every held-out width. A nonzero residual at any held-out width
+        means the closed form is not the construction's and MUST NOT be extrapolated;
+        the deliverable is then the measured table plus an explicit refusal to
+        extrapolate.
+    - metric: invertibility, the fraction of tested inputs recovered by running the circuit and its inverse
+      direction: different
+      minimum_effect: Exactly 1.000; an irreversible step makes the count meaningless in the fault-tolerant setting.
+
+  test_boundary:
+    instances: >-
+      Three circuit families - modular adder, modular multiplier, modular
+      exponentiator - each constructed at every tested width against a set of moduli
+      including at least one prime, one odd composite and one power of two, since
+      modular reduction paths often branch on the modulus.
+    parameters:
+      bit_widths_fitting_set: [4, 6, 8, 10]
+      bit_widths_held_out: [12, 16]
+      moduli_per_width: 3
+      random_inputs_per_width: 1000
+      exhaustive_inputs_when: 'n <= 6, where the full input space is under 4096 states'
+      gate_set: [Toffoli, CNOT, X]
+    implementation: >-
+      Python 3.11, pure Python plus numpy; circuits emitted as an explicit gate list;
+      simulation by direct application of the gate list to a computational-basis
+      integer register; the reference modular arithmetic computed by Python's own
+      integer operations in a separate module. No quantum simulator dependency and no
+      state-vector simulation is needed, because the gate set preserves basis states.
+    budget:
+      wall_clock_seconds: 1800
+      total_cpu_hours: 2.0
+      memory_gb: 4
+      maximum_runs: 20
+
+  distinguishable_outcomes:
+    - outcome: >-
+        FULL PASS. Simulation agreement 1.000, ancillae clean, both counters agree
+        exactly, and the fitted closed form predicts the held-out widths with zero
+        residual.
+      what_observing_it_would_mean: >-
+        (Q1), (Q2) and (Q3) all hold in scope. This program owns a validated Toffoli
+        count for THIS construction, with a closed form that survived held-out
+        prediction and may therefore be used to state counts at untested widths -
+        clearly labelled as a count of this construction, and still not a resource
+        estimate. Every later total in this goal becomes a computation rather than a
+        citation, which is the parent proposal's entire stated value.
+    - outcome: >-
+        CIRCUIT WRONG. Simulation agreement below 1.000 at any width, or ancillae not
+        returned to zero.
+      what_observing_it_would_mean: >-
+        (Q1) fails. The construction as implemented does not compute the intended
+        function, so its count is a count of nothing. NO COUNT IS REPORTED for that
+        family. This is a defect in this program's implementation and is reported as
+        such; it is NOT evidence about any published construction.
+    - outcome: >-
+        COUNTERS DISAGREE. Simulation passes but the traversal and construction-time
+        counts differ at any width.
+      what_observing_it_would_mean: >-
+        (Q2) fails. At least one counter is wrong - most likely a shared block counted
+        once by one and twice by the other, or an uncomputation pass omitted. No count
+        may be reported until the discrepancy is localized, and localizing it is the
+        deliverable.
+    - outcome: >-
+        FORMULA DOES NOT EXTRAPOLATE. Simulation and counters pass, but the closed
+        form fitted on {4, 6, 8, 10} has a nonzero residual at 12 or 16.
+      what_observing_it_would_mean: >-
+        (Q3) fails, and this is the informative negative the design exists to produce.
+        The construction contains a width-dependent branch the formula does not
+        capture - a modulus-dependent reduction path, or a special case at a power of
+        two. The measured table stands as the deliverable; extrapolation to
+        cryptographic widths is REFUSED, and any downstream total that would have used
+        the formula must instead build the circuit at the width it needs.
+    - outcome: >-
+        MODULUS-DEPENDENT COUNT. All checks pass at each modulus separately but the
+        count depends on the modulus at fixed width beyond the declared tolerance.
+      what_observing_it_would_mean: >-
+        The count is a function of (n, modulus), not of n alone. That is a correction
+        to the shape of (Q3) rather than a refutation, and the deliverable is the
+        two-argument table with the dependence characterized; a downstream record
+        quoting a width-only count would be quoting a quantity that does not exist.
+    - outcome: >-
+        INFRASTRUCTURE. Simulation exceeds the budget at width 16, or the emitter
+        raises.
+      what_observing_it_would_mean: >-
+        NOTHING ABOUT THE CONSTRUCTION (AGENTS.md rule 5). The run is
+        failed_infrastructure; the held-out set is reduced to width 12 only, under an
+        amendment, and the weakened held-out check is reported as weakened.
+
+  falsification_conditions:
+    - Simulation disagrees with the independent reference at any tested input and width.
+    - Ancillae are not returned to zero on any tested input.
+    - The two independent counters disagree at any width.
+    - The fitted closed form has a nonzero residual at any held-out width.
+    - The circuit composed with its inverse fails to recover any tested input.
+
+  interpretation_limits:
+    - >-
+      A GATE COUNT IS NOT A RESOURCE ESTIMATE. It is one input to a pipeline whose
+      other inputs are physical assumptions, error-correction overheads and
+      architectural constraints. No timeline, no feasibility statement and no
+      "quantum threat" statement follows from anything measured here.
+    - >-
+      Everything measured characterizes THE CONSTRUCTION IMPLEMENTED IN THIS PROGRAM.
+      No published construction is validated, refuted, or compared, and no published
+      count is confirmed or contradicted.
+    - >-
+      Toy widths. A validated closed form is a statement about a formula, not a
+      measurement at cryptographic width, and any count quoted at cryptographic width
+      is a MODELLED number derived from a validated formula - labelled as such, never
+      as measured.
+    - >-
+      Toffoli count is one cost axis. Circuit depth, qubit count, T-depth and
+      measurement/feedforward structure are not measured here and a count without them
+      cannot rank two constructions.
+
+  prior_evidence_refs:
+    - RQ-QRE-6dba8c
+    - IDEA-20260809-593de3
+    - GOAL-QRE-001
+
+  proposed_by: coordinator
+  proposed_at: '2026-08-25'

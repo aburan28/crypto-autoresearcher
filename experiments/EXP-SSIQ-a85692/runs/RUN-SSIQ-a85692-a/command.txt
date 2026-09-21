@@ -1,0 +1,62 @@
+working_directory: /home/user/crypto-autoresearcher
+
+# ---------------------------------------------------------------------
+# Modular polynomial acquisition (PF-2): Phi_ell for ell in {2,3,5,7,11,
+# 13,17,19,23}, Sutherland's classical modular polynomial database
+# (https://math.mit.edu/~drew/ClassicalModPolys.html). Fetched once during
+# development and vendored byte-identically under implementation/modpoly_data/
+# (write_scope); the primary execution below reads the vendored files (no
+# network access required to reproduce numerically), while the ORIGINAL
+# fetch is what source_access_log.yaml records (URL, HTTP status, bytes,
+# SHA-256). Re-fetching the same URLs reproduces byte-identical files (the
+# vendored copies' SHA-256 values match what was fetched).
+for ell in 2 3 5 7 11 13 17 19 23; do
+  curl -sS -f -L --max-time 30 -A 'crypto-autoresearcher/EXP-SSIQ-a85692-executor' \
+    -o experiments/EXP-SSIQ-a85692/implementation/modpoly_data/phi_j_${ell}.txt \
+    https://math.mit.edu/~drew/modpolys/jfiles/phi_j_${ell}.txt
+done
+
+# ---------------------------------------------------------------------
+# primary_execution: Phase 0 (C-CAL-GAP) + modular-polynomial independent
+# verification (PF-2, Velu-formula route, ell=23 required) + graph reuse
+# (12 primes, build_isogeny_graph.py unchanged) + correctness gates +
+# MANDATORY feasibility smoke test (largest prime, p=21601) + pre-registered
+# truncation fallback + (Phase -1 real search on the confirmatory prime set,
+# if non-empty) + C-SEARCH-BIAS (required control, smallest prime) +
+# C-BOUND-CHECK + (C-NULL-LABEL and descent metrics, conditional on the
+# Phase -1 gate) + the four-branch decision rule, single combined command:
+ulimit -v 4194304
+timeout 7200 python3 experiments/EXP-SSIQ-a85692/implementation/compute_delta_e.py \
+  --out experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-a/raw-result.json \
+  > experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-a/stdout.log \
+  2> experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-a/stderr.log
+
+# No --wisde-cache-dir / WISDE fetch: this experiment's whole reason for
+# existing is that its real arm needs no external dataset
+# (H-SSIQ-9e2c71 "WHAT IS NEW"). C-CONNECTIVITY uses the self-contained
+# floor(p/12) formula anchor only (p = 1 mod 12, epsilon = 0 exactly) --
+# see compute_delta_e.py run_correctness_gates docstring for the disclosed
+# adaptation from EXP-SSIQ-58b642's WISDE-plus-formula dual anchor.
+
+# ---------------------------------------------------------------------
+# Development/verification commands run BEFORE the official run above
+# (interactive python3 -c invocations against the same, already-final
+# implementation modules; no code differs between these checks and the
+# official run) -- recorded here for audit-trail completeness, per
+# EXP-SSIQ-58b642's own precedent, not as a second source of results:
+#   - modular_polynomials.verify_against_known_phi2: confirms the general
+#     Sutherland-format parser reproduces build_isogeny_graph.py's
+#     independently-sourced Phi_2 nine-term polynomial exactly (5 sample j
+#     values, p=2437).
+#   - velu_verify.load_and_verify(3, ...) and velu_verify.load_and_verify(
+#     23, ...): interactive prototyping of the Velu-formula independent
+#     verification route (3/3 test curves passed for both ell=3 and ell=23)
+#     before it was wired into compute_delta_e.py's official flow (which
+#     re-runs ell=23 -- and, as an additional non-required sanity check,
+#     ell=3 -- for real, under the pre-registered seeds, as part of the
+#     primary_execution command above).
+#   - A standalone timing prototype of build_smooth_table/two_sided_search
+#     at p=21601 and p=2437 (3 sample vertices each), used to confirm the
+#     algorithm's real per-vertex cost BEFORE committing to
+#     compute_delta_e.py's final structure -- same code, reproduced by the
+#     official smoke test inside the primary_execution command.

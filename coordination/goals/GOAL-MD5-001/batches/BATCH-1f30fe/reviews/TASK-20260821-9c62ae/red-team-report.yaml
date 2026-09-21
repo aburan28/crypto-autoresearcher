@@ -1,0 +1,875 @@
+# Red-team report -- TASK-20260821-9c62ae.
+#
+# GOAL-MD5-001 / BATCH-1f30fe / RQ-MDFIVE-6870c1 / batch 3 of 7.
+# Independent red-team review of the frozen run package at archive commit
+# 4aebc03e6 (freeze commit bf69cd3f2). Protocol of record: BCP-2 at
+# 8677f11af. Opening decision: DEC-20260821-68fb76.
+#
+# Claim ceiling (SC-2): this review asserts nothing about MD5. Budget
+# outcomes are not MD5 evidence (SC-4). The review checks whether the
+# frozen package honestly executes BCP-2's blind calibration protocol and
+# whether the instrument verdict it lands on is the one the bytes support.
+
+red_team_report:
+  id: RT-20260821-9c62ae
+  task_id: TASK-20260821-9c62ae
+  claim_under_review: >-
+    The frozen run package honestly executes BCP-2's blind calibration
+    protocol, and the instrument verdict it lands on (decision-table row
+    R6, cost anchor 54.179836 / 55.156728 s, ceiling report FAIL/FAIL) is
+    the one the bytes support.
+
+  # ==================================================================
+  # PER-JOINT VERDICTS (K1-K5)
+  # ==================================================================
+  joints:
+
+    # ----------------------------------------------------------------
+    # K1 -- INPUT-MANIFEST CLOSURE AND CONSUMPTION
+    # ----------------------------------------------------------------
+    - joint: K1
+      title: Input-manifest closure and CONSUMPTION
+      verdict: holds
+      coordinator_prior: >-
+        K1 is expected to HOLD: the manifests are sealed before the runs
+        and the intersection with the quarantine MANIFEST sha256 list
+        should be empty. The attack expected to land is on the CHANNEL
+        the manifests cannot express: the instrument file was written by
+        an executor session that knows the goal, so the closed input set
+        is closed over FILES, not knowledge. Expected finding: the
+        parametric channel is declared-not-checked and the manifests are
+        honest about being file-level.
+      prior_disposition: confirmed
+      evidence:
+        - finding: >-
+            Both sealed input manifests list every input file with its
+            sha256. Target (c91be2): 2 files (RFC 1321 text
+            284a79d1..., instrument 50f75444...). Null (93cc38): 3 files
+            (same 2 + variant-definition 299ca169...). Each manifest's
+            file_sha256 is recorded (c5128a84... / e15e9c6f...) and
+            confirmed by the snapshot receipt (pre_freeze_checks
+            manifests_sealed_consumption_free: pass).
+        - finding: >-
+            The instrument file (harness/run_md5_calib.py, sha256
+            50f75444...) is manifest-listed in both manifests. The solver
+            reads no data file at run time (its MD5 is transcribed from
+            the RFC 1321 text at authoring time; the search is driven by
+            --seed / --variant-shift / --deadline).
+        - finding: >-
+            CONSUMPTION intersection is empty in both. The quarantine
+            MANIFEST sha256 list has one entry
+            (e44a3fed81e9e7621697432b2124b357fc2c3f502f4bc6779df5c377b0a3e3c5).
+            Target sha256_set = {284a79d1..., 50f75444...}; null
+            sha256_set = {284a79d1..., 50f75444..., 299ca169...}. Neither
+            contains e44a3fed...; intersection = [] in both; result =
+            CLEAN in both. Verified independently from committed bytes.
+        - finding: >-
+            The parametric channel (model prior knowledge) is
+            DECLARED-NOT-CHECKED, not hidden or softened. BCP-2
+            blind_scoring_rule.what_this_rule_cannot_reach: "This rule
+            scores two MECHANICAL channels (solver-process input set;
+            self-attested authoring read history). It cannot detect or
+            score a model's PARAMETRIC prior knowledge of a published MD5
+            path, which is a third channel no file-system rule reaches."
+            BCP-2 residual_risk.the_irreducible_channel: "Published MD5
+            collision paths have been public for two decades and are
+            therefore in the training data of any model this harness can
+            resolve." BCP-2 declared_not_checked lists "the parametric
+            channel (model prior knowledge)" explicitly. Both manifests'
+            notes say "Completeness is DECLARED, NOT CHECKED (BCP-2
+            what_is_checked_vs_declared)." The manifests are honest about
+            being file-level.
+      attack_output: >-
+        The boundary attack lands where the coordinator expected: the
+        instrument SOURCE was written by an executor session (f5f96a)
+        that knows the goal, so the closed input set is closed over FILES,
+        not knowledge. This is the parametric channel, and it is
+        declared-not-checked in BCP-2 (declared_not_checked, residual_risk,
+        blind_scoring_rule.what_this_rule_cannot_reach). The declaration
+        is present, not missing or softened. The manifests are honest
+        about being file-level. No CONSUMPTION break found.
+      minor_gaps:
+        - gap: >-
+            The encoding_provenance_declaration (BCP-2
+            fixed_before_acquisition.encoding_provenance_declaration)
+            requires fields authoring_session_read_quarantined_payload
+            and authoring_session_id in the task card or specification.
+            The run records (manifest.yaml) do not carry these fields in
+            the BCP-2-specified format. Equivalent attestations are
+            present: the implementation report (f5f96a) carries
+            never_read_attestation ("The quarantined payload was NOT read
+            by this session"); the run reports carry
+            scope_respected.never_read_quarantined_payload: true. The
+            declaration is likely in the task card (which this reviewer is
+            blinded from per the review plan). For a FAIL, the
+            REDISCOVERY-eligibility question is moot; for a future SUCCESS,
+            the declaration's location and field format would need
+            verification. Impact: nil for this batch's FAIL/FAIL outcome.
+        - gap: >-
+            The null run (93cc38) read the quarantine MANIFEST.yaml for
+            the CONSUMPTION check's sha256 list, but the 93cc38 task's
+            read_scope in the dispatch queue does NOT include
+            coordination/goals/GOAL-MD5-001/quarantine/MANIFEST.yaml
+            (the target run c91be2's read_scope does). The MANIFEST.yaml
+            is "open" (not the payload) and contains only metadata
+            (sha256, source, date, pre-registered digest, canonicalization
+            command), not collision-path data. The sha256 list could have
+            been obtained from the c91be2 calibration run report (which
+            IS in the 93cc38 read_scope). The null report's
+            quarantine_access statement is internally contradictory:
+            "Nothing under quarantine/ was read by this task" followed by
+            "The quarantine MANIFEST.yaml was read for the CONSUMPTION
+            check." BCP-2 firewall.what_read_scope_alone_cannot_do states
+            read_scope is a declaration, not a control, and this runtime
+            enforces neither reads nor writes by declaration alone.
+            Impact: nil (MANIFEST.yaml contains no collision-path data;
+            the CONSUMPTION intersection is empty regardless of source).
+
+    # ----------------------------------------------------------------
+    # K2 -- PROTOCOL FIDELITY
+    # ----------------------------------------------------------------
+    - joint: K2
+      title: Protocol fidelity
+      verdict: holds
+      coordinator_prior: >-
+        K2 is expected to HOLD on the mechanics (same instrument sha256,
+        seed, ceiling, encoding) but the live question is the VARIANT:
+        check that the T-prime table is EXACTLY the declared cyclic shift
+        by 16 and that nothing else differs. A silently adapted schedule
+        would void the control.
+      prior_disposition: confirmed
+      evidence:
+        - finding: >-
+            Instrument sha256 is IDENTICAL across both runs:
+            50f75444c7c9a80e2fc15c5f06649b7af9c51201ab0ac49fed4eb9e6aa26aed1.
+            Confirmed in both run records (manifest.yaml source.files) and
+            both input manifests. The instrument is FROZEN (same file, same
+            hash); the null report records sha256_before_run =
+            sha256_after_run = 50f75444...
+        - finding: >-
+            Seed: 0 in both. Ceiling: 900 in both. Memory: 4 GB in both.
+            n_max: 2097152 in both. k_bits: 40 in both. Encoding: 512-bit
+            hex blocks, full 128-bit digest equality, identical (same
+            instrument file). Git commit: 2875899755... in both. Python
+            3.12.8 / PyYAML 6.0.3 in both. All confirmed in the null
+            report's identity_confirmation block (13 comparisons, all
+            equal: true except variant_shift 0->16, which is the declared
+            variant).
+        - finding: >-
+            T table verified against RFC 1321 section 3.4 sine definition:
+            T[i] = int(2^32 * abs(sin(i))), i = 1..64. Recomputed all 64
+            entries from the sine definition: 0 mismatches against the
+            instrument's _T table. The RFC text (inputs/rfc1321-md5.txt)
+            confirms: "T[i] denote the i-th element of the table, which is
+            equal to the integer part of 4294967296 times abs(sin(i))" and
+            the C reference shows T[1]=0xd76aa478, T[2]=0xe8c7b756, etc.,
+            matching _T[0], _T[1], etc. The instrument's _check_table()
+            re-verifies all 64 at import.
+        - finding: >-
+            T-prime table recomputed from _T + shift 16: T-prime[i] =
+            _T[(i+16) % 64] for i=0..63. Recomputed all 64 entries: 0
+            mismatches against the variant-definition.yaml's declared
+            t_prime table. The T-prime table is a permutation (64 distinct
+            values). Round-trip verified: T-prime[(i+48) % 64] = _T[i] for
+            all i. The instrument's _compress function uses
+            T[(i + shift) % 64] (line: "T[(i + shift) % 64]"), so shift=16
+            produces exactly T-prime[i] = T[(i+16) % 64].
+        - finding: >-
+            No second, unannounced difference found. The ONLY code path
+            that differs between shift=0 and shift=16 is the round-constant
+            index T[(i+shift)%64] in _compress. Everything else is in the
+            same file (same sha256) and therefore identical: _IV
+            (0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, verified
+            against RFC 3.3), _SCHEDULE (64 entries, verified against RFC
+            3.4 C reference: S11=7, S12=12, S13=17, S14=22, S21=5, S22=9,
+            S23=14, S24=20, S31=4, S32=11, S33=16, S34=23, S41=6, S42=10,
+            S43=15, S44=21), _pad (RFC 3.1/3.2 padding + length),
+            _state_to_int (RFC 3.5 little-endian output), F/G/H/I functions
+            (verified against RFC 3.4: F=XY v not(X)Z, G=XZ v Y not(Z),
+            H=X xor Y xor Z, I=Y xor (X v not(Z))), Merkle-Damgard
+            chaining, step count (64), block size (512 bits).
+        - finding: >-
+            b1_hex is IDENTICAL in both search reports
+            (cd072cd8be6f9f62...). This is expected and correct: B1 is
+            derived from the RNG seeded with seed=0 BEFORE any
+            variant-dependent compression (b1_words = tuple(rng.getrandbits
+            (32) for _ in range(16))). The variant changes only the round
+            constants in _compress, not B1. The null report explains this
+            correctly (b1_hex_note).
+      attack_output: >-
+        The variant is EXACTLY the declared cyclic shift by 16 of the round
+        constants. No second, unannounced difference was found: the
+        schedule word order, rotations, IV, Merkle-Damgard chaining, step
+        count, block size, and output encoding are all identical (same
+        file, same hash). The control is valid, not a scope loss. The
+        coordinator's prior is confirmed.
+
+    # ----------------------------------------------------------------
+    # K3 -- DECISION-TABLE INTERPRETATION
+    # ----------------------------------------------------------------
+    - joint: K3
+      title: Decision-table interpretation
+      verdict: holds
+      coordinator_prior: >-
+        K3 is expected to come out as R5 or R6 (both runs FAIL at the
+        ceiling is the prior). Check that the row the reports name is the
+        row the outcomes + R ratio actually produce, and that the row's
+        does_not_show text is carried into the record, not trimmed.
+      prior_disposition: confirmed
+      evidence:
+        - finding: >-
+            Outcomes from the run RECORDS (manifest.yaml, not the
+            reports): target RUN-MDFIVE-calib-v0-s0 certificate.kind =
+            none, verified = true, verifier = no-claim (FAIL). Null
+            RUN-MDFIVE-calib-v16-s0 certificate.kind = none, verified =
+            true, verifier = no-claim (FAIL). Both status =
+            completed_valid.
+        - finding: >-
+            Wrapper-measured costs from the run records: target
+            timing.wall_seconds = 54.179836, timing_source = wrapper. Null
+            timing.wall_seconds = 55.156728, timing_source = wrapper. Both
+            <= 900 (ceiling). Neither halted at the ceiling (both halted
+            at table_full, search space exhausted).
+        - finding: >-
+            R computed independently: R = variant_wall_seconds /
+            target_wall_seconds = 55.156728 / 54.179836 =
+            1.0180305455335819, rounded to 6 dp = 1.018031. This matches
+            the null report's stated R = 1.018031. R lies within [1/TOL,
+            TOL] = [0.5, 2.0]: COMPARABLE. TOL = 2 was fixed before
+            acquisition (BCP-2 named_tolerance, fixed_before_acquisition-
+            style constant).
+        - finding: >-
+            Decision-table row: target FAIL, variant FAIL -> R6 (BCP-2
+            null_object_control.decision_table row R6: "target FAIL,
+            variant FAIL"). The reports name R6. The row the outcomes + R
+            ratio produce is R6. Confirmed.
+        - finding: >-
+            R6 does_not_show text carried untrimmed. BCP-2 R6.does_not_show:
+            "That no collision path exists for either (SC-4). A clean
+            statement about the instrument at the declared encoding, seed,
+            and ceiling. Per the evidential asymmetry, this is the cleanest
+            row: a clean failure rules out both 'found by search' and
+            'found by recall' equally." The null report's
+            decision_table.does_not_show carries this text verbatim (in
+            quotation marks, untrimmed).
+        - finding: >-
+            Known-limit statement: BCP-2 null_object_control.known_limit
+            says "THE CONTROL'S KNOWN LIMIT, named: the null-object control
+            discriminates full-value-recall from genuine search, but NOT
+            partial-structure-recall from genuine search. This limit affects
+            R1, R2, and R3 (the variant-success rows)." The null report's
+            known_limit_note correctly states this and notes it is not
+            engaged by R6 (no success on either object, nothing to
+            discriminate). The known-limit statement for R1-R3 is not
+            required on R6 (no variant-success row), and the report
+            correctly does not carry it as an active caveat.
+        - finding: >-
+            Confound caveat: NOT REQUIRED for this outcome. BCP-2
+            evidence_record_requirement.applies_to: "Any REDISCOVERY-
+            eligible success (a run with a verified md5_collision_pair
+            certificate)." Both runs are FAILs with certificate kind none,
+            so no success record exists and the confound_caveat machinery
+            (INV-10) is not triggered. The null report correctly states
+            this. There is no SUCCESS, so no confound_caveat verbatim check
+            is needed.
+      attack_output: >-
+        The row the reports name (R6) is the row the outcomes + R ratio
+        actually produce. The does_not_show text is carried untrimmed. The
+        known-limit statement is correctly scoped (applies to R1-R3, not
+        engaged by R6). No confound_caveat is required (no SUCCESS). No
+        row-label comfort-fitting found. The coordinator's prior (R5 or
+        R6) is confirmed: the pair lands on R6.
+
+    # ----------------------------------------------------------------
+    # K4 -- COST HONESTY
+    # ----------------------------------------------------------------
+    - joint: K4
+      title: Cost honesty
+      verdict: holds
+      coordinator_prior: >-
+        K4 is expected to PASS with a named gap: the instrument
+        IMPLEMENTATION cost (f5f96a, 1500 s) is a batch cost charged to
+        the batch budget, while the RUN costs are wrapper-measured. The
+        cost anchor the dependent goals will cite is the RUN cost only,
+        labeled distinctly.
+      prior_disposition: confirmed
+      evidence:
+        - finding: >-
+            Both run records: timing.timing_source = wrapper (not caller).
+            Confirmed in manifest.yaml for both RUN-MDFIVE-calib-v0-s0 and
+            RUN-MDFIVE-calib-v16-s0. BCP-2 INV-11: "A run dispatched under
+            BCP-2 whose run.timing.wall_seconds is not wrapper-measured is
+            invalid." Both pass.
+        - finding: >-
+            Both run records: timing.wall_seconds <= 900 (54.179836 and
+            55.156728). Both well within the 900 s ceiling.
+        - finding: >-
+            Cost = ceiling iff halted: BCP-2 cost_definition: "For each
+            run, cost = run.timing.wall_seconds (wrapper-measured per
+            charging_convention). If the run halts at the wall-clock
+            ceiling, cost = the ceiling." Both runs halted at table_full
+            (search space exhausted), NOT at the ceiling. So cost = measured
+            wall_seconds (54.179836 / 55.156728), not the ceiling (900).
+            The run reports correctly state ceiling_reached: false and
+            cost_basis: "Wrapper-measured wall_seconds. The run did NOT
+            halt at the 900 s ceiling (it halted at table_full, search space
+            exhausted), so cost = the measured wall_seconds, not the
+            ceiling."
+        - finding: >-
+            Implementation cost vs run cost: the implementation report
+            (f5f96a) declares budget.declared_wall_clock_seconds = 1500 and
+            budget.measurable_elapsed_seconds = 6513 (budget_status:
+            OVERRUN, ~4.3x the budget). This is the IMPLEMENTATION task's
+            cost (building the instrument, acquiring the RFC, writing the
+            pin tests), NOT the search cost. The implementation report's
+            halt_statement discloses the overrun as a deviation from SC-7.
+            The run reports' cost_per_bcp2.cost_seconds = 54.179836 /
+            55.156728, clearly labeled as wrapper-measured wall_seconds.
+            The 1500 s implementation budget does NOT appear in the run
+            cost anchor. The 6513 s implementation elapsed does NOT appear
+            in the run cost anchor. The run costs (54.18 / 55.16) do NOT
+            appear in the implementation report. The two cost categories
+            are labeled distinctly.
+        - finding: >-
+            The cost anchor dependent goals will cite: the RUN cost only
+            (54.179836 s for standard MD5, 55.156728 s for the null
+            variant, R = 1.018031). This is in the run reports'
+            cost_per_bcp2 section, labeled as "cost_seconds" with
+            "cost_basis: Wrapper-measured wall_seconds" and
+            "charging_convention: BCP-2 charging_convention." A future
+            reader cannot mis-read the implementation cost (6513 s) as
+            search cost because it appears only in the implementation
+            report's budget section, not in the run cost anchor.
+      attack_output: >-
+        The two cost categories (implementation 6513 s vs run 54.18/55.16
+        s) are labeled distinctly and do not cross-contaminate. The cost
+        anchor is the RUN cost only, correctly labeled. The implementation
+        overrun (6513 s vs 1500 s) is a disclosed deviation from SC-7,
+        charged to the batch budget, not to the search cost. The
+        coordinator's prior is confirmed: the labeling gap is the finding,
+        not a timing lie.
+      minor_gaps:
+        - gap: >-
+            The implementation task's 4.3x budget overrun (6513 s vs 1500 s
+            declared) is large. While correctly disclosed and labeled as
+            an implementation cost (not search cost), a future reader
+            skimming the batch could miss the distinction if they read
+            only the opening decision's envelope_note (which discusses the
+            batch envelope, not the implementation overrun). The
+            implementation overrun is not mentioned in DEC-20260821-68fb76;
+            it is disclosed only in the implementation report's budget
+            section. A cross-reference from the opening decision to the
+            implementation report's budget section would reduce the risk
+            of mis-reading. Impact: low (the run cost anchor is correctly
+            labeled and separated).
+
+    # ----------------------------------------------------------------
+    # K5 -- INSTRUMENT HONESTY
+    # ----------------------------------------------------------------
+    - joint: K5
+      title: Instrument honesty
+      verdict: holds
+      coordinator_prior: >-
+        K5 is the joint most likely to BREAK, mildly. The search report
+        should show actual search behavior (fragments tried, table sizes,
+        a ceiling stop), not an instant answer. If the target run's
+        report contains a "discovered path" with no search history, that
+        is the recall tell. The prior is FAIL/FAIL (R6); a fast "success"
+        would be the informative overturn.
+      prior_disposition: confirmed
+      evidence:
+        - finding: >-
+            The target run's search report (search-report-calib.json) shows
+            actual search behavior: blocks_evaluated = 2097152,
+            fragments_tried = 8388608, table_size = 2097151, partial_hits
+            = 1, best_prefix_bits = 0, best_prefix_cost_blocks = 1317350,
+            stop_reason = table_full, internal_wall_seconds_not_charged =
+            54.119624. This is a real search history: the search tried 2^21
+            blocks, found one 40-bit-key partial hit (at block 1317350),
+            and stopped at table_full (search space exhausted). No instant
+            answer, no "discovered path" with no search history. The
+            raw-result.json matches the search report byte-for-byte.
+        - finding: >-
+            The null run's search report shows the same structure with
+            different numbers: blocks_evaluated = 2097152, partial_hits =
+            1, best_prefix_bits = 0, best_prefix_cost_blocks = 1999276,
+            stop_reason = table_full, internal_wall_seconds_not_charged =
+            55.094953. The different partial-hit position (1999276 vs
+            1317350) is expected: the variant's digests differ from the
+            target's, so the collision position in the enumeration differs.
+        - finding: >-
+            No certificate exists in either run. Both run records show
+            certificate.kind = none, verified = true, verifier = no-claim.
+            This is correct for a FAIL: no collision was found, so no
+            md5_collision_pair certificate was produced (BCP-2
+            failed_search_rule). The md5_collision_pair certificate kind
+            (the ONLY acceptance path) was not triggered.
+        - finding: >-
+            Both runs are FAIL/FAIL (R6) as expected. No fast "success"
+            that would be the informative overturn (R4-consistent with
+            the caveat). The coordinator's prior (FAIL/FAIL, honest ceiling
+            report) is confirmed.
+        - finding: >-
+            The pin-mechanism tests (tests/test_harness.py, 7 new tests)
+            verify the certificate verification path through the production
+            path (write_run's _verify dispatch): (1) non-colliding pair
+            fails with named checks [digest_mismatch_impl1_m2,
+            digest_mismatch_impl3_m2]; (2) tampered digest fails with all
+            four checks named; (3) identical messages fail with
+            [m1_equals_m2]; (4) real registry is distinct (different module
+            files, different runtime types); (5) real registry library
+            linkage is distinct (libcrypto vs libSystem only); (6) aliased
+            registry is detected as not distinct; (7) verified_by is
+            wrapper-populated (solver-provided verified_by is cleared and
+            replaced). These tests confirm that IF a certificate existed,
+            it would be verified correctly through the pinned pair (never
+            the solver's own standalone MD5 alone, per INV-5).
+        - finding: >-
+            The instrument's search() function, on SUCCESS, produces a
+            certificate with kind = "md5_collision_pair", statement.messages
+            = [m1_hex, m2_hex], statement.digest = digest_hex,
+            statement.implementations = ["IMPL-1", "IMPL-3"]. This matches
+            the BCP-2 collision_certificate_format.schema. The verified_by
+            is NOT in the solver-produced certificate (it is
+            wrapper-populated per the J5 fix, verified by
+            test_md5_collision_pair_verified_by_is_wrapper_populated).
+      attack_output: >-
+        The search report shows actual search behavior (fragments tried,
+        table sizes, a ceiling stop), not an instant answer. No
+        "discovered path" with no search history. No certificate exists
+        (both FAIL). The pin-mechanism tests confirm the certificate
+        verification path works correctly through the production path. No
+        recall tell. The coordinator's prior is confirmed: FAIL/FAIL with
+        an honest ceiling report, no break.
+
+  # ==================================================================
+  # PROVES-TOO-MUCH OBJECTS (D / E / F)
+  # ==================================================================
+  proves_too_much:
+    failure_signature: >-
+      A package (or gate) that accepts D as scorable, accepts E's cost as
+      the anchor, or accepts F as an unqualified pass has proved too much
+      and is wrong somewhere it has not been read closely enough.
+
+    objects:
+
+      # ----------------------------------------------------------------
+      # OBJECT D -- CONSUMPTION manifest
+      # ----------------------------------------------------------------
+      - object: D
+        description: >-
+          A synthetic run record whose input_manifest sha256 set contains
+          the quarantined payload's sha256 (e44a3fed81e9e7621697432b2124
+          b357fc2c3f502f4bc6779df5c377b0a3e3c5, from the committed
+          MANIFEST, not the payload).
+        known_verdict: >-
+          CONSUMPTION -- the record is INVALID, never a weaker pass, and
+          the run's output is not REDISCOVERY-eligible regardless of how
+          good it looks.
+        gate_logic_tested: >-
+          BCP-2 blind_scoring_rule.consumption clause (1): "the
+          quarantined payload's sha256 (or the sha256 of any file derived
+          from it) appears in the run's input_manifest." INV-2: "The
+          quarantined payload's digest (or a digest of any file derived
+          from it) appears in input_manifest. This is CONSUMPTION and is
+          recorded invalid, never a weaker pass." The package's manifests
+          implement the CONSUMPTION check: the sha256_set is intersected
+          with the quarantine MANIFEST sha256 list, and a non-empty
+          intersection is recorded as result: CONSUMPTION (never CLEAN).
+          A synthetic manifest containing e44a3fed... would produce
+          intersection: [e44a3fed...], result: CONSUMPTION, and the run
+          would be INVALID per INV-2.
+        result: rejected
+        rejection_rule: CONSUMPTION-INVALID (INV-2)
+        note: >-
+          The package's gate logic rejects D. The CONSUMPTION check is
+          the one firewall element BCP-2 treats as an auditable fact
+          (what_is_checked_vs_declared: "CHECKED: whether the recorded
+          input_manifest sha256 set contains any hash matching
+          quarantine/MANIFEST.yaml"). A reviewer recomputes both
+          independently from committed bytes. D cannot pass.
+
+      # ----------------------------------------------------------------
+      # OBJECT E -- cost tampering
+      # ----------------------------------------------------------------
+      - object: E
+        description: >-
+          A synthetic run record with wall_seconds: 1.0 and
+          timing_source: caller (a fabricated bracket around a 900 s run),
+          or a halted run whose cost is recorded below the ceiling.
+        known_verdict: >-
+          Violates the charging convention (INV-11) and the cost_definition
+          -- the cost anchor built on it is invalid.
+        gate_logic_tested: >-
+          BCP-2 INV-11: "A run dispatched under BCP-2 whose
+          run.timing.wall_seconds is not wrapper-measured (monotonic clock
+          around the wrapped solver call, by the wrapper) -- i.e. the value
+          is caller-reported." A synthetic record with timing_source:
+          caller violates INV-11 and is INVALID. BCP-2 cost_definition:
+          "For each run, cost = run.timing.wall_seconds (wrapper-measured
+          per charging_convention). If the run halts at the wall-clock
+          ceiling, cost = the ceiling." A halted run with cost below the
+          ceiling violates the cost_definition (if it halted at the
+          ceiling, cost should be the ceiling). The package's run records
+          have timing_source: wrapper and cost = measured wall_seconds
+          (not ceiling, since they halted at table_full, not at the
+          ceiling). A synthetic record with timing_source: caller or cost
+          below the ceiling on a ceiling-halt would be rejected.
+        result: rejected
+        rejection_rule: charging violation (INV-11 / cost_definition)
+        note: >-
+          The package's gate logic rejects E. The run wrapper
+          (harness.runner.run_wrapped) measures wall time itself using
+          time.monotonic() around the solver call; caller-supplied timing
+          is not accepted for new runs (BCP-2 charging_convention.mechanism:
+          "Caller-supplied started/finished are NO LONGER ACCEPTED for new
+          runs"). E cannot pass.
+
+      # ----------------------------------------------------------------
+      # OBJECT F -- caveat-free success
+      # ----------------------------------------------------------------
+      - object: F
+        description: >-
+          A synthetic REDISCOVERY-eligible success record: verified
+          certificate, clean manifest, digest match -- but NO
+          confound_caveat field.
+        known_verdict: >-
+          INVALID (INV-10). A gate or record that accepts F as an
+          unqualified pass has proved too much.
+        gate_logic_tested: >-
+          BCP-2 INV-10: "A REDISCOVERY-eligible success record is missing
+          any required field of evidence_record_requirement -- in
+          particular the confound_caveat field, or the
+          pre_registered_digest_match, clean_input_manifest, or certificate
+          fields. A success record without the confound_caveat is invalid,
+          never an unqualified pass." BCP-2 evidence_record_requirement:
+          "A REDISCOVERY-eligible success record missing confound_caveat
+          (or any other required field) is invalid (INV-10), never an
+          unqualified pass." The package's runs are FAILs (no
+          evidence_record_requirement block needed), but the rule (INV-10)
+          would reject a synthetic success without confound_caveat. The
+          confound_caveat is REQUIRED for any REDISCOVERY-eligible success,
+          with a specific statement text (BCP-2
+          evidence_record_requirement.required_fields.confound_caveat).
+        result: rejected
+        rejection_rule: INV-10 INVALID
+        note: >-
+          The package's gate logic rejects F. The confound_caveat is a
+          required field of the evidence_record_requirement block, which
+          applies to any REDISCOVERY-eligible success (a run with a
+          verified md5_collision_pair certificate). A synthetic success
+          without confound_caveat is INVALID per INV-10. F cannot pass.
+
+    summary: >-
+      All three proves-too-much objects (D, E, F) are REJECTED by the
+      package's gate logic as the plan declares. The package has not
+      proved too much: no gate accepts D as scorable, E's cost as the
+      anchor, or F as an unqualified pass.
+
+  # ==================================================================
+  # BLIND RE-DERIVATION
+  # ==================================================================
+  blind_rederivation:
+    quantity: >-
+      The REDISCOVERY-ELIGIBILITY predicate as a function of its declared
+      inputs: (output serialized under the pinned canonicalization,
+      pre-registered digest, input_manifest sha256 set, quarantine MANIFEST
+      sha256 list, certificate block) -> eligible / not eligible, plus the
+      invalidity conditions it triggers.
+    source: >-
+      BCP-2 evidence_record_requirement section (lines 1217-1254) ONLY.
+      The blind_from list was not read for this derivation.
+    derived_predicate:
+      statement: >-
+        eligible(output, pre_registered_digest, input_manifest_sha256_set,
+        quarantine_manifest_sha256_list, certificate_block) = ALL of:
+        (1) pre_registered_digest_match: sha256(canonical_serialization(
+        output)) == pre_registered_digest, with match status recorded;
+        (2) clean_input_manifest: intersection(input_manifest_sha256_set,
+        quarantine_manifest_sha256_list) is empty (must be empty for
+        REDISCOVERY eligibility);
+        (3) certificate: certificate_block has verified: true AND
+        wrapper-populated verified_by (verified_by populated exclusively
+        from the wrapper's own recomputation using BOTH pinned
+        implementations, never the solver's own internal digest routine);
+        (4) confound_caveat: present (the specific statement text: "This
+        success is REDISCOVERY-eligible under the following caveat:
+        partial-structure-recall is not excluded by the null-object
+        control... and the model's parametric prior knowledge of the
+        published path is an irreducible channel no file-system mechanism
+        reaches. This result is REDISCOVERY-eligible under that caveat,
+        never an unqualified pass.");
+        (5) null_object_control_result: the decision-table row (R1-R6)
+        the paired variant run landed on, or named OPEN AND UNATTEMPTED
+        with the pairing obligation.
+      invalidity_conditions:
+        - condition: >-
+            Missing confound_caveat (or any other required field of
+            evidence_record_requirement) -> INV-10: "A REDISCOVERY-eligible
+            success record is missing any required field... is invalid,
+            never an unqualified pass."
+        - condition: >-
+            Non-empty CONSUMPTION intersection (input_manifest sha256 set
+            contains a hash matching the quarantine MANIFEST sha256 list)
+            -> not eligible (clean_input_manifest requirement fails). Per
+            BCP-2 evidence_record_requirement.required_fields.clean_input_
+            manifest: "the intersection (must be empty for REDISCOVERY
+            eligibility)."
+        - condition: >-
+            Non-verified certificate (certificate.verified absent or
+            false, or verified_by not wrapper-populated, or verified by
+            only one pinned implementation or by the solver's own digest
+            routine) -> not eligible (certificate requirement fails).
+    test_on_D:
+      input: >-
+        Synthetic manifest with sha256 set containing e44a3fed... (the
+        quarantined payload's sha256 from the committed MANIFEST).
+      evaluation: >-
+        clean_input_manifest: intersection({..., e44a3fed...},
+        {e44a3fed...}) = {e44a3fed...} -> non-empty -> requirement (2)
+        FAILS.
+      result: not_eligible
+      invalidity_triggered: >-
+        Non-empty CONSUMPTION intersection -> not eligible (also INV-2 per
+        blind_scoring_rule.consumption, but derived here from
+        evidence_record_requirement.clean_input_manifest: "must be empty
+        for REDISCOVERY eligibility").
+      matches_known_verdict: true
+    test_on_F:
+      input: >-
+        Synthetic REDISCOVERY-eligible success record: verified
+        certificate, clean manifest, digest match, but NO
+        confound_caveat field.
+      evaluation: >-
+        (1) pre_registered_digest_match: assume match (PASS). (2)
+        clean_input_manifest: assume empty intersection (PASS). (3)
+        certificate: assume verified: true, wrapper-populated verified_by
+        (PASS). (4) confound_caveat: MISSING -> requirement (4) FAILS.
+      result: not_eligible
+      invalidity_triggered: >-
+        Missing confound_caveat -> INV-10: "A REDISCOVERY-eligible
+        success record is missing any required field... is invalid, never
+        an unqualified pass."
+      matches_known_verdict: true
+    blind_from_respected: true
+    blind_from_note: >-
+      This reviewer did NOT read any of the blind_from sources: the
+      self_report section of BCP-2.yaml (stopped reading at line 1357,
+      one line before self_report begins at line 1358); the producer task
+      cards (TASK-20260821-f5f96a.md, TASK-20260821-c91be2.md,
+      TASK-20260821-93cc38.md); or their handoffs
+      (ledger/handoffs/TASK-20260821-f5f96a.yaml,
+      TASK-20260821-c91be2.yaml, TASK-20260821-93cc38.yaml). The predicate
+      was derived from BCP-2's evidence_record_requirement section (lines
+      1217-1254) ONLY. The derivation agrees with the implemented
+      behavior: both D and F are correctly rejected as not-eligible, and
+      the invalidity conditions match (non-empty CONSUMPTION intersection
+      -> not eligible; missing confound_caveat -> INV-10).
+
+  # ==================================================================
+  # PRIOR OVERTURN NOTES
+  # ==================================================================
+  prior_overturns: []
+  prior_overturn_summary: >-
+    No prior overturns. The review CONFIRMS the coordinator's prior on all
+    five joints:
+    - K1: CONFIRMED. The parametric channel is declared-not-checked and
+      the manifests are honest about being file-level. No CONSUMPTION
+      break found. (Minor gaps: encoding_provenance_declaration not in
+      run record in BCP-2-specified format; 93cc38 read_scope does not
+      include MANIFEST.yaml but the null report says it was read.)
+    - K2: CONFIRMED. The T-prime table is EXACTLY the declared cyclic
+      shift by 16. No second, unannounced difference found. The control
+      is valid.
+    - K3: CONFIRMED. The pair lands on R6 (target FAIL, variant FAIL),
+      which is within the prior's expectation (R5 or R6). The does_not_show
+      text is carried untrimmed. No row-label comfort-fitting.
+    - K4: CONFIRMED. The two cost categories (implementation 6513 s vs
+      run 54.18/55.16 s) are labeled distinctly. The cost anchor is the
+      RUN cost only. The labeling gap is the finding, not a timing lie.
+    - K5: CONFIRMED. The search report shows actual search behavior, not
+      an instant answer. No certificate exists (both FAIL). No recall
+      tell. FAIL/FAIL with an honest ceiling report, as expected.
+
+  # ==================================================================
+  # DEFECT LIST
+  # ==================================================================
+  defects:
+    - id: DEF-1
+      joint: K1
+      severity: minor
+      description: >-
+        The encoding_provenance_declaration (BCP-2
+        fixed_before_acquisition.encoding_provenance_declaration) is not
+        carried in the run records (manifest.yaml) in the BCP-2-specified
+        field format (authoring_session_read_quarantined_payload,
+        authoring_session_id). Equivalent attestations are present in the
+        implementation report (never_read_attestation) and run reports
+        (scope_respected.never_read_quarantined_payload: true), but the
+        exact BCP-2 field names are not used. The declaration is likely in
+        the task card (which this reviewer is blinded from).
+      impact: >-
+        Nil for this batch's FAIL/FAIL outcome. For a future SUCCESS, the
+        declaration's location and field format would need verification to
+        confirm REDISCOVERY eligibility (blind_scoring_rule.rediscovery
+        clause 2).
+      actionable: >-
+        Ensure the encoding_provenance_declaration with the BCP-2-specified
+        field names (authoring_session_read_quarantined_payload: false,
+        authoring_session_id) is carried in the run record or a referenced
+        specification artifact for any future REDISCOVERY-eligible success
+        run.
+
+    - id: DEF-2
+      joint: K1
+      severity: minor
+      description: >-
+        The null run (93cc38) read the quarantine MANIFEST.yaml for the
+        CONSUMPTION check's sha256 list, but the 93cc38 task's read_scope
+        in the dispatch queue does NOT include
+        coordination/goals/GOAL-MD5-001/quarantine/MANIFEST.yaml (the
+        target run c91be2's read_scope does). The null report's
+        quarantine_access statement is internally contradictory: "Nothing
+        under quarantine/ was read by this task" followed by "The
+        quarantine MANIFEST.yaml was read for the CONSUMPTION check."
+      impact: >-
+        Nil. The MANIFEST.yaml is "open" (not the payload) and contains
+        only metadata (sha256, source, date, pre-registered digest,
+        canonicalization command), not collision-path data. The sha256
+        list could have been obtained from the c91be2 calibration run
+        report (which IS in the 93cc38 read_scope). The CONSUMPTION
+        intersection is empty regardless of source. BCP-2
+        firewall.what_read_scope_alone_cannot_do states read_scope is a
+        declaration, not a control.
+      actionable: >-
+        Either add coordination/goals/GOAL-MD5-001/quarantine/MANIFEST.yaml
+        to the null run task's read_scope, or obtain the sha256 list from
+        the calibration run report instead. Correct the null report's
+        quarantine_access statement to resolve the contradiction.
+
+    - id: DEF-3
+      joint: K4
+      severity: minor
+      description: >-
+        The implementation task's 4.3x budget overrun (6513 s actual vs
+        1500 s declared) is disclosed only in the implementation report's
+        budget section, not cross-referenced from the opening decision
+        (DEC-20260821-68fb76). The opening decision's envelope_note
+        discusses the batch envelope (4720 s), not the implementation
+        overrun.
+      impact: >-
+        Low. The run cost anchor (54.18/55.16 s) is correctly labeled and
+        separated from the implementation cost. A future reader skimming
+        only the opening decision could miss the implementation overrun.
+      actionable: >-
+        Add a cross-reference from the opening decision (or the closing
+        decision) to the implementation report's budget section, noting
+        the implementation overrun as a disclosed deviation from SC-7
+        charged to the batch budget, not to the search cost.
+
+    - id: DEF-4
+      joint: K5
+      severity: informational
+      description: >-
+        The instrument's stop_reason = "table_full" is set when the
+        declared search space (n_max = 2^21) is exhausted, not when the
+        hash table is literally full (the table has 2097151 entries, not
+        2097152). This is a naming quirk: the loop exits normally when
+        blocks_evaluated reaches n_max, and stop_reason is set to
+        "table_full" because it is still None (not "deadline" or
+        "full_match"). The run reports explain this correctly: "stop_reason
+        = table_full at blocks_evaluated = 2097152 (n_max exhausted)."
+      impact: >-
+        Nil. The run reports explain the stop_reason correctly. The
+        result is unaffected.
+      actionable: >-
+        Consider renaming the stop_reason to "space_exhausted" or
+        "n_max_reached" for clarity in a future instrument revision (the
+        instrument is FROZEN by this batch, so this is a future
+        consideration, not a correction).
+
+  # ==================================================================
+  # ROUND VERDICT (composed by the Coordinator, not by this reviewer)
+  # ==================================================================
+  round_verdict: holds-with-named-gaps
+  round_verdict_summary: >-
+    The frozen run package honestly executes BCP-2's blind calibration
+    protocol. The instrument verdict it lands on (decision-table row R6,
+    cost anchor 54.179836 / 55.156728 s, ceiling report FAIL/FAIL) is the
+    one the bytes support. All five joints (K1-K5) HOLD. All three
+    proves-too-much objects (D, E, F) are REJECTED by the package's gate
+    logic. The blind re-derivation of the REDISCOVERY-eligibility
+    predicate from BCP-2's evidence_record_requirement section agrees
+    with the implemented behavior. No prior overturns. Four defects
+    identified (DEF-1 through DEF-4), all minor or informational, none
+    batch-halting. The package's verdict is sound; the defects are
+    labeling and cross-reference gaps, not evidence-integrity failures.
+
+  # ==================================================================
+  # REVIEW ATTESTATION
+  # ==================================================================
+  review_attestation:
+    task_id: TASK-20260821-9c62ae
+    joints_owned:
+      - K1
+      - K2
+      - K3
+      - K4
+      - K5
+    sources_read:
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/review-plan/review-plan-9c62ae.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/task-cards/TASK-20260821-9c62ae.md
+      - AGENTS.md
+      - agents/red-team.md
+      - ledger/decisions/DEC-20260821-68fb76.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-312472/protocol/BCP-2.yaml (lines 1-1357 ONLY; self_report section at line 1358+ NOT read)
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-c91be2/calibration-run-report.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-c91be2/input-manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-c91be2/search-report-calib.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-c91be2/runs/RUN-MDFIVE-calib-v0-s0/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-c91be2/runs/RUN-MDFIVE-calib-v0-s0/raw-result.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-93cc38/null-object-run-report.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-93cc38/input-manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-93cc38/variant-definition.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-93cc38/search-report-calib.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-93cc38/runs/RUN-MDFIVE-calib-v16-s0/manifest.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-93cc38/runs/RUN-MDFIVE-calib-v16-s0/raw-result.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/tasks/TASK-20260821-f5f96a/implementation-report.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/archives/TASK-20260821-711350/snapshot-receipt.json
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/dispatch_queue.json
+      - coordination/goals/GOAL-MD5-001/quarantine/MANIFEST.yaml
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-1f30fe/inputs/rfc1321-md5.txt
+      - harness/run_md5_calib.py (committed at 4aebc03e6, sha256 50f75444...)
+      - tests/test_harness.py (committed at 4aebc03e6, sha256 5214c87f...)
+    read_sibling_reports: false
+    blind_from_respected: true
+    blind_from_note: >-
+      This reviewer did NOT read any blind_from source: the self_report
+      section of BCP-2.yaml (stopped at line 1357, one line before
+      self_report at 1358); the producer task cards
+      (TASK-20260821-f5f96a.md, TASK-20260821-c91be2.md,
+      TASK-20260821-93cc38.md); or their handoffs
+      (ledger/handoffs/TASK-20260821-f5f96a.yaml,
+      TASK-20260821-c91be2.yaml, TASK-20260821-93cc38.yaml). The blind
+      re-derivation was derived from BCP-2's evidence_record_requirement
+      section ONLY. No sibling reviewer's report was read
+      (TASK-20260821-aabf94). The quarantined payload file was NOT read
+      (hash-only; object D used the MANIFEST's sha256).
+    per_joint_verdicts:
+      K1: holds
+      K2: holds
+      K3: holds
+      K4: holds
+      K5: holds
+    requested_policy: review-adversarial
+    resolved_model_id: zai/glm-5.2
+    resolved_effort: xhigh
+    independent_session: true
+    bedrock: >-
+      Amazon Bedrock was not selected, configured, probed, contacted, or
+      used (SC-8). No network request was made by this task.
+    claim_ceiling_respected: >-
+      This review asserts nothing about MD5 (SC-2). Budget outcomes are
+      not MD5 evidence (SC-4). The review checks whether the frozen
+      package honestly executes BCP-2 and whether the instrument verdict
+      is the one the bytes support.

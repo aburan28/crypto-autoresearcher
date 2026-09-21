@@ -1,0 +1,294 @@
+idea:
+  id: IDEA-20260816-3effe4
+  question_id: RQ-ARGON-141710
+  added: '2026-08-16'
+  title: The Argon2 lane graph is a chain plus exactly one backward edge per node, a structural class
+    narrow enough that minimum depth-reducing set may be exactly computable by an interval dynamic
+    program rather than approximated; test that hypothesis against exhaustive brute force at tiny
+    scale before the whole lane commits to a greedy bound.
+  class: tooling
+  claim: '(A) Every measurement planned in this lane -- H-ARGON-ef2f0b''s rho, EXP-ARGON-2608c2''s
+    whole objective, IDEA-20260809-a915ea''s direct graph measurement, IDEA-20260809-b9e9cc''s parallelism
+    study -- rests on the size of a set of nodes whose removal brings the longest path below a threshold.
+    All of them compute it with a greedy heuristic whose approximation ratio on this graph is unknown,
+    which is why IDEA-20260809-bcf891 exists at all: to calibrate the heuristic against families whose
+    answer is known independently. (B) The claim is that calibration may be the wrong response, because
+    the graph is not arbitrary. Per KN-LIT-7f3c21 each per-lane block has exactly two incoming edges,
+    one of which is the chain edge from its immediate predecessor and the other a single backward
+    reference. A graph of this shape is a path with one extra backward arc per vertex, and the claim
+    is that on this class the minimum node-removal set achieving longest path at most L admits an
+    exact dynamic program over intervals of the chain, in time polynomial in q, because any removal
+    set partitions the chain into intervals and the only question at each interval boundary is which
+    backward arcs still bridge it. (C) The claim is therefore a claim about the ALGORITHM, not about
+    Argon2: if it holds, every rho number this lane produces becomes exact rather than an upper bound,
+    the calibration step becomes a validation step, and the reported effect sizes stop carrying an
+    unquantified one-sided bias. (D) WHAT IS NOT CLAIMED: it is NOT claimed that the dynamic program
+    is correct. That is precisely what the proposed test decides, by exhaustive comparison against
+    brute-force minimum removal sets at scales small enough to enumerate every subset. A refutation
+    -- a small graph in this exact structural class where the DP''s answer exceeds the brute-force
+    minimum -- is the more likely outcome and is a first-class deliverable, because it would be a
+    concrete counterexample bounding what any interval-based method can achieve, which is more useful
+    to this lane than another calibration table. No claim about Argon2''s security, no attack, no
+    parameter recommendation. (E) The named way the incumbent accounting flatters the defender: a
+    greedy upper bound on removal-set size makes the graph look HARDER to shatter than it is, so every
+    rho computed from greedy bounds is biased in the direction that flatters the design, and nobody
+    in this lane currently knows by how much.'
+  mechanism: 'STAGE 1: state the structural class precisely -- a DAG on vertices 0..n-1 with edge
+    (i, i+1) for all i, plus at most one edge (r(j), j) with r(j) < j-1 for each j -- and confirm
+    by construction that every per-lane Argon2 graph at p=1 lies in it. STAGE 2: write the candidate
+    interval DP. The state is (current chain position, index of the leftmost surviving position from
+    which a path of the current length reaches here), and the transition either removes the current
+    node or keeps it and propagates the longest incoming path. Cost O(q^2) states in the naive form.
+    STAGE 3: write an independent brute-force solver that enumerates every subset of removable nodes
+    in increasing size and returns the true minimum, feasible for n up to roughly 22 with pruning.
+    STAGE 4: generate exhaustive or randomly sampled instances of the structural class at n from 6
+    to 22 -- including adversarial constructions with long-range arcs, nested arcs and crossing arcs,
+    not only Argon2-shaped ones -- and compare DP output against brute force on every instance. STAGE
+    5: if any mismatch is found, minimize it to the smallest counterexample and record it as the deliverable,
+    with the specific structural feature the DP''s state fails to capture. STAGE 6: if no mismatch
+    is found across the whole enumeration, report that as a bounded empirical result at the tested
+    sizes, explicitly NOT as a proof, and record the proof obligation as an open item.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -l RQ-ARGON-141710 ledger/proposals/*.yaml and read all ten titles and classes, with
+      IDEA-20260809-bcf891 read as the direct neighbour; read H-ARGON-ef2f0b in full including its
+      interpretation_limits, which state that the greedy heuristic gives an upper bound and never
+      an exact minimum; read the objective and pattern_note blocks of experiments/EXP-ARGON-2608c2/specification.yaml,
+      which name DEC-20260812-03fa10's calibration_design_ruling as a REQUIRED precondition; grep
+      -ril for depth-robust, greedy, approximation ratio, dynamic program across ledger/proposals/
+      and ledger/hypotheses/; read docs/inventor-protocol.md section 8 on the proof-architecture portfolio,
+      since this record makes an algorithmic claim.
+    results: 'IDEA-20260809-bcf891, class control, under this question, is titled: calibrate the graph
+      measurement against constructions whose depth robustness is known, in both directions. It is
+      the direct neighbour and it accepts the greedy heuristic as given, bounding its error empirically
+      against known families; DEC-20260812-03fa10 elevated it to a REQUIRED precondition of EXP-ARGON-2608c2.
+      H-ARGON-ef2f0b''s interpretation_limits states plainly that the greedy heuristic gives an upper
+      bound and never an exact minimum, and that exact or ILP computation is used only on the smaller
+      bcf891 calibration families. So the lane has already recognized the problem and chosen calibration
+      as the response; no record proposes exploiting the structural narrowness of the graph class
+      to remove the approximation entirely. No record anywhere in ledger/proposals/ proposes an interval
+      dynamic program for depth-reducing sets.'
+    verdict: 'UNVERIFIED. Nothing is asserted about what the external graph-theory or memory-hard-function
+      literature contains regarding exact depth-reducing-set computation on chain-plus-one-back-arc
+      graphs; that literature may well settle this question in either direction and no agent here
+      can check. What is claimed new within this repository is the observation that the Argon2 lane
+      graph occupies an unusually narrow structural class and the proposal to test an exact algorithm
+      against brute force rather than calibrate a heuristic. Assembled from known parts: interval
+      dynamic programming is textbook, exhaustive subset enumeration is trivial, and the structural
+      facts about the graph come straight from KN-LIT-7f3c21. The contribution is the redirection
+      of the lane''s instrument problem from calibration to exactness, plus a falsification design
+      that makes the likely negative outcome useful.'
+  object_first_candidate:
+    tracked_object: 'The removal set itself, followed as a function of position along the chain: the
+      DP''s state, meaning the pair (chain position, the surviving reach of the longest path arriving
+      there), which is the object claimed to be sufficient to decide the rest of the problem.'
+    lossiness: 'The projection discards the identity of which specific nodes were removed and keeps
+      only how far a path can currently reach -- a single integer per position. This is genuinely
+      lossy and it is exactly where the DP can fail: two different removal patterns with the same
+      reach may have different futures if a later backward arc lands inside the removed region of
+      one and not the other. That is the precise failure mode the brute-force comparison hunts. It
+      is stated here as the load-bearing risk rather than discovered in the results, and it is the
+      reason the honest prior for the DP''s correctness is well below one half. If the reach integer
+      turns out to be sufficient, the DP is exact; if it is not, the counterexample will exhibit exactly
+      this discrepancy and will name it.'
+    propagation: One step of the target operation, here the DP transition rather than the Argon2 evaluation,
+      moves from position j to j+1. Either j+1 is removed, in which case every path through it dies
+      and the reach resets; or it is kept, in which case its reach is one plus the maximum of the
+      reach at j and the reach at r(j+1), the latter being nonzero only if r(j+1) survived. So the
+      propagation is a max-plus recursion over a two-element state, and the whole question of correctness
+      is whether the state is Markov -- whether the future depends on the past only through the reach.
+      That is a crisply testable property and it is what the brute-force comparison tests.
+    survival_score: 'The DP is defined for every graph in the class and terminates at every size,
+      so definitional survival is total. The property that matters is CORRECTNESS survival: the concrete
+      deliverable is the smallest n at which the DP''s answer first differs from brute force, over
+      an exhaustive sweep from n=6 upward. If no difference appears by n=22 the honest statement is
+      that the structure survives to n=22 under exhaustive test and nothing more; if a difference
+      appears at n=11, that integer is the result and it bounds every interval-state method that carries
+      the same state.'
+  null_object_control: 'Two nulls, both run through the identical DP and brute-force code paths in
+    the same invocation. NULL ONE, the random member of the class: graphs drawn uniformly from chain-plus-one-uniform-backward-arc
+    on the same n, which is the random object of the same shape. The DP-versus-brute-force agreement
+    rate on these must be reported alongside the Argon2-shaped instances; if the DP is exact only
+    on Argon2-shaped graphs and fails on random members of the same class, that is a much weaker and
+    much more fragile result than exactness on the class, and the distinction is invisible without
+    this null. NULL TWO, a class the DP must provably fail on: graphs with two backward arcs per node,
+    outside the claimed structural class, where the DP is expected to be wrong. If the DP happens
+    to be exact there too, the claimed structural narrowness is not what is doing the work and the
+    whole mechanism story is wrong. For the signal to mean anything, null one must show agreement
+    rates comparable to the Argon2-shaped arm and null two must show disagreements.'
+  discriminated_from:
+  - IDEA-20260809-bcf891 calibrates the greedy heuristic against families whose depth robustness is
+    known independently, and DEC-20260812-03fa10 made it a required precondition of EXP-ARGON-2608c2.
+    That measures the heuristic's error. This record tries to eliminate the error rather than measure
+    it, and if it fails it delivers a counterexample bounding the method class rather than another
+    error table.
+  - H-ARGON-ef2f0b and EXP-ARGON-2608c2 compute rho from greedy bounds and say so in their interpretation_limits.
+    This record computes no rho at all and touches no Argon2 measurement; its object is the algorithm
+    and its instances are tiny synthetic graphs.
+  - 'IDEA-20260809-a915ea proposes direct measurement of the real DAG''s depth robustness. This record
+    is upstream of that: it asks whether the measurement instrument can be made exact before any real
+    DAG is measured.'
+  - A generic exact-algorithms or ILP proposal. The scope here is one narrow structural class defined
+    by KN-LIT-7f3c21's one-reference-edge-per-block rule, and the entire deliverable is a comparison
+    against brute force on that class, not a general solver.
+  - Audits of this program's own instruments under RQ-INSTR-f8faa0. Those audit the harness. The instrument
+    here is a graph algorithm specific to this lane's object, and the failure mode hunted is mathematical
+    rather than operational.
+  assumptions:
+  - KN-LIT-7f3c21's chain structure and single-reference-edge-per-block structure are accurate, so
+    that every p=1 Argon2 lane graph lies in the stated class; these were among the claims independently
+    verified per EV-ARGON-209ece.
+  - Brute force to n=22 with pruning is feasible within the budget, which requires the pruning to
+    be correct; the brute-force solver is itself validated against a naive unpruned solver at n up
+    to 14.
+  - The greedy heuristic currently used elsewhere in this lane can be run on the same tiny instances
+    so that all three -- greedy, DP, brute force -- are compared on identical inputs, which is what
+    turns the exercise into a measurement of the greedy bias as well.
+  - Exhaustive enumeration of the class at small n is possible; where it is not, uniform sampling
+    with a declared count substitutes and the difference is labelled.
+  - The threshold L is swept, since a DP may be exact for one depth target and not another; correctness
+    is claimed only over the swept range.
+  predictions:
+  - metric: smallest n at which the interval DP's answer exceeds the brute-force minimum, over exhaustive
+      enumeration of the class
+    direction: different
+    minimum_effect: 'REFUSAL TO PRE-COMMIT on the value, with reason: the whole point is that this
+      integer is unknown and inventing it would be a guess. What IS pre-committed is that the sweep
+      runs from n=6 to n=22 without stopping early on the first agreement, so the reported integer
+      is either a genuine counterexample size or the statement that none exists below 23.'
+  - metric: agreement rate between the interval DP and brute force on Argon2-shaped instances at n
+      <= 22
+    direction: higher
+    minimum_effect: at least 0.95 of instances; below that the DP is not worth pursuing as an exact
+      method and the record closes on that number
+  - metric: ratio of the greedy heuristic's removal-set size to the brute-force minimum, on the same
+      tiny instances
+    direction: higher
+    minimum_effect: at least 1.10 on average, that is, the greedy bound overstates the true minimum
+      by at least ten percent; this is the number the whole lane currently lacks and it is worth having
+      even if the DP fails entirely
+  - metric: agreement rate of the DP on the out-of-class two-backward-arc null
+    direction: lower
+    minimum_effect: below the Argon2-shaped arm's rate by at least 0.10; if the DP is equally exact
+      out of class, the structural-narrowness mechanism is not what is doing the work
+  minimal_test:
+    design: 'Three solvers on identical inputs, in one invocation: the interval DP, an exhaustive
+      brute-force minimum-removal-set solver with correctness-preserving pruning, and the same greedy
+      heuristic the rest of this lane uses. Instances: exhaustive enumeration of the chain-plus-one-backward-arc
+      class for n from 6 to 12, where the class is small enough to enumerate completely; uniform sampling
+      of 10000 instances per n for n from 13 to 22; plus the actual Argon2i, Argon2d and Argon2id
+      lane graphs truncated to the same n. Depth target L swept over q/2, q/4 and q/8 of the native
+      depth. Report, per n and per L, the DP-versus-brute-force agreement rate, the greedy-versus-brute-force
+      ratio distribution, and every mismatch instance serialized in full. Run the two nulls through
+      the identical code. Brute force at n=22 with pruning is the compute bound and is the only reason
+      this is not a zero-compute record; everything else is seconds.'
+    controls:
+    - Brute-force solver validated against a naive unpruned enumerator at n up to 14 before it is
+      used as ground truth for anything.
+    - Random members of the same structural class as the null object of the same shape, run through
+      identical code.
+    - Out-of-class two-backward-arc graphs, where the DP is expected to fail, testing that the structural
+      narrowness is load-bearing.
+    - The greedy heuristic run on the same instances, so the lane's existing instrument is measured
+      against ground truth in the same experiment at no extra cost.
+    - Depth target L swept rather than fixed, since exactness may be threshold-dependent.
+    required_metrics:
+    - DP-versus-brute-force agreement rate per n and per L
+    - smallest counterexample size, or the statement that none exists below 23
+    - greedy-versus-brute-force ratio distribution with mean and maximum
+    - DP agreement rate on the in-class random null and on the out-of-class null
+    - full serialization of every mismatch instance
+  falsification_conditions:
+  - A counterexample is found at any n, falsifying the exactness claim; this is a first-class deliverable,
+    not a failure, and the minimized instance is the result.
+  - The DP agrees with brute force on Argon2-shaped instances in fewer than 95 percent of cases, closing
+    the method as not worth pursuing.
+  - The DP also agrees on the out-of-class two-backward-arc null, falsifying the structural-narrowness
+    mechanism even if the DP is exact in class.
+  - The brute-force solver disagrees with the naive unpruned enumerator at any n up to 14, invalidating
+    the ground truth and halting everything.
+  - The greedy-versus-brute-force ratio is below 1.02 on average, meaning the greedy bound is already
+    effectively tight and the entire motivation for an exact method evaporates -- a fully usable outcome
+    that would let this lane keep its current instrument with a measured error bar.
+  confounders:
+  - Pruning in the brute-force solver can silently be unsound, which would make ground truth wrong
+    in the same direction as the DP; addressed by validating against a naive enumerator, but only
+    up to n=14.
+  - Exhaustive enumeration for n <= 12 and sampling above it means the counterexample search changes
+    character mid-sweep; a counterexample first appearing at n=13 could be a sampling artifact of
+    the transition rather than a size effect.
+  - The greedy heuristic's exact tie-breaking rule affects its ratio; the rule must be the same one
+    the rest of this lane uses, or the measured bias does not transfer.
+  - Argon2-shaped instances truncated to n=22 are not really Argon2 graphs, since the candidate window
+    at such small q is degenerate; they are in-class instances with Argon2-like arcs and must be labelled
+    as such.
+  - 'Threshold-dependence: exactness at L equal to half the native depth says nothing about L equal
+    to an eighth, which is why L is swept.'
+  interpretation_limits:
+  - Agreement up to n=22 is an empirical statement at tested sizes and is not a proof of exactness;
+    the proof obligation is recorded as open and unmet.
+  - Nothing here measures Argon2, and no rho, no depth robustness of any real lane graph, and no security
+    statement is produced.
+  - The greedy-bias number is measured at tiny n and its transfer to the q values this lane actually
+    uses is an assumption, not an observation.
+  - A counterexample bounds interval-state methods carrying this particular state; it does not show
+    that no polynomial exact algorithm exists, and the record must not say that it does.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The candidate DP is O(q^2) states in its naive form;
+      brute force is exponential in n and is confined to n <= 22 by design.
+    memory_exponent: No attack exponent is claimed. The DP holds O(q^2) table entries in the naive
+      form, which is the reason a successor at recommended q would need the state compressed before
+      it is usable there.
+    best_known: The incumbent instrument is the greedy depth-reducing-set heuristic used by H-ARGON-ef2f0b
+      and EXP-ARGON-2608c2, together with IDEA-20260809-bcf891's calibration approach, which DEC-20260812-03fa10
+      made a required precondition. No exact method for this graph class exists anywhere in this repository,
+      and nothing is asserted about what exists outside it.
+    hidden_overhead: 'The brute-force solver''s pruning is where the real risk and the real human
+      time sit: an unsound prune produces confident wrong ground truth, and validating it against
+      a naive enumerator only reaches n=14. Second, the naive DP''s O(q^2) table is fine at n=22 and
+      hopeless at the q=524288 of the first recommended tuple, so even a successful exactness result
+      does not by itself reach recommended scale.'
+  dominated_by: 'n/a (no result claimed). Pareto check performed: under RQ-ARGON-141710 the ten proposals
+    were enumerated and read, EV-ARGON-209ece contains no measurement, and experiments/EXP-ARGON-2608c2/runs/
+    is empty, so no time, memory or data/query frontier row exists to dominate this. On the instrument
+    axis specifically, the incumbent greedy heuristic has no measured error on this graph class anywhere
+    in this repository, so there is no accuracy frontier row either -- which is itself part of what
+    this record proposes to fix.'
+  sota_delta: 'No attack; instrument-validity contribution only. Two quantitative deltas are delivered
+    regardless of which way the exactness claim goes: the measured ratio of the greedy bound to the
+    true minimum on in-class instances, which currently has no value at all in this repository, and
+    either an exact method or a minimized counterexample bounding a method class. Against the incumbent,
+    the delta on the accuracy axis is the difference between an unquantified one-sided bias and a
+    measured one.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'That the interval DP as stated is exact on the class: low, around 0.25,
+    and stated low deliberately -- the reach-integer state discards which nodes were removed, and
+    that is a classic place for a DP to be wrong. That the exercise nonetheless produces a usable
+    number: very high, around 0.95, because the greedy-versus-brute-force ratio falls out of the same
+    runs whether or not the DP works, and that ratio is something the entire lane currently lacks.
+    That a counterexample, if one exists, is findable below n=23: moderate, around 0.6, since counterexamples
+    to interval DPs on sparse graphs tend to be small but there is no guarantee. That the out-of-class
+    null behaves as expected: around 0.75.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ARGON-141710
+  - GOAL-ARGON-001
+  - KN-LIT-7f3c21
+  - H-ARGON-ef2f0b
+  - IDEA-20260809-bcf891
+  - IDEA-20260809-a915ea
+  - IDEA-20260812-318db8
+  - DEC-20260812-03fa10
+  - EV-ARGON-209ece
+  - experiments/EXP-ARGON-2608c2/specification.yaml
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ARGON-f2d827

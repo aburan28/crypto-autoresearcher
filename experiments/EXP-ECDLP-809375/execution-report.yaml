@@ -1,0 +1,324 @@
+execution_report:
+  experiment_id: EXP-ECDLP-809375
+  task_id: TASK-20260903-6e5374
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-186b38
+  hypothesis_id: H-ECDLP-a40416
+  implementation_commit: ad8d7bf8e9a2e4f84ff0a21351aa7f3120e17871
+  implementation_commit_note: >-
+    HEAD at execution time, tree dirty. HEAD advanced from
+    0f36cc5a8c67ba3648598bd48fc401a08871cab2 (session start) during the task
+    via a concurrent merge of origin/main whose diff touches no path under
+    experiments/. The run package itself is uncommitted here: committing it is
+    the Coordinator's snapshot archive TASK-20260903-228c9e, not the
+    Executor's.
+
+  contract_validation:
+    specification_path: experiments/EXP-ECDLP-809375/specification.yaml
+    specification_sha256: b94f6f1096ae9fefbca777b3a208679c6afddec083f391baab2d4bc68474ea74
+    status_field: approved
+    approved_by: coordinator
+    required_fields_present: >-
+      inputs, controls (C-1, C-2, C-3), independent_variables, metrics,
+      preregistered_prediction, budget, stopping_rules, invalidation_rules,
+      success_criterion, falsification_criterion, required_artifacts -- all
+      present. No specification_error raised; execution proceeded.
+
+  protocol_deviations:
+    - id: DEV-1
+      class: disclosed_addition
+      description: >-
+        The C-2/C-3 null-lift instruction ("perturb by adding p^e to a
+        coordinate before lifting, with no order-n projection") admits two
+        non-equivalent readings. BOTH were tabulated at every (r, e) cell
+        rather than one being selected: raw_perturbation (x0 = S.x + p^e,
+        which is what the two prior runs recorded, at e = 1) and
+        canonical_offset (x0 = x(S_hat) + p^e). Neither was chosen after
+        seeing the result and both are reported in full.
+    - id: DEV-2
+      class: implementation_error_caught_pre_measurement
+      description: >-
+        The first implementation evaluated the projection scalar as one
+        monolithic binary ladder. It raised KernelOfReduction at r = 12 -- the
+        code's own explicit non-unit guard correctly detecting that an
+        intermediate multiple [i]L with n | i had left the affine chart, which
+        affine coordinates cannot represent. No run record was produced from
+        that code. Repaired by staged evaluation ((r-1) multiplications by p,
+        then one by u = (p^(r-1))^-1 mod n, computing the identical group
+        element) plus a machine-checked audit of every intermediate's residue
+        mod n. The r=4 and r=8 values produced before the repair are identical
+        to those reported.
+    - id: DEV-3
+      class: implementation_error_caught_pre_measurement
+      description: >-
+        An early draft of the chain-audit predicate tested the pre-doubling
+        scalar instead of the post-doubling one and reported affine_safe:
+        false for chains that had executed correctly. Corrected before the
+        recorded run. It affected only the audit flag; measured values were
+        byte-identical before and after the fix.
+    - id: DEV-4
+      class: infrastructure_event
+      description: >-
+        The first attempt to wrap the packaged command in /usr/bin/time -l was
+        blocked by the execution sandbox ("sysctl kern.clockrate: Operation
+        not permitted") and wrote that error into stderr.log. The wrapper was
+        dropped, the exact command in command.txt re-executed unwrapped, and
+        the resource figures taken from a separate identical invocation. Both
+        invocations produced byte-identical raw-result.json. No run record was
+        overwritten; none had been written.
+    - id: DEV-5
+      class: disclosed_drafting_error_in_this_package
+      description: >-
+        While drafting the run manifest, a placeholder value was typed into
+        code.specification_sha256 before the real digest had been computed. It
+        was replaced with the actual SHA-256 of the frozen contract
+        (b94f6f10...), which matches the value environment.json recorded
+        independently at execution time. Disclosed rather than silently
+        corrected, because a fabricated digest in a reproducibility field is
+        exactly the failure class rule 5 exists to prevent.
+
+  prohibited_paths_discipline:
+    prohibited:
+      - experiments/EXP-ECDLP-c373eb/implementation/rc1_tabulation.py
+      - experiments/EXP-ECDLP-c373eb/implementation/rc1_tabulation_run2.py
+    opened: false
+    statement: >-
+      Neither prohibited path was opened, read, listed, imported, copied or
+      adapted at any point in this task. The only files read under
+      EXP-ECDLP-c373eb are the two run manifests, permitted by the handoff and
+      used only for the recorded x_hat/y_hat values (the C-1 comparison
+      targets) and the instance parameters.
+
+  runs:
+    completed:
+      - RUN-ECDLP-809375-1
+    invalid: []
+    failed: []
+    planned_but_not_run: []
+    missing_run_explanation: >-
+      The contract allows up to 3 runs. One run record was produced because
+      one run completes every declared tabulation on both instances: the
+      primary r=8 canonical tabulation, C-1, C-2, and the full C-3 sweep over
+      r in {4, 8, 12} and e in {1, 2, 3, 4} are all cells of a single
+      deterministic execution. The remaining budget was reserved, not spent;
+      no repair run was needed.
+    invocation_accounting: >-
+      Four invocations of the implementation occurred in this task, recorded
+      here rather than omitted: (1) a smoke invocation that crashed at r = 12
+      (DEV-2, no record produced); (2) a smoke invocation after the staged-
+      chain repair; (3) a smoke invocation after the audit-predicate fix
+      (DEV-3); (4) the packaged invocation, itself executed twice because of
+      DEV-4, byte-identical both times. Only invocation (4) is a run record.
+      No invocation was rerun in search of a more favourable result: the
+      measured values were unchanged from invocation (2) onward.
+
+  frozen_prediction_reference: >-
+    experiments/EXP-ECDLP-809375/specification.yaml preregistered_prediction:
+    "D1 image on the canonical lift, both instances, r=8" is "{0, r} exactly,
+    with the value r occurring exactly on k = n-j" (Proposition E,
+    ideas/artifacts/ECDLP-IDEA-436/ggm_simulability_gate_erratum_20260831.md
+    section C.2). Frozen before execution and read-only during it; not
+    adjusted, and no completed run is re-scored against anything else.
+
+  observations:
+    - id: OBS-1
+      quantity: 'D1 image on the canonical lift, r = 8, all pairs 1 <= j < k < n'
+      instance_A: [0, 8]
+      instance_B: [0, 8]
+      detail: >-
+        Instance A (p=1009, n=47): 1035 pairs tabulated, value 0 on 1012
+        pairs, value 8 on 23 pairs. Instance B (p=1013, n=41): 780 pairs
+        tabulated, value 0 on 760 pairs, value 8 on 20 pairs. Exhaustive, no
+        sampling.
+    - id: OBS-2
+      quantity: 'location of the capped value'
+      observation: >-
+        On both instances, every pair carrying the value r satisfies
+        j + k = n exactly, and every pair with j + k = n carries it. The
+        difference of the two x-coordinates is exactly 0 in Z/p^r on those
+        pairs.
+    - id: OBS-3
+      quantity: 'C-1, per-digit equality of the group-theoretic S_hat against the recorded Hensel S_hat'
+      instance_A: 'x: 8/8 base-p digits agree; y: 8/8 agree; all_digits_match true'
+      instance_B: 'x: 8/8 base-p digits agree; y: 8/8 agree; all_digits_match true'
+      detail: >-
+        Instance A computed x_hat 1028993090447422868629541 and y_hat
+        639576900641432511783834; instance B computed 22454942430194572886520
+        and 30185837102734218797721. Each equals the value recorded in the
+        corresponding EXP-ECDLP-c373eb run manifest. The full digit vectors
+        and the per-digit boolean agreement lists are in raw-result.json.
+    - id: OBS-4
+      quantity: 'construction checks on the group-theoretic lift (specification invalidation_rules item 2)'
+      observation: >-
+        On both instances and at every swept precision r in {4, 8, 12}: S_hat
+        satisfies the curve equation mod p^r, reduces to S mod p, and
+        [n]S_hat is the exact identity mod p^r (reached by an exact
+        x-equal/y-negated cancellation, not approached). S_hat at r = 4 and
+        r = 12 are congruent to the r = 8 value modulo the smaller precision.
+    - id: OBS-5
+      quantity: 'C-2, D1 image on a lift failing the order-n condition, r = 8'
+      canonical_offset_family:
+        instance_A: {e1: [0, 1], e2: [0, 2], e3: [0, 3], e4: [0, 4]}
+        instance_B: {e1: [0, 1], e2: [0, 2], e3: [0, 3], e4: [0, 4]}
+      raw_perturbation_family:
+        instance_A: {e1: [0, 1], e2: [0, 1], e3: [0, 1], e4: [0, 1]}
+        instance_B: {e1: [0, 1], e2: [0, 1], e3: [0, 1], e4: [0, 1]}
+      detail: >-
+        Every null lift in both families is on the curve mod p^r and reduces
+        to S mod p, and every one of them fails the order-n condition
+        ([n]L is not the identity) except the single degenerate cell noted in
+        OBS-7. At e = 1 both families read [0, 1], reproducing the null image
+        recorded by RUN-ECDLP-c373eb-1 and -2.
+    - id: OBS-6
+      quantity: 'C-3, dose-response'
+      on_fibre_vs_r: >-
+        The on-fibre (capped) value equals r at every swept precision on both
+        instances: r=4 -> 4, r=8 -> 8, r=12 -> 12. The canonical image is
+        [0, r] at each. The quantity moves when the parameter meant to move it
+        moves.
+      null_vs_e: >-
+        The canonical_offset null image equals {0, min(e, r)} in all 24 cells
+        (2 instances x 3 precisions x 4 depths). The raw_perturbation null
+        image is {0, 1} in all 24 cells and does NOT track e.
+      raw_perturbation_explanation_measured_not_assumed: >-
+        The measured offset depth v_p(x(L) - x(S_hat)) of the naive
+        integer-representative lift is 1 on both instances, so adding p^e for
+        e >= 2 leaves the depth at min(1, e) = 1. The depth is recorded per
+        cell in raw-result.json, so this reading is checkable rather than
+        asserted.
+    - id: OBS-7
+      quantity: 'degenerate sweep cell'
+      observation: >-
+        At (r=4, e=4) the perturbation p^e is 0 in Z/p^r, so the
+        canonical_offset "null" is literally the canonical lift and is not a
+        null object. It is flagged degenerate_equals_canonical_lift: true in
+        raw-result.json. Its image [0, 4] coincides with {0, min(e, r)} for
+        the trivial reason that it is the canonical measurement.
+    - id: OBS-8
+      quantity: 'independently recomputed instance invariants'
+      observation: >-
+        Recomputed here from scratch rather than taken from the prior
+        manifests: instance A discriminant 513 (nonzero), #E(F_p) = 1034,
+        ord(S) = 47, cofactor 22; instance B discriminant 799 (nonzero),
+        #E(F_p) = 984, ord(S) = 41, cofactor 24. All agree with the values
+        recorded by the prior runs.
+    - id: OBS-9
+      quantity: 'comparison against the frozen prediction'
+      observation: >-
+        On both instances the observed r=8 canonical image is [0, 8], and the
+        value r occurs exactly on the pairs with k = n - j. No D1 value
+        strictly between 1 and r-1 was observed on any canonical lift, on
+        either instance, at any swept precision. These are the comparison
+        statistics only; the specification's falsification_criterion was not
+        triggered by any of them.
+
+  interpretation_withheld: >-
+    Whether these observations support, weaken, or leave unchanged
+    H-ECDLP-a40416, and whether objection J2 of DEC-20260903-9f1190 is thereby
+    discharged, is deliberately not stated here. That is a Coordinator
+    judgement on the record after independent review. No hypothesis,
+    experiment, or knowledge status was changed by this task, and no
+    B71/DEC/EV/KN-*/CORR record was created.
+
+  independence_statement:
+    axis_1_lift_construction: >-
+      Prior scripts: Hensel/Newton iteration -- x0 = S.x shown to be a simple
+      root of the order-n condition f, then single-variable Newton correction
+      one p-adic digit at a time for r+1 steps. This run: group-theoretic
+      projection with no iteration on the order-n condition at all --
+      S_hat = [p^(r-1) * ((p^(r-1))^-1 mod n)] L for an arbitrary
+      curve-satisfying lift L. The scalar is 1 mod n, so S_hat still reduces
+      to S; it is divisible by p^(r-1), which annihilates the kernel of
+      reduction at precision r. The auxiliary lift's y-coordinate is a
+      Tonelli-Shanks square root in the cyclic group (Z/p^r)^* (group
+      exponentiation plus a 2-Sylow discrete log), which is also not a
+      per-digit lift. No derivative, finite difference, or Newton correction
+      appears anywhere in this implementation.
+    axis_2_group_law: >-
+      Prior scripts: Jacobian projective coordinates (add-2007-bl and textbook
+      doubling). This run: affine coordinates over the ring Z/p^r with
+      explicit modular inverses pow(d, -1, p**r), each guarded by an explicit
+      unit test d % p != 0. The non-unit branch is handled explicitly as a
+      kernel-of-reduction condition and raised, never swallowed. No projective
+      and no Jacobian coordinate appears in the file.
+    axis_3_no_reuse: >-
+      Neither rc1_tabulation.py nor rc1_tabulation_run2.py was opened, read,
+      imported, copied or adapted. The only data taken from EXP-ECDLP-c373eb
+      is the recorded x_hat/y_hat pair in each run manifest (the C-1
+      comparison targets) plus the instance parameters, which the frozen
+      specification restates independently.
+    what_this_independence_does_not_cover: >-
+      Independence of the IMPLEMENTATION, not of the author's knowledge. The
+      frozen specification itself states both the lift formula and the
+      expected image, so this is an independent implementation of a stated
+      construction rather than a blind re-derivation of the quantity. The
+      recorded x_hat/y_hat were read only after the script had computed its
+      own S_hat.
+
+  anomalies:
+    - >-
+      DEV-2: a monolithic scalar ladder is not viable for this measurement in
+      affine coordinates at r = 12. This is a real and previously unrecorded
+      property of the mandated arithmetic, not a coding slip alone: an
+      intermediate multiple [i]L with n | i lies in the kernel of reduction
+      and has no affine representation, and a ladder over a ~110-bit scalar
+      visits enough intermediates to hit that set. Recorded because a later
+      implementer of this contract will hit it too.
+    - >-
+      The raw_perturbation null family does not track e (OBS-6). Recorded as
+      measured; it identifies which construction the parameter e actually
+      controls, and it is not an adjustment of the frozen prediction.
+    - >-
+      DEV-4: the execution sandbox blocked /usr/bin/time -l from reading
+      kern.clockrate, so peak RSS and CPU seconds come from an auxiliary
+      identical invocation rather than the packaged one. Labelled as such in
+      the manifest's resources.note.
+    - >-
+      DEV-5: a placeholder digest was typed into a manifest reproducibility
+      field during drafting and replaced with the computed value before this
+      report. Disclosed rather than silently corrected.
+    - >-
+      HEAD advanced mid-task (0f36cc5 -> ad8d7bf) from concurrent multi-agent
+      activity. The intervening diff touches no path under experiments/.
+
+  budget_accounting:
+    wall_clock_limit_seconds: 600
+    wall_clock_observed_seconds: 0.091
+    memory_limit_gb: 1
+    peak_rss_bytes_measured: 20332544
+    cpu_seconds_measured: 0.0609
+    maximum_runs: 3
+    runs_used: 1
+    exhausted: false
+
+  artifact_paths:
+    - experiments/EXP-ECDLP-809375/implementation/fg1_group_theoretic.py
+    - experiments/EXP-ECDLP-809375/runs/RUN-ECDLP-809375-1/manifest.yaml
+    - experiments/EXP-ECDLP-809375/runs/RUN-ECDLP-809375-1/command.txt
+    - experiments/EXP-ECDLP-809375/runs/RUN-ECDLP-809375-1/environment.json
+    - experiments/EXP-ECDLP-809375/runs/RUN-ECDLP-809375-1/stdout.log
+    - experiments/EXP-ECDLP-809375/runs/RUN-ECDLP-809375-1/stderr.log
+    - experiments/EXP-ECDLP-809375/runs/RUN-ECDLP-809375-1/raw-result.json
+    - experiments/EXP-ECDLP-809375/execution-report.yaml
+
+  completion_gate:
+    all_planned_runs_terminal: true
+    missing_runs_explained: true
+    required_artifacts_present: true
+    raw_and_summary_agree: >-
+      Verified: every number in the manifest's result.metrics block was read
+      back out of raw-result.json programmatically after the run, not
+      transcribed by hand.
+    reproduces_from_recorded_command_and_revision: >-
+      Verified: the exact command in command.txt was executed twice and
+      produced byte-identical raw-result.json (SHA-256 5375f8a0...).
+
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false
+    scope_note: >-
+      Toy tier, two ~10-bit instances, deliberately the two already measured.
+      No transfer to cryptographic scale is made or licensed. Every reported
+      valuation equal to r means "at least r at the finite precision used",
+      never infinity.

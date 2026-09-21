@@ -1,0 +1,179 @@
+executable_and_noninterference_contract:
+  schema: crypto.autoresearch.syc_executable_noninterference_contract.v1
+  experiment_id: EXP-SYC-4efcae
+  task_id: TASK-20260809-092182
+  status: REVISE
+  implementation_authorized: false
+  execution_authorized: false
+
+  semantic_slot_bijection:
+    bits_order: [18, 21, 24, 27, 30]
+    curve_id_range: '[0,32)'
+    model_id_range: '[0,4)'
+    eta_order: [-4, 0, 4]
+    root_id_range: '[0,256)'
+    candidate_id_range: '[0,32)'
+    slots_per_size: 3145728
+    all_size_slots: 15728640
+    encode: '((((curve_id*4+model_id)*3+eta_ordinal)*256+root_id)*32+candidate_id)'
+    decode:
+      candidate_id: slot_mod_32
+      q1: floor_slot_div_32
+      root_id: q1_mod_256
+      q2: floor_q1_div_256
+      eta_ordinal: q2_mod_3
+      q3: floor_q2_div_3
+      model_id: q3_mod_4
+      curve_id: floor_q3_div_4
+    canonical_record_fields:
+      - bits
+      - curve_id
+      - model_id
+      - eta
+      - root_id
+      - candidate_id
+      - slot
+      - occupied
+      - candidate_sha256
+      - record_checksum_sha256
+    KATs:
+      - {tuple: [0, 0, 0, 0, 0], slot: 0}
+      - {tuple: [31, 3, 2, 255, 31], slot: 3145727}
+    injective_and_surjective_check: enumerate_all_3145728_slots_per_size_and_require_exact_inverse
+    duplicate_missing_or_noncanonical_eta: invalidates
+
+  self_neutral_hashes:
+    rule: >-
+      The digest field is omitted from the RFC8785 JCS preimage and inserted
+      only after SHA256 is computed. Null-neutralization is forbidden. An
+      external receipt binds the complete final object hash separately.
+    executable_manifest_KAT:
+      digest_field: manifest_sha256
+      preimage_length_bytes: 262
+      preimage_JCS: '{"experiment_id":"EXP-SYC-4efcae","external_policy_id":"SYC4-PATH-TEMPORAL-BROKER-v2","interpreter_sha256":"1111111111111111111111111111111111111111111111111111111111111111","schema":"syc4.executable_universe.v2","syscall_policy_id":"SYC4-SECCOMP-OBSERVABLE-v2"}'
+      preimage_sha256: 54c04a6295007b670fe4ec1a421940c27ed05e1b1ea6a5e1d2286837d15236b4
+    coverage_manifest_KAT:
+      digest_field: coverage_sha256
+      preimage_length_bytes: 250
+      preimage_JCS: '{"experiment_id":"EXP-SYC-4efcae","manifest_sha256":"54c04a6295007b670fe4ec1a421940c27ed05e1b1ea6a5e1d2286837d15236b4","schema":"syc4.coverage.v2","semantic_slot_count":15728640,"tail_gate_id":"SYC4-TAIL-MAX-AND-COUNT-v2","wiring_axis_included":true}'
+      preimage_sha256: e186439dd89518ea3f61c0b93f2a58bca1c527a4aaa22de972c3e51967f46552
+    missing_wrong_or_circular_preimage: invalidates
+
+  enforcement_boundary:
+    seccomp_claim_ceiling: syscall_number_and_scalar_argument_filter_only
+    seccomp_cannot_observe:
+      - pathname_bytes_behind_pointer
+      - realpath_or_inode_identity
+      - temporal_startup_phase
+      - returned_random_byte_dataflow
+    worker_seccomp_policy:
+      default: deny
+      open_openat_openat2: deny_unconditionally
+      getrandom: deny_unconditionally
+      socket_connect_accept: deny_unconditionally
+      execve_execveat: deny_after_initial_image
+      allowed_file_IO: read_write_fstat_lseek_mmap_munmap_on_preopened_descriptors_only
+    external_path_policy:
+      mechanism_id: SYC4-PATH-TEMPORAL-BROKER-v2
+      broker_actions:
+        - resolve each declared path beneath an immutable read-only root
+        - reject symlinks, traversal, device files, sockets, and inode changes
+        - verify exact content SHA256 and declared mode before open
+        - open with O_NOFOLLOW and pass only the descriptor to the worker
+        - record path, device, inode, mode, size, content digest, and descriptor number
+      worker_pathnames_available: false
+    randomness_policy:
+      worker_getrandom_allowed: false
+      worker_urandom_descriptor_present: false
+      source: precomputed_seed_bytes_bound_by_public_manifest_and_custody_receipt
+      dataflow_claim: no_ambient_randomness_channel_not_general_taint_noninterference
+    temporal_policy:
+      phase_transition: broker_closes_all_mutable_inputs_before_worker_exec
+      enforcement: descriptor_table_plus_unconditional_seccomp_denials
+      audit: exact_startup_manifest_and_denial_log
+    unsupported_claims: [pathname_filtering_by_seccomp, startup_only_getrandom_by_seccomp, seccomp_dataflow_control]
+
+  physical_noninterference:
+    mount_states:
+      - true_secret_outside_sandbox
+      - decoy_secret_outside_sandbox
+      - no_secret
+    blocks_per_size_and_mount: 32
+    sizes: 5
+    fresh_sandboxes: 480
+    axes:
+      - aggregate_cpu_ns
+      - wall_latency_ns
+      - energy_nJ
+      - physical_read_bytes
+      - physical_write_bytes
+      - peak_live_bytes
+      - wiring_unique_64_byte_line_touches
+    mount_pair_contrasts: 3
+    simultaneous_intervals: 105
+    median_order_statistic_interval: fifth_through_twenty_eighth_of_32
+    single_interval_noncoverage: '82898/4294967296'
+    Bonferroni_family_bound: 0.002026625443249941
+    median_equivalence_margin_log: 0.04879016416943205
+    sparse_tail_gate:
+      threshold_log_ratio: 0.22314355131420976
+      threshold_interpretation: absolute_ratio_no_greater_than_1_25
+      maximum_exceeding_blocks: 1
+      maximum_absolute_log_ratio: 0.4054651081081644
+      maximum_interpretation: absolute_ratio_no_greater_than_1_5
+      rule: both_threshold_count_and_maximum_must_pass_for_every_cell_axis_and_mount_pair
+    exchangeability_and_reset:
+      semantic_slot_permutation: SHAKE256_of_frozen_manifest_digest_and_axis_id_one_shot_before_measurement
+      block_assignment: permuted_slot_ordinal_mod_32
+      fresh_sandbox_each_block: true
+      cooldown_seconds: fixed_30
+      cache_reset_recipe: frozen_platform_specific_command_manifest_required_before_implementation
+      counter_snapshot_before_and_after_each_block: required
+      temperature_and_frequency_state: archived
+      lag_plot: diagnostic_only_not_a_gate
+    four_block_mutation_KAT:
+      log_ratios: 28_zeros_followed_by_4_log_2_values
+      predecessor_median_interval: '[0,0]'
+      predecessor_result: PASS_FALSE_EQUIVALENCE
+      successor_threshold_exceeding_blocks: 4
+      successor_maximum_log_ratio: 0.6931471805599453
+      successor_result: REJECT_SPARSE_TWO_FOLD_INTERFERENCE
+    wiring_axis_status: noisy_and_included_in_all_105_intervals_and_tail_gates
+    exact_equality_for_noisy_counters: forbidden
+    physical_noninterference_claim_requires_all_gates: true
+
+  executable_manifest_required_sections:
+    - interpreter_and_dynamic_loader_digests
+    - stdlib_repository_and_import_closure
+    - environment_and_locale
+    - descriptor_and_mount_table
+    - IPC_and_network_denials
+    - seccomp_instruction_array_and_scalar_argument_filters
+    - broker_path_inode_and_content_manifest
+    - semantic_slot_bijection_digest
+    - sandbox_reset_counter_and_physical_gate_manifest
+    - self_neutral_manifest_and_coverage_digest_rules
+  future_values_currently_null:
+    executable_manifest_sha256: null
+    implementation_commit: null
+    actual_coverage_sha256: null
+    production_receipts: null
+    physical_measurements: null
+  fabricated_future_value: invalidates
+
+  resource_disposition:
+    semantic_and_enforcement_repairs: FROZEN
+    wiring_and_sparse_tail_repairs: FROZEN
+    sandbox_reset_counter_cost_class: REQUIRED_BUT_NOT_YET_CAP_FIT
+    census_archive_overage_bytes: 1131370560
+    status: REVISE
+
+  authority:
+    approved_by: null
+    implementation_authorized: false
+    execution_authorized: false
+    maximum_runs: 0
+    evidence_claimed: false
+    fallback_used: false
+    degraded_requirements: []
+    bedrock_selected_or_contacted: false

@@ -1,0 +1,439 @@
+proposals:
+
+  # -----------------------------------------------------------------------
+  # IDEA-20260804-b5462f
+  # BKK / Mixed-volume acceleration of Semaev summation polynomial system
+  # -----------------------------------------------------------------------
+  - id: IDEA-20260804-b5462f
+    goal_id: GOAL-ECDLP-001
+    sub_goal_id: null
+    direction: novel
+    status: proposed
+    added: '2026-08-04'
+    authored_by: TASK-20260804-027
+
+    avoids_tate_obstruction: not_applicable
+    avoids_tate_obstruction_reason: >-
+      Non-isogeny direction. Targets the algebraic complexity of the Semaev
+      summation polynomial system directly. Tate's theorem is irrelevant.
+
+    mechanism: >-
+      The Semaev index calculus for prime-field ECDLP works as follows: for factor
+      base F = {P_1,...,P_B} ⊂ E(F_p) and a random point Q, find a decomposition
+      Q = sum_{i ∈ S} P_i via the Semaev summation polynomial S_m. The bottleneck
+      is computing the Groebner basis (or resultant) of the polynomial system
+      S_m(X_1,...,X_m) = 0, S_{m-1}(X_1,...,X_{m-1}) = x(Q') = 0, ...
+      The Bezout bound is deg(S_m)^(m-1) ~ (2^m)^m, which is large.
+
+      BKK MECHANISM: The Bernstein-Khovanski-Kushnirenko theorem says the number of
+      solutions is bounded by the MIXED VOLUME MV of the Newton polytopes of the
+      polynomials. For sparse polynomials with special Newton polytopes, MV << Bezout.
+      The Semaev polynomial S_m has a specific Newton polytope (it's a SYMMETRIC
+      polynomial in its arguments; its support is the simplex-like structure of
+      multi-degree (2^m-2, ..., 2^m-2)).
+
+      PROPOSED MECHANISM: Compute the Newton polytope of each polynomial in the
+      Semaev system, compute the mixed volume MV, and determine whether MV <<
+      (2^m)^m. If MV ~ (2^m)^{m/2} or smaller, then the BKK bound implies the
+      resultant has degree ~ sqrt of the Bezout bound, and sparse resultant
+      algorithms (D'Andrea, Esterov) run in time proportional to MV. This could
+      give a genuine speedup in the Semaev index calculus complexity.
+
+      KNOWN RESULT: The current exp(c*sqrt(log N * log log N)) complexity already
+      uses an optimized Semaev system. It is unclear whether the BKK bound improves
+      on the known complexity. The proposed test measures this directly.
+
+    predictions:
+      - metric: mixed_volume_ratio
+        direction: lower
+        minimum_effect: >-
+          MV / Bezout_bound < 0.5 for the Semaev system at m=3 on a toy curve.
+          If MV ≈ Bezout, the BKK bound gives no improvement.
+      - metric: sparse_resultant_degree
+        direction: lower
+        minimum_effect: >-
+          The sparse resultant of the degree-3 Semaev system has degree < 0.8 * Bezout.
+
+    minimal_discriminating_test:
+      description: >-
+        At bits=20: compute the Newton polytopes of S_3(X1,X2,X3,Q_x) and the two
+        reduction polynomials. Compute the mixed volume via the BKK algorithm
+        (SageMath: BoundaryOf.mixed_volume or PolyhedralFan). Compare to the Bezout
+        bound. Cost: pure computation, no curve operations needed.
+      estimated_cost: "< 5 minutes in SageMath"
+      pass_criterion: >-
+        MV / Bezout < 0.5 (sparse structure provides significant reduction).
+      fail_criterion: >-
+        MV ≈ Bezout (no sparse advantage).
+
+    null_object_control:
+      description: >-
+        Compute the mixed volume for a RANDOM polynomial system of the same degree
+        with the same number of variables, but with a GENERIC (non-sparse) Newton
+        polytope. If MV_random ≈ MV_Semaev, the Semaev system is not sparse in the
+        relevant sense.
+      expected_null_result: >-
+        Generic system: MV = Bezout (full volume). If Semaev gives MV < Bezout,
+        the structure is real. If MV = Bezout, the Semaev system is not sparse.
+
+    falsification_criteria:
+      - >-
+        MV ≥ 0.9 * Bezout for the Semaev system at m >= 3: no significant sparse
+        structure; BKK gives no improvement over current Bezout-based algorithms.
+      - >-
+        The sparse resultant algorithm for the Semaev system is no faster in practice
+        than the Groebner basis / F4/F5 computation (BKK gives theoretical bound but
+        the sparse algorithm has large constants).
+
+    dominated_by: >-
+      Current Semaev index calculus at exp(c * sqrt(log N * log log N)).
+      If MV << Bezout, this direction could improve the CONSTANT c inside the
+      exponent, not the exponent itself. Not target-class unless a MORE DRAMATIC
+      reduction is found.
+    sota_delta:
+      time_exponent: not_applicable
+      memory_exponent: not_applicable
+      data_or_query_exponent: not_applicable
+      verified: false
+      note: >-
+        If BKK gives MV = Bezout^{1-epsilon} for any fixed epsilon > 0, the
+        resulting sparse resultant algorithm changes the exponent of the
+        subexponential complexity from c to c*(1-epsilon/2) or similar. This
+        does NOT change the exp(sqrt(log N)) functional form; it's a constant
+        factor improvement. Target-class (moving the exponent from sqrt to smaller)
+        would require MV to SHRINK as a function of N — e.g., MV ~ Bezout^{1/2}.
+        Unknown and plausibly false for the Semaev system.
+
+    target_class: false
+    target_class_reason: >-
+      Expected to improve the constant in the exponent at best.
+      Does not move the functional form of the complexity below exp(sqrt(log N)).
+
+    recommended_priority: medium
+
+    proof_search_map:
+      observation_collision_search: >-
+        Has anyone computed the BKK bound for the Semaev system? Search: Esterov,
+        D'Andrea, Emiris work on sparse resultants for EC; the Gaudry-Diem analysis
+        of Semaev complexity. If no prior BKK computation exists, this is novel.
+      exact_baseline_reproduction: >-
+        Reproduce the degree of the 2-variable Semaev polynomial S_3(X1,X2,X3)
+        at a toy curve (bits=20). Compute MV. Compare to Bezout.
+      quantifier_order_statement: >-
+        The claim is: FOR ALL EC curves E/F_p (or for most curves), the mixed volume
+        of the Semaev m-fold system is significantly less than the Bezout bound.
+        The quantifier order matters: if MV is only small for SPECIFIC curves, it
+        gives no generic improvement.
+      method_ceiling: >-
+        The method ceiling is the BKK-optimal sparse resultant. For the Semaev system
+        with MV = B, this costs O(B * polylog). If MV ~ Bezout / sqrt(m), total
+        Semaev complexity improves from exp(c*sqrt(log N * log log N)) to
+        exp(c'*sqrt(log N * log log N)) for c' < c. Ceiling of this approach:
+        exp(c_{min}*sqrt(log N * log log N)) where c_{min} is the information-
+        theoretic lower bound (unknown). Nearby-object control: if MV = Bezout
+        (no sparse advantage), the method ceiling is the current SOTA.
+
+    interpretation_limits:
+      - >-
+        A positive result (MV << Bezout) establishes a THEORETICAL improvement to
+        the Semaev index calculus constant but does NOT move the exponent.
+      - >-
+        Even improved, the Semaev index calculus is subexponential in log N,
+        not polynomial — still far from Pollard rho's O(N^{1/2}) GROUP OPERATIONS.
+        The improvement is in the base-of-exponent, not in the exp-of-exp structure.
+
+  # -----------------------------------------------------------------------
+  # IDEA-20260804-673f3a
+  # P-adic formal group DLP for non-anomalous curves via higher-order lifts
+  # -----------------------------------------------------------------------
+  - id: IDEA-20260804-673f3a
+    goal_id: GOAL-ECDLP-001
+    sub_goal_id: null
+    direction: novel
+    status: proposed
+    added: '2026-08-04'
+    authored_by: TASK-20260804-027
+
+    avoids_tate_obstruction: not_applicable
+    avoids_tate_obstruction_reason: >-
+      Non-isogeny direction. Uses p-adic formal group structure directly.
+      No isogeny walk required.
+
+    mechanism: >-
+      Smart's attack on ANOMALOUS curves (N = p) uses the p-adic formal group
+      logarithm: the natural map log_E: E_1(Z_p) -> Z_p (where E_1 is the kernel
+      of reduction mod p, i.e., the formal group) is an isomorphism, and via the
+      formal group logarithm the DLP in E(F_p) is reduced to the DLP in Z_p
+      (equivalently, a single p-adic division). Cost: O(log p).
+
+      For NON-ANOMALOUS curves (N ≠ p), the formal group still exists:
+      E_hat(Z_p) = ker(E(Z_p) -> E(F_p)) ≅ Z_p (for ordinary curves).
+      But N ≠ p means [N]*P = 0 in E(F_p) while [N]*P_hat ≠ 0 (in general) in
+      E_hat(Z_p). The standard Smart lift fails because [N] ≠ [p] on E_hat.
+
+      PROPOSED MECHANISM: Can we use a DIFFERENT p-adic lift that replaces [p]
+      with [N] in the formal group argument? Specifically:
+        - The formal group law has a power-series logarithm lambda: E_hat -> Z_p
+        - For any point P ∈ E(F_p), its p-adic lift P_hat ∈ E_hat(Z_p) satisfies
+          lambda(P_hat) ∈ Z_p
+        - For anomalous curves: lambda([p]P_hat) = p * lambda(P_hat), and Smart
+          uses this to recover k from lambda([k]P_hat) = k * lambda(P_hat)
+        - For non-anomalous curves: lambda([N]P_hat) = N * lambda(P_hat) (by the
+          formal group homomorphism), but [N]P = 0 in E(F_p), so [N]P_hat ∈ E_hat(Z_p)
+          is a p-adic torsion point (its reduction mod p is the identity)
+        - HIGHER-ORDER LIFT: Can we choose the lift P_hat ∈ E(Z_p) (full elliptic
+          curve, not just formal group) such that [N]P_hat = 0 in E(Z_p)? This
+          would require P_hat to be an N-torsion point over Z_p, which exists if
+          and only if E has a Z_p-rational N-torsion point — but N-torsion over Z_p
+          is related to the Selmer group and generally NOT available for arbitrary N.
+
+      WEAKER VERSION: Can we use the formal group to get a congruence
+      k ≡ f(P_hat, Q_hat) (mod p^r) for some efficiently computable f and r > 1?
+      This would reduce the DLP to a linear congruence mod p^r, leaving a residual
+      search of p/p^r = p^{1-r} candidates. For r > 1/2: residual search is O(p^{1/2}),
+      same as Pollard rho. For r > 2/3: residual search is O(p^{1/3}), which is
+      genuinely sub-rho. Does such an r exist?
+
+    predictions:
+      - metric: formal_group_congruence_order
+        direction: higher
+        minimum_effect: >-
+          The formal group log gives a congruence k ≡ f(P_hat, Q_hat) (mod p^2)
+          (order-2 congruence), reducing the residual search from p to p^{-1}.
+          If this works: total cost is O(p/p^2) * O(p^{1/2}) = O(p^{-1/2}) * p^{1/2}
+          — wait, that doesn't make sense. Let me be more careful.
+          A congruence k ≡ c (mod p^r) gives p/p^r = p^{1-r} residual candidates.
+          Each candidate must be verified: O(log p) per check. Total: p^{1-r} * log p.
+          For p^{1-r} < p^{1/2}: need r > 1/2. For r = 2: p^{-1} < 1 — trivially 0
+          candidates. But r = 2 would mean we compute k mod p^2, which is impossible
+          since k ∈ [0, N-1] with N ~ p. So r can be at most 1 (k ∈ Z/p gives exactly
+          one candidate given k mod p). For r = 1: this is the Smart attack (k mod p
+          gives k exactly since k < p). For generic non-anomalous curves: k mod p ≠ k
+          (since N ≠ p), so the formal group log gives k mod p, leaving p/N ~ 1
+          residual candidates — essentially a full search in Z/N.
+
+    minimal_discriminating_test:
+      description: >-
+        At bits=20: for a non-anomalous curve E with prime order N (N ≠ p), compute
+        the p-adic formal group logarithm of a lifted point P_hat and Q_hat = [k]P_hat.
+        Check whether lambda(Q_hat) / lambda(P_hat) ≡ k (mod p). Expected: this holds
+        mod p but NOT mod p^2 for non-anomalous curves (since [N]P_hat ≠ 0 in E(Z_p)).
+      estimated_cost: "< 5 minutes in SageMath"
+      pass_criterion: >-
+        lambda(Q_hat) / lambda(P_hat) ≡ k (mod p^r) for r >= 2 for at least one choice
+        of lift P_hat.
+      fail_criterion: >-
+        lambda(Q_hat) / lambda(P_hat) ≡ k (mod p) but NOT mod p^2 for any lift P_hat.
+        This would confirm the formal group gives a mod-p congruence only.
+
+    null_object_control:
+      description: >-
+        For an ANOMALOUS curve (N = p), the formal group gives k exactly (not just mod p).
+        This is the Smart attack. The anomalous case serves as the positive control:
+        verify that the formal group log computes k in O(log p) steps for N=p,
+        confirming the instrument works.
+      expected_null_result: >-
+        For anomalous curve: lambda(Q_hat)/lambda(P_hat) = k in Z_p (not just mod p).
+        For non-anomalous: lambda(Q_hat)/lambda(P_hat) = k + t*p/gcd(N,p) for some
+        t ∈ Z, giving only k mod gcd(N,p) information.
+
+    falsification_criteria:
+      - >-
+        The formal group log gives k mod p only (not mod p^2) for generic non-anomalous
+        curves: the mechanism gives no sub-rho speedup.
+      - >-
+        The p-adic congruence for k requires knowing the lift P_hat mod p^r, which
+        itself requires knowing k (circular for r >= 2).
+
+    dominated_by: Pollard rho at exponent 1/2 (expected)
+    sota_delta:
+      time_exponent: not_applicable
+      memory_exponent: not_applicable
+      data_or_query_exponent: not_applicable
+      verified: false
+      note: >-
+        Expected to produce a CLOSURE: the formal group log for non-anomalous curves
+        gives k mod gcd(N,p) only (gcd = 1 for prime N ≠ p), providing no information
+        about k. The congruence is trivial (k mod 1 = 0). The mechanism does not beat
+        Pollard rho. Including to formally establish the p-adic approach as CLOSED
+        for non-anomalous prime-order curves.
+
+    target_class: false
+    target_class_reason: >-
+      Expected closure direction. The p-adic formal group gives no useful congruence
+      for non-anomalous prime-order curves (k mod gcd(N,p) = k mod 1 = 0).
+
+    recommended_priority: low
+
+    proof_search_map:
+      observation_collision_search: >-
+        Is the p-adic formal group approach for non-anomalous curves known? Smart (1999)
+        explicitly treated the anomalous case. Check: Satoh-Araki (1998), Semaev (1998)
+        for related approaches. The failure for non-anomalous is probably discussed in
+        those papers. If so, this is a known closure; the test confirms it.
+      exact_baseline_reproduction: >-
+        Reproduce Smart's attack for an anomalous curve (verifies instrument).
+        Then apply to non-anomalous curve to observe the failure. Baseline: Smart
+        works for N=p, fails for N≠p — reproduce this explicitly.
+      quantifier_order_statement: >-
+        FOR ALL ordinary prime-field curves E/F_p with prime order N ≠ p, the p-adic
+        formal group logarithm gives k mod gcd(N,p) = k mod 1 = no information.
+        Proof: the formal group log lambda satisfies lambda([N]P_hat) = N*lambda(P_hat).
+        Since [N]P = 0 in E(F_p), [N]P_hat is in the formal group kernel... wait,
+        this needs more careful analysis. Complete the quantifier-order statement
+        in the minimal test above.
+      method_ceiling: >-
+        P-adic formal group method: ceiling = Smart-like O(log p) for N=p. For N≠p:
+        ceiling = O(p) (no useful congruence). Method ceiling is Pollard rho.
+        Nearby-object control: anomalous curve gives ceiling O(log p) — which confirms
+        the instrument works. Non-anomalous curve gives ceiling O(p) — the instrument
+        fails to help.
+
+    interpretation_limits:
+      - >-
+        A positive result (formal group congruence mod p^2 for non-anomalous curves)
+        would be SURPRISING and would need peer review. The known theory says this
+        should fail.
+      - >-
+        The test is designed to produce a FORMAL CLOSURE, not a breakthrough.
+        Its value is establishing a clean experimental boundary between anomalous
+        and non-anomalous curves.
+
+  # -----------------------------------------------------------------------
+  # IDEA-20260804-a4efaf
+  # Decomposition attack on prime-field curves via genus-2 covers (Joux-Vitse style)
+  # -----------------------------------------------------------------------
+  - id: IDEA-20260804-a4efaf
+    goal_id: GOAL-ECDLP-001
+    sub_goal_id: null
+    direction: novel
+    status: proposed
+    added: '2026-08-04'
+    authored_by: TASK-20260804-027
+
+    avoids_tate_obstruction: not_applicable
+    avoids_tate_obstruction_reason: >-
+      Non-isogeny direction. Uses algebraic COVERS of E by higher-genus curves,
+      not isogeny-class structure.
+
+    mechanism: >-
+      The Joux-Vitse 2012 decomposition attack worked on BINARY curves of specific
+      form by exploiting covers by genus-2 curves. The key step: find a degree-d
+      morphism phi: C -> E where C is a curve of genus g = 2, and use index calculus
+      on Jac(C) (which admits faster index calculus than on E itself).
+
+      For PRIME-FIELD CURVES E/F_p, can we find a natural degree-2 cover
+      pi: C -> E where C is a curve of genus 2? If yes: the DLP in E(F_p) reduces
+      to DLP in Jac(C)(F_p) (a group of order ~p^2), and genus-2 index calculus
+      on Jac(C) has complexity exp(c * sqrt(log(p^2) * log log(p^2))) which is
+      only a constant-factor improvement over the genus-1 case. NOT sub-rho.
+
+      STRONGER VERSION: The "cover attacks" work best when the jacobian Jac(C)
+      SPLITS into factors that are individually easier. For instance, if Jac(C)
+      is isogenous to E × E' where E'(F_p) has sub-rho DLP. But this is circular:
+      we're looking for an easier DLP, and we'd need E' to already have one.
+
+      NON-ISOGENY STRUCTURAL USE: What if the COVER phi: C -> E is used not for
+      index calculus but for DECOMPOSING GROUP ELEMENTS? Specifically: if P ∈ E(F_p),
+      we can lift P to C: find Q ∈ C(F_{p^r}) with pi(Q) = P. The degree-2 cover
+      gives a 2-to-1 map; both preimages Q, Q' satisfy pi(Q) = pi(Q') = P.
+      The Galois action on {Q, Q'} is a specific involution. Can this involution
+      structure be exploited?
+
+      This is related to the "twisted Edwards coordinates" and other additions on
+      covers. It's unclear whether it gives a computational advantage.
+
+      PRAGMATIC VERSION: Simply test whether for a given prime-field curve E/F_p,
+      there exists a degree-2 map from a genus-2 curve C to E, and whether the
+      resulting Jacobian decomposes. This is a standard question in arithmetic
+      geometry (Richelot isogenies, Humbert loci) and might be tractable at toy scale.
+
+    predictions:
+      - metric: genus_2_cover_existence
+        direction: different
+        minimum_effect: >-
+          For random prime-field curves E/F_p at bits=20, the FRACTION of E that
+          admit a degree-2 cover from a genus-2 curve C is approximately 0 or 1
+          (it's a generic property or it's not). If every E has such a cover: this
+          opens a research direction. If no E does: closed.
+      - metric: jacobian_splitting
+        direction: different
+        minimum_effect: >-
+          Among E with a degree-2 genus-2 cover, the fraction with Jac(C) isogenous
+          to E × E' (split Jacobian) for a sub-rho E'. For random E, expected ~ 0.
+
+    minimal_discriminating_test:
+      description: >-
+        At bits=20: for a random prime-field curve E/F_p, check whether there
+        exists a degree-2 morphism from a genus-2 curve C to E by looking at the
+        2-torsion of E and the theory of Richelot isogenies. Alternatively, check
+        whether E is in the "Humbert locus" H_D for some D (which would give a
+        2-to-1 map from a genus-2 curve). Cost: SageMath computation.
+      estimated_cost: "~30 minutes of mathematical analysis + SageMath verification"
+      pass_criterion: >-
+        E admits a degree-2 cover from a genus-2 curve C AND Jac(C) is isogenous
+        to E × E' for an E' with known DLP structure.
+      fail_criterion: >-
+        No such cover exists for random prime-field curves, or Jac(C) does not split.
+
+    null_object_control:
+      description: >-
+        For curves with KNOWN degree-2 genus-2 covers (e.g., specific CM curves),
+        verify that the cover exists and check whether it gives a DLP speedup.
+        If even the "easy" case gives no speedup, the general case is hopeless.
+      expected_null_result: >-
+        CM curves with explicit genus-2 covers exist (Cassels-Flynn, Kuhn). The
+        DLP on these is not known to be easier. If they're NOT easier, the cover
+        approach gives no advantage.
+
+    falsification_criteria:
+      - >-
+        No generic prime-field curve admits a degree-2 genus-2 cover (this is
+        expected: degree-2 covers of E correspond to 2-torsion points in Pic^0(E),
+        and for prime-order curves the 2-torsion is trivial over F_p).
+      - >-
+        Even when a cover exists (over F_{p^2}), Jac(C) does not split into a
+        factor with sub-rho DLP.
+
+    dominated_by: Pollard rho at exponent 1/2 (expected)
+    sota_delta:
+      time_exponent: not_applicable
+      memory_exponent: not_applicable
+      data_or_query_exponent: not_applicable
+      verified: false
+      note: >-
+        Expected closure: degree-2 covers of prime-order prime-field elliptic curves
+        require 2-torsion over F_p, which is absent for prime-order N. The Richelot
+        theory applies to principally polarized abelian surfaces, not to elliptic curves
+        over prime fields without 2-torsion. Including to formally establish the cover
+        attack boundary.
+
+    target_class: false
+    target_class_reason: >-
+      Expected closure. Genus-2 Jacobian index calculus gives at best a constant
+      factor improvement over genus-1 Semaev; not exponent-moving.
+
+    recommended_priority: low
+
+    proof_search_map:
+      observation_collision_search: >-
+        Cover attacks on prime-field elliptic curves: check Galbraith-Hess-Smart
+        (2002), Smart (2001), Diem (2011 extension), Joux-Vitse (2012). These papers
+        explicitly discuss when GHS/cover attacks apply and when they don't (prime
+        fields are the "hard case"). If the obstruction is already stated, this is
+        a known closure.
+      exact_baseline_reproduction: >-
+        At bits=20: verify that a prime-order prime-field curve has NO F_p-rational
+        2-torsion (trivially true since 2 ∤ N for prime N > 2). This directly confirms
+        that degree-2 covers from a genus-2 curve cannot be F_p-rational.
+      quantifier_order_statement: >-
+        FOR ALL prime-order prime-field curves E/F_p (N prime, p prime, char ≠ 2),
+        there is NO F_p-rational degree-2 cover from a genus-2 curve C, because
+        such a cover requires a rational 2-torsion point on E, and #E(F_p) = N is odd.
+        This is an unconditional algebraic statement.
+      method_ceiling: >-
+        Cover attacks over F_{p^2} (where 2-torsion might be rational): ceiling
+        = genus-2 index calculus on Jac(C)(F_{p^2}) of order ~p^4. Complexity
+        exp(c * sqrt(log(p^4) * log log(p^4))) = exp(2c * sqrt(log p * log log p)).
+        This is SLOWER (larger constant) than genus-1 Semaev at exp(c*sqrt(log p ...)).
+        Method ceiling is worse than SOTA. The approach is dominated.

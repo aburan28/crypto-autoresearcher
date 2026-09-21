@@ -1,0 +1,290 @@
+idea:
+  id: IDEA-20260816-074cba
+  question_id: RQ-BLAKE-584719
+  added: '2026-08-16'
+  title: Track a single-bit difference injected into one chunk through the Merkle tree to the root
+    chaining value with the compression function reduced to r rounds, and measure the propagation
+    width -- how many chaining values carry a difference at each tree level -- against a sequential-mode
+    baseline of the same input length.
+  class: composition
+  claim: '(A) Every other object in this bucket lives either inside the permutation or inside the
+    mode''s encoding. This one lives at their composition: a difference injected into one chunk propagates
+    through a reduced-round compression function, into that chunk''s chaining value, then up through
+    parent nodes to the root, and the question is how the TREE SHAPE interacts with the reduced-round
+    permutation''s incomplete mixing. Define the propagation width w(level, r): the number of chaining
+    values at each tree level that differ between the two executions, when the compression function
+    is reduced to r rounds. (B) The claim is that w(level, r) is a measurable composite quantity that
+    neither a permutation-level nor a mode-level study produces, and that its interesting regime is
+    small r, where the compression function does not fully mix and a difference may reach the root
+    in a structurally biased way. Comparing w against a SEQUENTIAL-mode baseline of the same input
+    length -- the same reduced-round compression function chained linearly rather than in a tree --
+    isolates the tree''s contribution from the permutation''s. (C) NOT CLAIMED: at reduced rounds
+    this is a laboratory object, not BLAKE3, and a measured width at r = 2 says nothing about r =
+    7. No attack, no distinguisher, no break, no security consequence, and specifically no claim that
+    a wide or narrow propagation is good or bad -- the record measures a shape and does not grade
+    it. Nothing about deployed systems. (D) The negative outcome is a usable measured obstruction:
+    if w(level, r) matches the sequential baseline once normalised for the number of compression calls,
+    then the tree structure contributes nothing beyond call count to difference propagation at those
+    rounds, which closes a plausible line of inquiry with a number rather than with a hunch -- and
+    a closed line with a measured quantity attached is what inventor-protocol section 4 requires of
+    a closure.'
+  mechanism: 'Stage one: build a reduced-round BLAKE3 whose round count is a parameter, verified to
+    reproduce the full-round reference exactly when the parameter is set to the shipped value -- this
+    is the anchor that keeps the laboratory object honest. Stage two: for input length L, execute
+    the tree twice, once on input X and once on X with a single bit flipped in chunk c, instrumenting
+    every compression call so that each produced chaining value can be compared between the two executions.
+    Stage three: record w(level, r) for each tree level, plus the per-level Hamming weight distribution
+    of the differing chaining values, since a count of differing nodes and the size of the differences
+    within them are different questions and conflating them is the obvious error here. Stage four:
+    build the sequential baseline -- the same reduced-round compression function chained over the
+    same input length in a linear chain -- and record the analogous quantity, normalising by the number
+    of compression calls each mode makes so the comparison is not merely a count of work. Stage five:
+    null arms -- a tree with a RANDOM chaining rule (parent nodes combining children by a random fixed
+    permutation of the same shape) and a random-parameter reduced-round compression function -- run
+    identically, giving the by-chance width profile. Stage six: sweep r from 1 to the full round count
+    and report the round at which w becomes indistinguishable from the null, which is the composite
+    quantity the record exists to produce.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'grep -ril ''merkle|tree mode|tree-mode'' over ledger/proposals and ledger/hypotheses
+      (hits: IDEA-20260731-003, IDEA-20260731-004, IDEA-20260808-95a21c); grep -ril blake over the
+      repository; grep -ril ''avalanche|propagation'' over ledger/proposals; read RQ-BLAKE-584719
+      and GOAL-BLAKE-001 in full; read docs/inventor-protocol.md section 3 (the structural tell: a
+      quantity that should decay and does not) and section 4 (the closure standard, and the requirement
+      that an obstruction be recorded as a measured quantity rather than a verdict).'
+    results: 'Zero BLAKE proposals. IDEA-20260808-95a21c concerns Merkle-Damgard chaining in a Fiat-Shamir
+      forgery cost model, not tree propagation. IDEA-20260731-003 and IDEA-20260731-004 surfaced on
+      the Merkle grep and are early ECDLP-lane records sharing no object. Within this bucket, the
+      exact-dependency record measures a permutation-level relation and stops at the compression function''s
+      boundary; the input-side audit measures the mode''s encoding with the compression function opaque.
+      NEITHER can produce a composite quantity, and that gap is this record''s entire justification.
+      Section 3''s structural-tell test is directly applicable and is adopted as a required check:
+      w should DECAY toward the null as r increases, and a w that does not decay is the signature
+      of an artifact rather than of tree structure.'
+    verdict: 'UNVERIFIED. Nothing asserted about external literature. Assembled from known parts:
+      reduced-round laboratory objects are standard practice in this program (the AES r=5..7 measured
+      effects with null controls are the internal precedent named in the program state), differential
+      propagation through a Merkle tree is not a new idea, and the sequential baseline is the obvious
+      control. Claimed new HERE: the composite quantity w(level, r) with its explicit separation of
+      node COUNT from difference WEIGHT; the call-count normalisation that makes the tree-versus-sequential
+      comparison mean something other than ''the tree does more work''; and the adoption of section
+      3''s decay test as a required falsifier, so that a non-decaying w is reported as an artifact
+      rather than as a finding.'
+  object_first_candidate:
+    tracked_object: The propagation width profile w(level, r) -- the number of chaining values differing
+      at each tree level between two executions differing in one input bit, as a function of the reduced
+      round count -- carried together with the per-level Hamming-weight distribution of those differences.
+    lossiness: 'Genuinely lossy. The true object is the pair of full execution traces, tens of thousands
+      of bits per compression call; the tracked object is one count per level plus a weight distribution.
+      Discarded: which bits differ, which specific nodes, and the algebraic relation between a parent''s
+      difference and its children''s. What survives propagation and why: whether a chaining value
+      differs at all is closed under the tree''s combining rule -- a parent whose children are both
+      identical is itself identical, deterministically and independent of the compression function''s
+      internals -- so the differing-node indicator propagates upward exactly, while the weight distribution
+      propagates only statistically and is therefore reported as a secondary metric with that difference
+      stated. The count is the load-bearing part precisely because it propagates deterministically,
+      and the weight is retained because discarding it entirely would let a level of many tiny differences
+      read identically to a level of few large ones.'
+    propagation: 'One step is one level of the tree: given the set of differing chaining values at
+      level i, the differing set at level i+1 is determined by which parents have at least one differing
+      child AND whose compression at r rounds actually produces a differing output. The second clause
+      is where the reduced round count enters: at small r the compression function may fail to propagate
+      a difference, so a differing child can produce an identical parent -- a CANCELLATION at the
+      tree level, which is exactly the composite phenomenon neither component study can see. w therefore
+      evolves level by level as an interplay between the tree''s fan-in and the permutation''s incomplete
+      diffusion, and the record''s central measurement is that interplay.'
+    survival_score: 'The object survives from the leaf level to the root for every r, so it does not
+      dissolve structurally -- but it becomes UNINFORMATIVE at the round count where w matches the
+      null everywhere, and identifying that round is the deliverable. Concretely: at r = 1 the width
+      profile is expected to be shaped by cancellations and to differ from the null; as r grows it
+      should converge to the null''s profile (every touched node differs, no cancellations), and the
+      record reports the convergence round. If w never differs from the null even at r = 1, the object
+      has no informative regime at all and that is a complete result. If w never converges to the
+      null even at the full round count, section 3''s structural-tell test flags it as an artifact
+      and the measurement is suspect rather than interesting.'
+  null_object_control: 'Two nulls, both run identically in the same invocation. Null-A, the random-permutation
+    tree: the same tree shape with the compression function replaced by a random fixed permutation
+    of the same input and output widths (implemented as a seeded pseudorandom function with the same
+    signature), which propagates every difference with no cancellation -- giving the width profile
+    of a tree with an ideal component. Null-B, the random-parameter reduced-round arm: the same reduced-round
+    ARX structure with random rotation constants and a random schedule, giving the by-chance cancellation
+    profile of a non-designed component at the same round count. What the nulls must show for the
+    signal arm to mean anything: Null-A must show w equal to the full touched-node count at every
+    level and every r (no cancellations), establishing that the instrument attributes cancellations
+    to the component rather than to the tree walk; and Null-B must show SOME cancellation at small
+    r, establishing that cancellation is measurable at all. If Null-B shows no cancellation, the reduced-round
+    regime chosen is already too strong and r must be lowered before the real arm is interpreted.
+    Both nulls are seeded, run at three draws, and their spreads reported.'
+  discriminated_from:
+  - 'The exact-dependency record in this bucket: that measures a permutation-level relation exactly
+    and stops at the compression function''s boundary. This measures a composite of permutation and
+    tree and cannot be derived from it, because cancellation at the tree level depends on actual difference
+    values rather than on dependency existence.'
+  - 'The input-side injectivity audit in this bucket: that holds the compression function opaque and
+    enumerates the mode''s encoding. This requires the compression function to be evaluated concretely,
+    at reduced rounds, and asks a question the symbolic treatment forbids.'
+  - 'The trail-search records in this bucket: those bound a single permutation''s trails with a solver.
+    This runs concrete executions with no solver, measures a distribution over tree levels, and has
+    no optimality notion at all.'
+  - 'The AES r=5..7 measured effects with null controls named in this program''s established results:
+    the same reduced-round-plus-null methodology, applied to a different primitive and to a tree-mode
+    composite quantity that has no AES analogue. Named explicitly so this record is not read as re-running
+    that lane on a new name.'
+  assumptions:
+  - The reduced-round compression function reproduces the full-round reference exactly at the shipped
+    round count; this anchor is checked, not assumed, and without it the laboratory object is unmoored.
+  - Tree shape for a given input length is deterministic and known, so levels are well defined; read
+    from pinned primary text.
+  - A single-bit input difference is the right probe. It is the smallest, and the record additionally
+    runs a small set of multi-bit probes to check that conclusions are not probe-specific.
+  - 'Call-count normalisation is a fair basis for the tree-versus-sequential comparison. This is the
+    weakest assumption in the record: the two modes make different numbers of calls with different
+    inputs, and normalisation by count is a choice rather than a derivation. It is stated as such
+    and the raw unnormalised numbers are also reported.'
+  predictions:
+  - metric: w(level, r) at r = 1 versus Null-A (ideal component)
+    direction: lower
+    minimum_effect: strictly below the ideal profile at at least one level is predicted, since incomplete
+      mixing at one round should permit cancellations; if w equals the ideal profile at r = 1, there
+      is no informative regime and the record says so
+  - metric: 'convergence round: smallest r at which w matches Null-A at every level'
+    direction: different
+    minimum_effect: 'REFUSING TO PRE-COMMIT a round number, with reason: it depends on the compression
+      function''s diffusion rate, which the exact-dependency record measures and which is unread at
+      proposal time. Frozen rule: convergence is declared at the smallest r where w is within the
+      seeded spread of Null-A at every level'
+  - metric: decay of the difference between w and Null-A as r increases
+    direction: lower
+    minimum_effect: monotone decay is required by section 3's structural-tell test; a difference that
+      stays constant across r is the signature of an artifact and falsifies the measurement rather
+      than revealing structure
+  - metric: tree profile versus sequential baseline after call-count normalisation
+    direction: different
+    minimum_effect: no pre-committed value; the honest position is that the normalisation is a choice
+      and both normalised and raw comparisons are reported so a reader can apply their own
+  minimal_test:
+    design: 'Take the smallest input length with a nontrivial tree -- two chunks, giving one parent
+      and a root -- and run r = 1 and r = 2 only, on four arms: real reduced-round tree, Null-A (ideal
+      component), Null-B (random-parameter component), and the sequential baseline at the same length.
+      One bit flipped in chunk 0, then in chunk 1, for both chunk positions. This is a handful of
+      compression evaluations, runs in milliseconds, and answers the three gating questions: does
+      Null-A show zero cancellation as required (instrument sanity); does Null-B show any cancellation
+      at r = 1 (is the reduced-round regime informative at all); and does the real arm differ from
+      either. If Null-B shows no cancellation at r = 1, no round count in the sweep will be informative
+      and the design should be reconsidered before any larger input is run. If Null-A shows cancellation,
+      the instrument is attributing to the component something the tree walk is doing, and that must
+      be fixed first. Both failures are found here for the cost of a few milliseconds.'
+    controls:
+    - Null-A, ideal-component tree (compression replaced by a seeded random permutation of the same
+      signature), required to show zero cancellation at every level and round.
+    - Null-B, random-parameter reduced-round component, three seeded draws, required to show some
+      cancellation at small r.
+    - Sequential-mode baseline at the same input length with the same reduced-round component, reported
+      both raw and call-count normalised.
+    - 'Full-round anchor: the reduced-round implementation at the shipped round count must reproduce
+      the pinned reference exactly on all published test vectors.'
+    - 'Probe-variety control: multi-bit and multi-position probes in addition to the single-bit probe,
+      to check conclusions are not probe-specific.'
+    - 'Section 3 decay check: the difference between w and Null-A must decay monotonically in r; run
+      as a required falsifier rather than as an observation.'
+    required_metrics:
+    - w(level, r) per arm per input length
+    - per-level Hamming-weight distribution of differing chaining values
+    - convergence round (smallest r matching Null-A within spread)
+    - sequential baseline profile, raw and call-count normalised
+    - Null-A cancellation count (required zero)
+    - Null-B cancellation profile with seeded spread
+    - full-round anchor agreement flag
+    - monotonicity of the w-to-Null-A difference in r
+  falsification_conditions:
+  - Null-A shows any cancellation, meaning the instrument attributes to the component something the
+    tree walk causes.
+  - Null-B shows no cancellation at the smallest r, meaning the reduced-round regime is not informative
+    at any round in the sweep.
+  - The difference between w and Null-A does not decay monotonically in r -- section 3's structural-tell
+    test, and its failure marks the measurement as an artifact rather than the design as interesting.
+  - The full-round anchor fails, so the reduced-round object is not a reduction of the real one.
+  - Conclusions change materially between single-bit and multi-bit probes, meaning the result is probe-specific.
+  - The normalised tree and sequential profiles coincide at every r, which is the closure outcome
+    -- the tree contributes nothing beyond call count -- and must be recorded with its measured quantity
+    per inventor-protocol section 4.
+  confounders:
+  - Call-count normalisation choice driving the tree-versus-sequential comparison. The single largest
+    confounder; mitigated only by reporting raw and normalised numbers side by side and by declining
+    to pick a winner.
+  - Input length determining tree shape, so a comparison across lengths conflates shape with size.
+    Mitigated by holding length fixed within each comparison and sweeping it separately.
+  - 'Chunk position of the injected bit: a difference in the first chunk traverses a different path
+    than one in the last. Mitigated by probing every chunk position at small lengths and a sampled
+    set at larger ones.'
+  - Reduced-round objects at very small r being so degenerate that cancellations are dominated by
+    structural triviality rather than by the design; mitigated by Null-B, which measures exactly that
+    baseline.
+  - Reading a cancellation as a weakness. It is not; part (C) forbids grading and the record measures
+    a shape.
+  interpretation_limits:
+  - Reduced-round objects are laboratory objects; a measured width at r = 2 says nothing about r =
+    7 and the record forbids the projection.
+  - The count of differing nodes propagates deterministically while the weight distribution does not,
+    and the two must not be read with the same confidence.
+  - The tree-versus-sequential comparison depends on a normalisation choice that is stated, not derived.
+  - Nothing about BLAKE3's security, its round count, or any deployed system follows from any measured
+    width.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement is a direct execution costing O(compression
+      calls) per probe, reported as a count.
+    memory_exponent: No attack memory exponent is claimed; memory is two execution traces.
+    best_known: 'The incumbent is the absence of any composite permutation-plus-tree measurement in
+      this repository: permutation-level and mode-level studies exist or are proposed in this bucket,
+      and neither produces w. Nothing is beaten; a quantity with no current value is given one over
+      a stated reduced-round range.'
+    hidden_overhead: Hidden in the anchoring and the normalisation. The reduced-round implementation
+      must reproduce the reference exactly at the shipped round count, which is fiddly implementation
+      work with no visible output; and the call-count normalisation is a judgement call that quietly
+      decides the headline comparison, so the honest version reports both raw and normalised and therefore
+      reports a less quotable result. The probe-variety control also multiplies the run by the number
+      of chunk positions, which grows with input length.
+  dominated_by: 'n/a (no result claimed on any attack frontier). Pareto check across time, memory
+    and data/queries: no attack row is emitted. As a measurement it is dominated by any run that measures
+    the same composite over more input lengths, more probe positions, or a finer object (for instance
+    tracking which bit positions cancel rather than whether a node differs) -- the last being strictly
+    more informative and strictly more expensive, and named here as the intended supersession.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: this repository
+    holds zero composite permutation-plus-tree propagation measurements, and a run supplies w(level,
+    r) across a swept round count and input length, with two nulls, a sequential baseline reported
+    two ways, and a convergence round. The delta is a profile and a round number where there is currently
+    nothing.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'By part. That the reduced-round implementation anchors exactly to the
+    reference at the shipped round count: 0.8, ordinary work with published vectors. That Null-A shows
+    zero cancellation as required: 0.9, close to forced by construction. That Null-B shows cancellation
+    at r = 1, giving the measurement an informative regime: 0.6 -- if the compression function''s
+    single round already propagates a single-bit difference to every output word, there is no cancellation
+    to see and the whole record collapses to a null report, which is the most likely failure. That
+    the difference from Null-A decays monotonically: 0.75, and a failure here is more interesting
+    than a success because it flags an artifact. That the tree profile differs from the call-count-normalised
+    sequential baseline: 0.3 -- I expect them to coincide, which is the closure outcome, and I am
+    proposing this partly because that closure would be worth having with a number attached. That
+    the record''s value survives the likely coincidence: 0.7, on the strength of inventor-protocol
+    section 4''s requirement that a closure carry a measured quantity.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-BLAKE-584719
+  - GOAL-BLAKE-001
+  - IDEA-20260808-95a21c
+  - KN-TECH-076
+  - docs/inventor-protocol.md
+  - templates/research-records.md
+  - AGENTS.md
+  - GOAL-MD5-001
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-BLAKE-c39930

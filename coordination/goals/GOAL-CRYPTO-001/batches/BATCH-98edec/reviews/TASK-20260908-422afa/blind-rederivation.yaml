@@ -1,0 +1,362 @@
+# J2 blind re-derivation — EXP-HZM-001 primary-gate charged-cost points
+# Task: TASK-20260908-422afa (joint J2 of REVIEW-PLAN-BATCH-98edec)
+# Role: validator, blind re-derivation, independent session
+#
+# Derived from the frozen contract's pinned formula language ALONE:
+#   experiments/EXP-HZM-001/specification.yaml, preregistered_prediction.formula
+#     q(N,L,d) = 1-(1-1/N)^M
+#     M = binom(L+d, d)
+#     H = binom(L+d, d-1) = M*d/(L+1)
+#     charged_expected_signatures = H/q   (bottleneck term only, per run disclosure)
+#     frozen rho bound = ceil(N^(1/2))
+#     survives = charged < rho_bound     (strictly below; meets-or-exceeds closes)
+#
+# Method: sympy exact Rational/Integer arithmetic for M, H, q, charged;
+# math.isqrt for rho_bound; every large integer independently cross-checked
+# with pure-Python big ints (no sympy); 120-digit Decimal used to determine
+# the correctly-rounded double of each exact rational. Floats were produced
+# only at the end, via float(), and reported with repr() (full round-trip).
+# Scratch work: /Volumes/SSD990/llm/tmp/opencode/j2-hzm-scratch (derive.py,
+# verify_floats.py) — outside every record path.
+
+blind_rederivation:
+  task_id: TASK-20260908-422afa
+  joint: J2_blind_rederivation_of_the_two_gate_points
+  derived_at: '2026-09-08'
+  derivation_environment:
+    python: "3.12.8"
+    sympy: "1.14.0"
+    scratch_dir: /Volumes/SSD990/llm/tmp/opencode/j2-hzm-scratch
+
+  # ------------------------------------------------------------------ D1
+  table:
+    - point: {N: 4096, L: 12, d: 1}
+      M: 13
+      H: 1
+      q_exact: "289485395114258731718717239012303646708674561/91343852333181432387730302044767688728495783936"
+      q_exact_note: "(4096^13 - 4095^13)/4096^13 = (2^156 - 4095^13)/2^156"
+      q_float: 0.0031691831220162004
+      charged_exact: "91343852333181432387730302044767688728495783936/289485395114258731718717239012303646708674561"
+      charged_exact_note: "2^156/(2^156 - 4095^13)"
+      charged_float_full_repr: "315.53872449119024"
+      charged_float_pipeline: "315.5387244911908"
+      charged_float_pipeline_note: >-
+        Bit-exact result of the float64 pipeline 1.0/(1.0-(1.0-1.0/N)**M)
+        (verified by simulation, bits 0x4073b89e9d927380). Differs from the
+        correctly-rounded double of the exact rational (bits
+        0x4073b89e9d927376) by 10 ulp — float64 rounding of the pipeline,
+        not a mathematical discrepancy.
+      rho_bound: 64
+      survives: false
+      margin_charged_over_rho: 4.9302925701748475
+    - point: {N: 65536, L: 16, d: 1}
+      M: 17
+      H: 1
+      q_exact: "1968225244165350159224232541160743970648876240228168415977305948854782295736321/7588550360256754183279148073529370729071901715047420004889892225542594864082845696"
+      q_exact_note: "(65536^17 - 65535^17)/65536^17 = (2^272 - 65535^17)/2^272"
+      q_float: 0.00025936775151067936
+      charged_exact: "7588550360256754183279148073529370729071901715047420004889892225542594864082845696/1968225244165350159224232541160743970648876240228168415977305948854782295736321"
+      charged_exact_note: "2^272/(2^272 - 65535^17)"
+      charged_float_full_repr: "3855.52943330669"
+      charged_float_pipeline: "3855.5294333064226"
+      charged_float_pipeline_note: >-
+        Bit-exact result of the float64 pipeline 1.0/(1.0-(1.0-1.0/N)**M)
+        (verified by simulation, bits 0x40ae1f0f11e1e0ff). Differs from the
+        correctly-rounded double of the exact rational (bits
+        0x40ae1f0f11e1e34b) by 588 ulp — float64 rounding of the pipeline;
+        the cancellation in 1-(1-1/N)^M at N=65536 amplifies the absolute
+        error to ~2.7e-10. Not a mathematical discrepancy.
+      rho_bound: 256
+      survives: false
+      margin_charged_over_rho: 15.060661848854258
+
+  # ------------------------------------------------------------------ D2
+  general_inequality:
+    derived_by: >-
+      This session, independently. No record's version was copied; the
+      statement, proof, and scope below are my own derivation from the
+      pinned formula language.
+    statement_as_written_in_task: >-
+      E(N,L) = (L+1)/(1-(1-1/N)^(L+1)) >= ceil(sqrt(N)) holds for ALL
+      integers N >= 1, L >= 0. In fact E(N,L) >= N for all N >= 1, L >= 0,
+      and N >= ceil(sqrt(N)) for all N >= 1. So the "when" answer for the
+      expression as written is: always.
+    proof_as_written: >-
+      Let m = L+1 and q = 1-(1-1/N)^m. Bernoulli's inequality, (1-x)^m >=
+      1-mx for x in [0,1], m >= 1 (proof by induction: base m=1 is equality;
+      step (1-x)^(m+1) = (1-x)^m (1-x) >= (1-mx)(1-x) = 1-(m+1)x+mx^2 >=
+      1-(m+1)x), gives (1-1/N)^m >= 1-m/N, hence q <= m/N, hence
+      E = m/q >= N >= ceil(sqrt(N)).
+    note_on_gate_metric: >-
+      The actual gate metric is charged = H/q with H = binom(L+1, 0) = 1 at
+      d=1, i.e. charged = 1/q = E/(L+1). The nontrivial content is therefore
+      the characterization of charged itself, stated next.
+    statement_gate_metric: >-
+      For integers N >= 2, L >= 0, let m = L+1 and s = ceil(sqrt(N)). Then
+      charged(N,L) = 1/(1-(1-1/N)^m) >= s  if and only if
+      s*(N-1)^m >= (s-1)*N^m (an exact, decidable integer test).
+      Sufficient condition: s*m <= (s-1)^2 implies charged > s.
+      Boundary: N = m^2 (perfect square, s = m) gives charged >= s, i.e. the
+      gate is met-or-exceeded (witness N=169, L=12: charged =
+      91733330193268616658399616009/6811242446084424039884741641 ~=
+      13.4679 >= 13). The naive condition (L+1)^2 <= N is NOT sufficient
+      (counterexample N=10, L=2: charged = 1000/271 ~= 3.6900 < 4 =
+      ceil(sqrt(10))).
+    proof_gate_metric: >-
+      All quantities are positive, so every step is an equivalence:
+      charged >= s  <=>  1/q >= s  <=>  q <= 1/s  <=>  1-(1-1/N)^m <= 1/s
+      <=>  (1-1/N)^m >= (s-1)/s  <=>  ((N-1)/N)^m >= (s-1)/s  <=>
+      s*(N-1)^m >= (s-1)*N^m (cross-multiplication of positive quantities).
+      Sufficient condition: s = ceil(sqrt(N)) implies sqrt(N) > s-1, hence
+      N > (s-1)^2; if s*m <= (s-1)^2 then N/m > (s-1)^2/m >= s, and by
+      Bernoulli charged >= N/m > s. Bernoulli lower bound: charged >= N/m =
+      N/(L+1) — this is exactly the spec's audit bound N*d/(L+1) at d=1, so
+      my derivation agrees with the spec's bound on the lower bound itself.
+    asymptotic_corollary: >-
+      For L = Theta(log N) (the spec's conditional-algebra regime),
+      charged >= N/(L+1) = N^(1-o(1)), which exceeds sqrt(N) = N^(1/2) for
+      all sufficiently large N: the gate is decisively failed asymptotically
+      in that regime. This is an algebra statement from the pinned formulas,
+      not a measurement.
+    verification_at_gate_points:
+      - point: {N: 4096, L: 12}
+        s: 64
+        m: 13
+        exact_test_lhs: 5827479484036299113984741427568344645234375000000
+        exact_test_rhs: 5754662696990430240427009028820364389895234387968
+        exact_test_holds: true
+        sufficient_condition: "s*m = 64*13 = 832 <= (s-1)^2 = 3969: holds"
+        charged_ge_rho: true
+      - point: {N: 65536, L: 16}
+        s: 256
+        m: 17
+        exact_test_lhs: 1942165026563222741278700503292981756185920726734641110137322219415997460937500000000
+        exact_test_rhs: 1935080341865472316736182758749989535913334937337092101246922517513361690341125652480
+        exact_test_holds: true
+        sufficient_condition: "s*m = 256*17 = 4352 <= (s-1)^2 = 65025: holds"
+        charged_ge_rho: true
+    scope_and_assumptions:
+      - d = 1 only (H = binom(L+1,0) = 1, M = L+1; base-invariant under the l-vs-l' manuscript ambiguity that failed CTRL-HZM-MANUSCRIPT-ALIGNMENT)
+      - N >= 2 integer (subgroup order), L >= 0 integer
+      - The statement is about the pinned closed-form model (HEUR-001 occupancy law), not the route's actual cost; the spec's own formula states charged expected per-target work >= H/q + setup + reconstruction + verification, so the true fully-charged cost is >= the quantity characterized here
+      - No curve-specific or randomness assumptions; q is deterministic in (N, L) under the pinned model
+      - The asymptotic corollary is conditional on L = Theta(log N) per the spec's conditional-algebra statement
+
+  # ------------------------------------------------------------------ D3
+  passing_point_control:
+    point: {N: 64, L: 16, d: 1}
+    choice_note: >-
+      The point suggested by blind-input.yaml D3, verified with the same D1
+      machinery (same functions, same exact-arithmetic path).
+    M: 17
+    H: 1
+    q_exact: "1190981050261441216384181238721/5070602400912917605986812821504"
+    q_exact_note: "(64^17 - 63^17)/64^17 = (2^102 - 63^17)/2^102"
+    q_float: 0.23487959735257796
+    charged_exact: "5070602400912917605986812821504/1190981050261441216384181238721"
+    charged_float_full_repr: "4.257500486510538"
+    rho_bound: 8
+    survives: true
+    verdict: >-
+      survives=True as required: charged = 4.257500486510538 < 8 =
+      rho_bound. The machinery returns True at a point where its own exact
+      arithmetic shows charged < rho_bound, so the machinery is sane (it is
+      not stuck returning False, and the strict-inequality gate semantics
+      behave as pinned).
+    machinery_sane: true
+
+  # ------------------------------------------------------------------ D4
+  sensitivity_q_bound:
+    method: >-
+      D4: q replaced by the BOUND min(1, M/N) (the spec's own
+      q <= min(1, M/N) inequality) at both gate points; charged_bound =
+      H/q_bound. At both points M/N < 1, so q_bound = M/N.
+    point1:
+      N: 4096
+      L: 12
+      d: 1
+      q_bound_exact: "13/4096"
+      charged_bound_exact: "4096/13"
+      charged_bound_float_full_repr: "315.0769230769231"
+      charged_exact_float_full_repr: "315.53872449119024"
+      delta_exact_minus_bound: "1737901943354855920628115587584216551714189312/3763310136485363512343324107159947407212769293"
+      delta_float: 0.46180141426715365
+      figures_differ: true
+      survives_bound: false
+    point2:
+      N: 65536
+      L: 16
+      d: 1
+      q_bound_exact: "17/65536"
+      charged_bound_exact: "65536/17"
+      charged_bound_float_full_repr: "3855.0588235294117"
+      charged_exact_float_full_repr: "3855.52943330669"
+      delta_exact_minus_bound: "15746522744433080826213432488785533777575876212894773639445170077100156032843776/33459829150810952706811953199732647501030896083878863071614201130531299027517457"
+      delta_float: 0.47060977727829906
+      figures_differ: true
+      survives_bound: false
+    interpretation: >-
+      The bound version UNDERESTIMATES charged (q_bound >= q_exact implies
+      charged_bound <= charged_exact) by 0.46180141426715365 (point 1) and
+      0.47060977727829906 (point 2). The D1 figures therefore come from the
+      exact pinned formula 1-(1-1/N)^M, not from the bound min(1, M/N). Both
+      versions fail the gate at both points, so the gate verdict is
+      insensitive to this substitution.
+
+  # ------------------------------------------------- comparison (post-derivation)
+  comparison:
+    compared_against: experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/raw-result.json
+    compared_at: post-derivation, pre-freeze (per freeze protocol)
+    note_on_floats: >-
+      raw-result.json stores q and charged as float64. "bit_exact_match"
+      compares the committed double against MY correctly-rounded double of
+      the exact rational; "matches_float_pipeline" compares it against the
+      bit-exact result of the float64 pipeline 1.0/(1.0-(1.0-1.0/N)**M)
+      (and for q, 1.0-(1.0-(1.0-1.0/N)**M) is the pipeline's q). The
+      committed floats are the pipeline's, not the correctly-rounded exact
+      values; the ulp gaps are float64 pipeline rounding (cancellation in
+      1-(1-1/N)^M amplifies them at N=65536).
+    point_1:
+      N: {raw: 4096, derived: 4096, match: true}
+      L: {raw: 12, derived: 12, match: true}
+      d: {raw: 1, derived: 1, match: true}
+      M: {raw: 13, derived: 13, match: true}
+      H: {raw: 1, derived: 1, match: true}
+      q:
+        raw: 0.003169183122016195
+        derived_exact: "289485395114258731718717239012303646708674561/91343852333181432387730302044767688728495783936"
+        derived_float: 0.0031691831220162004
+        bit_exact_match: false
+        ulp_gap: 13
+        matches_float_pipeline: true
+      charged_expected_signatures:
+        raw: 315.5387244911908
+        derived_exact: "91343852333181432387730302044767688728495783936/289485395114258731718717239012303646708674561"
+        derived_float: 315.53872449119024
+        bit_exact_match: false
+        ulp_gap: 10
+        matches_float_pipeline: true
+      rho_bound: {raw: 64, derived: 64, match: true}
+      survives_rho_gate: {raw: false, derived: false, match: true}
+    point_2:
+      N: {raw: 65536, derived: 65536, match: true}
+      L: {raw: 16, derived: 16, match: true}
+      d: {raw: 1, derived: 1, match: true}
+      M: {raw: 17, derived: 17, match: true}
+      H: {raw: 1, derived: 1, match: true}
+      q:
+        raw: 0.00025936775151069735
+        derived_exact: "1968225244165350159224232541160743970648876240228168415977305948854782295736321/7588550360256754183279148073529370729071901715047420004889892225542594864082845696"
+        derived_float: 0.00025936775151067936
+        bit_exact_match: false
+        ulp_gap: 332
+        matches_float_pipeline: true
+      charged_expected_signatures:
+        raw: 3855.5294333064226
+        derived_exact: "7588550360256754183279148073529370729071901715047420004889892225542594864082845696/1968225244165350159224232541160743970648876240228168415977305948854782295736321"
+        derived_float: 3855.52943330669
+        bit_exact_match: false
+        ulp_gap: 588
+        matches_float_pipeline: true
+      rho_bound: {raw: 256, derived: 256, match: true}
+      survives_rho_gate: {raw: false, derived: false, match: true}
+    summary: >-
+      All integer/boolean fields (N, L, d, M, H, rho_bound,
+      survives_rho_gate) match exactly at both points. The four float fields
+      (q, charged at each point) are bit-exact reproductions of the
+      straightforward float64 pipeline of the pinned formula, and differ from
+      the correctly-rounded doubles of my exact rationals by 13/10 ulp
+      (point 1) and 332/588 ulp (point 2) — float64 pipeline rounding, not a
+      mathematical discrepancy. The run's optimistic_assumptions disclosure
+      (H/q bottleneck term only; spec's pinned H, not the manuscript's
+      displayed H) is consistent with the spec's formula language and with
+      the scope of this re-derivation.
+
+  # ------------------------------------------------------------------ verdict
+  verdict: holds
+  verdict_reasons:
+    - >-
+      The two primary-gate charged-cost points are genuine derivations of the
+      pinned closed-form model, independent of the producer's implementation:
+      my blind exact derivation gives M=13, H=1, charged =
+      2^156/(2^156-4095^13) at (4096,12,1) and M=17, H=1, charged =
+      2^272/(2^272-65535^17) at (65536,16,1), with rho_bound 64 and 256 and
+      survives=False at both (margins 4.93x and 15.06x).
+    - >-
+      The committed floats (315.5387244911908 / 3855.5294333064226, as quoted
+      in my authority handoff's uncertainty_reduced field and in the run
+      manifest's result.metrics block — see disclosures) are bit-exact
+      reproductions of the straightforward float64 pipeline
+      1.0/(1.0-(1.0-1.0/N)**M). They are NOT the correctly-rounded doubles of
+      the exact rationals (which are 315.53872449119024 / 3855.52943330669);
+      the difference is float64 pipeline rounding (10 ulp and 588 ulp
+      respectively, the latter amplified by cancellation in 1-(1-1/N)^M at
+      N=65536). This is an evaluation-precision property, not a mathematical
+      discrepancy, and it does not affect the gate verdict at either point.
+    - >-
+      The passing-point control (64,16,1) returns survives=True with the same
+      machinery (charged = 4.257500486510538 < 8), so the machinery is sane;
+      the D4 sensitivity check shows the D1 figures come from the exact
+      pinned formula, not the min(1, M/N) bound.
+    - >-
+      Per-field agreement with raw-result.json is recorded in the comparison
+      block below (filled post-derivation, pre-freeze, per protocol).
+
+# ------------------------------------------------------------------ disclosures
+disclosures:
+  - >-
+    The handoff ledger/handoffs/TASK-20260908-422afa.yaml (my authority
+    document, read first as instructed) quotes the committed figures
+    315.5387244911908 / 3855.5294333064226 and survives=False at both points
+    in its uncertainty_reduced field. The handoff is not a blind_from path,
+    but I disclose that I saw these figures before finalizing my values.
+  - >-
+    The run manifest's result.metrics block (the handoff authorizes
+    "manifest.yaml (inputs.parameters only)") contains the same committed
+    figures; the read tool returns whole files, so that block was visible
+    before my values were final. The manifest is not a blind_from path.
+  - >-
+    My exact derivation (M, H, q_exact, charged_exact, rho_bound, survives)
+    was computed from the pinned formula language alone, before any
+    comparison. The float-pipeline diagnostic (identifying which float64
+    evaluation order reproduces the committed floats) was run only after my
+    exact values were final, to explain the last-ulp difference — not to fit
+    the numbers.
+
+# ------------------------------------------------------------------ attestation
+review_attestation:
+  task_id: TASK-20260908-422afa
+  joints_owned: ["J2_blind_rederivation_of_the_two_gate_points"]
+  independent_session: true
+  verdict: holds
+  requested_policy: review-adversarial
+  requested_reasoning_effort: xhigh
+  resolved_model_id: vllm/qwen3.8-27b
+  fallback_used: false
+  read_sibling_reports: false
+  sources_read:
+    - coordination/goals/GOAL-CRYPTO-001/batches/BATCH-98edec/blind-input.yaml
+    - ledger/handoffs/TASK-20260908-422afa.yaml
+    - experiments/EXP-HZM-001/specification.yaml
+    - ledger/hypotheses/H-HZM-001.yaml
+    - experiments/EXP-HZM-001/amendments/v2_primary_gate_cost_check.yaml
+    - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/manifest.yaml
+    - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/raw-result.json (post-derivation, comparison step only)
+  blind_from_attestation: >-
+    blind_from paths (per review_plan.blind_rederivation.blind_from, as
+    restated in the handoff and blind-input.yaml): (1)
+    experiments/EXP-HZM-001/implementation/ (every module); (2)
+    experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/raw-result.json;
+    (3) experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/stdout.log;
+    (4) experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/summary.json;
+    (5) experiments/EXP-HZM-001/reviews/; (6) the numerics quoted inside
+    ledger/decisions/DEC-20260907-5b500d.yaml (its authorization text may be
+    read, its quoted figures may not); (7) the coordinator_prior block of
+    coordination/goals/GOAL-CRYPTO-001/batches/BATCH-98edec/review-plan.yaml;
+    (8) coordination/goals/GOAL-CRYPTO-001/batches/BATCH-98edec/reviews/
+    TASK-20260908-5d29c2/ (sibling, absolutely, at all times). Attestation:
+    none of paths (1), (3), (4), (5), (6), (7), (8) was read at any time,
+    before or after my derived values were final. Path (2), raw-result.json,
+    was read ONLY after my derived values were final and written to this
+    report, in the post-derivation comparison step prescribed by the freeze
+    protocol. No blind_from content influenced any derived value.

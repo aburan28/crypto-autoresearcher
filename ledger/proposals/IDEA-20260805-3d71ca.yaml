@@ -1,0 +1,553 @@
+idea:
+  id: IDEA-20260805-3d71ca
+  question_id: RQ-MLKEM-001
+  added: '2026-08-05'
+  title: >-
+    Cheap-proxy target selection over many ciphertexts of one static ML-KEM key:
+    measuring the left tail of the projected-error norm, the quantity the
+    multi-ciphertext degradation exponent is made of
+  class: algorithm
+
+  claim: >-
+    For a static ML-KEM encapsulation key used for M encapsulations, the
+    projected-error norm ||pi_{d-beta}(t)|| of a ciphertext target t under a
+    SINGLE shared BKZ-beta-reduced basis is computable per target in O(d^2)
+    arithmetic, i.e. negligibly relative to the reduction itself. An attacker
+    may therefore compute it for all M targets, decode only the minimising ones,
+    and lower beta until the best-of-M target is decodable rather than until a
+    typical target is. The claim under test is quantitative and is about the LEFT
+    TAIL of that statistic, not about the mechanism: under the spherical-error
+    chi-square model the best-of-M ratio ||pi(t)||_min / (sigma sqrt(beta)) is
+    0.782 at M = 2^30 and beta = 400; under the frozen-norm Beta model it is
+    0.836; the two imply, through the same stated GSA/2016-estimate conversion,
+    savings of 10.3 and 7.7 bits respectively in the one-out-of-M session-key
+    recovery cost at ML-KEM-768-like shapes. The experiment measures which (if
+    either) holds at ML-KEM-shaped q-ary lattices with real CBD errors and real
+    FIPS 203 ciphertext compression. NO ML-KEM BREAK IS CLAIMED and nothing here
+    touches key recovery.
+
+  object_first_candidate:
+    tracked_object: >-
+      The pair (shared BKZ-reduced basis B of the single key-determined q-ary
+      module lattice Lambda_q(A^T), per-target Gram-Schmidt tail profile
+      p(t) = (|<t~, b*_i>| / ||b*_i||)_{i > d-beta} of the Babai-reduced
+      representative t~ of each ciphertext target). What is followed through the
+      computation is the tail profile, one vector of beta numbers per ciphertext.
+    established_families_off_limits: >-
+      Declared off-limits as the primary lens for this session, because the
+      corpus reports them as heavily mined or spent by GOAL-MLKEM-003 and
+      GOAL-MLKEM-004: (1) dual-sieve + FFT distinguisher and any statistic on a
+      sieve database; (2) estimator cost-table re-derivation and primal_bdd vs
+      matzov differencing; (3) hybrid MITM / decoding attacks on sparse secrets;
+      (4) coefficient-isometry preprocessing amortisation (KN-LIT-7663);
+      (5) class-group / unit-lattice / PIP attacks (KN-TECH-046, KN-OPEN-026);
+      (6) decryption-failure and failure-boosting attacks; (7) implementation
+      side channels. This proposal's object is on the PRIMAL/TARGET side and
+      touches no sieve database and no estimator difference.
+    newness_score: >-
+      Repackaging at the level of the MECHANISM, new at the level of the
+      MEASUREMENT. Bernstein, "Multi-ciphertext security degradation for
+      lattices" (ePrint 2022/1580), already claims asymptotic degradation of
+      exp(Theta(n)) for decrypting many ciphertexts and exp(Theta(n / log n))
+      for one-out-of-many, and gives a concrete FrodoKEM-640 figure. What is not
+      in the corpus and was not found on the abstract page retrieved 2026-08-05
+      is any ML-KEM/Kyber concrete figure, and no measurement anywhere of the
+      left-tail distribution the exponent is made of. See literature_context.
+    testability_score: >-
+      High. One-step propagation is defined exactly (Babai nearest-plane against
+      a frozen basis, then a coordinate-wise projection), is deterministic given
+      (B, t), and the statistic is a single real number per target. Millions of
+      targets are generatable by literally running the ML-KEM encryption routine
+      at scaled parameters.
+    survival_score: >-
+      The object survives exactly as long as the basis is fixed; it dissolves the
+      moment the basis is re-randomised, which is the point -- the whole
+      mechanism is that the expensive randomisation is done ONCE and the cheap
+      target variation supplies the rest.
+
+  mechanism: >-
+    FIPS 203 ciphertext c = (u, v) with u = Compress(A^T r + e_1, d_u). For a
+    fixed encapsulation key, every ciphertext is a BDD target on the SAME lattice
+    Lambda_q(A^T); only the target moves. Standard single-target costing pays
+    T_BKZ(beta) / p(beta), because lowering p below ~1 must be repaid by
+    re-randomising the basis and re-running BKZ. In the static-key setting the
+    repayment is not needed: M independent targets supply M independent draws of
+    the success event at the price of one reduction. Two further ML-KEM-specific
+    facts sharpen this from "M free repetitions" to something strictly stronger.
+    (i) SELECTION. The success event is essentially "||pi_{d-beta}(t)|| is
+    small", and that quantity is computable per target in O(d^2) without
+    attempting the expensive decode, so the attacker does not spend enumeration
+    on M targets -- he spends O(M d^2) to find the best ones and enumerates only
+    those. (ii) FREE VERIFICATION. The FO transform derives the encryption coins
+    deterministically as r = G(m || H(ek)), so any candidate decoding can be
+    verified exactly and offline by re-encrypting. List decoding therefore costs
+    list size and nothing else: there is no distinguishing step and no
+    false-positive budget. The tracked quantity is the left tail of the
+    projected-error norm, and the whole size of the effect lives there.
+
+  novelty_status: adaptation
+
+  literature_context:
+    - >-
+      Daniel J. Bernstein, "Multi-ciphertext security degradation for lattices",
+      IACR ePrint 2022/1580. Retrieved 2026-08-05; ABSTRACT PAGE ONLY, full text
+      NOT read. As reported there: typical lattice PKEs asymptotically degrade in
+      heuristic multi-ciphertext security, exp(Theta(n)) for decrypting many
+      ciphertexts and exp(Theta(n / log n)) for one-out-of-many, with a concrete
+      "2^88-guess attack breaking one out of 2^40 ciphertexts for a FrodoKEM-640
+      public key". No Kyber/ML-KEM bit figure was found on that page. This entry
+      is not in knowledge/literature/ and SHOULD BE ADDED by a curator; it is
+      cited here at confidence `reported`.
+    - >-
+      Duman, Hoevelmanns, Kiltz, Lyubashevsky, Seiler (ACM CCS 2021) is reported
+      in a retrieved search summary as showing one-out-of-many-target IND-CPA is
+      as hard as single-target IND-CPA for schemes such as Kyber under MLWE. NOT
+      READ, NOT VERIFIED, and recorded here as the principal COMPETING claim
+      rather than as background: if that reduction is tight in the concrete
+      regime, this proposal's predicted degradation must be absent, and the
+      experiment can say which. A reduction between problems and a concrete-cost
+      statement about the best known lattice algorithm are different objects, and
+      this proposal does not assume they agree.
+    - >-
+      KN-LIT-7661 "Time vs Success Probability Tradeoff for SVP and BDD with
+      Implications to LWE and SIS" is in the corpus and is the nearest prior art
+      on the p(beta) tradeoff itself. NOT READ during this session. It must be
+      read before this experiment is designed; if it already contains the
+      left-tail law being measured here, the empirical arm should be replaced by
+      a check of that law at ML-KEM shapes.
+    - >-
+      DEC-20260803-64b55b records that the estimator's primal side IS amplified
+      to a success probability while the dual side is not (RT-20260803-f55e34
+      OBJ-3). The amplification factor 1/p at the optimiser's chosen operating
+      point is the ceiling on this proposal's gain and is readable from the
+      pinned estimator in minutes.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Full ciphertext target t in Z_q^d (equivalently the pair (r, e_1) plus the
+      compression residue) --> the beta-vector of Gram-Schmidt tail coordinates
+      of the Babai-reduced representative, and ultimately the single scalar
+      ||pi_{d-beta}(t)||.
+    what_is_discarded: >-
+      The first d - beta Gram-Schmidt coordinates (a (d-beta)-dimensional
+      quotient), the message m, the coin r, the sign/coordinate structure of e_1,
+      and the compression residue's exact value. At d = 1000, beta = 400 the
+      projection discards 60% of the coordinates and then discards direction
+      information within the retained 400, keeping one number.
+    why_genuinely_lossy: >-
+      The fibre over a fixed value of the statistic is a (d-1)-dimensional set:
+      every target whose reduced representative lies on a fixed sphere in the
+      projected space, times the whole (d-beta)-dimensional first block, has the
+      identical statistic. Nothing about m or r is recoverable from it.
+    why_compatible_with_the_operations: >-
+      The operation the attack performs is Babai nearest-plane against a FIXED
+      basis followed by orthogonal projection onto span(b*_{d-beta+1..d}). Both
+      are deterministic functions of (B, t); the retained part propagates
+      deterministically because the projection commutes with the lattice
+      translation used by Babai on the first block. This is the precise sense in
+      which the discarded part is discarded compatibly: changing the first-block
+      coordinates of t by any lattice vector leaves the statistic invariant.
+    is_it_only_a_change_of_coordinates: >-
+      No. A change of coordinates would preserve d degrees of freedom; this keeps
+      one. The KN-LIT-7595 failure mode (tracking (x xor y, x*y) in
+      characteristic 2, where the pair is recoverable as the roots of a quadratic)
+      does not apply: there is no map back.
+
+  assumptions:
+    - The attacker observes M ciphertexts produced under one static ML-KEM
+      encapsulation key. This is the HPKE/static-KEM deployment, not the TLS 1.3
+      ephemeral-per-connection deployment, where M = 1 and the mechanism is void.
+    - Breaking one session (message/shared-secret recovery for one ciphertext) is
+      counted as a material outcome. This proposal establishes NOTHING about
+      long-term key recovery; ciphertexts carry no information about s.
+    - The Gram-Schmidt tail profile is computed against the same reduced basis
+      for all targets, and the cost of one Babai pass is O(d^2) with negligible
+      constant relative to BKZ-beta.
+
+  proof_search_map:
+    bottleneck: >-
+      The factor 1/p(beta) in the single-target primal-BDD cost
+      T = T_BKZ(beta) / p(beta). Removing it (replacing repetition-by-
+      re-randomisation with selection-over-targets) is the entire claimed gain;
+      every other term is unchanged.
+    baseline_embedding:
+      parameter_slice: >-
+        M = 1 reproduces the standard single-target primal BDD exactly: the
+        selection step is vacuous, best-of-1 equals typical, and the cost
+        collapses to T_BKZ(beta)/p(beta). This is an exact parameter slice, not a
+        similar-looking curve.
+      reproduction_check: >-
+        Frozen regression fixture: at M = 1 the measured decode-success rate over
+        independent (basis, target) pairs must equal the p(beta) that the
+        estimator's own primal_bdd amplification assumes, to within the sampling
+        interval. Any mismatch at M = 1 invalidates the whole measurement before
+        the multi-target arm is read.
+    observation_collision:
+      observable: >-
+        The scalar rho(t) = ||pi_{d-beta}(t~)|| / (sigma sqrt(beta)).
+      distinct_preimage_search: >-
+        Deliberate collision search, one on each side of the conclusion: (a) a
+        target with a LARGE error vector whose projection happens to be small,
+        and (b) a target with a SMALL error vector whose projection is large.
+        Both exist by construction (the projection is a random beta-subspace cut),
+        so rho does NOT identify "this target has a short error". The additional
+        condition that separates them is that decodability depends on the
+        PROJECTION and not on the full norm -- which is exactly why rho and not
+        ||e|| is the right observable. The collision is therefore expected,
+        harmless, and must be exhibited in the run record rather than assumed away.
+    constructive_transforms:
+      - transform: telescoping_potential
+        proposed_object: >-
+          The per-target tail profile as a randomised increment: instead of
+          paying to re-randomise the unstable event (basis re-reduction), charge
+          it to the free variation across targets.
+        predicted_gain: >-
+          Removal of the 1/p(beta) factor, capped at min(M, 1/p*) where p* is the
+          estimator's own amplification factor at its chosen operating point.
+      - transform: baseline_as_boundary_lift
+        proposed_object: >-
+          The M = 1 single-target attack sits on the boundary of the family
+          indexed by M; the claim is a strict inward improvement for M > 1, not
+          mere feasibility.
+        predicted_gain: 7.7 to 10.3 bits at M = 2^30 under the two stated models.
+    quantifier_order: >-
+      FOR ALL FIPS 203 parameter sets P and all M, THERE EXISTS beta(M) such that
+      FOR A RANDOM key and a random set of M ciphertexts, WITH PROBABILITY >= 1/2
+      at least one target decodes at block size beta(M). The witness beta(M)
+      depends on M and on the parameter set but NOT on the individual key or on
+      any particular ciphertext -- the attacker does not get to choose which
+      ciphertext works, only to find it after the fact, which is why the selection
+      statistic must be computable without decoding. If a reviewer can show
+      beta(M) must depend on the key, the uniform claim fails and the honest
+      statement becomes a per-key one.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The method can certify at most a saving of log2(1/p*) bits, where p* is
+        the success probability at the single-target optimum, because that is the
+        entire factor being removed. It cannot lower the exponent of MLWE, cannot
+        recover s, and cannot help when M = 1.
+      nearby_object_control: >-
+        The closest object where the desired conclusion must FAIL is the
+        ephemeral-key deployment (fresh keypair per ciphertext). There M = 1 by
+        construction, the basis cannot be shared, and the method must return the
+        single-target cost exactly. Any experimental pipeline that reports a gain
+        in the ephemeral arm has not identified the load-bearing structure and is
+        measuring its own harness.
+    proof_obligations:
+      - claim: Left-tail law of rho over targets at fixed basis.
+        responsibility: success_probability
+      - claim: O(d^2) per-target selection cost and O(1) memory per target.
+        responsibility: runtime
+      - claim: Conversion from a factor c on required projected norm to Delta beta.
+        responsibility: baseline
+      - claim: Targets share one basis, so their rho values are not independent.
+        responsibility: correctness
+      - claim: Session recovery only; s is untouched.
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        best_of_M_projected_norm_ratio: min over M targets of
+        ||pi_{d-beta}(t~)|| / (sigma sqrt(beta)), at beta/d = 0.4, M = 2^20
+        (scaled down from 2^30 for feasibility; the model prediction is
+        recomputed at the tested M and beta before the run)
+      direction: different
+      minimum_effect: >-
+        The two derived models must be separated. Model A (spherical error,
+        ||pi(e)||^2 ~ sigma^2 chi^2_beta, left tail
+        P[chi^2_beta/beta <= x] ~ exp(-(beta/2)(x - 1 - ln x))) and Model B
+        (frozen error norm, ||pi(e)||^2 = ||e||^2 * Beta(beta/2, (d-beta)/2),
+        relative variance 2(d-beta)/(beta(d+2)) rather than 2/beta) differ by a
+        factor sqrt(1 - beta/d) = 0.775 in the tail deviation at beta/d = 0.4.
+        The measurement must resolve a 22.5% difference in the deviation
+        (1 - x), which at M = 2^20 and beta = 100 is a separation of several
+        empirical standard errors given >= 2^20 targets. DECISION RULE FROZEN
+        BEFORE THE RUN: report which of A, B, NEITHER the measured tail matches,
+        with NEITHER an explicit and expected branch.
+    - metric: >-
+        implied_bit_saving: log2 of the ratio between single-target cost
+        T_BKZ(beta_1)/p(beta_1) and multi-target cost
+        T_BKZ(beta_M) + M * O(d^2), computed under the stated GSA/2016-estimate
+        conversion Delta beta = ln(c) / (2 ln delta)
+      direction: lower
+      minimum_effect: >-
+        >= 5 bits at M = 2^30 for ML-KEM-768-shaped parameters for the mechanism
+        to be worth a follow-up; < 2 bits closes it as a curiosity. Stated
+        pre-run point estimates from the two models: 10.3 bits (Model A) and
+        7.7 bits (Model B), using delta = 1.0035, beta = 400, 0.292 bits per unit
+        beta. EVERY ONE OF THESE NUMBERS IS A BACK-OF-ENVELOPE FROM THE MODEL
+        NAMED IN THE SAME SENTENCE, NOT A MEASUREMENT, AND NOT AN ML-KEM COST
+        CLAIM.
+    - metric: >-
+        selection_efficiency: Spearman correlation between rho(t) and actual
+        decode success at fixed beta, over >= 10^4 targets
+      direction: higher
+      minimum_effect: >-
+        |rho_s| >= 0.5. If the cheap proxy does not predict decode success, the
+        SELECTION half of the mechanism is dead even if the free-repetition half
+        survives, and the two halves must be reported separately.
+
+  minimal_test:
+    design: >-
+      Scaled-down but structurally exact. Build genuine ML-KEM-shaped instances
+      at n in {64, 128}, k = 2, q = 3329, secrets and errors from the real CBD
+      samplers (eta1 = 3, eta2 = 2), and REAL FIPS 203 ciphertext compression
+      (d_u = 10, d_v = 4), giving d = 2nk in {256, 512}. (1) Reduce ONE basis per
+      instance with fpylll BKZ-beta at beta in {40, 55, 70}; freeze it. (2)
+      Generate 2^20 to 2^22 ciphertexts under that key by running the encryption
+      routine, form targets, batch-Babai them against the frozen basis with BLAS,
+      and record rho(t) for each. (3) Fit and report the empirical left-tail
+      exponent -ln P[rho <= x] as a function of x, against the two derived curves
+      A and B, with the frozen decision rule above. (4) On a subsample of 10^4
+      targets, actually attempt the decode and measure the rho-versus-success
+      correlation and p(beta). (5) Repeat over >= 8 independent (key, basis)
+      draws -- the comparator here is a GENERATED ensemble and KN-TECH-1a5b7e
+      mode 5 requires at least 8 draws and an interval, not a point.
+    controls:
+      - >-
+        NULL-1 (uniform targets). Replace each ciphertext target by a uniform
+        point of Z_q^d. FORCED VALUE, DERIVED BEFORE THE RUN: after Babai the
+        residual is uniform in the fundamental box, so E[||pi(t)||^2] =
+        (1/12) sum_{i>d-beta} ||b*_i||^2, with per-coordinate relative variance
+        of the squared coordinate equal to 4/5 rather than the chi-square value
+        2. The null therefore has a DIFFERENT and computable tail shape and a
+        NONZERO spread. It can fail, and if the real arm reproduces it the
+        statistic is reading nothing.
+      - >-
+        NULL-2 (Gaussian error at matched variance). Replace CBD errors by a
+        discretised Gaussian of the same per-coordinate variance, everything else
+        fixed. FORCED VALUE: Model A becomes exact by construction, so the
+        measured tail MUST match curve A here. This is a calibration control on
+        the instrument, and a failure here invalidates the real arm.
+      - >-
+        NULL-3 (ephemeral arm / nearby-object control). Fresh key and fresh basis
+        per target. The best-of-M effect must VANISH, because the basis
+        randomisation is no longer free. A pipeline reporting a gain here is
+        measuring its own harness.
+      - >-
+        SENS (graded sensitivity, >= 3 interior points, monotonicity reported).
+        Scale the planted error by lambda in {0.5, 0.75, 1.0, 1.5, 2.0} at fixed
+        basis and fixed candidate set. rho must move as lambda, linearly and
+        monotonically; THRESHOLD DECLARED BEFORE THE RUN: measured
+        d(median rho)/d(lambda) within 10% of 1.0, and monotone across all five
+        points. Comparator named: NULL-2 (the arm the null is about), scored
+        against the same surrogate spread as the headline.
+      - >-
+        COMP (comparator replication). >= 8 independent draws of every generated
+        comparator ensemble; report the interval, never a single draw; derive the
+        leave-one-out false-positive rate of any OUTSIDE-style rule before the
+        run (for an n-draw min/max interval it is exactly 2/n).
+    required_metrics:
+      - empirical CDF and left-tail exponent of rho, per (n, beta, arm), machine-readable
+      - best-of-M ratio at M in {2^10, 2^14, 2^18, 2^20, 2^22}, with intervals over >= 8 draws
+      - measured p(beta) and the rho-versus-success rank correlation
+      - wall-clock and flop counts for the per-target Babai pass, to substantiate the O(d^2) selection-cost claim
+      - between-basis versus within-basis variance decomposition of rho (the shared-basis dependence confounder)
+
+  falsification_conditions:
+    - >-
+      The measured left tail is thinner than BOTH derived curves by enough that
+      the implied saving at M = 2^30 falls below 2 bits. The mechanism is then
+      closed at the tested shapes with a mechanism (the basis-error dependence
+      suppresses the tail) rather than a fatigue report.
+    - >-
+      rho fails to predict decode success (|Spearman| < 0.2). The SELECTION half
+      is refuted; the free-repetition half survives and must be reported
+      separately rather than bundled.
+    - >-
+      NULL-3 (ephemeral arm) shows a comparable gain. The whole effect is a
+      harness artifact and the run is void as evidence about ML-KEM.
+    - >-
+      NULL-2 (Gaussian arm) fails to reproduce curve A. The instrument is
+      miscalibrated and no arm may be read.
+    - >-
+      The per-target Babai pass is measured to cost more than 10^-3 of the BKZ
+      reduction. The "selection is free" premise fails and the cost model must be
+      rewritten before any bit figure is quoted.
+
+  confounders:
+    - >-
+      SHARED-BASIS DEPENDENCE. The M values of rho are not independent: they all
+      read the same b*_i profile. A common-mode fluctuation of the profile shifts
+      all M together, which can either fatten or thin the effective best-of-M
+      tail. This is the single most likely way the estimate is wrong and it is why
+      the variance decomposition is a required metric, not an optional one.
+    - >-
+      BABAI VERSUS THE ACTUAL DECODER. rho is a proxy for decodability under
+      nearest-plane; a pruned-enumeration decoder has a different success region,
+      so the correlation measurement, not the proxy's definition, decides.
+    - >-
+      SCALE EXTRAPOLATION. n = 64/128 with beta <= 70 is a toy. The left-tail
+      exponent's beta-dependence is exactly the thing that may not extrapolate,
+      and it is measured at three beta values FOR THAT REASON. Any statement at
+      ML-KEM parameters is an extrapolation and must be labelled one
+      (AGENTS.md rule 7).
+    - >-
+      COMPRESSION. Real d_u/d_v compression is included precisely so that the
+      target is not an idealised LWE target; if compression changes the tail, the
+      idealised-LWE literature does not apply to ML-KEM ciphertexts and that is
+      itself a finding.
+
+  interpretation_limits:
+    - >-
+      SESSION RECOVERY ONLY. Ciphertexts carry no information about the long-term
+      secret s: (u, v) is a function of the public b, the ephemeral (r, e_1, e_2)
+      and m. Nothing in this proposal bears on ML-KEM key recovery, and no NIST
+      category claim follows from it.
+    - >-
+      DEPLOYMENT-SCOPED. M = 1 in ephemeral-per-connection use (TLS 1.3 hybrid
+      key exchange), where the mechanism is exactly void. It applies to static
+      KEM keys (HPKE-style, certificate-bound).
+    - >-
+      The mechanism is Bernstein's, not this program's. What is new here is the
+      measurement of the load-bearing distribution and, if it survives, the first
+      ML-KEM-parameter instantiation.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a q-ary lattice of dimension d arising from a uniformly random
+        A in R_q^{k x k} and a BKZ-beta-reduced basis B of it, and for a target
+        t = lattice point + (r, e_1 + c_u) with (r, e_1) drawn from FIPS 203's
+        CBD samplers and c_u the deterministic compression residue, the squared
+        projected norm ||pi_{d-beta}(t~)||^2 behaves, uniformly over
+        beta/d in [0.2, 0.6], like ||e||^2 * B where B ~ Beta(beta/2, (d-beta)/2)
+        independent of ||e||^2; equivalently, the last beta Gram-Schmidt
+        directions of a BKZ-reduced basis are, for this purpose, a uniformly
+        random beta-subspace with respect to the error.
+      rigorous_support: >-
+        The exact law of the squared norm of the projection of a FIXED vector
+        onto a UNIFORMLY RANDOM beta-dimensional subspace of R^d is
+        ||e||^2 * Beta(beta/2, (d-beta)/2). This is a theorem, not a heuristic;
+        the heuristic content is only that the BKZ basis's tail directions may be
+        treated as uniformly random relative to the error. The competing model A
+        (chi-square) is the same statement with ||e||^2 replaced by its own
+        fluctuating value, i.e. it double-counts the norm fluctuation, and is
+        stated here as the alternative precisely so the measurement can separate
+        them.
+      validation_plan: >-
+        Sample >= 2^20 real targets per (n, beta) cell at n in {64, 128}, compare
+        the empirical CDF of ||pi(t~)||^2 / ||e||^2 against the Beta(beta/2,
+        (d-beta)/2) CDF over the whole range and, separately, in the lower 2^-10
+        and 2^-18 tails; report the Kolmogorov distance on the body and the ratio
+        of empirical to predicted tail quantiles at 2^-10 and 2^-18. TAIL
+        CONSISTENCY CHECK: the single smallest rho observed among 2^20 draws must
+        lie within the interval predicted by the Beta model for the minimum of
+        2^20 iid draws, reported as a pass/fail with the interval stated first.
+        THIS IS TOY-SCALE VALIDATION AND IS LABELLED AS SUCH; it validates the
+        law at n = 64/128 and beta <= 70 and says nothing directly about
+        n = 256, k = 3, beta ~ 620.
+    - id: H2
+      statement: >-
+        The conversion from a multiplicative factor c < 1 on the required
+        projected norm to a block-size reduction is Delta beta = ln(c) /
+        (2 ln delta), with delta the root-Hermite factor of BKZ-beta, uniformly
+        over beta in [300, 900].
+      rigorous_support: >-
+        This is the 2016-estimate success condition sigma sqrt(beta) <=
+        delta^{2 beta - d} q^{m/d} differentiated in beta at fixed d, m, q. It
+        imitates no distribution theorem; it is a first-order expansion of a
+        heuristic cost model and inherits every weakness of that model. It is
+        stated separately from H1 so that a failure of the CONVERSION is not
+        confused with a failure of the MEASUREMENT.
+      validation_plan: >-
+        Measure Delta beta directly: at each of three error scales lambda, find
+        empirically the smallest beta at which the median target decodes, and
+        compare the measured Delta beta against ln(lambda)/(2 ln delta) with
+        delta taken from the measured root-Hermite factor of the same runs, not
+        from a table. Report the ratio. Toy scale; labelled as such.
+    - id: H3
+      statement: >-
+        Conditioned on the basis, the M per-target statistics rho(t_1..t_M) are
+        exchangeable and their extreme-value behaviour is that of M iid draws up
+        to a correction of at most 20% in the deviation (1 - x) at M = 2^20.
+      rigorous_support: >-
+        No rigorous support. This is the assumption most likely to be false, it
+        is the one that carries the headline, and it is named here so that a
+        reviewer can attack it directly. Its classical analogue is the
+        independence assumption underlying extreme-value laws for exchangeable
+        arrays; the shared basis is precisely a common factor that such laws do
+        not permit.
+      validation_plan: >-
+        Variance decomposition across >= 8 independent bases: report
+        between-basis and within-basis components of Var(rho) and the implied
+        inflation of the best-of-M deviation. If the between-basis component
+        exceeds 20% of the total, the iid extreme-value calculation is void and
+        the headline must be restated per basis.
+
+  target_complexity:
+    time_exponent: >-
+      Not an exponent improvement on MLWE. Within the multi-ciphertext model the
+      inherited asymptotic claim (Bernstein, ePrint 2022/1580, as reported) is
+      exp(Theta(n / log n)) degradation for one-out-of-many; this proposal makes
+      no independent asymptotic claim and would, if it survives, supply the first
+      constant at ML-KEM parameters. Concretely: single-target
+      2^{0.292 beta_1 + o(beta_1)} / p(beta_1) versus multi-target
+      2^{0.292 beta_M + o(beta_M)} + M * O(d^2), with beta_M < beta_1.
+    memory_exponent: >-
+      Unchanged from the underlying sieve, 2^{0.2075 beta + o(beta)}. The
+      selection pass is streaming, O(d^2) words, so memory is NOT the binding
+      constraint and no time-memory tradeoff is introduced by this mechanism.
+      Memory is stated beside time here because the target profile requires it,
+      not because it moves.
+    best_known: >-
+      Primal BDD / uSVP with sieving, single target, at the block sizes the
+      lattice estimator reports for ML-KEM-512/768/1024 under a named cost model.
+      NO NUMBER IS QUOTED HERE because quoting one would import a cost-model
+      dispute this proposal does not resolve (KN-TECH-040, KN-OPEN-016); the
+      baseline is to be reproduced inside the experiment under one named model
+      and reported beside the delta.
+    hidden_overhead: >-
+      The o(1) hides the usual sieve overheads. Additionally hidden and disclosed
+      here: (a) the M * O(d^2) selection pass is 2^60 operations at M = 2^40,
+      d = 1000 -- negligible against 2^100+ but NOT against a hypothetical
+      low-beta regime, so the crossover must be stated; (b) the mechanism assumes
+      M ciphertexts are actually collectable under one key, which is an
+      operational cost this proposal does not charge and must not be presented as
+      free.
+    tradeoff_note: >-
+      The mechanism trades DATA (M ciphertexts) for TIME. That is a third cost
+      axis and it must appear in every Pareto comparison: this is not a
+      time-memory tradeoff but a time-data tradeoff, and a comparison against a
+      single-target baseline that ignores the data axis would be dishonest.
+
+  dominated_by: >-
+    Bernstein, "Multi-ciphertext security degradation for lattices" (ePrint
+    2022/1580), on the MECHANISM and on the asymptotics, which it claims first
+    and more strongly (exp(Theta(n)) and exp(Theta(n / log n))). NOT dominated on
+    the measurement: no row of the frontier checked in this session -- the corpus
+    (KN-OPEN-016, KN-OPEN-026, KN-LIT-109/110/111/7617/7661/7663/7667), the
+    ledger proposals, and four web searches on 2026-08-05 -- reports a measured
+    left-tail law for ||pi_{d-beta}(t)|| at ML-KEM shapes with real CBD errors
+    and real FIPS 203 compression, nor an ML-KEM-parameter figure for the
+    multi-ciphertext degradation. KN-LIT-7661 was NOT READ and is the most likely
+    dominator on the tail law itself; that check is the first item of the batch.
+  sota_delta: >-
+    Claimed delta, conditional on the measurement: 7.7 to 10.3 bits of
+    one-out-of-M session-key recovery cost at M = 2^30 for ML-KEM-768-like
+    shapes, under the two stated models and the stated GSA conversion, versus a
+    single-target primal-BDD baseline under one named cost model. Delta on key
+    recovery: EXACTLY ZERO. Delta on the asymptotic exponent of MLWE: EXACTLY
+    ZERO. If the measured tail is thinner than both models, the honest delta is
+    "< 2 bits, mechanism closed at the tested shapes".
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.45 that the measured left tail matches Model B or is heavier, i.e. that the
+    5-bit gate is cleared at the tested shapes. Reasons for the number rather
+    than a higher one: H3 (shared-basis exchangeability) has no rigorous support
+    and is exactly the kind of common-factor assumption that has failed twice in
+    this program's recent history; the Beta correction already cost 2.6 bits
+    against the naive chi-square figure before any data existed, which is a
+    warning that further unmodelled dependence is likely to cut further; and the
+    reported Duman et al. reduction points the opposite way. Reasons it is not
+    lower: the mechanism's asymptotic form is claimed independently by Bernstein,
+    my own back-of-envelope reached the same order without consulting it, and the
+    selection statistic is provably cheap so the mechanism has no hidden cost
+    barrier. 0.9 that the batch produces a decisive reading either way, because
+    the two models are separated by 22.5% in a quantity measurable to a few
+    percent at 2^20 samples.

@@ -1,0 +1,177 @@
+experiment:
+  id: EXP-SMTH-002
+  title: Null-only factorization and certificate feasibility pilot for BATCH-025
+  batch_id: BATCH-025
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  hypothesis_id: H-SMTH-001
+  hypothesis_id_note: >-
+    BINDING ONLY, NOT A TEST OF IT. This pilot was drafted with
+    hypothesis_id null because it has no source arm and cannot bear on any
+    hypothesis. The frozen schema in tools/validate_ledger.py requires every
+    experiment to name one, so it names the hypothesis whose full contract
+    (EXP-SMTH-001) this pilot exists to size. The prohibition is unchanged and
+    is enforced by evidence_eligible: false below: no run of this experiment
+    may support, weaken, reject or otherwise score H-SMTH-001, H-SMTH-002 or
+    HEUR-DS-1.
+  status: draft_review_required
+  authoring_task: TASK-20260801-051
+  execution_authorized: false
+  evidence_eligible: false
+
+  purpose: >-
+    Measure throughput, CPU, RSS, disk bytes and checkpoint behavior for the
+    exact direct-factorization and certificate path contemplated by the
+    BATCH-025 v2 design, and expose whether iid-edge and K_512-additive nulls
+    have materially different descriptive statistic spreads. This pilot has no
+    S3 source arm and cannot produce evidence for or against HEUR-DS-1.
+
+  objects:
+    bits: [16, 20]
+    fixtures_per_bit: 2
+    null_types: [NULL-IID-EDGE, NULL-K512-ADD]
+    replicates_per_null_type_per_fixture: 4
+    factor_base_size: 512
+    pairs: 0 <= i < j < 512
+    integers_per_replicate: 130816
+    total_integer_factorizations: 4186112
+    source_arm_present: false
+    S3_integer_generation_present: false
+    plant_present: false
+
+  deterministic_construction:
+    master_seed: 25051
+    domain: EXP-SMTH-002/v1
+    seed_rule: >-
+      first_128_bits(SHA256(domain|object|bits|fixture|replicate|draw)).
+    prime_rule: >-
+      For each bits and fixture, start at
+      2^(bits-1)+(seed("prime",bits,fixture,0,0) mod 2^(bits-2)) and take the
+      first prime below 2^bits, advancing deterministically if necessary. No
+      curve or factor base is constructed in this null-only pilot.
+    integer_sampler: >-
+      Rejection-sample unbiased integers in [1,X] from SHA256-derived bits;
+      modulo reduction is forbidden.
+    NULL_IID_EDGE: Independent integer per edge.
+    NULL_K512_ADD: >-
+      Draw independent A_i,B_i uniformly in F_p for 512 vertices and emit
+      N_ij=((A_i+A_j mod p)*p)+(B_i+B_j mod p)+1 for i<j.
+
+  factorization_pipeline:
+    implementation_requirement: >-
+      One shared function accepts serialized N, factors N, verifies every
+      factor is prime, reconstructs N from sorted prime powers, and returns LPF
+      with LPF(1)=1. Both null types invoke the identical function.
+    dependency: sympy factorint and isprime, version recorded at runtime
+    certificate_record_fields:
+    - sequential_index
+    - N
+    - sorted list of [prime, exponent]
+    - LPF
+    - reconstruction_ok
+    binary_or_text_policy: >-
+      UTF-8 JSON Lines compressed with gzip from the Python standard library;
+      one record per integer; deterministic key order and separators.
+    shard_policy:
+      logical_records_per_shard: 32704
+      maximum_compressed_bytes_per_shard: 268435456
+      close_fsync_hash: >-
+        Close each gzip shard, fsync it, then record SHA-256, compressed bytes,
+        uncompressed logical bytes and record count before opening the next.
+    checkpoint_policy:
+      interval_records: 32704
+      contents: >-
+        Completed shard hashes, next deterministic index, factorization count,
+        CPU seconds, wall seconds, peak RSS and disk bytes.
+      resume: >-
+        At most one resume after infrastructure interruption, from the last
+        verified checkpoint, within the same global ceilings. A scientific
+        retry or alternate seed is forbidden.
+
+  metrics:
+    z: log(max(1,LPF(N)))/log(X)
+    rungs_u: [2, 3, 4, 5]
+    per_replicate:
+    - smooth rates at all rungs
+    - two-sided KS z against that fixture's first iid replicate
+    - top-z means at k in [1,8,64,512]
+    interpretation: >-
+      Descriptive dependency-sensitivity and implementation diagnostics only.
+      No p-value, pass/fail on HEUR-DS-1, threshold selection, or full-contract
+      numeric cutoff may be derived from four replicates.
+
+  budget:
+    maximum_runs: 1
+    maximum_resume_count: 1
+    maximum_factorization_calls: 4186112
+    maximum_primality_checks: 33554496
+    maximum_certificate_reconstructions: 4186112
+    maximum_wall_seconds: 7200
+    maximum_cpu_seconds: 28800
+    maximum_peak_rss_bytes: 4294967296
+    maximum_total_disk_bytes: 34359738368
+    maximum_open_output_files: 4
+    maximum_workers: 4
+    no_network: true
+    stop_semantics: >-
+      Crossing any ceiling stops at the next record boundary and yields
+      failed_infrastructure_or_budget. It is not evidence about mathematics,
+      smoothness, HEUR-DS-1, H-SMTH-001, H-SMTH-002 or ECDLP.
+
+  controls:
+  - First and last record of every shard are independently reconstructed.
+  - Every certificate reconstruction result must be true before shard acceptance.
+  - Exact total and per-object counts must match the frozen design.
+  - Re-running the seed roster generator must reproduce every stream hash.
+  - An injected composite-as-prime certificate must be rejected before pilot approval testing ends.
+  - An injected one-byte shard mutation must fail the recorded SHA-256.
+
+  required_artifacts:
+  - experiments/EXP-SMTH-002/implementation/pilot_driver.py
+  - experiments/EXP-SMTH-002/implementation/implementation.md
+  - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/manifest.yaml
+  - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/command.txt
+  - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/environment.json
+  - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/stdout.log
+  - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/stderr.log
+  - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/raw-result.json
+  - experiments/EXP-SMTH-002/results/feasibility_report.json
+  - experiments/EXP-SMTH-002/results/shard_manifest.json
+
+  result_fields_required:
+  - exact completed factorization, primality and reconstruction counts
+  - wall seconds, CPU seconds, peak RSS and disk bytes by phase and total
+  - factorizations per wall second and per CPU second by bits and null type
+  - compressed and logical bytes per certificate by bits and null type
+  - projected v2 full-contract wall, CPU and disk with explicit linearity caveat
+  - every stop, checkpoint and resume event
+  - descriptive null-type statistic differences with no research disposition
+
+  mutually_exclusive_outcomes:
+  - id: invalid_integrity
+    when: Any seed, count, range, certificate, reconstruction, shard or hash check fails.
+  - id: failed_infrastructure_or_budget
+    when: Any physical ceiling, dependency failure, timeout or deliberate budget stop occurs.
+  - id: completed_feasibility_only
+    when: Every required object completes and all controls pass within every ceiling.
+  outcome_ceiling: >-
+    Even completed_feasibility_only permits only a Coordinator resource-budget
+    derivation and a fresh full-contract review. It does not authorize full
+    calibration, plant, source execution, evidence filing, or status change.
+
+  success_criterion: >-
+    FEASIBILITY ONLY. The pilot succeeds exactly when it reaches the
+    completed_feasibility_only outcome defined in mutually_exclusive_outcomes
+    above: every required object in `objects` completes, every check in
+    `controls` passes, and no ceiling in `budget` is crossed. Success is a
+    statement about the instrument, not about mathematics. It licenses only the
+    resource-budget derivation and fresh full-contract review named in
+    outcome_ceiling. There is no mathematical success criterion here, and none
+    may be added to this version: with no source arm and four replicates, no
+    threshold, p-value, or disposition on HEUR-DS-1, H-SMTH-001 or H-SMTH-002
+    is derivable from any outcome of this experiment.
+
+  review_gate: >-
+    This draft and design_proposal.v2.yaml must receive an independent PASS on
+    exact committed bytes. A separate Coordinator snapshot must then record
+    PILOT_AUTHORIZATION=AUTHORIZED before implementation or execution begins.

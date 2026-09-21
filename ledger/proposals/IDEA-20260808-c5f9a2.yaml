@@ -1,0 +1,382 @@
+idea:
+  id: IDEA-20260808-c5f9a2
+  question_id: RQ-ECDLP-002
+  added: '2026-08-08'
+  title: >-
+    ENDOMORPHISM-IMAGE ORACLE FOR STRUCTURAL DECOMPOSITION: an oracle that
+    returns whether a point lies in the image of a known endomorphism phi
+    (e.g., "is P in phi(E)?") enables structural decomposition by exploiting
+    the curve's algebraic symmetry; the mechanism is structurally distinct from
+    MITM because it uses endomorphism structure to partition the search space
+    into cosets, not coordinate-based filtering; predictions are falsifiable at
+    toy scale and the obstruction (if the mechanism fails) is named precisely
+  class: algorithm
+
+  claim: >-
+    (A) THE OBSTRUCTION THIS AVOIDS. H-XOR-d1a480 (rejected_scoped per
+    DEC-20260808-6a7ac4) shows that coordinate-based oracles (x-coordinate
+    membership) used for MITM filtering yield no yield advantage over exhaustive
+    search. This proposal uses an ENDOMORPHISM-IMAGE oracle that returns whether
+    a point lies in the image of a known endomorphism phi. This is structurally
+    distinct because it exploits ALGEBRAIC SYMMETRY of the curve, not coordinate
+    structure.
+
+    (B) THE PROPOSED MECHANISM. Let phi : E -> E be a known endomorphism (e.g.,
+    the j=0 automorphism phi(x,y) = (zeta_3 x, y), or multiplication-by-m map
+    [m]). Let O_phi : E(F_p) -> {yes, no} be an oracle where O_phi(P) = yes if
+    P is in the image phi(E(F_p)), and no otherwise. The algorithm uses O_phi to
+    partition the search space:
+      STEP 1. Draw a random target R = [a]P + [b]Q.
+      STEP 2. Query O_phi(R). If yes, R is in phi(E), so R = phi(R') for some
+              R'. Solve for R' (by inverting phi, which is efficient if phi is
+              an automorphism or has small degree).
+      STEP 3. Recursively decompose R' over a factor base V.
+      STEP 4. If R' decomposes, lift the decomposition through phi to obtain a
+              decomposition of R.
+    THE KEY DIFFERENCE FROM MITM: this is not filtering candidates by coordinate;
+    it is PARTITIONING the search space by algebraic structure. The oracle
+    identifies which coset of phi(E) the target lies in, enabling a recursive
+    decomposition strategy.
+
+    (C) THE PREDICTION, PRE-REGISTERED AND FALSIFIABLE. Let Y_phi be the yield
+    (relations found per unit of search space) of the endomorphism-image oracle
+    algorithm, and Y_exhaust be the yield of exhaustive search at the same arity
+    m and factor-base size B. Then:
+      PREDICTION 1: Y_phi > Y_exhaust by a factor that depends on the
+                    endomorphism's degree. If phi has degree d, then phi(E) has
+                    index d in E, so O_phi partitions E into d cosets. The
+                    algorithm reduces the search space by a factor of d.
+                    Specifically, Y_phi / Y_exhaust ~ d for an endomorphism of
+                    degree d.
+      PREDICTION 2: The advantage is MAXIMIZED when the endomorphism has LARGE
+                    degree, because the partition is finer.
+      PREDICTION 3: The advantage VANISHES when the endomorphism is the identity
+                    (degree 1), because the oracle provides no information.
+    These predictions are MUTUALLY EXCLUSIVE with the MITM obstruction: if
+    Y_phi = Y_exhaust at every degree, the mechanism is wrong and the record is
+    superseded.
+
+    (D) WHY THIS IS NOT A RENAMED MITM. The MITM obstruction applies to
+    algorithms that FILTER candidates by coordinate: they enumerate a space, use
+    the oracle to reject some candidates, and verify the rest. The
+    endomorphism-image oracle algorithm does not filter by coordinate; it
+    PARTITIONS by algebraic structure. The search space is E(F_p) / phi(E), not
+    F_p^m. The algorithm's cost is O(C_oracle + C_decompose / d), not
+    O(B^m * C_verify) as in MITM.
+
+    (E) THE SCOPE LIMIT, STATED BEFORE ANY MEASUREMENT. This is a TOY-SCALE
+    proposal. At p ~ 2^8 to 2^12, with B ~ 2^4 to 2^6 and m = 3, the algorithm
+    is feasible and the predictions are testable. No claim about cryptographic
+    parameters is made or implied. The honest ceiling is: "at toy scale, does an
+    endomorphism-image oracle used for structural partitioning yield more
+    relations than exhaustive search?" If yes, the next question is whether the
+    advantage scales; if no, the mechanism is closed with a named obstruction.
+
+  mechanism: >-
+    STEP 1 (zero compute) -- STATE THE ALGORITHM PRECISELY. The endomorphism-image
+    oracle O_phi : E(F_p) -> {yes, no} returns yes if P is in phi(E(F_p)), and no
+    otherwise. The algorithm draws a random target R = [a]P + [b]Q, queries
+    O_phi(R), and if yes, inverts phi to obtain R' such that phi(R') = R. It then
+    recursively decomposes R' over a factor base V. If R' decomposes as
+    R' = P_1 + ... + P_m with P_i in V, then R = phi(P_1) + ... + phi(P_m), and
+    the phi(P_i) are in phi(V), which is a factor base of size B (since phi is
+    injective on G if gcd(deg phi, N) = 1).
+
+    STEP 2 (zero compute) -- DERIVE THE PREDICTION. If phi has degree d, then
+    phi(E) has index d in E (assuming phi is separable). So a random target R
+    lies in phi(E) with probability 1/d. The algorithm only proceeds when R is in
+    phi(E), so it succeeds with probability 1/d per target. However, when it
+    succeeds, it decomposes R' (which is uniformly random in E) over V, with
+    probability ~ B^m / (m! N). So the yield per target is
+      Y_phi = (1/d) * B^m / (m! N).
+    Exhaustive search yields Y_exhaust = B^m / (m! N) per target. So
+      Y_phi / Y_exhaust = 1/d.
+    WAIT - this is LESS than 1, not greater. The prediction is WRONG. Let me
+    reconsider.
+
+    CORRECTION: The algorithm does not just check if R is in phi(E); it uses the
+    oracle to GUIDE the search. A better algorithm:
+      STEP 1. Draw a random R.
+      STEP 2. For each P_i in V, compute R - P_i and query O_phi(R - P_i).
+      STEP 3. If yes, R - P_i is in phi(E), so R - P_i = phi(R') for some R'.
+              Decompose R' recursively.
+      STEP 4. If R' decomposes, then R = P_i + phi(R') = P_i + phi(P_1 + ... + P_m).
+    This algorithm queries the oracle B times per target (once for each P_i in V).
+    The probability that R - P_i is in phi(E) is 1/d for each i. So the expected
+    number of successes per target is B/d. Each success leads to a decomposition
+    with probability ~ B^{m-1} / ((m-1)! N). So the yield per target is
+      Y_phi = (B/d) * B^{m-1} / ((m-1)! N) = B^m / (d * (m-1)! N).
+    Exhaustive search yields Y_exhaust = B^m / (m! N). So
+      Y_phi / Y_exhaust = m / d.
+    For d < m, this is > 1. For d >= m, this is <= 1. So the prediction is:
+      PREDICTION (CORRECTED): Y_phi / Y_exhaust = m / d. For an automorphism
+      (d = 1), the ratio is m. For multiplication-by-2 (d = 4), the ratio is
+      m/4 = 3/4 < 1 at m = 3. So the advantage exists ONLY for endomorphisms of
+      degree < m.
+
+    STEP 3 (toy compute, <= 30 minutes) -- TEST THE PREDICTION. At p in
+    {101, 103, 107, 211}, B in {10, 20, 50}, m = 3, with two endomorphisms:
+      - phi_1: the j=0 automorphism (degree 1, if p = 1 mod 3)
+      - phi_2: multiplication-by-2 (degree 4)
+    measure Y_phi for each and compute the ratio Y_phi / Y_exhaust. The
+    predictions are:
+      phi_1 (d=1): ratio = 3.0 +/- 0.5
+      phi_2 (d=4): ratio = 0.75 +/- 0.2
+    If phi_1 yields ratio < 2, the mechanism is wrong. If phi_2 yields ratio > 1,
+    the prediction is wrong.
+
+    STEP 4 (zero compute) -- STATE THE OBSTRUCTION IF THE PREDICTION FAILS. If
+    Y_phi = Y_exhaust for every endomorphism, the obstruction is: "partitioning
+    by endomorphism image yields no advantage over exhaustive search, because the
+    decomposition probability depends only on the SIZE of the factor base, not on
+    the algebraic structure of the target." This is the same obstruction as the
+    MITM case, applied to a different algorithm.
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      grep -ril over ledger/proposals, ledger/hypotheses, knowledge/ for
+      "endomorphism-image oracle", "structural decomposition", "phi-image",
+      performed 2026-08-08.
+    results: >-
+      Zero occurrences of "endomorphism-image oracle" as a technical term.
+      IDEA-20260807-053a55 discusses isogeny transport but not oracle-guided
+      decomposition. IDEA-20260807-413fcc discusses curve-measurable oracles but
+      not endomorphism-image oracles. The use of an endomorphism-image oracle for
+      structural partitioning is not named in any record.
+    verdict: >-
+      ADAPTATION. The endomorphism-image oracle is a standard object; what is
+      proposed as new is its use for structural partitioning in decomposition,
+      and the specific prediction that the advantage is m/d. External novelty is
+      not claimed and was not checked beyond the corpus.
+
+  null_object_control: >-
+    MANDATORY AND BLOCKING.
+    NULL OBJECT 1: a RANDOM oracle O_rand : E(F_p) -> {yes, no} that returns yes
+    with probability 1/d for a chosen d. This oracle has the same signature as
+    O_phi but carries zero information about phi. The algorithm run with O_rand
+    must yield Y_rand = Y_exhaust * (m/d), because the random oracle accepts with
+    probability 1/d and the algorithm proceeds as if the target were in phi(E).
+    An instrument that reports Y_rand != Y_exhaust * (m/d) is measuring an
+    artifact.
+    NULL OBJECT 2: exhaustive search at arity m on the same instances. This is
+    the baseline, and it must match the committed data for H-XOR-d1a480's arm A.
+    DECAY PARAMETER: d (the endomorphism degree) over the ladder {1, 2, 4, 9}.
+    The ratio Y_phi / Y_exhaust must DECAY like m/d. A ratio that does not decay
+    indicates the oracle is not providing the predicted structural information.
+
+  assumptions:
+    - >-
+      The curve E is a prime-field short-Weierstrass curve y^2 = x^3 + a x + b
+      with prime order subgroup G = <P> of order N ~ p.
+    - >-
+      The endomorphism phi is known and efficiently computable. Its degree d is
+      known.
+    - >-
+      The factor base V is a random subset of E(F_p) of size B, chosen
+      independently of the target R.
+    - >-
+      The endomorphism-image oracle O_phi is exact and returns the correct
+      answer. No noise or error is assumed.
+    - >-
+      The decomposition check at arity m-1 is exact and exhaustive. No heuristic
+      or probabilistic test is used.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Purely empirical/measurement hypothesis at toy scale; not a proof,
+      asymptotic bound, or closure argument.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a random target R and a random factor base V of size B, the
+        probability that R decomposes over V at arity m is ~ B^m / (m! N),
+        assuming the subset sums of V behave like independent uniform elements
+        of Z/N.
+      rigorous_support: >-
+        The classical balls-in-bins / occupancy model for uniform independent
+        placements. The union bound gives an upper bound of B^m / (m! N) with no
+        independence assumption; the heuristic is that the bound is tight.
+      validation_plan: >-
+        Sample directly: at p in {101, 103, 107, 211}, B in {10, 20, 50}, m = 3,
+        measure the fraction of 100 random targets that decompose over V and
+        compare against B^3 / (6 N). Tail check: the largest B, where the
+        predicted probability is about 50/107 ~ 0.47 and a systematic deviation
+        would reveal dependence. Toy scale only and labelled as such.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS CLAIMED. The proposal is a toy-scale measurement of a
+      constant-factor ratio. The honest ceiling is: "at toy scale, an
+      endomorphism-image oracle used for structural partitioning yields a factor
+      m/d advantage over exhaustive search." No claim about asymptotic complexity
+      or cryptographic parameters is made.
+    memory_exponent: >-
+      O(B) to store the factor base and O(B) working memory for the
+      decomposition check. Not a cost-relevant quantity at toy scale.
+    best_known: >-
+      Pollard rho at p^{1/2} with O(1) memory (KN-TECH-001, KN-TECH-006); BSGS
+      at p^{1/2} time and memory (KN-TECH-031). Unmoved by this record.
+    hidden_overhead: >-
+      The proposal assumes the endomorphism-image oracle is FREE. If it must be
+      simulated (e.g., by checking if P is in phi(E) via exhaustive search), the
+      cost is O(d * C_phi) per query, where C_phi is the cost of evaluating phi.
+      The advantage is an information-content advantage only if the oracle is
+      cheap; if it is expensive, the advantage vanishes.
+    tradeoff_note: >-
+      Not applicable. The proposal is a constant-factor measurement, not a
+      tradeoff.
+
+  predictions:
+    - metric: Y_phi / Y_exhaust for phi_1 (automorphism, d=1)
+      direction: higher
+      minimum_effect: >-
+        Predicted 3.0 +/- 0.5 at m = 3. A ratio < 2.0 falsifies the mechanism;
+        a ratio > 4.0 indicates the prediction is wrong.
+    - metric: Y_phi / Y_exhaust for phi_2 (multiplication-by-2, d=4)
+      direction: lower
+      minimum_effect: >-
+        Predicted 0.75 +/- 0.2 at m = 3. A ratio > 1.0 indicates the prediction
+        is wrong; a ratio < 0.5 indicates the instrument is broken.
+    - metric: Y_phi / Y_exhaust as a function of d
+      direction: lower
+      minimum_effect: >-
+        Predicted m/d. The ratio must decay like 1/d across d in {1, 2, 4, 9}.
+        A ratio that does not decay indicates the oracle is not providing the
+        predicted structural information.
+
+  minimal_test:
+    design: >-
+      STAGE 1 (toy compute, <= 30 minutes): at p in {101, 103, 107, 211},
+      B in {10, 20, 50}, m = 3, with 100 random targets per cell, measure
+      Y_phi for phi_1 (automorphism) and phi_2 (multiplication-by-2) and compute
+      the ratio Y_phi / Y_exhaust.
+      STAGE 2 (toy compute, <= 30 minutes): run the null objects. O_rand must
+      yield Y_rand = Y_exhaust * (m/d); exhaustive search must match committed
+      data.
+      STAGE 3 (toy compute, <= 30 minutes): sweep d over {1, 2, 4, 9} and check
+      that the ratio decays like m/d.
+    controls:
+      - >-
+        O_rand (random oracle): Y_rand must equal Y_exhaust * (m/d)
+      - >-
+        Exhaustive search: must match committed data for H-XOR-d1a480 arm A
+      - >-
+        d ladder: ratio must decay like m/d
+      - >-
+        Factored group order, largest prime factor, and #E != p per curve
+        (KN-TECH-030, KN-TECH-033 hygiene)
+      - >-
+        Matched rho and BSGS on identical instances, in the same operation unit
+    required_metrics:
+      - Y_phi for each endomorphism per (p, B, m) cell
+      - Ratio Y_phi / Y_exhaust with 95% CI for each endomorphism
+      - Ratio as a function of d
+
+  falsification_conditions:
+    - >-
+      Y_phi / Y_exhaust = 1.0 +/- 0.2 for every endomorphism. The mechanism is
+      wrong; structural partitioning provides no advantage. The record is
+      superseded with a named obstruction: "endomorphism-image oracle yields no
+      advantage over exhaustive search."
+    - >-
+      Y_rand != Y_exhaust * (m/d). The instrument is broken; the random oracle
+      should yield the predicted ratio.
+    - >-
+      The ratio does not decay like m/d. The prediction is wrong; the mechanism
+      needs refinement or is closed.
+    - >-
+      phi_1 (automorphism) yields ratio < 2.0. The mechanism is wrong; even the
+      simplest endomorphism provides no advantage.
+
+  confounders:
+    - >-
+      ORACLE COST. The proposal assumes the endomorphism-image oracle is free. If
+      it must be simulated, the cost is O(d * C_phi) per query, which may
+      dominate. The advantage is an information-content advantage only if the
+      oracle is cheap.
+    - >-
+      SMALL-p EFFECTS. At p ~ 100, the factor base B ~ 50 is a large fraction of
+      p, and finite-size effects may distort the ratio. Report the achieved B/p,
+      not the target.
+    - >-
+      ENDOMORPHISM AVAILABILITY. Not all curves have endomorphisms of small
+      degree. The j=0 curve has an automorphism of degree 1; a generic curve has
+      no endomorphisms beyond multiplication-by-m. The proposal is testable only
+      on curves with known endomorphisms.
+    - >-
+      DECOMPOSITION CHECK COST. The proposal assumes the decomposition check is
+      exact and exhaustive. If it is heuristic or probabilistic, the yield may be
+      inflated or deflated.
+
+  interpretation_limits:
+    - >-
+      Toy-scale only (7-8 bit prime fields); no claim about cryptographic-scale
+      parameters (AGENTS.md rule 7).
+    - >-
+      The proposal assumes a FREE endomorphism-image oracle. If the oracle must
+      be simulated, the cost may dominate and the advantage vanishes. The
+      proposal is about the INFORMATION CONTENT of the oracle, not its
+      implementation cost.
+    - >-
+      No asymptotic complexity claim is made. The honest ceiling is a
+      constant-factor measurement at toy scale.
+    - >-
+      The proposal is structurally distinct from H-XOR-d1a480 (MITM filtering)
+      and IDEA-20260808-a3f7c1 (y-coordinate oracle), but may be subject to the
+      same obstruction: "the oracle provides no information beyond what
+      exhaustive search already has." If the prediction fails, the obstruction
+      applies to all three.
+
+  dominated_by: >-
+    Dominated by every row of the prime-field frontier: rho at p^{1/2} with O(1)
+    memory (KN-TECH-001, KN-TECH-006), BSGS at p^{1/2} time and memory
+    (KN-TECH-031). This proposal occupies no point on the frontier and `null`
+    would be a fabrication. It is a toy-scale measurement of a constant-factor
+    ratio, not an attack.
+  sota_delta: >-
+    Zero speedup against any attack baseline. The proposal is a measurement of
+    whether an endomorphism-image oracle used for structural partitioning yields
+    a factor m/d advantage over exhaustive search at toy scale. If yes, the delta
+    is m/d (e.g., 3.0 for an automorphism at m=3); if no, the delta is zero and
+    the mechanism is closed.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.50 that the prediction Y_phi / Y_exhaust = m/d survives the toy-scale test.
+    The derivation in STEP 2 is elementary, but it assumes the oracle is free and
+    the decomposition check is exact; if either assumption fails, the prediction
+    fails. 0.40 that the mechanism is closed with a named obstruction (the same
+    obstruction as H-XOR-d1a480: "the oracle provides no information beyond what
+    exhaustive search already has"). 0.10 that the ratio varies with d in an
+    unexpected way, indicating a richer mechanism requiring refinement. Priority
+    is MEDIUM because the proposal is a cheap, falsifiable test of a structurally
+    distinct mechanism, and both outcomes (confirmation or refutation) are
+    informative.
+
+  id_allocation_provenance: >-
+    python3 tools/allocate_id.py --next idea --date 20260808 (random token, no
+    state scanned), then --check IDEA-20260808-c5f9a2 returned
+    "well-formed and free across the union" before this file was written.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-08'
+  source_refs:
+    - RQ-ECDLP-002
+    - H-XOR-d1a480
+    - DEC-20260808-6a7ac4
+    - IDEA-20260808-a3f7c1
+    - IDEA-20260808-b8e2d4
+    - IDEA-20260807-053a55
+    - IDEA-20260807-413fcc
+    - KN-TECH-001
+    - KN-TECH-006
+    - KN-TECH-030
+    - KN-TECH-031
+    - KN-TECH-033

@@ -1,0 +1,71 @@
+handoff:
+  id: TASK-20260802-b31c7f
+  from: coordinator
+  to: executor
+  objective: 'Implement and run the frozen EXP-PEC-6be870 protocol exactly as specified: instrument Algorithm
+    1''s table-construction step at p ~ 2^40 with an exact F_{p^2}-multiplication counter, measure per_entry(ell)
+    over the pre-registered ell grid, run every pre-registered control, and report the fitted exponent
+    gamma and the extrapolated c with their uncertainty.'
+  uncertainty_reduced: Whether the paper's Section 4.1 assumption of one F_{p^2}-operation per table entry
+    understates the true per-entry cost, and by an exponent of what size - the quantity that decides whether
+    the NIST-I margin is ~34 bits (c = 0) or ~2 bits (c ~ 2).
+  inputs:
+  - experiments/EXP-PEC-6be870/specification.yaml (frozen contract - follow it exactly)
+  - inputs/P13-PANNY-POC/p-one-third.py (algorithmic reference; SageMath is NOT installed, so re-implement
+    in pure Python and say so)
+  - inputs/P13-WESOLOWSKI-2026/paper_fulltext.md (Algorithm 1 lines 137-153, Lemma 3.3 line 154, Section
+    4.1 line 230)
+  constraints:
+  - Record observations only. Do not interpret results, do not compare to NIST margins beyond mechanically
+    applying the contract's pre-registered extrapolation law, and do not change any hypothesis status.
+  - If the frozen contract is underspecified on any point that changes the number, STOP and report the
+    underspecification instead of choosing for yourself. An Executor that fills a gap in a frozen protocol
+    has silently redesigned the experiment.
+  - Count F_{p^2} multiplications exactly by instrumentation, not by timing. Wall-clock timings may be
+    recorded alongside, but the reported cost unit is the counted multiplication, because that is the
+    unit the paper's Section 4.1 estimate uses.
+  - Run EVERY pre-registered control (C-NULL, C-INSTR, C-BASE, C-ALT). A measurement whose null-object
+    control fails is void and must be reported as void - not repaired by adjusting the instrument until
+    the null passes.
+  - Modular polynomials must come from the provenance route the contract declares; record the URL, fetch
+    timestamp, and SHA-256 of anything fetched, or the exact in-repo computation used. Never hardcode
+    coefficients from memory - unverified recollection of Phi_ell coefficients is fabrication under AGENTS.md
+    rule 9.
+  - 'Preserve the full receipt: exact command, git commit and dirty-tree state, Python and dependency
+    versions, all parameters and seeds, requested policy, resolved model identifier, fallback_used, degraded_requirements,
+    stdout, stderr, raw machine-readable results, validity status with reason, timestamps, and resource
+    measurements.'
+  - Respect the budget. If the ell grid cannot be completed, report the range actually reached and mark
+    the run valid-but-truncated with the achieved scope; a truncated grid is scoped evidence. A timeout
+    or crash is failed_infrastructure and is never evidence against the attack (AGENTS.md rule 5).
+  - Every number in raw-result.json must be produced by code in this run. Do not carry forward a figure
+    from EXP-WESOVOW-001 or from the red-team report except as a labelled input constant.
+  deliverables:
+  - implementation/per_entry_cost.py
+  - runs/RUN-PEC-6be870-a/ complete receipt bundle (manifest, raw-result, execution report, stdout, stderr)
+  artifact_paths:
+  - experiments/EXP-PEC-6be870/implementation/per_entry_cost.py
+  - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/manifest.yaml
+  - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/raw-result.json
+  - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/execution_report.yaml
+  - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/stdout.txt
+  - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/stderr.txt
+  archived_by: TASK-20260802-ca5bdc
+  goal_id: GOAL-P13-001
+  batch_id: BATCH-002
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: true
+    degraded_allowed: true
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 5400
+    memory_gb: 8
+    maximum_runs: 1
+  completion_gate:
+  - All six declared artifacts exist and raw-result.json parses.
+  - Every pre-registered control has a recorded pass/fail/void verdict.
+  - The manifest records requested_policy, resolved model identifier, fallback_used, and degraded_requirements.
+  - The execution report states a validity status with a reason, and states the exact ell range and sample
+    sizes actually achieved.

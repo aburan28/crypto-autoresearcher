@@ -1,0 +1,39 @@
+{
+  "inference": {
+    "policy": "executor-implementation",
+    "requested_policy": "executor-implementation",
+    "resolved_model": "claude-sonnet-5",
+    "fallback_used": false,
+    "model_verified": false,
+    "standing_basis": "0137a051eb5828789eb267fa83c8278086578d4c"
+  },
+  "kat_self_check": {
+    "instrument": "anchor.c (independent third AES-128 implementation, from FIPS-197 spec)",
+    "vector": "FIPS-197 Appendix C.1",
+    "key": "000102030405060708090a0b0c0d0e0f",
+    "plaintext": "00112233445566778899aabbccddeeff",
+    "expected_ciphertext": "69c4e0d86a7b0430d8cdb78070b4c55a",
+    "got_ciphertext": "69c4e0d86a7b0430d8cdb78070b4c55a",
+    "pass": true
+  },
+  "block_level_cross_checks": {
+    "convention": "C1: final round has no MixColumns; matrix AES_MC (standard, hex 02030101010203010101020303010102)",
+    "key": "6fe52e2e9b3ea04085c370f9bc609245",
+    "plaintext": "e35f00e7631cdd862e59d126e72b8fc9",
+    "r4": {
+      "anchor_reference_ct": "c2769dba2aa0879736cf60253b0d78d0",
+      "cnt_soft_ct": "c2769dba2aa0879736cf60253b0d78d0",
+      "cnt_aesni_ct": "c2769dba2aa0879736cf60253b0d78d0",
+      "all_agree": true
+    },
+    "r5": {
+      "anchor_reference_ct": "4a23268a949612092e7f25e0b4441e75",
+      "cnt_soft_ct": "4a23268a949612092e7f25e0b4441e75",
+      "cnt_aesni_ct": "4a23268a949612092e7f25e0b4441e75",
+      "all_agree": true
+    },
+    "note": "cnt.c's own 'block' mode runs BOTH its soft and aesni paths unconditionally regardless of the engine argv flag, so a single invocation exercises both internal paths against the independent anchor reference."
+  },
+  "count5_pin_note": "count5.c has no single-block mode and is never given a raw key -- it only accepts a pre-expanded 176-byte round-key blob. It is pinned here by construction: the full-coset arm below feeds count5.c the EXACT round-key blob anchor.c derived and validated against FIPS-197 above (RK hex recorded in count5_r4_rk.txt / count5_r5_rk.txt), so any KAT failure in the key schedule would already have been caught by the block-level checks above, which used the same keysched routine. count5.c's own committed BATCH-001 pin.c/pin_result.json (not modified, read only) is the producer's original pin of its own AES-NI encr() path against FIPS-197 and independent implementations; it is read but not re-run here to avoid duplicating BATCH-001 artifacts.",
+  "verdict": "PINNED. All three independently-authored engines (anchor.c reference, cnt.c soft, cnt.c aesni) agree bit-for-bit on the shared key at r=4 and r=5 under the C1 convention with the standard AES_MC matrix, before any full-coset count is trusted."
+}

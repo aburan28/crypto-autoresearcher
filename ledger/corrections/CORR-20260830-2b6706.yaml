@@ -1,0 +1,138 @@
+correction:
+  id: CORR-20260830-2b6706
+  recorded_at: '2026-08-30'
+  recorded_by: coordinator
+  type: out_of_band_frozen_archived_implementation_edit_disclosure
+  severity: moderate_content_notable_not_invalidating
+  supersedes: []
+  corrects:
+    - experiments/EXP-MONO-c819ba/implementation/controls.py
+    - experiments/EXP-MONO-c819ba/implementation/run_experiment.py
+
+  incident_summary: >-
+    A TENTH out-of-band commit by the same external git identity ("Cursor
+    Agent <cursoragent@cursor.com>", no task/decision/protocol_amendment
+    reference anywhere) this session: commit
+    `1457a0fd8148bce0458fb6ab351bc92e1a265de0`
+    ("fix(EXP-MONO-c819ba): match L2 null population, exclude degenerate
+    coset g, require two subgroup-capable curves", authored 2026-08-31
+    06:01:26Z), landing on the shared `ideas-ecdlp-20260830` branch AFTER
+    this Coordinator's own post-execution snapshot commit (`11a799654`,
+    the exact commit both independent reviews were dispatched against and
+    verified by exact-path receipt) and after PR #634 -- which carried
+    that snapshot -- was merged to `main` (merge commit `dac13d9b8`).
+    Discovered by this Coordinator during the mandatory `git fetch
+    origin && git merge` immediately before this cycle's own ledger
+    archive commit. Unlike incidents 1-9, this one edits ALREADY-ARCHIVED,
+    already-reviewed Executor implementation source (`implementation/`
+    under a snapshotted, merged experiment directory), not a still-open
+    frozen contract or hypothesis text.
+
+  severity_assessment: >-
+    THREE DISTINCT CHANGES, EACH ASSESSED SEPARATELY.
+
+    (1) `controls.py`: excludes a coset `g` of order 2 in `G/H4` (rather
+    than order 4) from the coset-union control's random draw, with a
+    comment explaining that an order-2 `g` would silently collapse
+    `H4 union gH4` to the index-2 subgroup, duplicating positive control 1
+    instead of testing the intended `C/F = 1/sqrt(2)` case. This is a
+    genuine, plausible latent-bug fix in the coset-union control's
+    sampling logic. It does not change any ALREADY-ARCHIVED reported
+    number (the archived run's actual coset-union draws are unaffected
+    retroactively; this changes future draws only) and is CONTENT-BENIGN
+    to `EV-MONO-b84b24`/`DEC-20260830-891d39`, which do not depend on
+    re-running this control.
+
+    (2) `run_experiment.py`, `precondition_met`: raises the subgroup-
+    availability threshold from `len(subgroup_capable) >= 1` to `>= 2`,
+    which is the frozen contract's OWN literal precondition text
+    ("at least two panel curves..."). CHECKED AGAINST THE ARCHIVED RUN:
+    `execution_report.yaml`'s `subgroup_availability_precondition.
+    capable_roles` already lists TWO curves (`[RO3, CM1]`) for both
+    archived runs -- so the ORIGINAL (looser) code's check happened not
+    to matter for this specific run; the precondition was genuinely met
+    either way. This is CONTENT-BENIGN to the archived evidence, though it
+    is a real latent bug (the original Executor code under-enforced the
+    contract's own hard precondition) that could have mattered on a
+    different curve panel.
+
+    (3) `run_experiment.py`, the null-vs-null / L2-baseline split:
+    separates the ordering control's null1-vs-rest comparison from the
+    primary L2 metric's real-vs-null baseline, which the original code
+    conflated (both used the same `rest`-population mean, excluding
+    null1, rather than L2 using the FULL null population as L3 does). THIS
+    IS THE MOST SUBSTANTIVE OF THE THREE CHANGES: it touches exactly the
+    null-population mechanics both independent reviewers scrutinized when
+    diagnosing this run's calibration failure. It does NOT retroactively
+    change the archived numbers (RUN-MONO-c819ba-1/2's `raw-result.json`
+    and the reviewers' own independent recomputations are fixed,
+    immutable artifacts unaffected by a later code edit), and it does not
+    undermine either reviewer's conclusion: the Validator's finding rests
+    on an independently-run 20,000-trial bootstrap recalibration built
+    from the archived null draws directly (not on this specific line of
+    Executor code), and the Red Team's finding rests on 254 wholly NEW
+    curves run independently end-to-end. Both would need to be re-derived
+    from a NEW run under the corrected code to know whether this specific
+    fix changes anything, which this correction does not do. It is
+    disclosed as content-notable rather than content-benign because,
+    unlike incidents 5-6-7, it is plausible this fix WOULD change future
+    numeric results at some cells, even though it cannot retroactively
+    change the archived ones this decision is scoped to.
+
+  disposition: >-
+    Per this session's established practice for out-of-band edits (never
+    revert, always disclose): this correction does not revert commit
+    `1457a0fd8`, and the current on-disk implementation files remain
+    as-is. `EV-MONO-b84b24` and `DEC-20260830-891d39` are composed against
+    the ORIGINAL frozen archive at commit `11a799654` -- the exact
+    artifacts both independent reviewers evaluated -- and remain valid as
+    statements about THAT run. This correction additionally recommends
+    that any future replication of H-MONO-663fb4's K3/K4 question (the
+    `next_action` both this decision and the Red Team already name) be
+    designed and implemented fresh against the CURRENT corrected code
+    rather than assumed to reproduce the archived numbers, given change
+    (3) above plausibly shifts L2 baselines at some cells.
+
+  reason: >-
+    AGENTS.md rule 4 and this session's own established practice (nine
+    prior disclosures) require this to be filed as a correction rather
+    than silently absorbed or, worse, silently treated as invalidating
+    already-committed evidence. The pattern is now TEN occurrences from
+    the same unauthorized external identity this session, this time
+    reaching into archived experiment implementation source after a merge
+    to `main`, which is a wider blast radius than any prior incident (1-9
+    touched only still-open contracts/hypotheses on the feature branch).
+    This session separately identified the likely mechanism (this
+    repository's own CI: "Cursor Bugbot"/"Cursor Approval Agent"/"Cursor
+    Security Agent" pushing fix commits to open PR branches during CI
+    runs); this incident's timing (post-merge, on the branch CI still
+    tracks) and authorship (identical git identity) are consistent with
+    that mechanism, though it now shows the mechanism is not confined to
+    a PR's open lifetime in the way incidents 1-9 suggested.
+
+  evidence_artifacts:
+    - path: experiments/EXP-MONO-c819ba/execution_report.yaml
+      note: >-
+        Confirms the archived run's subgroup_availability_precondition
+        already had capable_roles=[RO3, CM1] (two curves), so change (2)
+        is content-benign to this specific archived run.
+    - path: coordination/tasks/TASK-20260830-48eb5c/snapshot-receipt.json
+      note: >-
+        Binds the exact pre-tampering implementation content both
+        independent reviewers evaluated, at commit 11a799654.
+  git_forensics:
+    tampering_commit: 1457a0fd8148bce0458fb6ab351bc92e1a265de0
+    tampering_commit_author: "Cursor Agent <cursoragent@cursor.com>"
+    tampering_commit_authored_at: '2026-08-31T06:01:26Z'
+    snapshot_commit_this_experiment_was_archived_at: 11a799654
+    pr_merged_before_tampering_commit: >-
+      PR #634 (merge commit dac13d9b8) -- the tampering commit is present
+      on origin/ideas-ecdlp-20260830 but its relationship to the merge
+      commit was not further traced beyond confirming both are reachable
+      from origin/main at the time of this correction's authoring.
+    verification_method: >-
+      `git fetch origin` showed `ideas-ecdlp-20260830` advanced by exactly
+      one commit (`1457a0fd8`) beyond this Coordinator's own last-pushed
+      commit; `git show --stat` and `git show` on that commit identified
+      author, timestamp, and full diff, reproduced verbatim in
+      `severity_assessment` above.

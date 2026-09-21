@@ -1,0 +1,227 @@
+experiment:
+  id: EXP-BLAKE-9f61cc
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-3d23e2; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-3d23e2
+  question_id: RQ-BLAKE-584719
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Enumerate the output-side tuple (root label, output index, mode flags, offset) over a declared
+    finite class with root states symbolic, checking triple injectivity and digest-versus-offset prefix
+    separation as two separately reported predicates against matched planted nulls.
+  objective: 'The one uncertainty a run reduces is whether BLAKE3''s output indexing separates semantically
+    distinct outputs by encoding within a stated finite class, and whether that property is genuinely
+    distinct from input-side injectivity. Decomposed: (i) whether the output path''s index and flag
+    selection depends only on the caller''s request and never on root-state content, read from pinned
+    primary text, since this is what makes a symbolic solver-free enumeration valid and it is also
+    the cheapest part of the whole experiment; (ii) whether, over the declared class of root labels
+    inherited from the input-side audit, output indices 0..I and the enumerated mode set, predicate
+    P1 (distinct triples give distinct compression-function input tuples) and predicate P2 (no fixed-length
+    digest tuple equals a nonzero-index output tuple of a different input) each hold, with the two
+    counts reported separately even when both are zero; (iii) whether the instrument can separate
+    the two predicates at all, established by matched planted nulls that violate one predicate each
+    and by requiring each to be caught by its intended check. A run does NOT reduce uncertainty about
+    the compression function, about indices beyond I, or about any protocol''s use of offset reads.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: over class C_out -- R root
+      labels inherited from the input-side enumeration, output indices 0..I, mode set M -- predicate
+      P1 held with V1 violations and predicate P2 held with V2 violations, with matched nulls caught
+      at their intended predicates, and with the stage-one reading answers recorded verbatim. What
+      does NOT follow: anything about indices above I or roots outside R; anything about the probability
+      that two distinct roots yield identical output bytes, which is a compression-function property
+      this audit holds symbolic and therefore cannot see; any security statement about BLAKE3, about
+      extendable output generally, or about any protocol that reads output at a nonzero offset; and
+      any implication that C_out''s bounds are structurally meaningful rather than budget-shaped.'
+  inputs:
+    procedure: 'STAGE 0 (cost: agent time, zero compute): pin the reference and validate against published
+      extendable-output vectors AT NONZERO OFFSETS as well as at offset zero. STAGE 1 (cost: agent
+      reading time, zero compute -- and this is the gate): answer in writing whether the digest and
+      extendable paths differ in a flag field, whether the output index has its own field, and whether
+      anything in the output path reads root content; record the answers verbatim. STAGE 2 (cost:
+      low): instrument the output path so every emitted block logs its tuple with a symbolic root
+      label; require output agreement with the pinned reference on all vectors. STAGE 3 (cost: seconds):
+      build matched nulls (index dropped; digest and extendable flags merged), enumerate, and require
+      each to be caught by its own predicate check. STAGE 4 (cost: minutes, CPU only): enumerate C_out
+      on the real arm, logging every tuple. STAGE 5 (cost: low): evaluate P1 and P2 separately; hand
+      re-derive any candidate violation. STAGE 6 (cost: low): root-label permutation control and composition
+      check against the input-side audit''s root set. STAGE 7 (cost: agent time): write C_out''s boundary
+      and the named unvisited regions.'
+    instrument: Python 3.11, standard library only. Enumeration as a dict from tuple-without-root-label
+      to a list of (root_label, semantic_label) pairs, plus a second index keyed for the P2 check.
+      Pinned BLAKE3 C reference via ctypes for the vector gate; the instrumented output path is a
+      pure-Python re-implementation whose compression call is a logging stub returning opaque symbols.
+      Orchestration and manifests via harness/runner.py. No solver, no SAT, no MILP, no Sage -- the
+      audit is finite and introducing a solver would import budget failure modes into a decidable
+      check.
+    parameters: 'Root labels R: exactly the set enumerated by the input-side audit (order of a few
+      hundred to a few thousand, reported exactly), or, if that audit has not run, a synthetic set
+      of 64 labels with the composition claim explicitly dropped. Output indices 0..I with I = 64,
+      plus indices chosen at and adjacent to any field boundary the specification exposes (for a 64-bit
+      counter field, indices near 2^32 are constructed directly rather than walked). Modes: {unkeyed
+      digest, unkeyed extendable, keyed digest, keyed extendable, key-derivation output} -- five,
+      each enumerated. Output byte offsets: block-aligned and, additionally, three non-aligned offsets
+      per mode to exercise the caller-offset path. Null arms: 2 matched planted breakages.'
+  controls:
+  - 'Matched planted-breakage nulls: null-1 (index dropped) targeting P1, null-2 (digest and extendable
+    flags merged) targeting P2, both enumerated in the same invocation with cross-check on which predicate
+    catches which.'
+  - Extendable-output test-vector precondition at NONZERO offsets, not only at offset zero, before
+    instrumentation.
+  - 'Root-label permutation control: re-run with root labels randomly relabelled; both verdicts must
+    be unchanged.'
+  - 'Composition control: the root set must be exactly the one the input-side audit enumerated, verified
+    by label matching, so the two class boundaries compose.'
+  - 'Mode-coverage control: every mode in the declared set must appear in the enumerated trace, checked
+    rather than assumed.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two planted-breakage nulls, each targeting one predicate, both enumerated
+    identically in the same invocation. Null-1 drops the output index from the logged tuple, which
+    must produce massive P1 violations. Null-2 merges the digest flag word with the extendable-output
+    flag word, which must produce P2 violations specifically -- a fixed-length digest tuple coinciding
+    with a nonzero-index output tuple. What the nulls must show for the real arm to mean anything:
+    null-1 must be caught by the P1 check and NOT primarily by the P2 check, and null-2 must be caught
+    by the P2 check. If both nulls are caught only by one check, the two predicates are not being
+    tested separately and the record''s central claim -- that they are different predicates -- is
+    not being exercised by its own instrument. That cross-check is the reason the nulls are specified
+    as a matched pair rather than as one broken variant.'
+  independent_variables:
+  - root label
+  - output index
+  - mode
+  - output byte offset alignment
+  - arm (real | null-1 | null-2)
+  metrics:
+    primary:
+    - P1 violation count
+    - P2 violation count reported separately
+    - null-1 catch rate under the P1 check
+    - null-2 catch rate under the P2 check
+    - number of output tuples enumerated
+    secondary:
+    - declared bounds of C_out
+    - verdict stability under root-label permutation
+    - composition check result against the input-side root set
+    - wall-clock and peak table size
+    - the three stage-one answers recorded verbatim
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: 'Predicted: V1 and V2, the violation counts for the two predicates, and the matched-null
+      catch matrix.'
+    formula: 'V1 = |{(t1,t2) : t1 != t2 as triples, E_out(t1) = E_out(t2)}| is predicted to equal
+      0, where E_out returns (block_bytes, block_len, counter, flags) with the root label compared
+      as a symbol. V2 = |{(a,b) : a != b as inputs, tuple(digest of a) = tuple(output block j of b)
+      for some j > 0}| is predicted to equal 0 and is reported on its own line regardless. Catch matrix
+      pre-registration: null-1 must give V1 > 0 and null-2 must give V2 > 0, and a run in which null-1
+      gives V2 > 0 while V1 = 0 falsifies the instrument''s predicate separation.'
+    source: Pre-registered in the parent proposal IDEA-20260816-3d23e2 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested parameters are I = 64 output indices plus directly constructed near-boundary
+      indices, five modes, and a root set of at most a few thousand labels -- a toy class, labelled
+      as such. NO EXTRAPOLATION beyond I is performed: the record''s deliverable is the boundary.
+      One transfer IS argued explicitly rather than assumed -- that constructing near-field-boundary
+      indices directly (rather than walking to them) exercises the same encoding path as walking would
+      -- and if the specification makes that construction unfaithful, those indices are named as outside
+      C_out instead of being reported.'
+    correspondence: null
+  tail_checks:
+  - Inspect the near-field-boundary indices individually; they are the only place an index field could
+    interact with an adjacent field and they are constructed rather than walked.
+  - Check the largest index enumerated by walking, to confirm the walk and the construction agree
+    where they overlap.
+  - Verify every mode in the declared set actually appears in the trace.
+  - Examine whether non-aligned output offsets exercise a distinct code path from aligned ones, since
+    a clean aligned-only result would be narrower than claimed.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - HALT before STAGE 4 if either matched null is not caught by its intended predicate check.
+  - HALT at STAGE 2 on any vector disagreement, especially at nonzero offsets.
+  - HALT and escalate to maintainer disclosure, before writing any other record, if a P1 or P2 violation
+    in the real arm survives hand re-derivation.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run succeeds if both matched nulls are caught by their intended checks, the
+    full declared C_out is enumerated without sampling, both verdicts are stable under root-label
+    permutation, and the record reports V1 and V2 on separate lines with C_out's exact bounds and
+    its named unvisited regions -- whether or not either count is zero.
+  falsification_criterion:
+  - Either matched null uncaught, or both caught by the same check.
+  - Vector disagreement at a nonzero offset.
+  - Stage one finds root-content dependence in the output path.
+  - Verdict change under root-label permutation.
+  - Root set cannot be matched to the input-side audit's, dropping the composition claim.
+  - Near-field-boundary indices found unfaithful to the walked path, shrinking C_out below its declared
+    bounds.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-3d23e2
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The flag-word layout, counter width and output-index field are unread; the specification is not
+    yet filed as a KN-LIT entry and RQ-BLAKE-584719's first constraint blocks approval until it is.
+  - Whether the input-side audit has run, which determines whether the composition claim is available
+    or the root set is synthetic. A Coordinator must sequence the two.
+  - Whether directly constructed near-boundary indices are faithful to the walked path is an argument
+    that does not yet exist and must be written before those indices are enumerated.
+  - I = 64 is a placeholder; a Coordinator must set it against the field boundaries the specification
+    actually exposes.

@@ -1,0 +1,489 @@
+idea:
+  id: IDEA-20260805-f7c912
+  question_id: RQ-MLKEM-003
+  added: '2026-08-05'
+  title: >-
+    The other borrowed constant: measure the block-size-to-root-Hermite map
+    delta(beta) by running actual reduction at reduced block sizes on
+    ML-KEM-shaped q-ary lattices, against the closed form the campaign's block
+    sizes are read off, and report where the closed form is invalid rather than
+    merely extrapolated
+  class: measurement_calibration
+
+  claim: >-
+    Every block size this campaign has quoted -- beta 387, 389, 589, 823 and the
+    n_peak values derived from them -- comes from inverting a closed form for
+    the root-Hermite factor delta(beta) that no batch has ever compared against
+    a reduction actually run. The closed form in standard use,
+    delta(beta) = ( (beta/(2*pi*e)) * (pi*beta)^(1/beta) )^(1/(2*(beta-1))),
+    is DEMONSTRABLY NOT VALID over its whole domain: evaluated as written it
+    gives 0.989469 at beta = 10 and 1.012537 at beta = 40, i.e. it is
+    non-monotone and dips below 1 at small beta, so it cannot be used as an
+    identity at the dimensions where measurement is affordable. That is not a
+    reason to skip the measurement; it is the reason the measurement has content.
+    This proposal is to run genuine lattice reduction at block sizes 2 to about
+    24 on ML-KEM-shaped q-ary module lattices and on matched unstructured
+    lattices, measure delta directly from the resulting basis profiles, and
+    report (a) the block size above which the closed form becomes usable, (b) the
+    measured module-versus-unstructured difference if any, and (c) an explicit,
+    numbered statement of how far the extrapolation to beta ~ 400-800 actually
+    reaches. It is the time-side twin of IDEA-20260805-fc6361's memory-side
+    census, and like it, it is the measurement completion criterion 1 names and
+    twelve batches never attempted.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE GRAM-SCHMIDT PROFILE. Track the vector
+        prof(B) = ( log ||b_1^*||, ..., log ||b_d^*|| )
+      through successive reduction rounds, reduced to two scalars: the
+      root-Hermite factor delta = ( ||b_1|| / det^(1/d) )^(1/d) and the fitted
+      GSA slope r = -d(log ||b_i^*||)/di. The object is the profile, not the
+      shortest vector: a shortest-vector-only view discards precisely the
+      information that the cost model consumes, since block size is inferred
+      from the SLOPE the reduction achieves.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: (1) any lattice-estimator evaluation or
+      differencing -- this proposal does not call the estimator at all;
+      (2) dual-vs-primal comparison; (3) the Carrier Pwrong lineage;
+      (4) memory-charge conventions; (5) implementation conformance
+      (GOAL-MLKEM-001/-002 own it). The deliberate constraint is that the entire
+      proposal must be executable with no estimator, no Sage, and no fpylll --
+      which is also what makes it runnable in the environment verified this
+      session.
+    newness_score: >-
+      Measuring delta(beta) is a standard exercise in the lattice literature and
+      this record claims no novelty for it; published BKZ simulator calibrations
+      certainly exist and were NOT READ. The novelty claimed is local and is
+      exactly the campaign's gap: GOAL-MLKEM-003 has quoted block sizes across
+      four batches without a single reduction ever having been run inside it, and
+      its own completion criterion asks for measurement at reduced dimensions.
+      This is also the first proposal in this campaign whose deliverable does not
+      pass through the estimator.
+    testability_score: >-
+      High but the most fragile of this session's three proposals. Reduction is
+      implementable in pure Python (integer LLL, then BKZ with exhaustive
+      enumeration in blocks of size <= 24), the profiles are cheap to record, and
+      the null is easy. What is genuinely uncertain is the reachable beta in
+      interpreted code and whether measurements at beta <= 24 say anything about
+      beta ~ 400.
+    survival_score: >-
+      The profile survives all the way to the attack, because BKZ's output
+      profile is the whole input to the primal attack's success condition. Where
+      the proposal dissolves is the extrapolation: the honest reading is that it
+      calibrates the LOW-beta regime and BOUNDS the extrapolation error, and does
+      not reach the campaign's block sizes.
+
+  mechanism: >-
+    DERIVED IN THIS RECORD, with every recalled item labelled.
+
+    STEP 1 -- WHAT THE CAMPAIGN'S BLOCK SIZES ACTUALLY REST ON. A primal
+    lattice attack's cost is 2^(0.292*beta + o(beta)) where beta is the smallest
+    block size whose achieved basis quality suffices. The quality is delta, and
+    the map beta -> delta is a MODEL. The campaign's committed numbers -- the
+    pinned doctest's bdd at beta 389 with eta 422 and d 1005, and the
+    beta 387 / 589 / 823 triple that EV-MLKEM-021's monotone-in-beta diagnostic
+    uses -- are outputs of that model. No batch of this campaign has measured
+    delta for any beta.
+
+    STEP 2 -- THE CLOSED FORM AND ITS OWN FAILURE, COMPUTED HERE. Evaluating
+      delta(beta) = ( (beta/(2*pi*e)) * (pi*beta)^(1/beta) )^(1/(2*(beta-1)))
+    gives
+      beta =  10 -> 0.989469
+      beta =  20 -> 1.009648
+      beta =  30 -> 1.012401
+      beta =  40 -> 1.012537   (maximum in this range)
+      beta =  50 -> 1.012065
+      beta =  60 -> 1.011453
+      beta =  80 -> 1.010263
+      beta = 100 -> 1.009259
+      beta = 400 -> 1.003982
+    (arithmetic performed in this record; reproducible in three lines). The
+    function RISES to a maximum near beta = 40 and falls thereafter, and it is
+    below 1 at beta = 10. The asymptotic regime -- the only one where the form
+    is meant to hold -- begins somewhere above the maximum. THIS IS THE
+    PROPOSAL'S CENTRAL STRUCTURAL FACT: the affordable measurement range
+    (beta <= 24) and the domain of validity of the formula the campaign inverts
+    are DISJOINT, or nearly so. Any proposal that quietly measured delta at
+    beta = 20 and compared it to the closed form would be comparing against a
+    value the form does not claim. So the deliverable is restated to what the
+    measurement can support: NOT "is 0.292 right", but "at which beta does the
+    measured delta join the closed form, and what does the residual look like as
+    it does".
+
+    STEP 3 -- THE MEASUREMENT. For each arm and each beta in an increasing
+    ladder, run reduction to a declared fixed point and record
+      delta_meas = ( ||b_1|| / det^(1/d) )^(1/d),
+      r_meas     = the least-squares slope of log ||b_i^*|| over the central
+                   60% of the profile (the GSA slope, tails excluded because the
+                   head and tail of a q-ary profile are known to be flat at
+                   log q and 0 respectively).
+    The q-ary shape is itself a free correctness check with a forced value: an
+    unreduced q-ary basis has exactly d/2 vectors of norm q and d/2 of norm 1
+    under the standard construction, so the initial profile is a step function
+    and the reduction's job is to convert it into a line. A run whose profile is
+    not a step function at the start has a construction bug.
+
+    STEP 4 -- WHAT COULD DIFFER BETWEEN THE ARMS, AS MECHANISM. The module arm's
+    lattice is invariant under the negacyclic isometry v -> X*v, so its
+    Gram-Schmidt profile is NOT generic: the lattice carries 2n vectors of every
+    length that occurs, and any reduction that finds one has implicitly found 2n.
+    Two competing predictions, both stated before any run, which is what makes
+    this a test rather than an observation:
+      (P-a) NO EFFECT ON delta. Reduction quality is governed by the local block
+            geometry, projections destroy the ring action, and the orbit gives
+            the algorithm no better vector than the one it already found. Then
+            delta_module = delta_null within noise and the result is a
+            CONTROLLED NULL.
+      (P-b) A SMALL POSITIVE EFFECT ON THE SEARCH, NOT ON THE OPTIMUM. The
+            achievable delta at a given beta is a property of the lattice, so the
+            orbit cannot improve it; what the orbit can improve is the WORK to
+            reach it. This predicts equal delta and lower node counts in the
+            module arm.
+    (P-b) is the sharper prediction because it makes the node count -- a quantity
+    the experiment records anyway -- carry the signal, and it is falsified by
+    equal node counts. Predicting that the headline metric shows NOTHING, and
+    putting the signal in a secondary metric, is deliberate: it is the shape a
+    prediction takes when the mechanism says the primary quantity is forced.
+
+    STEP 5 -- COST HONESTY ABOUT THE EXTRAPOLATION. beta_measured <= 24 versus
+    beta_campaign in {387, 589, 823}: a factor of 16 to 34. This proposal does
+    NOT bridge it and must never be cited as having done so. What it can deliver
+    is (i) the first measured point of the map inside this program, (ii) the
+    beta at which the closed form starts tracking the measurement, and (iii) a
+    measured bound on the module-versus-unstructured difference in the reachable
+    range, which is a number the campaign currently does not have in any range.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      The delta(beta) closed form used above. RECALLED, UNVERIFIED -- no source
+      was retrieved. It is attributed in the field to the BKZ asymptotics
+      literature; NO AUTHOR, YEAR, THEOREM NUMBER OR VENUE IS ASSERTED HERE
+      because none was checked. The audit's stage 0 is to locate a primary
+      statement of it or to record that it could not be obtained, and either way
+      the numbers above stand as arithmetic on the formula as written.
+    - >-
+      BKZ simulators and published delta calibrations. NOT READ. Very probably
+      they already contain the low-beta calibration this proposal would produce,
+      which would make the external novelty zero; the internal gap would remain.
+      Recorded as an unclosed novelty screen rather than as an absence of prior
+      work.
+    - >-
+      GOAL-MLKEM-003's committed block sizes (READ, via the goal record and this
+      goal's brief): the pinned doctest bdd 2^140.2 at beta 389, eta 422, d 1005,
+      and the beta 387 / 589 / 823 triple in EV-MLKEM-021's monotone diagnostic.
+      Used only to state what the campaign has quoted, not as support.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      A reduced basis (a d x d integer matrix, its full Gram matrix, and the
+      entire reduction trajectory) --> two real scalars (delta, r).
+    what_is_discarded: >-
+      Every coordinate, the vectors themselves, the order in which they were
+      found, and all of the profile except its head and its central slope.
+    why_genuinely_lossy: >-
+      Strongly lossy: infinitely many bases of infinitely many lattices share a
+      given (delta, r), and unimodular transformations move the basis without
+      moving the pair at all.
+    why_compatible_with_the_operations: >-
+      This is the strongest compatibility case among this session's three
+      proposals, and it is why the object is worth tracking: (delta, r) is
+      LITERALLY the interface between reduction and cost in the model under
+      audit. The attack's success condition is a statement about the profile;
+      the profile is what reduction produces; delta and r summarise it. The
+      projection discards what the cost model never reads.
+    is_it_only_a_change_of_coordinates: >-
+      NO to both failure modes, and both were checked.
+      (i) Not a coordinate change: the basis is not recoverable from two scalars.
+      (ii) NOT CONSTANT ACROSS INSTANCES, and this is checkable in advance rather
+      than hoped: delta is a strictly increasing function of the reduction
+      strength within any lattice family -- an unreduced q-ary basis has
+      delta corresponding to ||b_1|| = q while a reduced one has ||b_1||
+      approaching gh(L) -- so the comparator has guaranteed nonzero spread along
+      the beta axis by construction. The spread along the STRUCTURE axis
+      (module vs unstructured) is exactly what is unknown and is the measurement.
+    which_failure_was_checked: >-
+      Both. The mirror failure is excluded along the beta axis by the
+      monotonicity argument, and is admitted as an open possibility along the
+      structure axis, where prediction (P-a) says explicitly that it may hold --
+      which is why the node-count secondary metric exists.
+
+  assumptions:
+    - >-
+      That pure-Python integer LLL plus small-block BKZ reaches a stable fixed
+      point at d <= 80 and beta <= 24 within the declared budget. NOT VERIFIED;
+      it is the proposal's principal cost risk and the contract stops on it
+      rather than reporting a truncated ladder as a result.
+    - >-
+      That delta measured at a fixed point of the implemented reduction is the
+      same quantity the closed form names. Only approximately: implementations
+      differ in tours, pruning and preprocessing, and none of that is specified
+      by the closed form. The audit reports its own reduction's definition
+      exactly and does not claim to have measured "BKZ-beta" in anyone else's
+      sense.
+
+  predictions:
+    - metric: >-
+        delta_meas(beta) for the unstructured null arm at
+        beta in {2, 4, 8, 12, 16, 20, 24}, d = 64, 20 instances per cell
+      direction: higher
+      minimum_effect: >-
+        MONOTONE NON-DECREASING IN beta at every consecutive pair, and
+        delta_meas(2) strictly greater than delta_meas at beta = 24 is FORBIDDEN.
+        A pre-registered anchor with an independent forced value: at beta = 2
+        the reduction is LLL, whose achieved delta is bounded by the LLL
+        parameter, and the measured value must lie strictly between the
+        unreduced value ( ||b_1|| = q ) and the Gaussian-heuristic value
+        ( ||b_1|| = gh(L) ). Violating that bracket means the reduction is
+        broken.
+    - metric: >-
+        Relative residual |delta_meas(beta) - delta_closed_form(beta)| /
+        (delta_closed_form(beta) - 1), as a function of beta
+      direction: lower
+      minimum_effect: >-
+        NO FORCED VALUE IS CLAIMED, and the reason is derived above: the closed
+        form is non-monotone below beta ~ 40 and dips under 1 at beta = 10, so
+        it does not claim to hold in the measured range. The pre-registered
+        deliverable is therefore the RESIDUAL CURVE and the smallest beta in the
+        ladder at which the residual falls below 0.25, or the statement that it
+        does not fall below 0.25 anywhere in the ladder. Stating in advance that
+        a disagreement is EXPECTED, and that it is a property of the formula's
+        domain rather than of the lattice, is what keeps a disagreement from
+        being written up as a finding.
+    - metric: >-
+        delta_meas(module) - delta_meas(null) at matched (d, det, beta)
+      direction: different
+      minimum_effect: >-
+        PREDICTED 0 within noise, per (P-a) and (P-b). Detection threshold
+        pre-registered at 3 standard errors over 20 instances. A difference above
+        threshold falsifies both predictions and is the most interesting outcome
+        available.
+    - metric: >-
+        Enumeration node count to reach the fixed point, module arm versus null
+        arm, at matched (d, det, beta)
+      direction: lower
+      minimum_effect: >-
+        PREDICTED RATIO <= 0.9 for the module arm under (P-b); predicted 1.0
+        under (P-a). This is the metric carrying the structural signal and it is
+        named as such before the run so the write-up cannot promote whichever
+        metric happens to move.
+    - metric: >-
+        Initial-profile shape check on every q-ary instance
+      direction: different
+      minimum_effect: >-
+        FORCED: exactly d/2 Gram-Schmidt norms equal to q and d/2 equal to 1
+        before reduction, for the standard q-ary construction. Integer equality.
+        Any deviation halts the package.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first.
+      STAGE 0 (zero compute, DECISIVE FOR THE FRAMING): evaluate the closed form
+      across beta = 2..100 and record its non-monotonicity and sub-1 region.
+      This is done above and is what sets the deliverable; a session that skipped
+      it would design the wrong comparison.
+      STAGE 1 (minutes): implement integer LLL, verify on q-ary lattices with the
+      forced initial-profile check and the bracket anchor at beta = 2.
+      STAGE 2 (up to an hour): the null-arm ladder, committed and hashed before
+      any module instance is built.
+      STAGE 3 (up to an hour): the module arm and the plain q-ary arm at matched
+      (d, det), with node counts.
+      Stage 1 can end the line: if the bracket anchor fails, no delta is
+      reported.
+    controls:
+      - >-
+        NULL OBJECT (forced value derived pre-run, CAN FAIL): unstructured random
+        integer lattices of matched dimension and determinant. Forced values are
+        the bracket anchor and monotonicity in beta, both of which can fail and
+        each of which has a different repair.
+      - >-
+        POSITIVE CONTROL WHERE THE EFFECT MUST APPEAR: a lattice with a PLANTED
+        unusually short vector of norm alpha * gh(L) for alpha < 1. Reduction at
+        sufficiently large beta must find it, and delta must jump to the planted
+        value. IF THE PLANTED VECTOR IS NOT FOUND AT ANY beta IN THE LADDER, THE
+        REDUCTION IS TOO WEAK TO MEASURE ANYTHING AND NO NEGATIVE RESULT MAY BE
+        REPORTED FROM ANY ARM. This is the sensitivity demonstration and it is a
+        hard gate.
+      - >-
+        GRADED CONTROL, 5 POINTS, MONOTONICITY REPORTED: plant at
+        alpha in {0.9, 0.8, 0.7, 0.6, 0.5} and record the smallest beta at which
+        each is found. The recovered beta must DECREASE as alpha decreases; a
+        recovery threshold that does not respond to the planted gap is the
+        canonical artifact tell. This also yields, as a by-product, the
+        instrument's detection floor in units of alpha at each beta -- the number
+        needed to say how large a structural effect would have had to be.
+      - >-
+        ORDERING CONTROL: null-arm ladder generated, measured and hash-committed
+        before any module basis exists.
+      - >-
+        ARCHIVE CHECK (zero compute): list every prior lattice reduction run in
+        this program. Expected answer NONE for this goal; if any exists it must
+        be reused rather than duplicated.
+    required_metrics:
+      - per-instance delta_meas and GSA slope with seeds, per arm per beta
+      - the residual curve against the closed form, with the closed form's own domain caveat printed beside it
+      - node counts and wall time per instance
+      - the graded planted-vector recovery table (alpha vs smallest recovering beta)
+      - the initial-profile integer check for every q-ary instance
+
+  falsification_conditions:
+    - >-
+      The bracket anchor fails at beta = 2. The reduction is broken; nothing is
+      reported.
+    - >-
+      The planted positive control is never recovered at any beta in the ladder.
+      The instrument has no demonstrated sensitivity and no negative may be
+      reported from any arm.
+    - >-
+      delta_meas is not monotone in beta. Either the fixed-point criterion is
+      wrong or the reduction is not converging; report as an instrument result.
+    - >-
+      The graded control's recovery threshold does not respond to alpha.
+      Canonical artifact tell; the measurement is not measuring reduction
+      strength.
+    - >-
+      The ladder cannot reach beta = 12 within budget. Infrastructure signal
+      (AGENTS.md rule 5), never evidence about lattices or about ML-KEM, and the
+      honest deliverable is a costed request rather than a truncated curve.
+
+  confounders:
+    - >-
+      DEFINITION DRIFT, THE DOMINANT ONE. "BKZ-beta" is not one algorithm. Tours,
+      preprocessing, pruning and the termination rule all move delta at fixed
+      beta, and the closed form specifies none of them. A residual against the
+      closed form may be entirely an artifact of the implemented variant, and the
+      report must not attribute it to the lattice.
+    - >-
+      THE FORMULA'S DOMAIN. Derived in Step 2 and repeated because it is the
+      confounder most likely to be forgotten between design and write-up: the
+      form is non-monotone below beta ~ 40 and dips below 1 at beta = 10, so
+      disagreement in the measured range is EXPECTED and is not a finding.
+    - >-
+      SMALL d. At d = 64 the GSA is a poor description of a q-ary profile whose
+      head and tail are flat; the slope is therefore fit on the central 60% only,
+      declared in advance.
+    - >-
+      TOY MODULE DEGREE. n in {4, 8, 16} against ML-KEM's 256.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER TOY. beta <= 24 against the campaign's 387 / 589 / 823 is a
+      factor of 16 to 34 and this proposal does not bridge it. Nothing here is a
+      statement about any FIPS 203 parameter set, and no citation may present it
+      as one.
+    - >-
+      It does not validate or invalidate the 0.292 sieve time exponent, which is
+      a statement about sieving cost, not about reduction quality.
+    - >-
+      It proposes no status change to any record and does not route around
+      rule 12.
+    - >-
+      A controlled null (module indistinguishable from unstructured) is a real
+      deliverable and must be reported as one.
+
+  heuristic_assumptions:
+    - id: HEUR-RH-1
+      statement: >-
+        The delta measured at the implemented reduction's fixed point at block
+        size beta is, up to a factor bounded within the ladder, the same quantity
+        the closed form delta(beta) names.
+      rigorous_support: >-
+        NONE. The closed form specifies no implementation, and this is the
+        proposal's weakest assumption after the extrapolation. It is stated so a
+        reader can reject it while keeping the arm-versus-arm comparison, which
+        is internally matched and does not depend on it.
+      validation_plan: >-
+        Partially: the bracket anchor and monotonicity are implementation-
+        independent necessary conditions and are checked. Full validation would
+        need an independent reduction implementation, which is declared out of
+        scope.
+    - id: HEUR-RH-2
+      statement: >-
+        A structural difference in delta or in reduction work between module and
+        unstructured q-ary lattices, if it exists at beta <= 24 and d <= 80,
+        persists in sign at beta ~ 400 and d ~ 1000.
+      rigorous_support: >-
+        NONE, and the honest reading is that it probably does not: projected
+        sublattices at large beta do not carry the ring action, so the mechanism
+        that could produce an effect at small beta is precisely the one that
+        disappears at large beta. THE HEURISTIC IS STATED IN ORDER TO BE
+        REJECTED; it is the assumption any transfer of this measurement to FIPS
+        203 dimensions would need, and naming it makes the transfer visibly
+        unsupported.
+      validation_plan: >-
+        Not validated here. Any downstream use must carry this entry verbatim.
+
+  target_complexity:
+    time_exponent: >-
+      The exponent this proposal bears on is 0.292 * beta -- specifically its
+      argument beta, which is read off delta. It does NOT move that exponent and
+      does not claim to. It calibrates the low-beta end of the map that fixes
+      beta, and states plainly that the measured range and the campaign's range
+      are disjoint by a factor of 16 to 34. STATED AS THE CONTRACT REQUIRES:
+      THIS PROPOSAL MOVES NO EXPONENT. It is worth running because the campaign
+      has quoted block sizes in four batches with zero reductions behind them,
+      because its completion criterion names measurement at reduced dimensions as
+      the missing half, and because the residual curve against the closed form is
+      a number no record in this program holds.
+    memory_exponent: >-
+      Not addressed. IDEA-20260805-fc6361 is the memory-side twin and the two are
+      deliberately disjoint.
+    best_known: >-
+      The incumbent for the beta -> delta map is the closed form itself plus
+      published BKZ simulators (NOT READ). This proposal does not beat either; it
+      measures against the former in a range where the former does not claim to
+      hold, and reports that fact rather than a disagreement.
+    hidden_overhead: >-
+      Implementation variance in "BKZ-beta" (HEUR-RH-1) and the entire
+      extrapolation gap (HEUR-RH-2).
+    tradeoff_note: >-
+      A measured delta LARGER than the closed form at a given beta would mean
+      reduction is easier than modelled and margins are smaller; SMALLER would
+      mean the opposite. The proposal has no stake in the direction, and the
+      ordering control exists so the null is read before the direction is known.
+
+  dominated_by: >-
+    n/a (no attack and no cost improvement claimed). Rows checked:
+    TIME -- the incumbent time model 2^(0.292 beta) is untouched; this measures
+    the argument, not the exponent, and cannot dominate or be dominated on that
+    axis.
+    MEMORY -- no memory claim; the memory frontier is IDEA-20260805-fc6361's
+    subject and this proposal makes no statement on it.
+    DATA / QUERIES -- none consumed; reduction uses the public basis only.
+    Corpus rows checked for a prior reduction measurement: EV-MLKEM-011 through
+    -021 and the 6-hex EV-MLKEM records in this goal's brief, all twelve
+    batch_log rows of GOAL-MLKEM-003, IDEA-20260731-001, IDEA-20260801-012, and
+    the goal's own statement that "no measurement of sieve behaviour exists
+    anywhere in this campaign". NONE. External rows NOT checked and declared
+    unchecked: published BKZ simulator calibrations, which likely dominate the
+    external novelty entirely.
+  sota_delta: >-
+    Against the external state of the art: ZERO, explicitly, and probably
+    negative in novelty -- published simulators very likely already contain this
+    calibration. Against the state of this campaign, quantitatively: from zero
+    measured (beta, delta) pairs to seven per arm across three arms, plus a
+    graded planted-recovery table giving the instrument's detection floor in
+    units of alpha, plus a measured module-versus-unstructured bound in the
+    reachable range where the campaign currently has no bound in any range.
+    Stating a zero external delta explicitly is part of the deliverable.
+
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: >-
+    0.45 that the experiment produces a usable ladder to beta >= 16 at d = 64
+    within a small budget. It is not higher because pure-Python BKZ with
+    exhaustive block enumeration is the most implementation-heavy proposal in
+    this session, because the fixed-point criterion is a design decision that can
+    silently change the measured delta, and because HEUR-RH-1 means even a
+    successful run measures THIS reduction rather than "BKZ". It is not lower
+    because LLL at d = 64 is unquestionably feasible in interpreted code, because
+    the bracket anchor and the initial-profile check are exact integer gates that
+    catch a broken implementation in seconds, and because the beta = 2 cell alone
+    already exceeds the campaign's current total of zero measured reductions.
+    SEPARATELY: 0.15 that a module-versus-unstructured difference exceeds the
+    detection threshold. Low for a derived reason -- projections destroy the ring
+    action, which is the mechanism -- and that low prior is exactly why the node
+    count, not delta, is nominated as the metric carrying the signal.

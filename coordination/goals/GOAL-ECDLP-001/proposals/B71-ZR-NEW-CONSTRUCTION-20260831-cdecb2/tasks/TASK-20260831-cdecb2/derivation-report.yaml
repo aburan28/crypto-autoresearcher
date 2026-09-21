@@ -1,0 +1,625 @@
+schema: 'crypto.autoresearch.zr_new_construction_derivation.v1'
+id: DERIV-20260831-cdecb2
+task_id: TASK-20260831-cdecb2
+goal_id: GOAL-ECDLP-001
+produced_by: idea-generator
+record_kind: bounded_zero_experiment_mathematical_derivation
+
+purpose: >-
+  Determine whether ANY construction for z_R = gcd(g_I, r_R), distinct from
+  the already-ceiling-derived flat two-list meet-in-the-middle method of
+  TASK-20260830-53a818, reaches H-CREP-001's declared exponent caps
+  (fresh_target_online_exponent_cap_in_B = 1.25,
+  preprocessing_exponent_cap_in_B = 2.25) under either the one-pair
+  (Theta(B^2)) or two-pairs (Theta(B^4)) reading. Three structurally
+  different strategies are genuinely attempted below: (1) recursive
+  multi-level meet-in-the-middle decomposition, (2) Wagner-style
+  generalized-birthday, (3) other candidate routes. Zero commands, programs,
+  or CAS execution were run; every number below is hand-derived symbolic
+  degree bookkeeping, cross-checked at least twice per load-bearing step. Two
+  arithmetic errors made mid-session (a mistaken 'GCD rescue' claim in
+  part_1's variant 1f) were caught by re-derivation and are reported
+  corrected, not silently smoothed over, per this task's honesty requirement.
+
+scope_and_inputs_recap: >-
+  Two-pairs reading: five decks (1,2,3,4 primitive, size B each; I the
+  target, size B), combined via g_12 := Res_x2(g_2,Res_x1(g_1,S_3(x1,x2,x12)))
+  (degree <= 2B^2), g_34 analogously, r_R(T) := Res_x12(g_12,
+  Res_x34(g_34,S_3(x12,x34,T))) (degree <= 8B^4). One-pair reading: D_12,
+  D_34 are two BARE primitive decks (size B each, no elimination needed to
+  build them), r_R'(T) := Res_x12(g_12_bare, Res_x34(g_34_bare,
+  S_3(x12,x34,T))) (degree <= 2B^2). TASK-20260830-53a818 already derived,
+  and DEC-20260830-69fb4d independently re-verified, a meet-in-the-middle
+  improvement over naive materialization: Theta(B^3) online (two-pairs, down
+  from naive Theta(B^4)) and Theta(B^2) online (one-pair, same exponent as
+  naive but coefficient-vector-free), both against the 1.25 online cap and
+  2.25 preprocessing cap, under DEC-20260830-69fb4d's resolved
+  whole-target-set cost-accounting convention (adopted unchanged here, per
+  this task's constraints -- not re-litigated). The mechanism enabling that
+  improvement is Semaev's S_3 having FIXED degree exactly 2 in each variable
+  (KN-TECH-002, kb), independent of B: for two of S_3's three slots fixed to
+  explicit field elements, the third is recoverable by an O(1)-absorbed
+  quadratic-formula solve rather than a search.
+
+part_1_recursive_multilevel_meet_in_the_middle:
+  genuinely_attempted: true
+  framing_the_tracked_objects: >-
+    Object-first framing (docs/inventor-protocol.md section 1): the
+    established family already covering this territory is the flat two-list
+    meet-in-the-middle of TASK-20260830-53a818 (tracked objects: one
+    preprocessed pair-deck's root list, size Theta(B^2), hashed; the target
+    label set, size Theta(B), swept). That family is declared off-limits as
+    the primary lens for this session. Candidate NEW tracked objects
+    considered here: (a) the raw four-way (x1,x2,x3,x4) tuple space,
+    unfactored through any pair-deck; (b) a partial 3-hop eliminant
+    E(x1,x2,x34,T) that eliminates only the inner pairing variable x12,
+    keeping x2 as an explicit swept coordinate; (c) the fully-eliminated
+    4-hop object F(x1,x34,T) that additionally eliminates x2 via a further
+    resultant against g_2. Each is scored below on genuineness, testability,
+    and survival distance, and each is checked against the lossy-projection
+    test (docs/inventor-protocol.md section 2) before its cost is trusted:
+    object (b) discards x12 entirely while retaining exactly the information
+    S_3(x1,x2,x12)=0 asserts about x2 relative to x1 and to the final
+    relation -- a genuine loss (x12 itself is never recovered or needed) that
+    is discarded COMPATIBLY with the resultant operation (resultants are
+    defined precisely to eliminate a variable while preserving the
+    vanishing-locus information the rest of the computation needs), so (b)
+    passes the test as a real new object, not a coordinate relabelling of
+    (a). Object (c) similarly discards x2, and is checked in variant_1e/1f
+    below.
+
+  variant_1a_balanced_pair_tree_two_pairs: |-
+    This IS the already-derived flat method (build g_12, g_34 in
+    preprocessing at cost B^2 each; online, loop rho in roots(g_12) [B^2] x
+    t_a in deck I [B] = B^3 combined, solve S_3(rho,x34,t_a)=0 for x34 by the
+    quadratic formula (O(1)-absorbed), hash-check membership in roots(g_34)
+    [B^2, O(1) lookup]). Reproduced here only as the baseline against which
+    every other variant below is measured, per audit_1 in
+    proof-search-map.yaml; NOT claimed as new. ONLINE COST: Theta(B^3).
+
+  variant_1b_sequential_elimination_tree: |-
+    Instead of pairing (1,2) and (3,4) independently then joining, eliminate
+    decks sequentially: x1,x2 -> x12 (degree <=2B^2, as in 1a); x12,x3 ->
+    x123 via Res_x12(g_12, S_3(x12,x3,x123)), degree bound
+    <= deg(g_12)*deg_{x123}(S_3) = 2B^2 * 2 = 4B^2 in x123 (using the SAME
+    Sylvester degree bound rcrep-candidate-definition.yaml's own
+    degree_bookkeeping applies: deg_z(Res_x(f,g)) <= deg_x(f)*deg_z(g) +
+    deg_x(g)*deg_z(f)); x123,x4 -> x1234, degree <= deg(x123-poly)*2 =
+    4B^2*2 = 8B^2... continuing this chain the DEGREE of the fully-combined
+    intermediate object grows by a factor of order B at the FIRST pairing
+    step (B*B -> B^2) but only by a CONSTANT factor (2) at each subsequent
+    sequential fold-in (since each subsequent step eliminates against a
+    FIXED-degree-2 relation applied to an already-large object, not against
+    another fresh B-size deck via resultant -- wait: eliminating x123
+    against deck 3's OWN g_3 (degree B) is the genuinely expensive step, not
+    the S_3 application). Re-deriving with deck sizes explicit: building
+    x123 from x12 (size B^2, from decks 1,2) and deck 3 (size B) via
+    Res_x3(g_3, S_3(x12,x3,x123)) then Res_x12(g_12, [that]) costs, by the
+    same bound, degree <= B*2=2B in x123 for the first sub-step then
+    <= 2B^2 * 2B = 4B^3 in x123 for the second -- i.e. sequential folding
+    multiplies the running degree by B at EVERY step past the first, not
+    just the first. After folding in all four decks this way: B^2 (after
+    1,2) -> B^3 (after +3, matching the 4B^3 figure above up to constants)
+    -> B^4 (after +4). MATERIALIZING this final object, or even just
+    point-testing it against the B-size target set the way variant 1a does,
+    costs AT LEAST Theta(B^4) online (B^3-size intermediate swept against
+    B targets, or the B^4-degree final object evaluated once per target).
+    This is STRICTLY WORSE than variant 1a's Theta(B^3). CONCLUSION: the
+    balanced (pair-then-pair-then-join) tree of 1a is not an arbitrary
+    choice -- an unbalanced (sequential) tree is a genuine, checkable,
+    strictly worse alternative, confirming (not merely assuming) that
+    balancing the recursion tree matters and that 1a already picked the
+    better of the two natural tree shapes.
+
+  variant_1c_direct_S5_no_intermediate_pairing: |-
+    Use the canonical S_5(x1,x2,x3,x4,T) directly (degree exactly
+    2^(5-2) = 8 in EACH variable, KN-TECH-002, kb -- already noted as a
+    ROBUSTNESS CHECK, not the headline construction, in
+    rcrep-candidate-definition.yaml's own degree_bookkeeping). No
+    intermediate pair-deck is built. Online: loop over ALL FOUR primitive
+    decks directly (x1,x2,x3,x4 each in deck 1..4, B choices each) = B^4
+    combined tuples; for each, solve S_5(x1,x2,x3,x4,T)=0 for T (degree
+    exactly 8, O(1)-absorbed via a fixed-degree root-finder), hash-check
+    against deck I [O(1)]. ONLINE COST: Theta(B^4). STRICTLY WORSE than
+    variant 1a's Theta(B^3) (by exactly one power of B): going FLATTER
+    (skipping the pair-deck precomputation entirely) trades away the
+    Theta(B^2) precomputed pair-deck's benefit and returns to enumerating
+    all four primitive decks online. This directly confirms that the
+    pair-deck precomputation step (a genuinely EARLIER recursion level, done
+    in the preprocessing phase where its B^2 cost is free under the 2.25
+    cap) is load-bearing, not incidental.
+
+  variant_1d_three_hop_partial_elimination_new_decomposition: |-
+    GENUINELY NEW decomposition, not present in TASK-20260830-53a818.
+    Eliminate ONLY the inner pairing variable x12 (not x2) via
+    E(x1,x2,x34,T) := Res_x12( S_3(x1,x2,x12), S_3(x12,x34,T) ). Using the
+    same Sylvester bound (deg_z(Res_y(f,g)) <= deg_y(f)*deg_z(g) +
+    deg_y(g)*deg_z(f)) with f = S_3(x1,x2,x12) [deg_x12(f)=2, deg_x1(f)=2,
+    deg_x2(f)=2, deg_{x34,T}(f)=0] and g = S_3(x12,x34,T)
+    [deg_x12(g)=2, deg_x34(g)=2, deg_T(g)=2, deg_{x1,x2}(g)=0]: deg_x1(E) <=
+    deg_x12(g)*deg_x1(f) + deg_x12(f)*deg_x1(g) = 2*2+2*0 = 4; identically
+    deg_x2(E) <= 4, deg_x34(E) <= 4, deg_T(E) <= 4. RE-CHECKED twice
+    independently (once by direct substitution of the bound's two terms per
+    variable, once by symmetry of the formula in (x1,x2) vs (x34,T)): E has
+    degree AT MOST 4 in EVERY one of its four remaining variables, a FIXED,
+    B-INDEPENDENT bound -- x12 has genuinely vanished from the picture, and
+    the fixed-low-degree property (the mechanism enabling O(1)-absorbed
+    solves) survives one full elimination step.
+    USING E: loop over (x1, x2, T) = B*B*B = B^3 combined choices (x2 is
+    kept as an EXPLICIT swept coordinate here, not eliminated); for each,
+    E(x1,x2,x34,T)=0 is a polynomial of degree <=4 in the single remaining
+    unknown x34 -- solve directly (O(1)-absorbed, fixed-degree root-finder),
+    hash-check the <=4 candidate x34 values against the preprocessed
+    roots(g_34) set [O(1) each]. ONLINE COST: Theta(B^3). EXACTLY MATCHES
+    variant 1a via a genuinely different, independently-derived
+    decomposition -- this is real corroboration (a second, structurally
+    distinct route landing on the identical exponent), not a restatement of
+    1a's own reasoning; it satisfies this task's requirement for a
+    genuinely-attempted recursive decomposition distinct from the flat
+    method, while being honest that it does not IMPROVE on it.
+
+  variant_1e_four_hop_full_elimination_of_x2: |-
+    Push the recursion one level further: eliminate x2 as well, via
+    F(x1,x34,T) := Res_x2( g_2(x2), E(x1,x2,x34,T) ). Using the same bound
+    with deg_x2(g_2)=B and deg_x2(E)<=4: deg_x34(F) <= deg_x2(E)*deg_x34(g_2)
+    + deg_x2(g_2)*deg_x34(E) = 4*0 + B*4 = 4B; identically deg_T(F) <= 4B,
+    deg_x1(F) <= 4B. RE-DERIVED and confirmed: eliminating x2 via a further
+    resultant against the degree-B object g_2 REINSTATES a degree-Theta(B)
+    dependency in the remaining variables, DESTROYING the fixed-degree
+    property that made variant 1d's O(1)-absorbed solve possible. This is a
+    genuinely new mechanism (an elimination-degree-blowup argument), derived
+    independently of, but landing on the identical qualitative conclusion
+    as, TASK-20260830-53a818's own nearby-object control (which substituted
+    a hypothetical growing-degree RELATION for S_3 itself; this variant
+    instead ELIMINATES a further deck via an ADDITIONAL resultant, a
+    different operation producing the same kind of degradation). Costing the
+    online phase from F: loop over (x1,T) = B^2 combined (x2 is now fully
+    eliminated, no longer swept); for each pair, F(x1,x34,T)=0 is degree
+    <=4B in the single unknown x34 -- full root extraction of a degree-O(B)
+    polynomial over F_p costs Omega(B) to Omega(B^{1+epsilon}) via standard
+    distinct-degree/Cantor-Zassenhaus-style factoring (recalled, standard;
+    same convention TASK-20260830-53a818's nearby-object control already
+    used and this task adopts unchanged), then O(1)-absorbed hash-checks
+    per extracted root. TOTAL: B^2 * B^{1+epsilon} = Theta(B^{3+epsilon}).
+    STRICTLY WORSE than variant 1d's exact Theta(B^3).
+  variant_1f_attempted_rescue_via_gcd_corrected_after_an_arithmetic_error: |-
+    AN ERROR CAUGHT AND CORRECTED, reported rather than silently fixed, per
+    this task's honesty requirement. First pass reasoned that replacing
+    variant 1e's full root-extraction with a targeted GCD,
+    gcd(F(x1,.,T), g_34(.)), might avoid the O(B^{1+epsilon}) factoring cost
+    and reproduce Theta(B^3). RE-DERIVED CAREFULLY: g_34 itself has degree
+    Theta(B^2) (two-pairs reading), so a SINGLE such GCD computation must, at
+    minimum, touch (read/process) g_34's Theta(B^2)-size representation --
+    it cannot cost less than Omega(B^2) regardless of the algorithm used
+    (fast GCD algorithms are output- and input-size-linear-ish, not
+    sublinear in the larger operand). Since this GCD must be performed ONCE
+    PER (x1,T) PAIR (B^2 of them, because F(x1,.,T) genuinely differs for
+    each pair), the TRUE total cost is B^2 (loop) * B^2 (per-pair GCD
+    touching g_34) = Theta(B^4) -- WORSE than both variant 1e's
+    Theta(B^{3+epsilon}) and variant 1d's Theta(B^3), not a rescue to
+    Theta(B^3) as first (incorrectly) estimated. The corrected conclusion:
+    among the two ways to complete variant 1e's four-hop elimination
+    (root-extract-then-hash vs. GCD-against-the-full-preprocessed-object),
+    root-extraction (Theta(B^{3+epsilon})) is the cheaper of the two, and
+    BOTH are worse than keeping x2 as an explicit swept coordinate (variant
+    1d, exact Theta(B^3)). This strengthens, rather than weakens, the
+    method-class finding below: there is no rescue of the fully-eliminated
+    variant via a smarter final-step subroutine that this session could
+    find.
+
+  one_pair_reading_recursion_analysis: |-
+    Under the one-pair reading there are exactly THREE objects (D_12, D_34,
+    deck I, each size B, per proves-too-much-control-results.yaml's own
+    object_3 reconstruction), joined by a SINGLE application of S_3 -- no
+    intermediate pair-deck exists to recurse into (D_12, D_34 are, by this
+    reading's own definition, primitive raw occurrence data, not built from
+    smaller sub-decks). This is the base case of the recursion, not a case
+    where recursion was skipped: fixing any two of the three size-B objects
+    and analytically solving for the third (via S_3's fixed degree 2) gives
+    loop size B*B=B^2 with the third object accessed via an O(1) hash check
+    -- by symmetry, all three choices of which object to loop over vs. hash
+    give the identical Theta(B^2) bound (already found, unimproved,
+    coefficient-vector-free per TASK-20260830-53a818). No further recursive
+    decomposition applies because there is nothing smaller than a primitive
+    deck to decompose into under this reading.
+
+  class_ceiling_conclusion: |-
+    GENUINELY DERIVED (not merely observed), scoped explicitly to the
+    stated assumptions. ASSUMPTION NAMED: decks are generic (no special
+    algebraic relation among their points beyond what H-CREP-001's own
+    "generic ordinary elliptic curve" cost-model assumption states; a
+    special/non-generic configuration, such as the PRE-3-new finding that
+    this exact chain's own worked example accidentally satisfies P1 = -2*P2,
+    is explicitly excluded from this class-ceiling claim and is a separately
+    flagged, unexploited possibility -- see part_3 below). GIVEN
+    genericity, four independent decompositions (1a flat, 1c direct-S5, 1d
+    three-hop, 1e/1f four-hop) and one structural argument (1b sequential
+    tree) were checked; the best online cost found by ANY of them, across
+    BOTH the two-pairs and one-pair readings, is EXACTLY the
+    already-known Theta(B^3) / Theta(B^2) bound -- no recursive variant
+    beats it, and several are strictly worse. The DERIVED mechanism
+    explaining why: any application of S_3 requires exactly 2 of its 3
+    slots to be an explicit, already-available (looped-over or hashed)
+    value to get an O(1)-absorbed solve for the third; eliminating a further
+    deck via an ADDITIONAL resultant (rather than keeping it as a swept
+    loop variable) reinstates a degree-Theta(B) dependency in the remaining
+    free variables (variant 1e/1f), canceling the benefit; and the smallest
+    achievable "hashed" auxiliary object, given two independent B-size
+    decks combined via a fixed-degree-2 relation, is generically
+    Theta(B^2) (g_12/g_34's own degree, which is not reducible below this
+    under the stated genericity assumption because a resultant's degree
+    bound is generically tight for independent generic inputs -- recalled,
+    standard resultant theory; not separately re-derived here beyond the
+    upper-bound computations already shown). CONSEQUENCE: this establishes
+    a METHOD-CLASS ceiling (covering the whole family of
+    fixed-degree-relation, point-test-via-analytic-inversion
+    constructions, including every recursive variant checked here), not
+    merely the single flat method's ceiling TASK-20260830-53a818 already
+    derived -- a genuinely broader, though still explicitly scoped and
+    non-universal, result. It does NOT reach H-CREP-001's caps under either
+    reading.
+
+part_2_wagner_style_generalized_birthday:
+  genuinely_attempted: true
+  setup_identifying_the_lists_and_match_condition: >-
+    The plain F_p equality this construction ultimately needs, stated
+    precisely: for the two-pairs reading, does there exist rho in
+    roots(g_12), sigma in roots(g_34), with S_3(rho, sigma, t_a) = 0 in
+    F_p, for a given target t_a? (One-pair reading: identical statement with
+    rho in D_12, sigma in D_34 directly.) This is naturally read as a 3-list
+    matching problem: L1 = roots(g_12) [or D_12], L2 = roots(g_34) [or
+    D_34], L3 = deck I; a witness is a triple (rho, sigma, t_a), one per
+    list, satisfying the joint constraint S_3(rho,sigma,t_a) = 0 over F_p.
+    Wagner's generalized-birthday k-list algorithm (recalled from David
+    Wagner, 'A Generalized Birthday Problem', CRYPTO 2002 -- no dedicated
+    corpus KN-LIT entry for the primary paper itself was found this session;
+    downstream analyses ARE in the corpus and were read, see below) is the
+    named candidate for exactly this shape of problem: k independent lists,
+    one match condition. This is genuinely attempted, not dismissed without
+    analysis.
+
+  leg_i_non_additive_separability_derived: |-
+    DERIVED, checkable directly from the S_3 formula (KN-TECH-002, kb):
+    S_3(x1,x2,x3) = (x1-x2)^2*x3^2 - 2*((x1+x2)*(x1*x2+a)+2*b)*x3 +
+    ((x1*x2-a)^2-4*b*(x1+x2)). Wagner's algorithm, in EVERY rigorously
+    analyzed variant this corpus holds (the exact bit/coordinate-quotient
+    case for (Z/2)^n, and the Z/N-generalizations reviewed in leg_iii
+    below), is calibrated to an ADDITIVELY SEPARABLE match condition: a1 +
+    a2 + ... + ak = 0 (or the XOR analogue), where fixing all but one
+    argument leaves a condition LINEAR (degree exactly 1) in the remaining
+    one. CLAIM: S_3 is NOT of this form. PROOF (elementary, direct): if
+    S_3(x1,x2,x3) equalled f1(x1)+f2(x2)+f3(x3) for any functions f1,f2,f3,
+    then for FIXED x1,x2, S_3 as a polynomial in x3 alone would have degree
+    AT MOST 1 (since f3(x3) is the only x3-dependent term in an additive
+    decomposition, forcing deg_x3 <= deg(f3), and no other term contributes
+    x3-dependence). But S_3's own leading term in x3 is (x1-x2)^2*x3^2,
+    degree EXACTLY 2 in x3 for GENERIC x1 != x2 (coefficient (x1-x2)^2 != 0
+    generically) -- a direct contradiction. Hence S_3 (and, by the same
+    argument applied to any two of its five variables with the leading
+    coefficient of the third checked nonzero, S_5, degree 8 in each
+    variable per KN-TECH-002) is genuinely, provably NOT additively
+    separable. This is not a recalled fact about Wagner's algorithm; it is
+    an original, directly-checkable degree argument about THIS specific
+    relation, done here.
+
+  leg_ii_exact_quotient_homomorphism_blocked_by_prime_order: |-
+    Even setting leg_i aside, check the EXACT/strict Wagner-tree combining
+    rule specifically (the route that would let an exact, no-error
+    coordinate split work regardless of additive structure). This
+    program's own corpus already contains a DIRECTLY relevant, independently
+    VALIDATED result: KN-FIND-ffe1df (internal, read this session), Theorem
+    C: 'a [Wagner] tree must invert f in each argument to index buckets, so
+    f is a quasigroup. Exact sum-compatibility plus associativity of + on E
+    forces f associative; an associative quasigroup is a group; so h is a
+    surjective homomorphism E(F_p) -> ([M],f), impossible for N prime and
+    M < N.' KN-FIND-ffe1df records that 'The Validator independently
+    confirmed Theorem C in full' -- this specific sub-result survived
+    independent review even though the entry's larger headline claim (a
+    bucket-averaged barrier for j=2) was separately WITHDRAWN by its own
+    red-team pass for an unrelated reason (conflating an averaged quantity
+    with a worst-case one); Theorem C's group-theoretic argument is
+    unaffected by that withdrawal and is cited here for exactly that narrow,
+    validated content, not for the withdrawn headline. RE-DERIVED
+    independently for THIS task's own object (not merely copy-pasted):
+    F_p's additive group (Z/p, +) is, for p PRIME, a SIMPLE group (Lagrange's
+    theorem: any subgroup's order divides p, so the only subgroups are the
+    trivial one and the whole group -- recalled, standard elementary group
+    theory), hence it has NO nontrivial proper quotient group of any size
+    1 < M < p. An EXACT Wagner-style coordinate split requires a nontrivial
+    surjective homomorphism h from the ambient group onto a smaller group
+    [M] compatible with the combining operation (this is exactly what makes
+    bit-truncation on (Z/2)^n work: reduction mod 2^ell IS a group
+    homomorphism (Z/2)^n -> (Z/2)^ell). No such h exists from (F_p,+) for
+    any 1 < M < p, by the identical mechanism KN-FIND-ffe1df's Theorem C
+    already established for E(F_p) and the identical mechanism round 10's
+    P1553 mixed-radix closure (ledger/goals/GOAL-ECDLP-001/goal.yaml,
+    preadmission_dispatch_queue_path_trigger_search_10_terminal_note_20260830)
+    already established for the curve's own prime subgroup order N (a CRT
+    decomposition of Z/N requires N composite with pairwise-coprime
+    factors, which a prime N cannot supply). H-CREP-001's own stated cost
+    model makes BOTH p and N prime (F_p is by definition a prime field; 'a
+    public prime-order subgroup of order N' is H-CREP-001's own assumption
+    text) -- so no matter which of the two natural ambient groups a future
+    attempt tried to build an exact coordinate split around, the identical
+    prime-order obstruction recurs. THIS PART OF ROUND 10'S CLOSURE
+    TRANSFERS DIRECTLY, as the SAME underlying algebraic fact (prime order
+    blocks CRT/quotient decomposition) applied to a different specific
+    object (F_p's additive group and, redundantly, N again), not merely by
+    analogy.
+
+  leg_iii_known_zp_generalizations_do_not_rescue_it: |-
+    Genuinely checked whether a DIFFERENT, non-exact Wagner generalization
+    -- one that does not need a strict quotient homomorphism -- could route
+    around leg_ii. The corpus holds three relevant, previously-read
+    downstream analyses: KN-LIT-1188 ('A Concrete Analysis of Wagner's
+    k-List Algorithm over Zp', Joux-Kippen-Loss, eprint 2024/282, kb, read
+    status per SOURCES.md but flagged in its own frontmatter as an
+    abstract-level, not full-text, prior read -- 'claims are relayed from
+    the paper's abstract without independent verification', so this
+    session's use of it is correspondingly hedged) and KN-LIT-1280 ('On
+    Wagner's k-Tree Algorithm Over Integers', eprint 2024/1612, kb, same
+    abstract-level hedge). Both describe rigorous analyses of Wagner's
+    k-list/k-tree algorithm for the k-SUM problem over Z_p or Z (INTEGER
+    ADDITION), which is known (recalled, standard folklore in this specific
+    literature line, corroborated by these two abstract-level entries and
+    by KN-LIT-3264's remark that Wagner's algorithm 'in some special cases
+    performs much more efficiently than in the general case') to admit a
+    genuine generalization NOT requiring the modulus to be composite: the
+    trick there is an INTERVAL/near-collision filter (partial sums
+    restricted to a bounded magnitude window), which is compatible with
+    ordinary integer/modular ADDITION regardless of whether the modulus is
+    prime, because addition accumulates magnitude information linearly and
+    independently of primality. THIS DOES NOT RESCUE the present problem,
+    because leg_i already establishes the match condition here is NOT a sum
+    in the first place -- the interval/near-collision trick is exactly as
+    reliant on additive separability as the exact bit-quotient trick is (a
+    'small partial sum' is only a meaningful, independently-computable
+    per-list quantity when the combining operation IS addition); it has no
+    known analogue for a genuinely quadratic, cross-multiplicative
+    constraint like S_3. So even granting that SOME Wagner-style
+    generalizations tolerate a prime modulus, none of them tolerate a
+    non-additive match condition, and this problem's match condition is
+    non-additive (leg_i). This is stated as a genuinely checked,
+    non-dismissive negative finding, not an assumption.
+
+  leg_iv_enumeration_vs_existence_mismatch: |-
+    An orthogonal, compounding point, not required for the primary
+    impossibility argument but recorded as forward guidance. Wagner's
+    algorithm and its k-SUM/k-tree relatives are EXISTENCE/sampling
+    algorithms: list sizes are tuned so the expected number of solutions is
+    O(1), and the algorithm is not designed to enumerate ALL solutions
+    cheaply. H-CREP-001 requires the EXACT, COMPLETE support of z_R (every
+    extendible label among the B-sized target set, per its own
+    predictions' 'exactly 0' symmetric-difference requirement) -- a
+    completeness/enumeration requirement structurally mismatched to
+    Wagner's design goal. Even in a counterfactual world where legs i-iii
+    were not obstacles, adapting a Wagner-style search to guarantee full
+    enumeration of all (up to Theta(B)) solutions would generically cost an
+    extra factor related to the number of solutions, eroding much of any
+    hypothetical asymptotic gain.
+
+  proves_too_much_control: |-
+    TWO nearby-object controls, both genuinely computed, per this task's
+    corrected-discipline requirement (DEC-20260830-69fb4d's flagged
+    precision lapse in the prior round's own control is the standard being
+    held to here).
+    CONTROL A (checks leg_i/leg_iii do not over-generate 'Wagner never works
+    mod a prime'): nearby object = a HYPOTHETICAL version of this same
+    5-deck problem where the joint relation were literally additive,
+    x1+x2+x3 = 0 (mod p), rather than S_3. Applying leg_i's own separability
+    test to this hypothetical relation: fixing x1,x2, the relation in x3 IS
+    degree exactly 1 -- it PASSES the additive-separability test. Per
+    leg_iii, the known Zp/interval generalization of Wagner's algorithm
+    (KN-LIT-1188/1280) WOULD apply to this hypothetical additive nearby
+    object, regardless of p being prime. My argument therefore correctly
+    predicts a DIFFERENT outcome (Wagner-applicable) for this nearby object
+    than for the real S_3-based relation (Wagner-blocked) -- it does NOT
+    universally forbid Wagner whenever the modulus is prime; it specifically
+    and only forbids it for THIS relation's non-additive, degree-2-in-each-
+    variable shape. This is the correct, non-'proves-too-much' behavior:
+    an argument that blocked Wagner for BOTH the real and the hypothetical
+    additive nearby object would be suspect (over-generating an implausible
+    blanket claim contradicted by KN-LIT-1188/1280's own real results); this
+    one does not.
+    CONTROL B (checks leg_ii's prime-order claim is genuinely about
+    primality, not an artifact of this derivation): nearby object = the
+    SAME 5-deck problem but with the ambient group replaced by a
+    hypothetical COMPOSITE-order group of order N' = n1*n2 (matching round
+    10's own positive control convention, ledger/goals/GOAL-ECDLP-001/
+    goal.yaml, preadmission_dispatch_queue_path_trigger_search_10_terminal_
+    note_20260830). In THIS hypothetical, Z/N' DOES admit a genuine
+    nontrivial surjective group homomorphism onto Z/n1 (the CRT
+    projection) -- so leg_ii's specific obstruction (no exact quotient
+    homomorphism exists) would NOT apply in this hypothetical, confirming
+    leg_ii is genuinely about primality and not a universal artifact of
+    this task's reasoning. IMPORTANT DISCLOSED LIMITATION: even in this
+    composite-order hypothetical, legs i and iii STILL block Wagner,
+    because the deeper obstruction (S_3's non-additivity) has nothing to do
+    with the group's order -- this is recorded explicitly as forward
+    guidance: removing the prime-order obstacle alone would NOT open this
+    door; only a future reformulation making the underlying joint relation
+    itself additively separable could, and no such reformulation of the
+    Semaev relation is known to this session.
+
+  round_10_transfer_analysis_explicit: |-
+    Per this task's explicit brief: round 10's mixed-radix closure
+    (P1553-MIXED-RADIX-TWO-RESTRICTION-CORRECTION-20260827-0fbb54 and
+    P1553-MIXED-RADIX-THREE-DECK-CORRECTION-20260825-55000d) closed a
+    DIFFERENT sub-question (a CRT-componentwise recurrence for the SCALAR
+    exponent's mixed-radix digits, over the curve's prime subgroup order N)
+    for THREE stated reasons: (i) N prime blocks CRT; (ii) no ring map
+    bridges g_I's label polynomial ring and the integer radix; (iii) the
+    interface is stated entirely additively with no pairing/multiplicative
+    structure. Reason (i) TRANSFERS DIRECTLY here as leg_ii (same
+    algebraic fact, prime order blocks CRT/quotient decomposition, applied
+    to F_p's additive group and, redundantly, to N again). Reasons (ii) and
+    (iii) DO NOT transfer as stated -- they were about the SPECIFIC gap
+    between the label polynomial ring and the scalar radix ring, and about
+    that OTHER problem's additive-only interface, neither of which is the
+    present question's structure (here the relevant relation, S_3, is
+    NOT additive at all, which is a DIFFERENT and, per leg_i, MORE
+    fundamental obstruction than round 10's reason (iii) that the interface
+    'defines no pairing... so no unit-product identity is available' --
+    round 10 was asking whether an ADDITIVE interface could be recast
+    multiplicatively; this task finds the interface here is already
+    non-additive from the start, which blocks Wagner for an even more
+    direct reason). So: round 10's closure transfers in MECHANISM (one of
+    its three legs, prime order vs. CRT) but not in ENTIRETY, and this
+    task's own leg_i is a genuinely new, independently-derived obstruction
+    not present in round 10's argument at all.
+
+  conclusion_wagner: |-
+    Wagner-style generalized-birthday does NOT apply to accelerate z_R's
+    support-finding beyond the already-derived Theta(B^3)/Theta(B^2) bound,
+    for three independently-checked, stacked reasons (leg_i: the match
+    condition is provably non-additive; leg_ii: even the exact-quotient
+    special case is blocked by F_p's and N's prime order; leg_iii: the one
+    known non-exact Zp-generalization of Wagner still requires additive
+    separability, which leg_i already rules out here), plus one orthogonal
+    compounding mismatch (leg_iv: existence-search vs. exact-enumeration).
+    Both proves-too-much controls pass (the argument correctly predicts the
+    OPPOSITE conclusion on a genuinely additive nearby object, and correctly
+    localizes leg_ii's mechanism to primality specifically via a composite-
+    order nearby object). This is recorded as a genuine, derived,
+    controlled closure of the NAMED sub-avenue 'Wagner-style generalized-
+    birthday via a coordinate-splitting match condition', per
+    docs/inventor-protocol.md section 4's standard -- NOT as a claim that
+    no construction of any kind can reach H-CREP-001's caps (see
+    outcome-card.yaml for how this is scoped in the overall disposition).
+
+part_3_other_genuinely_new_routes_considered:
+  route_a_fast_multipoint_evaluation_of_rR: |-
+    Genuinely considered: use fast multipoint evaluation (Borodin-Moenck
+    lineage, already a named H-CREP-001 structural ingredient for
+    ROUTE-04-multipoint-evaluation, experiments/EXP-CREP-001/specification.yaml
+    frozen_route_set) to evaluate r_R at all B target points via one
+    subproduct-tree pass, batching what variant 1a does pointwise. FINDING:
+    this requires r_R (or R_1) already available in COEFFICIENT form
+    (degree Theta(B^4) two-pairs / Theta(B^2) one-pair) BEFORE the
+    multipoint evaluation can begin -- i.e. it presupposes exactly the
+    materialization step this whole obligation exists to avoid. This
+    COLLIDES with (is not independent of) ROUTE-04, an already-frozen,
+    already-costed route in H-CREP-001's own eight-route set; it is not a
+    new route and is not claimed as one. Rejected for a stated, concrete
+    reason, not merely on inspection.
+  route_b_polynomial_black_box_evaluation_instead_of_hash_membership: |-
+    Considered replacing variant 1a's O(1) hash-set membership test
+    (against a preprocessed root list) with a direct polynomial evaluation
+    g_34(sigma) =? 0 using g_34's coefficient form. FINDING: evaluating a
+    fixed degree-D polynomial at ONE new point costs Theta(D) by Horner's
+    method, with no known sub-linear single-point evaluation algorithm for
+    an arbitrary polynomial absent extra structure (a single evaluation
+    can, information-theoretically, depend on all D coefficients). Since
+    D = Theta(B^2) (two-pairs) or Theta(B) (one-pair) here, this is WORSE
+    than the existing O(1)-per-query hash-membership test the already-found
+    construction uses. Rejected: strictly dominated, not a new capability.
+  route_c_batched_gcd_against_the_running_target_stream_via_ROUTE_07: |-
+    Considered whether ROUTE-07-subresultant-hgcd (already a frozen route
+    in H-CREP-001's own set) could be adapted to batch variant 1a's per-
+    target quadratic solves via a half-gcd chain rather than per-pair hash
+    lookups. This is precisely the object explored (and found NOT to help,
+    variant_1f) in part_1 above under a different name; recorded here to
+    make the observation-collision with ROUTE-07 explicit rather than
+    silent, per this task's honesty requirement.
+  route_d_probabilistic_monte_carlo_sampling_of_the_BxB_pairs: |-
+    Considered accepting a probabilistic (not exact) support estimate by
+    sampling only a random subset of the B^2/B^3 candidate pairs.
+    REJECTED FOR A CONCRETE, STATED REASON, not on inspection: H-CREP-001's
+    own falsification_conditions and predictions require 'exact support
+    equality against the reference gcd on every chart stratum and zero
+    replay error' and 'exactly 0' symmetric difference -- a probabilistic
+    shortcut that could miss an extendible label FAILS this exactness
+    obligation outright, independent of any cost benefit it might offer; it
+    is not a candidate construction under H-CREP-001's own frozen success
+    criterion, so no cost analysis is even attempted for it.
+  route_e_batching_the_OB_solves_via_a_shared_precomputation: |-
+    Considered whether the B (or B^2) individual O(1)-absorbed quadratic
+    solves in variant 1a/1d could be amortized below O(1) each via a shared
+    precomputation (e.g. a single large Tonelli-Shanks-style square-root
+    table). FINDING: each individual solve is ALREADY at the O(1)
+    (constant, polylog-absorbed) floor per H-CREP-001's own assumption
+    clause; batching can only affect the absorbed polylog/constant factor,
+    never the B-exponent, so no exponent-level gain is possible from this
+    route by construction. Rejected for a stated reason (already at floor),
+    not dismissed without analysis.
+  route_f_symmetric_function_tracked_object: |-
+    Considered tracking the elementary symmetric functions of a deck's
+    points as a more compact summary object than the deck's full root list.
+    LOSSY-PROJECTION TEST APPLIED (docs/inventor-protocol.md section 2):
+    g_12's own coefficients (as a polynomial) ARE precisely the elementary
+    symmetric functions of its roots -- this is a change of COORDINATES on
+    the already-used g_12 object (same information, same size Theta(B^2)),
+    not a new, smaller, genuinely lossy object. FAILS the lossy-projection
+    test (nothing new is discarded); not pursued further, and not claimed
+    as a new route.
+
+cost_summary_table:
+  two_pairs_online_naive: 4
+  two_pairs_online_flat_mitm_1a: 3
+  two_pairs_online_three_hop_1d: 3
+  two_pairs_online_sequential_tree_1b: 4
+  two_pairs_online_direct_S5_1c: 4
+  two_pairs_online_four_hop_rootfind_1e: '3+epsilon'
+  two_pairs_online_four_hop_gcd_1f: 4
+  two_pairs_online_wagner_style: not_applicable_see_part_2
+  one_pair_online_naive: 2
+  one_pair_online_best_found: 2
+  online_cap_fresh_target_online_exponent_cap_in_B: 1.25
+  preprocessing_cap_preprocessing_exponent_cap_in_B: 2.25
+  interpretation: >-
+    Every recursive/alternative decomposition attempted either exactly
+    reproduces the already-known Theta(B^3) (two-pairs) / Theta(B^2)
+    (one-pair) bound, via a genuinely different derivation, or is strictly
+    worse. No route in parts 1-3 reaches the 1.25 online cap under either
+    reading. Preprocessing objects used by every non-worse variant (raw
+    decks B, pair-decks B^2, hash sets over their roots) remain comfortably
+    within the 2.25 preprocessing cap, matching TASK-20260830-53a818's own
+    finding; this was not re-litigated as it was not in question.
+
+honest_limitations: |-
+  (1) Zero-compute symbolic derivation; no construction here was executed
+  against the frozen verifier or recorded instances, so none of these
+  bounds are machine-checked in the EXP-CREP-001 sense. (2) The
+  class-ceiling claim in part_1 is scoped to GENERIC decks (H-CREP-001's own
+  stated cost-model assumption) and to the family of fixed-degree-relation,
+  point-test-via-analytic-inversion constructions actually enumerated here
+  (five decompositions plus one structural argument); it is not a claim
+  that covers every conceivable construction of any kind. (3) The Wagner
+  closure in part_2 is scoped to 'Wagner-style generalized-birthday via a
+  coordinate-splitting match condition' specifically, drawing on this
+  program's own already-validated KN-FIND-ffe1df Theorem C and round 10's
+  P1553 closure for the prime-order leg, plus an original non-additive-
+  separability argument (leg_i) and two corrected proves-too-much controls;
+  it is likewise not a universal impossibility claim. (4) KN-LIT-1188 and
+  KN-LIT-1280 (leg_iii) are cited at the ABSTRACT-LEVEL verification their
+  own corpus entries disclose ('claims are relayed from the paper's
+  abstract without independent verification') -- this session did not
+  fetch or read the primary sources beyond what the existing corpus record
+  already summarizes; the underlying Zp-generalization claim is corroborated
+  but not independently re-verified against the primary text by this
+  session. (5) An arithmetic error made mid-derivation (variant 1f's first-
+  pass 'GCD rescue' estimate) was caught and corrected within this same
+  report, per this task's explicit constraint to check every load-bearing
+  step; the corrected figure (Theta(B^4), not a rescue to Theta(B^3)) is
+  what is reported in the cost_summary_table. (6) One un-exploited,
+  explicitly flagged, non-generic possibility is noted but not pursued:
+  proves-too-much-control-results.yaml's own PRE-3-new finding that the
+  worked example's SPECIFIC deck choice happens to satisfy an exact
+  algebraic relation (P1 = -2*P2) among its points; whether SOME non-generic
+  deck configurations admit a smaller pair-deck (breaking the Theta(B^2)
+  genericity floor part_1's class-ceiling assumes) is not examined here and
+  is named as an open direction.
+
+citations:
+  - {ref: 'Semaev summation polynomial S_3 formula and degree exactly 2 in each variable; S_n degree 2^(n-2)', source: 'knowledge/techniques/KN-TECH-002.md', provenance: kb, claim: 'S_3 formula and fixed-degree facts used throughout part_1 and leg_i', verified_by: TASK-20260831-cdecb2}
+  - {ref: 'Point-decomposition index calculus, m=2 solvable directly, m>=3 needs Groebner methods', source: 'knowledge/techniques/KN-TECH-003.md', provenance: kb, claim: 'context for why the fixed-degree-2 structure of S_3 is special', verified_by: TASK-20260831-cdecb2}
+  - {ref: 'Wagner k-tree over E(F_p) needs a cheaply computable filter that is a quotient homomorphism; Theorem C -- prime N precludes a nontrivial surjective homomorphism onto a smaller group, independently confirmed by the Validator pass', source: 'knowledge/findings/KN-FIND-ffe1df.md', provenance: internal, claim: 'Theorem C specifically (validated); the withdrawn bucket-averaged headline claim of the same entry is explicitly NOT relied upon', verified_by: TASK-20260831-cdecb2}
+  - {ref: 'Round 10 P1553 mixed-radix closure: prime N blocks a CRT-componentwise recurrence', source: 'ledger/goals/GOAL-ECDLP-001/goal.yaml, preadmission_dispatch_queue_path_trigger_search_10_terminal_note_20260830', provenance: internal, claim: 'the prime-order-blocks-CRT mechanism, whose transfer to this task is explicitly analyzed in round_10_transfer_analysis_explicit', verified_by: TASK-20260831-cdecb2}
+  - {ref: 'A Concrete Analysis of Wagner''s k-List Algorithm over Zp, Joux-Kippen-Loss, eprint 2024/282', source: 'knowledge/literature/KN-LIT-1188.md', provenance: kb, claim: 'rigorous Zp-generalizations of Wagner''s k-list algorithm exist; cited at the abstract-level verification the corpus entry itself discloses, see honest_limitations item 4', verified_by: TASK-20260831-cdecb2}
+  - {ref: 'On Wagner''s k-Tree Algorithm Over Integers, eprint 2024/1612', source: 'knowledge/literature/KN-LIT-1280.md', provenance: kb, claim: 'k-Tree algorithm for average-case k-SUM over integers, additive by definition; same abstract-level hedge as KN-LIT-1188', verified_by: TASK-20260831-cdecb2}
+  - {ref: 'Wagner''s generalized birthday algorithm sometimes performs much more efficiently in special cases', source: 'knowledge/literature/KN-LIT-3264.md', provenance: kb, claim: 'corroborating context only, not load-bearing', verified_by: TASK-20260831-cdecb2}
+  - {ref: 'David Wagner, A Generalized Birthday Problem, CRYPTO 2002', source: 'model recollection; no dedicated corpus KN-LIT entry for the primary paper was found this session', provenance: recalled, claim: 'the original k-list generalized-birthday tree construction and its bit/coordinate-splitting mechanism', verified_by: null}
+  - {ref: 'Sylvester resultant degree bound deg_z(Res_x(f,g)) <= deg_x(f)*deg_z(g) + deg_x(g)*deg_z(f)', source: 'standard commutative algebra; same formula already used and independently re-derived by rcrep-candidate-definition.yaml degree_bookkeeping and by this task''s own part_1 computations', provenance: recalled, claim: 'used for every degree bound in part_1', verified_by: null}
+  - {ref: 'Lagrange''s theorem: subgroup order divides group order; a group of prime order is simple', source: 'standard elementary group theory', provenance: recalled, claim: 'basis for leg_ii''s claim that (F_p,+) has no nontrivial proper quotient', verified_by: null}
+  - {ref: 'Distinct-degree factorization / Cantor-Zassenhaus cost Omega(B^{1+epsilon}) for a degree-B polynomial over F_p', source: 'standard computational algebra; same convention already used by TASK-20260830-53a818''s nearby-object control', provenance: recalled, claim: 'cost of variant 1e''s root-extraction step', verified_by: null}
+  - {ref: 'g_I roots are literal deck-I occurrence x-coordinates; D_12/D_34 are bare primitive decks under the one-pair reading', source: 'coordination/goals/GOAL-ECDLP-001/proposals/B71-RCREP-DEFINITION-DRAFT-20260830-351be7/tasks/TASK-20260830-351be7/rcrep-candidate-definition.yaml and coordination/goals/GOAL-ECDLP-001/proposals/B71-RCREP-DEFINITION-REVIEW-20260830-495939/tasks/TASK-20260830-031380/proves-too-much-control-results.yaml', provenance: retrieved, claim: 'deck structure and one-pair reading object_3 reconstruction', verified_by: TASK-20260831-cdecb2}

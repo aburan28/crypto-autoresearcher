@@ -1,0 +1,272 @@
+idea:
+  id: IDEA-20260816-acdc1d
+  question_id: RQ-INSTR-f8faa0
+  added: '2026-08-16'
+  title: Instrument this repository's own Python routines with a bytecode-level event tracer and report
+    the mutual information, in bits per invocation, between the emitted (branch-outcome, container-index)
+    event string and the secret input, with the estimator's own floor measured in the same run on
+    a secret-independent arm.
+  class: measurement
+  claim: '(A) THE OBJECT. For any Python routine f(secret, public) executed under a bytecode-level
+    tracer, define the event string E(secret, public) as the ordered sequence of tuples (code-object
+    identity, source line, branch-outcome bit for every conditional jump, integer index for every
+    subscript of a list, bytes, or dict). E is exactly the part of an execution that a control-flow-and-address
+    observer would see, and nothing more: no operand values, no timings, no wall-clock quantity of
+    any kind. (B) THE CLAIM. The quantity I(S ; E) -- mutual information between a secret-derived
+    label S and the event string, estimated over N invocations with public inputs freshly randomised
+    each time -- is computable in this environment, is reproducible to within a stated confidence
+    interval, and is a strictly better-behaved statistic than any timing measurement this environment
+    can make, because it is deterministic given (secret, public) and therefore carries zero machine
+    noise. Two independent runs of the same routine on the same inputs produce byte-identical event
+    strings; the entire variance of the estimate comes from finite sampling, which is controllable,
+    rather than from scheduler jitter, which is not. (C) THE DELIVERABLE. A per-routine number, in
+    bits per invocation, with an explicitly measured estimator floor, for every routine in harness/
+    and src/ that consumes a value the surrounding record treats as secret. (D) WHAT IS NOT CLAIMED.
+    This is not a side-channel attack and not a statement about any physical device. A control-flow-and-address
+    observer is an ASSUMED adversary. Nothing here measures a cache, a power trace, or an electromagnetic
+    emission; nothing here establishes that any real attacker can observe a Python branch outcome;
+    and a nonzero I(S ; E) does not imply key recovery, because the mapping from leaked bits to recovery
+    cost is a separate question this proposal does not touch. The number produced is an upper bound
+    on what a maximally capable control-flow observer of THIS ARTIFACT could learn, under the assumption
+    that such an observer exists. (E) WHY IT IS WORTH HAVING ANYWAY. The portfolio uses leakage assumptions
+    in many records and states them qualitatively. This converts the assumption into a number that
+    a later record can cite, compare, or refute.'
+  mechanism: 'STAGE 1: build the tracer. Python''s sys.settrace with a per-opcode callback (or sys.monitoring
+    on 3.12+) gives branch-outcome events; subscript indices require a light instrumentation layer
+    that wraps the containers a target routine reads, which is done by an AST rewrite that replaces
+    Subscript nodes with a call to a recording accessor. Both are stdlib-only. STAGE 2: define the
+    secret label. For each target routine, the record that owns it names which argument is secret;
+    S is a coarse function of that argument (for a scalar, its low bit or its top three bits) so the
+    label alphabet is small and the plug-in mutual-information estimator has usable sample complexity.
+    STAGE 3: collect N traces with the secret label fixed by design (stratified: N/|S| per label)
+    and the public inputs independently random. STAGE 4: canonicalise each event string to a fixed-width
+    feature vector -- counts of each (line, branch-outcome) pair and a hash-bucketed histogram of
+    indices -- because the raw string is variable-length and unusable by a plug-in estimator. STAGE
+    5: estimate I(S ; feature vector) with the Miller-Madow-corrected plug-in estimator, and estimate
+    the SAME quantity on a label-shuffled copy of the identical data. The shuffled estimate is the
+    floor. STAGE 6: report the difference, with a bootstrap confidence interval over resampled trace
+    sets. A routine whose signal-arm estimate does not exceed its own shuffled floor by the pre-registered
+    margin is recorded as a controlled null, not as constant-time.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Read ledger/questions/RQ-INSTR-f8faa0.yaml in full. Ran: grep -rli on ledger/proposals/,
+      ledger/hypotheses/ and knowledge/ for ''side.channel|side_channel|cache.timing|constant.time|leakage''
+      (158 proposal files hit); then for ''mutual information'', ''settrace'', ''sys.settrace'', ''bytecode'',
+      ''instrument the code'', ''taint'', ''leakage rate'', ''leakage predicate'', ''constant-time''.
+      Read titles and question_id of the nearest hits: IDEA-20260816-b6de60, IDEA-20260816-967721,
+      IDEA-20260816-50d270, IDEA-20260805-2a669e, IDEA-20260816-0e6599, IDEA-20260805-2bbfb2, IDEA-20260813-945a67,
+      IDEA-20260808-19876e. Listed harness/ and src/ to confirm what code exists to instrument.'
+    results: '''mutual information'' hits several proposals, of which IDEA-20260816-b6de60 is the
+      closest in spirit: it treats a HAWK signature TRANSCRIPT as a communication channel and counts
+      bits per signature about the secret Gram matrix, with an estimator floor measured in the same
+      run. That is a channel over protocol OUTPUT. ''settrace'', ''sys.settrace'' and ''instrument
+      the code'' return zero hits anywhere in ledger/proposals/, ledger/hypotheses/ or knowledge/;
+      ''bytecode'' hits only H-ALMIG-001, in an unrelated sense. ''taint'' hits seven proposals, none
+      of which surfaced as an execution-trace channel measurement when their titles were read. No
+      record found anywhere measures a quantity derived from the execution of code in this repository''s
+      own harness/ or src/ trees.'
+    verdict: 'UNVERIFIED. No agent here can read external literature, so nothing is asserted about
+      what is published. Assembled from known parts: mutual-information leakage estimation with a
+      shuffled-label floor is the standard shape and is already used in this repository by IDEA-20260816-b6de60;
+      dynamic control-flow tracing is ordinary engineering. Claimed new to this repository only: applying
+      that estimator to the EXECUTION EVENT STRING of code this repository actually contains, rather
+      than to a protocol transcript, and reporting the result as a per-routine number with a measured
+      floor.'
+  object_first_candidate:
+    tracked_object: 'The event string E = ((line_1, b_1, i_1), (line_2, b_2, i_2), ...): for each
+      executed bytecode that is a conditional jump or a container subscript, the source line, the
+      branch-outcome bit, and the integer index. Followed through one complete invocation of the target
+      routine.'
+    lossiness: 'Genuinely lossy. Every operand value is discarded: field elements, intermediate integers,
+      the secret itself. What is retained is the control-and-address shadow. The projection is lossy
+      in the strong sense that many distinct secrets map to identical event strings -- for a Montgomery
+      ladder, ALL secrets of a given bit-length map to one string -- which is exactly the property
+      being measured. It propagates because the tracer''s output for step t+1 depends only on the
+      interpreter state at step t, so the event string is a suffix-extending function of execution:
+      each additional loop iteration appends a token determined by the control state, and no later
+      step can retroactively alter an earlier token.'
+    propagation: One iteration of the target's main loop appends a fixed-alphabet token to E. For
+      a binary double-and-add over an n-bit scalar, iteration t appends either the doubling token
+      alone or the doubling token followed by the addition token, determined by bit t of the scalar;
+      the map from scalar to event string is therefore a monoid homomorphism from the bit string into
+      the free monoid on {D, A}. For a table-lookup routine, iteration t appends the index actually
+      read. In both cases the one-step action is deterministic and defined without reference to any
+      value.
+    survival_score: 'Stated as the number of loop iterations after which the per-iteration information
+      contribution falls below the estimator floor. For a branch-free routine the object dissolves
+      immediately: E is constant across secrets and the survival length is zero iterations, which
+      is the intended reading. For a naive double-and-add the object is expected to survive the full
+      n iterations without decay, because each iteration contributes an independent token. The measured
+      survival length, not a verdict, is the deliverable.'
+  null_object_control: 'Two null arms, both executed in the same invocation as the signal arm. (i)
+    LABEL-SHUFFLED NULL: the identical feature vectors with the secret labels permuted uniformly at
+    random, re-estimated 200 times; this measures the estimator''s own floor at the achieved sample
+    size and alphabet, and is the number the signal must beat. (ii) SECRET-INDEPENDENT NULL: the identical
+    tracer and identical estimator run on a routine executed with the secret argument pinned to one
+    fixed public constant while public inputs vary, labelled with a freshly drawn label independent
+    of everything. For the measurement to mean anything the null must return an estimate whose bootstrap
+    confidence interval covers zero and whose point estimate sits within the shuffled floor''s interval;
+    if a secret-independent arm returns a nonzero estimate, the featureisation is confounded and no
+    signal-arm number is reportable.'
+  discriminated_from:
+  - 'IDEA-20260816-b6de60 (HAWK transcript as a channel, bits per signature about the secret Gram
+    matrix, floor measured in-run): same estimator discipline, different object. That proposal''s
+    observable is the released signature vector, which every verifier legitimately holds; this proposal''s
+    observable is an execution event string that no protocol participant is given, and which is therefore
+    an ASSUMED rather than a granted observation. The two produce non-substitutable numbers.'
+  - 'IDEA-20260816-967721 (HQC fixed-weight sampler against an exact-uniform Fisher-Yates null): shares
+    the matched-null discipline but measures the OUTPUT DISTRIBUTION of a sampler against an ideal,
+    not the execution trace of an artifact.'
+  - 'Timing measurement in general, including the 15+ existing RQ-INSTR-f8faa0 proposals on machine
+    variance and single-machine timing: this proposal deliberately measures no time. The event string
+    is deterministic given inputs, so its estimate carries zero machine-noise component and is not
+    an audit of this environment''s timing fidelity.'
+  - 'Static constant-time verification tools as a category: those decide a property; this estimates
+    a quantity with a confidence interval and a measured floor, and can report ''below floor'' rather
+    than ''verified constant-time'', which is the honest verdict available to a sampling instrument.'
+  - 'IDEA-20260816-50d270 (second independent implementation of a decoder, cross-checked bit-for-bit,
+    calibrated with seeded mutations): shares the calibrated-instrument philosophy but its object
+    is decoder agreement, not a leakage quantity.'
+  assumptions:
+  - An adversary who observes every conditional-branch outcome and every container index of a Python-level
+    execution is ASSUMED to exist; this environment cannot demonstrate one.
+  - CPython's traced branch events are a faithful record of the source-level control flow of the target
+    routine, which holds for pure-Python code and fails for anything executed inside a C extension.
+  - The secret label S is a sufficient coarsening of the secret for the question being asked; a routine
+    could leak about the full secret while leaking nothing about the chosen label.
+  - The fixed-width featureisation of a variable-length event string preserves the dependence being
+    measured; a dependence carried only by token ORDER beyond the recorded features would be missed.
+  - Plug-in mutual-information estimation at the achieved sample size has a floor that the shuffled-label
+    arm measures correctly.
+  predictions:
+  - metric: Miller-Madow-corrected I(S ; features) minus the label-shuffled floor, in bits per invocation,
+      for a deliberately branchy reference double-and-add over a 16-bit scalar with S = the scalar's
+      low bit
+    direction: higher
+    minimum_effect: 0.5
+  - metric: the same quantity for a Montgomery-ladder reference routine over the same scalars
+    direction: lower
+    minimum_effect: forced value 0.0 bits, since the ladder emits a constant event string by construction;
+      any estimate whose confidence interval excludes 0 is an instrument fault, not a finding
+  - metric: secret-independent null arm estimate
+    direction: lower
+    minimum_effect: forced value 0.0 bits within the shuffled floor's 95 percent interval
+  - metric: byte-identity of the event string across two repeat executions with identical inputs
+    direction: different
+    minimum_effect: 'forced value: 100 percent identical over 1000 repeats; any deviation means the
+      tracer is capturing environment state and invalidates the run'
+  minimal_test:
+    design: 'Write three reference routines in one file: a naive binary double-and-add, an always-double-and-add,
+      and a Montgomery ladder, all over the toy curve arithmetic already present in harness/toycurve.py,
+      at a field size small enough that a full run costs microseconds. Trace 4000 invocations of each,
+      stratified 2000/2000 over the low bit of a uniformly random 16-bit scalar, with the base point
+      re-randomised every invocation. Featureise, estimate, and in the SAME process run the label-shuffled
+      arm 200 times and the secret-independent arm at the same N. Report three numbers per routine:
+      point estimate, shuffled floor, and their difference with a bootstrap interval. The discrimination
+      is immediate and cheap: the ladder must return zero and the naive routine must not, and if that
+      ordering does not appear the instrument is wrong before any real target is touched. Total cost
+      is minutes of single-core CPU and no external dependency.'
+    controls:
+    - Label-shuffled arm, 200 permutations, executed in the same process as the signal arm.
+    - Secret-independent arm with the secret pinned to a public constant.
+    - 'Montgomery-ladder positive-zero control: a routine whose event string is constant by construction
+      and must return exactly the floor.'
+    - 'Naive double-and-add planted-signal control: a routine whose event string is a bijective encoding
+      of the scalar and must return a large value.'
+    - 'Determinism control: 1000 repeat executions on identical inputs must produce byte-identical
+      event strings.'
+    - Sample-size sweep at N in {500, 1000, 2000, 4000} to show the estimate and its floor both converge
+      rather than drifting.
+    required_metrics:
+    - I(S ; features) point estimate in bits per invocation
+    - label-shuffled floor, mean and 95 percent interval
+    - signal-minus-floor difference with bootstrap interval
+    - event-string length distribution per routine
+    - number of distinct event strings observed per routine
+    - fraction of repeat executions producing byte-identical strings
+    - per-routine tracing overhead in wall seconds, reported as cost only and never as a leakage quantity
+  falsification_conditions:
+  - 'The Montgomery-ladder control returns a signal-minus-floor difference whose interval excludes
+    zero: the instrument is confounded and no number is reportable.'
+  - The secret-independent null arm returns a nonzero estimate at the pre-registered margin.
+  - Repeat executions on identical inputs produce differing event strings, showing the tracer records
+    environment rather than program state.
+  - The naive double-and-add control fails to exceed its floor by 0.5 bits at N=4000, showing the
+    instrument cannot detect a leak that is present by construction.
+  - The estimate fails to converge across the sample-size sweep, drifting monotonically with N.
+  confounders:
+  - Python-level tracing changes execution enough to alter which branches run in code that inspects
+    its own frames; targets must be checked for frame introspection.
+  - Featureisation collapses order information, so a routine could leak through token order and be
+    scored zero.
+  - Small label alphabets make the plug-in estimator biased upward at small N; the shuffled arm measures
+    this but only at the achieved N.
+  - Public-input randomisation that is not independent of the secret would create a spurious dependence.
+  - Code executed inside C extensions or numpy emits no branch events, so a leaky routine can score
+    zero for the wrong reason.
+  interpretation_limits:
+  - A nonzero number bounds what an ASSUMED control-flow observer could learn about the chosen label;
+    it is not evidence that such an observer exists or that any physical channel carries the information.
+  - A zero result means 'below this instrument's floor at this sample size for this label', never
+    'constant-time'.
+  - Nothing measured here transfers to a compiled implementation of the same algorithm, whose branch
+    structure may differ entirely.
+  - Bits per invocation do not convert into key-recovery cost without a separate model that this proposal
+    does not supply.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The deliverable is a measured information quantity,
+      not an algorithm.
+    memory_exponent: No attack exponent is claimed. Instrument memory is O(event-string length) per
+      invocation, which is linear in the traced routine's operation count.
+    best_known: Within this repository, the nearest incumbent instrument is IDEA-20260816-b6de60's
+      transcript-channel estimator for HAWK, which measures bits per signature about a secret from
+      protocol output. There is no incumbent that measures anything from the execution of this repository's
+      own code.
+    hidden_overhead: 'Tracing overhead is roughly two orders of magnitude, which caps achievable N
+      and therefore caps the floor -- the instrument''s sensitivity is bought with CPU time and the
+      exchange rate is unfavourable. The human cost is larger: choosing the secret label and the featureisation
+      are judgment calls that determine the answer, and a reader who sees only the final number cannot
+      see them.'
+  dominated_by: n/a (no result claimed). No time/memory/data attack cost is produced, so there is
+    no frontier row for this to occupy. The nearest cost-bearing frontier in this repository is the
+    memory-charged nonce-leakage frontier proposed in IDEA-20260815-1ac849; this proposal produces
+    a potential INPUT to such a frontier and never a point on it. Every frontier axis was considered
+    and none applies.
+  sota_delta: no attack; conceptual/measurement contribution only. Quantitatively, the contribution
+    is a per-routine number in bits per invocation with a measured floor, where the current state
+    is a qualitative assumption with no number at all; the delta is therefore from undefined to a
+    bounded interval, and no comparison against any attack cost is offered or possible.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'That the tracer produces deterministic, byte-identical event strings
+    for pure-Python targets: 0.9, because CPython tracing is well-specified and the targets are simple.
+    That the three-routine calibration ordering appears as predicted (ladder at floor, naive well
+    above): 0.85, because the ordering follows from the construction rather than from any hypothesis.
+    That the estimator''s floor is low enough to say something non-trivial about a routine NOT built
+    as a control -- i.e. that the instrument is useful rather than merely correct: 0.4, because real
+    routines in harness/ may have small or featureisation-invisible dependences. That any number produced
+    here is later cited by a record making a security-relevant argument: 0.25, because the gap between
+    an assumed control-flow observer and anything obtainable is large and honest reporting of that
+    gap tends to shrink the citation.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-INSTR-f8faa0
+  - IDEA-20260816-b6de60
+  - IDEA-20260816-967721
+  - IDEA-20260816-50d270
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - AGENTS.md
+  - harness/toycurve.py
+  - harness/ctrl_valueshuffle.py
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SIDECH-572048

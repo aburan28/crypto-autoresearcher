@@ -1,0 +1,94 @@
+experiment:
+  id: EXP-TTN-001
+  hypothesis_id: H-TTN-001
+  version: 1
+  status: approved
+  title: "TTN contraction of the recursive Semaev tensor: measured bond ranks and truncated recall (candidate C2)"
+  objective: >
+    Measure, over exact F_p arithmetic, the bond ranks of the balanced recursion-tree
+    flattenings of the Semaev summation-polynomial tensors S_m, and the recall of
+    rank-chi-truncated (CUR, exact-arithmetic) bond factorizations for solution
+    counting on a factor-base grid. Decide whether the chi needed for recall >= 0.99
+    grows with exponent < 1 in the per-variable degree d = 2^(m-2) (promotion gate),
+    >= 1.9 (disproof trigger), or in between. Compare dense symbolic resultant cost
+    (MX-1478 analog) against contraction-based counting.
+  inputs:
+    primes: [101, 431, 1009]                 # from candidate C2 minimal falsifying experiment
+    m_values: [3, 4, 5]                      # from candidate C2 minimal falsifying experiment
+    seeds: [20260717, 20260718, 20260719]    # handoff minimum-3 protocol seeds
+    curve_generation: "per (p, seed): seeded RNG picks a,b in F_p, reject 4a^3+27b^2=0; E: y^2=x^3+ax+b"
+    factor_base:
+      construction: "all x in F_p with x^3+ax+b a quadratic residue (x-coords of E(F_p)); seeded sample without replacement"
+      size_by_m: {"3": 24, "4": 14, "5": 9}  # executor-chosen so |FB|^m in [1.4e4, 6e4]; expected zeros ~ |FB|^m/p >= ~14
+      fallback: "if fewer x-coords available than requested, take all and record deviation"
+    tensor_construction:
+      S3: "closed form (x1-x2)^2 x3^2 - 2((x1+x2)(x1 x2+a)+2b) x3 + (x1 x2-a)^2 - 4b(x1+x2)"
+      S4: "symbolic formal-degree resultant Res_X(S3(x1,x2,X), S3(X,x3,x4)) over F_p"
+      S5: "symbolic formal-degree resultant Res_X(S3(x1,x2,X), S4(X,x3,x4,x5)) over F_p, alarm cap 300 s; on cap -> failed_infrastructure for that cell, NOT evidence"
+      tensor: "coefficient array of S_m, side n = 2^(m-2)+1 per variable (m=3:3, m=4:5, m=5:9)"
+    bonds:
+      growth_family: "balanced split {x1..x_floor(m/2)} | rest: m=3 {x1}|{x2,x3} (3x9); m=4 {x1,x2}|{x3,x4} (25x25); m=5 {x1,x2}|{x3,x4,x5} (81x729)"
+      secondary: "m=5 child bond {x1,x2,x3}|{x4,x5} (729x81); single-variable flattenings {x1}|rest as context"
+    truncation: "prefix-CUR over F_p: Gaussian elimination (partial pivoting, first-available row, deterministic) gives pivot rows R, cols C with M[R_k,C_k] invertible for every prefix k; M_hat_chi = M[:,C_chi] * M[R_chi,C_chi]^-1 * M[R_chi,:]; exact at chi = rank"
+    chi_grid: "chi = 1..chi_full on the growth-family bond (and m=5 child bond as secondary)"
+    counting: "eval tensor E = T contracted with factor-base Vandermonde V[j,e]=x_j^e along every axis (numpy int64 mod p, products < 9*p^2 << 2^63); count zeros of E over the |FB|^m grid"
+    recall: "recall(chi) = |zeros(E_hat_chi) cap zeros(E_exact)| / |zeros(E_exact)|; false positives recorded separately; undefined if exact count = 0 (recorded)"
+  controls:
+    positive:
+      - id: P1
+        name: "Semaev S3 baseline reproduction"
+        check: "20 seeded random (P,Q) pairs per curve: S3(x(P),x(Q),x(-(P+Q))) == 0 for all"
+      - id: P2
+        name: "S4 definition cross-check"
+        check: "symbolic S4 evaluation equals per-point formal-degree Sylvester resultant of univariate S3 polys at 200 seeded random points per cell"
+      - id: P3
+        name: "CUR exactness at full rank (no machinery leakage)"
+        check: "at chi = rank, reconstructed tensor == original tensor exactly, for every Semaev bond and every random-control tensor"
+      - id: P4
+        name: "exact contraction reproduces exact solution counts (internal S3/S4/S5 harvester)"
+        check: "contraction eval tensor equals direct-definition eval tensor at EVERY grid tuple: m=3 closed-form eval; m=4 per-tuple formal Sylvester 2x2 resultant; m=5 per-tuple formal Sylvester 2x4 resultant using T4; implies identical zero counts"
+    negative:
+      - id: N1
+        name: "random tensors of identical shape are full rank"
+        check: "seeded uniform-F_p random tensor, same shape: growth-family bond rank == min(flattening dims) for every cell (else measurement artifact); if Semaev tensors are also full rank that is the scoped negative"
+      - id: N2
+        name: "no spurious recall"
+        check: "random-tensor recall at the Semaev matched chi is recorded (expected near 0); no threshold, context only"
+  independent_variables: [p, m, seed]
+  metrics:
+    primary:
+      - "chi_full(m, p): exact F_p rank of the growth-family bond"
+      - "chi_needed(m, p): min chi with pooled-across-seeds recall >= 0.99"
+      - "growth exponent alpha: least-squares slope of log2 chi vs log2 d, d = 2^(m-2), m in {3,4,5}, per p; promotion gate alpha < 1; disproof trigger alpha >= 1.9; dense reference 1.979 (MX-1478, cited from candidate text)"
+      - "recall curves per cell"
+    secondary:
+      - "beta: slope of chi_full vs log2(p) at fixed m (field-size dependence)"
+      - "dense symbolic resultant wall time per (p,m) (MX-1478 analog; toy constant factors only)"
+      - "contraction-count wall time per cell; S_m term counts (dense materialization blow-up)"
+      - "m=5 child-bond ranks/recall; single-variable bond ranks; false-positive counts; random-control ranks/recalls"
+  replication:
+    seeds: [20260717, 20260718, 20260719]
+    independent_instances: 27   # 3 p x 3 m x 3 seeds
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_wall_clock_seconds: 2400
+    maximum_runs: 8
+  stopping_rules:
+    - "any single sage invocation > 600 s: kill, record infrastructure timeout (NOT evidence), reduce seeds (min 20260717..20260719) or sizes, record deviation"
+    - "symbolic S5 for a cell capped at 300 s by in-script alarm: cell failed_infrastructure, recorded, not evidence"
+  invalidation_rules:
+    - "any of P1-P4 or N1 fails -> validity_status invalid with reason"
+    - "FB smaller than requested -> deviation recorded (not automatic invalidation)"
+    - "exact zero count = 0 in a cell -> recall undefined for that cell, recorded; pooled recall still reported if pool nonempty"
+  success_criterion: "numbers produced for all primary metrics with controls passing; the promotion gate (alpha < 1) is arithmetic on measured chi, not a verdict by the executor"
+  falsification_criterion: "predefined disproof trigger: measured chi(m) fit exponent >= 1.9, or exhibition of a full-rank bond slice family; executor reports which predefined condition the numbers satisfy"
+  required_artifacts:
+    - specification.yaml
+    - ttn1_semaev_contraction.sage
+    - runs/RUN-TTN-001-a/manifest.yaml
+    - runs/RUN-TTN-001-a/raw.json
+    - runs/RUN-TTN-001-a/stderr.txt
+    - runs/RUN-TTN-001-a/stdout.txt
+    - analysis.md
+  assigned_to: executor
+  approved_by: coordinator

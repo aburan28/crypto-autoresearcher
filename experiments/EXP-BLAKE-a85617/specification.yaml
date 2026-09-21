@@ -1,0 +1,235 @@
+experiment:
+  id: EXP-BLAKE-a85617
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-6e0226; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-6e0226
+  question_id: RQ-BLAKE-584719
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Enumerate every compression-function input tuple produced by a declared finite class of BLAKE3
+    inputs, modes and tree shapes with chaining values held symbolic, and check the encoding's injectivity
+    against planted-breakage null arms.
+  objective: 'The one uncertainty a run reduces is whether BLAKE3''s mode can present two semantically
+    distinct inputs identically to its compression function within a stated finite class. Decomposed:
+    (i) whether the mode''s routing -- flags, counter, block length, initial state selection -- is
+    computable from structural properties alone, which is the precondition that makes a solver-free
+    symbolic audit valid at all, and which is answered by reading the pinned specification and recording
+    every place the reference implementation could be resolving an ambiguity; (ii) whether, over the
+    declared class C of inputs, keys, context strings, modes and tree shapes, any two distinct semantic
+    labels map to the same tuple (cv_slot_label, block_bytes, block_len, counter, flags), enumerated
+    exhaustively with no sampling; (iii) whether the enumerator has any detection power at all, established
+    by running the identical enumeration over deliberately broken variants of the same mode in the
+    same invocation and requiring every planted collision to be found and localised to the field that
+    was broken. A run does NOT reduce uncertainty about the compression function''s strength, about
+    inputs outside C, or about the security of any system using BLAKE3.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: over class C -- inputs up
+      to L bytes including the enumerated boundary lengths, modes {unkeyed, keyed with key set K,
+      key-derivation with context set X and both stages}, and all tree shapes those lengths induce
+      -- the map from semantic input descriptions to compression-function input tuples was found injective
+      (or found to collide on the listed pairs), with N distinct inputs and M compression calls enumerated,
+      and with the planted-breakage arms detecting P of P planted pairs. What does NOT follow: anything
+      about inputs longer than L, keys outside K, or contexts outside X; anything about the compression
+      function''s collision or preimage resistance, which the audit deliberately never evaluates;
+      any security statement about BLAKE3 or about any deployed system; and any suggestion that C
+      is a natural boundary rather than a budget-shaped one.'
+  inputs:
+    procedure: 'STAGE 0 (cost: agent time, zero compute): pin the BLAKE3 reference, validate against
+      all published test vectors including keyed, key-derivation and multi-chunk cases. STAGE 1 (cost:
+      the bulk of the agent time, zero compute): read the pinned specification and write E explicitly
+      -- per mode and tree position, the exact tuple -- recording every ambiguity where the reference''s
+      reading could differ from the text. STAGE 2 (cost: low): write the instrumented pure-Python
+      re-implementation; require output agreement with the pinned reference on every vector. STAGE
+      3 (cost: seconds): build the planted-breakage null arms and enumerate the minimal class; require
+      full detection and localisation before proceeding. STAGE 4 (cost: minutes to low hours, CPU
+      only): enumerate the full class C on the real mode, logging every labelled tuple. STAGE 5 (cost:
+      low): group and check for collisions; hand re-derive every candidate before recording it. STAGE
+      6 (cost: low): the chaining-value-permutation control re-run. STAGE 7 (cost: agent time): write
+      the class boundary, the enumerated counts, and the explicit list of regions left outside C.'
+    instrument: Python 3.11, standard library only for the enumeration -- a dict keyed by the non-symbolic
+      tuple fields, values being lists of semantic labels. Pinned BLAKE3 C reference driven via ctypes
+      for the test-vector gate; the instrumented mode is a pure-Python re-implementation whose compression
+      call is a logging stub returning a fresh opaque symbol. Orchestration, seeding of the structured
+      key and context sets, and manifest emission via harness/runner.py. No solver, no SAT, no MILP,
+      and no Sage -- RQ-BLAKE-584719 states this audit needs no solver and introducing one would import
+      budget failure modes into a finite check.
+    parameters: 'Input lengths: the exhaustive set {0, 1, 2, 63, 64, 65, 127, 128, 129} bytes plus,
+      for chunk size s read from the specification, {s-1, s, s+1, 2s-1, 2s, 2s+1, 3s, 4s-1, 4s, 4s+1,
+      8s, 8s+1} and every length straddling a power-of-two subtree boundary up to L = 16 chunks. Modes:
+      unkeyed; keyed with |K| = 8 structured keys (all-zero, all-one, single-bit-set, single-bit-clear,
+      two keys differing in one bit, and two drawn from a recorded seed); key-derivation with |X|
+      = 8 context strings of the same character, both stages enumerated. Byte content: for each length,
+      4 structured contents (all-zero, all-one, counter bytes, one recorded pseudorandom) -- content
+      variety matters for labelling, not for routing, and this is stated. Null arms: 4 planted breakages.
+      Total enumerated inputs bounded and reported exactly.'
+  controls:
+  - Planted-breakage null arms (constant flags, dropped counter, dropped block length, merged keyed/unkeyed
+    initial states), each enumerated over the identical class C in the same invocation, with detection
+    required.
+  - 'Test-vector precondition: the pinned reference must pass all published vectors including keyed,
+    key-derivation and multi-chunk cases before instrumentation.'
+  - 'Trace-agreement control: the instrumented re-implementation''s outputs must equal the pinned
+    reference''s on every test vector.'
+  - 'Symbolic-chaining-value control: re-run the whole enumeration with chaining-value labels randomly
+    permuted; the collision verdict must be unchanged, confirming no result depends on numeric content.'
+  - 'Boundary-length control: the class must explicitly include 0, 1, chunk_size-1, chunk_size, chunk_size+1
+    and lengths straddling each power-of-two subtree boundary, and the record must show they were
+    visited.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The null object is a DELIBERATELY BROKEN mode of identical shape: the
+    same tree walk with the same tuple structure, but with the flag word forced to a constant (or
+    with the chunk counter omitted from the tuple), so that the encoding is known a priori to be non-injective.
+    The IDENTICAL enumeration, over the identical class C, in the same invocation, must FIND collisions
+    in the null. What the null must show for the signal arm to mean anything: the enumeration must
+    report a nonzero and correctly localised collision count on the broken mode -- specifically it
+    must identify, as a semantic-label pair, at least one pair the constructor knows it planted. If
+    the enumerator reports the broken mode clean, the enumerator does not detect collisions and a
+    clean report on the real mode means nothing whatsoever. This is the difference between an audit
+    and an assertion that an audit ran, and it is executable in the same invocation because the broken
+    mode is the same code with one argument changed. Run several planted breakages of different kinds
+    (constant flags, dropped counter, dropped block length, keyed and unkeyed initial states merged)
+    so that detection sensitivity is measured per field rather than once.'
+  independent_variables:
+  - input length
+  - mode (unkeyed | keyed | key-derivation stage 1 | key-derivation stage 2)
+  - key or context string
+  - input byte content pattern
+  - arm (real | planted-breakage variant)
+  metrics:
+    primary:
+    - count of colliding semantic-label pairs in the real mode
+    - count and field-localisation of detected planted pairs per null arm
+    - number of distinct compression-call tuples enumerated
+    - number of distinct inputs enumerated
+    - declared bounds of C
+    secondary:
+    - wall-clock of the enumeration
+    - peak tuple-table size
+    - count of specification ambiguities recorded at STAGE 1
+    - verdict stability under the chaining-value-permutation control
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: 'Predicted: the collision count on the real mode over C, and the detection rate on the
+      planted-breakage arms.'
+    formula: 'Collisions_real(C) = 0 is the pre-registered prediction, where a collision is defined
+      as two distinct semantic labels s1 != s2 with E(s1) = E(s2) under the tuple equality (cv_slot_label,
+      block_bytes, block_len, counter, flags) and cv_slot_label compared as a symbol. Simultaneously
+      pre-registered: DetectionRate = detected_planted_pairs / planted_pairs = 1.0 on every null arm,
+      with each detection localised to the field that was broken. The clean verdict is reportable
+      ONLY IF DetectionRate = 1.0; otherwise the run reports an enumerator of unknown sensitivity
+      and no verdict.'
+    source: Pre-registered in the parent proposal IDEA-20260816-6e0226 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested parameters are inputs up to 16 chunks, 8 keys and 8 context strings --
+      a toy class by any measure, and labelled as such. NO EXTRAPOLATION TO LARGER INPUTS IS ASSUMED
+      OR PERFORMED: the deliverable is precisely the boundary of the enumerated class, and the record''s
+      value depends on stating that boundary rather than on reaching past it. The one structural transfer
+      that IS argued, and must be argued explicitly rather than assumed, is that 16 chunks realise
+      every tree-shape case (chunk start, chunk interior, chunk end, parent at multiple heights, root
+      at multiple heights, and the single-chunk special case) at least once; if the specification
+      admits a shape not realised below 16 chunks, L rises or that shape is named as outside C.'
+    correspondence: null
+  tail_checks:
+  - Inspect the largest-length inputs individually, since the deepest tree positions are the ones
+    a smaller class would miss.
+  - Check the zero-length and one-byte inputs by hand, where special-casing concentrates.
+  - Verify that every tree shape the specification admits below L actually appears in the enumerated
+    trace, rather than assuming the lengths chosen induce them.
+  - Examine whether any planted breakage was detected only at large lengths, which would indicate
+    the detection rate at small lengths is lower than reported.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - HALT before STAGE 4 if any planted-breakage arm is not fully detected and localised.
+  - HALT at STAGE 2 if the instrumented re-implementation disagrees with the pinned reference on any
+    published vector.
+  - HALT and escalate to maintainer disclosure, before writing any other record, if a candidate collision
+    in the real mode survives hand re-derivation.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run succeeds if the planted-breakage arms are fully detected and localised,
+    the full declared class C is enumerated with no sampling, the verdict is stable under the chaining-value-permutation
+    control, and the record states C's exact bounds together with the explicit list of regions left
+    outside it -- whether the real-mode collision count is zero or nonzero.
+  falsification_criterion:
+  - Planted-breakage detection rate below 1.0.
+  - Instrumented re-implementation disagrees with the pinned reference on any vector.
+  - A routing decision found at STAGE 1 to depend on chaining-value content.
+  - Class C not fully enumerable within budget at its declared bounds.
+  - Verdict changes under the chaining-value-permutation control.
+  - A tree shape admitted below L that the enumerated lengths never realise.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-6e0226
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - Chunk size, flag-word layout, counter width and length-encoding details are read from the pinned
+    specification, which is not yet filed as a KN-LIT entry in this repository. RQ-BLAKE-584719's
+    first constraint blocks approval until it is.
+  - Whether 16 chunks realises every admissible tree shape is an argument that must be written before
+    L is fixed; a Coordinator must accept or raise L.
+  - The semantic labelling scheme is described but not specified to the level that guarantees no two
+    distinct inputs share a label; that specification is required before approval because it is the
+    single point where a clean result can be produced vacuously.
+  - Whether the audit is scoped to the specification or to the pinned reference implementation is
+    resolved only by STAGE 1's ambiguity list, which does not exist yet.

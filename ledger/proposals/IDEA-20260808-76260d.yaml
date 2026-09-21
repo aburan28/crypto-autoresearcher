@@ -1,0 +1,217 @@
+idea:
+  id: IDEA-20260808-76260d
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  title: The wide trail theorem IS an LP dual certificate - so the real question is the INTEGRALITY
+    GAP of the active-S-box program, and measuring it says exactly how much structure a MILP
+    exploits that a solver-free machine cannot certify.
+  class: theory
+  claim: 'Write the minimum-active-S-box problem for r-round AES as the integer program: binary
+    variables x_{i,j} for "byte j active at round i", the MixColumns constraint that for each
+    column either all 8 input and output bytes are inactive or at least 5 are active (branch
+    number 5), objective the sum of x. TWO CLAIMS. (i) The classical 4-round bound of 25 active
+    S-boxes is EXACTLY the value of an explicit DUAL-FEASIBLE weighting - a vector of multipliers
+    on the column constraints, of size O(16r), verifiable in O(r) arithmetic with no solver
+    - i.e. the wide trail argument is a dual certificate and not merely a proof. (ii) The
+    INTEGRALITY GAP g(r), the integer optimum divided by the LP relaxation optimum, is 1 for
+    the single-key byte-oriented program at all r, but is STRICTLY GREATER THAN 1 for the
+    program that includes the key-schedule coupling constraints. The discrimination - g =
+    1 everywhere means every solver-derived bound in this family is reproducible by a poly-size
+    certificate a machine without a solver can both find and check, and "we need MILP" is
+    a statement about SEARCH rather than about certification; g greater than 1 measures, in
+    active S-boxes, exactly how much combinatorial structure the solver exploits beyond flow-and-branch
+    counting, and that number is the honest size of this environment''s capability gap.'
+  mechanism: 'The active-S-box program is a covering program whose constraint matrix is built
+    from the MDS property alone. LP duality says any feasible dual vector is a certificate
+    of a lower bound on the primal optimum. For the single-key case a dual can be written
+    down by hand: assign weight 1 to each column constraint on the two-round superbox and
+    use the branch-5 inequality twice per two rounds, which is precisely the 5x5=25 argument.
+    Extending to the key-schedule-coupled program is where it gets interesting: the coupling
+    constraints are not MDS-shaped (the key schedule mixes one word with a SubWord of another),
+    so the dual must carry multipliers of a different type, and whether a feasible dual exists
+    at the integer optimum is exactly the integrality-gap question. Because this environment
+    has no MILP solver, the practical deliverable is inverted: instead of solving to get a
+    bound, CONSTRUCT a dual and verify it, which costs O(r) arithmetic.'
+  why_not_a_renamed_known_approach: Nearest known method - MILP/CP-based automatic bound search
+    for active-S-box counts (recalled_unverified; the standard modern tool). That line SOLVES
+    the program; mine CERTIFIES it and measures the gap between the two formulations. Nearest
+    internal record - catalogue A1-10 (tensor-factorised truncated-pattern operator, an executable
+    substitute for the MILP this machine does not have), which computes the primal value by
+    a different algorithm. THE DIFFERENCE IS DUALITY - A1-10 gives a number with no certificate;
+    a dual vector gives a number ANYONE can check in O(r) arithmetic without rerunning the
+    algorithm, which is what a program built on independent mechanical re-execution (GOAL-AES-003
+    independent_review_chain) actually needs. LOSSY-PROJECTION TEST - the tracked object is
+    the DUAL vector, i.e. a weighting on constraints. It is a projection of the full trail
+    space onto its constraint-activity profile, discarding which specific trail achieves the
+    bound. Compatible with the target's operations because the constraint set is generated
+    by the round structure and the dual's feasibility is checked constraint by constraint.
+    Genuinely lossy - many trails share one dual. PASSES.
+  predictions:
+  - observable: value certified by the hand-constructed dual at r = 4, single-key, byte-oriented
+    metric: active S-boxes
+    predicted: exactly 25, matching the classical bound - the baseline reproduction gate
+  - observable: dual-certified value at r = 6, 8, 10, single-key
+    metric: active S-boxes
+    predicted: 25*floor(r/4) plus a stated remainder term, with the exact remainder pre-registered
+  - observable: integrality gap of the single-key LP relaxation
+    metric: g(r), integer optimum divided by LP optimum
+    predicted: exactly 1 for all r in 2..10
+  - observable: integrality gap with key-schedule coupling constraints included
+    metric: g_ks(r)
+    predicted: strictly greater than 1 for some r at most 10
+  - observable: certificate size and verification cost
+    metric: bytes of certificate, arithmetic operations to verify
+    predicted: O(16r) and O(16r) respectively - a full verification in well under a millisecond,
+      versus a MILP solve this machine cannot perform at all
+  minimal_test: No solver, no cryptanalytic compute. (1) Write the constraint matrix explicitly
+    for r = 2..6 from the pinned harness. (2) Construct the dual by hand for r = 4 and verify
+    feasibility by direct arithmetic; freeze as a fixture. (3) Solve the LP relaxation by
+    a self-implemented simplex (a few hundred lines, dimensions in the low thousands) OR,
+    better, by exhibiting matching primal and dual solutions so no solver is trusted. (4)
+    Obtain the integer optimum for small r by exhaustive enumeration over truncated patterns
+    - 2^16 per round is enumerable at r at most 4 - and compute g(r). (5) Repeat with key-schedule
+    coupling.
+  controls:
+  - Baseline fixture - the dual must certify exactly 25 at r=4 before any other value is reported.
+  - Primal/dual matching, so the LP value is established by exhibiting BOTH sides rather than
+    by trusting a solver implementation.
+  - Exhaustive integer optimum at small r as a mechanical check on the LP claim.
+  - Null control - run the identical construction on an SPN with branch number 2; the certified
+    value must drop accordingly, else the certificate is not seeing the MDS property.
+  confounders:
+  - The byte-oriented (truncated) model is a RELAXATION of real differential trails; a bound
+    in it is not a bound on the real probability without the standard per-active-S-box step,
+    and conflating the two is the classic error.
+  - A hand-built dual that certifies 25 may not be optimal at larger r; certifying a WEAKER
+    bound is a valid certificate and must not be reported as the optimum.
+  - Key-schedule coupling constraints are model choices; a different (equally defensible)
+    encoding can change g_ks. The encoding must be committed before measurement.
+  falsification_conditions:
+  - The hand dual does not certify 25 at r = 4 - construction wrong, stop.
+  - g(r) exceeds 1 for the single-key byte-oriented program - the LP relaxation is strictly
+    weak, which is itself the interesting result and reverses the record's headline.
+  - g_ks(r) equals 1 for all r at most 10 - the key-schedule-coupled program is also LP-certifiable,
+    so this environment's lack of a solver costs nothing in this family, which is a genuinely
+    useful capability finding.
+  - Branch-2 null certifies the same value - the certificate is not using the MDS property.
+  interpretation_limits: Truncated/byte-oriented model only, reduced-round, RQ-AES-001 ceiling.
+    A certified active-S-box count bounds trail probability only through the standard per-S-box
+    step and is not itself a security statement. Nothing here is a claim about the published
+    state of the art, which is unadjudicable in this environment in either direction.
+  assumptions:
+  - The pinned FIPS-197 harness supplies the linear layer and key schedule.
+  - numpy is installed (IDEA-20260805-78d9bd records this as a measured environment fact),
+    so exact rational arithmetic via fractions plus array bookkeeping is available.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: The truncated byte-activity model is EXACT for the constraints used - for every
+      activity pattern satisfying the branch-5 constraints there EXISTS a concrete difference
+      realising it. This is the heuristic that converts a pattern bound into a trail bound.
+    rigorous_ingredient: MixColumns is MDS, so any pattern with total weight at least 5 across
+      a column's input and output is realisable by SOME difference - provable directly from
+      MDS.
+    distribution_imitated: The standard independent-round-keys / Markov-cipher assumption
+      - each S-box transition behaves like an independent draw from the DDT.
+    validation_route: TOY, LABELLED. On the GF(2^4) analogue, exhaustively enumerate all activity
+      patterns at small r and check realisability by direct search over concrete differences;
+      report the fraction of patterns that are NOT realisable. At real-AES scale, spot-check
+      a sample of 10^4 patterns per r for realisability by constructing an explicit difference,
+      and report the failure fraction.
+    tail_checks: Report the MINIMUM-weight non-realisable pattern found, since a non-realisable
+      pattern at the optimum is exactly what would make the certified bound non-tight, and
+      the mean failure rate hides it.
+  target_complexity:
+    time_exponent: No attack. The exponent statement is about CERTIFICATION cost - O(16r)
+      arithmetic to verify a bound, versus a MILP solve that is unavailable here at any cost.
+      If g = 1 this is an exponential reduction in verification cost with zero loss of bound
+      strength, which is a tooling result and is labelled one.
+    memory_exponent: O(16r) words for the certificate; kilobytes.
+    best_known_baseline: Catalogue A1-10's tensor-factorised operator (a primal-side substitute
+      with no certificate) and the classical hand-proved 25-active-S-box bound.
+    hidden_overhead_disclosure: A dual certificate certifies the LP value, and the LP value
+      equals the integer value only if g = 1. If g exceeds 1 the certificate is honest but
+      WEAKER than the true bound, and reporting it as "the bound" would be an overclaim; the
+      record must always print the certified value and the integer value separately.
+    time_memory_tradeoff: not applicable.
+  sota_delta: 'Against internal state - this repository currently has no certified active-S-box
+    bound at all, and catalogue A1-10 proposes a primal substitute without a certificate.
+    Against the published frontier - unadjudicable, asserted in neither direction. The honest
+    headline is a CAPABILITY measurement: how much bound strength this environment forfeits
+    by having no solver.'
+  dominated_by: A MILP/CP solver dominates on expressiveness and is unavailable here - a capability
+    gap, not a Pareto win for the dual. Catalogue A1-10 dominates on generality (it computes
+    primal values for pattern families a hand-built dual may not cover) and is dominated on
+    verifiability. Checked A1-10, A2-5, A2-6, and all KN-TECH entries; KN-TECH-013 is the
+    nearest technique and is primal.
+  estimated_cost: Implementation MEDIUM (constraint matrix plus a self-implemented exact-arithmetic
+    LP or primal/dual matching); compute LOW; one to two producer slots.
+  recommended_priority: medium
+  honest_prior_of_survival: Hand dual certifying 25 at r=4 - 0.75. g(r) = 1 for the single-key
+    program - 0.6. g_ks above 1 - 0.5. A determinate capability measurement either way - 0.85.
+    The main risk is that the key-schedule encoding is a modelling choice and the answer is
+    an artifact of it, which the pre-commitment control only partly mitigates.
+  novelty_status: unverified
+  novelty_class: adaptation
+  novelty_screen: CATALOGUE_TITLES.txt A1-10 (primal substitute for MILP - nearest, and the
+    duality distinction is stated), A2-1, A2-6; EXISTING_HYPOTHESES.txt (H-AES-0e5fa1 concerns
+    an F-linear projection class at a superbox interface, not a bound program); EXISTING_PROPOSALS.txt
+    (IDEA-20260805-947f67 concerns a bounded-index subgroup repair route - different object);
+    KNOWLEDGE_BARRIERS.txt (no KN-FIND on bound certification; KN-TECH-013 is the nearest
+    technique and is primal). EXTERNAL LITERATURE NOT SCREENED - whether the integrality gap
+    of the active-S-box program has been published is UNKNOWN to this session.
+  discriminated_from: A1-10 - primal value by a different algorithm, no certificate; this
+    produces a dual vector checkable in O(r) arithmetic and measures the primal-dual gap.
+    The classical wide trail argument - this record's claim is that it IS a dual, which reframes
+    it as an instrument rather than a theorem, and then asks the question the theorem does
+    not answer (the gap under key-schedule coupling).
+  source_refs:
+  - ref: MILP/CP-based automatic search for active S-box bounds in AES-like ciphers
+    status: recalled_unverified
+    use: named as the method this record certifies rather than replaces.
+  - ref: catalogue A1-10 - tensor-factorised truncated-pattern operator
+    status: internal_catalogue_unvalidated
+  proof_search_map:
+    bottleneck: The absence of a solver, which currently makes every bound in this family
+      either hand-proved or uncomputable here.
+    baseline_embedding:
+      parameter_slice: r = 4, single-key, byte-oriented - the classical 25.
+      reproduction_check: the dual must certify exactly 25; frozen as a fixture.
+    observation_collision:
+      observable: the certified bound value.
+      distinct_preimage_search: A branch-2 SPN certifying the same value would mean the dual
+        is not reading the MDS property - the mandatory null.
+    constructive_transforms:
+    - transform: representation_reduction
+      proposed_object: the LP dual vector on column constraints
+      predicted_gain: O(16r)-time verification of a bound that otherwise needs a solver.
+    - transform: boundary_lift
+      proposed_object: extension of the dual to key-schedule-coupled constraints
+      predicted_gain: either a certified related-round bound or a measured integrality gap.
+    quantifier_order: FOR ALL r, THERE EXISTS a dual-feasible vector y_r with objective value
+      v_r such that FOR ALL activity patterns p feasible for the r-round program, weight(p)
+      is at least v_r. Note - existence of the dual is claimed, not its optimality; optimality
+      is the separate integrality-gap claim.
+    method_ceiling:
+      strongest_certifiable_claim: '"no feasible activity pattern has fewer than v_r active
+        S-boxes" - it can never certify anything about trails outside the truncated model,
+        nor about actual differential probabilities without the per-S-box step.'
+      nearby_object_control: An SPN whose linear layer is MDS but whose S-box is affine has
+        the identical activity program and identical certificate, yet is trivially broken
+        - printed beside every certified value.
+    proof_obligations:
+    - claim: dual feasibility at r=4 gives 25
+      responsibility: baseline
+    - claim: dual feasibility for general r
+      responsibility: correctness
+    - claim: LP optimum equals integer optimum, or the gap is reported
+      responsibility: strictness
+    - claim: certificate size and verification cost are O(16r)
+      responsibility: size
+    - claim: activity-pattern realisability
+      responsibility: feasibility
+    - claim: truncated-model boundary stated wherever a bound is quoted
+      responsibility: scope
+    not_applicable_reason: null

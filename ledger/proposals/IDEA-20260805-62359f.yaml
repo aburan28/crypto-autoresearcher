@@ -1,0 +1,604 @@
+idea:
+  id: IDEA-20260805-62359f
+  question_id: RQ-AES-002
+  added: '2026-08-05'
+  title: >-
+    The weighted-zero-sum vector of a plaintext-coset restriction of full-round
+    AES: four derived identities showing the integral distinguisher is ONE of its
+    256 coordinates, a translation obstruction that kills the naive statistic
+    before any compute, and the exact null of the invariant that survives
+  class: mechanism
+
+  claim: >-
+    Fix a key K, a round count r, a plaintext P, an input byte position i and an
+    output byte position j, and let f: GF(2^8) -> GF(2^8) send x to byte j of the
+    r-round AES-128 encryption of P with byte i replaced by x. f has a unique
+    representation f(x) = sum_{d=0}^{255} a_d x^d, and FOUR IDENTITIES, ALL
+    DERIVED HERE AND ALL CHECKABLE BY HAND, hold: (I1) a_0 = f(0); (I2)
+    a_{255-k} = sum_{x in GF(2^8)} f(x) * x^k for k = 1..254; (I3)
+    a_255 = sum_{x in GF(2^8)} f(x); (I4) under x -> x xor c the coefficient
+    vector transforms by the unipotent Pascal action
+    a_d -> sum_{e >= d} binom(e,d) c^{e-d} a_e. IDENTITIES I2 AND I3 SAY THAT THE
+    COEFFICIENT VECTOR IS EXACTLY THE COMPLETE VECTOR OF MONOMIAL-WEIGHTED
+    ZERO-SUMS OF THE COSET, AND THAT THE CLASSICAL BALANCE / INTEGRAL CONDITION
+    IS PRECISELY ITS SINGLE COORDINATE a_255. IDENTITY I4 SAYS THE COEFFICIENT
+    SUPPORT IS NOT AN INVARIANT, BECAUSE AES XORS A KEY BYTE BEFORE THE FIRST
+    S-BOX -- SO THE NAIVE SUPPORT STATISTIC IS DEAD BEFORE ANY EXPERIMENT, AND
+    THIS RECORD SAYS SO RATHER THAN SPENDING COMPUTE TO DISCOVER IT. The
+    invariant that survives I4 is the CO-DEGREE c(f) = 255 - deg(f), the number
+    of consecutive top coefficients that vanish; it is invariant under input
+    translation and under output affine maps, its null distribution is EXACTLY
+    Pr[c >= m] = 2^{-8m}, and its level m = 1 is the classical integral while
+    levels m >= 2 are weighted zero-sums this repository holds no measurement of.
+    The proposal is to measure the co-degree ladder at every round count from 1
+    to the full 10, against that exact null, and to convert the measured death
+    round into a SCOPED BARRIER STATEMENT at the closure standard -- completion
+    criterion C3, which GOAL-AES-002 itself names as the deliverable this
+    campaign most plausibly produces.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE COEFFICIENT VECTOR (a_0, ..., a_255) over GF(2^8) of the univariate
+      interpolation polynomial of a one-byte plaintext-coset restriction of
+      r-round AES, followed through the computation round by round; and its
+      translation-invariant quotient, the co-degree c(f) = 255 - deg(f). The
+      object is followed, not the difference, not the mask, not the multiset:
+      what propagates is a 2048-bit vector attached to each (K, P, i, j, r).
+    established_families_off_limits: >-
+      Off-limits as the primary lens, per RQ-AES-002
+      objects_declared_off_limits_as_the_primary_lens: differential and truncated
+      differential; linear and multidimensional linear; INTEGRAL / SQUARE /
+      DIVISION PROPERTY; impossible differential; meet-in-the-middle and
+      Demirci-Selcuk; boomerang and retracing boomerang; biclique; algebraic
+      (XSL-family) and Groebner; yoyo; mixture differential / exchange; subspace
+      trail; partial sums.
+      AND THIS PROPOSAL DECLARES ITS OWN OVERLAP RATHER THAN WAITING TO BE
+      CAUGHT AT IT. Identity I3 proves that coordinate a_255 IS the integral /
+      balance condition over a byte coset. THAT COORDINATE IS THEREFORE A
+      REDISCOVERY AND IS RECORDED AS ONE; it may not be reported as a finding of
+      this proposal in either direction. The proposal's content is (i) the
+      derived containment itself, which is a deduplication result this
+      repository does not hold, and (ii) the 255 OTHER coordinates and the
+      co-degree ladder they define, of which no measurement exists here. The
+      screen behind that statement is UNVERIFIED RECOLLECTION plus a search of
+      this corpus, and per RQ-AES-002's constraint block, passing it does not
+      establish novelty and failing it would not establish non-novelty.
+    newness_score: >-
+      The univariate view is the interpolation family, which this repository
+      already holds as KN-TECH-075 and records as "not applicable to bit-oriented
+      wide-trail SPNs". THE PROPOSAL DOES NOT DISPUTE THAT. It observes that the
+      corpus records the CONCLUSION without any measurement of the QUANTITY the
+      conclusion is about -- the round at which the co-degree hierarchy returns
+      to its null over a coset of a given size -- and that the measurement is
+      free, exact, and graded in exactly the way RQ-AES-002's round-count decay
+      check demands. Under the inventor protocol a conclusion with no measured
+      boundary is a candidate for reopening at its named boundary, not an
+      obstruction.
+    testability_score: >-
+      Very high and very cheap. One co-degree reading costs 2^8 encryptions plus
+      an exact GF(2^8) interpolation; a full ladder over r = 1..10, several
+      hundred keys and both coset sizes d = 1 and d = 2 fits comfortably inside
+      one producer slot on the measured envelope (numpy present, AES-NI
+      compilable). The cheapest gate is a single positive control that costs
+      seconds and can end the line.
+    survival_score: >-
+      LOW, AND SAID SO HERE RATHER THAN DISCOVERED LATER. The honest expectation
+      is that the co-degree over a d = 1 coset returns to null after very few
+      rounds and that reaching r = 10 would require a coset size whose data cost
+      exceeds anything this environment can query. The proposal is designed so
+      that this expected outcome is a DELIVERABLE (a C3 barrier with a measured
+      death round and a derived data-scaling law) and not a disappointment.
+
+  mechanism: >-
+    ALL FOUR IDENTITIES ARE DERIVED HERE. Nothing below is cited from a document
+    and nothing below is recalled. Where a number was computed by this ideation
+    session on this machine outside the harness it is labelled SESSION-COMPUTED
+    and is a candidate to re-run in-harness, never a run record.
+
+    SETUP. GF(2^8) with the FIPS-197 modulus x^8+x^4+x^3+x+1. For a function
+    f: GF(2^8) -> GF(2^8), Lagrange interpolation on all 256 points gives a
+    UNIQUE polynomial of degree <= 255, so the coefficient map f -> (a_0..a_255)
+    is a bijection between the 256^256 functions and the 256^256 coefficient
+    vectors. No information is lost by passing to coefficients; the projection is
+    in the CHOICE OF f (which fixes 15 of 16 plaintext bytes and reads 1 of 16
+    ciphertext bytes), not in the transform.
+
+    (I3) POWER SUMS. For d >= 1, sum_{x in GF(2^8)} x^d = sum_{x != 0} x^d, which
+    is 0 unless 255 | d and is 1 when 255 | d (the sum of all 255 nonzero
+    elements of a cyclic group of order 255 raised to a multiple of its exponent
+    is 255 * 1 = 1 in characteristic 2). For d = 0 the sum over all 256 points is
+    256 * 1 = 0. Hence sum_x f(x) = sum_d a_d sum_x x^d = a_255. THEREFORE THE
+    TOP COEFFICIENT IS THE COSET ZERO-SUM: a_255 = 0 is exactly the statement
+    that the byte coset is balanced at output byte j. That is the classical
+    integral condition, and it is one coordinate of 256.
+
+    (I2) WEIGHTED POWER SUMS. For 1 <= k <= 254,
+    sum_x f(x) x^k = sum_d a_d sum_x x^{d+k}. The inner sum is nonzero only when
+    255 | (d+k) with d+k >= 1; since 0 <= d <= 255 and 1 <= k <= 254 we have
+    1 <= d+k <= 509, so the only solution is d + k = 255 (d = 510 - k is out of
+    range for k <= 254 unless d = 255 and k = 255, excluded). Hence
+    a_{255-k} = sum_x f(x) x^k. THEREFORE EVERY COEFFICIENT IS A MONOMIAL-WEIGHTED
+    ZERO-SUM OF THE COSET, and the coefficient vector is the complete list of
+    them.
+
+    (I1) sum_{d} a_d 0^d = a_0 with the convention 0^0 = 1, so a_0 = f(0).
+
+    (I4) TRANSLATION COVARIANCE, AND THE OBSTRUCTION IT CREATES. Replacing x by
+    x + c (addition is XOR) and expanding, the coefficient vector transforms by
+    a_d -> sum_{e >= d} binom(e,d) c^{e-d} a_e, a unipotent upper-triangular
+    action. Two consequences, both immediate. FIRST, THE SUPPORT SIZE IS NOT
+    INVARIANT: a sparse polynomial becomes dense under translation, because
+    (x+c)^{255-2^k} is not sparse for a general exponent. SECOND, AND FATAL TO
+    THE NAIVE STATISTIC: AES applies AddRoundKey BEFORE the first SubBytes, so
+    the byte the first S-box sees is x xor k_i, and the coefficient support of
+    the byte-restriction is already the support of S(x + k), not of S(x).
+    SESSION-COMPUTED confirmation, 3 random keys, input byte 0 to output byte 0,
+    support sizes: r = 1 -> {254, 254, 255}; r = 2 -> {254, 254, 253};
+    r = 3 -> {255, 255, 255}; r = 4 -> {255, 255, 255}. The null value is 255 in
+    expectation (see the null below). SO THE SUPPORT STATISTIC IS AT ITS NULL
+    FROM ROUND ONE AND CARRIES NOTHING. THIS PROPOSAL RECORDS THAT AS ITS OWN
+    FIRST FALSIFICATION, BEFORE ANY EXPERIMENT IS REQUESTED, AND REPLACES THE
+    STATISTIC ACCORDINGLY.
+
+    THE INVARIANT THAT SURVIVES. Under the unipotent action of I4 the
+    triangularity means the HIGHEST nonzero index is preserved: deg(f) is
+    invariant under input translation, and it is invariant under an output affine
+    map y -> u*y + v with u != 0 except at index 0. Define the CO-DEGREE
+    c(f) = 255 - deg(f), i.e. the number of consecutive top coefficients
+    a_255, a_254, ... that vanish. By I2 and I3,
+      c(f) >= 1  <=>  sum_x f(x) = 0                        (the integral)
+      c(f) >= 2  <=>  additionally sum_x f(x) x = 0         (first weighted moment)
+      c(f) >= m  <=>  sum_x f(x) x^k = 0 for k = 0..m-1.
+    So the co-degree is a LADDER of zero-sum conditions whose first rung is the
+    off-limits family and whose higher rungs are the object under study.
+
+    THE EXACT NULL, DERIVED BEFORE ANY MEASUREMENT. For a uniformly random
+    function GF(2^8) -> GF(2^8) the coefficient vector is uniform on
+    GF(2^8)^256 (the coefficient map is a bijection), so the coefficients are
+    i.i.d. uniform on 256 values. Hence Pr[a_255 = 0] = 2^{-8} and
+    Pr[c(f) >= m] = 2^{-8m} EXACTLY. Also E[#zero coefficients] = 256/256 = 1
+    exactly, so E[support size] = 255 with variance 255/256 * 256/256 * ... i.e.
+    Binomial(256, 1/256) zeros, mean 1, variance 255/256 = 0.996. Both forced
+    values are stated before any run, and the second is what the SESSION-COMPUTED
+    support readings above are already sitting on.
+
+    WHAT WOULD CONSTITUTE A SIGNAL. At round r and coset dimension d (varying d
+    plaintext bytes over all 2^{8d} values), the co-degree of the appropriate
+    2^{8d}-point interpolation is compared against its null 2^{-8m} at N
+    independent keys. A signal at level m is a rate of c >= m exceeding
+    N * 2^{-8m} beyond binomial fluctuation. A signal AT r = 10 would be a
+    full-round distinguisher and would route immediately to review-breakthrough
+    under AGENTS.md rule 12; it is not expected and its measured false-positive
+    rate against a matched random permutation at the same data complexity is a
+    required artifact, per RQ-AES-002's distinguisher clause.
+
+    WHAT IS EXPECTED, AND WHY IT IS STILL WORTH RUNNING. The wide-trail structure
+    makes the algebraic degree over GF(2) saturate within a few rounds, and the
+    co-degree ladder is expected to return to null shortly after. The DELIVERABLE
+    is then: the measured death round r*(d) for d = 1 and d = 2; the derived
+    scaling of data cost 2^{8d} against the rung index; and the resulting scoped
+    barrier: FOR THE NAMED OBJECT CLASS "co-degree of a monomial-weighted
+    zero-sum ladder over a d-byte plaintext coset", reaching r = 10 requires
+    d >= d* whose data cost is bounded below by 2^{8 d*}, and the derivation says
+    what d* would have to be. That is a named obstruction with a checkable
+    argument and forward guidance -- the closure standard of
+    docs/inventor-protocol.md section 4 and completion criterion C3 -- and it
+    scopes to the named class and NEVER to AES as a whole.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      NO PRIMARY SOURCE WAS READ AND NONE IS CITED. FIPS-197 is not cited from a
+      read document; every AES structural fact used here is derived or pinned by
+      local computation, per RQ-AES-002's provenance ruling.
+    - >-
+      KN-TECH-075 (internal, read) records the interpolation / Groebner family as
+      applicable to low-multiplicative-complexity field-oriented ciphers and "not
+      applicable to bit-oriented wide-trail SPNs". That is the standing position
+      this proposal works against, and the proposal does not claim it is wrong.
+      It claims the boundary was never measured here.
+    - >-
+      KN-TECH-069 (internal, read) records the zero-correlation / impossible /
+      integral equivalences and is named in the ANGLE-BRIEF as a device used
+      NOWHERE in this corpus. If the co-degree ladder dies at the round the
+      integral does, the equivalence catalogue is the correct next place to look
+      for its dual, and that is recorded as forward guidance, not as a result.
+    - >-
+      EV-AES-005 (internal, read) records, under RQ-AES-003 and at TOY tier, a
+      derived r = 4 perfect bijection and an r = 5 mod-8 forcing over a 2^32
+      diagonal coset, both explicitly relabelled by its own validator as
+      properties of any AES-SHAPED SPN rather than of the AES S-box, and both
+      dying at r = 6. IT IS CITED HERE AS AN INPUT CARRYING ITS ORIGINAL SCOPE
+      VERBATIM AND IS NOT UPGRADED BY BEING CITED FROM A FULL-ROUND QUESTION
+      (RQ-AES-002 relationship_to_RQ_AES_001 (ii), (iii)). Its relevance is
+      methodological: it is this program's own demonstration that a
+      coset-structured object with a derived forced value can be measured
+      exhaustively here, and that its death round can be predicted and then
+      observed.
+    - >-
+      The claim that the co-degree ladder above rung 1 is unmeasured is a claim
+      about THIS CORPUS ONLY, established by inspection of the AES evidence and
+      knowledge records listed in dominated_by. Absence of a search result is not
+      evidence that something was not tried (AGENTS.md retrieval policy), and
+      RQ-AES-002 forbids asserting novelty or non-novelty against the external
+      literature in either direction.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      The full instance (K, and the 2^128-entry codebook of r-round AES under K)
+      --> the coefficient vector of f on a single d-byte plaintext coset read at
+      a single output byte: 2^{8d} field elements, i.e. 8 * 2^{8d} bits, out of a
+      2^128-block codebook.
+    what_is_discarded: >-
+      At d = 1: all but 256 of the 2^128 plaintexts, and 15 of the 16 ciphertext
+      bytes of each survivor. 2048 bits are retained. The key is not retained and
+      is not recoverable from the observable by any step of the proposal.
+    why_genuinely_lossy: >-
+      Genuinely and enormously lossy: the fibre over a given coefficient vector
+      contains, generically, an astronomically large set of keys, since 2048
+      retained bits are a function of a 128-bit key and a 128-bit plaintext but
+      the map is not claimed injective and no inversion is proposed. THE
+      PROPOSAL THEREFORE CLAIMS A DISTINGUISHER AT MOST AND NEVER A KEY RECOVERY,
+      and says so in the same breath as proposing the object.
+    why_compatible_with_the_operations: >-
+      Compatible with the cipher's operations in a precise and checkable sense:
+      AddRoundKey acts on the coefficient vector by the unipotent Pascal action
+      of I4 (deterministic, degree-preserving at the top); MixColumns and
+      ShiftRows are GF(2^8)-linear with constant coefficients, so on a
+      single-varying-byte restriction they act as y -> m*y + const, which by I2
+      scales coefficients and preserves the co-degree; SubBytes composes the
+      9-term polynomial S into the object. Every layer therefore has a stated
+      action on the tracked object, which is what "propagates deterministically"
+      means. The co-degree is preserved by two of the three layer types and
+      lowered only by SubBytes, which localises the obstruction to the one
+      nonlinear layer -- and that is a structural statement the experiment can
+      test rung by rung.
+    is_it_only_a_change_of_coordinates: >-
+      BOTH FAILURES WERE CHECKED AND THE FIRST ONE FIRED, ON THE NAIVE
+      STATISTIC. (a) CHANGE-OF-COORDINATES FAILURE, the char-2
+      (Delta, Pi) = (x xor y, x*y) failure named in the inventor protocol:
+      the coefficient TRANSFORM itself is a bijection and therefore discards
+      NOTHING -- passing from f to (a_d) is exactly a change of coordinates and
+      would be worthless on its own. The discard is entirely in the choice of
+      restriction (one coset, one output byte), which is why the audit is written
+      around the RESTRICTION and not around the transform. (b) MIRROR FAILURE,
+      constant across instances / zero comparator spread: THE SUPPORT-SIZE
+      STATISTIC FAILS THIS TEST AND IS DISCARDED BEFORE ANY COMPUTE. Its null
+      expectation is 255 and it SESSION-COMPUTED at 253-255 already at r = 1, so
+      its spread against the null is zero from the first round. The co-degree
+      replaces it precisely because it is the translation-invariant quotient of
+      the same object and has a nonzero, exactly known null spread
+      (Pr[c >= m] = 2^{-8m}).
+
+  assumptions:
+    - >-
+      That the harness can perform 2^{8d} encryptions per reading within budget
+      at d = 1 (256, trivial) and d = 2 (65,536, trivial). d = 3 (2^24) is NAMED
+      AS OPEN AND UNATTEMPTED unless the measured-envelope receipt licenses it;
+      it is never recorded as tried, screened or negative.
+    - >-
+      That exact GF(2^8) arithmetic is used throughout. Any floating-point step
+      invalidates the measurement.
+
+  proof_search_map_note: >-
+    The paired hypothesis H-AES-ecf3ad carries the filled proof_search_map with
+    all four audits, since the deliverable is a closure/barrier argument and
+    docs/inventor-protocol.md section 8 requires the map on the hypothesis before
+    the Coordinator approves expensive work.
+
+  predictions:
+    - metric: >-
+        sbox_interpolation_support: number of nonzero univariate GF(2^8)
+        interpolation coefficients of the AES S-box itself (no key, no rounds)
+      direction: different
+      minimum_effect: >-
+        EXACTLY 9, at exponents {0, 127, 191, 223, 239, 247, 251, 253, 254} =
+        {0} union {255 - 2^k : k = 0..7}. Derived from S = A o (x -> x^254) with
+        A a GF(2)-affine map; SESSION-COMPUTED confirmation by exact
+        interpolation and exact re-evaluation at all 256 points. THIS IS THE
+        POSITIVE CONTROL: if the instrument does not return exactly 9 at exactly
+        those exponents, it is broken and NO negative result may be reported.
+    - metric: >-
+        null_zero_coefficient_count: number of zero coefficients in the
+        interpolation of a uniformly random function GF(2^8) -> GF(2^8), over
+        1000 draws
+      direction: different
+      minimum_effect: >-
+        Mean EXACTLY 1.0 with variance EXACTLY 255/256 = 0.99609 under
+        Binomial(256, 1/256), derived before any run. A measured mean outside
+        [0.80, 1.20] at n = 1000 (about 6 standard errors) falsifies the
+        instrument, not the cipher.
+    - metric: >-
+        codegree_rate_level_1: fraction of (key, plaintext, i, j) samples with
+        c(f) >= 1 at round r, coset dimension d = 1, over N = 4096 samples per
+        round
+      direction: different
+      minimum_effect: >-
+        NULL VALUE EXACTLY 2^{-8} = 0.00390625, i.e. 16 of 4096 in expectation
+        with standard deviation 4.0. A round is called "at null" when the count
+        lies within 16 +/- 12 (three standard deviations); anything above is
+        reported with its exact binomial tail probability and is NOT called a
+        distinguisher until the matched-permutation control and the decay check
+        have both been read.
+    - metric: >-
+        codegree_rate_level_2: same, for c(f) >= 2
+      direction: different
+      minimum_effect: >-
+        NULL VALUE EXACTLY 2^{-16} = 1.5259e-5, i.e. 0.0625 of 4096 in
+        expectation. ANY SINGLE OBSERVATION OF c >= 2 at a round where the level-1
+        rate is already at null is a 1-in-65536 event per sample and is the single
+        most interesting reading the experiment can produce; the pre-registered
+        response is to replicate it on independent keys before anything else is
+        done.
+    - metric: >-
+        death_round r*(d): the smallest r at which the level-1 rate is at null by
+        the criterion above, for d = 1 and d = 2
+      direction: different
+      minimum_effect: >-
+        NO NUMERIC PREDICTION IS PRE-REGISTERED FOR r*, AND THAT IS DELIBERATE:
+        pre-registering a guessed death round would invite fitting. What IS
+        pre-registered is the SHAPE: the level-1 rate must be MONOTONE
+        NON-INCREASING in r over the measured range once it starts to fall, and
+        r*(2) >= r*(1) (a larger coset cannot die earlier). A non-monotone rate,
+        or r*(2) < r*(1), is an instrument artifact -- the canonical artifact
+        tell named in docs/inventor-protocol.md section 3 -- and halts the
+        reading.
+    - metric: >-
+        full_round_reading: level-1 and level-2 rates at r = 10 (and, if budget
+        permits, the corresponding full round counts for AES-192 and AES-256)
+      direction: different
+      minimum_effect: >-
+        PREDICTED AT NULL: 16 +/- 12 of 4096 at level 1 and 0 or 1 of 4096 at
+        level 2. A reading materially above null at r = 10 is a candidate
+        full-round distinguisher, routes to review-breakthrough at max effort per
+        AGENTS.md rule 12, and may not be described in any other language until
+        that review exists.
+
+  minimal_test:
+    design: >-
+      Five stages, ordered cheapest-first, with the terminating stage named.
+      STAGE 0 (seconds, ZERO cryptanalysis, CAN END THE LINE): the S-box 9-term
+      positive control and the random-function null. If either fails the
+      instrument is broken and the run stops with an instrument defect and no
+      mathematical statement. STAGE 1 (seconds): reproduce the SESSION-COMPUTED
+      support readings at r = 1..4 in-harness and confirm that the support
+      statistic is at null, thereby confirming in the harness the reason the
+      naive statistic was discarded. STAGE 2 (minutes): the d = 1 co-degree
+      ladder over r = 1..10 at N = 4096 samples per round, with the matched
+      random-permutation control interleaved. STAGE 3 (minutes to an hour): the
+      d = 2 ladder over r = 1..10 at reduced N. STAGE 4 (paper, zero compute):
+      write the barrier statement -- named obstruction, checkable derivation of
+      the data-scaling law, forward guidance naming what remains open.
+    controls:
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR: the raw
+        AES S-box, whose interpolation support is FORCED to exactly 9 at exactly
+        the exponents {0} union {255 - 2^k}. Also, at r = 1 with the FIRST
+        AddRoundKey suppressed, the byte-restriction is m * S(x) + const and its
+        support is forced to exactly 9 as well. If the instrument does not return
+        9 in both, it cannot measure what it claims and NO negative result may be
+        reported at all.
+      - >-
+        NULL OBJECT OF THE SAME SHAPE, AND IT CAN FAIL: a uniformly random
+        bijection on 128 bits used in place of r-round AES, read through the
+        identical restriction and the identical interpolation code. FORCED VALUE
+        DERIVED BEFORE THE RUN: level-m co-degree rate exactly 2^{-8m}; zero
+        coefficient count Binomial(256, 1/256). This null CAN fail -- if the
+        interpolation code has an off-by-one in the exponent reduction mod 255,
+        the null rate will not be 2^{-8} -- so it is a null and not a decoration.
+      - >-
+        SIBLING NULL THAT ISOLATES THE PROPERTY (KN-FIND-029 practice rule): a
+        10-round AES-SHAPED SPN with the AES S-box replaced by a uniformly random
+        bijection on GF(2^8), everything else identical. If the co-degree profile
+        is the same, the reading is a property of the ROUND GEOMETRY and not of
+        the AES S-box -- exactly the relabelling EV-AES-005's validator had to
+        apply retroactively to that batch's r = 4 and r = 5 objects. Running it
+        HERE, before belief, is the whole point of naming it now.
+      - >-
+        GRADED CONTROL WITH >= 3 INTERIOR POINTS AND MONOTONICITY REPORTED: the
+        round ladder r = 1..10 is itself the graded control, and RQ-AES-002's
+        constraint block makes the round-count decay check mandatory. In addition
+        the coset dimension d = 1, 2 gives a second grading, with the derived
+        ordering constraint r*(2) >= r*(1).
+      - >-
+        ORDERING CONTROL: the null arm and the sibling null are generated,
+        measured and hash-committed BEFORE the AES treatment arm is looked at.
+      - >-
+        ARCHIVE CHECK (zero compute): every archived measurement of a co-degree or
+        weighted-zero-sum observable in this repository is listed. NOT AVAILABLE
+        -- the observable is new to this program -- and that unavailability is
+        recorded rather than claimed as a passed check. The nearest archived
+        object is EV-AES-005's coset-occupancy statistic, which is a different
+        observable on a different coset at a different round range and under a
+        different question's ceiling.
+    required_metrics:
+      - S-box coefficient list with exponents, verbatim
+      - null zero-coefficient count distribution with seeds
+      - level-1 and level-2 co-degree counts per round per arm, with exact binomial tails
+      - death round r*(d) for d = 1, 2 with the monotonicity check result
+      - the matched-random-permutation false-positive rate at the same data complexity
+      - the derived data-scaling law and the resulting barrier statement text
+
+  falsification_conditions:
+    - >-
+      The S-box positive control does not return exactly 9 coefficients at the
+      derived exponents. Instrument broken; nothing may be reported.
+    - >-
+      The random-function null does not reproduce mean 1.0 zero coefficients or
+      the 2^{-8m} co-degree rates. The interpolation implementation is wrong and
+      every downstream number is void.
+    - >-
+      The level-1 rate is non-monotone in r, or r*(2) < r*(1). The canonical
+      artifact tell has fired; the reading is halted and reported as an artifact,
+      not as a finding.
+    - >-
+      The sibling null (random S-box) reproduces the AES profile exactly at every
+      round. Then whatever is measured is a property of AES-SHAPED ROUND GEOMETRY
+      and carries no information about the AES S-box, and every sentence about
+      the result must say so -- the relabelling EV-AES-005 had to make after the
+      fact.
+    - >-
+      A level-2 signal at a round where level 1 is at null fails to replicate on
+      independent keys. The single observation was the expected 1-in-65536
+      coincidence and is recorded as such.
+
+  confounders:
+    - >-
+      SAMPLE REUSE. Using the same key across round counts correlates the
+      readings. Declared pre-run: each (round, arm) cell draws independent keys
+      from its own seed stream, and the seed derivation rule is in the contract.
+    - >-
+      OUTPUT BYTE CHOICE. The co-degree depends on (i, j) and on P. Declared
+      pre-run: (i, j) is drawn uniformly per sample and reported, and the
+      per-(i,j) breakdown is a required artifact so that a signal concentrated in
+      one cell is visible rather than averaged away.
+    - >-
+      THE FINAL ROUND HAS NO MixColumns. The r = 10 arm must use the standard
+      final-round structure, and the r < 10 arms must state whether they use it
+      too. Both conventions are measured and reported separately; conflating them
+      is a known way to manufacture a discontinuity at the last round.
+    - >-
+      SESSION-COMPUTED VALUES ARE NOT HARNESS MEASUREMENTS. The support readings
+      at r = 1..4 quoted in the mechanism were taken outside the harness on 3
+      keys and are re-taken in stage 1. A discrepancy is reported, not
+      reconciled.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER toy by default (RQ-AES-002 R7). A measurement at d = 1 or 2 over
+      a 2^8 or 2^16 coset is a toy-tier structural computation regardless of the
+      full-round ambition of the object it serves, and no citation may raise it.
+    - >-
+      A NEGATIVE CLOSES THE NAMED OBJECT CLASS ONLY: "co-degree of the
+      monomial-weighted zero-sum ladder over a d-byte plaintext coset, d <= 2,
+      single output byte, AES-128, rounds 1..10, this instrument, this budget".
+      It says nothing about AES, nothing about other cosets, nothing about
+      adaptive weights, and it is NOT a universal impossibility claim -- which
+      RQ-AES-002 R7 forbids outright.
+    - >-
+      FORWARD GUIDANCE IS MANDATORY AND IS PRE-COMMITTED HERE: what remains open
+      after a negative is (i) non-coset input structures, for which I2/I3 do not
+      hold and the whole derivation must be redone; (ii) adaptively chosen
+      weights x^k replaced by a general weight function, where the null is no
+      longer 2^{-8m} and must be re-derived; (iii) the zero-correlation dual of
+      whatever the ladder does detect, via KN-TECH-069's equivalence catalogue,
+      a device used nowhere in this corpus; and (iv) coset dimension d >= 3,
+      which is OPEN AND UNATTEMPTED here and is never to be recorded as tried,
+      screened or negative.
+    - >-
+      A POSITIVE at r = 10 would be a claimed full-round distinguisher on a
+      standardised cipher and is automatically rule-12 routed to
+      review-breakthrough at max, which GOAL-AES-002's own
+      completion_reachability block notes cannot obtain the independent models it
+      requires -- so the correct terminal posture for a positive is `analyzed`
+      and pause condition P5, not a comparative claim.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE LOAD-BEARING ON I1-I4. The four identities are exact algebraic facts
+        about GF(2^8), proved above from the power-sum evaluation
+        sum_{x in GF(q)} x^d = -[q-1 | d] and from the binomial expansion of
+        (x+c)^e; they are not distributional claims and are not assumed.
+      rigorous_support: >-
+        Given in the mechanism, in full, at a level a reviewer can check by hand
+        in ten minutes. Additionally SESSION-COMPUTED: the interpolation built
+        from I1-I3 reproduces the AES S-box exactly at all 256 points.
+      validation_plan: >-
+        Stage 0 recomputes the S-box interpolation in-harness and re-evaluates at
+        all 256 points, which is an exact check of I1-I3 rather than a
+        statistical one.
+    - id: H2
+      statement: >-
+        NULL MODEL. For the purpose of the null arm, r-round AES under a uniformly
+        random key on a fixed coset is compared against a uniformly random
+        BIJECTION on 128 bits, whose byte-restriction is treated as a uniformly
+        random FUNCTION GF(2^8) -> GF(2^8) for the purpose of the 2^{-8m} rate.
+      rigorous_support: >-
+        The approximation is that restricting a random 128-bit bijection to a
+        256-point coset and reading one output byte gives 256 draws that are
+        very nearly i.i.d. uniform on GF(2^8): the dependence is the sampling
+        of 256 points without replacement from 2^128, whose effect on any
+        coefficient's distribution is O(2^{-120}) and is far below the reported
+        precision. Stated because the 2^{-8m} figure depends on it and would be
+        unsound presented as exact for a bijection.
+      validation_plan: >-
+        MEASURED, not assumed: the null arm is realised by an actual random
+        bijection (a keyed 128-bit permutation drawn from the seed stream) and
+        its empirical co-degree rates are reported beside the derived 2^{-8m}.
+        A discrepancy between them is a finding about the null model and is
+        reported before any AES number is read.
+
+  target_complexity:
+    time_exponent: >-
+      THE EXPONENT THIS PROPOSAL IS TRYING TO MOVE: none, and the record says so
+      plainly rather than dressing an audit as an exponent result. No key
+      recovery is proposed, so the definitional reference of 2^{k-1} full AES-k
+      evaluations is not challenged. What the proposal would produce in the
+      unlikely positive case is a DISTINGUISHER at data complexity 2^{8d} and
+      time ~2^{8d} field operations per reading; converting a distinguisher into
+      a key recovery is NOT part of this proposal and would be a separate
+      mechanism with its own record.
+    memory_exponent: >-
+      2^{8d} field elements held at once, i.e. 2^8 bytes at d = 1 and 2^16 bytes
+      at d = 2 -- negligible, and stated beside time as
+      docs/claims-and-verification.md requires.
+    best_known: >-
+      The reference for this question is EXHAUSTIVE KEY SEARCH at the stated key
+      size under the frozen cost model CM-1, which is definitional; the published
+      state of the art is UNADJUDICABLE in this environment and is asserted in
+      neither direction.
+    hidden_overhead: >-
+      The exact GF(2^8) interpolation is O(2^{16d}) naively per reading, which is
+      65,536 multiplications at d = 1 and 2^32 at d = 2 -- the latter is the real
+      cost driver and forces either a transform-based interpolation or a reduced
+      N at d = 2. That is stated here rather than discovered at run time.
+    tradeoff_note: >-
+      Data and time move together as 2^{8d}; there is no memory-for-time trade in
+      this object because the whole coset must be read to form any coefficient.
+
+  dominated_by: >-
+    "unresolvable in this environment: no primary source reachable; every
+    recalled frontier row is unverified-from-memory". Set to this string and
+    NEVER to null, per RQ-AES-002 claim_tier_ceiling R5. Rows checked INSIDE this
+    repository, listed as the rule requires, across TIME, MEMORY and
+    DATA/QUERIES: EV-AES-001, EV-AES-002, EV-AES-003, EV-AES-004 (all
+    reduced-round, all asserting no claim about AES at any round count),
+    EV-AES-005 (RQ-AES-003, toy, r <= 5 key recovery and r <= 6 structural
+    properties, 2^32 diagonal coset), EV-AES-d33b1c and EV-AES-d8a13e (hinted
+    key recovery, RQ-AES-003); KN-FIND-028, KN-FIND-029; KN-TECH-063, -069,
+    -070, -071, -074, -075, -079; the full proposal ledger (no prior idea names
+    RQ-AES-002); and the experiment index (no experiment with an AES-prefixed id
+    exists). Nothing in that set measures a co-degree or weighted-zero-sum ladder
+    at any round count. Absence of a search result is not evidence that it was
+    not tried elsewhere.
+  sota_delta: >-
+    DEFINITIONAL-REFERENCE DELTA: ZERO. This proposal claims no key recovery and
+    therefore no margin whatsoever against exhaustive key search at any key size
+    under CM-1, and the published-state-of-the-art comparison is UNADJUDICABLE in
+    this environment and is asserted in neither direction (R5 clause, in the same
+    sentence as required). The quantitative contribution in the expected case is a
+    measured death round r*(d) for d = 1, 2 -- two integers this corpus does not
+    contain -- together with a derived data-scaling law, which is what converts a
+    fatigue-shaped "the interpolation family does not apply" into a C3 barrier
+    statement with a boundary a successor can reopen.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.02 that a co-degree signal survives to r = 10 at d <= 2. It is not lower
+    because the object is genuinely graded and its higher rungs have no
+    measurement anywhere in this corpus, because the wide-trail argument bounds
+    TRAIL probabilities and does not directly bound weighted zero-sums, and
+    because premature closure is a declared failure mode symmetric with
+    overclaiming. It is not higher because AES's algebraic degree over GF(2)
+    saturates within a few rounds, because a 2^8- or 2^16-point coset is a very
+    small probe against a cipher with four-round full diffusion, and because the
+    naive form of this very object was ALREADY KILLED at r = 1 by identity I4
+    before any compute was requested -- which is a strong prior that the
+    surviving form dies early too. Separately: 0.90 that the experiment produces
+    the C3-shaped barrier statement with a measured r*(d), because stages 0-2 are
+    minutes and the deliverable does not depend on the sign of the result.

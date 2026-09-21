@@ -1,0 +1,317 @@
+{
+  "process_accounting": {
+    "attempt_closure": {
+      "curve_or_factor_stream_accepted": [
+        "started = accepted + rejected",
+        "accepted = 1",
+        "attempt ordinals are exactly 0..accepted_attempt",
+        "all attempts before accepted_attempt are rejected",
+        "no attempt exists after accepted_attempt"
+      ],
+      "curve_or_factor_stream_exhausted": [
+        "started = rejected = attempt_cap",
+        "accepted = 0",
+        "attempt ordinals are exactly 0..attempt_cap-1",
+        "terminal_reason = ATTEMPT_CAP_EXHAUSTED"
+      ],
+      "optimizer_or_verifier_cell": [
+        "attempt_cap = 1",
+        "attempt ordinal = 0",
+        "exactly one terminal receipt exists",
+        "retry_of = null",
+        "no retry is permitted for any reason"
+      ]
+    },
+    "canonical_process_dag": {
+      "child_count": 10416,
+      "children": [
+        {
+          "count": 3,
+          "id": "CURVE",
+          "inputs": "one registered curve seed",
+          "role": "shared_producer"
+        },
+        {
+          "count": 9,
+          "id": "FACTOR",
+          "inputs": "one accepted curve and one registered factor-base seed",
+          "role": "shared_producer"
+        },
+        {
+          "count": 36,
+          "id": "CHART",
+          "inputs": "one accepted factor base and one chart scalar",
+          "role": "chart_producer"
+        },
+        {
+          "count": 1152,
+          "id": "COMPILER",
+          "inputs": "one chart fixture and one of 32 compilers",
+          "role": "compiler"
+        },
+        {
+          "count": 4608,
+          "id": "OPTIMIZER",
+          "inputs": "one compiler packet and one of four caps",
+          "role": "optimizer"
+        },
+        {
+          "count": 4608,
+          "id": "VERIFIER",
+          "inputs": "one optimizer cell plus immutable parents",
+          "role": "verifier",
+          "work": "deterministic replay and independent primary proof in one fresh process with disjoint caches"
+        }
+      ],
+      "count_equation": "3+9+36+1152+4608+4608=10416",
+      "descendants_per_child": 0,
+      "root_supervisor_counted_separately": true,
+      "spawn_rule": "Every listed child is a direct posix_spawn+exec child of the future supervisor."
+    },
+    "development_invocations": [
+      {
+        "expected": "success",
+        "fixture": "CTL-TWO-FIBER-STRICT-RANK",
+        "id": "D01-PRODUCER-HAPPY",
+        "role": "shared_producer"
+      },
+      {
+        "expected": "success",
+        "fixture": "CTL-ALL-SINGLETON",
+        "id": "D02-OPTIMIZER-HAPPY",
+        "role": "optimizer"
+      },
+      {
+        "expected": "success",
+        "fixture": "D01+D02 frozen artifacts",
+        "id": "D03-VERIFIER-HAPPY",
+        "role": "verifier"
+      },
+      {
+        "expected": "fresh nonce, same semantic result",
+        "fixture": "D02 exact input",
+        "id": "D04-OPTIMIZER-FRESH-REPEAT",
+        "role": "optimizer"
+      },
+      {
+        "expected": "fresh nonce, same semantic result",
+        "fixture": "D03 exact input",
+        "id": "D05-VERIFIER-FRESH-REPEAT",
+        "role": "verifier"
+      },
+      {
+        "expected": "rejected_input:SAME_PROCESS_REENTRY",
+        "fixture": "two cell requests in one input",
+        "id": "D06-REENTRY-REFUSAL",
+        "role": "optimizer"
+      },
+      {
+        "expected": "exception after nonzero observed work; full reserved charge",
+        "fixture": "frozen producer fault phase",
+        "id": "D07-PRODUCER-FAILURE",
+        "role": "shared_producer"
+      },
+      {
+        "expected": "timeout after nonzero observed work; full reserved charge",
+        "fixture": "frozen optimizer fault phase",
+        "id": "D08-OPTIMIZER-TIMEOUT",
+        "role": "optimizer"
+      },
+      {
+        "expected": "verification_mismatch after nonzero observed work",
+        "fixture": "M08-TABLE",
+        "id": "D09-VERIFIER-MISMATCH",
+        "role": "verifier"
+      },
+      {
+        "expected": "success with fsync and exclusive rename",
+        "fixture": "new empty destination",
+        "id": "D10-PUBLISH-HAPPY",
+        "role": "storage"
+      },
+      {
+        "expected": "publication_failure:DESTINATION_EXISTS",
+        "fixture": "precreated destination",
+        "id": "D11-OVERWRITE-REFUSAL",
+        "role": "storage"
+      },
+      {
+        "expected": "publication_failure after forced write or fsync error",
+        "fixture": "frozen failing storage adapter",
+        "id": "D12-IO-FAILURE",
+        "role": "storage"
+      },
+      {
+        "expected": "resource_limit:RSS with full reserved charge",
+        "fixture": "frozen bounded allocator",
+        "id": "D13-RSS-LIMIT",
+        "role": "storage"
+      }
+    ],
+    "development_rule": {
+      "child_count": 13,
+      "descendants_per_child": 0,
+      "exact_order": "D01 through D13",
+      "maximum_parallelism": 1,
+      "registered_seed_access": false,
+      "rerun": "Any rerun requires a new reviewed development manifest and does not reuse an ID."
+    },
+    "failure_telemetry": {
+      "abnormal_charge": {
+        "cpu_and_disk": "report wait4/proc_pid_rusage observations and separately charge the full per-attempt frozen ceilings",
+        "memory": "report sampled and kernel observations and separately charge hard_rss_limit_bytes",
+        "operations": "report last durable lower bound and separately charge every frozen operation ceiling for the attempt",
+        "optimizer_nodes": "report last durable lower bound and separately charge node_cap",
+        "storage": "report observed allocated bytes and separately charge the per-attempt storage ceiling",
+        "wall": "report observed elapsed time and separately charge hard_wall_limit_ns"
+      },
+      "acknowledgement": "Supervisor creates a second pre-opened pipe. The child may leave a named phase only after reading one byte acknowledging the fsynced snapshot.",
+      "child_frames": "After each named phase and every 1024 optimizer nodes, child writes one U32BE-length-prefixed canonical JSON counter snapshot to a pre-opened pipe.",
+      "completion": "A successful child emits a final complete=true frame whose counters equal its artifact counters.",
+      "frame_exact_keys": [
+        "attempt_id",
+        "sequence",
+        "phase",
+        "complete",
+        "observed_counters",
+        "monotonic_sha256"
+      ],
+      "phase_enum": [
+        "startup",
+        "parse",
+        "bindings",
+        "derivation",
+        "semantics",
+        "compiler",
+        "optimizer",
+        "verification",
+        "serialization",
+        "publication",
+        "complete"
+      ],
+      "parent_durability": "The supervisor validates monotonic snapshots, appends each to attempt-ledger.jsonl, flushes, and fsyncs before acknowledging the next phase.",
+      "publication_failure": "Core artifact and telemetry counters remain charged even when final exclusive publication fails.",
+      "signal_or_timeout": "Supervisor records wait status and the last fsynced lower bound; no missing work is reported as zero."
+    },
+    "id": "EXP-SGCP-SECANT-REP-001-PROCESS-ACCOUNTING-V2",
+    "process_reason_codes": [
+      "SUCCESS",
+      "MALFORMED_INPUT",
+      "SAME_PROCESS_REENTRY",
+      "ATTEMPT_CAP_EXHAUSTED",
+      "NODE_CAP",
+      "COUNTER_CAP",
+      "WALL_LIMIT",
+      "CPU_LIMIT",
+      "RSS_LIMIT",
+      "SIGNAL",
+      "EXCEPTION",
+      "VERIFICATION_MISMATCH",
+      "DESTINATION_EXISTS",
+      "SYMLINK_OR_PATH_ESCAPE",
+      "WRITE_FAILURE",
+      "FSYNC_FAILURE",
+      "RENAME_FAILURE",
+      "MEASUREMENT_UNAVAILABLE"
+    ],
+    "io_and_storage": {
+      "allocated_bytes": "st_blocks*512",
+      "artifact_fields": [
+        "relative_path",
+        "kind",
+        "sha256",
+        "logical_bytes",
+        "allocated_bytes",
+        "retained",
+        "producer_attempt_id",
+        "st_dev",
+        "st_ino"
+      ],
+      "disk_io": "macOS proc_pid_rusage RUSAGE_INFO_V4 ri_diskio_bytesread and ri_diskio_byteswritten, in bytes, sampled by the parent before wait/reap; unavailable measurement fails closed",
+      "hard_link_rule": "logical artifacts remain separate; physical totals deduplicate equal (st_dev,st_ino)",
+      "logical_io_calls": [
+        "open_calls",
+        "close_calls",
+        "stat_calls",
+        "read_calls",
+        "read_bytes",
+        "write_calls",
+        "write_bytes",
+        "fsync_calls",
+        "rename_calls",
+        "link_calls",
+        "unlink_calls"
+      ],
+      "rss": "wait4 ru_maxrss interpreted as bytes on frozen macOS; parent also samples proc_pid_rusage physical footprint at 10ms intervals; platform and units are mandatory",
+      "storage_budget_equation": "peak_live_temporary_allocated_bytes + final_retained_allocated_bytes <= 67108864 for the complete D01..D13 campaign"
+    },
+    "optimizer_equations": {
+      "bound_calls": "frontier_pushes + push_pruned_bound",
+      "branch_children_generated": "2 * nodes_completed",
+      "full_objective_exact": "remaining_frontier_nodes=0 and absolute_gap=0 and lower_bound=upper_bound",
+      "frontier_pushes": "frontier_pops + remaining_frontier_nodes + final_filter_discards",
+      "nodes_completed": "nodes_started on successful termination",
+      "nodes_pruned_conflict": "always 0 for the pinned optimizer; conflict_vertices_removed counts vertices removed from include-branch availability",
+      "pop_partition": "frontier_pops = nodes_started + pop_pruned_bound",
+      "push_partition": "push_calls = frontier_pushes + push_terminal_leaves + push_pruned_cap + push_pruned_bound",
+      "remaining_frontier_digest": "SHA256(canonical JSON frontier list), empty value 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "optimizer_counter_set": [
+      "push_calls",
+      "frontier_pushes",
+      "frontier_pops",
+      "push_terminal_leaves",
+      "push_pruned_cap",
+      "push_pruned_bound",
+      "pop_pruned_bound",
+      "final_filter_discards",
+      "nodes_started",
+      "nodes_completed",
+      "nodes_pruned_conflict",
+      "conflict_vertices_removed",
+      "branch_children_generated",
+      "bound_calls",
+      "feasibility_calls",
+      "objective_comparisons",
+      "incumbent_updates",
+      "optimizer_include_branches",
+      "optimizer_exclude_branches",
+      "metric_cache_hits",
+      "metric_cache_misses",
+      "metric_cache_inserts",
+      "metric_cache_peak_entries",
+      "full_model_cache_hits",
+      "full_model_cache_misses",
+      "full_model_cache_inserts",
+      "full_model_cache_peak_entries",
+      "retained_model_calls",
+      "retained_model_cells",
+      "remaining_frontier_nodes",
+      "frontier_serialized_bytes"
+    ],
+    "operation_ceiling": {
+      "aggregate_safety": "10416 * 1000000000000 < 2^63",
+      "counter_ceiling_per_child": 1000000000000,
+      "rule": "Every non-resource work counter is checked before increment; reaching its ceiling stops with resource_limit. An abnormally terminated child is charged this ceiling for each work counter except optimizer nodes, which are charged node_cap.",
+      "verifier_independent_node_cap": 5000000,
+      "worker_optimizer_node_cap": 2000000
+    },
+    "protocol_version": 6,
+    "sort_and_branch_counters": [
+      "curve_acceptance_branches",
+      "factor_acceptance_branches",
+      "identity_branches",
+      "inverse_vertical_branches",
+      "tangent_branches",
+      "secant_branches",
+      "optimizer_include_branches",
+      "optimizer_exclude_branches",
+      "sort_invocations",
+      "sort_items",
+      "sort_key_evaluations",
+      "sort_comparisons"
+    ],
+    "status": "review_required",
+    "version": 2
+  }
+}

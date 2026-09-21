@@ -1,0 +1,116 @@
+hypothesis:
+  id: H-AES-42c479
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  proposal_id: IDEA-20260807-3d9c9f
+  statement: >-
+    At AES-128, r in {5, 6}, with M = 2^20 truncated-differential pairs per
+    key and m = 2^12 keys, the across-key overdispersion index
+    phi = Var_K(N)/E_K(N) of the CAND-ND-1 inverse-ShiftRows-diagonal
+    collision hit count N exceeds 1 (phi - 1 > 0) and the excess phi - 1
+    scales approximately linearly in M across M in {2^16, 2^18, 2^20}. At
+    r = 3 (diagonal input difference, saturating by derivation D6) phi reads
+    exactly 0.000 (no across-key variance), and at r = 4 the count is
+    identically 0 for every key so phi is undefined (0/0) and the instrument
+    must emit a degenerate flag rather than a number.
+  mechanism: >-
+    If a truncated differential's probability at fixed round count is carried
+    by essentially one dominant characteristic, p(K) is near-constant across
+    keys and N | K ~ Poisson(M*p), giving phi = 1 exactly regardless of the
+    magnitude of any first-moment (fixed-key) effect. If instead the
+    probability is carried by a cluster of characteristics whose signed
+    contributions vary with the key, p(K) varies across keys and
+    phi = 1 + M*Var_K(p)/E_K(p) > 1, with the excess growing linearly in the
+    per-key sample size M. phi is therefore a second-moment-across-keys
+    functional, orthogonal by construction to every first-moment-at-fixed-key
+    statistic already tracked in this program (e.g. CAND-ND-2): a strong
+    CAND-ND-2 signal with phi = 1 indicates one dominant characteristic; a
+    weak CAND-ND-2 signal with phi >> 1 indicates a clustered hull. Neither
+    reading substitutes for the other.
+  assumptions:
+    - The CAND-ND-1 collision readout (collision on the inverse-SR diagonal
+      CW[j]) is a valid and already-verified deterministic-at-r=4 code path
+      shared with this instrument, so that its r=4 zero serves as a positive
+      control inside the same binary.
+    - Streaming, numerically stable variance accumulation (no numpy) is
+      sufficient to resolve phi - 1 at the declared sample sizes without
+      floating-point artifact; this is an implementation obligation on the
+      executor, not an assumption about AES.
+    - AES-192/256 round-depth correspondence to AES-128 is NOT assumed for
+      this hypothesis's r-value predictions; the AES-256 arm is carried as an
+      open gap per the source entry and no r-equivalence claim is made
+      between key sizes here.
+  proof_search_map:
+    not_applicable_reason: >-
+      Purely empirical/statistical hypothesis about a measured second moment
+      across sampled keys; no proof-oriented decomposition (bottleneck,
+      baseline embedding, observation collision, constructive transforms) is
+      claimed or applicable. docs/inventor-protocol.md section 8 machinery is
+      not invoked.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions: []
+  structural_ingredients: []
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+    - metric: "phi_minus_1_at_r5_and_r6 (overdispersion excess of the truncated-differential hit count N across m=2^12 keys)"
+      direction: higher
+      minimum_effect: >-
+        Positive at both r = 5 and r = 6 for at least the M = 2^20 setting;
+        the falsifiable content is the SCALING across M in {2^16, 2^18, 2^20}
+        being approximately linear, not any single point value (a constant
+        offset in phi is treated as an instrument artifact, not a finding).
+    - metric: "phi_at_r3 (known-answer gate A, diagonal input difference)"
+      direction: different
+      minimum_effect: >-
+        Exactly 0.000 (zero across-key variance), forced by derivation D6's
+        saturation argument; any nonzero reading voids the instrument and
+        forbids reporting any other round in the same run.
+    - metric: "phi_at_r4 (degenerate-flag gate)"
+      direction: different
+      minimum_effect: >-
+        The count is exactly 0 for every key at r = 4, so phi is the
+        indeterminate form 0/0; the instrument must emit an explicit
+        degenerate flag rather than any numeric value.
+    - metric: "matched-PRP arm phi at m = 2^12 (known-answer gate B)"
+      direction: different
+      minimum_effect: >-
+        1.000 +/- 3*sqrt(2/(m-1)) = 1.000 +/- 0.066, the theoretical band for
+        an independent-round-key / matched-PRP control at this key count.
+  test_boundary:
+    instances: ["AES-128 with real key schedule at r in {3,4,5,6,10}"]
+    parameters:
+      M_pairs_per_key: [65536, 262144, 1048576]
+      m_keys: 4096
+      arms: [real_AES, matched_PRP_independent_round_keys, resampling_at_fixed_key_disjoint_seeds]
+      round_counts: [3, 4, 5, 6, 10]
+    implementation: >-
+      Reuse of the CAND-ND-1 inverse-ShiftRows-diagonal collision readout
+      code path, extended with a streaming across-key variance accumulator;
+      no numpy for the variance/quantile computation (hand-written and
+      unit-tested).
+    budget:
+      charged_encryptions: "m * M * |rounds| * |arms| = 2^12 * 2^20 * 5 * 3 = 2^35.9"
+      estimated_wall_clock_seconds: 2700
+      note: >-
+        ~15 min on 4 cores per M setting, ~45 min for the three-point M
+        scaling, per the source entry's own charged-cost derivation. 2^12
+        key schedules per arm are charged, not amortised.
+  falsification_conditions:
+    - "F7-a: phi <= 1.07 at r = 5 and r = 6 across all three M values -- no measurable hull enhancement at M = 2^20, m = 2^12; reported as a bound with those two numbers in the same sentence."
+    - "F7-b: phi - 1 > 0 but flat in M -- an offset (instrument or key-schedule artifact, not a hull); reported as such and never re-explained after the fact."
+    - "F7-c: known-answer gate A (r=3) returns nonzero, or gate B (matched-PRP) falls outside its band -- instrument void, no result of any sign may be reported."
+  interpretation_limits:
+    - No claim of a break, key recovery against a fielded parameter set, or
+      any relation to published cryptanalysis in either direction. Ceiling
+      toy, scoped exactly to AES-128 at r in {3,4,5,6,10} with the stated M
+      and m.
+    - AES-256 arm is an explicitly named open gap, not measured by this
+      hypothesis's predictions.
+    - phi = 1 does not imply "no hull"; it implies only that the hull, if
+      present, does not manifest as key-dependent probability variance at
+      this M, m -- a scope statement, not a universal negative.
+  status: proposed
+  proposed_by: idea-generator

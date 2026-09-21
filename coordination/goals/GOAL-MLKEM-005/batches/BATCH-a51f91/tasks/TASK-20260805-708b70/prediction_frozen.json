@@ -1,0 +1,113 @@
+{
+  "record": "FROZEN PRE-REGISTERED PREDICTION",
+  "task_id": "TASK-20260805-708b70",
+  "batch_id": "BATCH-a51f91",
+  "goal_id": "GOAL-MLKEM-005",
+  "frozen_at_utc": "2026-08-05T16:38:00Z",
+  "frozen_at_git_commit": "096b9256b287810acd005f259825b6b9b0c9c42a",
+  "frozen_at_git_dirty": false,
+  "frozen_before_any_research_number": true,
+  "freeze_note": "This file is written and its sha256 recorded BEFORE measure.py is executed for the first time on any research cell. No number in this file was computed from measured data. The only numbers present are (i) parameters copied from the task card and (ii) closed-form forced values derived analytically in advance.",
+
+  "statistic": {
+    "symbol": "R",
+    "definition": "R = ||pi_{d-beta}(e)||^2 / ||e||^2 where pi_{d-beta} is the orthogonal projection onto span(b*_{d-beta+1}, ..., b*_d), the last beta Gram-Schmidt vectors of the basis, and e is a CBD_{eta=2} error vector in Z^d.",
+    "computed_as": "R = sum_{i > d-beta} <e, b*_i>^2 / ||b*_i||^2, divided by ||e||^2. Implemented as R = ||Q^T e||^2 / ||e||^2 with Q the d x beta matrix of orthonormal tail Gram-Schmidt directions.",
+    "why_the_denominator": "Dividing by ||e||^2 is the load-bearing design choice and must not be changed. The pre-batch screen killed IDEA-20260805-3d71ca's A-vs-B decision rule as FORCED: the ratio of the two competing relative variances is the identity kappa/2 exactly, for every d and every beta, verified numerically to 5.55e-15. Dividing by ||e||^2 cancels the norm fluctuation, hence cancels kappa, hence removes that identity. R is the non-forced residual that survived the screen."
+  },
+
+  "cells": {
+    "d": [100, 140],
+    "k": "d/2",
+    "q": 3329,
+    "beta": [30, 40],
+    "bases_per_cell": 8,
+    "reduction": "LLL, then BKZ-beta with max_loops=2",
+    "errors_per_basis": 1048576,
+    "error_law": "CBD_{eta=2} (FIPS 203 e / e_1 law), per-coordinate variance eta/2 = 1, support {-2,-1,0,1,2}"
+  },
+
+  "forced_values_derived_in_advance": {
+    "E_R": {
+      "value_formula": "beta / d",
+      "values": {"d100_b30": 0.3, "d100_b40": 0.4, "d140_b30": 0.21428571428571427, "d140_b40": 0.2857142857142857},
+      "status": "FORCED. CARRIES ZERO INFORMATION.",
+      "derivation": "For any fixed rank-beta orthogonal projector P and any e with iid equal-variance coordinates, E||Pe||^2 = sigma^2 tr(P) = sigma^2 beta and E||e||^2 = sigma^2 d. Hence E[R] = beta/d to first order FOR EVERY BASIS, REDUCED OR NOT, and equally for a Haar-random subspace. Agreement of measured E[R] with beta/d is NOT evidence of anything and must never be read as agreement with the Beta law."
+    },
+    "beta_law": {
+      "law": "Beta(beta/2, (d-beta)/2)",
+      "status": "DERIVED, NOT FITTED.",
+      "derivation": "The exact law of ||Pe||^2/||e||^2 for a FIXED vector e and a UNIFORMLY RANDOM (Haar) beta-dimensional subspace of R^d is Beta(beta/2,(d-beta)/2). This is a theorem. The heuristic content under test (IDEA-20260805-3d71ca H1) is only that a BKZ-reduced basis's tail Gram-Schmidt directions behave as a Haar-random beta-subspace RELATIVE TO THE CBD ERROR. CBD coordinates are directionally uniform to O(d^{-1/2}) in the body.",
+      "variance_formula": "Var(R) = 2*beta*(d-beta) / (d^2 * (d+2))",
+      "variance_values": {"d100_b30": 0.004117647058823529, "d100_b40": 0.004705882352941176, "d140_b30": 0.0024152803180914515, "d140_b40": 0.0028747433264887065},
+      "status_of_variance": "QUOTED IN ADVANCE so that 'measured variance approximately equals prediction' CANNOT be presented as a discovery."
+    },
+    "consequence": "THE ONLY NON-FORCED CONTENT OF THIS EXPERIMENT IS HEADLINE (b) AND HEADLINE (c)."
+  },
+
+  "headline_quantities": {
+    "a": {
+      "name": "KS distance on the body",
+      "definition": "sup |F_emp(x) - F_Beta(x)| taken over the region {x : 0.01 <= F_Beta(x) <= 0.99}.",
+      "status": "SANITY CHECK, NOT THE FINDING."
+    },
+    "b": {
+      "name": "lower-tail quantile ratios",
+      "definition": "ratio_p = q_emp(p) / q_Beta(p) at p in {2^-10, 2^-16}.",
+      "empirical_quantile_estimator": "sort R ascending; q_emp(p) = R_sorted[k-1] with k = round(p*N), N = 1048576. So k = 1024 at p = 2^-10 and k = 16 at p = 2^-16. This estimator is frozen here.",
+      "status": "THIS IS THE QUANTITY THE MECHANISM CONSUMES. It is the non-forced content."
+    },
+    "c": {
+      "name": "between-basis vs within-basis variance decomposition",
+      "definition": "One-way decomposition over the 8 bases (or 8 subspace draws) of a cell, all sharing the same 2^20 error vectors. Var_total = Var_between + Var_within with Var_between = (1/G) sum_g (mean_g - grand_mean)^2 computed with ddof=1 over G=8 groups, Var_within = mean over g of the within-group variance. Reported quantity: between_fraction = Var_between / (Var_between + Var_within). A bias-corrected variant subtracting Var_within/N from Var_between is reported beside it.",
+      "status": "NON-FORCED. This is the arm of the experiment that can void the iid extreme-value step."
+    }
+  },
+
+  "null_sufficiency": {
+    "object_removed": "The PROVENANCE OF THE PROJECTOR: the alignment between the reduced basis's GSO tail subspace and the q-ary / coordinate structure of the lattice.",
+    "object_preserved": "The error law (CBD_{eta=2}), beta, d, the statistic R, the code path, and the exact same 2^20 error vectors. This is the MINIMAL deletion. It deliberately does NOT delete the error law, which was the over-deletion that cost GOAL-MLKEM-004 batch 4 (KN-TECH-1a5b7e mode 3, second worked case).",
+    "null_arm": "Replace pi by orthogonal projection onto a Haar-random beta-dimensional subspace of R^d, obtained as the Q factor of the QR decomposition of a d x beta iid standard Gaussian matrix.",
+    "statistic_on_both_arms": "identical: (a), (b), (c).",
+    "statistic_reads_the_object": "R depends on the projector only through its column space, which is exactly the object being replaced. The Haar draw and the GSO tail span differ as subspaces of R^d unless the BKZ tail span happens to be Haar-distributed relative to e, which is the hypothesis under test. So the statistic can in principle move; whether it does is the measurement.",
+    "sensitivity_comparator_BY_NAME": "THE HAAR-RANDOM-SUBSPACE ARM. This is the arm the null is ABOUT, not the most separating arm available.",
+    "sensitivity_spread_s": "The Haar arm's own between-draw sample standard deviation (ddof=1) of the 2^-10 quantile ratio over its 8 independent subspace draws on the same 2^20 errors. One value of s per cell.",
+    "sensitivity_demonstration_arm": "Projector stays Haar-random (the SAME 8 draws). The isotropic CBD error is replaced by a two-block anisotropic error at matched total variance: coordinates 0..d/2-1 scaled by c1, coordinates d/2..d-1 scaled by c2, with c1/c2 = 2 and (c1^2 + c2^2)/2 = 1, i.e. c1 = sqrt(1.6) = 1.2649110640673518 and c2 = sqrt(0.4) = 0.6324555320336759. The SAME underlying CBD draws are rescaled, so no new randomness enters.",
+    "sensitivity_closed_form_effect": "E[R] -> tr(P Sigma)/tr(Sigma) with Sigma = diag(1.6 x d/2, 0.4 x d/2). Averaged over Haar P this is still beta/d; the effect the demonstration exercises is on the SHAPE and the LEFT TAIL, via the reduced effective dimension d_eff = (tr Sigma)^2 / tr(Sigma^2) = d / 1.36 = 0.7352941176470588 * d, which widens the distribution of R by a factor of approximately sqrt(1.36) = 1.1661903789690602 in standard deviation and therefore pushes the lower quantiles down. Both the direction and the approximate size are derived here, in advance, from the closed form.",
+    "sensitivity_threshold_DECLARED_NOW": "|mean_over_8_draws(ratio_2^-10 on the demonstration arm) - mean_over_8_draws(ratio_2^-10 on the Haar arm)| >= 4*s, per cell, at 2^20 error draws and 8 subspace draws. If this is not met in a cell, that cell is reported as INSTRUMENT FAILURE and NO mathematical conclusion is recorded for it.",
+    "comparator_n_draws": 8,
+    "comparator_interval": "Report the interval (min, max) and the sd over the 8 draws, never a single draw (KN-TECH-1a5b7e mode 5).",
+    "the_unit_test_that_is_NOT_a_control": "Projecting CBD vectors onto a Haar-random subspace and recovering Beta(beta/2,(d-beta)/2) CONSTRUCTS that law by definition -- it tests numpy's QR and the CBD sampler's directional uniformity. It is recorded in the receipt as an INSTRUMENT CHECK ONLY and MUST NEVER be recorded as a control that passed. This is exactly the 'confirmatory control' the pre-batch screen flagged in IDEA-20260805-3d71ca.",
+    "can_this_null_fail": "Yes. If the BKZ tail subspace is aligned with the coordinate/q-ary structure that the CBD error also respects, the real arm's R distribution departs from the Haar arm's, and headline (a)/(b)/(c) differ between arms. Nothing forces them to agree."
+  },
+
+  "P1": {
+    "statement": "On the REAL-BASIS arm, in all four cells: |q_emp(2^-10)/q_Beta(2^-10) - 1| <= 0.05 AND |q_emp(2^-16)/q_Beta(2^-16) - 1| <= 0.10.",
+    "evaluated_on": "the pooled-over-8-bases empirical quantile of each cell, AND additionally per basis; the per-cell verdict is taken on the POOLED ratio, with the per-basis spread reported beside it.",
+    "tolerance_2em10": 0.05,
+    "tolerance_2em16": 0.10
+  },
+  "P2": {
+    "statement": "On the REAL-BASIS arm, the between-basis component of Var(R) is <= 20% of the total, in all four cells.",
+    "threshold": 0.20,
+    "consequence_if_violated": "IF IT EXCEEDS 20%, the iid extreme-value step underlying every multi-ciphertext bit figure in this program is VOID and the headline must be restated per basis. That is a real negative and it satisfies GOAL-MLKEM-005 completion criterion C3."
+  },
+  "branches": {
+    "P1_and_P2_hold": "The selection law is validated at (d <= 140, beta <= 40, tail depth 2^-16). Residual uncertainty is the extrapolation, which is REFUSED.",
+    "P1_fails": "Report the measured factor by which the Beta model over- or under-states the selection gain, SCOPED TO THE MEASURED CELLS.",
+    "P2_fails": "Per-basis restatement.",
+    "NEITHER": "Sensitivity threshold missed -> INSTRUMENT OUTCOME ONLY, no mathematical conclusion."
+  },
+
+  "scope_constraints_binding_on_the_report": [
+    "NOTHING MEASURED HERE IS TRANSPORTED TO beta = 606, d = 1420. The beta-trend over {30,40} x {100,140} is FOUR POINTS, NOT A LAW.",
+    "The mechanism is SESSION recovery, not key recovery. No number here may be subtracted from the in-repo primal_bdd margins of 2.80 / 6.04 / 1.28 bits.",
+    "AGENTS.md rule 12 is UNMET and UNWAIVED. No ML-KEM break claim. No status change to any EV-MLKEM-* record or KN-* entry.",
+    "Toy scale is never crypto-scale evidence."
+  ],
+
+  "decision_rule_discipline": {
+    "verdict_on_the_null_arm_first": "P1 and P2 are evaluated and PRINTED on the Haar (null) arm BEFORE the real arm is read, per KN-TECH-1a5b7e mode 4. If P1/P2 emit the same verdict on the null arm as on the real arm, that fact is reported prominently and the real-arm verdict is not read as discriminating.",
+    "note_on_P1_on_the_null_arm": "P1 on the Haar arm is EXPECTED to pass by construction -- that is the unit test that is not a control. It is printed anyway, precisely so that a reader can see that P1 passing on the real arm is only informative to the extent that the two arms could have differed."
+  }
+}

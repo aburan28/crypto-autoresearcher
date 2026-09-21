@@ -1,0 +1,54 @@
+experiment:
+  id: EXP-JMV-002
+  hypothesis_id: H-JMV-001
+  version: 1
+  title: Does the square part of d_pi behave like that of a random integer? (JMV Section 6 heuristic)
+  status: draft
+  objective: >-
+    Test the Section 6 model that -d_pi = 4q - t^2 behaves as a random integer of size q,
+    from which JMV derive Pr[P(c_pi) > beta] = O(1/beta) and an implied 6/pi^2 squarefree
+    density. The model is stated loosely and has never been measured.
+  inputs:
+    field_bit_sizes: [40, 50, 60, 70, 80]
+    curves_per_size: 10000
+    prime_selection: random primes per size; random (a,b) short-Weierstrass coefficients
+  controls:
+    - "Primary control: random integers of matched bit size, square part computed by the same code path. This is the paper's own null model."
+    - "Stratified control: for each small odd prime l, compare the empirical density of l^2 | d_pi against 1/l^2 with binomial error bars."
+    - "Known-answer control: a set of integers with planted square factors must be recovered exactly by the square-part routine."
+  independent_variables: [field bit size, curve]
+  metrics:
+    primary: [empirical distribution of c_pi, distribution of P(c_pi), squarefree density of d_pi, level_count distribution]
+    secondary:
+      - per-l square density for l <= 100
+      - censoring rate
+      - "tail fit exponent for Pr[P(c_pi) > beta]"
+  replication:
+    seeds: [20260726, 20260727, 20260728]
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 8
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+    - Per-factorization hard cap; on cap the sample is recorded as CENSORED and retained.
+  invalidation_rules:
+    - Censoring rate above 5% at any bit size invalidates the tail estimate at that size (censoring biases exactly the tail being measured).
+    - Failure of the planted-square known-answer control invalidates the run.
+  success_criterion: >-
+    A measured square-part distribution with error bars at each size, and a fitted tail
+    exponent for Pr[P(c_pi) > beta], each compared against the matched random-integer control.
+  falsification_criterion: >-
+    Odd-prime square densities deviate from 1/l^2 beyond binomial error at fixed l, or the
+    P(c_pi) tail is not Theta(1/beta), i.e. the random-integer model fails for d_pi.
+  required_artifacts: [runs/<id>/manifest.yaml, raw.json, stderr.txt, analysis.md, distributions.csv]
+  claim_tier: medium
+  claim_boundary: >-
+    Scoped to 40-80 bit fields. Extrapolation to cryptographic sizes is a stated conjecture,
+    never a result of this experiment.
+  notes:
+    - "PRE-REGISTERED DEVIATION: d_pi = 0 or 1 (mod 4) is forced, so the prime 2 cannot follow the random-integer model. Deviation at l=2 is predicted and is NOT a falsification. The test concerns odd primes."
+    - Report whether the Hasse-interval distribution of t induces bias beyond the mod-4 constraint.
+  assigned_to: executor
+  approved_by: null

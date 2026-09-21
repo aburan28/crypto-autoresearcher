@@ -1,0 +1,359 @@
+experiment:
+  id: EXP-SSI-001
+  hypothesis_id: H-SSI-001
+  goal_id: GOAL-SSI-001
+  version: 1
+  title: >-
+    Full-cost re-baselining of classical supersingular path-finding:
+    measured toy-scale anchors plus pinned-formula cost tables for MITM,
+    low-memory collision search, and Delfs-Galbraith, split by F_p2 vs F_p
+    regime.
+  status: approved
+  frozen: true
+  approved_by: coordinator
+  approved_at: '2026-07-27'
+  claim_tier: toy
+  objective: >-
+    Decide, under the pinned convention wiener_full_cost_plus_isogeny_step_count,
+    whether full-cost accounting changes the classical-cost ranking of pure
+    supersingular path-finding algorithms relative to the quoted step-count
+    ranking (KN-TECH-024, KN-TECH-029), separately in the F_p2 and F_p regimes,
+    and produce the fully disclosed cost table (measured vs modeled columns
+    separated, memory beside time, optimistic assumptions with bias direction)
+    at the standardized parameter sets. Both a flip and a survival verdict are
+    reachable outcomes; a decided null in every regime falsifies H-SSI-001.
+
+  inputs:
+    parameter_sets:
+      anchor_sizes_log2p: [28, 32, 36, 40]
+      standardized_sets:
+        - {name: SQIsign NIST-I, security_parameter: "log2(p) ~ 256"}
+        - {name: SQIsign NIST-III, security_parameter: "log2(p) ~ 384"}
+        - {name: SQIsign NIST-V, security_parameter: "log2(p) ~ 512"}
+        - {name: large-768, security_parameter: "log2(p) ~ 768"}
+      prime_selection_rule: >-
+        For each anchor size k, the smallest prime p >= 2^k with
+        p = 3 (mod 4) (j = 1728 supersingular); deterministic, pre-registered,
+        recorded per run.
+    graph_instances:
+      fp2_regime: >-
+        Supersingular 2-isogeny graph over F_p2, N ~ p/12 vertices
+        (KN-TECH-024). E1 at j = 1728; E2 the endpoint of a seed-derived
+        non-backtracking walk of length 4*log2(N). No torsion images.
+      fp_regime: >-
+        F_p-rational subgraph reachable from j = 1728 under F_p-rational
+        2-isogenies (Delfs-Galbraith setting, KN-LIT-078); realized reachable
+        size, degree distribution, and edge rationality recorded as secondary
+        metrics.
+      synthetic_control_instances: >-
+        SHA-256-based seeded pseudorandom mappings on 2^14, 2^16, 2^18
+        states, exercising the identical distinguished-point walk code
+        (control C4).
+    pinned_cost_formulas:
+      F1_stepcount_MITM_fp2: >-
+        T = sqrt(pi*N/2) steps, M = sqrt(pi*N/8) table entries, N = p/12
+        (two-sided birthday; constants pinned here, measured at toy scale).
+      F2_fullcost_MITM_fp2: >-
+        FC = N^{2/3+o(1)} in F_{p^2}-operation-equivalent full cost
+        (KN-LIT-094: a sqrt(N)-entry random-access table over a space of
+        size N); o(1) unextracted, flagged.
+      F3_stepcount_lowmemory_CS: >-
+        T = (sqrt(pi*n/2) + 2^theta)/m wall-clock steps on m processors,
+        total work sqrt(pi*n/2) + 2^theta; memory Theta(sqrt(n)/2^theta)
+        distinguished-point entries + O(1) per processor (KN-LIT-012);
+        theta = 8 pinned; n = N (F_p2) or n' (F_p subgraph).
+      F4_fullcost_lowmemory_CS: >-
+        FC retains the step-count exponent (KN-LIT-094: parallel collision
+        search keeps its asymptotic advantage because per-processor storage
+        is small); hardware = m processors + stored distinguished points
+        priced; constants documented, exponent pinned equal to F3's.
+      F5_Delfs_Galbraith_fp: >-
+        n' ~ p^{1/2} (KN-LIT-078, reported). Case F5a (DG is table-based
+        MITM on the subgraph): T = sqrt(pi*n'/2), M = sqrt(pi*n'/8)
+        entries, FC = n'^{2/3+o(1)} = p^{1/3+o(1)}. Case F5b (DG achieves
+        O~(p^{1/4}) with polylog memory): FC = p^{1/4+o(1)}. The executor
+        resolves the case from the KN-LIT-078 primary text (DOI
+        10.1007/s10623-014-0010-1, arXiv:1310.7789); if inaccessible, both
+        cases are tabulated and the F_p verdict is conditional.
+      F6_per_step_cost: >-
+        c_step(p) = a*(log2 p)^b F_{p^2}-operations per 2-isogeny step,
+        with a, b fit by least squares over the measured anchors; fit
+        parameters and residuals disclosed; modeled tables carry both the
+        raw step counts (F1-F5) and the c_step-scaled operation counts.
+    reusable_components:
+      - harness/runner.py (immutable run records: command, git state, environment, peak_rss_bytes; refuses overwrite)
+      - harness/toycurve.py (F_p field/curve arithmetic patterns)
+      - experiments/EXP-WESOVOW-001/cost_model.py (pinned-formula + named-control table style; no Dickman code needed here)
+      - harness RunResult cost_model metadata block (harness/README.md)
+    new_code: >-
+      experiments/EXP-SSI-001/ssi_costlab.py: pure Python (stdlib +
+      sympy/pyyaml; no Sage, no network): 2-isogeny graph walk over F_p2
+      with instrumented F_{p^2}-operation counters, two-flavored
+      distinguished-point walk, MITM table builder, F_p-subgraph explorer
+      (separate code path, control C3), synthetic-mapping control driver,
+      cost-table generator.
+
+  controls:
+    - id: C1-formula-crosscheck
+      description: >-
+        Formula-implementation cross-check against a pinned published worked
+        cost figure: the frozen P13 source (inputs/P13-WESOLOWSKI-2026/
+        paper_fulltext.md, lines 234-236) quotes "previous methods:
+        ~ 2^128 / 2^192 / 2^256 F_{p^2}-operations" at log2(p) = 256/384/512.
+        Modeled F1 step-count at those sizes must deviate <= 2.5 bits after
+        constants disclosure (expected offset ~1.5 bits: the p/12 graph-size
+        constant and sqrt(pi/2) birthday constant that the quoted figure
+        omits). No published worked figure exists in corpus for the
+        full-cost convention; that path is controlled by C2 and by
+        exponent-level agreement with KN-LIT-094's stated BSGS result.
+      on_violation: >-
+        Recorded honestly; the modeled step-count table is flagged
+        formula-suspect and the run is invalid_measurement, not evidence
+        against the hypothesis.
+    - id: C2-memory-reconciliation
+      description: >-
+        Analytic table size (entries x measured bytes-per-entry) plus a
+        measured fixed interpreter baseline B0 must reconcile with measured
+        peak_rss_bytes within a pre-declared factor 4, for every MITM-style
+        anchor in both regimes. B0 is measured in the control run and
+        reported, not tuned per run.
+      on_violation: affected anchor run invalid_measurement.
+    - id: C3-regime-separation
+      description: >-
+        F_p2 and F_p analyses are produced by separate code paths sharing
+        only generic field arithmetic: the F_p2 path never imports the
+        subgraph scaling (p^{1/2}) and the F_p path never imports the
+        full-graph constant (p/12). The cost-table generator consumes
+        regime-tagged inputs and refuses mixed-regime constants; the
+        validation step checks the separation structurally.
+      on_violation: affected modeled table entries invalid; recorded.
+    - id: C4-synthetic-walk-control
+      description: >-
+        The identical distinguished-point walk code run over seeded
+        pseudorandom mappings of sizes 2^14, 2^16, 2^18 must recover the
+        theoretical collision constant within [0.5, 2.0] x sqrt(pi*2^k/2)
+        and distinguished-point counts within [0.5, 2.0] x
+        sqrt(2^k)/2^theta. Validates harness and metric independently of
+        isogeny mathematics.
+      on_violation: >-
+        All walk-based anchors invalid (harness/metric defect); experiment
+        stops as invalid, never as a result.
+
+  independent_variables:
+    - {name: regime, values: [F_p2, F_p]}
+    - {name: method, values: [MITM_table, lowmemory_DP_collision_search, Delfs_Galbraith_subgraph]}
+    - {name: anchor_size_log2p, values: [28, 32, 36, 40]}
+    - {name: seed, values: [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111]}
+    - {name: cost_convention, values: [step_count, wiener_full_cost]}
+    - {name: distinguished_point_theta, values: [8]}
+
+  metrics:
+    primary:
+      - name: time
+        definition: >-
+          Measured: per-step F_{p^2}-operation count and wall seconds per
+          anchor run (instrumented counters). Modeled: total time per
+          method x regime x standardized set under each convention
+          (F1-F6), in F_{p^2}-operations. Measured and modeled values are
+          reported in separate labeled fields, never one column.
+      - name: peak_memory
+        definition: >-
+          Measured: peak_rss_bytes per anchor run (runner-recorded), plus
+          analytic entries x bytes-per-entry at declared scenarios
+          {64, 256} bytes/entry, reconciled per control C2. Modeled: table
+          memory per method x regime x standardized set (F1/F3/F5), first-
+          class beside time.
+      - name: per_regime_cost_ratio
+        definition: >-
+          Delta_R(S) = log2(FC_table-method) - log2(FC_low-memory-CS) per
+          regime R in {F_p2, F_p} at each standardized set S, under each
+          convention, with the ranking verdict (flip | survival |
+          undecidable) decided against noise band delta = (1/24)*log2(p).
+    secondary:
+      - measured mean first-collision steps vs sqrt(pi*N/2) (HEUR-001)
+      - measured distinguished-point count vs sqrt(N)/2^theta (HEUR-002)
+      - walk cycle-trap rate vs the declared 1% bound (HEUR-002)
+      - reachable-subgraph size slope log2(n')/log2(p) and realized degree distribution (HEUR-003)
+      - measured bytes-per-table-entry and interpreter baseline B0
+      - c_step fit parameters a, b and residuals (F6)
+      - C1 deviation in bits at log2(p) = 256/384/512
+      - C4 synthetic-control collision constant per size
+
+  heuristic_under_test: >-
+    none as primary claim (the claim is a cost ranking); HEUR-001,
+    HEUR-002, HEUR-003 are instrumented as secondary anchors whose bands
+    are pre-declared in H-SSI-001.
+  preregistered_prediction:
+    quantity: >-
+      Per-regime full-cost ranking gaps Delta_Fp2(S) and Delta_Fp(S) at the
+      four standardized sets, plus step-count consistency with the quoted
+      literature.
+    formula: >-
+      Delta_Fp2 = log2(F2) - log2(F4) ~ (2/3 - 1/2)*log2(p);
+      Delta_Fp = log2(F5) - log2(F4 on n') ~ (1/3 - 1/4)*log2(p) under
+      case F5a, ~ 0 under case F5b; step-count F1 within 2.5 bits of the
+      P13 "previous methods" figures after constants disclosure.
+    source: >-
+      KN-LIT-094 (BSGS full-cost exponent, parallel-collision-search
+      advantage), KN-LIT-012 (distinguished-point tradeoff), KN-TECH-024 /
+      KN-LIT-078 (graph sizes), inputs/P13-WESOLOWSKI-2026/paper_fulltext.md
+      lines 234-236 (worked previous-methods figures); all via pinned
+      formulas F1-F6 written before any run.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Measured anchors are instrumented runs at log2(p) <= 40 (toy scale).
+      The claim_tier toy applies to those anchors only. The modeled tables
+      at the standardized NIST-size sets are pinned-formula extrapolations
+      (heuristic_estimate bounds under disclosed assumptions), not
+      measurements: they inherit no evidence tier and may never be cited as
+      crypto-scale validation (AGENTS.md rule 7). Transfer across scale
+      rests on the formulas' exponent form, not on the anchors' absolute
+      values; the anchors pin constants and validate walk behavior.
+    correspondence: >-
+      none (direct sampling on the isogeny graph at anchor sizes; no
+      correspondence trick used or claimed).
+  tail_checks:
+    - >-
+      Smallest measured first-collision sample across seeds compared
+      against its predicted birthday-law lower-tail probability; excursions
+      recorded as unexpected observations, not discarded.
+
+  replication:
+    seeds: [101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111]
+    seed_policy: >-
+      Fixed pre-registered seeds, one per planned run; instance start
+      curves and walk keys derive via SHA-256(seed || role-tag). No seed
+      tuning: a failed or anomalous seed is reported, never silently
+      resampled. RUN-SSI-005 replicates RUN-SSI-003's size with a new prime
+      and seed (instance independence of per-step cost and table memory).
+    independent_instances: 9
+    planned_runs:
+      - id: RUN-SSI-001
+        purpose: controls (C1 formula cross-check, C4 synthetic walk control at 2^14/2^16/2^18, B0 interpreter baseline)
+        seed: 101
+      - id: RUN-SSI-002
+        purpose: F_p2 MITM anchor, log2(p)=28 (per-step ops, table memory, collision point)
+        seed: 102
+      - id: RUN-SSI-003
+        purpose: F_p2 MITM anchor, log2(p)=32
+        seed: 103
+      - id: RUN-SSI-004
+        purpose: F_p2 MITM anchor, log2(p)=36
+        seed: 104
+      - id: RUN-SSI-005
+        purpose: F_p2 MITM anchor, log2(p)=32, replication of RUN-SSI-003 with new prime and seed
+        seed: 105
+      - id: RUN-SSI-006
+        purpose: F_p2 distinguished-point collision-search anchor, log2(p)=32
+        seed: 106
+      - id: RUN-SSI-007
+        purpose: F_p2 distinguished-point collision-search anchor, log2(p)=36
+        seed: 107
+      - id: RUN-SSI-008
+        purpose: F_p subgraph DG-table anchor, log2(p)=36 (reachable size, degree distribution, per-step ops, table memory)
+        seed: 108
+      - id: RUN-SSI-009
+        purpose: F_p subgraph DG-table anchor, log2(p)=40
+        seed: 109
+      - id: RUN-SSI-010
+        purpose: F_p subgraph distinguished-point anchor, log2(p)=40
+        seed: 110
+      - id: RUN-SSI-011
+        purpose: model stage - generate experiments/EXP-SSI-001/cost-table.yaml with all disclosures (deterministic; seed recorded for form)
+        seed: 111
+    expected_run_count: 11
+
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_wall_clock_seconds: 18900
+    total_cpu_hours: 5.25
+    maximum_memory_gb: 8
+    maximum_runs: 12
+    stages:
+      - id: controls
+        runs: [RUN-SSI-001]
+        wall_clock_seconds: 1800
+        stop_rule: >-
+          C4 failure aborts the experiment as invalid (harness defect);
+          C1 deviations are recorded, never retried.
+      - id: measure_fp2
+        runs: [RUN-SSI-002, RUN-SSI-003, RUN-SSI-004, RUN-SSI-005, RUN-SSI-006, RUN-SSI-007]
+        wall_clock_seconds: 10800
+        stop_rule: >-
+          Each run capped at 3600 s; a failed run is recorded, not retried;
+          at least 4 of 6 valid anchors required before the model stage,
+          else the experiment ends failed_infrastructure or invalid per the
+          invalidation rules.
+      - id: measure_fp
+        runs: [RUN-SSI-008, RUN-SSI-009, RUN-SSI-010]
+        wall_clock_seconds: 5400
+        stop_rule: >-
+          Each run capped at 3600 s; at least 2 of 3 valid anchors required
+          before the model stage; a definability obstruction of the
+          subgraph walk is recorded as an observation bearing on FC2 /
+          HEUR-003, not retried with new seeds.
+      - id: model
+        runs: [RUN-SSI-011]
+        wall_clock_seconds: 900
+        stop_rule: >-
+          Ends when cost-table.yaml and its disclosures are written; no
+          re-scoring of measured anchors after the fact.
+
+  stopping_rules:
+    - Stop the measurement stages early when per-step cost and bytes-per-entry estimates stabilize (relative change < 5% between the RUN-SSI-003/RUN-SSI-005 replicate pair); the early stop is recorded.
+    - Stop after the 11 planned runs; additional runs require a versioned protocol amendment.
+    - Hard stop at total_wall_clock_seconds = 18900 or maximum_memory_gb = 8; an exceeded run is cancelled_by_budget, never a result.
+    - C4 synthetic-control failure stops everything (harness defect; experiment invalid).
+
+  invalidation_rules:
+    - Missing peak_rss_bytes, manifest, git state, or seed record in a run: invalid_measurement.
+    - Measured per-step F_{p^2}-operation count outside [formula/8, 8*formula] at two consecutive anchor sizes: that run invalid_measurement (implementation audit); not evidence about the hypothesis.
+    - Memory reconciliation (C2) violated: the affected anchor invalid_measurement.
+    - C4 synthetic control failed: every walk-based anchor invalid; experiment status invalid.
+    - C3 regime-constant contamination detected: affected modeled entries invalid; recorded.
+    - Timeout, crash, or budget exhaustion: failed_infrastructure or resource_exhaustion, never evidence (AGENTS.md rule 5).
+
+  success_criterion: >-
+    experiments/EXP-SSI-001/cost-table.yaml is produced with (i) measured
+    and modeled numbers in separate labeled column families for every
+    method x regime x standardized set, (ii) the full optimistic-assumption
+    disclosure list with bias directions, (iii) peak memory first-class
+    beside time everywhere, and (iv) a ranking verdict (flip or survival)
+    decided entirely from the pre-registered formulas and measured anchors
+    in at least one regime at at least one standardized set, with the
+    full-cost gap exceeding the pre-declared noise band
+    delta = (1/24)*log2(p).
+
+  falsification_criterion: >-
+    Both regimes reach decided verdicts and the modeled full-cost ranking
+    matches the quoted step-count ranking within the noise band
+    (|Delta| < (1/24)*log2(p)) at every standardized set: the motivating
+    claim of H-SSI-001 (that full-cost accounting may change the
+    classical-cost ranking) is refuted for this exact pinned convention and
+    scope - a null result, which still counts as a successfully executed
+    experiment if the disclosure-complete table is produced. An undecidable
+    regime (e.g., unresolved DG memory-profile case split) yields
+    inconclusive, never a silent failure or a silent success; infrastructure
+    outcomes never trigger this criterion (AGENTS.md rule 5).
+
+  required_artifacts:
+    - experiments/EXP-SSI-001/specification.yaml
+    - experiments/EXP-SSI-001/ssi_costlab.py
+    - >-
+      experiments/EXP-SSI-001/cost-table.yaml (deliverable schema: separate
+      measured_* and modeled_* field families per method x regime x
+      standardized set - measured_* only from run records, modeled_* only
+      from pinned formulas, the two never mixed in one field; memory fields
+      beside time fields everywhere; optimistic-assumption list with bias
+      directions; time-memory tradeoff statement; affected-vs-safe scope;
+      tables under optimistic assumptions labeled bounds, not predictions)
+    - experiments/EXP-SSI-001/runs/RUN-SSI-001/ ... /runs/RUN-SSI-011/ each containing: manifest.yaml, raw-result.json, stdout.txt, stderr.txt
+    - experiments/EXP-SSI-001/runs/RUN-SSI-011/execution_report.yaml
+
+  assigned_to: executor
+  inference_receipt:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: null
+    fallback_used: false
+    authorization_ref: null

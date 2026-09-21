@@ -1,0 +1,218 @@
+experiment:
+  id: EXP-ECDLP-5cad48
+  hypothesis_id: H-ECDLP-2ade73
+  version: 1
+  title: >
+    Relative bucket variance W of the O2 agreement kernel:
+    Stage 0 reproduces the KN-FIND-ffe1df fixture at p=65539, M=40
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-09-07'
+  approval_decision: DEC-20260907-28ff2a
+  approval_basis: >
+    Standing user authorization recorded in AGENTS.md on 2026-09-06
+    (ideas and experiments always approved once the protocol is complete).
+    Coordinator completeness check is DEC-20260907-28ff2a after
+    TASK-20260907-b92ce2. User confirmation is not an outstanding gate.
+  frozen: true
+  frozen_at: '2026-09-07'
+  execution_authorized: true
+  execution_authorized_note: >
+    Stage 0 only. Stages 1 and 2 remain unauthorized until an independent
+    review of the Stage 0 fixture holds and a later Coordinator decision
+    extends execution_authorized_stages. This approval does not authorize
+    Stage 5 of EXP-ECDLP-a98ea9 and does not change H-ECDLP-07c7c6.
+  execution_authorized_stages: [0]
+  execution_authorized_decision: DEC-20260907-28ff2a
+  evidence_eligible: false
+  designed_by: coordinator
+  designed_under_task: TASK-20260907-b92ce2
+  source_proposal: IDEA-20260904-f7d47d
+  class: measurement
+  certificate:
+    kind: none
+  claim_tier: observational
+  status_note: >
+    Frozen at version 1 and approved 2026-09-07 by DEC-20260907-28ff2a
+    under the standing 2026-09-06 user authorization. Stage 0 is the
+    KN-FIND-ffe1df fixture reproduction. Any later stage needs a
+    versioned protocol_amendment.
+
+  objective: >
+    Reproduce the KN-FIND-ffe1df / RT-20260803-be45a8 fixture
+    (p=65539, a=0, b=11, N=65287, M=40) for M*delta, M*max_c pi_c,
+    and the SHA-256-truncated-to-M null, then record the relative
+    bucket variance W on the covered residue family, the SHA null,
+    the matched-marginal shuffle, and the dlog-interval pullback.
+    Stage 0 decides whether the instrument matches the published
+    digits. It does not fit a, does not claim SMALL-W or LARGE-W,
+    and does not authorize Stages 1-2.
+
+  preregistered_prediction:
+    quantity: >
+      Stage 0 fixture: M*delta and M*max_c pi_c on floor(Mx/p) and
+      x mod M, and M*max_c pi_c on the SHA null, at the frozen
+      (p, a, b, N, M). Secondary: W on every arm, recorded as an
+      observation. Certificate kind none.
+    formula: >
+      Exact whole-group FFT convolution of RT-EXP-1 (rt_exp_1.py
+      bucket_gain): G = M * max_{c,d} pi_c(d), Md = M * max_d of
+      the bucket-averaged agreement at offset d. W is computed at
+      the d* that maximises the average delta:
+      W = Sum_c q_c * (pi_c(d*)/delta(d*) - 1)^2
+      with q_c = |h^{-1}(c)| / N.
+      FORCED Stage 0 windows (KN-FIND 3dp and REDTEAM 5dp):
+      floor(Mx/p) M*delta in [1.001, 1.004],
+      floor(Mx/p) M*max_c pi_c in [1.082, 1.086],
+      SHA M*max_c pi_c in [1.080, 1.084].
+      x mod M is recorded and must land in the same 3dp neighbourhood
+      (REDTEAM 1.00299 / 1.08398).
+    source: >
+      knowledge/findings/KN-FIND-ffe1df.md (internal) and
+      analysis/o2-sum-compatible-filters/reviews/REDTEAM.md table
+      at p=65539, M=40. Provenance internal; read in this design
+      session.
+
+  design_tightening_p2_is_known_large_G_not_W: >
+    IDEA-20260904-f7d47d names the dlog-interval pullback as a
+    known-large W arm. Under the record's own definition
+    W = Sum q_c (pi_c/delta - 1)^2 that arm is equal-and-large:
+    every bucket agrees at about 1/2, so G ≈ 20 while relative
+    variance W is near 0. Stage 0 therefore treats P2 as the
+    known-large G control (must recover G in [19.9, 20.1]) and
+    records its W as an observation, expected near 0. A
+    known-large W control (unequal buckets) is a Stage 1+ object
+    and is not authorized here. This is a disclosed tightening,
+    not a silent change of the idea's claim.
+
+  inputs:
+    fixture:
+      p: 65539
+      a: 0
+      b: 11
+      N: 65287
+      M: 40
+      curve: y^2 = x^3 + 11 over F_65539
+      generator_search: first affine point of full order, as in fourier_obstruction.dlog_table
+    filters_stage0:
+      - floor(Mx/p)
+      - x mod M
+      - sha256(str(int(x))) % M
+      - matched-marginal shuffle of floor(Mx/p) labels, seed 20260803
+      - P2 dlog-interval (arange(N)*M)//N
+    combining_rule: >
+      Offset family d in {0,...,M-1} with s = c - d, as in
+      rt_exp_1.bucket_gain. Not a single fixed f.
+
+  independent_variables:
+    - filter arm in the Stage 0 set
+    - offset d used to form pi_c(d)
+
+  null_object:
+    name: SHA-256 truncated to M, plus matched-marginal shuffle
+    construction: >
+      SHA: hashlib.sha256(str(int(x)).encode()).hexdigest() integer
+      mod M, matching interval_decay.py / rt_exp_1.py. Shuffle:
+      numpy default_rng(20260803).shuffle of the floor(Mx/p) label
+      vector, preserving bucket weights exactly.
+    non_degeneracy_check: >
+      SHA and shuffle must not reproduce P2's G ≈ 20. If they do,
+      the instrument is broken.
+    dynamic_range_demonstration: >
+      P2 must recover G in [19.9, 20.1]. That is the known-large
+      G rung. W-dynamic-range is not claimed at Stage 0.
+
+  controls:
+    - SHA-256 truncated to M (in-arm null)
+    - matched-marginal shuffle of floor(Mx/p)
+    - P2 dlog-interval as known-large G
+    - exact whole-group enumeration (no sampling at Stage 0)
+
+  metrics:
+    primary:
+      - M*delta on floor(Mx/p) and x mod M (dimensionless)
+      - M*max_c pi_c on floor(Mx/p), x mod M, and SHA (dimensionless)
+      - G on P2 (dimensionless); FORCED in [19.9, 20.1]
+      - fixture_pass boolean
+    secondary:
+      - W per arm at d*
+      - min_c q_c per arm
+      - 1 + sqrt(W / min_c q_c) per arm
+      - wall-clock seconds and peak RSS
+
+  heuristic_under_test: H1
+
+  scale_relevance:
+    tier: toy
+    justification: >
+      Single prime p=65539, N=65287, complete enumeration. No
+      transfer to cryptographic n. Stages 1-2, when authorized,
+      remain N <= 65539.
+    correspondence: null
+
+  tail_checks:
+    - P2 G in [19.9, 20.1]
+    - SHA G does not reach 2.0
+    - CS bound 1 + sqrt(W/min q_c) is at least G/(M*delta) in every arm
+
+  replication:
+    seeds: [20260803]
+    independent_instances: 1
+  seeds_policy: >
+    Seed 20260803 governs only the shuffle arm, matching
+    rt_exp_1.py. The fixture itself is exact enumeration and
+    is not seeded.
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 1
+    maximum_memory_gb: 8
+    maximum_runs: 1
+    maximum_workers: 1
+
+  stopping_rules:
+    - >
+      STAGE 0, HARD GATE: reproduce the fixture windows. Miss
+      classifies the run failed_infrastructure and stops.
+    - Stages 1 and 2 are not authorized.
+    - No attack is run. Certificate kind none.
+
+  invalidation_rules:
+    - Any execution while Stage 0 is not in execution_authorized_stages
+    - Sampling instead of whole-group enumeration at Stage 0
+    - Changing p, a, b, N, M, or the SHA encoding after this freeze
+    - Reading Stage 0 W as SMALL-W or LARGE-W
+    - Reading P2's near-zero W as an instrument failure
+    - Authorizing Stage 5 of EXP-ECDLP-a98ea9 from this contract
+    - Changing H-ECDLP-07c7c6 from Stage 0 of this experiment
+
+  success_criterion: >
+    Stage 0 succeeds as a measurement when floor(Mx/p) M*delta is
+    in [1.001, 1.004], floor(Mx/p) M*max_c pi_c is in [1.082, 1.086],
+    SHA M*max_c pi_c is in [1.080, 1.084], P2 G is in [19.9, 20.1],
+    W is recorded for every arm, and the run manifest carries
+    certificate.kind none. Success is fixture reproduction, not a
+    W-decay claim.
+
+  falsification_criterion: >
+    Fixture miss is infrastructure, not mathematics. SMALL-W and
+    LARGE-W are not testable at Stage 0. No Stage 0 outcome
+    supports or weakens H-ECDLP-07c7c6.
+
+  required_artifacts:
+    - Stage 0 raw-result.json with per-arm M*delta, G, W, min_q, CS bound
+    - fixture_pass boolean and the three window checks
+    - run manifest with command, git state, environment, seeds, certificate kind none
+    - stdout, stderr, environment.json, command.txt
+
+  assigned_to: executor
+
+  limitations:
+    - Level 1 only. Nothing transfers to Wagner levels >= 2.
+    - Covered residue family only at Stage 0. Quadratic character is Stage 2.
+    - Toy scale N=65287. No cryptographic transfer.
+    - P2 is known-large G, not known-large W, as disclosed above.
+    - A SMALL-W or LARGE-W reading requires an authorized Stage 2 ladder.
+    - No disposition of H-ECDLP-07c7c6. No Stage 5 of a98ea9.
+    - Certificate kind none. No solve, relation, or attack.

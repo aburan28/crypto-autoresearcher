@@ -1,0 +1,277 @@
+idea:
+  id: IDEA-20260816-3af456
+  question_id: RQ-BLAKE-584719
+  added: '2026-08-16'
+  title: Compute the exact bit-level dependency matrix -- which output bits are functions of which
+    input bits after r rounds -- by symbolic reachability rather than by statistical avalanche sampling,
+    for BLAKE3, BLAKE2s and the message-injection-off round, and report the round at which each first
+    reaches full dependency.
+  class: measurement
+  claim: '(A) Avalanche is normally measured statistically, by flipping input bits and counting output
+    flips over samples. That measurement has sampling error, needs a significance argument, and confounds
+    dependency with bias. The DEPENDENCY relation -- does output bit j depend on input bit i at all
+    after r rounds -- is instead computable EXACTLY by symbolic reachability: give each input bit
+    a distinct symbol, propagate a per-bit dependency set through XOR, rotation and modular addition
+    using the exact carry-dependency rule for addition, and read off the closure. This costs milliseconds,
+    has no sampling error, no seed, and no p-value. (B) The claim is that the resulting object --
+    the dependency matrix D_r, and the derived scalar d = min{r : D_r is complete} -- is a comparable
+    per-round quantity across BLAKE3, BLAKE2s and the message-injection-off degenerate round, and
+    that reporting it alongside any trail-weight curve costs nothing and constrains its interpretation:
+    a design that has not reached full dependency at round r cannot have a meaningful trail bound
+    at round r for reasons that have nothing to do with the solver. (C) NOT CLAIMED: full dependency
+    is not security, is not diffusion in any statistical sense, and is not a distinguisher. The dependency
+    relation is an OVER-APPROXIMATION -- it records that a path exists, not that the dependence is
+    nonzero or usable -- and therefore d is a LOWER BOUND on the round at which meaningful mixing
+    could exist and never an upper bound on anything. No attack, no break, no security consequence,
+    no statement about full-round BLAKE3 or any deployed system. (D) The negative outcome is a usable
+    measured obstruction: if all three objects reach full dependency at the same round, then dependency
+    does not separate these designs, and any trail-weight divergence measured at rounds beyond that
+    one cannot be attributed to differences in how fast the designs mix -- which removes one explanation
+    from the table permanently and at zero compute cost.'
+  mechanism: 'Exact symbolic propagation, implemented in a few dozen lines. Stage one: represent each
+    of the 512 state bits (and, in the message-free configuration, each of the 512 message bits) by
+    a bitmask over the input bit indices, initialised to a single set bit. Stage two: define the propagation
+    rules exactly -- XOR takes the union of the two operands'' masks bitwise; rotation permutes positions
+    and carries masks unchanged; modular addition is the only nontrivial case and its rule is that
+    output bit k depends on both operands'' bits 0..k, which is the standard exact carry-dependency
+    over-approximation and must be labelled as an over-approximation everywhere it appears. Stage
+    three: run r rounds for r = 1..12 on all arms; after each round record D_r as a boolean matrix
+    and compute completeness. Stage four: report d per arm, and also the finer-grained curve -- the
+    fraction of matrix entries set at each round -- since d alone saturates and hides the approach.
+    Stage five: run the null arms (random rotation constants, random schedule) through the identical
+    code path and compare both d and the fraction curve. Stage six: validate the propagation implementation
+    against a planted control -- a construction whose exact dependency round is known by hand, such
+    as a single rotation chain -- and require exact agreement.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril blake over ledger/, knowledge/, experiments/; grep -ril 'avalanche|diffusion|dependency
+      matrix' over ledger/proposals and knowledge/techniques; grep -ril 'division property|algebraic
+      degree' over knowledge/techniques (since bit-level propagation methods cluster there); read
+      RQ-BLAKE-584719 and GOAL-BLAKE-001 in full; read docs/inventor-protocol.md sections 1-3, in
+      particular section 3's structural-tell test (a quantity that should decay and does not).
+    results: No BLAKE proposal exists. KN-TECH-076 covers automated trail search and names division-property
+      propagation among the objects solvers are used for, which is the nearest relative of bit-level
+      dependency propagation in this corpus -- but division property tracks algebraic degree and needs
+      a solver, whereas this record's relation is a plain reachability closure computed directly.
+      No record in ledger/proposals measures a dependency or avalanche matrix for any primitive. KN-TECH-077
+      and KN-TECH-065/058 appear in ARX-tagged greps but concern access models and other technique
+      families. The chimera-lattice record in this same bucket uses this measurement as its cheap
+      first pass, which is a dependency between siblings rather than a duplication, and it is declared
+      in both directions.
+    verdict: 'UNVERIFIED. Nothing is asserted about the published literature; symbolic dependency
+      propagation is elementary and this program cannot check what has been done with it externally.
+      Assembled from known parts: the carry-dependency rule for modular addition is standard, and
+      bit-tracking propagation is the ordinary substrate under the methods KN-TECH-076 describes.
+      Claimed new HERE: applying it as a ZERO-COMPUTE, ZERO-SEED companion to every trail-weight curve
+      in this bucket so that a bound is never published without the round at which dependency completes;
+      reporting the fraction curve rather than only the saturating scalar d; and treating the outcome
+      that all arms agree as a permanent removal of one explanation rather than as a null report.'
+  object_first_candidate:
+    tracked_object: 'The dependency matrix D_r -- a boolean matrix whose (i,j) entry says whether
+      output bit j has any dependency path from input bit i after r rounds -- together with the derived
+      scalar d = min{r : D_r complete} and the fraction-set curve f(r) = |D_r| / (rows*cols).'
+    lossiness: 'Genuinely lossy, and the loss is severe and deliberate. The true object is the full
+      Boolean function of each output bit on 1024 input bits; the tracked object records only whether
+      a dependency path exists. Discarded: the algebraic degree, the coefficient, whether the dependence
+      is balanced, and whether it cancels. What survives propagation and why: existence of a dependency
+      path is closed under composition -- if a path exists through round r and the round r+1 operation
+      reads that bit, a path exists through round r+1 -- so the relation propagates deterministically
+      forward as a monotone closure, which is exactly the compatibility the lossy-projection test
+      demands. The critical honesty point: because the projection is an OVER-approximation (a path
+      may exist while the actual dependence cancels to zero), the object can only ever lower-bound
+      the round at which real mixing exists, and every use of d in this record is written in that
+      direction. Nothing is discarded in a way that would let d over-state mixing.'
+    propagation: 'One round acts on the object by applying the exact per-operation rules: XOR unions
+      the two operand masks; rotation permutes bit positions; modular addition sets output bit k''s
+      mask to the union of both operands'' masks over bits 0..k. Message injection unions the message
+      word''s masks into the state at the scheduled position, so the schedule enters as which message
+      masks reach which state words at which round. The propagation is monotone -- masks only grow
+      -- which means D_r is nested increasing in r and d is well defined whenever completeness is
+      ever reached.'
+    survival_score: 'The object survives until saturation, and saturation is precisely the failure
+      mode. Because masks only grow, D_r becomes complete and stays complete, so d exists but the
+      object carries no further information beyond it -- this is why f(r), the fraction-set curve,
+      is a required metric rather than an optional one: it is the only part of the object that discriminates
+      before saturation. Concretely, the informative range is r = 1 until the first arm saturates,
+      expected to be a small number of rounds for an ARX design, and beyond that the measurement is
+      uniformly complete for every arm and says nothing. That short informative range is stated up
+      front as the object''s principal limitation, not discovered at analysis time.'
+  null_object_control: 'Two null families, both through the identical code path in the same invocation.
+    First: random-parameter ARX arms (rotation constants uniform on 1..31, schedule tables uniform
+    random permutations), 20 draws, giving the distribution of d and of f(r) that random parameters
+    of the same shape produce. Second, and required: a PLANTED control whose exact dependency behaviour
+    is known by hand -- for example a state updated only by rotations (dependency never spreads between
+    words, d never reached) and one updated by a single full-width XOR tree (dependency complete after
+    a known number of rounds by construction). What the nulls must show for the signal arm to mean
+    anything: the planted controls must reproduce their hand-computed d and f(r) EXACTLY, since the
+    whole value of this measurement is exactness and an implementation that is merely plausible is
+    worth nothing; and the random family must show a spread in d, because if every random ARX of this
+    shape reaches d at the same round as both real designs, then d is a property of the shape and
+    separates nothing -- a complete and reportable result that also removes d from the attribution
+    toolkit.'
+  discriminated_from:
+  - 'Statistical avalanche testing: explicitly not that. No sampling, no seeds, no significance test,
+    and a different object -- existence of a dependency path rather than probability of an output
+    flip. The two can disagree and the record states which direction the disagreement runs (a path
+    may exist with zero actual dependence, never the reverse).'
+  - 'KN-TECH-076''s division-property propagation: that tracks algebraic degree and is solved with
+    a constraint solver; this tracks reachability and is computed by closure. Related substrate, different
+    invariant, and this one has no solver and therefore no budget outcome to confuse with a mathematical
+    one.'
+  - 'The trail-weight records in this bucket: those measure a bound with a solver, a ceiling and seeds.
+    This measures an exact relation with none of those, and its intended use is as a companion that
+    constrains the interpretation of theirs.'
+  - 'The chimera-lattice record in this bucket: that uses this measurement as one of its two metrics
+    across a factorial design. This record establishes the measurement itself, including the planted
+    controls that make it trustworthy, and is a prerequisite rather than a subset.'
+  assumptions:
+  - The carry-dependency rule for modular addition (output bit k depends on operand bits 0..k) is
+    an exact over-approximation and is applied identically to every arm. It is an over-approximation
+    by construction and every conclusion is written in the direction that over-approximation permits.
+  - Both round functions are expressible in the same propagation code with only the parameter tuple
+    differing, inherited from the transfer-curve record's generator and re-checked by structural diff.
+  - Full dependency is reachable at all for these designs within 12 rounds; if it is not, d is undefined
+    for that arm and f(r) carries the whole result, which is stated rather than treated as a failure.
+  - Message bits are included as inputs in the free configuration and excluded in the message-injection-off
+    configuration, which changes the matrix's dimensions and therefore its completeness threshold
+    -- the two are never compared as raw completeness fractions without normalisation.
+  predictions:
+  - metric: planted-control agreement with hand-computed d and f(r)
+    direction: higher
+    minimum_effect: exact agreement on every entry; a single mismatched matrix entry falsifies the
+      implementation and the run stops
+  - metric: d for BLAKE3 versus d for BLAKE2s at the same configuration
+    direction: different
+    minimum_effect: 1 round is the smallest resolvable difference by construction; a difference of
+      0 is a real and reportable outcome and is the one that removes dependency from the attribution
+      toolkit
+  - metric: f(r) before saturation, real arms versus random-parameter arms
+    direction: different
+    minimum_effect: 'REFUSING TO PRE-COMMIT a threshold, with reason: f(r)''s scale depends on the
+      matrix dimensions read from the specification. Frozen rule: a real arm is called distinguishable
+      only if its f(r) falls outside the full observed range of the 20 random draws at some r before
+      any arm saturates'
+  - metric: monotonicity of f(r) in r
+    direction: higher
+    minimum_effect: f(r+1) >= f(r) is forced by construction; any violation is an implementation defect,
+      and this is an impossibility test rather than a prediction about the designs
+  minimal_test:
+    design: 'The planted controls alone, run first, cost seconds and decide whether anything else
+      is worth doing. Implement the propagation, then run it on three constructions whose dependency
+      behaviour is computable by hand: a rotation-only state (dependency never crosses word boundaries,
+      so completeness is never reached and f(r) is constant), a single XOR-tree mixing layer (completeness
+      reached at a known round), and a chain of modular additions in one word (dependency spreads
+      upward one bit position per addition in a pattern derivable on paper). Require exact agreement
+      on d, on f(r) at every r, and on the specific matrix entries at the first two rounds. If any
+      disagrees, the implementation is wrong and the real arms would have produced a plausible-looking
+      wrong answer -- which is the specific danger of a measurement with no error bars. Only after
+      exact agreement is the real measurement run, and it then costs milliseconds per arm, so the
+      entire experiment is dominated by its own validation, which is the correct proportion for an
+      exact method.'
+    controls:
+    - Planted controls with hand-computed dependency behaviour (rotation-only, XOR-tree, addition-chain),
+      requiring exact agreement on d, f(r) and individual matrix entries.
+    - 20 random-parameter ARX draws through the identical code path, giving the by-chance distribution
+      of d and f(r).
+    - 'Monotonicity impossibility test: f(r+1) >= f(r) checked at every step; a violation halts the
+      run as an implementation defect.'
+    - 'Configuration-matched comparison: message-free and message-injection-off arms have different
+      input dimensions and are never compared as raw fractions without explicit normalisation, which
+      is enforced in the reporting code rather than by convention.'
+    - 'Cross-check against the pinned reference by a coarse statistical avalanche run: the exact dependency
+      relation must be a SUPERSET of every dependence the statistical run detects; a detected dependence
+      outside the computed relation is an implementation defect.'
+    required_metrics:
+    - d per arm per configuration
+    - f(r) curve per arm per configuration for r = 1..12
+    - matrix dimensions per configuration
+    - planted-control agreement (exact | mismatch, with the mismatching entries)
+    - random-draw distribution of d and full range of f(r)
+    - superset check result against the statistical avalanche cross-check
+    - the first round at which any arm saturates
+  falsification_conditions:
+  - Any planted control disagrees with its hand-computed behaviour on any entry.
+  - Monotonicity of f(r) is violated anywhere.
+  - The statistical cross-check detects a dependence outside the computed relation, contradicting
+    the over-approximation property.
+  - All arms including all 20 random draws share the same d and indistinguishable f(r), so the measurement
+    separates nothing -- a real result that removes d from the attribution toolkit.
+  - Full dependency is never reached within 12 rounds by any arm, leaving d undefined everywhere and
+    f(r) as the only output.
+  - The message-free and message-off configurations are found to be incomparable even after normalisation,
+    so the intended cross-configuration reading is unavailable.
+  confounders:
+  - 'Saturation: once every arm is complete, all differences vanish and a late-round comparison shows
+    agreement for reasons of metric ceiling rather than design similarity. Mitigated by mandating
+    f(r) and by reporting the first-saturation round explicitly.'
+  - The addition over-approximation being coarser for one design than another if their addition patterns
+    differ in width or position, so a difference in d reflects the approximation rather than the design.
+    Mitigated by reporting, per arm, how many propagation steps were additions.
+  - Input-dimension mismatch between configurations silently inflating or deflating f(r).
+  - A random draw that happens to produce a degenerate schedule (for example one that never injects
+    some message word), deflating the random family's spread. Mitigated by 20 draws and by reporting
+    the full range rather than a summary.
+  - Reading d as a security quantity, which part (C) forbids; the over-approximation direction makes
+    the forbidden reading actively wrong rather than merely unsupported.
+  interpretation_limits:
+  - The relation is an over-approximation, so d lower-bounds the round at which meaningful mixing
+    could exist and upper-bounds nothing.
+  - Full dependency is not security, not statistical diffusion, and not a distinguisher.
+  - The informative range ends at the first saturation round, which is expected to be small; results
+    beyond it are uniform by construction and carry no information.
+  - Nothing about full-round BLAKE3, about round-count adequacy, or about any deployed system follows.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Computation is O(rounds * operations * state bits)
+      mask unions -- milliseconds, reported as an audit cost.
+    memory_exponent: No attack memory exponent is claimed; memory is one bitmask per state bit, i.e.
+      a matrix of about 1024 by 512 bits.
+    best_known: The incumbent is statistical avalanche measurement, which is what a reader would otherwise
+      assume produced any diffusion statement. This is not faster in a way that matters -- both are
+      cheap -- but it is EXACT where the statistical version has sampling error, at the cost of measuring
+      a coarser relation. That trade is the comparison, and it is stated in both directions rather
+      than sold as a strict improvement.
+    hidden_overhead: 'The validation is the work: three planted controls with hand-computed answers
+      must be derived on paper before any code is trusted, and that derivation is the only thing standing
+      between this measurement and a plausible wrong answer with no error bars to reveal it. Also
+      hidden: the saturation limit means most of the computed matrices carry no information, so the
+      reported result is far smaller than the computation, and a reader may mistake the small informative
+      range for a small effort.'
+  dominated_by: 'n/a (no result claimed on any attack frontier). Pareto check across time, memory
+    and data/queries: no attack row is produced. As a measurement it is dominated, on informativeness,
+    by division-property or algebraic-degree propagation, which track a strictly finer invariant at
+    strictly higher cost and need a solver; that domination is stated explicitly rather than left
+    for a reader to notice, and it is why this record positions itself as a companion measurement
+    rather than as a substitute.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: this repository
+    holds no exact dependency measurement for any primitive, and a run supplies d and f(r) for three
+    real configurations plus 20 random draws plus three planted controls, all exact. The delta is
+    exactness and a stated informative range, not a speedup.'
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'By part. That the propagation implementation reproduces the planted controls
+    exactly: 0.8 -- the addition rule is the fiddly part and is where I expect a first-pass bug, which
+    is exactly what the controls are for. That d differs between BLAKE3 and BLAKE2s at matched configuration:
+    0.25 -- ARX designs of this family mix fast and I expect agreement, which is the outcome that
+    removes an explanation. That f(r) before saturation distinguishes the real arms from the random
+    family: 0.4. That the informative range is at least 3 rounds: 0.5, and if it is 1 or 2 the record''s
+    honest report is that the measurement saturates too fast to attribute anything, which is still
+    worth writing down once so nobody re-attempts it. That the measurement is worth running regardless
+    of outcome because it constrains every trail-weight curve in this bucket at negligible cost: 0.9.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-BLAKE-584719
+  - GOAL-BLAKE-001
+  - KN-TECH-076
+  - KN-TECH-077
+  - docs/inventor-protocol.md
+  - templates/research-records.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-BLAKE-eeaef8

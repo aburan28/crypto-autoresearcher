@@ -1,0 +1,776 @@
+red_team_report:
+  id: RT-20260807-743198
+  task_id: TASK-20260807-681e17          # the execution handoff this review attacks; no separate red-team handoff id was supplied
+  role: red-team
+  status: COMPLETE                       # all four items reached; nothing marked not_reached
+  goal_id: GOAL-ENDO-001
+  batch_id: BATCH-aa267f
+  experiment_id: EXP-INSTR-85b102
+  hypothesis_id: H-INSTR-fffbfb
+
+  scope_note: >-
+    SINGLE TARGET, DELIBERATELY NARROW. This report attacks EXACTLY ONE
+    unexamined attribution: the execution report's claim (section 12, item 3)
+    that the non-monotone ratio verdicts along the N ladder are Monte-Carlo
+    noise. Nothing else in EXP-INSTR-85b102 is reviewed. Two independent
+    Validators passed ten enumerated checks on this batch and both recorded
+    this item as NOT CHECKED (validator-instr `limitations.not_checked`, first
+    entry: "THE CANONICAL ARTIFACT TELL WAS NOT CHECKED ... I did not verify a
+    single one of those counts ... or the attribution. This is the largest
+    unchecked item"). This report asserts NOTHING about ECDLP cost. Tier TOY,
+    p in {4001, 6007}, `sota_delta` zero on every axis.
+
+  snapshot_reviewed:
+    branch: claude/ecdlp-endomorphism-analysis-4m2w3z
+    head_at_review_start: c02165b0
+    artifacts_are_committed: true
+    note: >-
+      Every number below is recomputed by this reviewer from committed run
+      artifacts (`results.json` of the four operative pool runs). No number is
+      taken from the execution report's prose. No artifact was edited, no
+      research status was changed, no evidence record was written, and nothing
+      was committed.
+
+  claim_under_review: >-
+    execution_report.md section 12 item 3: "Non-monotone ratio verdicts along
+    the N ladder occur in 17/36 cells at POOL_A, 18/36 at POOL_B, 23/36 at
+    POOL_C and 16/36 at POOL_D (functional x statistic). ... Most non-monotone
+    cells are functionals whose R is already within ~0.5 % of 1 at the free
+    rung, WHERE THE ORDERING IS MONTE-CARLO NOISE; that is stated as a
+    description of the numbers, not as an explanation."
+
+  verdict: UNJUSTIFIED
+  verdict_one_line: >-
+    The attribution is refuted by the committed artifacts themselves. Every one
+    of the 74 non-monotone verdicts is reproduced, cell for cell, by the EXACT
+    closed-form null mean, which contains ZERO Monte-Carlo error. Removing all
+    Monte-Carlo error from the computation changes not a single verdict.
+
+  # ====================================================================
+  # ITEM 1 - what the reversals actually are, quantitatively
+  # ====================================================================
+  item_1_characterisation:
+    method: >-
+      For each of the four operative pool runs (`RUN-INSTR-85b102-poolA-c`,
+      `-poolB-b`, `-poolC`, `-poolD`) I read `results.json -> ladder ->
+      monotonicity` (36 cells per pool = functional x statistic) and joined each
+      sequence entry to its full cell record in `results.json -> ladder ->
+      cells`, which carries `T_obs`, `empirical_null_mean`, `mc_standard_error`,
+      `null_sd`, `closed_form_null_mean`, `closed_form_applicability` and both
+      ratio bases. All arithmetic below is mine.
+
+    verdict_counts_reproduced:
+      POOL_A: {cells: 36, non_monotone: 17}
+      POOL_B: {cells: 36, non_monotone: 18}
+      POOL_C: {cells: 36, non_monotone: 23}
+      POOL_D: {cells: 36, non_monotone: 16}
+      total: {cells: 144, non_monotone: 74}
+      note: >-
+        The report's four counts reproduce exactly from the artifacts. I also
+        re-implemented the verdict rule from `harness/run_blocknull.py:1552`
+        (`rises = all(b >= a - 1e-12 for a, b in zip(vals, vals[1:]))`, Nones
+        dropped) and it agrees with the recorded boolean in 144/144 cells.
+
+    what_the_quantity_actually_is:
+      identity: >-
+        R(rung) = T_obs / E[T_pi | rung]. Verified from the artifacts: in
+        536/536 comparable cells `variance_ratio_R_empirical` equals
+        `T_obs / empirical_null_mean` to double precision. CRITICALLY, T_obs
+        DOES NOT DEPEND ON THE RUNG - the observed statistic is the same number
+        at every rung; only the permutation null changes. So the entire R
+        sequence is one fixed numerator over five denominators, and
+        "R rises" is exactly "E[T_pi | rung] falls".
+      consequence_for_the_attribution: >-
+        The ONLY Monte-Carlo quantity in the sequence is the denominator
+        E[T_pi | rung], whose error is the recorded `mc_standard_error` =
+        null_sd / sqrt(B) with B = 10000. That is the quantity the attribution
+        must be tested against, and it is the quantity I test below.
+
+    adjacent_pair_inventory:
+      comparable_adjacent_pairs: 536
+      exact_ties: 144           # both rungs degenerate, R = 1.0 both sides
+      rises: 277
+      reversals_at_the_code_threshold_1e-12: 115
+      reversal_split:
+        type_A_nondegenerate_to_nondegenerate: 59
+        type_B_nondegenerate_to_DEGENERATE: 56
+        type_C_degenerate_first: 0
+      why_the_split_is_load_bearing: >-
+        These two types have DIFFERENT noise models and the report's single
+        label covers both. In type A the numerator T_obs cancels and the
+        comparison is purely between two Monte-Carlo-estimated null means: this
+        is the only place where "Monte-Carlo noise" is even a candidate
+        explanation. In type B the second rung is degenerate, where R is forced
+        to EXACTLY 1.0 by construction (identity permutation), so a "reversal"
+        means only R_a > 1, i.e. T_obs > E[T_pi | rung_a] - a statement about
+        the observed statistic sitting above its null mean, whose correct noise
+        scale is the NULL SD, not the Monte-Carlo standard error. Dividing a
+        type-B gap by the MC standard error inflates it by sqrt(B) = 100. That
+        is the same point-mass / wrong-denominator confusion the Executor itself
+        caught and repaired as deviation D3, appearing here in the other
+        direction.
+
+    magnitudes:
+      all_115_reversals:
+        statistic: "|E_b - E_a| / sqrt(se_a^2 + se_b^2), combined MC standard errors"
+        min: 0.213
+        q25: 16
+        median: 34
+        q75: 65.9
+        max: 120
+        over_3_sigma: "108 of 115 (93.9%)"
+      type_A_only_the_testable_ones:
+        n: 59
+        statistic: "|E_b - E_a| / sqrt(se_a^2 + se_b^2)"
+        min: 0.213
+        median: 22.7
+        max: 80
+        over_1_sigma: "57 of 59 (97%)"
+        over_2_sigma: "56 of 59 (95%)"
+        over_3_sigma: "55 of 59 (93%)"
+        over_5_sigma: "52 of 59 (88%)"
+        over_10_sigma: "46 of 59 (78%)"
+      type_B_on_the_correct_scale:
+        n: 56
+        statistic: "|T_obs - E_a| / null_sd  (NOT / mc_standard_error)"
+        min: 0.006
+        median: 0.492
+        max: 1.2
+        over_2_null_sd: "0 of 56"
+        same_gaps_divided_by_mc_se: "median 49.2, max 120"
+        reading: >-
+          Every type-B reversal is within 1.2 null standard deviations of the
+          null mean. These 56 ARE noise and carry no information - but they are
+          the ordinary sampling fluctuation of T_obs under exchangeability, NOT
+          Monte-Carlo error of the null-mean estimator. The report's label is
+          right in substance and wrong in name for this half, and wrong in
+          substance for the other half.
+      relative_sizes:
+        reversal_size_relative: "|dE|/E median 1.83e-03, max 0.189, min 7.6e-06"
+        mc_error_relative: "combined MC SE / E median 5.8e-05, max 3.5e-03"
+        reading: "the typical reversal is ~30x the typical Monte-Carlo error bar"
+
+    additional_defect_found_while_extracting:
+      severity: reportable
+      what: >-
+        `s3_support` has R = None at EVERY rung (T_obs and the null mean are
+        both 0), and the verdict rule at run_blocknull.py:1551-1552 drops Nones
+        before testing, so `all(...)` over an EMPTY list returns True. Six cells
+        - `s3_support|weighted` and `s3_support|unweighted` at POOL_A, POOL_B and
+        POOL_D - are therefore recorded `MONOTONE RISE` VACUOUSLY, on no data at
+        all. `order` additionally contributes 6 undefined entries (R = 0/0 at
+        its degenerate rungs) that are silently dropped from its own sequence.
+      consequence: >-
+        The denominator of the "17/36, 18/36, 23/36, 16/36" statement is not 36
+        genuinely tested cells at POOL_A, POOL_B and POOL_D; it is 34. This
+        makes the report's non-monotone FRACTION an understatement, not an
+        overstatement, so it does not rescue the attribution - but a vacuous
+        PASS printed as `MONOTONE RISE` is exactly the kind of silent
+        true-by-emptiness that a later reader will cite as a passing control.
+
+  # ====================================================================
+  # ITEM 2 - THE CRUX: is the reversal rate what Monte-Carlo noise predicts?
+  # ====================================================================
+  item_2_monte_carlo_arithmetic:
+    the_question: >-
+      B = 10000 within-block permutations give a per-cell Monte-Carlo standard
+      error recorded in every cell as `mc_standard_error` = null_sd/sqrt(B). If
+      the reversals are MC noise, their MAGNITUDES must be of order that
+      standard error. Are they?
+
+    hypothesis_H0_stated_as_generously_as_possible: >-
+      H0 (the Executor's attribution): the true null means mu(rung) are
+      non-increasing along the N ladder (so the true R rises), and every
+      observed reversal is Monte-Carlo error in the estimate of mu. The most
+      generous instance of H0 is mu_b = mu_a EXACTLY at every step, because
+      exact ties maximise the reversal PROBABILITY at 0.5 per pair. Even under
+      that most generous instance the reversal MAGNITUDE is pinned: dE ~
+      Normal(0, se_D) with se_D = sqrt(se_a^2 + se_b^2), so
+      P(|dE| > 3 se_D) = 0.0027 and P(dE > 3 se_D) = 0.00135.
+
+    THE_DECIDING_NUMBER:
+      test_population: "59 type-A (non-degenerate -> non-degenerate) adjacent pairs, the only ones where MC noise is a candidate"
+      expected_reversals_exceeding_3_MC_sigma_under_the_most_generous_H0: 0.080   # 59 * 0.00135
+      expected_if_one_ignores_direction_two_sided: 0.159                          # 59 * 0.0027
+      observed_reversals_exceeding_3_MC_sigma: 55
+      ratio_observed_to_expected: "~690x  (55 / 0.080);  ~350x on the two-sided count"
+      median_observed_reversal_in_MC_sigma: 22.7
+      largest_observed_reversal_in_MC_sigma: 80.0
+      statement: >-
+        Monte-Carlo noise at B = 10000 predicts 0.08 reversals larger than three
+        combined standard errors among these 59 pairs. Fifty-five are observed.
+        The attribution fails by roughly three orders of magnitude.
+
+    the_zero_monte_carlo_control_which_settles_it_outright:
+      why_it_exists: >-
+        `closed_form_null_mean` in harness/run_blocknull.py:366-409 computes
+        E[T_pi | blocks] EXACTLY from (values, labels, blocks) by the
+        sampling-without-replacement identity - it never touches a permutation
+        draw and therefore has NO Monte-Carlo error whatsoever. It is applicable
+        whenever every class lies inside one block, which on the N ladder is
+        automatic because N = p + 1 - t is injective in the trace, so an N band
+        never splits a class. Every cell records
+        `closed_form_applicability: "exact"`: 536 of 536 comparable pairs.
+        The exact ratio is already stored in every cell as
+        `variance_ratio_R_closed_form`. The decisive control was therefore
+        ALREADY COMPUTED AND COMMITTED, and nobody read it.
+      what_I_did: >-
+        Re-ran the Executor's own verdict rule (run_blocknull.py:1552, tolerance
+        1e-12) on `variance_ratio_R_closed_form` instead of
+        `variance_ratio_R_empirical`, for all 144 cells.
+      result:
+        POOL_A: {non_monotone_empirical: 17, non_monotone_closed_form: 17, cells_agreeing: 17}
+        POOL_B: {non_monotone_empirical: 18, non_monotone_closed_form: 18, cells_agreeing: 18}
+        POOL_C: {non_monotone_empirical: 23, non_monotone_closed_form: 23, cells_agreeing: 23}
+        POOL_D: {non_monotone_empirical: 16, non_monotone_closed_form: 16, cells_agreeing: 16}
+        total: {non_monotone_empirical: 74, non_monotone_closed_form: 74, cells_agreeing: 74}
+      pairwise_level: "58 of 59 type-A reversals, and 113 of 115 reversals overall, are reproduced in the exact closed-form null means"
+      conclusion: >-
+        SET THE MONTE-CARLO ERROR TO ZERO AND ALL 74 NON-MONOTONE VERDICTS
+        REMAIN, THE SAME 74 CELLS. Under the Executor's attribution the
+        closed-form count would be 0. It is 74. "Monte-Carlo noise" is not an
+        explanation of this phenomenon; it is a label placed over unexamined
+        deterministic structure.
+
+    what_the_reversals_actually_are: >-
+      A type-A reversal is the exact statement E[T_pi | finer blocking] >
+      E[T_pi | coarser blocking]: the within-block permutation null mean RISES
+      when Delta_max(N) FALLS. The contract's `decay_parameter` block
+      (specification.yaml:159-162) assumes the opposite ordering by fiat -
+      it declares Delta_max the ladder's decay parameter and requires it to
+      decrease, then reads R against it. But E[T_pi | B] is a deterministic
+      function of the BLOCK COMPOSITION (which classes share a block, and their
+      sizes), not of Delta_max. Delta_max does not order the null means, and 74
+      of 144 cells say so. That is a mis-specified decay parameter, which is a
+      different and more interesting failure than noise.
+
+    what_this_does_NOT_show:
+      - >-
+        It does NOT show the non-monotonicity is a signal about isogeny classes,
+        endomorphisms, or anything arithmetic. A deterministic artifact of the
+        blocking geometry is still an artifact. The claim established here is
+        narrow and negative: the stated CAUSE is refuted, and the true cause is
+        unidentified.
+      - >-
+        It does NOT touch any p-value, size-calibration, or power number in the
+        run. Those are separate quantities with separate controls, all of which
+        the two Validators checked.
+      - >-
+        It does NOT show that Monte-Carlo noise is absent. It shows MC noise is
+        two to three orders of magnitude too small to be the operative cause.
+
+  # ====================================================================
+  # ITEM 3 - do the reversals cluster? (noise is exchangeable; structure is not)
+  # ====================================================================
+  item_3_clustering:
+    answer: >-
+      YES, HARD. The reversals are not exchangeable across cells by any of the
+      four factors tested, and one of the clusterings is a perfect separation.
+
+    a_by_functional:
+      table_legend: "X = NON-MONOTONE, . = monotone, - = key does not exist at that prime"
+      layout: "A_w A_u B_w B_u C_w C_u D_w D_u"
+      rows:
+        decomp_efficiency_m2:   "X  X  .  .  X  X  X  X    6/8"
+        decomp_efficiency_m3:   "X  X  X  .  .  X  X  X    6/8"
+        decomp_rate_m2:         "X  .  X  X  X  .  X  X    6/8"
+        decomp_rate_m3:         "X  X  X  .  X  X  X  X    7/8"
+        full_liftable:          ".  .  .  .  .  .  .  .    0/8"
+        liftable_density_W1000: "X  X  X  X  X  X  -  -    6/6"
+        liftable_density_W125:  "X  .  .  .  X  X  -  -    3/6"
+        liftable_density_W1501: "-  -  -  -  -  -  .  .    0/2"
+        liftable_density_W187:  "-  -  -  -  -  -  .  .    0/2"
+        liftable_density_W2000: ".  .  X  X  X  X  -  -    4/6"
+        liftable_density_W250:  "X  .  .  .  X  X  -  -    3/6"
+        liftable_density_W3003: "-  -  -  -  -  -  .  .    0/2"
+        liftable_density_W375:  "-  -  -  -  -  -  .  .    0/2"
+        liftable_density_W4001: ".  .  .  .  .  .  -  -    0/6"
+        liftable_density_W500:  ".  .  X  X  X  .  -  -    3/6"
+        liftable_density_W6007: "-  -  -  -  -  -  .  .    0/2"
+        liftable_density_W750:  "-  -  -  -  -  -  .  .    0/2"
+        order:                  ".  .  .  .  .  .  .  .    0/8"
+        s3_support:             ".  .  .  .  X  X  .  .    2/8"
+        sumset_eff_m2:          ".  .  .  X  .  X  X  X    4/8"
+        sumset_eff_m3:          "X  X  X  X  X  X  X  X    8/8"
+        sumset_m2:              ".  .  .  X  .  X  X  X    4/8"
+        sumset_m3:              "X  X  X  X  X  X  X  X    8/8"
+        two_torsion_x:          "X  X  X  X  .  .  .  .    4/8"
+      exchangeability_test: >-
+        Under exchangeability across cells at the observed overall rate
+        p = 74/144 = 0.5139, among the 12 functionals present in all 8 cells the
+        expected number that are all-non-monotone is 12*p^8 = 0.058 and the
+        expected number all-monotone is 12*(1-p)^8 = 0.037. Observed: 2 and 2
+        respectively (`sumset_m3` and `sumset_eff_m3` all-X; `order` and
+        `full_liftable` all-dot). That is ~35x and ~54x the exchangeable
+        expectation.
+
+    b_the_perfect_separation:
+      partition: >-
+        Class I = functionals that are exact or affine functions of the group
+        order N: `order` (= N), `full_liftable` (= (N-1+z)/2), and
+        `liftable_density` at the FULL-FIELD window W = p (= full_liftable/p,
+        so W4001 at p = 4001 and W6007 at p = 6007).
+        Class II = every other functional.
+      contingency:
+        class_I:  {monotone: 24, non_monotone: 0,  total: 24}
+        class_II: {monotone: 46, non_monotone: 74, total: 120}
+      p_values:
+        under_exchangeability_binomial: 3.03e-08     # (1-p)^24
+        fisher_exact_one_sided: 2.62e-09
+      conservative_version: >-
+        `order` is near-vacuous (T_obs is bitwise 0 at every rung, so R = 0 at
+        every non-degenerate rung and its sequence ties trivially). Dropping all
+        8 `order` cells leaves Class I = 16 genuine cells, still 0 non-monotone:
+        exchangeable P = 9.7e-06, Fisher exact one-sided 1.05e-06.
+      reading: >-
+        The single strongest determinant of whether a cell reverses is whether
+        the functional is coupled to N - the very variable the ladder blocks on.
+        Noise cannot produce a perfect 24/24 vs 74/120 separation along a
+        pre-existing structural axis.
+
+    c_by_ladder_step:
+      note: "type-A steps only (both endpoints non-degenerate); this is where MC noise was even a candidate"
+      pooled:
+        R0_FREE_to_R2_NBAND_w2:     "21 of 138 (15%)"
+        R2_NBAND_w2_to_R3_NBAND_w3: "28 of 104 (27%)"
+        R3_NBAND_w3_to_R4_NBAND_w4: "10 of  36 (28%)"
+      per_pool:
+        POOL_A: {"R0->R2": "10/34 (29%)"}
+        POOL_B: {"R0->R2": "2/34 (6%)",  "R2->R3": "8/34 (24%)"}
+        POOL_C: {"R0->R2": "7/36 (19%)", "R2->R3": "6/36 (17%)", "R3->R4": "10/36 (28%)"}
+        POOL_D: {"R0->R2": "2/34 (6%)",  "R2->R3": "14/34 (41%)"}
+      reading: >-
+        THE REVERSAL RATE GOES UP AS THE LADDER GETS FINER: 15% -> 27% -> 28% as
+        Delta_max falls. This is the operating rule's own question - what should
+        the reported quantity have done as the parameter meant to destroy it
+        increases? - answered in the wrong direction a second time, one level up
+        from the individual cell.
+
+    d_by_statistic:
+      concordance: "weighted and unweighted give the SAME verdict in 60 of 72 (pool, functional) pairs = 83.3%"
+      exchangeable_expectation: "50.0%  (p^2 + (1-p)^2 at p = 74/144)"
+      caveat: >-
+        The two statistics are computed on the SAME permutation draws, so they
+        are not independent even under pure noise; 83% concordance is therefore
+        suggestive rather than decisive on its own. It is recorded because it
+        points the same way as everything else, not because it stands alone.
+
+    e_by_pool_and_prime:
+      POOL_A: {prime: 4001, type_A_reversals: 10, type_B_reversals: 16, typeA_median_MC_sigma: 29.1, typeA_max: 73.4}
+      POOL_B: {prime: 4001, type_A_reversals: 10, type_B_reversals: 14, typeA_median_MC_sigma: 26.6, typeA_max: 66.7}
+      POOL_C: {prime: 4001, type_A_reversals: 23, type_B_reversals: 18, typeA_median_MC_sigma: 15.9, typeA_max: 65.4}
+      POOL_D: {prime: 6007, type_A_reversals: 16, type_B_reversals:  8, typeA_median_MC_sigma: 32.7, typeA_max: 80.0}
+      note: "present at BOTH primes and at all four pools, including the selection-control pool POOL_C"
+
+    f_the_residue_that_needs_an_explanation:
+      construction: >-
+        Recompute the monotonicity verdict over the NON-DEGENERATE rungs only,
+        dropping the forced R = 1.0 rungs entirely. This removes every type-B
+        reversal by construction and leaves exactly the reversals that are
+        genuine comparisons between two estimated null means.
+      result:
+        POOL_A: {as_reported: "17/36", residue: "10/36", residue_on_exact_closed_form: "10/36"}
+        POOL_B: {as_reported: "18/36", residue: "10/36", residue_on_exact_closed_form: "10/36"}
+        POOL_C: {as_reported: "23/36", residue: "16/36", residue_on_exact_closed_form: "16/36"}
+        POOL_D: {as_reported: "16/36", residue: "14/36", residue_on_exact_closed_form: "14/36"}
+        total:  {as_reported: "74/144", residue: "50/144", residue_on_exact_closed_form: "50/144"}
+      tightest_cluster: >-
+        `sumset_m3` and `sumset_eff_m3` are in the residue in 8 of 8 cells each -
+        every pool, both primes, both statistics. The m = 3 family generally
+        (`sumset_m3`, `sumset_eff_m3`, `decomp_rate_m3`, `decomp_efficiency_m3`)
+        supplies 27 of the 50 residue cells.
+
+    g_the_named_mechanism:
+      test: >-
+        For each cell I computed R^2 between the per-curve functional value and
+        N over the whole pool, directly from the committed `per_curve.csv`, and
+        cross-tabulated it against the residue flag (138 cells with a defined
+        R^2).
+      result:
+        "R2 >= 0.5":  "24 cells, residue  0 ( 0%)"
+        "R2 >= 0.2":  "32 cells, residue  4 (12%)"
+        "R2 >= 0.05": "52 cells, residue  4 ( 8%)"
+        "R2 <  0.01": "40 cells, residue 33 (82%)"
+        median_R2_residue_cells: 0.00273
+        median_R2_non_residue_cells: 0.0689
+      named_obstruction: >-
+        DELTA_MAX(N) IS THE WRONG DECAY PARAMETER FOR ANY FUNCTIONAL NOT COUPLED
+        TO N. E[T_pi | blocks] is the block-pooled sample variance of the
+        functional. Refining the N bands shrinks it only to the extent the
+        functional's variance is carried by N. For an N-uncoupled functional the
+        refinement changes the pooled variance in a direction fixed by the
+        realized values and the realized block composition - deterministically,
+        and with no monotone tendency in Delta_max at all. So R(Delta_max)
+        wanders, and the contract's `what_non_decay_means` clause
+        (specification.yaml:166-169), which reads a non-rising R as "a nuisance
+        that is NOT the group order and that nobody has named ... the canonical
+        artifact tell", FIRES BY CONSTRUCTION on every N-uncoupled functional.
+      honest_limit_of_this_mechanism: >-
+        R^2 with N is the dominant predictor but NOT a complete one. Two
+        counterexamples in the committed data: `two_torsion_x` has R^2 ~ 1e-34
+        with N at both POOL_A and POOL_D, yet is in the residue at POOL_A (both
+        statistics) and NOT at POOL_D (both statistics). So low N-coupling makes
+        the direction arbitrary, it does not determine it. Which way an
+        N-uncoupled functional goes is a property of the realized block
+        composition, and that is precisely what the control in item 4 measures.
+
+  # ====================================================================
+  # ITEM 4 - the cheapest control that settles what this analysis cannot
+  # ====================================================================
+  item_4_cheapest_control:
+    what_is_already_settled_and_needs_no_further_measurement:
+      - "Monte-Carlo noise is not the cause (item 2: identical 74/144 on the exact zero-MC closed form)."
+      - "The 56 type-B reversals are the deterministic fact T_obs > E at the last non-degenerate rung, within 1.2 null sd, and carry no information (item 1)."
+      - "The reversals cluster on N-coupling with Fisher exact p = 2.6e-09 (item 3b)."
+    what_is_NOT_settled: >-
+      Whether the 50/144 type-A residue is (i) a pure artifact of N-band
+      blocking geometry acting on an arbitrary value multiset - in which case it
+      is a controlled null and the `what_non_decay_means` clause is
+      mis-specified - or (ii) something specific to the m = 3 sum-set family,
+      which reverses in 8 of 8 cells at both primes. My analysis cannot separate
+      these because it has only one realization of the values.
+
+    the_control:
+      id_suggestion: CTRL-VALUESHUFFLE
+      one_line: >-
+        The null object of the same shape: same curves, same traces, same N,
+        same class sizes, same block partitions - functional VALUES shuffled.
+      procedure: >-
+        1. Read the committed `per_curve.csv` and `rung_table.json` of the four
+        operative pool runs. Change nothing about (trace, N) or the block
+        assignment, so classes still lie inside blocks exactly as they do now
+        and the closed form stays exact.
+        2. Permute the per-curve values of one functional uniformly at random
+        across the whole pool, independently per functional per replicate. This
+        destroys every value-class and value-N association while preserving the
+        value multiset, the class sizes and the blocking geometry bit for bit.
+        3. Recompute the ENTIRE ladder ratio sequence from
+        `closed_form_null_mean` alone. NO permutation study is needed: item 2
+        established the decisive quantity has an exact closed form, so B = 10000
+        Monte-Carlo draws - which were ~all of the original study's cost - are
+        not required at all.
+        4. Report the null distribution of the residue count (observed 50/144),
+        and separately the per-functional residue indicator for the m = 3
+        family (observed 8/8 for `sumset_m3` and `sumset_eff_m3`).
+      what_each_outcome_means:
+        null_brackets_50_of_144: >-
+          CONTROLLED NULL, per docs/inventor-protocol.md section 3. The residue
+          is a pure artifact of N-band blocking on an arbitrary value multiset,
+          with no arithmetic content whatever. Consequence: the contract's
+          `what_non_decay_means` clause must be restricted to functionals with a
+          declared minimum R^2 against N, and every reading anywhere in this
+          campaign that treats a non-rising R as an unnamed-nuisance tell must
+          be re-read against that restriction.
+        observed_50_in_the_far_tail: >-
+          There is real structure, and item 3f localises it: the m = 3 sum-set
+          family, at both primes, both statistics, all four pools. That becomes
+          the object to chase, and it is a specific, small, testable object -
+          not a diffuse anomaly.
+      measured_cost:
+        method_of_estimate: >-
+          I timed the shipped `harness/run_blocknull.py::closed_form_null_mean`
+          on synthetic data at the largest realized pool size (n = 1464,
+          K = 12, classes inside blocks): 0.631 ms per call weighted, 0.428 ms
+          unweighted. This is a measured timing on this machine, not an
+          asserted one.
+        calls_per_replicate: 768        # 4 pools x <=24 functionals x 2 statistics x <=4 non-degenerate rungs
+        calls_at_200_replicates: 153600
+        closed_form_cpu_at_200_replicates: "~1.6 CPU-minutes (153600 x ~0.63 ms)"
+        honest_total_bound: >-
+          Under 10 CPU-minutes wall including artifact I/O and the shuffles,
+          against the contract's 6 CPU-hour budget of which the original study
+          spent 0.97 CPU-hours. Peak memory is bounded by one pool's per-curve
+          table, well under the 210 MB the original runs peaked at.
+        what_it_does_NOT_need: >-
+          No curve is re-enumerated, no functional is re-measured, no frozen
+          harness function is touched, and no Monte-Carlo permutation study is
+          run. It reads only already-committed artifacts. This is why it is the
+          cheapest decisive option and not merely a cheap one.
+      even_cheaper_zero_compute_precheck: >-
+        Before running anything: recompute the 144 verdicts on
+        `variance_ratio_R_closed_form`, which is ALREADY IN EVERY COMMITTED CELL.
+        That is a pure read of four `results.json` files, costs seconds, and is
+        what produced this report's deciding number. It should have been the
+        Executor's own first move and it should be added to the module as a
+        standing assertion.
+
+  # ====================================================================
+  # required red_team_report blocks
+  # ====================================================================
+  objections:
+    - id: OBJ-1
+      severity: major
+      target: "execution_report.md section 12 item 3 - the Monte-Carlo-noise attribution"
+      objection: >-
+        The attribution is refuted by the run's own committed artifacts. Every
+        cell already stores an EXACT, zero-Monte-Carlo-error null mean
+        (`closed_form_null_mean`, applicability `exact` in 536/536 comparable
+        pairs) and the corresponding exact ratio
+        (`variance_ratio_R_closed_form`). Re-running the Executor's own verdict
+        rule on the exact ratio returns 74/144 non-monotone - the identical
+        count, the identical cells. Under the stated attribution it would return
+        0. Additionally, 55 of the 59 testable reversals exceed three combined
+        Monte-Carlo standard errors, against an expectation of 0.08 under the
+        most generous instance of the noise hypothesis.
+      what_would_change_my_mind: >-
+        A demonstration that `closed_form_null_mean` is not exact for these
+        blockings - i.e. that some class straddles a block on the N ladder. I
+        checked: it cannot, because N = p + 1 - t is injective in the trace, so
+        an N band never splits a class, which is why the artifact itself records
+        `closed_form_applicability: exact` everywhere.
+    - id: OBJ-2
+      severity: major
+      target: "the instrument's decay parameter, specification.yaml:159-169"
+      objection: >-
+        `Delta_max(N)` is declared the ladder's decay parameter and
+        `what_non_decay_means` reads any non-rising R as the canonical artifact
+        tell. But E[T_pi | blocks] is the block-pooled variance of the
+        FUNCTIONAL, and N-band refinement shrinks it only for functionals
+        coupled to N. The clause therefore fires by construction on N-uncoupled
+        functionals. Evidence: 24 of 24 N-coupled cells monotone, 74 of 120
+        others non-monotone, Fisher exact one-sided 2.6e-09; residue rate 0% at
+        R^2 >= 0.5 rising to 82% at R^2 < 0.01. The clause as written cannot
+        distinguish "unnamed nuisance" from "functional the blocking does not
+        act on", and it currently reports the second as the first.
+    - id: OBJ-3
+      severity: minor_but_load_bearing
+      target: "harness/run_blocknull.py:1551-1552 - the verdict rule"
+      objection: >-
+        `vals = [s["R"] for s in seq if s["R"] is not None]` followed by
+        `all(...)` returns True on an EMPTY list. `s3_support` has R = None at
+        every rung at POOL_A, POOL_B and POOL_D, so six cells are recorded
+        `MONOTONE RISE` vacuously, on no data. `order` contributes six further
+        silently-dropped undefined entries. The reported denominator of 36 is
+        therefore not 36 tested cells at three of the four pools. The direction
+        of the error understates non-monotonicity, so it does not rescue the
+        attribution - but a vacuous verdict printed in the same vocabulary as a
+        real one will be cited later as a passing control.
+    - id: OBJ-4
+      severity: minor
+      target: "the wording 'the ordering is Monte-Carlo noise'"
+      objection: >-
+        Even for the 56 type-B reversals, where the substantive point survives
+        (they are within 1.2 null sd of the null mean and carry no
+        information), the mechanism is NOT Monte-Carlo error. It is the ordinary
+        fluctuation of T_obs under exchangeability against a rung where R is
+        forced to exactly 1. The distinction is operational, not pedantic:
+        Monte-Carlo error shrinks as sqrt(B) and would be fixed by more
+        permutations; this does not shrink with B at all and cannot be. A reader
+        who accepts the stated label will propose the wrong remedy.
+    - id: OBJ-5
+      severity: process
+      target: "the campaign's own review coverage"
+      objection: >-
+        This is the third defect of this exact shape in this campaign
+        (`CORR-20260807-9f83be`, `CORR-20260807-d78e2f`, now this). In all three
+        the decisive evidence was already inside committed artifacts. Here the
+        exact closed-form ratio was computed, stored in all 1008 cells, and
+        never read - while the prose attributed the phenomenon to noise. Two
+        Validators passed ten checks over these same files. The gap is not
+        effort; it is that nothing in the pipeline requires the artifact-internal
+        zero-noise control to be READ when a noise attribution is made.
+
+  required_controls:
+    - id: RC-1
+      name: CTRL-VALUESHUFFLE
+      priority: 1
+      spec: "see item_4_cheapest_control"
+      cost: "~1.6 CPU-minutes of closed-form evaluation at 200 replicates; under 10 CPU-minutes total; no re-measurement, no permutation study"
+    - id: RC-2
+      name: standing assertion - empirical and closed-form verdicts must agree
+      priority: 2
+      spec: >-
+        Add to the module a per-cell assertion that the monotonicity verdict
+        computed on `variance_ratio_R_empirical` equals the one computed on
+        `variance_ratio_R_closed_form` wherever `closed_form_applicability` is
+        `exact`, and emit both verdicts in `results.json`. When they DISAGREE,
+        that disagreement is the only place a Monte-Carlo attribution is even
+        admissible. Cost: negligible; both numbers are already computed.
+    - id: RC-3
+      name: non-vacuous verdict guard
+      priority: 2
+      spec: >-
+        Make the verdict rule report `UNDEFINED (n_comparisons = 0)` rather than
+        `MONOTONE RISE` when fewer than two rungs have a defined R, and report
+        the number of comparisons actually made beside every verdict. Cost:
+        negligible.
+    - id: RC-4
+      name: declare an N-coupling floor in the decay clause
+      priority: 3
+      spec: >-
+        `what_non_decay_means` should apply only to functionals whose R^2 with N
+        over the pool exceeds a pre-declared floor, with the realized R^2
+        reported beside every monotonicity verdict. Below the floor the correct
+        verdict is "the ladder does not act on this functional", not "unnamed
+        nuisance". Cost: one correlation per (pool, functional), microseconds.
+
+  counterexample_or_mutation: >-
+    The decisive mutation is the one already available for free and requires no
+    new run: replace `variance_ratio_R_empirical` by
+    `variance_ratio_R_closed_form` in the verdict rule. This sets the
+    Monte-Carlo error to exactly zero while changing nothing else. Under the
+    Executor's attribution the non-monotone count must fall to 0. It stays at
+    74/144, cell for cell identical, at all four pools. That single substitution
+    falsifies the attribution outright.
+
+  baseline_comparison:
+    applicable: false
+    statement: >-
+      NOT APPLICABLE AND DELIBERATELY SO. This review concerns an instrument
+      diagnostic at toy scale (p in {4001, 6007}); it makes no algorithmic
+      claim, so there is no Pollard-rho, BSGS, or specialized-baseline
+      comparison to make and none is offered. Nothing here is faster or slower
+      than anything.
+    dominated_by: "n/a (no result claimed; this is a measurement critique, not a method)"
+    sota_delta: "zero on every axis (time, memory, data/queries) - no attack, no cost claim, no exponent"
+
+  heuristic_challenges:
+    - >-
+      The contract sets `heuristic_under_test: null`, so there is no numbered
+      heuristic to inventory. But an UNNUMBERED one is doing load-bearing work:
+      the assumption that E[T_pi | rung] is monotone in Delta_max(N). That is
+      asserted in the `decay_parameter` block by fiat, never derived, and it is
+      false in 50 of 144 cells by exact computation. Under the exemplar profile
+      an assumption that carries a clause's interpretation must be explicit and
+      numbered; this one is neither.
+    - >-
+      No random-model transfer question arises: nothing here samples from a
+      structured object against a random-integer model. Recorded as
+      non-applicable rather than omitted.
+
+  cost_model_challenges:
+    - >-
+      Not applicable to the mathematical claim (there is none), but one costing
+      observation matters for the follow-up: the original study spent
+      essentially all of its 0.97 CPU-hours on Monte-Carlo permutation draws
+      whose output is, for this question, strictly dominated by a closed form
+      the same module already computes. The decisive measurement was available
+      at ~0.6 ms per cell. Any future ladder study should charge the
+      closed-form path first and treat the permutation study as needed only for
+      TAIL probabilities, not for the null MEAN.
+    - >-
+      Per KN-LIT-7593: an eliminated search dimension is not a saving until the
+      eliminating invariant's own cost is charged. Here the closed form's cost
+      IS charged - it is measured above at 0.631 ms per call at n = 1464 - and
+      it is smaller than the Monte-Carlo path it replaces by roughly the factor
+      B = 10000.
+
+  reduction_and_scope_challenges:
+    - >-
+      NO SCOPE INFLATION FOUND, and this is worth saying plainly. The execution
+      report's section 16 scope statement is accurate and restrictive: tier TOY,
+      `sota_delta` zero, p in {4001, 6007}, largest prime factor of N ~ 12 bits,
+      and it explicitly disclaims bearing on RQ-ICINV-475b5e, H-STR-002,
+      H-ENDO-001 and KN-FIND-b7e091. The defect found here is confined to one
+      attribution sentence and does not leak into a broader claim anywhere in
+      the report.
+    - >-
+      Symmetrically, THIS REPORT MUST NOT BE INFLATED EITHER. Finding that a
+      non-monotonicity is deterministic rather than stochastic is not a finding
+      that it is arithmetic, and it is certainly not an ECDLP result. Item 4
+      exists precisely because that step is not yet taken.
+    - >-
+      No corollary here rests on a cited reduction, so there is no reduction
+      instantiation to check. Recorded as non-applicable rather than omitted.
+
+  proof_architecture_challenges:
+    - >-
+      Non-applicable in the section-8 sense: this is an instrument
+      characterisation, not a proof-oriented proposal, and no `proof_search_map`
+      is at issue. Recorded rather than silently omitted.
+    - >-
+      One section-8 audit does transfer and does fail: the METHOD-CEILING and
+      NEARBY-OBJECT audit. The nearby object here is a functional statistically
+      independent of N. The ladder's reading cannot distinguish it from a
+      functional carrying an unnamed nuisance - both produce a non-rising R.
+      A method that cannot separate that pair has not identified the
+      load-bearing structure, which is exactly what item 3g shows and exactly
+      what CTRL-VALUESHUFFLE would resolve.
+
+  narrowest_supported_statement: >-
+    On the four operative runs of EXP-INSTR-85b102 (RUN-INSTR-85b102-poolA-c,
+    -poolB-b, -poolC, -poolD), at p in {4001, 6007}, the 74 of 144 non-monotone
+    ratio verdicts along the N ladder are NOT attributable to Monte-Carlo noise:
+    recomputing the Executor's own verdict rule on the exact closed-form null
+    mean, which carries zero Monte-Carlo error, returns the same 74 cells. Of
+    the 115 adjacent-pair reversals, 56 are the deterministic and uninformative
+    fact that T_obs exceeds its null mean by at most 1.2 null sd at the last
+    non-degenerate rung, and 59 are exact increases of the null mean under finer
+    blocking, 55 of them exceeding three combined Monte-Carlo standard errors
+    against an expectation of 0.08. The reversals cluster on whether the
+    functional is coupled to N (24/24 monotone when coupled, 74/120
+    non-monotone otherwise, Fisher exact one-sided 2.6e-09), which names the
+    obstruction: Delta_max(N) does not order the null means of functionals the
+    N-blocking does not act on. THIS SAYS NOTHING about isogeny classes,
+    endomorphism structure, ECDLP cost, or any hypothesis in GOAL-ENDO-001; it
+    says the instrument's decay clause is mis-specified and its stated noise
+    attribution is wrong. Whether the remaining 50/144 residue has any
+    arithmetic content is UNDETERMINED and is exactly what CTRL-VALUESHUFFLE
+    would decide.
+
+  next_concrete_action: >-
+    Run CTRL-VALUESHUFFLE (item 4) as a scoped successor contract on the four
+    frozen pools, reading only committed `per_curve.csv` and `rung_table.json`
+    and scoring the residue from `closed_form_null_mean` alone - measured cost
+    ~1.6 CPU-minutes at 200 replicates, under 10 CPU-minutes total, no
+    re-measurement and no permutation study. Its single deciding number is where
+    the observed residue count 50/144 falls in the shuffled null distribution,
+    with the m = 3 sum-set family (observed 8/8) reported separately. Until it
+    runs, no monotonicity verdict from EXP-INSTR-85b102 may be cited as evidence
+    for or against an unnamed nuisance, and the phrase "the ordering is
+    Monte-Carlo noise" should be superseded in a correction record rather than
+    edited in place.
+
+  artifact_paths:
+    - /home/user/crypto-autoresearcher/coordination/goals/GOAL-ENDO-001/batches/BATCH-aa267f/reviews/red-team-nonmonotonicity/report.yaml
+    - /home/user/crypto-autoresearcher/coordination/goals/GOAL-ENDO-001/batches/BATCH-aa267f/execution/EXP-INSTR-85b102/execution_report.md
+    - /home/user/crypto-autoresearcher/coordination/goals/GOAL-ENDO-001/batches/BATCH-aa267f/reviews/validator-instr/validation_report.yaml
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/specification.yaml
+    - /home/user/crypto-autoresearcher/harness/run_blocknull.py
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolA-c/results.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolB-b/results.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolC/results.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolD/results.json
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolA-c/per_curve.csv
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolB-b/per_curve.csv
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolC/per_curve.csv
+    - /home/user/crypto-autoresearcher/experiments/EXP-INSTR-85b102/runs/RUN-INSTR-85b102-poolD/per_curve.csv
+
+  reproduction:
+    note: >-
+      Every number in this report is recomputed from the committed artifacts
+      listed above. The analysis scripts were written in a session scratchpad
+      and are NOT research artifacts; each is short enough to restate. The five
+      operations, in order, are: (1) join `ladder.monotonicity[f|stat].sequence`
+      to `ladder.cells[POOL|f|rung|stat|B10000]` in each pool's `results.json`;
+      (2) for each adjacent pair compute |E_b - E_a| / sqrt(se_a^2 + se_b^2)
+      from `empirical_null_mean` and `mc_standard_error`; (3) re-run
+      `rises = all(b >= a - 1e-12 for a, b in zip(vals, vals[1:]))` on
+      `variance_ratio_R_closed_form` instead of `variance_ratio_R_empirical`;
+      (4) cross-tabulate the verdict against functional, ladder step, statistic,
+      pool and prime; (5) compute R^2 between each functional column of
+      `per_curve.csv` and N = p + 1 - trace. The only timing measured on this
+      machine is `closed_form_null_mean` at n = 1464, K = 12: 0.631 ms weighted,
+      0.428 ms unweighted.
+    nothing_fabricated: >-
+      No command, output, timing or statistic in this report is asserted without
+      having been computed here. No quantity is reported that I could not
+      compute; where a conclusion is not reachable from the committed data it is
+      marked UNDETERMINED (the arithmetic content of the 50/144 residue) rather
+      than guessed.
+
+  authority_limits:
+    - This report changes no research status, writes no evidence record, and edits no raw artifact.
+    - >-
+      It is written under the assigned write_scope only and has NOT been
+      committed - the Red Team does not commit in a shared worktree. Hand this
+      path to the Coordinator's ledger archive task for a durable commit.
+    - >-
+      A finding that an attribution is wrong is not a finding that the phenomenon
+      is meaningful. The correct disposition of EXP-INSTR-85b102's monotonicity
+      verdicts is UNDETERMINED pending CTRL-VALUESHUFFLE, not "signal".
+    - >-
+      Nothing here weakens the two Validators' ten passed checks, the S1/S2
+      gates, the frozen-function receipt, the size calibration, or the
+      pre-registered contradiction of IDEA-20260807-34754f. It concerns one
+      attribution sentence and the clause that sentence interprets.

@@ -1,0 +1,143 @@
+correction:
+  id: CORR-20260803-ba2eb7
+  recorded_at: '2026-08-03'
+  record_type: infrastructure
+  record_id: GOAL-AES-003-REVIEWER-ARTIFACT-SUPPRESSION
+  field: version_control_visibility_of_independent_review_artifacts
+  decided_by: coordinator
+
+  what_happened: >-
+    SIX DIRECTORY-FORM ENTRIES IN .gitignore SUPPRESSED WHOLE TASK DIRECTORIES,
+    AND THREE INDEPENDENT REVIEW REPORTS WERE WRITTEN INTO THEM AFTERWARDS. The
+    entries were added by commit be3a56c8 ("prepare the BATCH-005 snapshot:
+    declare full working sets"), whose purpose was legitimate: an archive commit
+    must change EXACTLY the archive artifacts union the source-task artifacts,
+    and ignoring the not-yet-populated reviewer directories was a way to keep the
+    BATCH-005 snapshot commit pure. The entries were never lifted afterwards.
+    Because a directory ignore applies to files that do not exist yet, every
+    reviewer report later written into those directories was invisible to
+    `git status`, to `git add .`, and to any check that reasons from the working
+    tree's reported state.
+
+  artifacts_affected:
+    - path: coordination/goals/GOAL-AES-003/batches/BATCH-005/tasks/TASK-20260803-73a6f4/validation_report.yaml
+      bytes: 42181
+      commits_before_this_correction: 0
+      status: >-
+        AT RISK OF TOTAL LOSS. Existed only in this session's ephemeral container
+        filesystem, which is reclaimed after inactivity. Preserved by the commit
+        that carries this correction.
+    - path: coordination/goals/GOAL-AES-003/batches/BATCH-005/tasks/TASK-20260803-33f760/red_team_report.yaml
+      bytes: 66764
+      commits_before_this_correction: 0
+      status: >-
+        AT RISK OF TOTAL LOSS, and the most consequential of the three. This is
+        the report whose RC-9 finding GOAL-AES-003 BATCH-008 was opened to
+        discharge. The campaign's current direction was set by a document that
+        version control had never seen.
+    - path: coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-a13de8/validation_report.yaml
+      bytes: 54106
+      commits_before_this_correction: 1
+      status: >-
+        NOT AT RISK. The BATCH-006 ledger archive force-added it, so it is in
+        history at 0a7b9e42 despite the ignore rule. Recorded here because it
+        shows the ignore rule was live and that only an explicit `git add -f`
+        defeated it.
+
+  why_this_is_serious_beyond_the_files: >-
+    The suppression was invisible to exactly the check most likely to be run.
+    `git status` reported a CLEAN working tree while 109 KB of independent
+    review sat unsaved, so a Coordinator confirming "tree clean, branch pushed"
+    was reading a true statement that meant the opposite of what it appeared to
+    mean. This is the same failure shape as reporting a PASS from a pipeline
+    whose exit status was discarded: the instrument answered a narrower question
+    than the one being asked, and its answer was believed at face value.
+
+  what_this_correction_does_not_claim: >-
+    NO MATHEMATICAL OR EXPERIMENTAL CLAIM IS CREATED, ALTERED, STRENGTHENED OR
+    WITHDRAWN. No hypothesis status changes, no evidence strength changes, no
+    claim tier changes. Nothing here is negative evidence about any research
+    object. This is an infrastructure and provenance defect only. The three
+    reports' CONTENTS are untouched by this correction: none of them was edited,
+    then or now.
+
+  reports_are_archived_unedited: >-
+    The BATCH-005 validation report carries two defects that are NOT repaired
+    here, per the BATCH-003 precedent that a reviewer's artifact is archived as
+    written with its defects recorded. (1) Its `verdict` and `verdict_note`
+    fields, and its `parser_confirmation.parsed_ok` field, read PLACEHOLDER: the
+    validating session terminated before rendering a verdict, so BATCH-005 has a
+    substantively complete validation -- 42 KB of checks whose recomputations all
+    match -- WITH NO VERDICT. Any BATCH-005 ledger record must say so rather than
+    supply a verdict on the validator's behalf. (2) Its `summary_line_audit`
+    block is malformed YAML at line 528: a mapping key (`binding_rule:`) is
+    followed by sequence items at the same indentation, so the file does not
+    load under yaml.safe_load. The block is human-readable and its content is
+    unambiguous; the defect is mechanical.
+
+  parser_confirmation_field_is_not_evidence_the_file_parses: >-
+    RECORDED BECAUSE IT IS THE GENERALISABLE LESSON. The BATCH-005 validation
+    report contains a prose statement that a parser was run on it and that it
+    parsed twice. The file does not parse. The claim was almost certainly true
+    when written and false after a later edit, which is precisely why a
+    self-reported parse check inside an artifact cannot substitute for parsing
+    the artifact. Reviewer cards in this campaign require the self-report; from
+    BATCH-008 forward the ARCHIVE task must also parse the file itself before
+    staging it, and must parse the WHOLE file rather than the region last edited.
+
+  resolution:
+    - >-
+      All six directory-form entries removed from .gitignore. Individual build
+      products (binaries, scratch executables) remain ignored BY EXPLICIT PATH,
+      which was the legitimate part of the original intent and which cannot
+      swallow an artifact that does not exist yet.
+    - >-
+      A comment block added at that location in .gitignore stating the rule --
+      never ignore a task directory -- with the reason and a pointer to this
+      correction, so the next Coordinator preparing a pure snapshot commit does
+      not reach for the same tool.
+    - >-
+      The two uncommitted BATCH-005 reports are preserved by the commit carrying
+      this correction. THAT COMMIT IS A PRESERVATION COMMIT AND IS EXPLICITLY NOT
+      AN ARCHIVE: it declares no snapshot, binds no path_sha256, and confers no
+      reviewed standing on the reports. It exists solely so that 109 KB of
+      independent review is not lost to container reclamation.
+    - >-
+      CONSEQUENCE FOR THE BATCH-005 LEDGER ARCHIVE, STATED IN ADVANCE. Because
+      the reviewer artifacts will already be in history, the BATCH-005 ledger
+      archive commit will NOT change them, and so will not match the shape
+      `exactly (archive artifacts union source-task artifacts)` that the
+      dispatcher's post-commit verifier expects. That is a foreseeable
+      consequence of choosing durability over archive shape, it is chosen
+      deliberately here, and it must be recorded in that archive's receipt rather
+      than worked around by leaving the files uncommitted or by rewriting
+      history over them.
+
+  verification: >-
+    `git check-ignore -v` returns no match for all three report paths after the
+    repair; `git log --all -- <path>` returns 0 commits for the two BATCH-005
+    reports before the preservation commit and 1 for the BATCH-006 report; the
+    .gitignore file ends in exactly one newline and contains no duplicated lines,
+    both checked directly rather than inferred, because a prior repair of this
+    same file reintroduced doubled paths twice through a dropped trailing
+    newline (see the BATCH-005 STRAY-ROOT-OUTPUTS-NOTE).
+
+  edits_are_additive_or_schema_only: true
+  status_effects:
+    hypothesis_status_changed: false
+    evidence_strength_changed: false
+    claim_tier_changed: false
+  supersedes: null
+  superseded_by: null
+
+  inference:
+    policy: coordinator-orchestration-code
+    requested_policy: coordinator-orchestration-code
+    resolved_model: claude-opus-5
+    fallback_used: true
+    fallback_reason: >-
+      orchestration/model-policies.yaml routes this role to a GPT-5.6-family
+      policy alias that Claude Code cannot resolve; subagent frontmatter supports
+      only Claude models.
+    model_verified: false
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c

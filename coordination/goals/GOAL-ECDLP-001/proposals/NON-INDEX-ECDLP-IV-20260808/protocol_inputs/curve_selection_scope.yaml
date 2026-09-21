@@ -1,0 +1,201 @@
+scope_matrix:
+  id: SCOPE-ECDLP-CURVE-20260809
+  schema: crypto.autoresearch.ecdlp.curve_selection_scope.v1
+  status: draft_orientation_only
+  filed_at: '2026-08-09'
+  filed_by: coordinator
+  goal_id: GOAL-ECDLP-001
+  claim_boundary: >-
+    This matrix decomposes public prime-field curve-selection weaknesses. It is
+    not an experiment, run receipt, evidence record, hardness claim, or
+    conclusion that any lane is exploitable at cryptographic scale. A lane is
+    admitted to an experiment only through its own frozen protocol, controls,
+    budget, implementation, and independent review.
+  common_scope:
+    field: prime_field_F_p
+    public_inputs: [p, curve_coefficients, P, Q, subgroup_order_certificate]
+    baseline: >-
+      Pollard rho and BSGS on the declared subgroup, with complete scalar
+      replay, subgroup, memory, serialization, and multi-target accounting.
+    primary_prime_subgroup_rule: >-
+      The Arm-A/Arm-B redirect uses a certified large prime-order subgroup.
+      Composite-order or smooth-order effects are separate curve-selection
+      lanes and must not be mixed into the ordinary prime-subgroup table.
+  lanes:
+    - id: L-ORDER
+      name: subgroup_order_factorization
+      mechanism: >-
+        Pohlig-Hellman decomposes the DLP across small prime-power factors of
+        the measured group order; the relevant cost is governed by the largest
+        prime factor, not the full nominal curve size.
+      public_gate:
+        - factor_curve_order
+        - certify_point_order
+        - record_cofactor_and_largest_prime_factor
+      expected_effect: >-
+        Potentially large improvement when the measured subgroup order is not
+        prime or has a small largest prime factor. This is a curve/group
+        selection weakness, not an endomorphism effect.
+      current_redirect_treatment: >-
+        Excluded from Arm-A/Arm-B primary rows by the certified prime-order
+        subgroup requirement; retained as an explicit refusal/control category.
+      harness_action: >-
+        Emit an order-factorization refusal or separate positive calibration;
+        never compare its solve cost to prime-order Arm-A rows.
+      falsification_or_limit: >-
+        A prime-order subgroup removes this mechanism from the tested scope; it
+        does not establish that every curve with a composite full group is safe.
+      status: scope_boundary_not_executed
+    - id: L-ANOMALOUS
+      name: anomalous_trace_one
+      mechanism: >-
+        Curves with #E(F_p)=p have trace one and are subject to special
+        p-adic/anomalous-curve reductions rather than ordinary generic-group
+        behavior.
+      public_gate:
+        - independently_recompute_curve_order
+        - check_trace_equals_one
+        - certify_large_subgroup_is_not_being_mislabelled
+      expected_effect: >-
+        A structural vulnerability can dominate rho, but it is not evidence for
+        an automorphism quotient or a useful isogeny transfer on ordinary
+        prime-order curves.
+      current_redirect_treatment: >-
+        C-POS excluded calibration in the Arm-A/Arm-B contracts; no anomalous
+        row enters the primary ordinary-family comparison.
+      harness_action: >-
+        Record an excluded-positive or refusal row with exact trace/order and
+        do not pool it with ordinary or special-j rows.
+      falsification_or_limit: >-
+        Absence of trace-one rows in a prime-order sample says nothing about the
+        anomalous-curve attack outside that sample.
+      status: scope_boundary_not_executed
+    - id: L-MOV
+      name: low_embedding_degree
+      mechanism: >-
+        A pairing can transfer a subgroup DLP from E(F_p) to a multiplicative
+        group over F_{p^k}; the public gate is the embedding degree k, the
+        multiplicative order of p modulo the subgroup order.
+      public_gate:
+        - certify_prime_subgroup_order
+        - compute_embedding_degree_k
+        - charge_pairing_and_finite_field_dlog_cost
+      expected_effect: >-
+        Small k can make the curve easier despite a prime subgroup. This is a
+        pairing/field-transfer weakness, not an automorphism or isogeny-class
+        quotient, and must be compared against finite-field DLP costs.
+      current_redirect_treatment: >-
+        Not part of the Arm-A/Arm-B endomorphism-transfer package; the package
+        must explicitly report that its prime-field scope does not test MOV.
+      harness_action: >-
+        Keep as a separate future lane with its own extension-field arithmetic,
+        pairing implementation, finite-field baseline, and cost model.
+      falsification_or_limit: >-
+        A large embedding degree only closes the declared MOV gate at the
+        tested subgroup; it is not a proof against other non-generic attacks.
+      status: separate_future_protocol_required
+    - id: L-ENDO
+      name: automorphism_and_public_endomorphism_quotient
+      mechanism: >-
+        A verified F_p-defined automorphism can reduce rho state space by an
+        orbit factor; a public non-unit CM endomorphism may act as a subgroup
+        scalar and support a separately gated quotient or decomposition.
+      public_gate:
+        - field_of_definition_certificate
+        - map_order_and_eigenvalue_certificate
+        - subgroup_action_and_stabilizer_certificate
+        - scalar_replay
+      expected_effect: >-
+        The classical quotient effect is a constant-factor group-operation
+        reduction. The Arm-A v3 prediction is receipt-bound 1/sqrt(m_eff) for
+        the ideal group-operation component, with all overhead charged.
+      current_redirect_treatment: >-
+        Arm A covers ordinary, negation, and full verified-automorphism modes;
+        S2 separately gates non-unit CM and forbids j-only attribution.
+      harness_action: >-
+        Require the source-hash-bound Arm-A entrypoint, certificate/refusal
+        tables, curve-free S2 nulls, and independent review before dispatch.
+      falsification_or_limit: >-
+        A signal reproduced by the curve-free or action-destroying control is
+        not a CM/automorphism result; an overhead-dominated ratio is no total
+        solve-cost improvement.
+      status: protocol_draft_in_PR_269
+    - id: L-ISOGENY
+      name: same_class_transfer_to_special_target
+      mechanism: >-
+        Transfer P,Q through a public F_p-rational isogeny to a same-trace
+        target with a verified special action, then solve and replay on the
+        source. The target does not change the subgroup order; any advantage
+        must beat inventory, class filtering, path, map, retry, and replay cost.
+      public_gate:
+        - same_field_check
+        - independent_source_and_target_trace
+        - source_order_trace_consistency
+        - same_trace_class_gate
+        - complete_map_kernel_subgroup_twist_replay_certificate
+      expected_effect: >-
+        Possible bounded transfer advantage only when a reachable special target
+        exists and all costs are favorable. A different-trace special target is
+        unreachable for this source class and is a refusal, not negative evidence.
+      current_redirect_treatment: >-
+        Arm-B v3 adds the same-trace reachability gate, trace-mismatch control,
+        and explicit target-inventory/path-search costs.
+      harness_action: >-
+        Freeze target inventory before any target-side solve and independently
+        verify every admitted transfer; retain all unreachable and truncated
+        rows.
+      falsification_or_limit: >-
+        A reachable special target whose charged vector is no better than the
+        direct baseline yields only a bounded no-gain observation for that
+        degree and target-count scope.
+      status: protocol_draft_in_PR_269
+    - id: L-SUMMATION
+      name: prime_field_summation_polynomial_methods
+      mechanism: >-
+        Non-generic algebraic methods may attack prime-field ECDLP through
+        summation-polynomial systems and Gröbner computations; any gain depends
+        on degree, variable count, relation yield, linear algebra, and complete
+        preprocessing/verification cost.
+      public_gate:
+        - exact_prime_field_system_definition
+        - relation_and_target_descent_accounting
+        - groebner_and_linear_algebra_cost
+        - matched_null_and_generic_baseline
+      expected_effect: >-
+        Potential sub-generic behavior is a separate algorithmic lane; special
+        j alone is not a sufficient predictor of total cost.
+      current_redirect_treatment: >-
+        Out of scope for the current Arm-A/Arm-B package; existing prime-field
+        summation-polynomial records must not be conflated with endomorphism
+        evidence.
+      harness_action: >-
+        Require a separate proof-search map and implementation contract before
+        any new prime-field index-calculus dispatch.
+      falsification_or_limit: >-
+        A toy Gröbner timing or symbolic support count cannot establish a
+        cryptographic-scale ECDLP reduction without full charged accounting.
+      status: separate_future_protocol_required
+  ordering_and_non_duplication:
+    pre_dispatch_order:
+      - verify_curve_and_subgroup_order
+      - classify_trace_and_embedding_degree
+      - classify_public_endomorphism_and_automorphism_certificates
+      - apply_same_trace_reachability_gate_for_isogeny_targets
+      - only_then_admit_the_lane_specific_experiment
+    duplication_guard: >-
+      Corrected GOAL-ENDO-001 records already cover toy j=0/j=1728 quotient
+      behavior and charged odd-degree transport. The present Arm-A/Arm-B work
+      is a fresh source-hash-bound replication/transfer comparison, not a claim
+      of first discovery. Any contradictory result requires reconciliation and
+      independent review before interpretation.
+    forbidden_pooling:
+      - smooth_or_composite_order_rows_with_prime_subgroup_rows
+      - anomalous_trace_rows_with_ordinary_rows
+      - low_embedding_degree_rows_with_automorphism_rows
+      - trace_mismatch_targets_with_same_class_transfer_rows
+      - prior_evidence_with_new_run_receipts_without_lineage_binding
+  next_actions:
+    - restore_a_permitted_harness_backend
+    - independently_review_Arm_A_Arm_B_and_S2_protocols
+    - build_only_the_source_hash_bound_entrypoints_after_review
+    - run_lane_specific_controls_before_any_claim_or_promotion

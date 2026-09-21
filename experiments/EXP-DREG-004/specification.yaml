@@ -1,0 +1,136 @@
+experiment:
+  id: EXP-DREG-004
+  hypothesis_id: H-DREG-001
+  version: 1
+  title: >-
+    n=21 D=5 deficit cell (decisive past-wall point): exact Macaulay rank of the
+    boolean chained Semaev m=3 system at n=21, t=3, ti=0, seed 2026, vs the
+    semi-regular prediction — does the deficit series (1322/1862/1823/1999 at
+    n=12/15/17/18) resume growth, stall, or decline?
+  status: running   # 2026-07-24: checkpointed invocations underway (TASK-20260724-DREGN21)
+  objective: >-
+    Measure rank_full(sem, n=21, D=5) and deficit = sr_pred - rank at the frozen
+    n=21 cell. This is the single past-wall point that discriminates the three
+    regimes of the deficit series. The cell is costed at 7-9 h total work
+    (measured cost model, EXP-DREG-001 analysis §7) and is executed across
+    budget-capped checkpointed invocations; completion is NOT expected within
+    the 3,300 s handoff budget.
+  frozen_parameters:
+    system: boolean chained Semaev m=3 (semaev_tree builder, same generators as h012 series)
+    arm: sem   # null arm (n=21 null) is explicitly OUT of scope for this task
+    n: 21
+    t: 3
+    target_index: 0
+    degree_D: 5
+    seed: 2026
+    nb: 42                       # measured 2026-07-24 (sr_pred_n21.json); build 0.45 s
+    n_equations: 42              # 21 cubic + 21 quadratic (eq_degs: 3 x21, 2 x21)
+    sr_pred_D5: 268674           # semireg_rank_pred(eq_degs, nb=42, D=5); HF=[1,42,840,10577,93198,601650,2870049]
+    boolean_simplex_cols_D5: 974982   # C(42,<=5); sem column support expected ~80% of this
+    column_partition_A: >-
+      adaptive chunking (instrument native: target ~110 s reduce phase, clamped
+      to [4000,24000] columns/unit; first unit forced 8000 to fit the 300 s
+      invocation cap). Per-unit boundaries are recorded verbatim in state.json.
+  instrument:
+    engine: src/h012c_block_m4ri.py (checkpointable block-m4ri exact full-column
+      rank over GF(2), block-staircase carriers, protocol version 1)
+    sha256: 0eb38126998c73601687e248439a05f39038e762d5a5b99009598b67e59a0bbb
+    validation_status: >-
+      All five anchors + controls PASS (EV-DREG-001); n=17 sem certified
+      two-partition (EV-DREG-002/003); n=18 sem anchor 143,882 reproduced.
+  controls:
+    - >-
+      Two-partition consistency control (REQUIRED before any rank is claimed):
+      if the cell completes, re-run the full cell with a different chunk size
+      (partition B) and require identical rank + system_hash (AMD-20260718-002
+      gate pattern). Not exercisable while the cell is checkpointed incomplete.
+    - >-
+      Checkpoint integrity: every resume verifies per-carry sha256 (instrument
+      native, load_carries) and run-identity fields (n,t,ti,D,seed,which);
+      each continuation manifest additionally pins pre/post state.json sha256.
+    - >-
+      sr_pred provenance: recomputed independently of the instrument by
+      experiments/EXP-DREG-004/sr_pred_n21.py (output sr_pred_n21.json);
+      the instrument recomputes pred internally at init — agreement required.
+  metrics:
+    primary:
+      - rank_full(sem, n=21, D=5) and deficit = 268674 - rank (WHEN COMPLETE)
+    secondary:
+      - column progress (next_col / ncols), accumulated work-seconds
+        (secs_total), peak RSS per invocation, per-unit k / rank_acc trajectory
+        (saturation profile), sem column support (ncols vs 974982)
+  budget:
+    wall_clock_seconds: 3300        # handoff envelope (this turn)
+    per_invocation_cap_seconds: 300 # execution-surface cap; instrument --budget set below it
+    maximum_runs: 12                # handoff envelope
+    memory_gb: 48                   # host capacity; expected peak this turn ~2-5 GB
+    expected_total_cell_work: "~25,000-32,000 s (7-9 h; measured cost model)"
+  stopping_rules:
+    - Stop launching new invocations at minute ~45 of the turn; reserve the
+      remainder for receipts, analysis.md, and the ledger entry.
+    - A killed/timed-out invocation is failed_infrastructure for that
+      invocation only; the checkpoint remains valid (state saves per completed
+      unit) and the cell resumes. Never evidence (AGENTS rule 5).
+    - If a resume identity check or carry sha256 check fails, STOP the cell,
+      mark invalid, and report — do not delete state.
+    - No rank is claimed without the two-partition control.
+  invalidation_rules:
+    - Subset-column ranks are invalid for the sem arm (h012 finding iv).
+    - Timeout/OOM/kill = failed_infrastructure (invocation-level), excluded
+      from any fit; cell-level result only from a completed, control-passed run.
+    - A checkpoint-resume mismatch invalidates the cell and returns the
+      instrument to validation.
+  success_criterion: n/a (measurement cell; hypothesis status decisions belong
+    to the Coordinator). The measured deficit feeds the series
+    1322/1862/1823/1999 at n=12/15/17/18.
+  required_artifacts:
+    - experiments/EXP-DREG-004/specification.yaml (this file)
+    - experiments/EXP-DREG-004/sr_pred_n21.py / sr_pred_n21.json
+    - runs/RUN-DREG-004-MEASURE-N21-SEM-A/work/ (shared checkpoint state dir,
+      adjacency cache, per-unit carries with sha256 in state.json)
+    - runs/RUN-*/{command.txt,stdout.log,stderr.log,environment.json,manifest.yaml,prelaunch.json}
+    - analysis.md (progress, cost model update, censoring table, deviations)
+    - ledger/EV-DREG-004.yaml
+  assigned_to: executor
+  approved_by: coordinator   # handoff TASK-20260724-DREGN21
+
+handoff:
+  id: TASK-20260724-DREGN21
+  from: coordinator
+  to: executor
+  objective: >-
+    Measure the exact D=5 Macaulay rank (and deficit vs sr_pred) of the boolean
+    chained Semaev m=3 system at n=21 — the point that decides whether the
+    deficit series resumes growth, stalls, or declines. Completion within one
+    turn is NOT expected; deliver an honestly checkpointed partial cell with an
+    exact resume command.
+  inputs:
+    - ledger/EV-DREG-001.yaml, EV-DREG-002.yaml, EV-DREG-003.yaml
+    - ledger/DEC-20260718-018.yaml, DEC-20260722-001.yaml
+    - experiments/EXP-DREG-001/analysis.md (instrument + resume cost model)
+    - src/h012c_block_m4ri.py (checkpointing instrument)
+  constraints:
+    - budget-capped invocations (~2700 s each requested; execution surface caps
+      foreground commands at 300 s, so invocations are 300 s-capped — deviation
+      recorded in analysis.md)
+    - resume from the last verified checkpoint each invocation
+    - at minute ~45 stop launching; write receipts, analysis.md, EV-DREG-004.yaml
+    - if the cell finishes, run the two-partition consistency control before
+      claiming any rank
+    - null arm (n=21 null) NOT in this turn's scope
+    - no writes outside experiments/EXP-DREG-004/ and ledger/EV-DREG-004.yaml
+  deliverables:
+    - experiments/EXP-DREG-004/specification.yaml (freeze parameters; sr_pred first)
+    - capped checkpointed invocations from the last verified checkpoint
+    - >-
+      runs/RUN-*/receipts, analysis.md, ledger/EV-DREG-004.yaml
+      (validity_status: in_progress_checkpointed with checkpoint paths, column
+      progress x/ncols, work-seconds, peak RSS, exact resume command)
+  budget:
+    wall_clock_seconds: 3300
+    memory_gb: null
+    maximum_runs: 12
+  completion_gate:
+    - deliverables written
+    - controls pass or deviations recorded
+    - validity_status set honestly

@@ -1,0 +1,773 @@
+validation_report:
+  task_id: TASK-20260806-43a44f
+  role: validator
+  independent: true
+  reviewed_task: TASK-20260806-64b506
+  batch_id: BATCH-6fddee
+  goal_id: GOAL-HQC-001
+  question_id: RQ-HQC-001
+  experiment_id: EXP-HQC-982268
+  hypothesis_id: H-HQC-18d1b4
+  authorizing_decision: DEC-20260806-5289fb
+  stage_reviewed: A
+  produced_at: '2026-08-06'
+
+  reviewer_position: >-
+    I did not produce these artifacts and I repaired nothing. I wrote exactly
+    one file, this report, inside my declared write_scope. I changed no
+    research status; that is the Coordinator's act alone. Where I could not
+    evaluate something I say so rather than inferring it.
+
+  claim_ceiling_restated: >-
+    HARD, TOY. Stage A validates an INSTRUMENT. Nothing in this review, and
+    nothing in the package it reviews, says anything about HQC, about
+    assumption A17 or A5, about any decoding-failure rate, or about any
+    standardized HQC parameter set. My verdicts are about receipt and control
+    integrity only.
+
+  # ==================================================================
+  # what I actually executed, so this review is itself checkable
+  # ==================================================================
+  verification_actions_performed:
+  - id: VA-1
+    what: Recomputed sha256 of the three committed oracle files with sha256sum.
+    result: all three match the values declared in stage_a_results.json
+  - id: VA-2
+    what: >-
+      Checked those same three hashes against the COMMITTED oracle_report.md
+      deliverables table (lines 20-22), so the receipt is not merely
+      self-consistent.
+    result: all three present and identical in the committed report
+  - id: VA-3
+    what: >-
+      Independently re-ran `python3 oracle.py --out <my own scratch path>
+      --seed 20260803` myself and structurally deep-diffed my output against
+      the committed oracle_values.json with my own diff script.
+    result: >-
+      exit 0; 0 computed-value differences; 5 provenance differences on
+      exactly the paths the executor names (command, git_branch, git_commit,
+      git_dirty_paths, platform); the remainder timing-only. I count 28 timing
+      differences where the executor counts 27, which is expected run-to-run
+      noise in which timing keys happen to collide numerically and is not a
+      discrepancy about any computed value.
+  - id: VA-4
+    what: Independently ran `python3 test_oracle.py`.
+    result: 'Ran 43 tests ... OK, exit 0; 49/49 known-answer agreements, 9/9 mutants detected'
+  - id: VA-5
+    what: >-
+      Recomputed sha256 of all four Stage A artifacts and compared them with
+      the Coordinator snapshot receipt at
+      coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/archives/TASK-20260806-c2a7fc/snapshot-receipt.json.
+    result: >-
+      all four match exactly (run_manifest.yaml dc779d86..., stage_a.py
+      06a0a618..., stage_a_report.md 2491d728..., stage_a_results.json
+      33e3b6bb...). The bytes I reviewed are the bytes committed.
+  - id: VA-6
+    what: >-
+      Recomputed q_hat, p_hat and gamma_hat at all four sets directly from the
+      archived S_histogram and w(etilde) moments, and recomputed the D3 cap,
+      the (M) mean and sigma distances, the tie-rate ratios, the log2 q_hat
+      bracket, the INV-NULL cell census, the T_stab admissibility census, the
+      |z| ladder, the CTRL-BS Maclaurin floor and the timing sums.
+    result: every recomputation reproduced the reported value; details per item below
+  - id: VA-7
+    what: Read stage_a.py to determine what the gates can and cannot detect.
+    result: findings recorded under items 2, 3 and 4
+
+  # ==================================================================
+  # ITEM 1 - REPRODUCIBILITY
+  # ==================================================================
+  item_1_reproducibility:
+    verdict: PASS
+    manifest_completeness:
+      exact_command: >-
+        PRESENT. Both invocations recorded verbatim with cwd and exit codes
+        (CMD-1 the measurement run, CMD-2 the post-processing pass), plus the
+        two oracle subprocesses with their own cwd and exit codes.
+      git_commit: 'PRESENT: cab9633ec1dbf488a57012129d6970a6ad17f7b2'
+      git_branch: 'PRESENT: claude/harness-goals-experiments-g5pt2o'
+      dirty_tree_state: >-
+        PRESENT and ACCURATE. Declared dirty: true with exactly one entry,
+        '?? coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/'. At my
+        first tool call I observed precisely that one entry and nothing else.
+      environment: >-
+        PRESENT: python 3.11.15, executable path, platform
+        Linux-6.18.5-fc-v18-x86_64-with-glibc2.39, machine, cpu_count 4,
+        cpu_affinity 4.
+      dependency_versions: >-
+        PRESENT: numpy 2.4.6 as the only third-party dependency used, with
+        sympy/sage/scipy explicitly probed and recorded ABSENT. I confirmed
+        the absence claim is consistent with the run using only fractions and
+        math for exact arithmetic.
+      seeds: >-
+        PRESENT and sufficient for replay: master seed 20260804, derivation
+        string 'EXP-HQC-982268/v1', the per-shard key rule, the PRNG for each
+        arm, the per-trial counter domain, and the realized per-shard keys and
+        per-arm seeds archived in stage_a_results.json
+        (diagnostics_T.<set>.shard_keys, null_M.<set>.seeds, null_P.<set>.seed).
+      timings: >-
+        PRESENT and internally consistent. Per-phase core-seconds sum to
+        1411.115 against the declared total 1411.116 (I recomputed the sum);
+        cross-checked by getrusage at 1413.594, peak RSS 356 MB parent against
+        a 2 GB cap, 403.02 wall-seconds. Within the authorized 1692
+        core-seconds with 280.9 unused.
+    could_a_third_party_rerun:
+      answer: YES, with one honestly disclosed caveat.
+      caveat: >-
+        Trial counts were sized from a throughput calibration measured INSIDE
+        the run (DEV-3), so a third party on different hardware gets different
+        T per set, hence different SEs and a different k-reachability
+        boundary. Bit-identical reproduction of the reported cell values
+        therefore requires comparable host speed. The executor discloses this
+        twice (manifest trial_counts_are_throughput_dependent, report section
+        10) and states every gate verdict with its T. Disclosed, not hidden.
+      strengthening_observation: >-
+        The (T) arms consult exactly one randomness source, a SHA-256
+        counter-mode PRNG keyed by the recorded per-shard key with a
+        per-(trial, vector) domain. Any individual trial is replayable in
+        isolation from the archived key, which is what D5 exercises. The
+        seed-to-data path is genuinely deterministic.
+    independent_hash_recomputation:
+      performed: true
+      files_hashed_by_me: 7
+      oracle_files: >-
+        oracle.py 96c54ed52af92043cd9c5569d6005235fc8886cf6f247d1a1d5f13605510cd79;
+        test_oracle.py b3c52cc0320f34084a85da193393001a038823613bd9229fbf6d66366c6befbc;
+        oracle_values.json a3d655823945f4fe99cec11944f49206f16a2779abbfe6a15c013629d52a28e5.
+        All three match both the executor's receipt AND the committed
+        oracle_report.md table.
+      artifact_files: all four match the Coordinator snapshot receipt (see VA-5)
+    defects_found:
+    - id: R1-D1
+      severity: minor
+      what: >-
+        A FIFTH file exists in the task directory,
+        __pycache__/stage_a.cpython-311.pyc, while the manifest states 'Files
+        written: exactly the four declared artifacts'. Its mtime is
+        2026-08-06T06:38:16Z, AFTER run_manifest.yaml was written at 06:34:06,
+        so it postdates the manifest's own statement.
+      assessment: >-
+        No research impact. It is matched by .gitignore line 1 ('__pycache__/')
+        and was correctly excluded from the Coordinator snapshot commit. I
+        cannot attribute its creation with certainty and do not speculate; it
+        may have come from a post-run parse check by the executor or by the
+        harness. Recorded because the manifest's 'exactly four' statement is
+        not literally accurate for the on-disk tree.
+    - id: R1-D2
+      severity: minor
+      what: >-
+        The contract's required_artifacts block mandates per-run files under
+        experiments/EXP-HQC-982268/runs/<RUN-ID>/ (command.txt,
+        environment.json, stdout.log, stderr.log, raw-result.json,
+        S_histogram.csv, pair_moments_by_distance.csv, diagnostics.json,
+        null_arms.json, control_checks.json) plus a driver/ and analysis/
+        directory. NONE of these paths exist; I verified experiments/EXP-HQC-982268/
+        contains only specification.yaml.
+      assessment: >-
+        This is a contract-versus-write-scope conflict, not concealment: the
+        executor's write scope is the task directory and experiments/ is
+        off-limits to it, so the mandated layout was unreachable. The
+        SUBSTANCE of nearly all of those files is present inside
+        stage_a_results.json (S-histograms per arm, diagnostics, null arms,
+        control checks) and run_manifest.yaml (command, environment). Genuinely
+        absent: stdout.log and stderr.log. The executor did not record this as
+        a protocol deviation; it should have. See also R-CONTRACT-1.
+    - id: R1-D3
+      severity: informational
+      what: >-
+        INV-REPRO could not be evaluated as a file because
+        experiments/EXP-HQC-982268/fixtures/published_values.json does not
+        exist. I independently confirmed the file is absent.
+      assessment: >-
+        The executor's claim is accurate, and it did the honest partial thing:
+        it checked the fixture VALUES it could reach (p*, log2 p_i(6.1.4) at
+        PS-A, SPEC Table 10's column). Reported as not-evaluated, not as passed.
+
+  # ==================================================================
+  # ITEM 2 - GATES ACTUALLY EVALUATED, NOT ASSERTED
+  # ==================================================================
+  item_2_gates_genuinely_evaluated:
+    verdict: PASS
+    summary: >-
+      Every gate the executor reports as EVALUATED was genuinely evaluated,
+      and in every case I could recompute, the reported outcome is supported by
+      the artifact contents. I found no asserted-but-unevaluated gate and no
+      number I could not reproduce.
+    per_gate:
+      ORACLE-AGREEMENT:
+        genuinely_evaluated: true
+        supported_by_artifacts: true
+        my_independent_result: >-
+          CONFIRMED BY RE-EXECUTION, not by reading. I re-ran oracle.py myself
+          and diffed against the committed values with my own script: 0
+          computed-value differences, 5 provenance differences on exactly the
+          declared paths. I ran test_oracle.py myself: 43 tests, OK, exit 0. I
+          recomputed all three committed hashes and cross-checked them against
+          the committed oracle_report.md rather than against the executor's own
+          receipt.
+        note: >-
+          The executor reports 27 timing differences; I observe 28. This is
+          run-to-run variation in how many timing keys happen to collide
+          numerically, not a disagreement about any computed value. Immaterial.
+      INV-NULL:
+        genuinely_evaluated: true
+        supported_by_artifacts: true
+        my_independent_result: >-
+          EXACT MATCH on every count. I re-derived from stage_a_results.json:
+          324 cells evaluated across 4 sets x 3 arms; 28 fired. Independently
+          re-partitioned every cell by the contract's own T_stab rule: 151
+          admissible, of which exactly 1 fired; 173 beyond T_stab, of which 27
+          fired. I recomputed |z| for the firing cell from its own log2 and SE:
+          0.111265/0.035350 = 3.1475, matching the reported 3.15 and exceeding
+          the pre-registered threshold 3. T_stab(11)=465872.80 against
+          T=497632 gives margin 1.0682x, matching the reported 6.8 percent; and
+          T_stab(12)=1711338 confirms k=12 does not clear it.
+        z_ladder_verified: >-
+          I recomputed the full PS-R1/NULL-M ladder for k=2..14 and reproduce
+          1.14, 1.44, 1.75, 2.05, 2.30, 2.49, 2.63, 2.77, 2.93, 3.15, 3.45,
+          3.84, 4.31, with log2 Ahat_k negative and the jackknife bias negative
+          at every k. The executor's characterization -- a smooth one-signed
+          drift crossing the threshold, not a jump -- is accurate.
+        firing_locations_verified: >-
+          PS-R1/NULL-M k=11..20 (10 cells), PS-R3/NULL-M k=25..32 (8 cells),
+          PS-R5/NULL-P k=49..58 (10 cells). Total 28. All other arms clean.
+        adjudication: >-
+          NOT ADJUDICATED BY ME EITHER, and deliberately so. Whether the single
+          admissible firing is a chance excursion among 151 cells or evidence
+          that T_stab=30 is too loose near its boundary is a question the
+          evidence in front of me does not settle. I confirm only that the
+          executor reported it prominently, with its full context and both
+          candidate readings, rather than burying or explaining it away. That
+          is the correct executor behaviour.
+      D1:
+        genuinely_evaluated: true
+        supported_by_artifacts: true
+        my_independent_result: >-
+          I recomputed gamma_hat = Var(w(etilde))/(N*phat*(1-phat)) at all four
+          sets from the archived variance and phat: 0.736420 / 0.753156 /
+          0.790306 / 0.812733, reproducing the reported values to all printed
+          digits. None lies in the [0.95,1.05] alarm band; PS-A's extra
+          [0.55,0.85] requirement is met at 0.7364. TC-5 z values on NULL-M
+          recomputed as +0.20 / +2.22 / -0.58 / +0.28, all within 3 SE,
+          matching the manifest exactly.
+      D2:
+        genuinely_evaluated: true
+        supported_by_artifacts: true
+        my_independent_result: >-
+          Code-verified as a real per-trial check, not a summary assertion.
+          stage_a.py lines 513-521 test, on EVERY trial, both the index-set
+          cardinality after Floyd sampling AND the popcount of each constructed
+          ring element against (omega, omega, omega_r, omega_r, omega_e), with
+          a counter incremented on any failure. Trials checked 1 965 576; I
+          confirmed that figure equals the sum of the four archived per-set
+          trial counts (527928+572588+511228+353832), and that 5 vectors x
+          1 965 576 = 9 827 880 vectors. 0 deviations.
+      D3:
+        genuinely_evaluated: true
+        supported_by_artifacts: true
+        my_independent_result: >-
+          Evaluation is real: stage_a.py lines 526-530 test w(etilde) and
+          w(e'') against the cap on every trial. I recomputed the cap
+          2*omega*omega_r + omega_e independently at all four sets and get
+          9975 / 3476 / 4641 / 7973, matching the archived values, against
+          maxima 6254 / 2202 / 2782 / 4549. 0 violations is supported.
+        defect_independently_confirmed: >-
+          THE EXECUTOR'S DEFECT CLAIM IS CORRECT AND I CONFIRM IT BY MY OWN
+          ARITHMETIC. On (M), w(etilde) ~ Binomial(N, p*). I computed cap/mean
+          = 1.66 / 1.70 / 1.77 / 1.84 and the cap's distance above the (M) mean
+          in (M) standard deviations = 63 / 39 / 50 / 70 sigma at
+          PS-A/R1/R3/R5. The contract's rationale for D3 -- 'violated with
+          probability ~1 on (M)', listed among 'hard invariants that cannot be
+          satisfied by an (M) sampler' -- is FALSE at these four parameter
+          sets. See item 3 and R-CONTRACT-2.
+      D5:
+        genuinely_evaluated: true
+        supported_by_artifacts: true
+        my_independent_result: >-
+          I read both code paths and confirm the independence claim is real,
+          not nominal. Production: ring_mul_sparse, shift-XOR accumulation over
+          the sparse support with a fold-back mask. Replay: ring_mul_dense,
+          ONE Python big-integer multiply in base 256 with byte-level carry
+          isolation, then a numpy packbits fold; and support_to_int_dense uses
+          numpy packbits where production uses a bytearray. They share no
+          shift, XOR or mask. The carry argument holds: coefficients are
+          bounded by min(omega, omega_r), which is 66/39/45/59 at the four
+          sets, all far below 256. 1600 replays (400/set, stride 1319 at PS-A),
+          0 mismatches.
+        scope_limit_correctly_stated: >-
+          400/set against the contract's 1e4/set. The executor records this as
+          a REDUCED SAMPLE COUNT and explicitly not as CTRL-REPLAY discharged.
+          That is the correct framing and I endorse it.
+    additional_gates_checked_by_me:
+      D4_TC-1: >-
+        Supported. Archived quantiles give deviations 0.0 / -2.0 / +1.44 at the
+        1e-3/1e-4/1e-5 tails against SPEC Table 10, all within the 3-unit
+        tolerance; the 1e-6 tail is marked unreachable with the explicit reason
+        'achieved T < 1/tail ... INFRASTRUCTURE/BUDGET limit, not a result'.
+        Correct handling under AGENTS.md rule 5.
+      TC-2: >-
+        Correctly declared NOT EVALUABLE. I verified the arithmetic myself:
+        log2 q_hat at PS-A = -11.546 and log2(q_hat + tie_rate) = -10.592, and
+        Table 11's -10.96 lies strictly inside that bracket. The executor
+        neither claims a pass nor asserts a failure. Correct.
+      CTRL-BS_expectation_OBS-4: >-
+        I independently recomputed the Maclaurin floor from the archived
+        per-block marginals using my own elementary-symmetric routine and get
+        -2.3197e-07 at PS-R1 k=2 and -2.7834e-05 at k=16, reproducing the
+        reported values exactly. The archived block marginals are genuinely
+        unequal (PS-R1 range 0.196124 to 0.198500), so the contract's
+        'E[Ahat_k] = 1 EXACTLY' really is inexact. The executor's finding
+        stands, as does its conclusion that the effect is 1e-3 to 1e-5 times
+        the SE in use and therefore harmless at this T.
+      extended_decoder_cross_check: >-
+        Genuine. 12 cells x 600 blocks = 7200, 7200 agreements with exhaustive
+        minimum-distance search. I confirm the failure branch is exercised: at
+        dup=3 the failure counts are 0, 0, 21, 210, 509, 598 across
+        p=0.30..0.50, so the sweep exists precisely because the smoke-phase
+        check at p ~ p* produced zero dup=3 failures. Correctly labelled 'not
+        CTRL-DEC discharged'.
+      no_shard_truncation: >-
+        Verified independently: truncated_shards is empty for the (T) arm and
+        the NULL-M arm at all four sets. The 'no timeout, no truncation' claim
+        is supported.
+      budget_and_trial_accounting: >-
+        Verified: (T) 1 965 576, NULL-M 1 785 528 (sum of 662268+497632+385732+
+        239896), NULL-P 40 000 000 (4 x 1e7). All match the manifest.
+
+  # ==================================================================
+  # ITEM 3 - COULD EACH GATE HAVE FAILED
+  # ==================================================================
+  item_3_capability_to_fail:
+    verdict: PASS_WITH_DEFECTS
+    principle_applied: >-
+      A control that passes without being able to fail is not a pass. I
+      therefore separate gates DEMONSTRATED capable of firing on this run from
+      gates capable only in principle, and from the one gate that cannot fire
+      on the object it is advertised to detect.
+    demonstrated_capable_of_failing:
+    - gate: ORACLE-AGREEMENT
+      evidence: >-
+        STRONGEST IN THE PACKAGE. The committed suite I ran myself contains
+        deliberate mutants: 9 mutant comparisons that MUST differ, 9 detected,
+        alongside 49 known-answer comparisons that must agree, 49 agreeing. A
+        wrong denominator in the estimator is caught by construction.
+        Separately, a single changed byte in any of the three files would fail
+        the hash check before any value is compared.
+    - gate: INV-NULL
+      evidence: >-
+        DEMONSTRATED ON THIS RUN: it fired at 28 of 324 cells. The gate is not
+        merely capable of firing in theory; it fired, in a structured and
+        interpretable pattern, and the executor reported the firings rather
+        than tuning them away. The pre-registered thresholds (3 SE, 25 percent)
+        were not adjusted after the data existed.
+    - gate: D1
+      evidence: >-
+        DEMONSTRATED, AND THIS IS THE BEST POSITIVE CONTROL IN THE PACKAGE. The
+        SAME gamma estimator, on the NULL-M arm whose input really is space
+        (M), returns 1.00034 / 1.00446 / 0.99868 / 1.00081 -- squarely inside
+        the [0.95,1.05] drift-alarm band. So the detector demonstrably lands in
+        the alarm band when the input is genuinely (M), and demonstrably does
+        not (0.7364 to 0.8127) when the input is the (T) construction. D1 is a
+        real discriminator with a demonstrated positive control.
+    capable_in_principle_but_not_demonstrated:
+    - gate: D2
+      assessment: >-
+        CAPABLE, NOT DEMONSTRATED. It is not a tautology: the index-set
+        cardinality check is close to guaranteed by Floyd sampling, but the
+        popcount check is applied to the CONSTRUCTED ring element, so a defect
+        in support_to_int (a dropped or aliased bit) would fire it. No mutant
+        or negative control was run against D2, so its capability is argued
+        from the code rather than demonstrated by a firing.
+    - gate: D5
+      assessment: >-
+        CAPABLE, NOT DEMONSTRATED. The independence of the two code paths is
+        genuine (verified by reading both), so a defect in either the sparse
+        shift-XOR product or the truncation would produce a mismatch. But no
+        mutant was injected, so 0/1600 is an agreement between two
+        implementations rather than a demonstrated detection. The smoke-phase
+        ring_sparse_equals_dense check is the same kind of evidence.
+    incapable_of_failing_on_its_advertised_object:
+    - gate: D3
+      assessment: >-
+        CONFIRMED DEFECT. D3 cannot fail on (M) drift, which is the reason the
+        contract gives for having it. My own arithmetic puts the cap 39 to 70
+        (M)-sigma above the (M) mean, i.e. an (M)-drifted sampler violates it
+        with probability indistinguishable from zero, not ~1 as the contract
+        asserts. D3 retains value only as a hard invariant against a grossly
+        malformed sampler, and in that narrow role it was genuinely evaluated
+        on every trial. It must NOT be counted as a (T)-versus-(M)
+        discriminator in any downstream record.
+      credit_where_due: >-
+        The executor FOUND this itself, stated it as a defect in the contract
+        it was executing, and corrected the record of which detectors actually
+        bear on the (T)-versus-(M) question. That is the behaviour the
+        inventor-protocol asks for and it materially raises my confidence in
+        the rest of the package.
+    aggregate_judgement: >-
+      The gate set is genuinely load-bearing where it matters most: the oracle
+      gate has injected mutants, INV-NULL actually fired, and D1 has a real
+      positive control. The weakness is that the three hard invariants D2, D3
+      and D5 are single-sided -- they were evaluated but never shown to fire --
+      and one of them, D3, is now known to be incapable of firing on its
+      advertised object. Stage B should not treat 'D2/D3/D5 clean' as
+      independent corroboration of sampler correctness without at least one
+      injected-fault demonstration per detector.
+
+  # ==================================================================
+  # ITEM 4 - SCOPE COMPLIANCE
+  # ==================================================================
+  item_4_scope_compliance:
+    verdict: PASS_WITH_DEFECTS
+    no_stage_beyond_A_run:
+      confirmed: true
+      basis: >-
+        Verified from artifacts and code. No B1-B4 arm exists; no PS-D2 or
+        PS-D4 parameter set appears anywhere in the results; CTRL-WBP is
+        absent; CTRL-DEC at 1e5/set was not run. One measurement invocation
+        (exit 0) plus one post-processing pass that samples nothing. Budget
+        consumed 1411.12 of 1692 authorized core-seconds, 403 of 1800
+        wall-seconds, 356 MB of 2 GB -- inside every authorized bound, so no
+        unauthorized compute was hidden in an overrun.
+      stage_C_controls_correctly_bounded: >-
+        Two stage-C-flavoured checks were run and BOTH are correctly labelled
+        as reduced and undischarged: D5/CTRL-REPLAY at 400/set against 1e4
+        (DEV-... in the manifest, reason recorded), and a 7200-block decoder
+        cross-check declared 'CTRL-DEC in spirit ... not CTRL-DEC discharged'.
+        Cost under 1 core-second. I regard these as within Stage A's
+        instrument-validation charter and correctly declared, not as scope
+        creep.
+    no_log2_A_on_any_T_arm:
+      confirmed: true
+      how_i_checked: >-
+        Two independent ways. (a) Key sweep over the whole of
+        stage_a_results.json: every key matching log2_A occurs at exactly four
+        locations -- INV_NULL/<set>/NULL-P/cells/log2_A_null,
+        INV_NULL/<set>/NULL-M/cells/log2_A_null,
+        INV_NULL/<set>/CTRL-BS/cells/log2_A_null_replicate_mean, and
+        ctrl_BS_expectation_analysis/.../maclaurin_floor_log2_A. (b) Code
+        reading: log2_A_from_hist and jackknife_log2_A are invoked only at
+        stage_a.py lines 1143 (null_p_bh, null_m_bh) and 1163-1165 (CTRL-BS
+        replicate histograms). Neither is ever applied to the (T) histogram.
+        The diagnostics_T block contains no joint-moment field at all.
+      conclusion: >-
+        The prohibition was honoured. No log2_A_k and no log2_A_m value on a
+        space-(T) arm appears anywhere in the four artifacts.
+    boundary_observations_for_the_coordinator:
+    - id: R4-B1
+      severity: informational
+      what: >-
+        LITERAL-TEXT TENSION, DECLARED NOT SMUGGLED. The authorization's
+        what_this_authorization_does_not_permit reads 'No measurement of
+        log2_A_k or log2_A_m may be reported from this authorization', which is
+        broader than 'on any (T) arm'. The executor reports log2 Ahat_k on the
+        three null arms.
+      assessment: >-
+        I judge the executor's reading defensible and, more importantly,
+        DECLARED -- in stage_a.py's module docstring, in report section 0, and
+        in the manifest's measurement_prohibition_observed field. The same
+        authorization names 'the null arms' inside authorized_scope, and
+        INV-NULL is DEFINED as a statement about |log2 Ahat_k| on those arms,
+        so a literal reading would make the gate the authorization exists to
+        run unevaluable. The executor chose the reading that preserves the
+        gate and flagged it rather than assuming it silently. The Coordinator
+        should ratify this reading explicitly so the next stage inherits a
+        settled boundary.
+    - id: R4-B2
+      severity: informational
+      what: >-
+        THE PROHIBITION IS A REPORTING BOUNDARY, NOT AN INFORMATION BOUNDARY.
+        The (T) S-histogram is archived per set in stage_a_results.json (it is
+        the contract's own required sufficient statistic), and mubar_k, hence
+        log2 A_k on space (T), is a direct functional of it. Any reader can
+        derive the unauthorized quantity from the committed artifact.
+      what_i_did: >-
+        I did NOT derive it, and I state that explicitly. Deriving it would
+        have been me performing the unauthorized measurement under the guise of
+        review.
+      assessment: >-
+        This is COMPLIANT, not a violation: the contract's required_artifacts
+        block mandates archiving the S-histogram precisely so results recompute
+        without rerunning. The Coordinator should simply be aware that the
+        Stage A package makes the Stage B primary metric derivable, and should
+        decide deliberately whether that is acceptable before the package is
+        circulated further.
+    write_scope_compliance:
+      confirmed: true
+      basis: >-
+        The four declared artifacts are the only research files in the task
+        directory. I verified with git that
+        coordination/goals/GOAL-HQC-001/batches/BATCH-003/ is byte-identical to
+        HEAD (empty diff) -- the sibling oracle task was read and re-executed
+        but not modified, and no __pycache__ was left in it. No ledger record,
+        no experiments/ file, no knowledge entry and no queue file was touched.
+        The oracle re-run output was written to the session scratchpad outside
+        the repository, which is the right call.
+      exception: see R1-D1, the gitignored __pycache__ entry, which is not a research artifact
+    claim_tier_discipline:
+      verdict: PASS
+      basis: >-
+        I read the report and manifest looking specifically for leakage above
+        the toy ceiling and found none. The scope statement precedes any
+        number (report section 0). Every not-run, not-reached and not-evaluable
+        item is attributed to budget, authorization or read-scope, and never to
+        mathematics. No evidence strength is assigned, no hypothesis status is
+        touched, no statement about A17, A5, HQC DFRs or standardized parameter
+        sets appears. The executor explicitly refuses to adjudicate the one
+        admissible INV-NULL firing and hands it to the Reviewer. AGENTS.md
+        rule 5 is honoured throughout.
+
+  # ==================================================================
+  # ITEM 5 - ARITHMETIC
+  # ==================================================================
+  item_5_arithmetic:
+    verdict: PASS
+    summary: >-
+      I recomputed every number I could reach cheaply from the archived data.
+      All of them reproduced. I found no arithmetic error and no number I could
+      not trace to the archived sufficient statistics.
+    checks:
+    - what: S_histogram integrity
+      result: sum of histogram counts equals the declared trial count at all four sets
+    - what: q_hat = mean(S)/n_e recomputed from the archived S_histogram
+      result: 'exact agreement at all four sets, difference 0.0e+00'
+    - what: p_hat = mean w(etilde)/N
+      result: 'exact agreement at all four sets, difference 0.0e+00'
+    - what: gamma_hat = Var(w(etilde))/(N*phat*(1-phat))
+      result: >-
+        reproduced to all printed digits: 0.736420 / 0.753156 / 0.790306 /
+        0.812733
+    - what: p_hat minus tabulated p*
+      result: >-
+        +6.12e-07 / -5.97e-06 / +1.49e-05 / +5.15e-07, supporting the claimed
+        5.2e-7 to 1.5e-5 agreement band (OBS-1)
+    - what: D3 cap = 2*omega*omega_r + omega_e
+      result: 9975 / 3476 / 4641 / 7973, matching archived values
+    - what: (M) cap/mean ratio and sigma distance
+      result: >-
+        1.66/1.70/1.77/1.84 and 63/39/50/70 sigma, independently confirming the
+        D3 defect claim
+    - what: tie_rate as a fraction of q_hat
+      result: >-
+        93.7 percent at PS-A and 76.5 / 66.0 / 60.1 percent at PS-R1/R3/R5,
+        supporting '93.7 percent' and '60 to 77 percent'
+    - what: the TC-2 bracket
+      result: >-
+        log2 q_hat = -11.546 and log2(q_hat + tie_rate) = -10.592 at PS-A; I
+        confirm -10.96 lies strictly inside, so NOT EVALUABLE is the correct
+        verdict
+    - what: INV-NULL cell census and T_stab partition
+      result: 324 / 28 / 151 admissible / 1 admissible firing / 173 beyond / 27 beyond firings, all exact
+    - what: '|z| for the one admissible firing and the k=2..14 ladder'
+      result: 3.1475 and the full monotone ladder reproduced
+    - what: T_stab margin at PS-R1 k=11
+      result: 497632/465872.80 = 1.0682x, matching the reported 6.8 percent
+    - what: TC-5 z on NULL-M
+      result: +0.20 / +2.22 / -0.58 / +0.28, matching
+    - what: CTRL-BS Maclaurin floor, recomputed with my own symmetric-function routine
+      result: -2.3197e-07 (k=2) and -2.7834e-05 (k=16) at PS-R1, matching
+    - what: per-phase core-second sum
+      result: 1411.115 against the declared 1411.116, and getrusage 1413.594
+    - what: trial-count totals across sets and arms
+      result: 1 965 576 (T), 1 785 528 (NULL-M), 40 000 000 (NULL-P), all consistent
+    - what: throughput ratios
+      result: >-
+        1667/2555/2061/1502 trials per core-second against the modeled 4728,
+        i.e. 2.84x / 1.85x / 2.29x / 3.15x slower. The report's '1.9x to 3.1x'
+        is these endpoints rounded; the honest statement that the declared 2x
+        contingency is at or past its limit at three of four sets is correct.
+    - what: extended decoder cross-check totals
+      result: 12 cells, 7200 blocks, 7200 agreements, dup=3 failure branch exercised (21/210/509/598)
+
+  # ==================================================================
+  # FINDINGS THE EXECUTOR DID NOT REPORT
+  # ==================================================================
+  findings_not_in_the_executor_record:
+  - id: R-NEW-1
+    severity: material_procedural
+    title: ST-5 null-first ordering was not observed, and was not recorded as a deviation.
+    what: >-
+      Stopping rule ST-5 requires that 'NULL-P and NULL-M run BEFORE any (T)
+      arm at each set'. They did not. In stage_a.py the (T) shards run at line
+      939, NULL-P at line 1021 and NULL-M at line 1037. ST-5 is not mentioned
+      anywhere in stage_a.py, stage_a_report.md, run_manifest.yaml or
+      stage_a_results.json, and it does not appear among protocol_deviations
+      DEV-1..DEV-5.
+    why_it_happened: >-
+      IT IS STRUCTURALLY FORCED BY THE CONTRACT ITSELF, not a shortcut. NULL-P
+      is constructed as S ~ Binomial(n_e, qhat) and NULL-M as
+      Bernoulli(phat)^N, where the contract defines qhat and phat as the
+      (T)-MEASURED values (see controls.NULL-M 'phat the (T)-measured
+      coordinate marginal at that set'). I verified the code does exactly this:
+      null_p takes q = diagnostics[set]['q_hat'] and null_m takes
+      diagnostics[set]['p_hat']. Stage A is the phase that measures those
+      quantities, so at Stage A the nulls cannot precede the (T) arm. ST-5 as
+      written is unsatisfiable at Stage A.
+    materiality_for_this_run: >-
+      LOW. ST-5's substantive guard is 'Stage B does not start at a set whose
+      NULL-P or NULL-M fails INV-NULL', and Stage B was neither authorized nor
+      run. Its second rationale -- that a null failing after the (T) data exist
+      invites motivated interpretation -- is also largely defused here, because
+      no (T) joint moment was computed at all, so there was no (T) result to
+      motivate an interpretation toward. I found no sign of post-hoc threshold
+      adjustment: the 3 SE and 25 percent thresholds are the pre-registered
+      ones and the executor declined to adjudicate the one admissible firing.
+    what_the_coordinator_must_do: >-
+      Record the deviation, and resolve the contract contradiction BEFORE Stage
+      B. Either restate ST-5 as binding on Stage B only (the reading that makes
+      it coherent), or redefine the null arms to take a pre-registered q and p
+      rather than the measured ones. Leaving it unresolved means Stage B
+      inherits a stopping rule it cannot satisfy.
+  - id: R-CONTRACT-1
+    severity: minor
+    title: The contract's required_artifacts layout is unreachable from the executor's write scope.
+    what: see R1-D2. Mandated paths under experiments/EXP-HQC-982268/ cannot be written by the executor.
+    what_the_coordinator_must_do: >-
+      Either relocate the required_artifacts paths into the task directory, or
+      make the Coordinator responsible for copying the run package into
+      experiments/EXP-HQC-982268/runs/<RUN-ID>/ as part of the archive step.
+      Also note stdout.log and stderr.log were genuinely not captured.
+  - id: R-CONTRACT-2
+    severity: material
+    title: D3's stated rationale is factually wrong and must not propagate.
+    what: >-
+      Independently confirmed (item 3). The contract's claim that the support
+      cap is 'violated with probability ~1 on (M)' and that D3 is among the
+      'hard invariants that cannot be satisfied by an (M) sampler' is false at
+      all four parameter sets by 39 to 70 sigma.
+    what_the_coordinator_must_do: >-
+      Supersede the D3 rationale in any Stage B contract revision, and ensure
+      no downstream record cites D3 as (T)-versus-(M) evidence. The detectors
+      that genuinely bear on that question here are D1 (with its NULL-M
+      positive control), D2, D5, the phat agreement and the Table 10 tail
+      comparison.
+  - id: R-NEW-2
+    severity: informational
+    title: Snapshot-before-review ordering was violated, and I can attest the mitigation held.
+    what: >-
+      AGENTS.md requires the Coordinator snapshot commit to precede independent
+      review. It did not. I observed this directly and not merely from the
+      receipt: at my first tool call the task directory was untracked
+      ('?? .../BATCH-6fddee/tasks/') at HEAD cab9633e, and during my review it
+      was committed as ff816e03 with HEAD moving to that commit.
+    assessment: >-
+      The Coordinator DISCLOSED this in
+      archives/TASK-20260806-c2a7fc/snapshot-receipt.json under
+      ordering_deviation_disclosed, including the correct observation that an
+      argued freeze is weaker than an enforced one. I can attest the mitigation
+      held in fact for this review: I recomputed all four artifact sha256 and
+      they match the receipt exactly, so the bytes I reviewed are the bytes
+      committed. The receipt also correctly discloses that the run was
+      performed at cab9633e while the archive commits onto dfe901d2-descended
+      history after PR #186 merged. That disclosure is accurate.
+    what_the_coordinator_must_do: >-
+      Carry through the stated fix -- run the snapshot as its own dispatched
+      step before review agents start in the next batch.
+
+  # ==================================================================
+  # OVERALL
+  # ==================================================================
+  overall_verdict:
+    verdict: PASS_WITH_DEFECTS
+    what_this_verdict_covers: >-
+      RECEIPT AND CONTROL INTEGRITY ONLY. It is a statement that the Stage A
+      package is honest, reproducible and correctly scoped -- not a statement
+      about HQC, A17, A5, any decoding-failure rate, or any standardized
+      parameter set, about which this package says nothing and neither do I.
+    what_passed: >-
+      Reproducibility is strong and I verified it by re-execution rather than
+      by reading: I re-ran the oracle and its 43-test suite myself and
+      reproduced 0 computed-value differences, and I recomputed seven sha256
+      values including all four artifact hashes against the Coordinator's
+      receipt. Every gate reported as evaluated was genuinely evaluated in
+      code, and every number I recomputed from the archived sufficient
+      statistics reproduced exactly -- roughly forty independent checks with no
+      discrepancy. The scope ceiling held: no stage beyond A ran, no log2_A_k
+      or log2_A_m appears on any space-(T) arm, the budget was underspent, and
+      the write scope was respected. Three gates are demonstrably capable of
+      failing, one of them (INV-NULL) by actually firing 28 times and another
+      (D1) by a genuine positive control on NULL-M.
+    what_is_defective: >-
+      D3 cannot fail on the object the contract advertises it for, which I
+      confirmed independently at 39-70 sigma. D2 and D5 were evaluated but
+      never demonstrated capable of firing. The ST-5 null-first ordering was
+      not observed and, unlike the executor's five other deviations, was not
+      recorded -- and the underlying cause is a contradiction in the contract
+      itself. The contract's required_artifacts layout is unreachable from the
+      executor's write scope, and stdout/stderr were not captured. A fifth,
+      gitignored file sits in the task directory against the manifest's
+      'exactly four'. The snapshot commit did not precede review, though the
+      Coordinator disclosed this and I can attest the byte-level mitigation
+      held.
+    why_not_a_plain_pass: >-
+      Two reasons, neither about honesty. First, an unrecorded protocol
+      deviation is a receipt defect even when its material impact is low and
+      even when the contract made it unavoidable; ST-5 must be on the record
+      before Stage B inherits it. Second, three of the six detectors are
+      single-sided, and one of those is now known to be inert against its
+      advertised failure mode -- so 'all invariants clean' is weaker
+      corroboration than it reads.
+    why_not_a_fail: >-
+      Nothing was fabricated, nothing was papered over, and no gate outcome is
+      unsupported by the artifacts. Every deviation but one was self-reported
+      by the executor, including three defects IN THE CONTRACT IT WAS EXECUTING
+      that no reviewer had caught. Not-reached and not-evaluable items are
+      uniformly attributed to budget, authorization or read scope, never to
+      mathematics, exactly as AGENTS.md rule 5 requires. The executor declined
+      to adjudicate its own most interesting observation and handed it to the
+      Reviewer. valid_partial_measurement is the correct validity status and I
+      concur with it as written.
+    executor_report_accuracy: >-
+      HIGH. I checked every quantitative claim in the executor's summary that I
+      could reach and found no overstatement and no error. The two places where
+      my numbers differ from the record are immaterial: I count 28 oracle
+      timing differences where the executor counts 27 (run-to-run noise in key
+      collisions, no computed value involved), and the throughput endpoints
+      round to 1.85x and 3.15x where the report says 1.9x and 3.1x. The
+      executor's self-reported defects -- the D3 rationale, the tie-convention
+      omission, the CTRL-BS Maclaurin inexactness, and the observation that no
+      null arm tests the (T) joint law -- are all correct, and I confirmed the
+      first and third by independent computation.
+    recommended_disposition_for_the_coordinator:
+      note: >-
+        RECOMMENDATION ONLY. I change no status; the decision is the
+        Coordinator's under AGENTS.md rule 1.
+      items:
+      - Accept the Stage A package as a valid partial measurement of the INSTRUMENT, at claim tier toy.
+      - Record R-NEW-1 (ST-5) as a protocol deviation supplementing the executor's DEV-1..DEV-5.
+      - >-
+        Before authorizing any Stage B arm, resolve the three contract defects:
+        ST-5's unsatisfiability at Stage A (R-NEW-1), D3's false rationale
+        (R-CONTRACT-2), and the unreachable required_artifacts layout
+        (R-CONTRACT-1). All three are contract corrections, not re-runs.
+      - >-
+        Ratify explicitly the executor's declared reading of the log2_A
+        prohibition (R4-B1), and decide deliberately about the derivability of
+        the (T) joint moments from the archived S-histograms (R4-B2).
+      - >-
+        Treat the tie-convention omission (DEV-1) as blocking for any q-hat
+        dependent claim. It is cheap to close relative to any Stage B arm and
+        it currently leaves TC-2 unevaluable at every set.
+      - >-
+        If Stage B is authorized, require at least one injected-fault
+        demonstration per hard invariant (D2, D5) so they stop being
+        single-sided, and re-cost from the measured 1502-2555 trials per
+        core-second rather than the modeled 4728.
+      - >-
+        The one admissible INV-NULL firing (PS-R1/NULL-M/k=11) remains
+        unadjudicated by both the executor and me. It needs a Reviewer
+        judgement on whether T_stab=30 is too loose near its boundary; note the
+        cell clears T_stab by only 6.8 percent and that |z| rises monotonically
+        and one-signed through it.
+
+  reviewer_attestation: >-
+    I read AGENTS.md and docs/inventor-protocol.md before acting. I fabricated
+    no number, command, timing or result. Every figure in this report is either
+    recomputed by me from the committed artifacts or quoted from them with its
+    source named, and every re-execution I performed is listed under
+    verification_actions_performed. Where I could not evaluate something I said
+    so. I did not compute log2_A_k or log2_A_m on any space-(T) arm, although
+    the archived S-histograms would have permitted it, because doing so would
+    have been the unauthorized measurement performed under the guise of review.
+    I wrote exactly one file, this report. I changed no research status.
+  files_written:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/reviews/TASK-20260806-43a44f/validation_report.yaml

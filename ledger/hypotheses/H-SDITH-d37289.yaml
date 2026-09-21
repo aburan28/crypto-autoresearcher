@@ -1,0 +1,739 @@
+hypothesis:
+  id: H-SDITH-d37289
+  question_id: RQ-SDITH-001
+
+  statement: >-
+    SCOPE: block-factorizing information-set decoding (Prange, Lee-Brickell, and
+    Dumer/Stern with a block-aligned window) applied to d-split syndrome decoding
+    at parameter shapes with d dividing gcd(n, k, w); exact integer and exact
+    rational arithmetic only; three declared memory-charging models. CLAIM TIER
+    derivation. NO DECODING IS PERFORMED, NO CERTIFICATE IS PRODUCED, NO ATTACK
+    AND NO SECURITY LEVEL IS CLAIMED.
+    THE CLAIM, IN THREE PARTS, EACH SEPARATELY FALSIFIABLE.
+    (D1) THE SPLIT IS CHEAP AT SMALL d. The advantage a block-factorizing ISD
+    gains from the d-split promise, over the same algorithm on plain SD at
+    matched (n, k, w), is exactly
+      A(n,k,w,d) = log2 [ R(n-k,w,d) / R(n,w,d) ],  R(N,w,d) = C(N/d,w/d)^d / C(N,w),
+    which equals ((d-1)/2) log2 [ ((n-w)/(n-1)) ((n-k-1)/(n-k-w)) ] to within
+    0.01 bits whenever w/d >= 16, and is UNDER 3 BITS at d = 2 and d = 3 for
+    every shape in the declared boundary. It is NOT the information-theoretic
+    loss -log2 R(n,w,d), which is larger by a factor of about 11 at d = 2 and
+    which an analyst reporting the split's cost would naturally reach for
+    instead.
+    (D2) THE CHARGED BASELINE MUST BE RE-OPTIMIZED, NOT PENALIZED. Under a
+    charging model in which a random access into an M-cell store costs M^alpha,
+    the cost-minimizing internal parameters (p, l) of a Dumer-style ISD are
+    strictly different from the free-memory minimizers whenever the free
+    minimizer has p > 2, and evaluating the charged cost at the FREE minimizer
+    overstates the charged optimum by a strictly positive amount predicted to
+    exceed 3 bits at every shape in the boundary. The charging model itself is
+    admissible only if it first reproduces this program's own BSGS anchor --
+    n^{1/2} processor steps, n^{2/3+o(1)} full cost (KN-TECH-035, read) -- to
+    within 1 bit in both the exponent and the optimal table size.
+    (D3) THERE IS NO KNEE IN d WITHIN THE FAMILY. A(n,k,w,d)/(d-1) varies by
+    less than a factor of two across the entire d-axis at fixed (n, k, w), so
+    the split advantage degrades linearly in d with no threshold, and any
+    threshold behaviour observed at large d must originate outside the
+    block-factorizing family.
+    If any part fails, the failure is the deliverable and its exact tested
+    boundary is stated with it. The hypothesis explicitly does NOT claim
+    anything about representation-technique ISD (MMT, BJMM, May-Ozerov), whose
+    intermediate objects are not block-local, nor about algebraic attacks on the
+    block structure, and it does NOT claim that SDitH is secure.
+
+  mechanism: >-
+    DERIVED IN-RECORD; every number below was computed in this session with
+    exact integer binomials and is reproducible from the stated formulas alone.
+    SDitH's own parameters are NOT READ and no number here is represented as
+    SDitH's.
+
+    PART D1 -- THE ADMISSIBILITY RATIO AND WHY THE GAIN IS ITS DERIVATIVE.
+    d-split SD forces weight w/d in each of d blocks of size n/d; plain SD forces
+    only total weight w. Counting: the number of admissible errors is
+    C(n/d,w/d)^d (q-1)^w against C(n,w) (q-1)^w, so the field values cancel
+    exactly and the ratio R(n,w,d) = C(n/d,w/d)^d / C(n,w) is q-independent --
+    the split constrains positions only, and raising q cannot change the gap.
+    Vandermonde gives C(n,w) = sum over compositions of prod_j C(n/d,w_j) with
+    the balanced term maximal (log-concavity of j -> C(n/d,j)), so
+    1/C(w+d-1,d-1) <= R <= 1 UNCONDITIONALLY: the promise removes at most
+    (d-1) log2(w+d-1) bits of search space, a logarithmic quantity, never an
+    exponent. Verified at n=256, w=80: -log2 R = 3.222 / 8.675 / 17.623 against
+    the bound 6.340 / 16.487 / 32.444 at d = 2 / 4 / 8.
+    But R is NOT what the attacker gains. Prange on plain SD needs
+    C(n,w)/C(n-k,w) iterations. Prange on the split instance chooses an
+    information set with k/d columns per block; conditioned on the promise the
+    per-block avoidance events are independent, and log-concavity again makes the
+    balanced allocation optimal, so it needs [C(n/d,w/d)/C((n-k)/d,w/d)]^d.
+    Dividing, the gain telescopes into a RATIO OF TWO ADMISSIBILITY RATIOS:
+      A = log2 [ R(n-k,w,d) / R(n,w,d) ].
+    R(N,w,d) is exactly the probability that a multivariate-hypergeometric block
+    profile comes out balanced; its per-block variance is
+    w (1/d)(1-1/d)(N-w)/(N-1), so a local CLT gives
+    R ~ (2 pi)^{-(d-1)/2} (det Sigma_{d-1})^{-1/2}, and IN THE RATIO every
+    d-only factor and every power of 2 pi cancels identically, leaving
+      A ~= ((d-1)/2) log2 [ ((n-w)/(n-1)) ((n-k-1)/(n-k-w)) ].
+    Exact-versus-closed-form at n=320, k=160, w=80: 0.000/0.000 (d=1),
+    0.291/0.290 (d=2), 0.868/0.871 (d=4), 1.155/1.161 (d=5), 2.008/2.032 (d=8),
+    2.570/2.612 (d=10), 4.228/4.353 (d=16), 5.308/5.514 (d=20), 10.421/11.318
+    (d=40), 19.317/22.927 (d=80). Agreement under 0.01 bits while w/d >= 16 and
+    predictable upward drift as w/d falls to 1, which is exactly where a Gaussian
+    approximation to a hypergeometric must fail -- so the drift is diagnostic
+    rather than embarrassing.
+
+    PART D2 -- THE CHARGING MODELS AND THE RE-OPTIMIZATION ERROR.
+    Three models, reported side by side and never collapsed: M0 free memory;
+    M1 an access into an M-cell store costs sqrt(M) (two-dimensional layout,
+    diameter sqrt(M)); M2 the area-time-squared exponent log2 M + 2 log2 T,
+    reported as a separate incommensurable column.
+    BASELINE-REPRODUCTION AUDIT, RUN AND PASSED IN-RECORD. BSGS with an m-element
+    table costs m + (n/m) sqrt(m) under M1, minimized at m = (n/2)^{2/3} for cost
+    O(n^{2/3}). Direct search: n = 2^64 gives optimal log2 m = 42 and log2 cost
+    43.58; 2^128 gives 85 and 86.27; 2^256 gives 170 and 171.58, against
+    2e/3 = 42.7 / 85.3 / 170.7. M1 recovers BOTH the exponent and the optimal
+    table size, and the residual ~0.9 bits is the factor-2 constant the exponent
+    hides. The model was not tuned to do this.
+    THE ISD COST MODEL, DECLARED. Prange: C(n,w)/C(n-k,w) iterations,
+    per-iteration (n-k)^2 n field operations, memory n(n-k) elements. (The
+    Gaussian cost is generous; the standard amortization lowers it and lowers
+    Prange MORE than Dumer, i.e. works against D2's companion result, and is
+    declared for that reason.) Dumer with (p, l): success
+    C(k+l,p) C(n-k-l,w-p)/C(n,w); lists L = C((k+l)/2,p/2)(q-1)^{p/2}; collisions
+    L^2/q^l; per-iteration (n-k)^2 n + (2L + L^2/q^l) A where A = 1 under M0 and
+    A = sqrt(2L) under M1; memory 2L cells.
+    RESULT, COMPUTED AT THREE ILLUSTRATIVE SHAPES.
+      (n,k,w,q) = (256,128,80,256): Prange log2 T 128.78, log2 M 15.00; Dumer
+      free-opt log2 T 114.11, log2 M 28.06 at (p,l)=(4,4); Dumer M1-opt log2 T
+      118.50, log2 M 15.02 at (2,2); charging the free optimum without
+      re-optimizing gives 128.12, an OVER-CHARGE of 9.61 bits.
+      (512,256,120,256): 171.67/17.00; 153.76/30.02 at (4,4); 159.55/16.01 at
+      (2,2); naive 168.73; over-charge 9.18 bits.
+      (1024,512,80,2): 112.83/19.00; 83.60/34.50 at (10,34); 94.36/22.58 at
+      (6,22); naive 100.84; over-charge 6.48 bits.
+    WHY THE ERROR EXISTS. T and M are both increasing in p; the charge multiplies
+    the list terms by sqrt(2L), itself increasing in p, so the charged objective
+    is strictly steeper in p and its minimizer sits at smaller p. The gap is
+    second-order in the curvature of log T near the free optimum, which is why it
+    is a few bits rather than a few hundred and why it is invisible unless
+    looked for. The error is ONE-SIDED by the definition of a minimum, so it does
+    not average out.
+    A COMPANION RESULT THAT POINTS AGAINST THIS PROGRAM'S OWN HOPE, RECORDED
+    BECAUSE IT DOES. Charged Dumer still beats charged Prange by 10.28, 12.12
+    and 18.47 bits at the three shapes (down from 14.67, 17.91, 29.23 free). The
+    session ANGLE-BRIEF's ranked angle 3 proposes that full cost might reorder
+    which exponent is the baseline for SDitH, HQC and Classic McEliece at once;
+    at Dumer level, at these shapes, it does not. Whether it does for
+    MMT/BJMM/May-Ozerov -- whose memory exponents are far larger and which are
+    the real test -- IS NOT DETERMINED HERE and those variants are NOT READ.
+    Note the size of the artifact the naive procedure would have produced: at the
+    first shape it reports a 0.66-bit Dumer advantage, which reads as "the
+    ranking is about to flip", against a true 10.28 bits. THE NAIVE PROCEDURE
+    MANUFACTURES EXACTLY THE HEADLINE THE PROGRAM WAS HOPING FOR.
+
+    PART D3 -- NO KNEE. Reading the per-unit gain A(d)/(d-1) down the swept axis
+    at n=320, k=160, w=80: 0.2906, 0.2894, 0.2887, 0.2868, 0.2856, 0.2819,
+    0.2794, 0.2672, 0.2445 at d = 2, 4, 5, 8, 10, 16, 20, 40, 80. A 16 per cent
+    end-to-end drift and no jump anywhere. The total grows only because d does.
+    So within block-factorizing ISD the degradation is linear with no threshold,
+    and a d-dependent weakness must come from elsewhere. The one place it can
+    come from is visible on the same sweep: the natural block-wise algebraic
+    model has size d C(n/d, w/d), whose log2 runs 255.33, 127.02, 63.62, 51.12,
+    32.66, 26.65, 17.92, 15.15, 10.13, 8.32 across d = 1..80 -- a 118.70-bit
+    contraction between d = 2 and d = 80 against ISD's 19.03-bit expansion, a
+    ratio of 6.24. That is where the search for a knee should be aimed, and this
+    hypothesis does not aim it there.
+
+    THE ENDPOINT THAT MAKES ALL OF THIS INTERPRETABLE. At d = w with block size 2
+    (n = 2w, k = w) each block holds one error in two positions, so T_split = 2^w
+    against T_plain = C(2w,w) and A = w - (1/2) log2(pi w) to Stirling accuracy.
+    Computed: 5.652/13.163/28.669/60.171/76.011 at w = 8/16/32/64/80 against the
+    closed form 5.674/13.174/28.674/60.174/76.013. SEVENTY-SIX BITS AT w = 80.
+    The same code path that must return 0.291 at d = 2 must return 76.011 at
+    d = w, and at that cell alone A = -log2 R exactly (because C(1,1) = 1),
+    giving a second, algebraically independent gate. A quantity that returns
+    "small" everywhere is a constant of the apparatus; this one demonstrably is
+    not.
+
+  assumptions:
+    - >-
+      SDitH'S SPLIT IS PER-BLOCK EXACT WEIGHT ON AN EQUAL PARTITION.
+      RECALLED-UNVERIFIED; SDitH's specification is NOT READ and its (q, n, k, w,
+      d) are unknown to this record. Every parameter shape above is ILLUSTRATIVE.
+      If the split is at-most-w/d, or a published weight vector, or an unequal
+      partition, the counting changes; the Vandermonde bound survives all of
+      them because Vandermonde does, and the closed form may not. Stage 0 of
+      EXP-SDITH-162cc1 determines which applies and the derivation is redone
+      under whatever is found, in a superseding record.
+    - >-
+      d DIVIDES gcd(n, k, w). Where it does not, the balanced allocation is not
+      available and the exact computation must OPTIMIZE over floor/ceiling
+      allocations rather than assume balance. This is handled by computation, not
+      by assumption, and the optimum is then weakly better for the attacker.
+    - >-
+      THE COMPARISON IS AT MATCHED (n, k, w, q). This is one of several
+      defensible matchings; matching instead on the number of admissible errors
+      would move plain SD's w. Both are computed and reported. Choosing one
+      silently would be the error.
+    - >-
+      THE ACCESS-LATENCY EXPONENT IS 1/2. A three-dimensional layout gives 1/3
+      and an idealized RAM gives 0. All are evaluated in the alpha-sweep; no
+      single column is reported as "the" charged cost.
+    - >-
+      LIST CONSTRUCTION IS A RANDOM-ACCESS OPERATION AND IS CHARGED. If a variant
+      admits a sorted streaming merge, only the probe phase pays. Reported as a
+      sensitivity, not assumed away.
+    - >-
+      THE ENVIRONMENT PROVIDES NOTHING BEYOND THE STANDARD LIBRARY, AND NEEDS
+      NOTHING. Measured this session: numpy 2.4.6 is importable, sympy is NOT
+      installed, Python is 3.11.15. Every computation in this hypothesis uses
+      math.comb, fractions.Fraction and floats only. The environment
+      disagreement flagged in the session ANGLE-BRIEF between two scouting
+      reports is therefore MOOT for this lane, and is resolved here in favour of
+      "numpy present, sympy absent" by direct measurement.
+
+  proof_search_map:
+    bottleneck: >-
+      Two, one per part. FOR D1: the step at which the d-split promise enters an
+      ISD iteration's success probability. If that step's effect is bounded by
+      A, then no improvement to the surrounding algorithm can extract more from
+      the split, and the split question is settled at that algorithm's level
+      regardless of how good the algorithm is. FOR D2: the choice of the point at
+      which a published ISD cost is charged. Every downstream charged number in
+      this program and in the two sibling goals inherits it, and it is one line
+      of a procedure nobody has written down.
+    baseline_embedding:
+      parameter_slice: >-
+        FOR D1: d = 1. The d-split problem at d = 1 IS plain SD, definitionally
+        and not approximately, so the baseline is an endpoint of the
+        instrument's own output rather than an external number to be
+        transcribed -- which removes transcription error from the comparison
+        entirely. FOR D2: alpha = 0 in the charging sweep reproduces the
+        free-memory ISD table exactly, and separately BSGS under M1 reproduces
+        the corpus's stated full-cost anchor.
+      reproduction_check: >-
+        BOTH RUN, BOTH PASSED, BEFORE THIS RECORD WAS WRITTEN, and both are
+        exact rather than visual. D1: A(d=1) = 0.000000 and -log2 R(d=1) =
+        0.000000 as exact integer identities, since T_plain and T_split are the
+        same expression at d = 1. D2: M1 on BSGS returns optimal log2 m =
+        42 / 85 / 170 and log2 cost 43.58 / 86.27 / 171.58 at n = 2^64 / 2^128 /
+        2^256 against KN-TECH-035's stated 2e/3 = 42.7 / 85.3 / 170.7 -- both
+        the exponent AND the optimal table size, within 1 bit, from a model that
+        was not tuned to hit them. A curve that merely resembles a baseline is
+        not an embedding; these are exact integer and direct-search identities.
+    observation_collision:
+      observable: >-
+        The pair (A, -log2 R) -- the algorithmic gain and the
+        information-theoretic loss -- as the certificate that the split has or
+        has not cost security; and, for D2, the scalar charged cost as the
+        certificate that one ISD variant beats another.
+      distinct_preimage_search: >-
+        A COLLISION EXISTS FOR THE SCALAR CHARGED COST AND IT IS THE WHOLE OF D2.
+        At shape A, the charged Dumer cost takes the value 128.12 bits under the
+        procedure "charge the published optimum" and 118.50 bits under the
+        procedure "re-optimize under the charge" -- SAME ALGORITHM, SAME
+        PARAMETERS, SAME CHARGING MODEL, two ground-truth-incompatible answers
+        differing by 9.61 bits, one of which reverses the qualitative verdict
+        against Prange (0.66 bits of advantage versus 10.28). The scalar cost
+        does not identify the algorithm's charged performance; the parametric
+        curve (p,l) -> (T, M) does. This is a direct identifiability failure of
+        the scalar observable and the separating condition is named: report the
+        curve and its charged minimizer, never the point.
+        A SECOND COLLISION, SOUGHT AND NOT FOUND, REPORTED AS NOT FOUND: for D1,
+        two distinct d values giving the same A at fixed (n,k,w) would break
+        identifiability along the d-axis. The computed A is strictly increasing
+        in d at every swept cell, so no collision exists in the swept range; this
+        is a checked negative, not an assumption.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the observable (the reported charged cost) fixed and vary the
+          forgotten structure (which point of the (p,l) family it was evaluated
+          at). The intrinsic invariant that distinguishes the resulting objects
+          is whether the point is a stationary point of the charged objective --
+          a property of the point, computable, and not visible in the scalar.
+        predicted_gain: >-
+          None to any attacker. The gain is a named defect in a measurement
+          procedure that three goals are about to execute, quantified at 6.48 to
+          9.61 bits, and a rule that prevents it: re-optimize, never penalize.
+      - transform: representation_reduction
+        proposed_object: >-
+          Move the split question out of algorithm space and into counting
+          space, where it becomes an exact equality between binomial
+          expressions rather than a measured cost ratio. Encoding: the promise
+          becomes the balanced term of a Vandermonde expansion. Completeness:
+          every block-factorizing ISD's per-iteration probability is a product
+          of block-local terms and is captured. Soundness: an algorithm whose
+          success does not factorize over blocks is NOT captured, and that
+          obligation is discharged by exclusion rather than by argument --
+          MMT/BJMM/May-Ozerov are declared out of scope. Transfer: exact at
+          deployed sizes, so there is no toy-to-crypto gap for the derived
+          quantity. Cost loss: none; the derivation is free.
+        predicted_gain: >-
+          Converts "measure a cost ratio at toy scale with an unspecified
+          solver and hope it extrapolates" -- the only prior proposal on this
+          question -- into an exact evaluation at the deployed sizes, at zero
+          compute, with two forced-value gates.
+    quantifier_order: >-
+      CLAIMED, IN THIS ORDER, AND THE ORDER IS LOAD-BEARING.
+      D1: FOR ALL (n,k,w,d) in the declared boundary, FOR ALL algorithms in the
+      block-factorizing class, the split advantage is AT MOST A(n,k,w,d). The
+      bound A does NOT depend on the algorithm -- that is what makes it a bound
+      on a class rather than a measurement of one member. The weaker order,
+      FOR ALL algorithms EXISTS a bound, is trivial and is NOT claimed.
+      THE QUANTIFIER TRAP HUNTED, AND FOUND, IN D2: the standard charged-cost
+      claim is written as "EXISTS a cost model such that FOR ALL variants, the
+      charged cost is the free cost plus the memory penalty." The witness (p,l)
+      is silently held fixed across the change of model, i.e. it is not allowed
+      to depend on the charge -- but the adversary chooses (p,l) AFTER choosing
+      his machine, so the correct order is "FOR ALL charges, EXISTS (p,l)
+      minimizing the charged objective." The defective order is exactly what
+      produces the 6-to-10-bit error, and the error's sign follows from the
+      quantifier order alone, before any arithmetic.
+      D3 is a FOR ALL over the swept d at fixed (n,k,w); it is NOT claimed
+      uniformly over (n,k,w) and is measured at three shapes only.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: an exact, unconditional upper bound on the split advantage for
+        block-factorizing ISD at any (n,k,w,d) where d divides gcd; a validated
+        charging procedure with a quantified defect in its naive alternative;
+        and a Prange-level and Dumer-level charged baseline at three declared
+        shapes. IT CANNOT certify that SDitH is secure, cannot bound
+        representation-technique ISD, cannot bound any algebraic attack, cannot
+        produce a decoding certificate, and cannot state a security level for any
+        deployed parameter set. It moves no exponent and it must never be cited
+        as though it closed RQ-SDITH-001.
+      nearby_object_control: >-
+        d = w WITH BLOCK SIZE 2 (n = 2w, k = w) -- regular syndrome decoding.
+        This is the closest object at which the hoped-for conclusion "the split
+        is free" is FALSE, and it is one argument away from the tested cell:
+        same code, same matched (n,k,w) convention, same field, same algorithm,
+        one parameter changed. Forced value derived pre-run: A = 76.011 bits at
+        w = 80, independently predicted by w - (1/2) log2(pi w) = 76.013, with a
+        second gate A = -log2 R exactly at that cell and nowhere else. IF THE
+        INSTRUMENT DOES NOT MOVE HERE, NO NEGATIVE RESULT ABOUT SDitH'S d MAY BE
+        REPORTED AT ALL. Separately RECALLED-UNVERIFIED (no citation asserted):
+        RSD is believed to admit dedicated attacks beyond ISD, which if true
+        makes this a nearby object where the conclusion fails for a SECOND and
+        independent reason; the 76 bits do not depend on that memory.
+        A SECOND NEARBY OBJECT, for D2: BSGS, the canonical memory-bought
+        algorithm, where the charged conclusion is known independently
+        (KN-TECH-035) and must be reproduced.
+    proof_obligations:
+      - claim: >-
+          A(d=1) = 0 and -log2 R(d=1) = 0 as exact identities; A = -log2 R at
+          d = w with n = 2w, k = w and at no other swept cell.
+        responsibility: correctness
+      - claim: >-
+          1/C(w+d-1,d-1) <= R(n,w,d) <= 1 unconditionally, by Vandermonde plus
+          log-concavity.
+        responsibility: correctness
+      - claim: >-
+          The balanced per-block information-set allocation maximizes the
+          split-aware success probability.
+        responsibility: strictness
+      - claim: >-
+          M1 reproduces the BSGS n^{2/3+o(1)} full-cost anchor and the n^{2/3}
+          optimal table size within 1 bit at three sizes.
+        responsibility: baseline
+      - claim: >-
+          The re-optimization error is non-negative by definition of a minimum,
+          and exceeds 3 bits at every shape in the boundary.
+        responsibility: strictness
+      - claim: >-
+          The per-iteration success of every algorithm in the declared class
+          factorizes over blocks.
+        responsibility: interface
+      - claim: >-
+          Nothing here bounds MMT, BJMM or May-Ozerov, and nothing here is a
+          statement about SDitH's security; every citation carries both gaps.
+        responsibility: scope
+      - claim: >-
+          The charged Dumer-versus-Prange comparison is robust to the declared
+          Gaussian-elimination cost choice, checked at both (n-k)^2 n and
+          (n-k)^2.
+        responsibility: runtime
+    not_applicable_reason: null
+
+  rerandomization: null
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Deliberately null, and the reason is worth stating because the house bias is
+    exponent-first (docs/target-result-profile.md). NO COMPLEXITY IMPROVEMENT IS
+    CLAIMED. The hypothesis's D1 is a NEGATIVE asymptotic statement -- the split
+    advantage is O(d log w), hence o(n), hence no exponent is available there --
+    and establishing cheaply that a candidate exponent movement does not exist
+    is the service being rendered. D2 is a cost-model repair whose deliverable is
+    a corrected baseline, not a faster algorithm; the charged Dumer advantage of
+    10.28 to 18.47 bits belongs to Dumer, not to this record. sota_delta on every
+    attack axis is exactly zero and dominated_by is not applicable, since no
+    Pareto point is occupied.
+
+  heuristic_assumptions:
+    - id: HEUR-SDITH-D37-1
+      formal_statement: >-
+        BLOCK FACTORIZATION. FOR ALL algorithms A in the declared class, and FOR
+        ALL admissible per-block information-set allocations (k_1,...,k_d), the
+        per-iteration success probability of A conditioned on the block-weight
+        profile (w_1,...,w_d) equals prod_j f_j(w_j, k_j) for functions f_j
+        determined by A's per-block column allocation alone.
+      random_model_justification: >-
+        For Prange and Lee-Brickell this is not a heuristic but a consequence of
+        conditional independence: given the profile, the positions within
+        distinct blocks are independent, and the avoidance event is a product of
+        per-block events. For Dumer it holds only when the (k+l)-window is
+        block-aligned, which is a construction the experiment imposes rather
+        than a property it assumes. FOR MMT/BJMM/MAY-OZEROV IT IS
+        FALSE-OR-UNKNOWN: the representation technique splits the error by VALUE
+        into overlapping halves whose supports are not block-local, and no
+        argument in this record covers it.
+      supporting_results: []
+      validation_experiment_ids: [EXP-SDITH-162cc1]
+      falsification_condition: >-
+        A brute-force Prange simulation at n <= 24 whose measured ratio of
+        iteration counts between the split and plain arms differs from the
+        predicted A by more than three standard errors. THIS IS THE WEAKEST
+        LINK OF PART D1 AND IS RECORDED AS SUCH: everything D1 claims about a
+        CLASS rather than about Prange specifically rests on it.
+    - id: HEUR-SDITH-D37-2
+      formal_statement: >-
+        LOCAL CLT. For fixed d, as w -> infinity with w/n bounded away from 0 and
+        1, R(N,w,d) = (2 pi)^{-(d-1)/2} (det Sigma_{d-1})^{-1/2} (1 + o(1)) with
+        Sigma the multivariate-hypergeometric profile covariance.
+      random_model_justification: >-
+        Local limit theorems for the multivariate hypergeometric are classical in
+        this regime. The error term is not derived here and is not needed,
+        because the closed form is CHECKED against exact integers at every cell
+        rather than relied upon; it supports only the closed form, never a
+        reported value.
+      supporting_results: []
+      validation_experiment_ids: [EXP-SDITH-162cc1]
+      falsification_condition: >-
+        The exact-versus-closed-form deviation exceeding 0.01 bits at any cell
+        with w/d >= 16, or failing to grow monotonically as w/d falls below 16.
+        Pre-registered profile: agreement under 0.01 bits at w/d >= 16, growing
+        to about 3.6 bits at w/d = 1. A closed form agreeing EVERYWHERE would
+        mean the CLT step did no work and the two expressions are algebraically
+        identical, which they are not.
+    - id: HEUR-SDITH-D37-3
+      formal_statement: >-
+        ACCESS-LATENCY EXPONENT. A random access into a store of M cells costs
+        Theta(M^{1/2}) time, and this is the correct aggregate charge for the
+        list operations of a Dumer-style ISD on a two-dimensional substrate.
+      random_model_justification: >-
+        The geometry is standard -- M cells in a plane occupy area Theta(M) with
+        diameter Theta(M^{1/2}). What is NOT rigorous is that a per-access charge
+        is the right aggregate for a pipelined parallel implementation with many
+        accesses in flight. KN-TECH-035 (READ this session) is the corpus's
+        authority for the doctrine; KN-LIT-094 (Wiener) itself is NOT READ and
+        nothing is attributed to it directly.
+      supporting_results: []
+      validation_experiment_ids: [EXP-SDITH-162cc1]
+      falsification_condition: >-
+        M1 failing to reproduce the BSGS anchor within 1 bit in either the
+        exponent or the optimal table size. This gate runs FIRST and can
+        terminate the entire charged-baseline line before any ISD number is
+        produced; a charging model that fails the program's own anchor may not be
+        used to charge anything, and reporting that failure would be a more
+        valuable result than any SDitH number.
+    - id: HEUR-SDITH-D37-4
+      formal_statement: >-
+        MODEL-FIDELITY ROBUSTNESS. The DIFFERENCE between the free and charged
+        optima is preserved under perturbations of the declared per-iteration
+        cost model, even where the absolute costs are not.
+      random_model_justification: >-
+        The error is second-order in the curvature of log T near the free
+        optimum, and curvature is a more robust feature of a cost model than its
+        level. THIS IS AN ARGUMENT, NOT A PROOF, and it is the weakest link of
+        part D2.
+      supporting_results: []
+      validation_experiment_ids: [EXP-SDITH-162cc1]
+      falsification_condition: >-
+        The re-optimization error changing by more than 1 bit between the two
+        declared Gaussian-elimination cost choices, (n-k)^2 n and (n-k)^2. If it
+        does, the number is reported with that spread attached rather than as a
+        point.
+
+  structural_ingredients:
+    - description: >-
+        Vandermonde's convolution identity for binomial coefficients, together
+        with the log-concavity of j -> C(N, j), giving that the balanced
+        composition maximizes the product.
+      citation: >-
+        Elementary and derived in this record. No external citation is asserted
+        and none is needed.
+      role: converts the split promise into an exact counting ratio with an
+        unconditional lower bound
+    - description: >-
+        Local central limit theorem for the multivariate hypergeometric
+        distribution.
+      citation: >-
+        CLASSICAL BUT NOT RETRIEVED. No author, theorem number or page is
+        asserted. The form used here was derived in-record and validated
+        against exact integers at ten cells; it is a candidate to check, never
+        an authority.
+      role: supplies the closed form for A and the cancellation of all
+        d-dependent constants in the ratio
+    - description: >-
+        Full-cost accounting: charging memory, wiring and communication, with the
+        anchor that BSGS needs n^{1/2} processor steps but has full cost
+        n^{2/3+o(1)}.
+      citation: >-
+        knowledge/techniques/KN-TECH-035.md, front matter and Method section,
+        READ this session. Its own source KN-LIT-094 (Wiener) is NOT READ and no
+        claim is attributed to Wiener directly.
+      role: supplies the charging doctrine and the baseline-reproduction target
+        that model M1 must hit before it may be used
+
+  reduction_chain:
+    core_problem: >-
+      Bound the advantage a block-factorizing information-set decoder gains from
+      the d-split promise, and construct a memory-charged ISD baseline whose
+      construction procedure is itself validated.
+    corollaries: []
+    corollaries_note: >-
+      DELIBERATELY EMPTY. There is no reduction from these statements to any
+      claim about SDitH's security, and none is offered. Three separate gaps
+      block it and each is named: the algorithm class excludes the best known ISD
+      variants; the parameter shapes are illustrative because the specification
+      is unread; and a decoding cost is not a signature-forgery cost, which is
+      H-SDITH-f1acdd's object. RQ-SDITH-001 is NOT closed, narrowed, or advanced
+      to a conclusion by this hypothesis; it is supplied with one of the two
+      derivations its goal's first completion criterion asks for.
+
+  predictions:
+    - metric: >-
+        G1 -- A(d) and -log2 R(d) at d = 1, exact integer computation, at every
+        parameter shape
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0.000000 both, bit for bit, zero tolerance. Primary correctness
+        gate; any nonzero output voids every other number in the run.
+    - metric: >-
+        G2 -- A at the illustrative n=256, k=128, w=80, d=2
+      direction: different
+      minimum_effect: >-
+        0.433 bits within 0.001, with the closed form independently returning
+        0.434 within 0.002. Disagreement between exact and closed form here
+        refutes HEUR-SDITH-D37-2.
+    - metric: >-
+        G3 -- A at the nearby-object control d = w, n = 2w, k = w, w = 80
+      direction: higher
+      minimum_effect: >-
+        76.011 bits within 0.01, matching w - (1/2) log2(pi w) = 76.013, and
+        A = -log2 R exactly at this cell and at no other. Under 60 bits means
+        the instrument is blind and NO negative may be reported.
+    - metric: >-
+        G4 -- BSGS full-cost gate for model M1 at n = 2^64, 2^128, 2^256
+      direction: different
+      minimum_effect: >-
+        log2 cost within 1.0 bits of 2e/3 AND optimal log2 m within 1.0 of 2e/3
+        at all three. Derived: 43.58/86.27/171.58 and 42/85/170 against
+        42.67/85.33/170.67. RUNS FIRST; can terminate the charged-baseline line.
+    - metric: >-
+        G5 -- re-optimization error in bits at each illustrative shape
+      direction: higher
+      minimum_effect: >-
+        Strictly positive, and above 3 bits at all three. Derived: 9.61, 9.18,
+        6.48. Under 1 bit everywhere downgrades D2 from a material defect to a
+        footnote and the record must say so.
+    - metric: >-
+        G6 -- movement of the charged optimum's p relative to the free optimum's
+      direction: lower
+      minimum_effect: >-
+        Strictly smaller at every shape whose free optimum has p > 2. Derived:
+        (4,4)->(2,2), (4,4)->(2,2), (10,34)->(6,22). No movement refutes the
+        mechanistic account even if the error persists.
+    - metric: >-
+        G7 -- charged Dumer-versus-Prange gap under M1 at each shape
+      direction: higher
+      minimum_effect: >-
+        Strictly positive, predicted 8 to 20 bits. Derived: 10.28, 12.12, 18.47.
+        A NEGATIVE value falsifies this and CONFIRMS the ANGLE-BRIEF's reordering
+        hypothesis at Dumer level, which is the more interesting outcome and is
+        pre-registered here so it cannot be claimed after the fact.
+    - metric: >-
+        G8 -- per-unit gain A(d)/(d-1) across the graded d-sweep
+      direction: lower
+      minimum_effect: >-
+        Between 0.24 and 0.30 at every d >= 2 for the illustrative
+        n=320,k=160,w=80, monotonically decreasing, total drift 10 to 25 per
+        cent. Derived: 0.2906, 0.2894, 0.2887, 0.2868, 0.2856, 0.2819, 0.2794,
+        0.2672, 0.2445. A jump above a factor of two anywhere falsifies D3 and
+        localizes a knee to that d.
+    - metric: >-
+        G9 -- A at SDitH's ACTUAL parameters, if Stage 0 supplies them, for
+        small d
+      direction: lower
+      minimum_effect: >-
+        BELOW 3.0 bits. Above 10 bits falsifies D1 at the deployed parameters and
+        makes the d-split structure a measurable Prange-level security loss --
+        the outcome that would make this goal substantive, pre-registered so it
+        cannot be reinterpreted afterwards.
+
+  test_boundary:
+    instances:
+      - >-
+        Counting and Prange-level arms: illustrative shapes (n,k,w) =
+        (256,128,80), (320,160,80), (512,256,120), (1024,512,80), plus SDitH's
+        actual (n,k,w,q,d) IF AND ONLY IF Stage 0 obtains a specification. No
+        instance is generated, no matrix is built, no decoding is attempted.
+      - >-
+        Charged-baseline arm: the same shapes, Prange and Dumer/Stern ONLY.
+        MMT, BJMM and May-Ozerov are explicitly OUT OF SCOPE and are NOT READ.
+      - >-
+        Controls: d = 1 (null), unconstrained-blocks (second null), d = w with
+        n = 2w (positive control and nearby object), BSGS at three sizes
+        (charging positive control), and a synthetic 2^{cn}-memory algorithm
+        (charging arithmetic control).
+      - >-
+        Brute-force verification arm at n <= 24 for the counting and for a
+        simulated Prange iteration ratio.
+    parameters:
+      d_sweep: [1, 2, 4, 5, 8, 10, 16, 20, 40, 80]
+      w_sweep_at_extreme: [8, 16, 32, 64, 80]
+      alpha_sweep: ["0", "1/6", "1/4", "1/3", "1/2", "2/3"]
+      dumer_p_range: "even p, 2 to 24"
+      dumer_l_range: "0 to 49"
+      charging_models: [M0_free, M1_sqrt_M, M2_area_time_squared]
+      gaussian_cost_variants: ["(n-k)^2*n", "(n-k)^2"]
+      bsgs_gate_sizes: ["2^64", "2^128", "2^256"]
+      brute_force_ceiling_n: 24
+      field: "q as read from the specification; illustrative arms use q in {2, 256}"
+    implementation: >-
+      Pure Python 3.11.15 standard library: math.comb for exact binomials,
+      fractions.Fraction wherever a ratio is compared against a threshold, floats
+      only for final log2 presentation. NO numpy, NO sympy, NO solver. Measured
+      this session: numpy 2.4.6 is importable and sympy is NOT installed; neither
+      is required, so the environment disagreement recorded in the session
+      ANGLE-BRIEF does not bear on this lane. Every reported number must be
+      reproducible from the formulas in the mechanism field by a third party with
+      a bare interpreter.
+    budget:
+      stage0_wall_clock_seconds: 5400
+      stage1_wall_clock_seconds: 300
+      stage2_wall_clock_seconds: 300
+      stage3_wall_clock_seconds: 1800
+      total_compute: "seconds; the wall clock is reading time, not computation"
+      maximum_memory_gb: 1
+
+  falsification_conditions:
+    - >-
+      F1 (ZERO COMPUTE, PRIMARY) -- G1 fails: A or -log2 R is nonzero at d = 1.
+      The implementation is wrong and no number in the run may be reported.
+    - >-
+      F2 -- G3 fails: the nearby-object control returns under 60 bits, or
+      A != -log2 R at d = w with n = 2w, or A = -log2 R at any other cell. The
+      instrument cannot distinguish the two quantities and NO NEGATIVE ABOUT
+      SDitH'S d MAY BE REPORTED.
+    - >-
+      F3 -- G4 fails: model M1 misses the BSGS anchor by more than 1 bit. The
+      charging model is refuted before use. THIS IS A DELIVERABLE, not a defeat:
+      it would mean the program's charging doctrine and its arithmetic
+      realization disagree, which is worth more than any SDitH number.
+    - >-
+      F4 -- the Vandermonde bound of the mechanism is violated at any cell. That
+      bound is a theorem, so this is an implementation failure and is reported as
+      one, never as a discovery.
+    - >-
+      F5 -- G8 fails: the per-unit gain jumps by more than a factor of two
+      anywhere on the d-axis. D3 is refuted, a knee exists inside the
+      block-factorizing family, and its location is the new object.
+    - >-
+      F6 -- G7 comes out negative: charged Prange beats charged Dumer. D2's
+      companion result is falsified and the ANGLE-BRIEF's reordering hypothesis
+      is confirmed at Dumer level, which raises the priority of the unread
+      variants sharply.
+    - >-
+      F7 -- G9 exceeds 10 bits at SDitH's real parameters. D1 is falsified at the
+      deployed parameters. Under AGENTS.md rule 12 any consequent claim of
+      reduced security routes to independent review-breakthrough at max before it
+      is written anywhere.
+    - >-
+      F8 -- Stage 0 finds the split is not per-block exact weight. The derivation
+      as written does not apply; the Vandermonde bound survives, the closed form
+      may not, and the correction is a SUPERSEDING record and never an edit.
+    - >-
+      F9 (NOT A FALSIFICATION, PRE-REGISTERED BEFORE ANY RUN) -- if Stage 0
+      cannot obtain a specification, the honest reading is that the illustrative
+      results stand as results ABOUT THE FAMILY and none of them is a statement
+      about SDitH. This reading is fixed here and may not be relaxed after the
+      fetch outcome is known.
+    - >-
+      F10 (THE PLANNED NEGATIVE) -- all three parts hold and the batch does NOT
+      emit (a) the exact A at SDitH's or the illustrative parameters, (b) the
+      charged baseline table with its re-optimization error, and (c) explicit
+      forward guidance naming representation-technique ISD and the block-wise
+      algebraic model as the two directions that remain open. A negative that
+      does not produce those three has not finished. The negative IS the
+      deliverable GOAL-SDITH-001's first completion criterion asks for.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER: derivation. NO DECODING, NO CERTIFICATE, NO ATTACK, NO SECURITY
+      LEVEL. Under docs/claims-and-verification.md a claimed solve requires a
+      certificate a wrapper re-verifies; none is produced and none is possible
+      here, because nothing is solved. The exactness of the arithmetic at
+      deployed sizes removes the toy-to-crypto extrapolation problem FOR THE
+      DERIVED QUANTITY ONLY and licenses no statement about deployed security.
+    - >-
+      THE ALGORITHM CLASS IS THE BINDING LIMIT AND EVERY CITATION MUST CARRY IT.
+      Prange, Lee-Brickell and block-aligned Dumer are covered. MMT, BJMM and
+      May-Ozerov -- the variants that actually set the best-known exponent -- are
+      NOT covered, NOT read, and NOT modelled. "No block-factorizing ISD gains
+      more than A from the split" is the sentence; "the split is free" is not.
+    - >-
+      "Dumer still beats Prange when charged" is scoped to Dumer, to three
+      illustrative shapes, and to the declared model. It is NOT a statement that
+      full-cost accounting fails to reorder ISD, and the ANGLE-BRIEF's angle-3
+      hypothesis remains OPEN at the variants where it was actually aimed.
+    - >-
+      The re-optimization error is a statement about a PROCEDURE, not an
+      accusation against any published table. No published work is claimed to
+      commit it; the claim is that a downstream analyst charging a published
+      optimum would.
+    - >-
+      Nothing here bears on the MPCitH transform, on forgery cost, or on the
+      GGM-tree machinery. Those are H-SDITH-f1acdd and, for the tree, an object
+      no record in this program yet owns.
+    - >-
+      FORWARD GUIDANCE, MANDATORY WHETHER THE HYPOTHESIS SURVIVES OR NOT
+      (inventor protocol section 4). What remains open: (a) the split advantage
+      for representation-technique ISD, which is not bounded by A and is not
+      computed anywhere in this program; (b) the d at which a block-wise
+      algebraic model becomes cheaper than charged ISD -- the only place a knee
+      can live, with the model size contracting 118.70 bits across the axis
+      against ISD's 19.03-bit expansion; (c) MMT/BJMM/May-Ozerov under the same
+      charge, which is where the reordering question is decided; (d) the crossing
+      alpha, if any, at which Prange becomes the charged baseline, which would
+      answer the reordering question in a model-independent way.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260805-cbd93d.yaml
+    - ledger/proposals/IDEA-20260805-43d6df.yaml
+    - ledger/proposals/IDEA-20260805-7504c6.yaml
+    - ledger/proposals/IDEA-20260801-017.yaml
+    - ledger/questions/RQ-SDITH-001.yaml
+    - ledger/goals/GOAL-SDITH-001.yaml
+    - knowledge/techniques/KN-TECH-035.md
+    - docs/inventor-protocol.md
+    - docs/target-result-profile.md
+    - docs/claims-and-verification.md
+
+  inference:
+    requested_policy: research-deep
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to a single
+      model. Recorded, never silently substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session; `python3 -m
+      orchestration.adapter doctor --probe` was not run.

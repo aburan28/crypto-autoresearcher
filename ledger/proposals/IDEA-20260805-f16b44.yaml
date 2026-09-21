@@ -1,0 +1,574 @@
+idea:
+  id: IDEA-20260805-f16b44
+  question_id: RQ-FRODO-3260cc
+  added: '2026-08-05'
+  title: >-
+    Two errors wearing the same clothes: a scale error in a decryption failure
+    rate is worth its own size in bits, a tail-shape error is worth vastly more,
+    and quoting only the failure rate makes them indistinguishable
+  class: cost_audit
+
+  claim: >-
+    RQ-FRODO-3260cc.constraints requires that no discrepancy be reported as an
+    attack without a charged attacker cost. This proposal supplies the charging
+    rule and asserts that it is not one rule but two, which the literature's single
+    summary number conflates. A failure rate is the value of a tail function at one
+    threshold. An error in that value can arise EITHER because the whole tail is
+    scaled by a constant OR because the tail's decay parameter is wrong, and the
+    two are indistinguishable from the printed figure alone while being worth
+    utterly different amounts to an attacker. Under a failure-boosting model the
+    scale error passes through at an exchange rate of ONE BIT OF ATTACK COST PER
+    BIT OF FAILURE-RATE ERROR -- linear, dull, and almost always operationally
+    irrelevant at FrodoKEM's margins. The shape error passes through the boosting
+    gain, which is EXPONENTIAL in the tail parameter, so the same one-bit
+    discrepancy in the printed figure can be worth many bits of attack cost or
+    none at all depending on which kind of error produced it. The deliverable is
+    the derivation of both rates, a diagnostic that distinguishes the two kinds
+    from data the recomputation already produces, and -- most likely -- a
+    quantitative statement that at FrodoKEM's actual margins NEITHER matters,
+    which is the honest half of the goal's own completion criterion and is a
+    result rather than a shrug. NOTHING IS CLAIMED ABOUT WHETHER ANY DISCREPANCY
+    EXISTS. No run has happened and no primary source has been read.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE TAIL EXPONENT, not the failure rate. Concretely: the pair
+      (log of the tail function at the decoding threshold, its derivative with
+      respect to the threshold), followed from the error distribution through the
+      failure event into the attacker's search cost. The failure rate is the first
+      coordinate alone; the second coordinate is the one that never appears in any
+      published summary and is the one the attack cost is actually sensitive to.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: the lattice-estimator family entirely
+      (GOAL-FRODO-001.non_duplication assigns core-SVP conventions and
+      memory-charged sieve cost to GOAL-MLKEM-003 and GOAL-MLKEM-004, and this
+      proposal derives NO sieve cost -- if a stage finds itself doing so it has left
+      the lane and must hand off); implementation-side attacks (KN-LIT-2088,
+      KN-LIT-3859, KN-LIT-118, KN-TECH-047); and the exact recomputation of the
+      failure rate itself, which is IDEA-20260805-411b60's and is consumed here as
+      an input. The lens retained is cost bookkeeping: per-attempt cost times
+      inverse success probability, with memory and queries charged beside time.
+    newness_score: >-
+      Failure boosting is an established technique and KN-TECH-048 records it in
+      this corpus. What is not in this corpus, for any scheme, is the SENSITIVITY
+      analysis: how much attack cost moves per bit of error in the published
+      failure rate, and the observation that the answer depends on which of two
+      error kinds produced the bit. KN-TECH-048's own text notes that D26 failure
+      boosting "is named for MLKEM and Frodo" in this program's records and has
+      never been pointed at a concrete sensitivity question here.
+    testability_score: >-
+      High and cheap in the derivation, which is closed-form calculus on a cost
+      function. The empirical part is entirely parasitic on IDEA-20260805-411b60's
+      pipeline: the shape diagnostic is the tail function evaluated at three
+      thresholds instead of one, at essentially no extra cost.
+    survival_score: >-
+      The tail exponent survives from the error distribution all the way into the
+      attacker's search cost, because both the failure probability and the boosting
+      gain are functionals of the same tail. It dissolves at the point where the
+      attacker's admissible ciphertext set stops being describable by a single
+      threshold -- a named limit, stated in the method-ceiling section rather than
+      discovered later.
+
+  mechanism: >-
+    THE COST MODEL, STATED SO IT CAN BE ATTACKED. NOT READ -- RELAYED. KN-TECH-048
+    (which IS in this corpus and WAS read) describes failure boosting in three
+    stages: search offline for ciphertexts whose failure probability is elevated;
+    obtain failures from the decapsulation oracle; fold the information from each
+    failure into a lattice attack as hints. The primary sources it cites
+    (KN-LIT-119, KN-LIT-118, KN-LIT-080, KN-LIT-055) have NOT been read by this
+    program and no figure, theorem or model from them is asserted here. What
+    follows is a MODEL BUILT IN THIS RECORD from the technique's structure as
+    KN-TECH-048 describes it, and its first validation stage is to check that model
+    against the primary sources.
+
+    Write the attacker's cost to obtain one decryption failure as
+
+      C_fail  =  ( W_search / alpha )  +  ( 1 / ( alpha_used * p_boost ) ) * C_query
+
+    where alpha is the probability that a random candidate ciphertext lies in the
+    attacker's chosen "weak" set, p_boost is the failure probability conditional on
+    lying in it, W_search is the cost of testing one candidate offline, and C_query
+    the cost of one oracle query. The whole content of failure boosting is the
+    trade: shrinking the weak set lowers alpha (more offline work) and raises
+    p_boost (fewer queries).
+
+    RATE 1 -- THE SCALE ERROR, AND WHY IT IS DULL. Suppose the published failure
+    rate is wrong by a multiplicative constant: the true tail is 2^delta times the
+    published one, UNIFORMLY in the threshold. Then p_boost is also 2^delta times
+    the modelled value, alpha is unchanged (it is a property of the attacker's
+    chosen set, not of the failure rate), and
+
+      d log2 C_query-term / d delta  =  -1   EXACTLY.
+
+    ONE BIT OF ATTACK COST PER BIT OF FAILURE-RATE ERROR. Linear, exact, and
+    derivable in one line. Its consequence at FrodoKEM's margins is the deflationary
+    result this proposal expects to deliver: if the failure rate is of order 2^-138
+    and the IND-CCA query budget is of order 2^64, then an attacker needs about
+    2^138 queries against a budget of 2^64, a margin of about 74 bits, and a
+    discrepancy of delta bits closes that margin by delta bits. A discrepancy of
+    even 20 bits leaves 54 bits of margin. STATING THAT PLAINLY, WITH THE
+    ARITHMETIC, IS THE POINT: it is what prevents a genuine arithmetic finding
+    from being written up as a security event, and it is what
+    RQ-FRODO-3260cc.constraints demands before any discrepancy is reported.
+
+    RATE 2 -- THE SHAPE ERROR, AND WHY IT IS NOT DULL. Now suppose instead the
+    tail's decay parameter is wrong: the true noise has effective standard
+    deviation s(1+u) rather than s, for small u. Then at threshold t the log failure
+    probability moves by
+
+      d ln P / d u  =  t^2 / s^2      (to leading order, Gaussian-shaped tail)
+
+    which at FrodoKEM's recalled Frodo-640 operating point t/s = 14.45 is
+    t^2/s^2 = 208.8, i.e. about 301 BITS PER UNIT of relative error in s -- so a
+    relative error of one part in a thousand in the effective standard deviation
+    moves the failure rate by about 0.3 bits, and a relative error of one per cent
+    moves it by about 3 bits. That much is just the same linear story seen from a
+    different variable. THE ASYMMETRY APPEARS IN THE BOOSTING GAIN. The attacker's
+    weak set is chosen by pushing the conditional threshold-crossing probability up,
+    and the achievable gain p_boost/DFR is itself governed by the SAME tail
+    exponent: a relative error u in s multiplies the log-gain by (1+u)^{-2}
+    approximately, so the gain -- which is exponentially large -- is scaled by an
+    exponentially sensitive factor. Concretely, if the modelled gain is 2^g, a
+    relative error u in s changes it to about 2^{g(1+2u)}, so the ERROR IN THE GAIN
+    IS PROPORTIONAL TO g ITSELF. For a boosting gain of 2^40 a one-per-cent error in
+    s is worth about 0.8 bits of gain; for a gain of 2^100 it is worth 2 bits. THE
+    EXCHANGE RATE IS THEREFORE NOT 1:1 FOR A SHAPE ERROR, IT IS 1:(1+2g*u/delta),
+    and the two kinds of error are distinguishable only if the tail is evaluated at
+    more than one threshold.
+
+    THE DIAGNOSTIC, WHICH COSTS ALMOST NOTHING. Both error kinds are visible in the
+    ratio of the tail function at nearby thresholds. Evaluate the recomputed tail at
+    t, at t(1 - eps) and at t(1 + eps) for a small eps and form
+
+      D  =  [ log2 P(t(1-eps)) - 2 log2 P(t) + log2 P(t(1+eps)) ] / eps^2 ,
+
+    a discrete second derivative of the log tail. A SCALE error leaves D unchanged;
+    a SHAPE error changes it. So the diagnostic separates the two, and it is
+    computed from three evaluations of a pipeline that IDEA-20260805-411b60 already
+    builds to evaluate once. If the recomputed and published tails agree at t but
+    their D values differ, the agreement at t is a coincidence of the threshold and
+    the two computations do not describe the same distribution -- a finding that a
+    single-threshold comparison cannot see.
+
+    ALL NUMERIC VALUES ABOVE ARE SCOUT-COMPUTED FROM RECALLED PARAMETERS AND AN
+    EXTRACTION-DAMAGED EXCERPT. t/s = 14.45 comes from
+    IDEA-20260805-411b60's mechanism, which derives it from n = 640, q = 2^15,
+    B = 2 and the excerpt table, all RECALLED and all read targets. The
+    STRUCTURE -- exchange rate exactly 1 for scale, gain-proportional for shape,
+    separated by the second log-derivative -- does not depend on them.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      IN-REPO AND READ: KN-TECH-048, "Decryption-failure attacks and failure
+      boosting". Its three-stage structure is the basis of the cost model above.
+      Its own operative conclusion, quoted from the entry: for the NIST candidates
+      assessed the required number of oracle queries is above practical limits,
+      because of those schemes' conservative parameter choices. That is the prior
+      this proposal starts from and expects to confirm quantitatively for FrodoKEM.
+    - >-
+      NOT READ -- RELAYED CLAIM. KN-LIT-119, KN-LIT-118, KN-LIT-080 and KN-LIT-055
+      are named by KN-TECH-048 as its sources. NONE has been opened by this
+      proposal. No model, formula, gain figure or query count from any of them is
+      asserted here, and the cost model above is built in this record rather than
+      taken from them. Reading them and checking the model against their actual
+      formulation is Stage 1 of any experiment built on this record, and a
+      disagreement there is a finding about this proposal, not about FrodoKEM.
+    - >-
+      NOT READ -- RELAYED CLAIM. FrodoKEM's own failure rates, IND-CCA query bound,
+      and target security levels come from the extraction-damaged excerpt recorded
+      in RQ-FRODO-3260cc.provenance. The margin arithmetic above (2^-138 against
+      2^64) uses them and is therefore provisional in every digit.
+    - >-
+      IN-REPO AND READ: RQ-FRODO-3260cc.constraints, final clause -- "A discrepancy
+      is a documentation or analysis defect until it is costed. No discrepancy is
+      reported as an attack, a break, or a statement about deployed FrodoKEM without
+      a charged attacker cost and an independent review." This proposal exists to
+      discharge that clause, and the clause binds the proposal too.
+    - >-
+      CORPUS SEARCH, 2026-08-05: no FRODO-area experiment, hypothesis, evidence
+      record or decision exists in this ledger, and no record anywhere computes a
+      failure-boosting cost. Absence of a search result is not evidence that nobody
+      has done it, and this corpus's screens are discounted by KN-OPEN-3f7a21.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      The full error distribution and the attacker's full strategy space --> the
+      pair (log tail at the threshold, second log-derivative of the tail at the
+      threshold), and thence to a charged cost.
+    what_is_discarded: >-
+      The entire distribution except its local log-curvature at one point, and the
+      entire attacker strategy space except the single scalar alpha parameterising
+      the weak set. Everything about the shape of the failure region away from the
+      threshold is gone.
+    why_genuinely_lossy: >-
+      Genuinely lossy: infinitely many distributions share a given value and second
+      log-derivative at a point, so the fibre is enormous and the projection cannot
+      be inverted. That is a feature -- an attack cost that depended on more than
+      the local tail behaviour would not be computable from a published summary at
+      all.
+    why_compatible_with_the_operations: >-
+      Compatible with the operation that the cost model performs, which is
+      restricting the noise distribution to a conditioning event and re-evaluating
+      its tail. Conditioning on a weak-ciphertext set acts on the log-tail by
+      shifting the effective threshold, and the retained pair is exactly what
+      determines the shifted value to second order -- so the retained part
+      propagates deterministically under the operation that matters.
+    is_it_only_a_change_of_coordinates: >-
+      NO, checked both ways. Not the KN-LIT-7595 failure: the map from
+      distributions to (value, curvature) at a point is massively many-to-one. Not
+      the mirror failure either, and this is the check that actually mattered here:
+      the whole proposal turns on the pair having SPREAD where the single failure
+      rate does not. Two distributions with the same failure rate at t and different
+      curvatures are exactly the pair the diagnostic separates, and exhibiting such
+      a pair explicitly -- a Gaussian and a leptokurtic mixture matched at t -- is a
+      declared construction stage rather than an assertion. IF NO SUCH PAIR CAN BE
+      CONSTRUCTED WITHIN THE FAMILY OF DISTRIBUTIONS FRODOKEM'S NOISE CAN ACTUALLY
+      TAKE, the diagnostic is constant across the reachable instances, the mirror
+      failure has occurred, and this proposal collapses to the dull rate alone.
+      That is a real risk and it is the first thing the experiment tests.
+
+  assumptions:
+    - >-
+      That the failure-boosting model as KN-TECH-048 summarises it is faithful to
+      its primary sources. Stage 1 checks it and a mismatch redirects the proposal.
+    - >-
+      That the attacker's weak set is describable by a threshold shift on the same
+      noise variable. If the real technique conditions on something else entirely
+      (a norm of the ciphertext's error contribution, say, rather than the noise
+      itself), the shape-sensitivity derivation must be redone in that variable. The
+      exchange rate for the SCALE error survives that change; the shape rate does
+      not, and this asymmetry is stated rather than hidden.
+    - >-
+      That the IND-CCA query bound is a stated parameter of the security claim. If
+      the document states no query bound, the margin arithmetic has no denominator
+      and the deliverable becomes the query count alone.
+
+  predictions:
+    - metric: >-
+        SCALE EXCHANGE RATE: d log2(queries to obtain one failure) / d delta, where
+        delta is the error in log2 of the failure rate, derived symbolically
+      direction: different
+      minimum_effect: >-
+        EXACTLY -1. This is a forced value: it follows from the query term being
+        inversely proportional to the failure probability and from nothing else, and
+        an implementation returning any other value has an error in its cost model
+        rather than a finding about FrodoKEM. It is the cheapest instrument check in
+        this proposal.
+    - metric: >-
+        SHAPE SENSITIVITY: d log2(boosting gain) / du, where u is the relative error
+        in the effective standard deviation
+      direction: higher
+      minimum_effect: >-
+        Strictly greater than the scale rate in magnitude whenever the modelled gain
+        exceeds 2^1, and proportional to log2(gain) to leading order. If the
+        computed shape sensitivity is NOT proportional to the gain, the derivation
+        above is wrong -- which is a useful outcome, since it would mean the two
+        error kinds are equivalent after all and this proposal's central claim is
+        false.
+    - metric: >-
+        DIAGNOSTIC SEPARATION: the second log-derivative D computed at t for the
+        recomputed tail and for a scale-perturbed and a shape-perturbed version of it
+      direction: different
+      minimum_effect: >-
+        D unchanged to within numerical enclosure under a pure scale perturbation of
+        any size, and changed by at least 5 per cent under a shape perturbation
+        chosen to produce the SAME change in the failure rate at t. This is the
+        pre-registered demonstration that the diagnostic separates what it claims to
+        separate. If D moves under a pure scale perturbation, the diagnostic is
+        broken and no separation may be claimed.
+    - metric: >-
+        MARGIN: log2(queries required) - log2(IND-CCA query bound), per parameter
+        set, at the published failure rate
+      direction: higher
+      minimum_effect: >-
+        Strictly positive at every parameter set, and reported with its size. The
+        excerpt figures give roughly 74 bits at Frodo-640 against a 2^64 bound
+        (SCOUT-COMPUTED from recalled numbers). A NEGATIVE margin would be an
+        extraordinary result requiring AGENTS.md rule 12 breakthrough review and is
+        NOT predicted here.
+    - metric: >-
+        BREAK-EVEN DISCREPANCY: the number of bits of failure-rate error that would
+        be required to erase the margin, per parameter set
+      direction: higher
+      minimum_effect: >-
+        Greater than 50 bits at every parameter set, under the scale rate. This is
+        the deflationary headline and it is stated as a falsifiable number rather
+        than as reassurance: if the break-even discrepancy comes out below 10 bits
+        at any parameter set, the failure rate is a far more load-bearing quantity
+        than this proposal assumes and the goal's priorities should change.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest-first, and NONE of them needs the expensive convolution
+      of IDEA-20260805-411b60 Stage 5 -- which is deliberate, so that the cost
+      audit is deliverable even if the reproduction is not.
+      STAGE 0 (GATE, READING). The source gate of RQ-FRODO-3260cc.constraints[0],
+      plus reading KN-LIT-119/118/080/055 or recording that they could not be
+      obtained. Nothing below executes first.
+      STAGE 1 (MODEL CHECK, ZERO COMPUTE). Check the cost model built in the
+      mechanism against the primary sources' actual formulation and record every
+      divergence. A divergence is a finding about this proposal.
+      STAGE 2 (SYMBOLIC RATES, ZERO COMPUTE). Derive both exchange rates
+      symbolically and verify the forced value -1 for the scale rate.
+      STAGE 3 (SEPARATION DEMONSTRATION, SECONDS). Construct the matched pair -- a
+      scale-perturbed and a shape-perturbed tail agreeing at t -- and show D
+      separates them. THIS STAGE CAN TERMINATE THE PROPOSAL: if no such pair exists
+      within the reachable family, the diagnostic is constant and the proposal
+      reduces to the scale rate alone, which should then be recorded as the whole
+      result.
+      STAGE 4 (MARGIN TABLE, MINUTES). Instantiate at each parameter set and emit
+      the margin and break-even table.
+    controls:
+      - >-
+        NULL OBJECT, FORCED VALUE PRE-DERIVED, CAN FAIL. A cost model with NO
+        boosting at all (alpha = 1, p_boost = DFR). FORCED VALUE: the scale exchange
+        rate is exactly -1 and the shape sensitivity is EXACTLY EQUAL to the scale
+        sensitivity, because with no gain there is no gain to be sensitive about.
+        The diagnostic D must therefore fail to separate the two error kinds in this
+        arm. If it separates them here, the separation is an artefact of the
+        implementation rather than of boosting, and no separation claim may be made.
+        This is a null that can genuinely fail and it targets the proposal's own
+        central claim.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR, THRESHOLD
+        DECLARED PRE-RUN. A scheme-shaped object with a DELIBERATELY LARGE failure
+        rate -- the same noise structure with the threshold lowered until the
+        failure rate is about 2^-30 and the boosting gain about 2^20. There the
+        shape sensitivity MUST exceed the scale sensitivity by at least a factor of
+        5, by the gain-proportionality derived above. IF IT DOES NOT, THE
+        DERIVATION OR THE IMPLEMENTATION IS WRONG AND NO NEGATIVE RESULT ABOUT
+        FRODOKEM'S MARGINS MAY BE REPORTED. This is the sensitivity demonstration
+        without which every number in Stage 4 is unlicensed.
+      - >-
+        GRADED CONTROL, FOUR INTERIOR POINTS, MONOTONICITY REPORTED. Sweep the
+        boosting gain over 2^10, 2^20, 2^40, 2^80 by varying the weak-set size, and
+        report the shape sensitivity at each. FORCED: it grows proportionally to
+        log2(gain), so the four values must be in ratio 1 : 2 : 4 : 8 to within 20
+        per cent. A sensitivity that does not grow with the gain is the canonical
+        artifact tell -- a quantity that fails to respond to the parameter that is
+        supposed to drive it -- and it refutes the proposal's central claim at a
+        cost of seconds.
+      - >-
+        ORDERING CONTROL. The null and positive-control arms are computed and
+        hash-committed before any FrodoKEM parameter set is instantiated.
+      - >-
+        ARCHIVE CHECK, ZERO COMPUTE. Search for any prior charged failure-boosting
+        cost in this program. RESULT AS OF 2026-08-05: NONE FOUND; KN-TECH-048 is a
+        technique entry citing unread sources, and D26 failure boosting is recorded
+        in this session's scouting output as never having been pointed at a concrete
+        target here. Recorded as an absence, not claimed as a check.
+    required_metrics:
+      - the primary sources' cost model as stated, quoted, or a recorded failure to obtain it, with every divergence from the model in the mechanism
+      - both exchange rates derived symbolically, with the forced value -1 verified
+      - D for the matched scale/shape pair, with the separation demonstrated or its failure recorded
+      - null-arm and positive-control results, committed first
+      - the graded gain sweep with its fitted proportionality
+      - margin and break-even table per parameter set, with every input's provenance level attached
+
+  falsification_conditions:
+    - >-
+      The scale exchange rate does not come out to exactly -1. The cost model is
+      implemented wrongly; halt and repair, and report nothing about FrodoKEM.
+    - >-
+      The shape sensitivity does not grow with the boosting gain across the graded
+      sweep. The proposal's central claim -- that the two error kinds are worth
+      different amounts -- is REFUTED, and recording that refutation is the batch's
+      deliverable.
+    - >-
+      No matched scale/shape pair exists within the reachable family of noise
+      distributions, so D is effectively constant across instances. The mirror
+      failure of the lossy-projection test has occurred and the diagnostic is
+      worthless; the scale rate alone survives and must be reported as the whole
+      result.
+    - >-
+      The positive control fails: at a 2^20 gain the shape sensitivity does not
+      exceed the scale sensitivity by a factor of 5. Nothing negative may be
+      reported.
+    - >-
+      The primary sources' failure-boosting model turns out to condition on a
+      variable for which the threshold-shift picture does not apply. The shape rate
+      as derived is void; the scale rate survives; the record is superseded rather
+      than patched.
+    - >-
+      The break-even discrepancy comes out below 10 bits at any parameter set. The
+      proposal's deflationary framing is wrong and the goal's priorities change --
+      the failure rate would then be a genuinely fragile quantity rather than a
+      comfortable one.
+
+  confounders:
+    - >-
+      THE COST MODEL IS BUILT IN THIS RECORD, NOT TAKEN FROM A SOURCE. Its shape --
+      offline search cost over alpha plus queries over alpha*p_boost -- is a
+      reconstruction from KN-TECH-048's three-stage description. If the primary
+      sources charge differently, every number changes. Stage 1 exists solely to
+      remove this confounder and no stage may proceed past it on the reconstruction.
+    - >-
+      RECALLED FRODOKEM PARAMETERS. t/s = 14.45, DFR ~ 2^-138, query bound ~ 2^64,
+      all recalled or excerpt-derived. The margin arithmetic inherits all of it.
+    - >-
+      QUANTUM AND MULTI-TARGET ADVERSARIES. KN-TECH-048 records that the primary
+      analysis treats a quantum adversary, a multi-target adversary and a
+      query-limited one separately, and the margin differs between them. Reporting
+      one margin as THE margin would be a scope error; the deliverable is a table
+      over adversary models, and where a model is not derived that is recorded as
+      not derived.
+    - >-
+      MEMORY AND PREPROCESSING ARE EASY TO LEAVE UNCHARGED. The offline search stage
+      is precomputation and it has a memory footprint; charging only queries would
+      repeat exactly the omission this program's own cost-honesty rules exist to
+      prevent. Every reported cost carries time, memory, queries and precomputation
+      or explicitly records that an axis was not derived.
+    - >-
+      DEFLATIONARY BIAS. A cost audit that concludes "this does not matter" is cheap
+      to produce and reads as rigour, which is the premature-closure failure mode
+      pointed the other way. The break-even prediction is stated as a falsifiable
+      number below which the conclusion reverses, precisely so that the comfortable
+      outcome costs something to reach.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER: TOY for every security statement in this record, without
+      exception, per RQ-FRODO-3260cc.scope.claim_tier_ceiling. This proposal is the
+      SECURITY half of the split ceiling and none of its output may be recorded
+      above toy. The crypto-tier half is the arithmetic, and it belongs to
+      IDEA-20260805-390957 and IDEA-20260805-411b60.
+    - >-
+      NO ATTACK IS PROPOSED, DESCRIBED, OR IMPLEMENTED. This record charges a
+      hypothetical discrepancy that has not been found, against a model of a
+      published technique that has not been read. It is cost bookkeeping.
+    - >-
+      A positive margin is not a security proof. It says that under one
+      reconstructed cost model, with recalled parameters, a discrepancy of a stated
+      size would not erase a stated margin. It says nothing about LWE hardness,
+      about the FO transform, or about any adversary model not tabulated.
+    - >-
+      A negative margin, if one were found, is an AGENTS.md rule 12 breakthrough
+      claim requiring independent review-breakthrough at max effort, and this
+      proposal pre-commits to that routing rather than to a write-up.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (Threshold-shift model of boosting) The attacker's weak-ciphertext set acts
+        on the noise distribution as a shift of the effective decoding threshold, so
+        that p_boost = P(|X| >= t') for some t' < t determined by the set.
+      rigorous_support: >-
+        NOT RIGOROUS, AND LOAD-BEARING FOR THE SHAPE RATE ONLY. It is a modelling
+        choice that makes the gain a functional of the same tail as the failure
+        rate, which is what produces the gain-proportional sensitivity. The scale
+        rate does not depend on it at all. Its plausibility rests on the observation
+        that conditioning on a ciphertext with a larger error contribution increases
+        the noise magnitude, which is a shift in the same variable -- but whether the
+        primary sources' construction has that form is UNCHECKED.
+      validation_plan: >-
+        Stage 1 checks it against the primary sources. If it fails, the shape rate is
+        withdrawn and the scale rate reported alone; the proposal degrades rather
+        than collapsing, and the degraded outcome is stated here in advance.
+    - id: H2
+      statement: >-
+        (Gaussian-shaped tail for the sensitivity derivative) The log tail is locally
+        quadratic in the threshold, so d ln P/du = t^2/s^2 at relative perturbation u
+        of the scale.
+      rigorous_support: >-
+        Exact for a Gaussian; approximate for the leptokurtic sum FrodoKEM's noise
+        actually is. IDEA-20260805-390957's identity C5 gives kurt(product) = 8.97,
+        so the true tail is heavier and less locally quadratic. THE DIRECTION OF THE
+        ERROR IS KNOWN: a heavier tail is less sensitive to the scale, so the derived
+        t^2/s^2 = 208.8 is an OVER-estimate of the shape sensitivity, which makes the
+        proposal's deflationary conclusion CONSERVATIVE in the safe direction rather
+        than the flattering one. That is worth stating because it is the rare case
+        where the approximation errs against the author's thesis.
+      validation_plan: >-
+        Compute the second log-derivative D directly from the recomputed tail rather
+        than from the Gaussian form, at the same three thresholds the diagnostic
+        already needs, and report the ratio of the measured curvature to the Gaussian
+        one. Cost: three pipeline evaluations instead of one.
+    - id: H3
+      statement: >-
+        (Query bound) The security claim carries a stated bound on decapsulation
+        queries, against which a required query count can be compared.
+      rigorous_support: >-
+        An evidentiary assumption about the document rather than a mathematical one.
+        Named because the entire margin table has it as a denominator.
+      validation_plan: >-
+        Read it. If no bound is stated, report the required query count alone and
+        record the absence of a denominator as a scope limitation of the audit.
+
+  target_complexity:
+    time_exponent: >-
+      THIS PROPOSAL MOVES NO EXPONENT AND CLAIMS NONE, and the honest statement of
+      why it is still worth running is that it is the gate on whether anything else
+      in GOAL-FRODO-001 could move one. The only exponent in reach anywhere in this
+      goal is the QUERY exponent of a failure-boosting attack, and the scale rate
+      derived here says it moves one bit per bit of failure-rate error -- so a
+      discrepancy would have to be of order fifty bits before the query exponent
+      reached the IND-CCA bound. Deriving that threshold is the contribution;
+      reaching it is not expected and is not claimed.
+    memory_exponent: >-
+      The offline search stage of failure boosting has a precomputation cost and a
+      memory footprint, and both are charged in the reported table rather than
+      omitted. No value is asserted here because the model has not been checked
+      against its sources.
+    best_known: >-
+      KN-TECH-048's own operative conclusion: for the NIST candidates assessed the
+      required query count is above practical limits. This proposal quantifies HOW
+      FAR above, for FrodoKEM specifically, and how much a discrepancy would move it.
+    hidden_overhead: >-
+      The reconstruction of the cost model is the hidden overhead, and it is the
+      single largest risk in the record. Every number here is downstream of a model
+      built from a technique summary rather than from a paper.
+    tradeoff_note: >-
+      The alpha knob IS a precomputation/query tradeoff and the audit reports the
+      curve rather than a point, which is what charging all axes requires.
+
+  dominated_by: >-
+    n/a (no result claimed; no attack, no algorithm, no cost improvement, hence no
+    Pareto point). FRONTIER ROWS CHECKED before writing null: (i) TIME -- the
+    derivation is closed-form calculus and the empirical part is three evaluations
+    of a pipeline built elsewhere; nothing cheaper exists that answers the question;
+    (ii) MEMORY -- negligible for the audit itself, and the audited attack's memory
+    is a reported column rather than an omission; (iii) DATA / QUERIES /
+    PRECOMPUTATION -- the audit consumes one document and zero queries, and the
+    audited attack's query and precomputation costs are the audit's OUTPUT, which is
+    the axis this program's own records most often leave uncharged (75 of 131
+    cost-claiming evidence records charge wall-clock only); (iv) the corpus frontier:
+    no charged failure-boosting cost exists in this program for any scheme, and
+    KN-TECH-048's sources are unread. Absence of a search result is not evidence of
+    absence.
+  sota_delta: >-
+    No attack; cost-accounting contribution only. Quantitatively, the deliverables
+    are: an exchange rate of exactly 1 bit of attack cost per bit of failure-rate
+    error under a scale perturbation; a gain-proportional rate under a shape
+    perturbation, which for a 2^40 gain is about 2 bits per bit; a diagnostic that
+    separates the two from three tail evaluations; and a break-even discrepancy
+    predicted above 50 bits at every FrodoKEM parameter set. Against the incumbent
+    practice -- quoting a failure rate with no statement of what an error in it
+    would be worth -- the delta is the difference between an uncharged number and a
+    charged one, and zero bits of attack advantage.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: >-
+    0.60 that the shape/scale distinction survives as a real and quantitatively
+    significant one, i.e. that the graded gain sweep shows the predicted
+    proportionality and the diagnostic separates the matched pair. It is not higher
+    because H1's threshold-shift model of boosting is a reconstruction from a
+    technique summary and may simply not be how the primary sources formulate the
+    weak set, in which case the shape rate is withdrawn; and because the mirror
+    failure of the lossy-projection test is a live risk here -- if FrodoKEM's
+    reachable noise family is too narrow to contain a matched pair, the diagnostic
+    is constant and the proposal collapses to its dull half. It is not lower because
+    the gain-proportionality follows from nothing more than the gain and the failure
+    rate being functionals of the same tail, which is structurally hard to avoid in
+    any boosting model, and because the scale rate of exactly -1 is derivable
+    unconditionally and survives every failure mode listed. SEPARATELY: 0.85 that
+    the deflationary margin conclusion holds -- that a discrepancy would have to be
+    of order fifty bits to matter -- because FrodoKEM's failure rate sits roughly
+    seventy bits below the query bound on the excerpt figures and because
+    KN-TECH-048 already records that conclusion qualitatively for the NIST
+    candidates it assessed; it is not higher because every input to that margin is
+    recalled or extraction-damaged and none has been read.

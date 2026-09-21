@@ -1,0 +1,600 @@
+idea:
+  id: IDEA-20260805-bd8339
+  question_id: RQ-QRUOV-001
+  added: '2026-08-05'
+  goal_id: GOAL-QRUOV-001
+  title: >-
+    The factorization type of the quotient polynomial IS the QR-UOV security
+    exponent: a publicly computable CRT split of the block algebra, the exact
+    rank spectrum it induces, and a closed-form weak-quotient-polynomial density
+  class: mechanism
+
+  claim: >-
+    For a QR-UOV-shaped key over the quotient ring A = F_q[t]/(f), deg f = ell,
+    the exponent of every structure-respecting key-recovery attack is governed
+    not by ell but by d_max(f), the largest degree among the DISTINCT irreducible
+    factors of f. Derivation below and machine-checked at toy sizes: the
+    idempotents of A are computable from f alone -- f is a PUBLIC parameter --
+    and the associated change of basis simultaneously block-diagonalises EVERY
+    matrix of the block algebra A_f = W*phi(A) and, because the symmetriser W is
+    the Gram matrix of an associative form, is orthogonal across CRT components.
+    A QR-UOV instance with reducible f therefore splits, at cost O~(ell^2 + n^2)
+    of public preprocessing, into one independent QR-UOV instance per irreducible
+    factor, and the secret oil A-module splits with it. The Kipnis-Shamir /
+    reconciliation exponent consequently falls from ell*(V-M) to d_max*(V-M).
+    Two exact consequences, both computed before any run: (i) the density of
+    monic degree-ell f that are NOT weak in this sense is exactly I_q(ell)/q^ell
+    ~ 1/ell -- so a uniformly drawn quotient polynomial is weak with probability
+    0.66669 at ell=3 and 0.80000 at ell=5 over q=127; (ii) under a uniform f the
+    expected exponent factor E[d_max]/ell is 0.72090 at (q=127, ell=3) and
+    0.68485 at (q=127, ell=5), i.e. ~28-32 per cent of the log_q attack exponent
+    is lost on average. Separately derived and exhaustively checked: the
+    symmetriser W EXISTS AND IS INVERTIBLE FOR EVERY monic f, including
+    non-squarefree f, because F_q[t]/(f) is a Frobenius algebra. Nothing in the
+    well-definedness of the compression rejects a weak f. Irreducibility, if the
+    specification requires it, is therefore a LOAD-BEARING and separately
+    enforced condition, not a convenience -- and a key generator that omits the
+    test emits a fully functional, verifiable, weaker key.
+
+  object_first_candidate:
+    tracked_object: >-
+      The CORANK of the multiplication operator: corank phi(a) = deg gcd(a, f),
+      equivalently the lattice of ideals of the finite F_q-algebra A, carried as
+      the multiset of local factors {(deg p_i, e_i)} of f. It is followed from
+      the public parameter f, through the block algebra A_f inside
+      Sym_ell(F_q), into every block of every public matrix, into the secret oil
+      A-module, and out into the linear algebra of whatever key-recovery attack
+      is run. It is a property of the REPRESENTATION, not of the key, which is
+      why the attacker gets it for free.
+    established_families_off_limits: >-
+      Off-limits as the PRIMARY lens for this proposal: direct/Groebner attack on
+      the public system; Kipnis-Shamir as a mechanism; reconciliation; Beullens'
+      intersection attack; rectangular MinRank and support-minors modelling;
+      quantum Grover/quantum-MinRank speedups; side-channel, fault and
+      implementation attacks; lattice reduction of any kind. Kipnis-Shamir and
+      reconciliation appear here ONLY as the cost yardstick against which the
+      split is measured -- they are the denominator, never the mechanism. This
+      restriction is what stops the proposal from regressing into "MinRank again,
+      in new notation", which is the failure mode the inventor protocol section 1
+      names.
+    newness_score: >-
+      The individual ingredients are elementary and certainly known to anyone who
+      has thought about F_q[t]/(f): CRT, the Frobenius/residue pairing, and
+      rank phi(a) = ell - deg gcd(a,f). What is not known to THIS corpus, and
+      what is asserted to be assembled here for the first time in it, is the
+      composite statement -- that the three together turn the factorization type
+      of a public parameter into a security EXPONENT with an exactly computable
+      density. The largest novelty risk is stated plainly under dominated_by: the
+      QR-UOV papers have NOT been read by this program, and it is entirely
+      possible their own security analysis says exactly this. Establishing that
+      is stage 0 of the experiment, not an assumption of the proposal.
+    testability_score: >-
+      Very high and almost free. Two of the three lemmas were verified
+      exhaustively by pure-Python enumeration while this record was written
+      (414,582 (f, a) cells, zero failures; see mechanism). The remaining claim --
+      that the split reduces measured attack cost -- is a toy-scale measurement at
+      q in {7, 11}, ell <= 6, M in {2, 3}, V - M in {1, 2}, well inside a
+      single-digit-minutes budget with no algebra system required.
+    survival_score: >-
+      The structural half survives to arbitrary parameters: CRT and the rank law
+      are exact algebra with no size dependence, so if they hold at ell=4 they
+      hold at ell=1024. The COST half survives only as far as the recalled
+      Kipnis-Shamir exponent is correct and as far as the radical-lifting step for
+      repeated factors is cheap -- the second of which is NOT derived here and is
+      carried as an open proof obligation. The scope that survives to a deployed
+      claim is narrower still and is bounded by whether the specification pins f.
+
+  mechanism: >-
+    NOTATION AND WHAT IS RECALLED. Write A = F_q[t]/(f) with f monic of degree
+    ell, phi: A -> F_q^{ell x ell} the regular representation (multiplication
+    matrices in the basis 1, t, ..., t^{ell-1}), N = V + M, n = N*ell, m = M*ell.
+    The QR-UOV shape assumed throughout is: public matrices are n x n symmetric
+    F_q-matrices partitioned into N x N blocks of size ell, every block lying in
+    A_f = {W*phi(a) : a in A} for one fixed invertible symmetriser W; the secret
+    oil space O is an A-submodule of A^N of A-rank M. THIS SHAPE IS RECALLED,
+    UNVERIFIED. The QR-UOV specification has not been read by this program
+    (RQ-QRUOV-001 records the same limitation), and pinning it down is stage 0 of
+    the paired experiment. Everything below is stated as a theorem about the shape
+    as just defined, and transfers to the submitted scheme only to the extent
+    stage 0 confirms the shape.
+
+    LEMMA 1 (the symmetriser exists for EVERY f; DERIVED HERE AND CHECKED).
+    Define B(x, y) = the coefficient of t^{ell-1} in (x*y mod f). B is
+    F_q-bilinear, symmetric, and ASSOCIATIVE in the sense B(a*x, y) = B(x, a*y),
+    because it depends on the product x*y only. B is NONDEGENERATE for every
+    monic f: given x != 0 of degree d < ell, take y = t^{ell-1-d}; then x*y has
+    degree exactly ell-1, is already reduced, and its leading coefficient is that
+    of x, so B(x, y) != 0. Let W be the Gram matrix of B, i.e.
+    W_{ij} = coeff_{ell-1}(t^{i+j} mod f) -- a Hankel matrix. Then W is
+    invertible, and W*phi(a) is the Gram matrix of (x, y) -> B(a*x, y), which is
+    symmetric by symmetry plus associativity of B. CONSEQUENCE, AND THE POINT:
+    the compression is well defined for EVERY monic f, squarefree or not,
+    irreducible or not. This is not an accident of the construction; A is a
+    complete intersection, hence Gorenstein, hence Frobenius, so a nondegenerate
+    associative form always exists. WELL-DEFINEDNESS SELECTS NOTHING. Any
+    protection against a weak f must be an explicit, separately enforced test.
+
+    LEMMA 2 (rank law; DERIVED HERE AND CHECKED). rank_{F_q}(W*phi(a)) =
+    ell - deg gcd(a, f). Proof: W is invertible so rank(W*phi(a)) = rank(phi(a));
+    ker phi(a) = Ann_A(a) = {x : a*x = 0 mod f} = (f/g)*A with g = gcd(a, f),
+    which is an F_q-space of dimension deg g. Counting corollary, exact: for each
+    monic divisor g of f, #{a in A : gcd(a,f) = g} = Phi(f/g) :=
+    |(A/(f/g))^x| = q^{deg(f/g)} * prod_{p | f/g} (1 - q^{-deg p}), and these sum
+    to q^ell. Hence the RANK SPECTRUM of the block algebra A_f is determined by f
+    alone. For f irreducible the spectrum is {0 once, ell everywhere else}: THERE
+    ARE NO LOW-RANK ELEMENTS AT ALL. For f with an irreducible factor of degree
+    d, A_f contains nonzero matrices of rank exactly d, publicly, for free, with
+    no search. Whether a MinRank-style attack can consume them is a separate
+    question this proposal does NOT claim to have answered; what is claimed is
+    that their availability is a closed-form function of the factorization type.
+
+    LEMMA 3 (the split; DERIVED HERE AND CHECKED). Let f = prod_i p_i^{e_i} with
+    the p_i distinct irreducibles, and set f_i = p_i^{e_i}, ell_i = deg f_i. CRT
+    gives A = (+)_i A_i with A_i = F_q[t]/(f_i), realised by idempotents e_i
+    obtained from one extended-Euclid computation on f -- O~(ell^2) F_q-
+    operations, from the PUBLIC parameter, before any key is seen. Two facts make
+    the split total rather than partial. (a) The idempotents are central, so the
+    change of basis C carrying the standard basis of A to a CRT-adapted basis
+    conjugates every phi(a) into block-diagonal form simultaneously, for all a at
+    once. (b) B is orthogonal across components: B(e_i*x, e_j*y) =
+    coeff_{ell-1}(e_i*e_j*x*y mod f) = 0 for i != j, because e_i*e_j = 0. Hence
+    C^T W C is block-diagonal as well, and therefore C^T (W phi(a)) C is
+    block-diagonal for every a. Applying C blockwise, i.e. C^{(+)N}, to a public
+    matrix carries it to a direct sum of matrices of the SAME QR-UOV shape with
+    ell replaced by ell_i and (V, M) unchanged. Restricted to each summand the
+    form B_i is again nondegenerate and associative, so each summand is a genuine
+    QR-UOV instance over A_i and not a degenerate remnant.
+
+    LEMMA 4 (the secret splits too). O is an A-submodule of A^N, so
+    O = (+)_i e_i*O with e_i*O an A_i-submodule of A_i^N; and if O is free of
+    A-rank M then e_i*O is free of A_i-rank M. Recovering O is therefore exactly
+    the k independent problems of recovering e_i*O, with no coupling: the
+    attacker solves them separately and reassembles by CRT. Isotropy transfers
+    unchanged because the pairing decomposes orthogonally.
+
+    COST BOOKKEEPING (per-attempt cost x inverse success probability). For a
+    squarefree component (e_i = 1), A_i = F_{q^{ell_i}} is a field and the
+    component is a UOV instance over F_{q^{ell_i}} with N variables and oil
+    dimension M. RECALLED, UNVERIFIED: the Kipnis-Shamir / reconciliation
+    key-recovery cost for UOV over a field F with n' variables and m' equations,
+    n' >= 3m', is |F|^{n' - 2m'} times a polynomial factor. Here n' - 2m' =
+    N - 2M = V - M, so the component costs q^{ell_i (V-M)} * poly. Total
+    sum_i q^{ell_i (V-M)} = q^{d_max^{*}(V-M)} * (1 + o(1)) where d_max^{*} =
+    max_i ell_i. For a repeated factor (e_i > 1), A_i is local with radical
+    rad = (p_i)/(p_i^{e_i}); reduction mod rad is a further public linear map
+    onto F_{q^{deg p_i}}, and recovering the image of e_i*O there costs
+    q^{deg p_i (V-M)}. THE LIFT FROM MOD-RAD TO MOD-p_i^{e_i} IS NOT DERIVED
+    HERE. It is plausibly a linear-algebraic Hensel step, and it is recorded as
+    an open proof obligation rather than assumed, so the conservative statement
+    of the mechanism uses d_max = max over DISTINCT irreducible factors only when
+    that lift is confirmed cheap, and max_i ell_i (prime powers kept whole)
+    otherwise. Both variants are pre-registered and the experiment reports which
+    holds.
+
+    FORCED VALUES, ALL COMPUTED BEFORE ANY RUN AND NONE OF THEM FITTED. Number of
+    monic irreducibles I_q(ell) = (1/ell) sum_{d | ell} mu(d) q^{ell/d}. Density
+    of non-weak (= irreducible) f is I_q(ell)/q^ell: 0.33331 at (q=127, ell=3),
+    0.20000 at (127, 5), 0.16667 at (127, 6), 0.12500 at (127, 8); at q=256,
+    0.33333 / 0.20000 / 0.16667 / 0.12500 for the same ell. Weak density is the
+    complement: 0.66669, 0.80000, 0.83333, 0.87500. Expected exponent factor
+    E[d_max]/ell under uniform monic f: 0.72090 at (127, 3), 0.69740 at (127, 4),
+    0.68485 at (127, 5), 0.67381 at (127, 6), 0.66202 at (127, 8). Full
+    distribution of d_max at (q=127, ell=5): P(1) = 0.0090, P(2) = 0.2077,
+    P(3) = 0.3333, P(4) = 0.2500, P(5) = 0.2000. These come from an exact
+    generating-function count, [z^ell] prod_{j <= d} (1 - z^j)^{-I_q(j)}, in
+    integer arithmetic.
+
+    PROVENANCE OF THE CHECKS RUN WHILE WRITING THIS RECORD. Lemmas 1 and 2 were
+    verified by exhaustive pure-Python enumeration over q in {2, 3, 5} and
+    ell in {2, 3, 4} with q^ell <= 700, ALL monic f of degree ell and ALL a in A:
+    414,582 (f, a) cells, with zero failures of W-invertibility, zero failures of
+    symmetry of W*phi(a), and zero failures of the rank law. Lemma 3 was verified
+    at q=5, ell=4, f = (t^2+t+1)(t^2+2), over 200 random a: exact block
+    diagonalisation in the idempotent-adapted basis, zero failures. THESE ARE
+    GENERATION-SESSION COMPUTATIONS RUN OUTSIDE THE HARNESS, WITH NO RUN RECORD,
+    NO MANIFEST AND NO SEED ARCHIVE. They are reported here as the reason the
+    proposal is worth running, and they are NOT evidence. Re-running them
+    in-harness with receipts is stage 1 of the paired experiment, and stage 1 is
+    the cheapest gate that can terminate the whole line.
+
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-08-05'
+    corpus_paths_checked:
+      - ledger/proposals (all QR-UOV and UOV-family proposals; only
+        IDEA-20260801-015 addresses this question, and it proposes a
+        black-box cost-ratio comparison with no mechanism and no dependence
+        on f)
+      - ledger/questions/RQ-QRUOV-001.yaml
+      - ledger/goals/GOAL-QRUOV-001.yaml
+      - the merged 2026-08-05 scouting ANGLE-BRIEF, family F7
+    what_the_screen_could_not_see: >-
+      THE SCREEN IS WEAK AND ITS WEAKNESS IS THE POINT. The QR-UOV papers and the
+      Round-3 specification have not been read by this program. The literature
+      corpus carries the 2026-07-24 bulk-seeding defect recorded in
+      KN-OPEN-3f7a21 -- machine-readable citation_verified fields that contradict
+      the entries' own bodies -- so a null result from it establishes nothing.
+      Absence of a corpus hit is not evidence that the designers have not already
+      published this analysis; that is exactly what stage 0 exists to settle.
+    conclusion: >-
+      Novelty unverified and declared so. The proposal is worth running even if
+      the designers state the result, because in that case stage 0 converts an
+      unread design choice into a cited, quantified requirement, and the density
+      table is still new to this corpus.
+
+  literature_context:
+    - >-
+      QR-UOV (Furue, Ikematsu, Kiyomura, Takagi and co-authors; ASIACRYPT-era
+      construction, NIST Additional Signatures Round 3). NOT READ -- relayed
+      claim. The scheme shape used above, the role of the symmetriser W, the
+      requirement (if any) that f be irreducible, and the designers' own
+      reduction to UOV over F_{q^ell} are ALL recalled and unverified. No page,
+      theorem number, parameter value, or figure from any QR-UOV document is
+      asserted anywhere in this record.
+    - >-
+      ePrint 2026/298 (Furue, Ikematsu; reported as CRYPTO 2026): UOV over
+      p^ell-truncated polynomial rings, with the intersection attack reportedly
+      outperforming reconciliation. ABSTRACT ONLY -- not read. The relayed
+      statement that the framework does not improve on MAYO and QR-UOV "because
+      their parameter sets do not yield a large enough linear solution space for
+      the intersection attack" is a falsifiable structural claim naming a
+      measurable quantity; checking it belongs to IDEA-20260805-8d9ac0, not here.
+    - >-
+      ePrint 2025/739, reported to conclude that current parameters resist an
+      extended rectangular MinRank attack. NOT READ -- relayed. It would be the
+      matched negative control for the MinRank half of Lemma 2's corollary.
+    - >-
+      ePrint 2025/1788, reported to claim reduced quantum security for all levels
+      of MAYO, QR-UOV and SNOVA. NOT READ -- relayed. Out of scope here; recorded
+      so that it is not mistaken for a checked input.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      (public key, f) -> the isomorphism type of A, i.e. the multiset of local
+      factors {(deg p_i, e_i)} of f, together with the induced central idempotent
+      decomposition.
+    what_is_discarded: >-
+      Every coefficient of the key. The a_{uv} entries of every block, the secret
+      change of variables, the oil module itself -- all discarded. What is
+      retained is a partition of ell together with a canonical direct-sum
+      decomposition of the ambient space.
+    why_genuinely_lossy: >-
+      Maximally: the fibre over a given factorization type contains the entire key
+      space for every f of that type. Nothing about the secret survives the
+      projection, and none is claimed to.
+    why_compatible_with_the_operations: >-
+      This is the crux and it is the reason the object is worth tracking. The
+      idempotents are CENTRAL in A, so the decomposition commutes with every
+      operation the scheme or an A-linear attacker performs: multiplication in A,
+      the symmetriser W (Lemma 3(b): the components are B-orthogonal), any secret
+      change of variables in GL_N(A), the formation of the oil module, and the
+      isotropy condition. The retained part therefore propagates deterministically
+      and exactly, not approximately -- which is the property section 2 of the
+      inventor protocol demands and which most candidate projections fail.
+    is_it_only_a_change_of_coordinates: >-
+      NO, and BOTH failure modes were checked. It is not the (Delta, Pi) =
+      (x xor y, x*y) failure -- nothing is recoverable from the factorization type,
+      the projection is not invertible even in principle, so information is
+      genuinely destroyed. The MIRROR failure -- a projection so lossy it is
+      CONSTANT across instances, with zero comparator spread -- is the live risk
+      here and was checked explicitly: over uniformly drawn monic f of degree
+      ell = 5 at q = 127 the projection takes at least five distinct values with
+      probabilities 0.0090 / 0.2077 / 0.3333 / 0.2500 / 0.2000, so the comparator
+      spread is large and computed, not assumed. BUT THE CHECK IS CONDITIONAL AND
+      THE CONDITION IS THE WHOLE SCOPE OF THE PROPOSAL: if the specification pins
+      f to one fixed irreducible polynomial, then over the DEPLOYED key space the
+      projection is constant, its spread is exactly zero, and the mirror failure
+      is realised. In that case this record is a statement about parameter
+      generation, key-generation misuse, and the cost of omitting a validation
+      test -- not about a deployed instance. That conditional is stated here,
+      before any run, and may not be quietly dropped later.
+
+  assumptions:
+    - >-
+      The QR-UOV shape as stated in the mechanism (block algebra W*phi(A), oil
+      space an A-submodule of A-rank M). RECALLED, UNVERIFIED; stage 0 of the
+      experiment either confirms it or redirects the whole proposal.
+    - >-
+      The Kipnis-Shamir / reconciliation exponent |F|^{n' - 2m'} for UOV over a
+      field F. RECALLED, UNVERIFIED. The proposal's exponent claim is a RATIO
+      between two instances of the same recalled formula, so a constant-factor
+      error in the formula cancels; a structurally wrong formula does not, and
+      stage 2 measures the exponent directly rather than assuming it.
+    - >-
+      That whatever key-recovery attack is used respects the A-module structure,
+      or can be made to. An attacker who ignores it pays the plain-UOV cost and
+      the split buys nothing -- so the claim is about the best structure-aware
+      attack, not about every attack.
+
+  proof_search_map_note: >-
+    The full proof_search_map for this proposal lives on the paired hypothesis
+    H-QRUOV-e8ae3e, as templates/research-records.md specifies. It is not
+    duplicated here.
+
+  predictions:
+    - metric: >-
+        W_invertible_fraction -- fraction of monic f of degree ell over F_q for
+        which the Hankel symmetriser W is invertible, over an exhaustive sweep
+        at q in {2, 3, 5} and ell in {2, 3, 4}
+      direction: higher
+      minimum_effect: >-
+        EXACTLY 1.000 (all f, including non-squarefree). Forced by Lemma 1 before
+        any run. Any single failure refutes Lemma 1 and the proposal's premise
+        that well-definedness selects nothing.
+    - metric: >-
+        rank_law_violation_count -- number of (f, a) pairs at which
+        rank(W*phi(a)) differs from ell - deg gcd(a, f), over the same exhaustive
+        sweep
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0. Forced by Lemma 2. Any nonzero count kills the rank-spectrum
+        half of the proposal at stage 1 for zero further compute.
+    - metric: >-
+        block_diagonalisation_residual -- maximum absolute off-block entry of
+        C^T (W phi(a)) C in the CRT-adapted basis, over all reducible f in the
+        sweep and 200 random a each
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0 in F_q. Forced by Lemma 3. A nonzero residual means the split
+        is not exact and the whole cost argument collapses.
+    - metric: >-
+        exponent_ratio -- measured log_q of key-recovery cost for a reducible f
+        divided by the same quantity for an irreducible f at identical
+        (q, V, M, ell) and identical solver
+      direction: lower
+      minimum_effect: >-
+        d_max(f)/ell, derived per factorization type before the run and reported
+        per type. Concretely at ell = 6 the pre-registered ladder is
+        (6) -> 1.000, (4,2) -> 0.667, (3,3) -> 0.500, (3,2,1) -> 0.500,
+        (2,2,2) -> 0.333, (1^6) -> 0.167. A measured ratio flat at 1.000 across
+        this ladder falsifies the cost claim while leaving Lemmas 1-3 intact --
+        which is a genuinely informative outcome, not a null.
+    - metric: >-
+        weak_density -- measured fraction of uniformly drawn monic f of degree
+        ell that are reducible, compared against 1 - I_q(ell)/q^ell
+      direction: different
+      minimum_effect: >-
+        0.66669 at (q=127, ell=3) and 0.80000 at (q=127, ell=5), within
+        Monte-Carlo error at the declared sample size; and EXACT agreement when
+        the count is done by exhaustive enumeration at small q. This is the
+        "measured weak-quotient-polynomial density bound" named in
+        GOAL-QRUOV-001's first completion criterion, and it is a forced value,
+        not a fitted one.
+
+  minimal_test:
+    design: >-
+      Five stages, ordered cheapest-first, each able to terminate the line.
+      STAGE 0 (reading, zero compute): obtain a QR-UOV specification and record
+      (a) the block set and symmetriser, (b) whether f is required irreducible
+      and whether key generation validates it, (c) the parameter table. If f is
+      pinned irreducible AND validated, the proposal's scope collapses to
+      misuse/validation and stage 3 is not run -- SAY SO AND STOP, rather than
+      running it anyway. STAGE 1 (seconds, pure Python, no algebra system):
+      re-run the exhaustive Lemma 1/2/3 checks in-harness with receipts and
+      seeds. Any failure ends the line. STAGE 2 (minutes, pure Python):
+      recompute the exact d_max distribution and I_q(ell)/q^ell tables by
+      generating function and cross-check by exhaustive enumeration at small q.
+      STAGE 3 (minutes to an hour): build toy QR-UOV keys at q in {7, 11},
+      ell <= 6, M in {2, 3}, V - M in {1, 2}, one key per factorization type of
+      ell, and measure key-recovery cost with ONE fixed solver, reporting the
+      ratio against the irreducible arm. STAGE 4: certificate check -- every
+      claimed recovery must produce an oil basis that annihilates every public
+      form, re-verified by an independent routine.
+    controls:
+      - >-
+        NULL OBJECT (must be able to fail). f IRREDUCIBLE at the same
+        (q, V, M, ell). Forced value derived before the run: the extended-Euclid
+        idempotent computation returns exactly one idempotent (namely 1), the
+        block-diagonalisation is the trivial one-block decomposition, and the
+        measured exponent ratio against the plain baseline is 1.000. This null
+        CAN fail: if the splitting code emits more than one block for an
+        irreducible f, the instrument is manufacturing structure and every
+        reducible-arm number is void.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT (the effect MUST appear). f TOTALLY
+        SPLIT into ell distinct linear factors, so A = F_q^ell. Forced: exactly
+        ell one-dimensional blocks, the instance decomposes into ell independent
+        plain-UOV instances over F_q at (V, M), and key recovery must succeed at
+        cost ~ ell * q^{V-M}, i.e. exponent ratio 1/ell. IF RECOVERY DOES NOT
+        SUCCEED HERE, THE ATTACK IMPLEMENTATION IS BROKEN AND NO NEGATIVE RESULT
+        MAY BE REPORTED FROM ANY OTHER ARM.
+      - >-
+        GRADED CONTROL, four interior points, monotonicity reported. At ell = 6
+        run the factorization types (6), (4,2), (3,3), (3,2,1), (2,2,2), (1^6),
+        whose pre-registered exponent ratios are 1.000, 0.667, 0.500, 0.500,
+        0.333, 0.167. Report the measured ladder and whether it is monotone
+        non-increasing in d_max. A failure at a specific rung localises the
+        obstruction to a specific algebra rather than leaving "it did not work".
+        Note that (3,3) and (3,2,1) share a predicted ratio while differing in
+        component count -- a deliberate discriminator between "d_max governs" and
+        "number of components governs".
+      - >-
+        REPEATED-FACTOR ARM, reported separately and never merged with the
+        squarefree arms. f = p^e with p irreducible. Forced: exactly one
+        idempotent (no CRT split), so this arm tests the radical-lifting claim
+        that is NOT derived. Its predicted ratio is deg(p)/ell IF the lift is
+        cheap and 1.000 if it is not; both outcomes are pre-registered and the
+        arm exists precisely because the proposal does not know which holds.
+      - >-
+        ARCHIVE CHECK, zero compute. Enumerate every prior measurement of the
+        same observable in this program. RESULT RECORDED IN ADVANCE: NONE EXISTS.
+        Area QRUOV has no prior hypothesis, experiment, evidence or run record.
+        That absence is recorded as an absence, not claimed as a passed check.
+      - >-
+        ORDERING CONTROL. The null (irreducible) arm and the positive control are
+        generated, run, and hash-committed BEFORE any reducible treatment arm is
+        looked at. If the decision rule emits the same label on the null and the
+        positive control, it discriminates nothing and must be rewritten before
+        any treatment number is read.
+    required_metrics:
+      - W-invertibility count and rank-law violation count, per (q, ell), exhaustive
+      - off-block residual of the CRT block-diagonalisation, exact in F_q
+      - measured key-recovery cost per factorization type, with seeds and solver identity
+      - exponent ratio per type against the irreducible null, with the pre-registered value beside it
+      - exact I_q(ell)/q^ell and E[d_max]/ell tables, generating-function and enumeration, cross-checked
+      - verbatim quotation of the specification's condition on f, with a locator, or a recorded statement that no specification could be obtained
+
+  falsification_conditions:
+    - >-
+      Any monic f for which the Hankel W is singular. Lemma 1 is wrong, the
+      Frobenius-algebra argument is wrong, and the claim that well-definedness
+      selects nothing must be withdrawn.
+    - >-
+      Any (f, a) with rank(W*phi(a)) != ell - deg gcd(a, f). Lemma 2 is wrong.
+    - >-
+      Any nonzero off-block residual after the CRT change of basis. Lemma 3 is
+      wrong and the split is not exact.
+    - >-
+      A measured exponent ratio flat at 1.000 across the graded ladder while the
+      positive control fires correctly. The structure is real but no attack
+      consumes it; the honest deliverable is then the neutrality derivation that
+      GOAL-QRUOV-001's second completion horn asks for, plus the density table,
+      and the exponent claim is withdrawn.
+    - >-
+      The positive control fails. NOTHING NEGATIVE MAY BE REPORTED AT ALL.
+    - >-
+      Stage 0 finds the specification mandates and validates irreducible f AND
+      already publishes this analysis. The proposal then contributes the density
+      table only, and must say so rather than restating the designers' result as
+      a finding.
+
+  confounders:
+    - >-
+      SOLVER CONFOUND. A cost ratio between two arms measures the solver as much
+      as the algebra. Mitigation: one solver, one implementation, identical code
+      path, arms differing only in f; and the ratio, never the absolute cost, is
+      the reported quantity.
+    - >-
+      TOY-SIZE DEGENERACY. At q = 7 and V - M = 1 every arm may solve
+      instantly, collapsing the ladder into noise. Mitigation: V - M = 2 is run
+      as well, and a rung whose irreducible-arm cost is below a declared floor is
+      reported as uninformative rather than as a ratio.
+    - >-
+      SPEC DRIFT. The shape assumed here may not be the submitted shape. This is
+      not a nuisance to be controlled away; it is the reason stage 0 exists and
+      can terminate the line.
+    - >-
+      REFUTATION IS CHEAP TO PRODUCE. Deriving that a design parameter matters
+      reads as rigour and costs little. The positive control and the flat-ladder
+      falsification condition exist so that a negative outcome costs something to
+      reach.
+
+  interpretation_limits:
+    - >-
+      TOY TIER ONLY. Every measured number is at q <= 11 and ell <= 6. AGENTS.md
+      rule 7 applies without exception: no outcome here is a statement about any
+      deployed QR-UOV parameter set, and no run at this scale may be cited as
+      one.
+    - >-
+      IF THE SPECIFICATION PINS f IRREDUCIBLE, THIS IS NOT AN ATTACK ON QR-UOV.
+      It is a quantification of why one design condition is load-bearing, a
+      weak-key density, and a key-generation validation requirement. Presenting it
+      as a break would be an overclaim of exactly the kind rule 4 forbids.
+    - >-
+      The repeated-factor lift is NOT derived. Any statement about f = p^e is
+      conditional on the arm that tests it and may not be generalised.
+    - >-
+      Lemmas 1-3 are exact algebra with no size dependence, so they DO transfer
+      across scale; the cost claim does not. The record must never let the first
+      fact carry the second.
+
+  heuristic_assumptions:
+    - id: HEUR-QRUOV-FT-1
+      statement: >-
+        FORALL fields F and all n' >= 3m', the Kipnis-Shamir / reconciliation
+        key-recovery cost for UOV over F with n' variables and m' equations is
+        |F|^{n' - 2m'} * poly(n'), with the polynomial factor independent of |F|
+        up to the cost of one F-operation.
+      rigorous_support: >-
+        NONE SUPPLIED HERE. This is a recalled complexity statement from the
+        multivariate literature, not read and not verified. It is load-bearing
+        for the EXPONENT claim but not for Lemmas 1-4, which are unconditional.
+        Its role is confined to converting the split into a cost ratio.
+      validation_plan: >-
+        Stage 3 measures the exponent directly on the irreducible arm across at
+        least three values of ell and fits log_q(cost) against (V - M)*ell. If
+        the fitted slope is not (V - M) within the declared tolerance, the
+        recalled formula is wrong at these sizes, the ratio interpretation is
+        withdrawn, and the measured ratios are reported as raw solver ratios only.
+    - id: HEUR-QRUOV-FT-2
+      statement: >-
+        EXISTS a polynomial-time procedure such that FORALL local components
+        A_i = F_q[t]/(p_i^{e_i}) with e_i > 1, given the image of e_i*O in
+        (A_i/rad)^N, the full A_i-module e_i*O is recovered in time polynomial in
+        (N, ell, log q).
+      rigorous_support: >-
+        NONE. Plausible by analogy with Hensel lifting of a linear condition, and
+        deliberately NOT asserted. The conservative form of the main claim does
+        not use it (it keeps prime powers whole in d_max).
+      validation_plan: >-
+        The repeated-factor arm of stage 3, whose two possible outcomes are both
+        pre-registered. A failure refutes HEUR-QRUOV-FT-2 at the tested sizes and
+        leaves the squarefree claim untouched.
+
+  target_complexity:
+    time_exponent: >-
+      log_q of best structure-aware key recovery falls from ell*(V - M) to
+      d_max(f)*(V - M). This IS an exponent statement, not a cofactor statement,
+      and it is the exponent the proposal exists to move. Its magnitude is bounded
+      by ell: at f totally split the exponent is divided by ell exactly.
+    memory_exponent: >-
+      Unchanged and polynomial, on the recalled premise that Kipnis-Shamir /
+      reconciliation is memory-polynomial (HEUR-QRUOV-FT-1). The split adds only
+      O(n^2) F_q-elements for the change of basis. If a future arm uses a
+      memory-heavy solver the memory column must be recomputed, not inherited.
+    best_known: >-
+      The matched extension-field-UOV baseline q^{ell*(V - M)} * poly, i.e.
+      exactly the irreducible-f arm, which is also this experiment's null.
+    hidden_overhead: >-
+      The polynomial factor N^omega per component, the O~(ell^2) idempotent
+      computation, and -- unquantified -- the radical lift for repeated factors.
+    tradeoff_note: >-
+      No time-memory tradeoff is claimed or exploited.
+
+  dominated_by: >-
+    For f IRREDUCIBLE: dominated exactly, by the matched extension-field-UOV
+    baseline itself. The mechanism yields nothing there and the record says so
+    rather than hiding it in a caveat. For f REDUCIBLE: no dominating result
+    found. ROWS ACTUALLY CHECKED, on 2026-08-05, listed because an unchecked null
+    is a fabrication under AGENTS.md rule 5 -- (a) TIME: the recalled
+    Kipnis-Shamir / reconciliation exponent q^{ell(V-M)}, the recalled
+    intersection-attack condition n < 3m, and the recalled rectangular-MinRank
+    line reported in ePrint 2025/739; the split's q^{d_max(V-M)} is strictly below
+    the first whenever d_max < ell. (b) MEMORY: all three baselines are recalled
+    as polynomial-memory, and so is the split, so no baseline dominates on the
+    memory axis. (c) DATA / QUERIES / PREPROCESSING: the split is key-only and
+    consumes zero signatures, zero oracle queries, and O~(ell^2 + n^2) public
+    preprocessing derived from a public parameter; no baseline is cheaper on
+    these axes because none can be cheaper than zero. WHAT THE CHECK COULD NOT
+    SEE, stated plainly: the QR-UOV papers themselves. If they already contain
+    this analysis then the correct value of this field is "dominated by the
+    scheme's own security analysis", and stage 0 is what decides it.
+  sota_delta: >-
+    Quantitative, per factorization type, as a multiplier on the log_q attack
+    exponent: 1.000 for irreducible f (NO improvement, exactly zero delta);
+    d_max/ell in general; 1/ell for totally split f. Expected over a uniformly
+    drawn monic f: 0.72090 at (q=127, ell=3) and 0.68485 at (q=127, ell=5), i.e.
+    a 27.9 and 31.5 per cent reduction of the exponent respectively. Against the
+    scheme as presumably specified (f irreducible) the attack delta is ZERO and
+    the deliverable is instead the exact weak-key density 1 - I_q(ell)/q^ell
+    (0.66669 at ell=3, 0.80000 at ell=5) plus the derivation that well-definedness
+    does not enforce irreducibility.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.20 that this record ends up citable by this program as a NEW structural
+    result about QR-UOV. It is not lower because the three lemmas are already
+    exhaustively verified at toy sizes (414,582 cells, zero failures), because
+    the density and d_max tables are exact integer computations that cannot fail
+    to be correct, and because GOAL-QRUOV-001's first completion criterion asks
+    in so many words for a "measured weak-quotient-polynomial density bound",
+    which this supplies in closed form. It is not higher because the single most
+    likely outcome by a wide margin is that the QR-UOV designers already require
+    f irreducible for precisely this reason and say so, which would leave the
+    density table as the only new content -- and because HEUR-QRUOV-FT-1 is
+    recalled, unverified, and load-bearing for the exponent half. Separately:
+    0.90 that stages 0-2 reach a decisive reading within the stated budget, since
+    they are reading plus seconds of pure-Python arithmetic.

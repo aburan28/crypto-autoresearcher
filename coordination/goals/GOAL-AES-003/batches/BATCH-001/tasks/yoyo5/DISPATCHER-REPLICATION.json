@@ -1,0 +1,49 @@
+{
+  "id": "MEAS-GOAL-AES-003-003",
+  "purpose": "Independent replication, by the dispatching session using its own from-scratch implementation, of the r=5 adaptive two-directional signal on real AES-128.",
+  "verified_by": "dispatching session (Bash) - coordinator-side corroboration, NOT independent validation under 0137a001",
+  "verified_at": "2026-08-02",
+  "why_independent_code": "The producer's own result is a 16x rate excess with an astronomical nominal p-value. A reading that extreme is exactly the kind that must be reproduced by code that shares nothing with it, because the most likely explanation for a spectacular number is an instrument fault - as this campaign has already learned twice.",
+  "my_implementation": {
+    "file": "DISPATCHER-independent-probe.c",
+    "shares_no_code_with_producer": true,
+    "aes": "own AES-NI enc/dec, keyexpansion via aeskeygenassist, decryption via aesdec/aesdeclast with aesimc'd middle keys",
+    "pinned_before_measuring": "FIPS-197 KAT reproduced exactly (3925841d02dc09fbdc118597196a0b32, agreeing with pycryptodome), and enc/dec round-trip verified 0 failures over r=1..10 x 500 vectors"
+  },
+  "MY_FIRST_ATTEMPT_FAILED_TO_REPLICATE_AND_THE_ERROR_WAS_MINE": {
+    "reading": "ratio 1.25 at r=5 - no signal",
+    "cause": "I swapped a COLUMN of the ciphertext. The object is defined on ciphertext words that are INVERSE-SHIFTROWS DIAGONALS, {0,13,10,7} for word 0. I had built a different object.",
+    "lesson_recorded": "A failure to replicate is not evidence against a claim until the replicator has verified it built the same object. Had I stopped at the first null I would have wrongly contradicted a correct result."
+  },
+  "replication_with_correct_geometry": {
+    "plaintext_words": "forward diagonals, word j = {4*((j+r)%4)+r}",
+    "ciphertext_words": "inverse-ShiftRows diagonals, word j = {4*((j-r)%4)+r}",
+    "N_trials": 4294967296,
+    "seed": 20260802,
+    "r5_nontrivial_hits": 48,
+    "r5_null_expectation": 4.0,
+    "r5_ratio": 12.0,
+    "poisson_tail_P_X_ge_48_lambda_4": 1.273e-34,
+    "log10_p": -33.9,
+    "implied_per_word_rate": "2^-28.4 against a null of 2^-32"
+  },
+  "controls_i_ran_myself": {
+    "r6": {"hits": 5, "expected": 4.0, "ratio": 1.25, "verdict": "null - the signal is dead at r=6, matching the producer's death round"},
+    "structure_destroyed_all_four_plaintext_words_active": {"hits": 1, "expected": 4.0, "ratio": 0.25, "verdict": "null - the effect REQUIRES the one-active-word input structure and is not a harness property"},
+    "trivial_swap_confound": {"count": 0, "note": "the producer found and removed a trivial-swap artifact that had produced a spurious W=3 reading; my counter separates it and observes none at these settings"}
+  },
+  "comparison_to_producer": {
+    "producer_ratios": [16.8, 15.8, 12.5, 17.5, 16.3],
+    "producer_seeds": 3,
+    "my_ratio": 12.0,
+    "agreement": "My independent reading sits within the producer's measured spread and reproduces its death round. The r=5 signal replicates."
+  },
+  "what_this_establishes": "An adaptive two-directional (encrypt / swap ciphertext word / decrypt) property of 5-round AES-128 that deviates from a random permutation by a factor of ~12-17 in rate, replicated across two independent implementations, multiple seeds and two data complexities, dying at r=6, and requiring the one-active-word input structure. Measured on real AES-128, not an analogue.",
+  "what_this_does_NOT_establish": [
+    "NOVELTY. Not assessed and not assessable here - no primary source is reachable. The dispatching session's unverified recollection is that a yoyo-type distinguisher for 5-round AES exists in the literature and is far more data-efficient than this readout. Under the symmetric prohibition that recollection may be used neither to promote nor to dismiss this measurement, and it is recorded as an open question for someone with library access, NOT as a finding.",
+    "Any key recovery. certificate.kind is none; this is a distinguisher measurement only.",
+    "Any statement about full-round or deployed AES.",
+    "Efficiency. This readout needs ~2^32 trials to observe a rate excess; it is not claimed to be an efficient distinguisher, only a measured one.",
+    "The post-hoc mechanism note (that a 2^4 excess is consistent with two DDT value-pairs per differential) was flagged by the producer as untested and is not asserted here either."
+  ]
+}

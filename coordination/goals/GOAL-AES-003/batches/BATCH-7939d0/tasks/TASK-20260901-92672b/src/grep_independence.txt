@@ -1,0 +1,73 @@
+=== G1: AES-vocabulary tokens in rc8probe_feistel_rk.c (oracle+worker+main; expect hits ONLY in provenance-disclosure comments or the harness-signature names enc_r/dec_r) ===
+13: *     trivial-swap exclusion, the PW/CW forward/inverse ShiftRows-diagonal
+20: *   - Everything cipher-specific from rc8probe.c (SBOX/ISBOX, GF(2^8)
+21: *     log/antilog tables, gmul/ginv, build_aes_sbox, build_random_sbox,
+22: *     the M2/M3/M9/MB/MD/ME MixColumns tables, key_expand, add_rk,
+23: *     sub_bytes/inv_sub_bytes, shift_rows/inv_shift_rows,
+24: *     mix_columns/inv_mix_columns, enc_r/dec_r, load_sbox, do_pin's AES KAT
+34: * NOT AES's GF(2^8) polynomial arithmetic, NOT a byte-substitution table,
+35: * NOT a ShiftRows-style byte permutation. DETERMINISTIC: fixed round count,
+59:/* against AES's actual S-box / MixColumns / ShiftRows.               */
+69: * "murmur3 fmix64" finalizer family). No GF(2^8) multiply, no S-box
+70: * lookup table, no byte rotation/permutation matching AES's ShiftRows. */
+
+=== G2: AES keyword aes in rc8probe_feistel_rk.c ===
+1:/* rc8probe_feistel.c -- TASK-20260805-b95720 (BATCH-014, GOAL-AES-003 RC-D).
+3: * Purpose: retest BATCH-009's OUTCOME-A (EV-AES-e4c091) -- "the r=5 yoyo
+21: *     log/antilog tables, gmul/ginv, build_aes_sbox, build_random_sbox,
+24: *     mix_columns/inv_mix_columns, enc_r/dec_r, load_sbox, do_pin's AES KAT
+34: * NOT AES's GF(2^8) polynomial arithmetic, NOT a byte-substitution table,
+57:/* THE ORACLE: keyed deterministic Feistel PRP. Independent of AES.  */
+59:/* against AES's actual S-box / MixColumns / ShiftRows.               */
+70: * lookup table, no byte rotation/permutation matching AES's ShiftRows. */
+83: * Uses splitmix64 (harness RNG, not AES machinery) seeded from the key
+125: * worker below is a direct adaptation; "r" (rounds) and "rk" (AES round-key
+
+=== G3: enc_r/dec_r definitions in rc8probe_feistel_rk.c (harness call-site signature; bodies call ONLY feistel_encrypt/feistel_decrypt) ===
+128:static void enc_r(const uint8_t in[16], uint8_t out[16]){ feistel_encrypt(in, out); }
+129:static void dec_r(const uint8_t in[16], uint8_t out[16]){ feistel_decrypt(in, out); }
+
+=== G4: rc8probe_freshfeistel.c -- feistel_F / RC-D round-function constants (murmur3 fmix64) must NOT appear (BATCH-015 audit: SipRound ff oracle, different constants); shows AES instrument shares no RC-D oracle code ===
+47: *   - NOT reused: rc8probe_feistel.c's oracle (feistel_F/feistel_round_keys/
+535:            h ^= h >> 33; h *= 0xff51afd7ed558ccdULL; h ^= h >> 33;  /* set hash only */
+
+=== G5: rc8probe_freshfeistel.c -- the aes arm code path (oracle==0 branch) calls AES key_expand; the freshfeistel path is oracle==1; worker dispatch ===
+32: *     tables, key_expand, add_rk/sub_bytes/inv_sub_bytes/shift_rows/
+133:static void key_expand(const uint8_t key[16], uint8_t rk[11][16]){
+225:        uint8_t rk[11][16]; key_expand(K, rk);
+236:        uint8_t rk[11][16]; key_expand(k, rk);
+306:static void ff_encrypt(const uint8_t in[16], uint8_t out[16], const uint64_t RK[FF_ROUNDS]){
+318:static void ff_decrypt(const uint8_t in[16], uint8_t out[16], const uint64_t RK[FF_ROUNDS]){
+402:        if(J->oracle == 0){
+418:            ff_encrypt(p0, c0, RK);
+419:            ff_encrypt(p1, c1, RK);
+429:        if(J->oracle == 0){
+433:            ff_decrypt(c0, q0, RK);
+434:            ff_decrypt(c1, q1, RK);
+499:            ff_encrypt(x, c, RK);
+500:            ff_decrypt(c, e, RK);
+502:            ff_encrypt(y, c2, RK);
+571:        ff_encrypt(p, c, RK);
+572:        ff_encrypt(p2, c2, RK);
+631:        if(A->oracle == 0){
+676:        if(A->oracle == 1){
+764:    key_expand(key, rk);
+803:    A.oracle = oracle;
+813:    if(oracle == 0){
+825:        key_expand(key, rk);
+
+=== G6: rc8probe_feistel_rk.c includes (expect only stdio/stdlib/string/stdint/pthread; no include of any AES or other-instrument file) ===
+42:#include <stdio.h>
+43:#include <stdlib.h>
+44:#include <string.h>
+45:#include <stdint.h>
+46:#include <pthread.h>
+
+=== G7: archived-source sha256 + parameterized-source sha256 ===
+9b36c0e714118e11e160b9aec81c9a6c1aceecc6fb2b6c452b3dd3bbf98d8566  coordination/goals/GOAL-AES-003/batches/BATCH-014/tasks/TASK-20260805-b95720/src/rc8probe_feistel.c
+020a4c29011ee1d1a5c0db8ab215ee079e53bbdff4ef2e23dc038125f615ff70  coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-92672b/src/rc8probe_feistel_rk.c
+d163b64e6b0d6bce1f23027bb7209c0a8c5ef1984874465119f61adf3e0d450d  coordination/goals/GOAL-AES-003/batches/BATCH-015/tasks/TASK-20260805-d408ac/src/rc8probe_freshfeistel.c
+
+=== G8: diff archived vs parameterized (only the #ifndef guard; full text in src/diff_vs_archived.txt) ===
+      12 coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/tasks/TASK-20260901-92672b/src/diff_vs_archived.txt
+4

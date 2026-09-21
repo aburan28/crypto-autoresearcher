@@ -1,0 +1,58 @@
+authorization:
+  id: TASK-20260801-148
+  kind: RSS_EPOCH_ACCOUNTING_REPAIR_AND_SYNTHETIC_CONTROL_ONLY
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-025
+  experiment_id: EXP-SMTHPILOT-001
+  historical_storage_id: EXP-SMTH-PILOT-001
+  run_under_interpretation: RUN-SMTH-PILOT-002
+  authorized_task: TASK-20260801-149
+  basis:
+  - VAL-20260801-144 PASS on the integrity of the immutable failed RUN-SMTH-PILOT-002 snapshot
+  - RT-20260801-146 REVISE finding that retired worker PID peaks contaminate the concurrent RSS accumulator
+  exact_write_scope:
+  - experiments/EXP-SMTH-PILOT-001/implementation/pilot_driver.py
+  - experiments/EXP-SMTH-PILOT-001/implementation/implementation.md
+  - coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/TASK-20260801-149/rt146_c1_synthetic_receipt.json
+  required_changes:
+  - Scope conservative worker RSS peaks to one explicitly identified active pool epoch; retired PID peaks must not contribute to a later epoch.
+  - Preserve cumulative worker CPU accounting across pool epochs.
+  - Persist or return separately current_tree_rss_bytes, process_count, active_pool_epoch, active_worker_pids, active_pid_count, conservative_active_epoch_peak_rss_bytes, and attempt_peak_rss_bytes at every resource checkpoint.
+  - State and enforce the frozen RSS cap against attempt_peak_rss_bytes, defined as the maximum of live-tree samples and conservative active-epoch candidates, never a sum over retired epochs.
+  - Add RT146-C1 as a targeted non-scientific control using three sequential four-worker ProcessPoolExecutor generations and one retained 16-MiB bytearray per worker until pool close.
+  - Write one immutable JSON receipt containing exact PID sets, per-generation worker peaks, live-tree and post-close samples, parent peak, legacy all-PID sums, active-only sums, retired contributions, separator-cap assertions, timings, environment, command, and touched-path inventory.
+  control_contract:
+    id: RT146-C1
+    maximum_invocations: 1
+    maximum_pool_generations: 3
+    workers_per_generation: 4
+    synthetic_worker_payload_bytes: 16777216
+    maximum_simultaneous_synthetic_payload_bytes: 67108864
+    wall_cap_seconds: 60
+    rss_cap_bytes: 1073741824
+    invalid_conditions:
+    - fewer than four observed workers in any generation
+    - PID reuse between generations
+    - a closed-generation PID remains in the live process tree after pool shutdown
+    - missing live-tree or post-close sample
+    - any scientific entry point or run/result path is touched
+    pass_assertions:
+    - legacy_all_pid_sum minus live_pid_only_sum equals the exact retired contribution
+    - legacy accounting grows across generations while active-only accounting excludes retired workers
+    - a midpoint cap exists that legacy accounting rejects and repaired active-only accounting accepts
+  permitted_actions:
+  - edit only the three exact write-scope paths
+  - run bounded static checks and non-scientific self-tests
+  - invoke RT146-C1 exactly once
+  prohibited_actions:
+  - invoke run-null-pilot or any scientific entry point
+  - resume, retry, relabel, overwrite, or modify RUN-SMTH-PILOT-002
+  - create or modify any experiments/EXP-SMTH-PILOT-001/runs or experiments/EXP-SMTH-PILOT-001/results path
+  - authorize or construct RUN-SMTH-PILOT-003
+  - alter factorization, seeds, null objects, statistics, stopping thresholds, storage caps, or scientific interpretation
+  - edit protocol, validation, review, ledger, hypothesis, experiment, goal, or status artifacts
+  - commit, push, merge, rebase, archive, or change official research state
+  pilot_execution_authorized: false
+  scientific_runs_authorized: 0
+  breakthrough_claim_authorized: false
+  expires_after: TASK-20260801-150 snapshot

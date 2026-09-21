@@ -1,0 +1,134 @@
+hypothesis:
+  id: H-GGM-001
+  question_id: RQ-ECDLP-002
+  source_proposal: IDEA-20260726-004
+  statement: A machine-checkable simulability test, given the input-output specification
+    of an augmented ECDLP oracle, correctly decides whether that oracle can be simulated
+    by a generic-group algorithm using only the standard group-operation oracle and
+    equality tests with O(1) overhead per query, where a SIMULABLE verdict closes
+    the candidate at exponent 1/2 by the Shoup/Corrigan-Gibbs-Kogan lower bound (KN-TECH-005)
+    and a NON- SIMULABLE verdict identifies genuinely non-generic, k-dependent information
+    below the birthday bound.
+  mechanism: 'The generic group model (KN-TECH-005) treats group elements as opaque
+    random labels accessible only via the group-operation oracle and equality tests.
+    An augmented oracle O supplements this with extra information per query (jet data,
+    elliptic-net values, incidence reports, endomorphism images). The simulability
+    test parses O''s specification into query types {q_1, ..., q_t}; for each q_i
+    it constructs a generic-group simulator S_i that attempts to answer q_i using
+    only group operations and equality tests. If S_i succeeds with O(1) overhead,
+    q_i is simulable and the Shoup lower bound applies. If S_i fails -- the answer
+    depends on the concrete encoding in a way unreconstructable from group operations
+    alone -- q_i is non-simulable and the test outputs a witness: an encoding pair
+    (E_1, E_2) that are generic-model-indistinguishable but yield different O-answers.
+    The test is applied to four augmented oracles (jet, elliptic- net, incidence,
+    endomorphism) and validated against four controls (pure- generic, discrete-log,
+    public-curve, encoding). Because the test operates on oracle specifications and
+    constructs explicit simulators or witnesses, a SIMULABLE verdict is a mathematical
+    argument (scale-independent), not a toy-scale measurement.'
+  assumptions:
+  - Each augmented oracle's query types can be formally specified as functions from
+    group-element tuples (plus public curve data) to output values with well-defined
+    input-output formats.
+  - A generic-group simulator can be constructed algorithmically from the oracle specification,
+    at least for the four oracles and four controls listed.
+  - 'The O(1) overhead bound is decidable: the simulator either uses a bounded number
+    of group operations per query (simulable) or requires unbounded access to the
+    concrete encoding (non-simulable).'
+  - 'The test is sound: a simulability proof from the test implies the Shoup lower
+    bound applies, and a non-simulability witness implies the oracle provides genuinely
+    non-generic information.'
+  - The generic-group model variant used (Shoup's original encoding-based model) is
+    fixed consistently across all oracles and controls, with "public data" defined
+    as the curve parameters (a, b, p, N) and any endomorphism computable from them.
+  predictions:
+  - metric: simulability_verdict_per_oracle
+    direction: different
+    minimum_effect: 'Each of the four augmented oracles (jet, elliptic-net, incidence,
+      endomorphism) receives a definitive verdict of SIMULABLE or NON- SIMULABLE.
+      A SIMULABLE verdict is accompanied by an explicit O(1) simulator (bounded group-operation
+      count per query). A NON-SIMULABLE verdict is accompanied by a checkable witness:
+      an encoding pair (E_1, E_2) that are generic-model-indistinguishable but give
+      different oracle answers, verifiable by a third party.'
+  - metric: control_soundness_discrete_log
+    direction: different
+    minimum_effect: 'The discrete-log control oracle (query = (P, Q) -> k such that
+      Q = k*P) returns NON-SIMULABLE, confirming the test detects known non-generic
+      information. This is the positive correctness control: the DLP itself is not
+      computable from group operations alone.'
+  - metric: control_no_false_positive_pure_generic
+    direction: different
+    minimum_effect: The pure-generic control oracle (the standard group-operation
+      oracle itself, query = (P, Q) -> P+Q) returns SIMULABLE with overhead C = 1,
+      confirming the test produces no false positives on trivially simulable oracles.
+      The public-curve control (query = () -> (a, b, p, N)) also returns SIMULABLE
+      with C = 0.
+  - metric: control_encoding_detection
+    direction: different
+    minimum_effect: The encoding control oracle (query = P -> x-coordinate of P) returns
+      NON-SIMULABLE, confirming the test catches encoding-dependent oracles whose
+      answers depend on the concrete group representation.
+  - metric: simulator_overhead_bound
+    direction: lower
+    minimum_effect: For every SIMULABLE verdict, the simulator overhead C (group operations
+      per query) is bounded by a constant independent of the group order N (target
+      C <= 10). If C grows with N, the oracle is effectively non-simulable despite
+      the verdict and the Shoup lower bound does not apply.
+  test_boundary:
+    instances:
+    - 'four augmented oracles: jet (F_p[eps]/eps^2 dual-number data), elliptic-net
+      (Somos values), incidence (chord/secant decomposition reports), endomorphism
+      (phi-images)'
+    - 'four controls: pure-generic (group-operation oracle), discrete-log (DLP oracle),
+      public-curve (curve parameters), encoding (x-coordinate oracle)'
+    - toy prime fields 8-16 bits for witness exhibition and independent checkability
+      of NON-SIMULABLE verdicts
+    parameters:
+      oracle_specifications: 8 (4 augmented + 4 control)
+      gg_model_variant: shoup_encoding
+      witness_verification_curves: toy 8-16 bit prime fields, 3 seeds
+      overhead_bound_constant: 10
+    implementation: 'Python module implementing the simulability test: an oracle-
+      specification parser, a generic-group simulator constructor, an O(1) overhead
+      checker, and a witness generator (encoding pair with divergent oracle answers).
+      Witness verification on toy curves via harness/toycurve.py. The test is deterministic
+      given an oracle specification; toy curves serve only to make witnesses concrete.'
+    budget:
+      wall_clock_seconds_per_run: 120
+      total_wall_clock_seconds: 1800
+  falsification_conditions:
+  - The test returns SIMULABLE for the discrete-log control oracle, meaning the test
+    is unsound -- it fails to detect known non-generic information (the DLP itself
+    is not computable from group operations alone). This is the primary unsoundness
+    falsifier.
+  - The test returns NON-SIMULABLE for the pure-generic control oracle or the public-curve
+    control oracle, meaning the test is unsound -- it produces false positives on
+    trivially simulable oracles.
+  - The test cannot produce a checkable witness for a NON-SIMULABLE verdict, meaning
+    the non-simulability claim is unverifiable and the test fails its own completeness
+    criterion.
+  - The simulator overhead C grows with the group order N for an oracle classified
+    SIMULABLE, meaning the O(1) overhead claim is false and the Shoup lower bound
+    does not apply to that oracle.
+  interpretation_limits:
+  - 'A SIMULABLE verdict is a mathematical result, not a toy-scale measurement: the
+    explicit O(1) simulator construction is valid at ALL scales (toy, medium, crypto),
+    closing the candidate at exponent 1/2 by theorem (KN-TECH-005). The toy curves
+    serve only to make witnesses concrete and independently checkable; they do not
+    bound the verdict''s scale. This is the key distinction from empirical experiments
+    in this program: a SIMULABLE verdict here is NOT limited to toy tier.'
+  - A NON-SIMULABLE verdict is a non-generic signal but NOT a breakthrough. It identifies
+    that the oracle carries structure the GGM excludes, but exploiting that structure
+    to beat the birthday bound requires a separate attack construction and independent
+    review-xhigh scrutiny per AGENTS.md rule 12.
+  - The test applies to oracle specifications, not implementations. An oracle that
+    is simulable in principle may have an implementation that leaks timing or side-channel
+    information, which is outside the GGM framework.
+  - The test settles KN-OPEN-005 (whether specific augmented representations are GGM-simulable)
+    for the tested oracles; it does not settle KN-OPEN-001 (whether index calculus
+    beats rho for prime-field ECDLP).
+  - 'The verdict depends on the formal specification of each oracle: a jet oracle
+    specified as "return the eps-coefficient of P+Q" (encoding- dependent) may differ
+    from "return the derivative of the addition map" (universal identity). The specification
+    must be frozen before testing, and any ambiguity recorded as a confounder.'
+  status: analyzed
+  proposed_by: coordinator

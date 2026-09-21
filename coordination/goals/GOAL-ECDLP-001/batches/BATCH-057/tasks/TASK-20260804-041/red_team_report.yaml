@@ -1,0 +1,267 @@
+red_team_report:
+  id: RT-20260804-620979
+  task_id: TASK-20260804-041
+  batch_id: BATCH-057
+  goal_id: GOAL-ECDLP-001
+  snapshot_commit: 9edde63a3
+  recorded_at: "2026-08-04"
+  reviewer_model: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+  requested_policy: review-adversarial
+  independent_session: true
+
+  claim_under_review: >-
+    EXP-OIFP-0ca0c9 / RUN-OIFP-001: BFS MITM on the ordinary 3-isogeny graph
+    at bits=20 finds a collision in mean 2.4 steps, passing the bits=20
+    success criterion (< 4 × p^{1/4} = 128 steps). Bits=40 labeled
+    resource_exhaustion_infrastructure. Together these are offered as
+    preliminary support for H-OIFP-097d1a (birthday MITM on ordinary isogeny
+    class, O(p^{1/4}) collision cost).
+
+  verdict: PASS_SCOPED
+  verdict_rationale: >-
+    No asymptotic claim is made, no overclaiming appears in the manifest, all
+    infrastructure failures are correctly labeled, anomalies are honestly
+    disclosed, and the planted controls confirm mechanical correctness. The
+    artifacts are clean. However, the evidence is weaker than the criterion
+    label "bits20_criterion_passed: true" implies: selection bias toward
+    degenerate small isogeny classes dominates the bits=20 sample, making the
+    passed criterion vacuous. No promotion of H-OIFP-097d1a beyond
+    "preliminary / inconclusive" is warranted without stratifying on class
+    size. The PASS is therefore scoped to the honest artifacts and the narrow
+    conclusion stated below; any wider interpretation is blocked.
+
+  blocking_objections:
+
+    - id: OBJ-1
+      title: "bits20_criterion_passed is vacuous due to selection bias"
+      severity: blocking
+      detail: >-
+        18 of 20 bits=20 replications had class_size ≤ 8 (13 with class_size=2,
+        4 with class_size=8, 1 with class_size=5). In a graph of 2 nodes every
+        forward step from E immediately reaches the sole neighbour; a backward
+        step from E' also reaches E in 1 step. Collision at step 1 is
+        structurally guaranteed for class_size=2, not an O(p^{1/4}) result.
+        The remaining small classes (5, 8) also collapsed to step=1 trivially.
+        These 18 reps contribute 18 × 1 = 18 to the sum, and the 2 large-class
+        reps contribute 17 + 13 = 30, giving mean = 48/20 = 2.4.
+
+        The falsification condition in H-OIFP-097d1a ("collision requires >
+        4 × p^{1/4} steps on average across 20 random (E, E') pairs") is
+        technically not violated, but 18/20 of those pairs were in the
+        regime class_size ≤ 8, where the condition is trivially satisfied
+        regardless of algorithm. The hypothesis mechanism — birthday MITM on a
+        class of h(D) ~ sqrt(p) ~ 1024 curves — was exercised on only 2/20
+        instances. "bits20_criterion_passed: true" is formally accurate but
+        provides no evidence that O(p^{1/4}) scaling holds in the regime the
+        hypothesis actually addresses.
+
+        Consequence: no promotion of H-OIFP-097d1a to "approved" or
+        "supported" may cite the overall bits=20 mean or criterion label.
+        Any evidence assessment must stratify by class size and report
+        separately for small-class (trivial) and large-class (meaningful) reps.
+
+    - id: OBJ-2
+      title: "Falsification condition is untestable with the observed class-size distribution"
+      severity: blocking
+      detail: >-
+        Random ordinary prime-order curves at bits=20 are predominantly in very
+        small 3-isogeny classes. Only 2/20 reps drew from classes with
+        class_size > 100 (reps 4 and 8, class sizes 384 and 309). These are
+        still well below h(D) ~ sqrt(2^20) ~ 1024 assumed by the mechanism.
+        The experiment design treats 20 random curves as representative of the
+        h(D) ~ sqrt(p) regime, but the empirical distribution strongly
+        concentrates in the small-class tail.
+
+        The consequence is that the falsification boundary (4 × p^{1/4} = 128
+        steps on average) cannot be tested without either:
+          (a) conditioning the sample on class_size ≥ C × sqrt(p) for some C,
+              or
+          (b) using a prime selection procedure that targets curves with large
+              class number.
+        Without this, any improvement that narrows the criterion threshold —
+        e.g. requiring mean < 2 × p^{1/4} instead of 4 × p^{1/4} — would be
+        equally "passed" for the wrong reason.
+
+  non_blocking_notes:
+
+    - id: NOTE-1
+      title: "CTRL-RANDOM-WALK vs MITM: suggestive for large-class reps, statistically insufficient"
+      detail: >-
+        Overall means (MITM 2.4 vs RW 3.9) are not meaningfully different at
+        this scale and are almost entirely explained by small-class trivial
+        collisions. For the 2 large-class reps: MITM 17 vs RW 26 (rep 4,
+        class=384) and MITM 13 vs RW 32 (rep 8, class=309). The MITM
+        consistently outperformed the random walk on these instances. This is
+        consistent with the expected birthday-paradox advantage of MITM over
+        a single walk, but n=2 is statistically insufficient to distinguish a
+        real structural advantage from sampling noise. The correct conclusion
+        is: "MITM advantage cannot be confirmed or ruled out with the current
+        sample; the isogeny graph's specific structure remains untested vs a
+        generic regular graph of the same degree at this scale."
+
+    - id: NOTE-2
+      title: "bits=40 resource_exhaustion correctly labeled; partial class size is informative"
+      detail: >-
+        The infrastructure failure label is correct per AGENTS rule 5. The
+        partial class size of 4730 nodes found at rep 0 (bits=40) is
+        consistent with the expected larger h(D) at bits=40 and confirms that
+        the BFS MITM budget (10,000 steps) and wall-clock limit (270 s/rep)
+        were insufficient — not that the algorithm failed on a solvable
+        instance. This is not negative evidence against the mechanism.
+        However, it signals that a random-walk / distinguished-point variant
+        will be required even at bits=40, and that BFS MITM is the wrong
+        vehicle for larger bit sizes.
+
+    - id: NOTE-3
+      title: "Large-class reps individually consistent with sqrt(h(D)) scaling"
+      detail: >-
+        Rep 4: class_size=384, collision_steps=17. sqrt(384) ≈ 19.6.
+        Ratio: 17/19.6 ≈ 0.87.
+        Rep 8: class_size=309, collision_steps=13. sqrt(309) ≈ 17.6.
+        Ratio: 13/17.6 ≈ 0.74.
+        Both are within a factor of 1.5 of the sqrt(h(D)) prediction —
+        consistent with the O(sqrt(h(D))) birthday-MITM mechanism. This is
+        a correct-mechanism preliminary signal; it is not a validated scaling
+        law (n=2, class sizes still ~2-3× below h(D) ~ 1024 for bits=20).
+
+    - id: NOTE-4
+      title: "Planted controls confirm mechanical correctness at both bit sizes"
+      detail: >-
+        ctrl_planted_passed: 3/3 at bits=20 (p in [649879, 994039]) and 3/3
+        at bits=40 (p in [741B, 774B], elapsed 0.12–6.7 s). The MITM
+        implementation correctly finds planted known-path collisions. This
+        rules out a buggy traversal as an alternative explanation for the
+        large-class results.
+
+    - id: NOTE-5
+      title: "No asymptotic overclaiming; claim_tier and sota_delta are correctly set"
+      detail: >-
+        The manifest explicitly states sota_delta.note = "No asymptotic claim
+        made", claim_tier = "toy", and success_criterion_met = false. The
+        anomalies section and unexpected_observation field both disclose the
+        small-class bias. No O(p^{1/4}) validation is asserted. The artifact
+        is honest.
+
+    - id: NOTE-6
+      title: "Ratio 0.075 (mean 2.4 / prediction 32) should not be cited as algorithm efficiency"
+      detail: >-
+        The manifest reports ratio_mean_over_prediction = 0.075 but does not
+        use it to claim super-prediction efficiency. This ratio is entirely
+        an artifact of the small-class selection bias and carries no
+        information about algorithm performance in the h(D) ~ sqrt(p) regime.
+        Any downstream summary that cites this ratio positively would be
+        misleading.
+
+  required_controls:
+    - >-
+      Before any upgrade of H-OIFP-097d1a beyond "specified / preliminary",
+      the bits=20 analysis must be stratified by class_size. Report separately:
+      (a) all reps with class_size ≤ 16 (trivially small — exclude from the
+          O(p^{1/4}) test), and (b) reps with class_size ≥ 100 (meaningful).
+      The test should be repeated with a sampling procedure that targets curves
+      in large isogeny classes, or equivalently, conditions on h(D) ≥ sqrt(p)/2.
+    - >-
+      A distinguishability control is required to test whether MITM provides
+      a structural advantage over a random walk on a generic degree-4 regular
+      expander of the same size. The current CTRL-RANDOM-WALK uses the same
+      isogeny graph, so it does not distinguish algorithm advantage from graph
+      structure. Use a random 4-regular graph on h(D) nodes as the null object.
+    - >-
+      For bits=40, rerun with a random-walk distinguished-points MITM variant
+      (not BFS) and O(p^{1/4}) = 1024 step budget per half-walk, to determine
+      whether the mechanism scales to the intended test size.
+
+  counterexample_or_mutation: >-
+    Mutation: replace the ordinary isogeny graph with a uniformly random
+    4-regular graph on h(D) nodes, and run the same BFS MITM. If collision
+    steps are statistically indistinguishable from the isogeny MITM, then no
+    problem-specific structural advantage has been demonstrated and the
+    "ordinary isogeny fingerprinting" framing overstates the contribution.
+    The experiment is cheap at bits=20 (class sizes 300–400 nodes) and
+    directly answers whether the isogeny structure adds anything beyond
+    birthday collision in any regular expander. Neither the current MITM
+    control nor the random-walk control separates these hypotheses.
+
+  baseline_comparison: >-
+    The hypothesis claims O(p^{1/4}) cost for the ordinary isogeny path
+    problem. The standard birthday-MITM on any graph of h(D) ~ sqrt(p) nodes
+    also gives O(sqrt(h(D))) = O(p^{1/4}) collision steps — so the claim, if
+    it holds, matches the generic birthday bound for this graph size, not an
+    improvement over it. The relevant comparison is: does this beat L[1/2]
+    class-group index calculus for the OIFP? The manifest correctly records
+    dominated_by = "L[1/2] class group index calculus for large p". No claim
+    of asymptotic improvement is made at this stage. The evidence is
+    insufficient to revisit that comparison.
+
+  heuristic_challenges: []
+
+  cost_model_challenges:
+    - >-
+      The per-rep cost at bits=20 for large-class reps (0.64–0.71 s for
+      class_size ~300–400) reflects BFS enumeration cost, not just MITM steps.
+      The BFS must enumerate a significant fraction of the class before finding
+      a collision. Full-class enumeration cost scales as O(h(D)) isogeny
+      evaluations, not O(p^{1/4}). The "2.4 steps" measure counts collision
+      steps in the MITM search, but the full end-to-end cost includes
+      class-enumeration precomputation. At bits=40 the class enumeration alone
+      exceeded budget. Any cost model for H-OIFP-097d1a must account for the
+      O(h(D)) = O(sqrt(p)) class-enumeration component, not only the
+      O(p^{1/4}) MITM step count.
+
+  reduction_and_scope_challenges: []
+
+  proof_architecture_challenges:
+    - >-
+      Quantifier-order: the collision-step count is measured on instances
+      selected uniformly at random from 20-bit primes, but the hypothesis
+      is stated for "two ordinary elliptic curves E and E' over F_p with
+      the same group order N (same isogeny class)." The distribution over
+      random primes produces predominantly tiny isogeny classes, not the
+      h(D) ~ sqrt(p) distribution the hypothesis assumes. The experiment
+      silently chooses instances after seeing that most produce trivial
+      results; the falsification condition must be re-stated to condition
+      on class_size ≥ C × sqrt(p) to be non-vacuous.
+    - >-
+      Method-ceiling: the BFS MITM variant used here requires explicit
+      enumeration of the isogeny class (or large fraction thereof) before
+      MITM can proceed. The ceiling for this variant is therefore O(h(D))
+      class-enumeration cost per run, which is O(sqrt(p)) — no better than
+      L[1/2] index calculus in the relevant regime. The O(p^{1/4}) headline
+      applies only to the MITM search step, not the full algorithm. A
+      Pollard-rho distinguished-point variant that avoids class enumeration
+      is required to realize the full O(p^{1/4}) end-to-end cost.
+
+  narrowest_supported_statement: >-
+    At bits=20, for the 2 ordinary prime-order curve instances with
+    3-isogeny class size in [300, 400] (reps 4 and 8), BFS MITM finds a
+    collision in 13–17 steps. These are within a factor of ~1.3 of
+    sqrt(class_size) (≈ 17.6–19.6), consistent with the birthday-MITM
+    O(sqrt(h(D))) mechanism, and MITM outperformed the random-walk control
+    on both instances (26 and 32 RW steps vs 17 and 13 MITM steps).
+    The MITM implementation is mechanically correct (3/3 planted controls
+    at both bit sizes). The bits=40 resource exhaustion is an infrastructure
+    budget limitation, not negative evidence.
+    These 2 data points are a correct-mechanism preliminary signal only.
+    They do not validate O(p^{1/4}) scaling, do not test the h(D) ~ sqrt(p)
+    regime (class sizes are ~1/3 of the bits=20 predicted h(D) ~ 1024), and
+    do not establish any advantage over a generic birthday-MITM on an
+    arbitrary regular expander of the same size. H-OIFP-097d1a remains
+    inconclusive pending a properly stratified or large-class-targeted
+    experiment.
+
+  next_concrete_action: >-
+    Coordinator should designate the bits=20 result as "preliminary /
+    inconclusive" for H-OIFP-097d1a and commission a follow-on experiment
+    that: (1) selects ordinary curves conditioned on class_size ≥ C × sqrt(p)
+    (e.g. C = 0.5, so class_size ≥ 512 at bits=20), or uses a targeted prime
+    selection to produce large discriminants; (2) replaces BFS MITM with a
+    Pollard-rho distinguished-point variant to avoid O(h(D)) enumeration cost;
+    (3) runs a random 4-regular expander control of the same size to
+    distinguish isogeny-graph structure from generic birthday-MITM advantage.
+    bits=40 is accessible with the distinguished-point variant and adequate
+    wall-clock budget (≥ 3600 s / rep).
+
+  artifact_paths:
+    - experiments/EXP-OIFP-0ca0c9/runs/RUN-OIFP-001/manifest.json
+    - experiments/EXP-OIFP-0ca0c9/runs/RUN-OIFP-001/collision_table.json
+    - ledger/hypotheses/H-OIFP-097d1a.yaml

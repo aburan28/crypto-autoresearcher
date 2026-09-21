@@ -1,0 +1,425 @@
+run:
+  id: RUN-RELN-141a86-stage1-grammar
+  experiment_id: EXP-RELN-141a86
+  handoff: TASK-20260907-8fd098
+  amendment: experiments/EXP-RELN-141a86/amendments/v1.yaml (v1, DEC-20260907-057ffe)
+  phase: stage1_grammar_fits
+  status: completed_valid
+  file_naming_note: >-
+    THIS FILE IS manifest_v2.yaml, NOT manifest.yaml. tools/check_run_immutability.py
+    enforces append-only run directories (AGENTS.md rule 2): a committed run
+    artifact may never be modified or deleted in place, only superseded. The
+    original manifest.yaml (status: running, the last state PID 3440 itself
+    would have left it in before this dispatch) is therefore left byte-identical
+    to its last-merged content; this file is the TERMINAL record and is wired
+    in as the superseding record for RUN-RELN-141a86-stage1-grammar via
+    tools/run_supersession_registry.yaml (both hash-pinned). The same rule
+    applies to every companion artifact this manifest cites: driver-progress.log,
+    enumeration-checkpoint.json, pareto-fronts-raw.json, stdout.log, and
+    implementation.md all remain unmodified at their base filenames (partial,
+    pre-terminal snapshots as of the last merge); their COMPLETE, terminal
+    (complexity-1-through-6, all 14 targets) content lives in the sibling
+    _v2 files this manifest actually cites below and throughout: driver-progress_v2.log,
+    enumeration-checkpoint_v2.json, pareto-fronts-raw_v2.json, stdout_v2.log,
+    implementation_v2.md. Wherever this manifest's prose below names one of
+    those five files without the _v2 suffix, it is describing the terminal
+    DATA (identical in content to the _v2 file), not literally pointing at
+    the unmodified base-named file -- the _v2 filename is the one to actually
+    open. manifest_pending_v2.yaml (an earlier, still-nonterminal draft this
+    dispatch's predecessor produced) is likewise left unmodified at its
+    original content; it is superseded history, not the terminal record.
+  status_note: >-
+    TERMINAL as of manifest_v2.yaml (this file), superseding the prior
+    status: running manifest.yaml via tools/run_supersession_registry.yaml
+    (see file_naming_note above for the full append-only mechanics). This
+    run's real, decidable terminal state is
+    C_complete = 6 (all 14 targets in pareto-fronts-raw.json.targets fully,
+    exhaustively scored through complexity level 6 of the frozen grammar
+    node-counting rule, one leaf pack -- fb3_unsigned_m3_and_enum_unsigned_m3
+    -- two statistics -- Delta, E_3), reached by a combination of a natural
+    wall-clock-cap stop and a deliberate Coordinator decision to stop further
+    exhaustive search at this level; see `timeline` below for the full,
+    disclosed sequence. status: completed_valid because raw-result.json
+    reports pure measurements (Pareto fronts, collision sets, candidate-list
+    scoring, held-out isolation) against the frozen contract's own metric
+    definitions, with zero fabrication, zero NULL/ALIVE classification, and
+    every scope reduction (statistics, packs, PySR arm) disclosed rather than
+    silently narrowed. Per this experiment's own established
+    invalid_measurement precedent (RUN-RELN-141a86-stage0c-minimality), this
+    status would be invalid_measurement only if a claimed recovery/measurement
+    could not be trusted; here every reported number is exactly what the
+    frozen grammar/fit engine computed at the levels it actually completed,
+    with no claim beyond that. certificate.kind is none: this run makes no
+    discrete-log-solve or factor-base-relation claim, so no certificate
+    re-verification duty applies.
+  timeline:
+    - >-
+      2026-09-07T20:42:54Z through 2026-09-08T07:18:08Z: approximately 21
+      successive launches of stage1_grammar_driver.py in this run directory,
+      each killed by either a container restart (this session's disclosed,
+      recurring infrastructure limitation -- see
+      RUN-RELN-141a86-stage0c-pexist-extended/manifest.yaml's
+      restart_history) or, twice, a real bug (an OverflowError in
+      stage1_fit_engine.py's held_out_error and, separately, its
+      _weighted_sse training objective, both from e_se ** 2 / term ** 2
+      exceeding float range on legitimately huge-but-finite predictions from
+      the ZN_interval positive control and high-complexity candidates on the
+      random arms; diagnosed and fixed this dispatch, both instances,
+      `**` replaced by explicit multiplication -- see implementation.md's
+      "Crash diagnosis and fix" section for the full diagnosis). Prior to
+      this dispatch's checkpoint-resume fix (below), every one of these ~21
+      relaunches restarted the grammar ENUMERATION from complexity 1 (only
+      the row-level own-enumeration/E-arm-holdout table caches were
+      resumable), so real progress on complexity climbing was effectively
+      capped near complexity 4-5 across this entire window despite the table
+      data itself being cheap (~1s) to rebuild on each relaunch.
+    - >-
+      This dispatch (2026-09-08) diagnosed the climb-loss root cause (
+      stage1_grammar_driver.py's main() never read enumeration-checkpoint.json
+      / pareto-fronts-raw.json back in on startup) and implemented a genuine
+      per-complexity-level checkpoint-resume fix (build_level_exprs()
+      factored out; startup re-derives, by registration only, never
+      re-fitting or re-scoring, every already-completed level, verifying the
+      re-derived new_registered count against the original at every level
+      before trusting the resume; front_state reloaded verbatim on success).
+      Verified by a real SIGKILL-and-resume regression test
+      (source/test_stage1_grammar_resume.py) against copies of this run's own
+      real cached data, asserting byte-identical front_state between an
+      uninterrupted control run and a killed-and-resumed run. Commits
+      eb3ed46bc (fix + test) and 923a0840a (production application).
+    - >-
+      PID 3440 (the launch at 2026-09-08T07:18:08.656670Z, driver-progress.log
+      line 1810 -- the last of the ~21 pre-checkpoint-resume-fix relaunches,
+      but the FIRST to run with both the held_out_error and _weighted_sse
+      overflow fixes simultaneously applied, per the "Relaunch, honestly
+      reported" section of implementation.md) was deliberately left
+      undisturbed by this dispatch's checkpoint-resume-fix development (fix
+      built and tested in a separate temp directory, never touching PID
+      3440's own files) and ran uninterrupted for the rest of its natural
+      lifetime. It exhaustively completed complexity levels 1 through 6 for
+      all 14 targets (level-by-level cumulative elapsed_seconds_total per
+      enumeration-checkpoint.json: L1=0.607s, L2=1.083s, L3=26.85s,
+      L4=243.415s, L5=4108.41s, L6=39500.881s) and stopped itself, on its own,
+      at 2026-09-08T18:16:29.616426Z with stopped_reason=wall_clock_cap
+      (39500.9s >= the contract's 21600s stage1_grammar_fits advisory
+      ceiling; the cap check fires only between levels, so the slow level 6
+      pushed total elapsed well past the nominal cap before the check ran --
+      a pre-existing property of the cap check, disclosed, not a bug
+      introduced by this dispatch). No container restart or crash ended PID
+      3440; it exited cleanly on its own wall-clock-cap logic. This is the
+      run's real, exhaustive, complexity-6 result: pareto-fronts-raw.json's
+      front_state for every one of the 14 targets was written by, and only
+      by, PID 3440.
+    - >-
+      Immediately after PID 3440 exited (confirmed via ps/kill -0), a
+      separately-dispatched agent relaunched the fixed driver as PID 16763
+      (2026-09-08T18:16:54.662495Z) with the identical command in
+      command.txt. Its resume path activated correctly in production:
+      "RESUME: found checkpoint complete through complexity 6" ->
+      "RESUME: enumeration state rebuilt through complexity 6 (new_registered
+      counts matched at every level, confirming byte-identical re-derivation)
+      ... resuming fit/score at complexity 7" (driver-progress.log,
+      2026-09-08T18:17:13.633175Z) -- the levels-1-6 rebuild (registration
+      only) took ~19s, versus the many hours PID 3440 spent actually scoring
+      those levels, and complexity 7 began scoring fresh. This is the exact
+      checkpoint-resume mechanism working correctly in a real production
+      run, not just in the isolated regression test, and is recorded here as
+      a genuine, verified fact about the fix -- separately from the scope
+      decision below.
+    - >-
+      THE COORDINATOR (a later session, this same 2026-09-08) then
+      deliberately killed PID 16763 (SIGTERM, confirmed dead) to enforce a
+      STANDING PRIOR DECISION recorded in commit 83b4739ee: cap this
+      experiment's exhaustive search at C_complete=6, given the demonstrated
+      combinatorial per-level cost growth documented in that commit's own
+      message (level 6 alone consumed ~9.8 of the run's ~11 total hours; the
+      growth pattern level4(243s) -> level5(3865s) -> level6(35392s) predicts
+      level 7 would be substantially more expensive still). This was NOT a
+      correction of the checkpoint-resume fix (which worked exactly as
+      designed and is retained, verified, in source/stage1_grammar_driver.py
+      and source/test_stage1_grammar_resume.py for any future dispatch that
+      needs it) -- it was a deliberate scope/cost judgment, legitimate under
+      the contract's own stopping_rules ("If enumeration at some complexity
+      C <= 12 does not complete within the Stage-1 grammar budget, the
+      engine reports the largest completed complexity C_complete ... not
+      reaching C_max is a scoping fact, not a failure"). PID 16763 never
+      completed or checkpointed any part of complexity 7:
+      pareto-fronts-raw.json's last_updated_utc
+      (2026-09-08T18:16:29.539344Z) and enumeration-checkpoint.json's
+      last_updated_utc (2026-09-08T18:16:29.537685Z) are both unchanged from
+      the state PID 3440 wrote; zero additional wall-clock compute
+      contributed to this run's terminal data. No exact SIGTERM timestamp is
+      separately logged by the driver (a SIGTERM produces no log line); it
+      occurred sometime after 2026-09-08T18:17:13.633175Z (PID 16763's last
+      log line) and before this manifest was written.
+    - >-
+      No process for this run is alive as of this manifest (PID 3440: exited
+      naturally; PID 16763: killed by the Coordinator). No further compute is
+      authorized or pending for this run directory; extending complexity 7+
+      requires a new Coordinator decision and, if authorized, a new run.
+  code:
+    commit: 923a0840a6b23c8735c6147bdffe270c5f3f4956
+    branch: claude/gnn-clustering-symbolic-regression-hzkbu0
+    dirty_at_this_manifest_write: false
+    command: see command.txt in this run directory
+    unchanged_frozen_modules:
+      - path: experiments/EXP-RELN-141a86/source/grammar_engine.py
+        sha256: 60eed169d4fb72260833e8d3f0825f88ee1b9894a3069a2e1467944f3b60c7e7
+      - path: experiments/EXP-RELN-141a86/source/grammar_engine_lean.py
+        sha256: 19b4b0b732fe3fde4ea83c6f17cb3d3b32efbce2f37a750e53ad49b9d31c966f
+      - path: experiments/EXP-RELN-141a86/source/grammar_engine_checkpoint.py
+        sha256: 06ba545fc6183bef3181b5f64446f48aca4226f114e3127143a28e346bbe0b17
+      - path: experiments/EXP-RELN-141a86/source/count_vectors.py
+        sha256: 282fefa7b636f0620bb0c7b2cb4502ce7b87a75b52b214734ae1d1e521a7cc5c
+      - path: experiments/EXP-RELN-141a86/source/constant_fit.py
+        sha256: 1964e99d640143ee8a67cbf19fe3024191a4d49508f70ea4efef95f67bc9e381
+        note: >-
+          Not called by stage1_fit_engine.py (a new, purpose-built fitter was
+          written instead; see implementation.md deviation #7).
+      - path: experiments/EXP-RELN-141a86/source/adapters_fb3_dreg_enum.py
+        sha256: c43328f4bee41cb2d6a3c4830101f3b2046be36c65bc9aae0324c59c2dc0a2e0
+    new_or_modified_modules_this_experiment:
+      - path: experiments/EXP-RELN-141a86/source/stage1_own_enumeration.py
+        sha256: 89bf8dfaee88e9a80ba2f30285abc43cf9ea8c8eedc37395b151b7a5f3e0717d
+      - path: experiments/EXP-RELN-141a86/source/stage1_fb3_table.py
+        sha256: 8131d20c8cce13f6142edd7de22c2fc8a78f2048a1e3779c8f4f4b136fe3fa21
+      - path: experiments/EXP-RELN-141a86/source/stage1_e_arm_holdout.py
+        role: >-
+          Real elliptic-curve (not Z/N surrogate) 2^20 held-out E-arm data
+          builder, see implementation.md deviation #9.
+      - path: experiments/EXP-RELN-141a86/source/stage1_fit_engine.py
+        role: >-
+          Expression evaluator + constant fitter + held-out RMS-null-SE
+          metric; modified this dispatch to fix the two `** 2` overflow
+          instances (see timeline above and implementation.md).
+      - path: experiments/EXP-RELN-141a86/source/stage1_grammar_driver.py
+        role: >-
+          Orchestrator; modified this dispatch to add the checkpoint-resume
+          fix (see timeline above and implementation.md).
+      - path: experiments/EXP-RELN-141a86/source/test_stage1_grammar_resume.py
+        role: Real kill-and-resume regression test for the checkpoint-resume fix, this dispatch.
+    note: >-
+      Exact per-file hashes for the modules modified this dispatch
+      (stage1_fit_engine.py, stage1_grammar_driver.py) are not re-stated here
+      to avoid a stale/live duplication risk; the git commit above pins their
+      exact content. See implementation.md for the full change history.
+  candidate_list_provenance:
+    hash_expected: f1aec620f8cb19318e6d6459174bd79b80daf6dd46fdacf6afdf2468c7cac7f2
+    hash_source: experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0a/candidate-list-hash.txt
+    recomputation_matched: true
+    recomputation_method: >-
+      sha256 over the concatenated raw bytes of candidate-list.yaml,
+      grammar.yaml, environment.lock.json (in that order); recomputed
+      independently while producing this manifest and found byte-identical
+      to the archived hash.
+  recovery_control_gate_status: >-
+    5 of 5 per the amended standard (experiments/EXP-RELN-141a86/amendments/v1.yaml,
+    DEC-20260907-057ffe): INV-1, INV-7 p_fail, INV-8, INV-A4, INV-A6 fully
+    recovered under the ORIGINAL standard; INV-7 p_exist PARTIALLY recovered
+    -- p_exist's minimality is proven only through complexity 8;
+    complexities 9-10 are unsearched due to disclosed, repeated
+    infrastructure failure (three container-restart deaths,
+    RUN-RELN-141a86-stage0c-pexist-extended), not ruled out by computation.
+    This qualifier is carried verbatim per the amendment's
+    degraded_minimality_flag_propagation_requirement. This run's own pack
+    (fb3_unsigned_m3_and_enum_unsigned_m3) does not itself test INV-7 (that
+    lives on pack enum_xclass_signed_m2, not attempted this run); this
+    section states the gate this run was authorized to proceed under, not a
+    claim this run re-verified it.
+  inputs:
+    committed_fb3_cells:
+      paths:
+        - experiments/EXP-FB3-001/runs/RUN-FB3-001-N14/raw-result.json
+        - experiments/EXP-FB3-001/runs/RUN-FB3-001-N16/raw-result.json
+        - experiments/EXP-FB3-001/runs/RUN-FB3-001-N18/raw-result.json
+      role: >-
+        training-only Delta/E_3/coverage rows for the E-arm geometries; no
+        2^20 rung exists in this source at all.
+    sibling_enumeration_EXP_RELN_f202be:
+      checked: true
+      outcome: field_and_convention_incompatible_not_used
+      reason: >-
+        See implementation.md's corrected deviation #2: geometry
+        (smallest-x vs top-bit/height/coset constructions), sign convention
+        (negation-closed vs not-required-negation-closed) and B-rule
+        (B_1/B_2 vs B0=ceil((6N)^(1/3))) all differ simultaneously; not a
+        field-naming difference an adapter could paper over.
+    own_enumeration_stage1_inline:
+      generated_by: source/stage1_own_enumeration.py
+      cache_file: own-enumeration-cache.jsonl (this run directory)
+      rungs: [16411, 65537, 262147, 1048583]
+      arms: [ZN_interval, ZN_random_relabelled, E_matched_random_analog]
+      deviation_note: >-
+        Own-enumeration performed inside Stage 1's write_scope rather than a
+        separate Stage 0e run; see implementation.md deviation #1.
+    e_arm_holdout_2e20_data:
+      generated_by: source/stage1_e_arm_holdout.py
+      cache_file: e-arm-holdout-cache.jsonl (this run directory)
+      n_rows: 12
+      construction: >-
+        Real elliptic-curve arithmetic via EXP-FB3-001/implementation/fb3_core.py
+        UNMODIFIED at bits=20 (a length EXP-FB3-001 itself never ran); self-test
+        reproduced the committed RUN-FB3-001-N14/high_bit_interval/curve_index=1
+        cell bit-for-bit (9 fields matched exactly) before any 2^20 curve was
+        generated. See implementation.md deviation #9.
+  pysr_recheck:
+    outcome: failed_infrastructure
+    detail: see environment.json in this run directory
+    summary: >-
+      pysr 2.2.1 is pip-installable but no pin was ever established at Stage
+      0a (recorded unavailable then), and a fresh install attempt's required
+      Julia backend fails to download in this environment (SHA-256 mismatch
+      on the Julia 1.11.9 binary). stage1_pysr_fits is failed_infrastructure
+      for the PySR arm; the primary exhaustive_grammar engine stands alone,
+      per the frozen contract's own pinning clause.
+  environment:
+    ref: environment.json (this run directory)
+    python_version: 3.11.15
+    numpy_version: 2.4.6
+    host_memory_gib_total: 15
+    host_cpu_count: 4
+    pysr_available: false
+    julia_available: false
+    resolved_inference:
+      requested_policy: executor-implementation
+      fallback_used: false
+    budget_vs_host_disclosure: >-
+      specification.yaml sizing_note assumes >=32 GB / >=8 cores; this host
+      has ~15 GB / 4 cores, same disclosed gap as every prior run in this
+      experiment.
+  timing:
+    started_at_utc: '2026-09-07T20:42:54.622367Z'
+    pid3440_effective_start_utc: '2026-09-08T07:18:08.656670Z'
+    pid3440_finished_at_utc: '2026-09-08T18:16:29.616426Z'
+    pid3440_driver_internal_elapsed_seconds: 39501.0
+    pid16763_started_at_utc: '2026-09-08T18:16:54.662495Z'
+    pid16763_resume_completed_at_utc: '2026-09-08T18:17:13.633175Z'
+    pid16763_killed_by_coordinator: true
+    pid16763_contributed_new_levels: 0
+    pid16763_wall_clock_seconds_before_kill_upper_bound_estimate: >-
+      Not separately logged (SIGTERM produces no log line); bounded above by
+      the gap between 2026-09-08T18:17:13Z (last log line) and the time this
+      manifest was written; zero additional complexity levels were completed
+      or checkpointed in that window regardless of its exact length.
+    finished_at_utc: '2026-09-08T18:16:29.616426Z'
+    finished_at_utc_note: >-
+      The run's terminal DATA state (pareto-fronts-raw.json,
+      enumeration-checkpoint.json) was fixed at this timestamp by PID 3440's
+      own natural stop; this is the timestamp used as finished_at_utc for
+      this manifest even though a second process (PID 16763) was later
+      launched and killed without changing any data.
+    wall_clock_seconds: 39501.0
+    wall_clock_seconds_note: >-
+      Driver-internal elapsed time for the process that actually produced
+      the terminal data (PID 3440), per its own "total_elapsed=39501.0s" log
+      line. Does not include the ~21 earlier relaunches' cumulative wall
+      clock (each of which re-derived from complexity 1 under the
+      pre-checkpoint-resume-fix code, before this dispatch's fix; see
+      timeline) or PID 16763's ~19s resume-and-rebuild (registration only,
+      no new scoring).
+    per_level_elapsed_seconds:
+      complexity_1: 0.607
+      complexity_2: 0.476
+      complexity_3: 25.767
+      complexity_4: 216.565
+      complexity_5: 3864.995
+      complexity_6: 35392.471
+      note: >-
+        Deltas computed from enumeration-checkpoint.json's cumulative
+        elapsed_seconds_total field; complexity_6 alone consumed
+        35392.471s / 39500.881s = 89.6% of PID 3440's total measured elapsed
+        time, the combinatorial per-level growth cited in commit 83b4739ee's
+        stopping decision.
+    cpu_seconds: null
+    cpu_seconds_note: >-
+      Not separately measured; only wall-clock elapsed time was recorded by
+      the driver's own logging.
+    measurement_status: terminal
+  budget:
+    requested_wall_clock_seconds: 21600
+    contract_advisory_ceiling_seconds: 21600
+    actual_wall_clock_seconds_pid3440: 39501.0
+    budget_exceeded: true
+    budget_exceeded_disclosure: >-
+      PID 3440's wall-clock cap check fires only between complexity levels,
+      never mid-level; level 6 alone took 35392.471s, so total elapsed
+      overshot the 21600s advisory ceiling by roughly 83% before the check
+      could fire and stop the process. This is disclosed per
+      docs/research-budget-policy.md (advisory, not a hard approval gate)
+      and is the same overshoot pattern already disclosed in
+      manifest_pending_v2.yaml's precedent for this run.
+    requested_memory_gb: 16
+    host_available_memory_gib: 14
+    maximum_runs_this_handoff: 6
+    runs_used_this_handoff: 1
+  result:
+    certificate:
+      kind: none
+    raw_result_pending: false
+    summary: >-
+      See raw-result.json in this run directory for the full, exact
+      measurement output: C_complete=6 (uniform across all 14 targets, one
+      pack, two statistics), zero candidate-list matches found (INV-A1 and
+      INV-1 structurally unreachable at complexity 6 given their canonical
+      node count of 9; INV-2prime, reachable at node count 5, genuinely
+      searched and not found), PySR arm failed_infrastructure so
+      engine-agreement is primary-engine-only, held-out isolation
+      statement, and per-target Pareto fronts with collision-set sizes. No
+      NULL/ALIVE classification is made in raw-result.json or here; that
+      judgment belongs to the Coordinator after independent review per
+      later_review_requirements.
+  required_artifacts_status:
+    produced_this_run:
+      - manifest_v2.yaml (this file; supersedes manifest.yaml, which remains unmodified per tools/run_supersession_registry.yaml)
+      - command.txt
+      - environment.json
+      - stdout_v2.log (terminal content; base-named stdout.log remains unmodified, a partial pre-terminal snapshot)
+      - stderr.log
+      - raw-result.json
+      - driver-progress_v2.log (terminal content; base-named driver-progress.log remains unmodified)
+      - enumeration-checkpoint_v2.json (terminal content; base-named enumeration-checkpoint.json remains unmodified)
+      - pareto-fronts-raw_v2.json (terminal content; base-named pareto-fronts-raw.json remains unmodified)
+      - own-enumeration-cache.jsonl
+      - e-arm-holdout-cache.jsonl
+      - e-arm-holdout-stderr.log
+      - e-arm-holdout-stdout.log
+      - implementation_v2.md (terminal content, adds a "TERMINAL OUTCOME" section; base-named implementation.md remains unmodified)
+    not_produced_this_run:
+      - pareto-fronts/<statistic>-<pack>-<engine>.json (per-file naming convention from specification.yaml required_artifacts; raw-result.json and pareto-fronts-raw.json contain the equivalent content unformatted into that exact file layout)
+      - collision-sets.json (equivalent content present inline in raw-result.json/pareto-fronts-raw.json)
+      - scored-candidate-list.json (equivalent content present inline in raw-result.json's candidate_list_scoring block)
+      - k-rich-profile.json (R_k statistics were never fitted this run; see C_complete.statistics_not_started in raw-result.json)
+      - tail-checks.json (not attempted this run; see raw-result.json's tail_checks block)
+      - dreg-n21-predictions.json (dreg_semaev_D5 pack never attempted this run)
+      - survivors.json (no survivor can be identified without a NULL/ALIVE classification, which this executor does not make)
+      - pysr-agreement.json (PySR arm failed_infrastructure; no agreement computable)
+      - enumeration-summaries/ (own-enumeration-cache.jsonl and e-arm-holdout-cache.jsonl serve this role for this run)
+      - execution-report.md (not produced this dispatch)
+      - environment.lock.json (archived once at Stage 0a; not re-produced per run)
+      - grammar.yaml, candidate-list.yaml, candidate-list-hash.txt (archived once at Stage 0a; re-verified, not re-produced, this run)
+      - control-tables/, recovery-controls.json, p2-delta-null-check.json (Stage 0 artifacts, produced in earlier runs of this experiment)
+    disclosure: >-
+      specification.yaml's required_artifacts list spans the FULL contract
+      (Stage 0 through Stage 2). This run implements only the portion of
+      stage1_grammar_fits actually reached (one pack, two statistics, primary
+      engine only, C_complete=6); the artifacts above are honestly reported
+      present or absent rather than fabricated or silently assumed.
+  review_reservation: >-
+    Per TASK-20260907-8fd098 / specification.yaml later_review_requirements:
+    review_required true; results are CLAIM-RELEVANT. Independent validator
+    blind re-derivation of the Delta front (E x-interval arm, m=3,
+    fb3_unsigned_m3 pack), red-team attack on the selection-over-expressions
+    confound, and review-adversarial at xhigh are all owed before any
+    NULL/ALIVE classification backs a claim or changes H-RELN-427bfd's
+    status. This executor does not classify NULL/ALIVE itself and does not
+    change hypothesis status. Note for the reviewer: at C_complete=6, the
+    predicted null (INV-A1, canonical node count 9) and INV-1 (also 9) are
+    structurally unreachable by this run's enumeration; only INV-2prime
+    (node count 5) was genuinely checkable and not found. Any NULL/ALIVE
+    judgment on the E x-interval Delta front therefore cannot rest on this
+    run's candidate-list scoring alone.
+  supersedes:
+    prior_manifest: experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage1-grammar/manifest.yaml
+    prior_sha256: 81761085373d6af01ab384154b55d66dad47871c00bc66af0f7fc4dac8894a9f
+    prior_status: running
+    registered_via: tools/run_supersession_registry.yaml

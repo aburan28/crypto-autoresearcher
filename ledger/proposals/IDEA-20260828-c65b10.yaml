@@ -1,0 +1,170 @@
+idea:
+  id: IDEA-20260828-c65b10
+  question_id: RQ-AES-003
+  goal_id: GOAL-AES-003
+  added: '2026-08-28'
+  proposed_by: idea-generator
+  status: proposed
+  title: >-
+    REF-B is currently one point (plain brute force over the hinted
+    residual) -- is a sort-and-match generic baseline a CHEAPER adjudicable
+    reference, which CM-3 requires this campaign to use if it exists?
+  class: measurement
+  claim: >-
+    IDEA-20260805-72ec9a correctly identifies that REF-B does not yet
+    exist as a frozen, measured artifact, and proposes freezing a
+    conversion constant and a curve B(h) = 2^(k-1-h)/T(r,k) for PLAIN
+    EXHAUSTIVE SEARCH over the hinted residual. CM-3(b) requires the
+    comparison to use the CHEAPEST adjudicable generic construction, and
+    plain exhaustive search is not necessarily that construction once a
+    residual is large enough to make a MEET-IN-THE-MIDDLE / sort-and-match
+    generic strategy viable: split the residual key bits into two halves,
+    partially evaluate forward and backward from a chosen plaintext/
+    ciphertext pair, sort one half's partial results, and match against
+    the other -- a GENERIC technique that uses NO cipher-specific
+    structure (unlike DS-MITM's multiset) and is therefore itself a valid,
+    even MORE conservative REF-B candidate than plain brute force. TWO
+    OUTCOMES. (i) At the residual sizes this campaign's hinted
+    constructions actually use (h in {88,...,96} per IDEA-72ec9a), the
+    generic sort-and-match strategy is MEMORY-INFEASIBLE in this envelope
+    (table size 2^((k-1-h)/2) may still be too large) -- plain exhaustive
+    search remains the cheapest ADJUDICABLE generic baseline, and every
+    existing DOMINATED verdict (attack6n vs REF-B) stands UNCHANGED, now
+    on a checked rather than assumed footing. (ii) A residual size exists
+    where sort-and-match fits the envelope and beats plain exhaustive
+    search's measured time -- in which case REF-B itself moves, and every
+    prior domination margin computed against plain brute force UNDERSTATES
+    how dominated any structured construction at that residual size
+    actually is.
+  mechanism: >-
+    Generic meet-in-the-middle key search: split a (k-h)-bit residual
+    into two halves of (k-h)/2 bits each; for a fixed plaintext/ciphertext
+    pair, compute a keyed intermediate value forward from the plaintext
+    under all values of the first half (holding the second half at a
+    canonical value) and a matching intermediate backward from the
+    ciphertext under all values of the second half; sort one list and
+    probe the other. This is GENERIC (uses no round-function-specific
+    property beyond the cipher being invertible) and trades a
+    2^((k-1-h)/2)-size table for a roughly square-root reduction in time
+    relative to plain exhaustive search over the same residual, at the
+    cost of memory and of a small number of confirmation-pass false
+    positives per CM-3(g)'s precomputation-and-verification charging rule.
+  why_not_a_renamed_known_approach: >-
+    Generic meet-in-the-middle key search IS a named classical technique
+    and RQ-AES-003's off-limits list names "meet-in-the-middle and
+    Demirci-Selcuk" as a family -- but, exactly as for the key-bridging
+    audit and DS-MITM ideas above, RQ-AES-003 explicitly exempts the
+    BASELINE arm: "the off-limits list binds the NOVEL arm, never the
+    baseline arm," and this proposal's entire point is that REF-B, as
+    currently scoped by IDEA-72ec9a, may not yet be the CHEAPEST generic
+    baseline CM-3(b) requires. This is not a novel attack; it is asking
+    whether the campaign's own comparison reference is honestly the
+    cheapest one available, which no existing record in this campaign asks.
+  novelty_status: unverified
+  citations:
+    - ref: 'classical meet-in-the-middle key search (recalled, textbook technique, not tied to any single paper)'
+      provenance: recalled
+      claim: A generic time-memory tradeoff for exhaustive key search over a split residual.
+      verified_by: null
+  assumptions:
+    - The residual sizes actually used by this campaign's existing hinted constructions (h in {88,...,96} per IDEA-72ec9a) are the relevant range to test; if future constructions use much smaller h, the crossover point must be recomputed.
+    - REF-B's frozen conversion constant T(r,k) (once IDEA-72ec9a lands) applies equally to the forward and backward partial-evaluation halves of the sort-and-match construction; this is checked, not assumed, since the two halves may not cost identically per operation.
+  proof_search_map:
+    not_applicable_reason: >-
+      Baseline-construction measurement, not a proof-oriented claim; the
+      relevant audits are carried in minimal_test and falsification_conditions instead.
+  predictions:
+    - metric: table size 2^((k-1-h)/2) at h in {88,90,92,94,96}, k=128
+      direction: lower
+      minimum_effect: A specific number of bytes per h, checked against the measured envelope (<=15 GB) before any time claim is trusted.
+    - metric: measured wall-clock cost of sort-and-match vs plain exhaustive search at the SAME h, on the SAME machine, in the SAME CM-3 unit
+      direction: lower
+      minimum_effect: Any measurable crossover, reported honestly if none exists in the feasible range.
+    - metric: measured peak RSS of the sort-and-match construction
+      direction: higher
+      minimum_effect: Reported beside time always, per CM-3(f); a time-only comparison is rejected by this campaign's own rule.
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute): compute table size 2^((k-1-h)/2) for h in
+      {88,90,92,94,96} and flag any that exceed ~10 GB as infeasible before
+      writing code. STAGE 1: for any feasible h, implement and measure both
+      plain exhaustive search and sort-and-match over the identical
+      residual on the identical machine, in the identical CM-3 unit, with
+      peak RSS measured for both. STAGE 2: report the crossover h, if any,
+      and update REF-B's definition to the CHEAPER of the two at each h,
+      per CM-3(b)'s "cheapest adjudicable generic baseline" requirement.
+    controls:
+      - Both arms measured in ONE binary on ONE machine at ONE h, never compared across separately-measured records (the exact discipline IDEA-72ec9a itself insists on for its own T(r,k) reconciliation).
+      - Correctness check: sort-and-match must find the SAME planted key as plain exhaustive search on a synthetic test instance before either is trusted for a real comparison.
+    required_metrics:
+      - table size and measured peak RSS for sort-and-match
+      - measured wall clock for both arms at each tested h
+      - crossover h, if any, stated with its arithmetic
+  falsification_conditions:
+    - Sort-and-match's table exceeds the envelope at every h in the tested range -- plain exhaustive search remains REF-B unchanged, a real and useful confirmation rather than a null.
+    - Sort-and-match's measured time does NOT beat plain exhaustive search even where memory-feasible (e.g. due to sorting overhead or cache effects at this scale) -- reported as such; REF-B stays plain exhaustive search.
+    - The synthetic correctness check fails -- implementation bug, stop before any real comparison.
+  confounders:
+    - Sort/hash-table overhead at this scale may erase the asymptotic sqrt speedup in practice (exactly the counted-op-vs-measured-time divergence IDEA-8e20fe already found for a different reorganized implementation) -- must be measured, not assumed from the asymptotic formula.
+    - False-positive confirmation passes (CM-3(g)) must be charged into the sort-and-match arm's total cost, not treated as free.
+  interpretation_limits:
+    - This changes only the BASELINE arm's definition, never a novel-attack claim.
+    - If REF-B moves, every EXISTING domination verdict computed against plain exhaustive search (e.g. EV-AES-005's attack6n-vs-brute-force finding) needs re-stating against the new REF-B by a Coordinator act on a superseding record -- this proposal does not itself change any prior verdict.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The measured per-operation cost of the sort-and-match construction's
+        two halves (forward partial evaluation, backward partial
+        evaluation, sort, probe) is within a factor of 2 of plain
+        exhaustive search's per-operation cost, uniformly over the tested
+        table sizes.
+      rigorous_support: >-
+        None proved; this is the same class of engineering assumption
+        IDEA-9512e6/H-AES-9512e6 already tests for a different
+        reorganized-vs-direct comparison (memory-hierarchy cost divergence
+        as working-set size grows), reused here rather than re-derived.
+      validation_plan: >-
+        Direct sweep measurement at each tested h, exactly as
+        H-AES-9512e6's validation route already does for its own pair of
+        implementations; report the worst-case per-operation ratio across
+        the tested range, not the average.
+  target_complexity:
+    time_exponent: >-
+      No exponent moved against AES generically. This proposal potentially
+      moves REF-B itself (the comparison reference), which is
+      infrastructure work explicitly named as not completing this goal on
+      its own but as REQUIRED before any REF-B-based domination claim is trustworthy.
+    memory_exponent: 2^((k-1-h)/2), the central quantity under test.
+    best_known: The campaign's own currently-assumed REF-B (plain exhaustive search, IDEA-72ec9a).
+    hidden_overhead: >-
+      The classical sqrt-time-for-memory tradeoff formula hides real
+      constant-factor overhead (sorting, hashing, cache misses at scale)
+      that this proposal insists on MEASURING rather than assuming, per
+      IDEA-8e20fe's own precedent finding that such overhead can invert
+      sign.
+    tradeoff_note: Explicit and central; this proposal's entire content IS the tradeoff curve.
+  dominated_by: >-
+    n/a directly (this is baseline-construction work, not an attack); for
+    the QUESTION "what is the cheapest generic baseline at residual size
+    k-h", the current committed answer is IDEA-72ec9a's plain exhaustive
+    search, unchallenged until this proposal's Stage 1 runs.
+  sota_delta: >-
+    If sort-and-match does not beat plain exhaustive search in the feasible
+    range: zero, REF-B confirmed as already cheapest. If it does: REF-B
+    itself moves, and every prior domination margin against plain
+    exhaustive search needs restating (via a Coordinator superseding
+    record) as UNDERSTATING the true domination.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+
+  source_refs:
+    - RQ-AES-003
+    - GOAL-AES-003
+    - IDEA-20260805-72ec9a
+    - IDEA-20260807-8e20fe
+    - IDEA-20260808-9512e6
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.

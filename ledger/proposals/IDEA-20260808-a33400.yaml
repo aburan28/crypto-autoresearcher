@@ -1,0 +1,265 @@
+idea:
+  id: IDEA-20260808-a33400
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-AES-003
+  goal_id: GOAL-AES-003
+  title: The tracked object is the INCIDENCE DESIGN between chosen-plaintext structures and
+    the delta-sets they contain - a single 2^32 diagonal structure carries c independent r-round
+    integral checks, c is an exact combinatorial quantity computable with no cipher evaluation
+    at all, and the data complexity every integral attack charges is off by exactly a factor
+    c.
+  class: representation
+  claim: 'Fix the pinned column-major layout. Let D_0 be the first diagonal and let S be the
+    full 2^32-element coset of D_0 that GOAL-AES-003 BATCH-001 already sweeps in a measured
+    53 s. Define the incidence design I(S) = { T subset S : T is a delta-set for the r-round
+    integral, i.e. T is a coset of a 1-byte or 4-byte active subspace on which the r-round
+    balancedness check is defined }. THE CLAIM IS AN EXACT COUNT AND A STATISTICAL RIDER.
+    (i) |I(S)| is computable in closed form from the subspace lattice alone - for the 1-byte
+    delta-set family it is exactly 2^24 * (number of admissible active positions), for the
+    4-byte diagonal family exactly 1 - and this count requires ZERO AES evaluations. (ii)
+    The r-round checks indexed by I(S) are NOT mutually independent, and the number of INDEPENDENT
+    checks is exactly c(r) = dim of the GF(2)-span of their indicator functionals, again computable
+    from the subspace lattice with no cipher evaluation. (iii) THEREFORE the data complexity
+    of any integral key recovery that needs N independent checks is N/c(r) structures, not
+    N. THE DISCRIMINATING PREDICTION - c(4) > 1 strictly (the 4-round integral admits genuine
+    reuse) while c(5) = 1 (at r = 5 the checks collapse to one). If instead c(4) = 1, the
+    standard charging is correct and this record is a scoped negative that EXPLAINS why published
+    data complexities are what they are; if c(5) > 1, the r = 5 data complexity drops by log2
+    c(5) bits and that is a measured cost movement on the data axis at the round where this
+    campaign''s integral dies.'
+  mechanism: An integral check is a linear functional on the multiset of ciphertexts of a
+    structure - "the XOR over the delta-set of ciphertext byte j is zero". Two delta-sets
+    inside the same structure give two functionals on the same 2^32 measured ciphertexts.
+    If those functionals are linearly independent as vectors over GF(2)^{2^32}, the two checks
+    carry independent information and the SAME data pays for both; if they are dependent,
+    the second check is free but worthless. The whole question is therefore a RANK computation
+    over a highly structured 0/1 matrix whose rows are indexed by delta-sets and whose columns
+    are indexed by plaintexts - and that matrix is the incidence matrix of a resolvable design
+    induced by the subspace lattice of (GF(2^8))^{16} under ShiftRows and MixColumns. Its
+    rank is a lattice invariant, computable by Moebius inversion over the subspace lattice
+    rather than by instantiating a 2^32-column matrix. The KEY STRUCTURAL FACT that makes
+    the answer nontrivial - ShiftRows maps a diagonal to a column, so a diagonal coset is
+    simultaneously a union of many 1-byte-active cosets in the ROW direction; the reuse question
+    is exactly whether the round function's mixing destroys the row-direction independence,
+    and the branch number 5 of MixColumns is what decides it.
+  why_not_a_renamed_known_approach: 'NEAREST KNOWN METHOD - "structures" in differential cryptanalysis,
+    where a structure of 2^s plaintexts yields 2^{2s-1} pairs instead of 2^s. That is a PAIR-COUNTING
+    argument on the DATA and is universally charged. Mine is a RANK argument on the CHECKS:
+    the question is not how many delta-sets fit in a structure (trivial) but how many of the
+    resulting checks are LINEARLY INDEPENDENT, which nobody in this repository has computed
+    and which the "structures" folklore does not answer. NEAREST INTERNAL RECORD - catalogue
+    A2-4 / A2-9 (mode-transfer identity; set-aggregate death rounds) track how an AGGREGATE
+    survives a mode combiner; my object is the INCIDENCE MATRIX between structures and checks,
+    which is upstream of any aggregate and lives entirely in the plaintext space. Also nearest
+    is H-AES-49d2c7 (the full 2^32 diagonal-coset collision object) - that hypothesis is about
+    the OUTPUT projection of one fixed input set; mine is about how many DISTINCT input sets
+    that one sweep secretly contains. LOSSY-PROJECTION TEST - the projection is state -> (which
+    subspace coset the plaintext lies in). It DISCARDS the position within the coset entirely
+    and keeps only the coset label. This is compatible with the target''s operations in the
+    precise sense that the key addition and the linear layer act on coset labels by translation
+    and by a linear map on the subspace lattice, WITHOUT consulting the position - the standard
+    subspace-trail propagation. SubBytes does NOT act on coset labels, and that is the honest
+    limit: the projection propagates deterministically only through AddRoundKey, ShiftRows
+    and MixColumns, so the object survives exactly as far as a subspace trail does. It is
+    genuinely lossy (2^{32} points collapse to one label). PASSES, with the survival limit
+    stated up front rather than discovered later.'
+  predictions:
+  - observable: closed-form count |I(S)| for the 1-byte-active family inside one 2^32 diagonal
+      coset
+    metric: exact integer, derived with zero AES evaluations
+    predicted: a specific integer to be pre-registered BEFORE the sweep, and matched EXACTLY
+      by an enumeration on a 2^16 scaled-down analogue
+  - observable: c(4), the GF(2)-rank of the r=4 check functionals inside one structure
+    metric: integer rank
+    predicted: strictly greater than 1
+  - observable: c(5)
+    metric: integer rank
+    predicted: exactly 1 (the campaign has measured the r=5 full-diagonal integral DEAD at
+      0/16 for two keys, so the predicted collapse is consistent with committed evidence rather
+      than with hope)
+  - observable: effective data complexity of the campaign's own r=4 verification sweep
+    metric: log2(chosen plaintexts) needed for N independent checks, before vs after
+    predicted: lower by exactly log2 c(4) bits, with the arithmetic auditable line by line
+  - observable: null control - the same rank computation on a cipher whose linear layer is
+      the identity
+    metric: c_null(4)
+    predicted: strictly different from c(4); equality means the rank is a property of the
+      delta-set family alone and not of AES's mixing
+  minimal_test: NO CRYPTANALYTIC COMPUTE IS REQUIRED FOR THE PRIMARY CLAIM. Step 1 - derive
+    |I(S)| and c(r) by Moebius inversion over the subspace lattice, by hand, and PRE-REGISTER
+    the integers. Step 2 - verify them by brute enumeration on a scaled-down AES-like SPN
+    over GF(2^4) with a 2x2 or 4x4 MDS layer, where the whole structure is 2^16 and the incidence
+    matrix is materialisable; the campaign already has a GF(2^4) analogue instrument from
+    GOAL-AES-001 BATCH-003. Step 3 - verify the r = 4 prediction on real AES by re-running
+    the existing 53 s full-diagonal sweep and evaluating c(4) checks from the SAME ciphertext
+    file, confirming that c(4) of them pass and that they are not derivable from one another.
+    Step 4 - only if c(5) > 1, re-open the r = 5 integral with the reduced data budget.
+  controls:
+  - Identity-linear-layer null (prediction 5) - isolates AES mixing from the delta-set family.
+  - Scaled GF(2^4) exhaustive check of the closed-form counts BEFORE any real-AES claim, labelled
+    toy.
+  - Pre-registration of the integers before the sweep, with the file committed, so the derivation
+    cannot be fitted to the measurement.
+  - Round-count decay - c(r) must be non-increasing in r; an increase is the artifact tell.
+  - Independent recomputation of the rank by a second session using a different method (direct
+    Gaussian elimination on the toy instance vs Moebius inversion).
+  confounders:
+  - GF(2)-independence of functionals is NOT the same as statistical independence of the checks
+    under a wrong key. The rank bound is an upper bound on usable information; the attack-side
+    gain requires the wrong-key distributions to be independent too, and that is a separate
+    measurement.
+  - Overlapping delta-sets share ciphertexts, so their check statistics are correlated even
+    when the functionals are independent. This is a real confounder and must be measured,
+    not assumed away.
+  - The pinned column-major layout matters - IDEA-20260807-7e16ac already flags the ShiftRows
+    image of the diagonal under this exact layout. A layout error silently changes every count.
+  falsification_conditions:
+  - c(4) = 1. The standard data charging is exactly right and this is a scoped negative that
+    explains published data complexities.
+  - The pre-registered closed-form integers disagree with the toy exhaustive enumeration.
+    The Moebius derivation is wrong and nothing downstream may be reported.
+  - c(4) > 1 by the rank computation but the r = 4 sweep shows the checks are statistically
+    dependent under wrong keys, so no data saving materialises. Then the rank is an upper
+    bound only, and the record's honest deliverable is the gap between the algebraic and statistical
+    counts.
+  - c(r) increases with r. Artifact tell - the run is void.
+  interpretation_limits: Reduced-round, toy tier. The object propagates deterministically
+    only through the linear layers; it dies at SubBytes exactly as a subspace trail does,
+    and the survival horizon is therefore bounded by the known subspace-trail depth for AES,
+    which is short. NOTHING here is a full-round statement. A data-complexity saving is a
+    saving against this campaign's own charging and against REF-A, never against the published
+    frontier.
+  assumptions:
+  - The pinned column-major layout of GOAL-AES-003 is the one used throughout, and IDEA-20260807-7e16ac's
+    ShiftRows/diagonal fix is applied.
+  - The GF(2^4) analogue instrument from GOAL-AES-001 BATCH-003 is reusable, with its declared
+    defect set (KN-FIND-029 escape classes) attached and NOT reset.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: FOR ALL keys K and FOR ALL pairs of delta-sets T1, T2 inside one structure
+      whose check functionals are GF(2)-independent, the corresponding r-round check STATISTICS
+      under a uniformly random WRONG key are independent up to total-variation distance <=
+      2^{-8}. (This is the bridge from algebraic independence to usable independence, and
+      it is the assumption that can fail.)
+    rigorous_ingredient: GF(2)-linear independence of the functionals is PROVED by the rank
+      computation - no heuristic there. What is heuristic is only the step from linear independence
+      of functionals to independence of their distributions under wrong keys.
+    distribution_imitated: The wrong-key randomisation hypothesis, i.e. "an r-round AES under
+      a wrong key behaves like a uniformly random permutation with respect to this functional"
+      - the symmetric-cryptanalysis analogue of "behaves like a uniformly random integer of
+      its size".
+    validation_route: TOY SCALE, LABELLED. On the GF(2^4) analogue, enumerate ALL wrong keys
+      for a 2-byte guess and measure the empirical joint distribution of the two check statistics;
+      compare against the product of marginals by total-variation distance. On real AES at
+      r = 4, sample 2^20 wrong keys per structure and compare the empirical joint histogram
+      of two independent checks against the product of its own marginals. This is a toy/medium-scale
+      check and is NEVER presented as validating a crypto-scale claim.
+    tail_checks: Report the MAXIMUM total-variation distance over all functional pairs and
+      all sampled keys, and the worst-case pair explicitly. A single pair at distance > 2^{-4}
+      kills the usable-independence claim for the whole family, because an attack must survive
+      its worst pair, not its average.
+  target_complexity:
+    time_exponent: UNCHANGED. This idea does not touch the time exponent; it moves the DATA
+      exponent by exactly log2 c(r) bits and says so. Stated plainly because the program's
+      own rules demand it - if c(4) = 4 the saving is 2 bits of data and nothing else, which
+      is a cofactor-class result on the data axis and is proposed as a BUILDING BLOCK for
+      A1-01 (a cheaper data budget is what makes an r=6 schedule affordable inside a 1600
+      s producer slot), not as an exponent mover in its own right.
+    memory_exponent: Unchanged - the rank computation is over a lattice of dimension <= 16
+      and costs kilobytes. The 2^32 sweep's memory is already measured.
+    best_known_baseline: The campaign's own charging - one 2^32 structure per integral check
+      (REF-C rows as measured in GOAL-AES-003). REF-A definitional.
+    hidden_overhead_disclosure: The gap between ALGEBRAIC independence (what the rank certifies)
+      and STATISTICAL independence (what an attack needs) is the hidden overhead, and HA-1
+      is exactly it. If HA-1 fails the entire data saving evaporates while the rank statement
+      stays true - a case where the theorem survives and the cost claim does not.
+    time_memory_tradeoff: Not applicable in the usual sense; the relevant tradeoff is DATA-versus-TIME,
+      and the record makes it explicit - c(r) independent checks from one structure means
+      N/c(r) structures at the same time cost, or the same data at 1/c(r) of the false-positive
+      rate.
+  sota_delta: Against this campaign's own charging - log2 c(r) bits of data, exactly, with
+    c(r) computed rather than estimated. Against REF-A - irrelevant (data is not the binding
+    axis there). Against the published frontier - unadjudicable, asserted in neither direction.
+    HONEST SIZE ESTIMATE - I expect c(4) to be small (2 to 16, i.e. 1 to 4 bits) and c(5)
+    to be 1; this is a cofactor-class movement and is ranked accordingly.
+  dominated_by: For the DATA axis at r = 4 the dominating row is the existing measured full-diagonal
+    sweep (53 s, 2^32 plaintexts, 16/16 balanced), which already succeeds - so a data saving
+    there buys time, not capability, and is DOMINATED in the Pareto sense by simply running
+    the sweep. The idea is NOT dominated at r = 5-6, where the campaign's integral is dead
+    and a data saving changes what fits in a producer slot. I checked REF-A, REF-B, REF-C's
+    four measured rows, and the r=5/r=6 recovery timings (25.66 s and 69.39 s) before writing
+    this.
+  estimated_cost: Implementation LOW (a lattice Moebius computation and a toy enumeration;
+    no new cryptanalytic code). Compute LOW (the 53 s sweep already exists; the toy enumeration
+    is seconds). Fits in well under one producer slot.
+  recommended_priority: medium
+  honest_prior_of_survival: 'c(4) > 1 - 0.55. c(5) > 1 - 0.15 (the campaign''s measured 0/16
+    at r=5 makes a rich independent-check structure there unlikely). HA-1 surviving its worst-pair
+    tail check - 0.4, and that is the real risk: I expect the algebraic count to be right
+    and the statistical usability to be the thing that fails. Producing a decision either
+    way - 0.9.'
+  novelty_status: unverified
+  novelty_class: speculative
+  novelty_screen: Screened against CATALOGUE_TITLES.txt (nearest A2-4 mode-transfer identity
+    and A2-9 GHASH power weighting - both about OUTPUT combiners, not input incidence); EXISTING_HYPOTHESES.txt
+    (nearest H-AES-49d2c7, the full 2^32 diagonal-coset collision object - one fixed input
+    set, one output projection); EXISTING_PROPOSALS.txt (nearest IDEA-20260807-7e16ac on the
+    ShiftRows image of the diagonal under the pinned layout, which is a LAYOUT CORRECTNESS
+    control and not a counting object); REJECTED_TITLES.txt / DEFERRED_TITLES.txt (no AES
+    entries); KNOWLEDGE_BARRIERS.txt (no KN-FIND on integral data charging). EXTERNAL LITERATURE
+    NOT SCREENED - web search unavailable. "Structures" in differential cryptanalysis are
+    classical and are named above as the nearest folklore; whether the RANK question has been
+    answered in the literature is UNKNOWN to this session.
+  discriminated_from: H-AES-49d2c7 - that object is the OUTPUT collision histogram of one
+    input coset; mine is the rank of the space of CHECKS supported on that coset, computed
+    before any cipher call. IDEA-20260807-7e16ac - a layout control, not a count. Classical
+    "structures" - pair counting, not functional rank.
+  source_refs:
+  - ref: GOAL-AES-003 committed measurements - full-diagonal 2^32 integral exact through r=4
+      (16/16 balanced), dead at r=5 (0/16, two keys); sweep measured at 53 s (MEAS-GOAL-AES-002-002)
+    status: internal_committed
+  - ref: IDEA-20260807-7e16ac - ShiftRows image of the diagonal under the pinned column-major
+      layout
+    status: internal_committed
+  proof_search_map:
+    bottleneck: The data budget. At r >= 5 the campaign's integral instruments die and the
+      binding constraint on trying anything richer is how many chosen plaintexts fit in a
+      producer slot.
+    baseline_embedding:
+      parameter_slice: c(r) = 1 recovers the standard charging exactly.
+      reproduction_check: Setting the linear layer to the identity must return the standard
+        count; frozen as a fixture.
+    observation_collision:
+      observable: the integer c(r).
+      distinct_preimage_search: Two different linear layers with the same c(r) are expected
+        and harmless. The dangerous collision is a c(r) that is the same for AES and for the
+        identity layer, which is precisely prediction 5's null and is mandatory.
+    constructive_transforms:
+    - transform: representation_reduction
+      proposed_object: the structure/delta-set incidence matrix, reduced to a subspace-lattice
+        Moebius computation.
+      predicted_gain: turns a 2^32-column rank problem into a rank problem on a lattice of
+        dimension <= 16.
+    quantifier_order: FOR ALL r, THERE EXISTS an integer c(r) such that FOR ALL structures
+      S of the named family, the GF(2)-span of the r-round check functionals supported on
+      S has dimension exactly c(r). Note - c(r) is claimed UNIFORM over structures; a structure-dependent
+      c(r) falsifies the clean statement and reduces it to a min over structures.
+    method_ceiling:
+      strongest_certifiable_claim: '"One structure supports exactly c(r) independent linear
+        checks." It can NEVER certify that those checks are statistically usable - that is
+        HA-1 and it is measured, not proved.'
+      nearby_object_control: An SPN whose MixColumns has branch number 2 (so the subspace
+        trail is longer) should have a strictly LARGER c(r) at the same r. If it does not,
+        the quantity is not tracking mixing.
+    proof_obligations:
+    - claim: closed-form |I(S)| and c(r).
+      responsibility: size
+    - claim: toy enumeration matches the closed form.
+      responsibility: baseline
+    - claim: statistical usability of independent functionals.
+      responsibility: success_probability
+    - claim: data saving is stated against REF-A/REF-C only.
+      responsibility: scope
+    not_applicable_reason: null

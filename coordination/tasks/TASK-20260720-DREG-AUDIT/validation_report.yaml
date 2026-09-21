@@ -1,0 +1,219 @@
+id: VAL-20260720-DREG-AUDIT
+audited_by: validator
+audited_at_utc: 2026-07-20
+scope: >-
+  Integrity/internal-consistency audit of the immutable n=17 DREG receipt set
+  for H-DREG-001 (boolean chained Semaev m=3, D=5, rank-deficit vs support-matched
+  semi-regular null). Numbers only; no significance interpretation; no official
+  status changed; nothing written outside coordination/tasks/TASK-20260720-DREG-AUDIT/.
+receipt_integrity: verified          # all six checks pass; no material defect
+
+artifacts_examined:
+  ledger: [H-DREG-001.yaml, RQ-DREG-001.yaml, EV-DREG-001.yaml, EV-DREG-002.yaml, EV-DREG-003.yaml]
+  comparisons: [n17-sem-partition-comparison-v1.json, n17-null-partition-comparison-v1.json]
+  run_dirs:
+    - RUN-DREG-001-MEASURE-N17-SEM-A
+    - RUN-DREG-001-MEASURE-N17-SEM-B
+    - RUN-DREG-001-MEASURE-N17-NULL-A
+    - RUN-DREG-001-MEASURE-N17-NULL-B
+    - RUN-DREG-001-MEASURE-N17-NULL-B-CONT-1
+  amendments_present: [AMD-20260718-001, AMD-20260718-002, AMD-20260718-003, AMD-20260718-004]
+
+checks:
+
+  check_1_sem_two_partition_gate:
+    status: pass
+    committed_values_confirmed:
+      rank: 125099
+      sr_pred: 126922
+      deficit: 1823
+      ncols: 314472
+      nrows: 132719
+    observed:
+      partition_A:
+        run_id: RUN-DREG-001-MEASURE-N17-SEM-A
+        chunk_force: 24000
+        n_units: 14
+        system_hash: 5f94c88fe1f44ffa657fd47e45ee52a65b59d46cf62a34b22d982a31b9411082
+        ncols: 314472
+        nrows: 132719
+        pred: 126922
+        rank: 125099
+        deficit: 1823
+        status: completed_valid
+        columns_all_processed: true      # next_col == ncols == 314472
+        sum_of_unit_pivots: 125099       # == rank
+      partition_B:
+        run_id: RUN-DREG-001-MEASURE-N17-SEM-B
+        chunk_force: 20000
+        n_units: 16
+        system_hash: 5f94c88fe1f44ffa657fd47e45ee52a65b59d46cf62a34b22d982a31b9411082
+        ncols: 314472
+        nrows: 132719
+        pred: 126922
+        rank: 125099
+        deficit: 1823
+        status: completed_valid
+        columns_all_processed: true
+        sum_of_unit_pivots: 125099
+      A_equals_B: true                   # system_hash, ncols, nrows, pred, rank, deficit all identical
+      comparison_json:
+        equal_result_fields_all_true: true
+        equal_code_fields_all_true: true
+        partitioning_independent: true
+        status: partition_replication_verified
+        both_partitions_verification: verified
+    discrepancy: none
+
+  check_2_null_two_partition_gate:
+    status: pass
+    observed:
+      null_A:
+        run_id: RUN-DREG-001-MEASURE-N17-NULL-A
+        chunk_force: 24000
+        rank: 126922
+        pred: 126922
+        deficit: 0
+        ncols: 384168
+        columns_all_processed: true       # next_col == 384168
+        sum_of_unit_pivots: 126922
+        status: completed_valid
+        system_hash: 5deee45d29ace4654cbe8b103475c23f8252fce2df4c5a02e531155e01c06471
+      null_B_CONT_1:
+        run_id: RUN-DREG-001-MEASURE-N17-NULL-B-CONT-1
+        chunk_force: 20000
+        rank: 126922
+        pred: 126922
+        deficit: 0
+        ncols: 384168
+        processed_columns: 384168         # completes all columns; continuation interval [360000,384168)
+        total_units: 20
+        continuation_units: 2
+        sum_of_unit_pivots: 126922
+        status: completed_valid
+        system_hash: 5deee45d29ace4654cbe8b103475c23f8252fce2df4c5a02e531155e01c06471
+      rank_equals_sr_pred_exactly: true   # 126922 == 126922, deficit 0
+      A_equals_CONT1: true                # null_partition_equal_fields all true
+      parent_null_B:
+        run_id: RUN-DREG-001-MEASURE-N17-NULL-B
+        status: cancelled_by_budget
+        result_valid: false
+        evidence_admissible: false
+        processed_columns: 360000
+        total_columns: 384168
+        remaining_columns: 24168
+        checkpoint_rank_telemetry: 126922  # already at prediction at col 360000, but excluded (full-column gate unmet)
+        correctly_excluded_as_evidence: true
+      continuation_lineage_verified: true  # CONT-1 units 0-17 byte-identical to NULL-B units 0-17, then +2 units to 384168
+    discrepancy: none
+
+  check_3_deficit_series_consistency:
+    status: pass
+    series_sem_D5_full_exact:
+      n:        [12,    15,    17,    18]
+      sr_pred:  [29418, 70935, 126922, 145881]
+      rank:     [28096, 69073, 125099, 143882]
+      deficit:  [1322,  1862,  1823,   1999]
+      relative_deficit_pct: [4.71, 2.70, 1.46, 1.39]
+    recomputation:
+      deficit_equals_sr_pred_minus_rank: true   # 1322/1862/1823/1999 reproduce exactly
+      relative_equals_deficit_over_rank: true    # 1322/28096=4.71%, 1862/69073=2.70%, 1823/125099=1.46%, 1999/143882=1.39%
+      increments: [ "+540 (12->15)", "-39 (15->17)", "+176 (17->18)" ]   # non-monotone at n=17
+      n17_minus_n15_deficit: -39                  # matches EV-DREG-003
+      n18_minus_n17_deficit: 176                   # matches EV-DREG-003
+    cross_record_agreement_on_n17:
+      EV-DREG-002: {rank: 125099, sr_pred: 126922, deficit: 1823}
+      EV-DREG-003: {rank: 125099, sr_pred: 126922, deficit: 1823}
+      EV-DREG-001: predicted_only            # n=17 cell explicitly censored/unverified there (sr_pred 126922, C1); not a contradiction
+      all_measured_records_agree: true
+    discrepancy: none
+
+  check_4_dreg_not_reached_caveat:
+    status: pass
+    nrows: 132719
+    sem_rank: 125099
+    null_rank: 126922
+    sem_rank_lt_nrows: true                 # 125099 < 132719 (row deficit 7620)
+    null_rank_lt_nrows: true                # 126922 < 132719 (row deficit 5797)
+    macaulay_full_row_rank_at_D5: false     # neither arm attains full row rank at D=5
+    conclusion: >-
+      The measured deficit (1823) is a rank-deficit at a FIXED degree D=5, not a
+      measured difference in solving degree. The degree of regularity is not reached
+      at D=5 for either arm; d_reg(sem) < d_reg(null) is not evaluable from these cells.
+    matches_ledger: EV-DREG-002_observation_states_the_same
+    discrepancy: none
+
+  check_5_sr_pred_cross_validation:
+    status: pass
+    sr_pred: 126922
+    null_arm_measured_rank: 126922
+    identity_null_rank_equals_sr_pred: true      # deficit 0 in NULL-A and NULL-B-CONT-1 raw results and both comparison JSONs
+    prediction_is_formula_not_constant: true     # semireg_rank_pred() in code/h012_peel_rank.py L50-67: truncated semi-regular Hilbert series over the Boolean ring from eq_degs and nb, not a hard-coded 126922
+    independent_hilbert_rederivation_here: not_done
+    reason_not_rederived: >-
+      The equation degree multiset (eq_degs) is not exposed as a receipt field; it is
+      derived inside the instrument. Re-derivation is not cheap from the receipts alone.
+      Reliance placed on the exact null cross-check (null arm realizes 126922 to the integer).
+    discrepancy: none
+
+  check_6_hash_provenance_integrity:
+    status: pass
+    sha256_spot_checks_recomputed:
+      SEM-A_raw_result:        {expected: 7c7716a4cce30663cf0fd1e620502c85554401146bc60d62cb34dd78c3eb8856, matches: true}
+      SEM-A_checkpoint_state:  {expected: 01311cea55b842d5029004d2003f6731706db4b29bc8da6262722b17aef8ffb9, matches: true}
+      SEM-B_raw_result:        {expected: 92f54902f04a84ef055901f0de7eb877201713b406f4e5b53dd8a3a7c0f65849, matches: true}
+      SEM-B_checkpoint_state:  {expected: 5d2b9347a8856c2874adc0706030ba4369aa356499724db3cea1c88bb1876da6, matches: true}
+      NULL-A_raw_result:       {expected: 8537fab5a9255452200c15a869a0ebd78d99a7fb6a3ad94a62231045740919e2, matches: true}
+      NULL-A_checkpoint_state: {expected: a3073e8e90e1ecc7036b687c6bff9d8adf6958cf5dda3bfd2391ff129bd35862, matches: true}
+      NULL-B_CONT-1_instrument_result: {expected: fc43b16351cf2591a82fcfbc83c6cb6565bf82699935745dbdb4e5d52360bf7e, matches: true}
+      NULL-B_CONT-1_successor_checkpoint: {expected: 1f2b73714c6253a54fbc13edc400774f5010764d97647153631a7a7a2987f287, matches: true}
+      NULL-B_CONT-1_parent_checkpoint: {expected: 2aabf51b4bba8f6e6874a138c17854aeef833ff2c81902291a5519621b77bd1e, matches: true}  # == NULL-B manifest checkpoint_state
+    comparison_json_fields:
+      sem_equal_result_fields_all_true: true
+      sem_equal_code_fields_all_true: true
+      null_partition_equal_fields_all_true: true
+      any_field_marked_unequal: false
+      verification_verified: true
+    required_receipt_artifacts_present:
+      command: all 5 runs
+      commit: all 5 runs (manifest code.commit)
+      environment: all 5 runs (environment.json)
+      seed: all 5 runs (seed=2026)
+      raw_result: all 5 runs
+      validity_status: all 5 runs (status + result.valid)
+      instrument_and_dependency_sha256: all 5 runs (instrument + 4 pinned deps, identical across runs)
+    missing_required_artifacts: none
+    discrepancy: none
+
+defects: []          # no material defects found
+
+non_blocking_observations:
+  - id: OBS-1
+    severity: cosmetic
+    where: experiments/EXP-DREG-001/n17-sem-partition-comparison-v1.json
+    note: >-
+      Field interpretation_status = "withheld_pending_null_A_and_B" is a stale
+      pre-completion label (null A and null B-CONT-1 have since completed). The file's
+      own status field already reads partition_replication_verified. Labeling lag only;
+      no numeric field affected.
+  - id: OBS-2
+    severity: informational
+    where: n17-null-partition-comparison-v1.json
+    note: >-
+      carrier_files differ between null_a (11) and successor CONT-1 (13); expected
+      artefact of different chunk partitions (24000 vs 20000). Ranks identical (126922);
+      not a defect.
+  - id: OBS-3
+    severity: informational
+    where: EV-DREG-002 / EV-DREG-003 run_ids and RUN-DREG-001-MEASURE-N17-NULL-B manifest
+    note: >-
+      The cancelled parent NULL-B is listed among run_ids but is uniformly documented as
+      inadmissible checkpoint-lineage telemetry (valid:false, evidence_admissible:false,
+      status cancelled_by_budget). Consistent handling; correct exclusion.
+  - id: OBS-4
+    severity: informational
+    where: RUN-DREG-001-MEASURE-N17-NULL-B-CONT-1/manifest.yaml protocol_deviations
+    note: >-
+      Self-disclosed: prelaunch hash-check receipt serialized after process launch;
+      parent checkpoint immutable, no measurement/parameter/hash changed. Non-material
+      to the exact rank. Also flagged in EV-DREG-003 boundaries.

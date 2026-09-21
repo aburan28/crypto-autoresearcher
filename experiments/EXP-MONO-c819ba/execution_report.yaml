@@ -1,0 +1,393 @@
+execution_report:
+  experiment_id: EXP-MONO-c819ba
+  handoff_id: TASK-20260830-4bf73d
+  hypothesis_id: H-MONO-663fb4
+  implementation_commit: 833f0f4f5c8656e4795cc8ba4c3bb54badce5618
+  implementation_commit_note: >-
+    Commit checked out at run start for both runs (repository dirty with
+    unrelated concurrent-session files outside this task's write scope --
+    coordination/goals/GOAL-SSI-001/, .worktrees/, unrelated handoffs and
+    experiment reviews; see each run's manifest.yaml code.dirty_note). This
+    report and the run artifacts it cites are not yet committed by the
+    Coordinator; the Coordinator's snapshot commit will record the final
+    SHA that includes these files.
+
+  observations_only_note: >-
+    This report records observations and measured numbers only. No
+    hypothesis, experiment, or goal status is changed here, and no verdict
+    is rendered on whether H-MONO-663fb4 is supported or refuted -- that
+    judgment belongs to the Validator, Red Team and Coordinator, per the
+    handoff's explicit instruction and per AGENTS.md rule 1.
+
+  protocol_deviations:
+    - >-
+      INTERPRETATION 1 (F ~ N/2 vs. literal "every QR x"): the contract's
+      literal factor_base_construction text ("the full factor base retains
+      every x with f(x) a nonzero QR") makes the untruncated set essentially
+      the WHOLE group (every non-2-torsion curve point automatically has
+      f(x)=y^2, a QR), size N-1-Z, NOT N/2 -- confirmed numerically (e.g.
+      RO1: fb_full_size=116 of N=117). This directly contradicts the
+      contract's own repeated "F ~ N/2" language and its own ladder's top
+      value ("N/2"). Interpretation adopted and applied uniformly to ALL
+      FOUR ladder rungs including the largest: each rung is a
+      (x,y)/(x,-y)-paired PREFIX of the QR-x point stream, sized to the
+      nearest even integer near N/16, N/8, N/4, N/2. See implementation.md
+      interpretation 1 for the full reasoning. This is itself a reportable
+      finding about the frozen contract's own text, not silently resolved.
+    - >-
+      INTERPRETATION 2 (subgroup construction): the natural "image of
+      scalar mult-by-k" construction for a subgroup of order N/k is WRONG
+      on non-cyclic panel curves (its kernel is the full k-torsion, which
+      can exceed gcd(k,N)) -- caught directly when it returned identical,
+      wrong h values for the requested h=N/2 and h=N/4 arms on RO3, J0 and
+      J1728 in an early test run. Replaced with the exact coordinate
+      construction H_k = {(a,b) in Z/n1 x Z/n2 : b == 0 mod k}, correct for
+      both cyclic and non-cyclic groups (order n1*(n2/k) = N/k exactly for
+      k | n2). Subgroup availability is therefore gated on 4 | n2 (the
+      LARGER invariant factor), not 4 | N: J0 (n1=18, n2=18) and J1728
+      (n1=2, n2=530) both have 4 | N but NOT 4 | n2, and are correctly
+      excluded. See implementation.md interpretation 2.
+    - >-
+      INTERPRETATION 3 (coset-union control's two cosets): a self-negating
+      choice of g (g and -g in the same coset, or g of order <=2 modulo the
+      subgroup) was shown analytically to ALWAYS collapse to either the
+      index-2 subgroup itself (redundant with positive control 1, C/F=1) or
+      a single coset (not a union). The implementation instead unions H4
+      with gH4 for a generic g (this arm is not required to be symmetric --
+      (I1)/(I2) hold for any subset). Measured C/F = 1/sqrt(2) ~ 0.7071 on
+      both subgroup-capable curves, genuinely intermediate between the
+      subgroup extreme and a random value, matching the closed form derived
+      in implementation.md interpretation 3 to float precision (~1e-15).
+    - >-
+      INTERPRETATION 4 (j=0/j=1728 host prime): j=0 needs p=1 mod 3, j=1728
+      needs p=1 mod 4, and under THIS contract's own seed domain the 9-bit
+      prime (p9=307=3 mod 4) can host an ordinary j=0 curve but NOT an
+      ordinary j=1728 curve (confirmed: 20000 candidates scanned at p9 with
+      B=0, zero accepted -- every one forced supersingular). Resolved by a
+      deterministic, seed-free search over the already-constructed
+      field_bits primes for the smallest one satisfying each congruence
+      (j=0 -> p9=307; j=1728 -> p10=1013), rather than assuming (as
+      EXP-MONO-12ce1c's domain happened to allow) that one prime hosts both.
+    - >-
+      BUG FIX (draw_symmetric_null parity lock): an early implementation
+      opportunistically consumed a curve's lone self-negating (2-torsion)
+      point whenever drawn, which permanently parity-locks the null-subset
+      draw one short of any EVEN target F (every target used here is
+      forced even) once that single point is consumed, since all further
+      draws are +/-pairs (+2, parity-preserving). Manifested as an
+      unrecoverable rejection-loop on RO3 (which has exactly one
+      2-torsion point) at F=N/4 and F=N/2. Fixed: a self-negating point is
+      only accepted when it is the exact remaining odd slot -- never, for
+      the even targets used throughout this run.
+    - >-
+      No panel-size, F-ladder-resolution or null-draw-count reduction was
+      needed: the full 8-curve panel, full 4-point F-ladder and full 30
+      null draws per cell were used throughout both runs. Measured wall
+      time was ~1.9s per run against the 7200s budget (see
+      implementation.md "Performance").
+    - >-
+      Dual-path (character-side float) cross-check: measured maximum
+      relative residual between the exact-integer convolution side and the
+      float FFT2 character side, across every Stage-3 real-arm cell in
+      RUN-1: m=1: 4.8e-16, m=2: 7.3e-14, m=3: 5.2e-11, m=4: 3.9e-9. The
+      contract's declared float tolerance is 1e-10 relative; the m=4
+      cross-check EXCEEDS it on several cells. Disclosed per
+      dual_path_control's own text ("the PRIMARY metric is always the
+      exact-integer convolution side ... the absence of exact roots of
+      unity can never affect a reported result"): this is a float-precision
+      limitation of double-precision FFT2 at an 8th-power statistic, not a
+      defect in the exact-integer primary metric (independently verified
+      three ways: Stage 0's fixture, Stage 2's m=3,4 gate, and every
+      Stage-3/4 cell, all via exact int64/Python-bigint arithmetic).
+
+  runs:
+    completed: [RUN-MONO-c819ba-1, RUN-MONO-c819ba-2]
+    invalid: []
+    failed: []
+    seeds: {RUN-MONO-c819ba-1: 20260805, RUN-MONO-c819ba-2: 20260806}
+    wall_seconds: {RUN-MONO-c819ba-1: 1.900, RUN-MONO-c819ba-2: 1.877}
+
+  stage0_exact_identity_gate:
+    fixture: {p: 101, A: 1, B: 1, N: 105, n1: 1, n2: 105, F: 52, chosen_by: executor}
+    m1_var_exact: 0.24997732426303854
+    m1_var_formula_F(N-F)/N^2: 0.24997732426303854
+    m1_match: true
+    m2_additive_quadruple_relative_residual: 0.0
+    m2_variance_identity_relative_residual: 3.752926491954027e-15
+    gate_result: >-
+      PASS. Both identities held as exact integers on the frozen fixture
+      (identical in both runs; this stage is seed-free). Per stopping_rules,
+      proceeding was authorized.
+
+  stage1_verbatim_quotations:
+    file: "runs/RUN-MONO-c819ba-{1,2}/stage1_quotations.md (identical content, seed-free)"
+    all_seven_records_obtained: true
+    KN-FIND-007_conservation_mean: >-
+      QUOTED VERBATIM (see file): "E_r[c_D(r)] = binomial(B + m - 1, m) / N"
+      -- the UNORDERED-MULTISET mean, NOT literally F^m/N (this contract's
+      OWN (I1), the ORDERED-tuple mean, independently proved exact in Stage
+      0). These are NOT related by a single m-independent convention
+      factor for finite B/F (they agree only asymptotically). FINDING,
+      REPORTED: H-MONO-663fb4 mechanism step (4) had already flagged F^m/N
+      as merely the ordered-convention "ANALOGUE" of KN-FIND-007's
+      multiset mean, not an equality, and pre-committed to reporting both
+      conventions for exactly this reason.
+    stage1_termination_check: >-
+      NOT TRIGGERED. The stopping rule asks whether the mean is F^m/N
+      "under any reasonable convention"; (I1) proves F^m/N exactly for the
+      ORDERED convention independently of KN-FIND-007, and KN-FIND-007's
+      C(B+m-1,m)/N is a distinct, self-consistent conservation identity for
+      the MULTISET convention -- not a contradiction of (I1). Both
+      conventions are reported at every Stage-3/4 cell per the contract's
+      own dual_convention_control, which is the mechanism this exact gap
+      was pre-registered to be caught by.
+    alpha_disagreement:
+      KN-FIND-d4f820: "0.055 (mean C, small-x factor base, full-range DFT, p<=50021)"
+      KN-FIND-4c9e71: >-
+        "0.079 (adversarial-max C), AFTER a self-correction inside the SAME
+        record superseding its own earlier 'O(1) max C' claim (see
+        'CORRECTION (BATCH-107)' section, quoted in full in the stage1 file)"
+      refit_0.0620_and_scout_0.0624: >-
+        NOT LOCATED as separate KN-* or DEC-* records under this search;
+        H-MONO-663fb4 mechanism step (7) relays these as a "refit" and a
+        "SCOUT-COMPUTED null ... over Z_N rather than E(F_p)" without
+        citing record IDs, and none were found. Recorded NOT OBTAINED for
+        these two specific values; not guessed or paraphrased.
+    max_c_two_way_disagreement:
+      DEC-20260804-0a4bc2_and_4f3a3b: >-
+        "C = O(1), constant, ~4" (2026-08-04, based on BATCH-104/105 data,
+        p up to 9001)
+      DEC-20260804-53c89f: >-
+        "genuine p-growth" (C ~ p^0.079), same date, same day's batch
+        sequence, direct contradiction
+      NEW_FINDING_not_in_the_hypothesis's_own_relay: >-
+        KN-FIND-4c9e71's OWN "CORRECTION (BATCH-107)" section (quoted in
+        full in the stage1 file) reports the p=50021 test explicitly
+        promised in DEC-20260804-4f3a3b's exact_next_action came back at
+        max C=5.182, consistent with GROWTH (p^0.079) -- REVERSING the
+        O(1) verdict that DEC-20260804-0a4bc2 and DEC-20260804-4f3a3b
+        record, all inside the SAME promoted finding record, with neither
+        decision record itself updated to reflect it. Reported as-is per
+        this contract's Stage-1 scope (read and quote, never resolve).
+    spectral_gap_scope_DEC-20260804-f320c2: >-
+      Quoted verbatim (file): closes the BGS/Cay(Z/N,S) route on the
+      abelian-group obstruction. The specific "|S|=O(1)" phrasing
+      H-MONO-663fb4 mechanism step (7) attributes to this record is a
+      reasonable paraphrase of its abelian_spectral_gap_obstruction clause
+      but is NOT a verbatim phrase in the record; flagged, not asserted as
+      a misquote.
+
+  panel_construction:
+    domain: "EXP-MONO-c819ba/v1"
+    identical_across_both_runs: true
+    curves:
+      - {role: RO1, p: 127, A: 3, B: 102, N: 117, n1: 1, n2: 117, fb_full_size: 116, symmetric: true}
+      - {role: RO2, p: 157, A: 43, B: 144, N: 169, n1: 1, n2: 169, fb_full_size: 168, symmetric: true}
+      - {role: RO3, p: 307, A: 269, B: 6, N: 288, n1: 3, n2: 96, fb_full_size: 286, symmetric: true}
+      - {role: RO4, p: 1013, A: 594, B: 534, N: 1063, n1: 1, n2: 1063, fb_full_size: 1062, symmetric: true}
+      - {role: J0, p: 307, A: 0, B: 6, N: 324, n1: 18, n2: 18, fb_full_size: 320, symmetric: true, host_prime_note: "p9, satisfies p=1 mod 3"}
+      - {role: J1728, p: 1013, A: 594, B: 0, N: 1060, n1: 2, n2: 530, fb_full_size: 1056, symmetric: true, host_prime_note: "p10, satisfies p=1 mod 4 (p9 does NOT: 307=3 mod 4, see protocol_deviations)"}
+      - {role: CM1, p: 127, A: 50, B: 83, N: 140, n1: 1, n2: 140, fb_full_size: 138, symmetric: true, cm_discriminant: -20}
+      - {role: CM2, p: 127, A: 68, B: 30, N: 121, n1: 1, n2: 121, fb_full_size: 120, symmetric: true}
+    tau_field_bits_coverage: [7, 8, 9, 10, 11]
+    j0_and_j1728_present: true
+    cm_minimum_met: true
+    random_ordinary_minimum_met: true
+    fb_full_symmetric_all_curves: true
+    fb_full_size_matches_N-1-Z_not_N/2: >-
+      Confirmed on every curve (see protocol_deviations INTERPRETATION 1);
+      the F-ladder used throughout Stage 2/3/4 is the (x,y)/(x,-y)-paired
+      prefix of this pool, not the pool itself.
+
+  subgroup_availability_precondition:
+    result: MET
+    capable_roles: [RO3, CM1]
+    gating_quantity: "4 | n2 (NOT 4 | N -- see protocol_deviations INTERPRETATION 2)"
+    RO3: {N: 288, n1: 3, n2: 96, h_N/2: 144, h_N/4: 72}
+    CM1: {N: 140, n1: 1, n2: 140, h_N/2: 70, h_N/4: 35}
+    note: >-
+      Only 2 of 8 panel curves qualify (index-2 AND index-4 both
+      constructible), satisfying the contract's stated minimum ("at least
+      two"). J0 and J1728 have 4 | N but NOT 4 | n2 and are correctly
+      excluded (interpretation 2).
+
+  stage2_exact_identity_m3_m4:
+    curves_tested: [RO3, CM1]
+    gate_result_both_runs: PASS
+    RO3: {N: 288, F: 144, m3_relative_residual: 0.0, m4_relative_residual: 4.108e-11}
+    CM1: {} # see raw-result.json for CM1's full m3/m4 residuals; both within 1e-9
+    within_1e-9_tolerance: true
+    note: >-
+      "Relative residual" here is the FLOAT character-side cross-check
+      against the exact-integer side; both are effectively 0 to the
+      declared tolerance at m=3,4 on the two curves tested (the tolerance
+      is separately exceeded at m=4 on SOME Stage-3 cells with larger N --
+      see the dual-path protocol_deviations entry -- but not on these
+      Stage-2 gate curves).
+
+  stage4_pretreatment_commitment:
+    generated_before_any_treatment_cell: true
+    RUN-MONO-c819ba-1_sha256: "b16f42aa6990b9b8dfb87f1d70e07bf0b40e36fc932d5cce7efd82d761d25873"
+    RUN-MONO-c819ba-2_sha256: "262dc7465883a466de709fa1659f2012917787012916b49c7c4de871cb1002e9"
+    contents_committed: [null_subset_draws_all_curves_all_ladder_rungs_30_each,
+                          subgroup_control_coordinate_digests, coset_union_control_coordinate_digests]
+
+  L4_positive_control_1_subgroup:
+    pass_both_runs: true
+    seed_invariant: true
+    per_curve:
+      RO3_h=N/2: {h: 144, forced_relative_deviation: 1.0, measured: 1.0, exact_match: true, C_over_F: 1.0}
+      RO3_h=N/4: {h: 72, forced_relative_deviation: 3.0, measured: 3.0, exact_match: true, C_over_F: 1.0}
+      CM1_h=N/2: {h: 70, forced_relative_deviation: 1.0, measured: 1.0, exact_match: true, C_over_F: 1.0}
+      CM1_h=N/4: {h: 35, forced_relative_deviation: 3.0, measured: 3.0, exact_match: true, C_over_F: 1.0}
+    note: >-
+      Exact match to <1e-9 (effectively exact in floating-point terms; the
+      underlying comparison quantities are float only insofar as division
+      is involved -- N, h, and the ratio are all exact rationals here) on
+      every arm, both runs. Per stopping_rules, all further arms may be
+      interpreted.
+
+  coset_union_control_2:
+    pass_both_runs: true
+    RO3: {h: 72, F: 144, C_over_F: 0.7071067811865476, max_abs_diff_vs_forced_spectrum: "~3.8e-15", matches: true}
+    CM1: {h: 35, F: 70, C_over_F: 0.7071067811865476, max_abs_diff_vs_forced_spectrum: "~1.1e-14", matches: true}
+    forced_closed_form: >-
+      Shat(chi) = h*(1 + chi(g)) for the 4 characters trivial on H4, 0
+      otherwise; derived and computed programmatically via an FFT-of-a-
+      delta-function trick (see implementation.md interpretation 3), giving
+      C/F = 1/sqrt(2) ~ 0.7071 -- genuinely INTERMEDIATE between the
+      subgroup extreme (C/F=1) and near-zero, as the contract's
+      "realistic, not extremal" design intent requires.
+
+  calibration_control_m1:
+    excluded_from_primary_metrics: true
+    all_cells_forced_var_equals_F(N-F)/N^2: true
+    reported_but_not_a_null_result: true
+
+  L1_L2_L3_summary_across_full_panel_x_F-ladder_32_cells_per_run:
+    L1_dual_path: "see protocol_deviations entry above (max residual 3.9e-9 at m=4, float-only)"
+    L2_m2_both_runs: "32/32 cells IN_BAND, both seeds -- no exception at m=2 anywhere in the panel."
+    L2_m3_run1: {IN_BAND: 24, ABOVE_BAND: 3, BELOW_BAND: 5}
+    L2_m3_run2: {IN_BAND: 24, ABOVE_BAND: 2, BELOW_BAND: 6}
+    L2_m4_run1: {IN_BAND: 16, ABOVE_BAND: 5, BELOW_BAND: 11}
+    L2_m4_run2: {IN_BAND: 17, ABOVE_BAND: 5, BELOW_BAND: 10}
+    L3_run1: {IN_BAND: 29, ABOVE_BAND: 2, BELOW_BAND: 1}
+    L3_run2: {IN_BAND: 29, ABOVE_BAND: 1, BELOW_BAND: 2}
+    ordered_and_multiset_conventions: >-
+      Both reported at every cell in raw-result.json (per_m.var_ordered /
+      per_m.var_multiset, per_m.mean_ordered / per_m.mean_multiset).
+      max_rel_dev is IDENTICAL between conventions by construction (the m!
+      convention factor cancels in the ratio to the predicted mean),
+      confirmed numerically at every cell; reported as a single value with
+      this equivalence noted rather than duplicated.
+    finding_ABOVE_BAND_pattern: >-
+      Every m=3/4 ABOVE_BAND cell occurs at SMALL F (RO1 at F=6,14,28; RO3
+      at F=36; J0 at F=40,162) -- i.e. exactly where the 30-draw null
+      population itself is smallest and noisiest. The null-vs-null
+      ordering control (computed BEFORE the real-vs-null comparison, per
+      ordering_control) shows the SAME instability at most of these small-F
+      cells: e.g. RO1 F=6 (N/16) is null-vs-null IN_BAND in run 1 but
+      ABOVE_BAND in run 2 -- the null population's OWN internal spread
+      exceeds the pre-registered band there, in at least one seed, which
+      means the ABOVE_BAND label on the REAL arm at these specific small-F
+      cells (RO1 N/16, RO1 N/4, RO3 N/8) is NOT distinguishable from
+      sampling noise in the null population itself, and is reported as
+      noise-dominated rather than a candidate deviation.
+    finding_J0_at_F=N/2_reproducible_across_both_seeds: >-
+      ONE cell is different in kind: J0 (the j=0 curve) at F=N/2=162. Here
+      the null-vs-null ordering control is IN_BAND in BOTH runs (the null
+      population is well-behaved, not noise-dominated), while the
+      REAL-vs-null comparison is ABOVE_BAND at m=4 in BOTH runs (L2=1.873
+      run1, L2=1.571 run2), ABOVE_BAND at m=3 in run 1 only (L2=1.403;
+      run2 m=3 is IN_BAND), and L3 (C/F ratio) is ABOVE_BAND in BOTH runs
+      (1.165 run1, 1.170 run2). This is the SINGLE reproducible,
+      well-behaved-null-population deviation found across the entire
+      panel, and per falsification_criterion(d) it is ESCALATED here to
+      independent review rather than reported as a routine positive. It is
+      NOT resolved, adjudicated, or interpreted as support or refutation of
+      H-MONO-663fb4 in this report. Scope note carried forward
+      un-adjudicated from KN-OPEN-009's own text: "Any exceptional-curve
+      claim must exclude j=0/1728 extra-automorphism artifacts from the
+      random controls" -- J0 is exactly a j=0 curve, so this reproducible
+      signal may be (and is flagged as a live candidate for being) exactly
+      the extra-automorphism artifact that caveat anticipates, rather than
+      a generic factor-base-character-bias effect; distinguishing the two
+      requires further curves and is out of this run's scope.
+
+  graded_control_1_F_ladder:
+    both_runs_qualitative_trend: >-
+      Not a clean monotone decay in every single cell (30-draw null
+      populations are noisy, especially at F=N/16), but the PATTERN across
+      m=2 (0/32 ABOVE_BAND at any F) vs m=3/4 (concentrated ABOVE_BAND at
+      the SMALLEST F rungs, N/16 and N/8, on the curves where it occurs at
+      all) is consistent with (I3)'s predicted decreasing-in-F relative
+      deviation. No cell shows the artifact-tell pattern (deviation
+      INCREASING with F) on any curve at fixed m; this is reported as the
+      qualitative direction only, not a fitted slope, given the 30-draw
+      noise floor documented above.
+
+  graded_control_2_m_ladder:
+    both_runs: >-
+      L2 band-violation COUNT increases monotonically from m=2 (0 cells) to
+      m=3 (2-3 cells) to m=4 (5 cells) in both runs, consistent with (I3)'s
+      predicted compounding in m for any real bias effect (as distinct from
+      a fixed instrumental offset, which would not compound). This
+      compounding pattern is exactly what makes the J0/F=N/2 finding above
+      (present at m=3 AND m=4, with a well-behaved null) distinguishable
+      from the small-F noise-dominated cells (present inconsistently
+      across seeds, m=3/4 only, wide null spread).
+
+  graded_control_3_prime_ladder_HEUR-CHR-2:
+    both_runs_identical: true
+    points:
+      - {role: RO1, p: 127, N: 117, F: 58, C: 13.5967, C_over_sqrtF: 1.7853}
+      - {role: RO2, p: 157, N: 169, F: 84, C: 18.3888, C_over_sqrtF: 2.0064}
+      - {role: RO3, p: 307, N: 288, F: 144, C: 25.0399, C_over_sqrtF: 2.0867}
+      - {role: RO4, p: 1013, N: 1063, F: 530, C: 50.5755, C_over_sqrtF: 2.1969}
+    fitted_exponent_of_N_in_C_over_sqrtF: 0.0801
+    toy_scale_disclosure: >-
+      Fitted over 4 points spanning N ~ [117, 1063] (a factor of ~9 in N,
+      satisfying the ">= 8x" requirement). NEVER EXTRAPOLATED. Reported
+      only as: this toy-scale fit (0.0801) falls within the disputed range
+      Stage 1 read verbatim (0.055 to 0.079-then-reversed-to-growth); it
+      neither confirms nor refutes either side of that corpus disagreement,
+      and this contract does not attempt to.
+
+  determinism_and_replication:
+    L1_L4_seed_invariant: true
+    panel_identical_both_runs: true
+    L2_L3_seed_spread_reported_before_band_comparisons: true
+    seed_to_seed_agreement: >-
+      Band labels agree at 30/32 F-ladder cells for L3 and are qualitatively
+      consistent for L2 (same small set of ABOVE_BAND cells recurs, values
+      differ by <20% between seeds); no cell flips from clearly IN_BAND in
+      one seed to clearly ABOVE/BELOW_BAND with a large margin in the
+      other, except the small-F noise-dominated cells already flagged.
+
+  anomalies_and_findings_summary:
+    - "KN-FIND-007 states the multiset mean, not literally F^m/N (Stage 1, non-terminating, reported)."
+    - "KN-FIND-4c9e71's own text reverses DEC-20260804-0a4bc2/4f3a3b's 'O(1) max C' verdict without either decision record being updated (Stage 1, reported, not resolved)."
+    - "The contract's literal 'full factor base' text gives F~N, not N/2; resolved by interpretation, reported as a finding about the frozen contract."
+    - "Naive scalar-mult-image subgroup construction is wrong on non-cyclic curves; caught and fixed before any control was interpreted."
+    - "Dual-path float cross-check exceeds the declared 1e-10 tolerance at m=4 on some cells (float-only, primary exact metric unaffected)."
+    - "J0 (j=0 curve) at F=N/2 shows a reproducible (both seeds), well-behaved-null ABOVE_BAND signal at m=3/4 and in C/F -- escalated per falsification_criterion(d), not adjudicated here, and flagged as a candidate j=0-automorphism artifact per KN-OPEN-009's own caveat."
+    - "All other ABOVE_BAND cells occur only at small F where the null population's own null-vs-null control is itself unstable across seeds -- reported as noise-dominated, not evidence of deviation."
+
+  completion_gate_check:
+    stage0_reported_before_further_work: true
+    stage1_quotations_for_all_seven_records: true
+    subgroup_availability_reported_before_any_arm_interpreted: true
+    L1_L4_reported_every_applicable_cell_both_conventions_both_runs: true
+    manifests_bind_commit_dirty_seeds_environment_field_bits_timing: true
+    raw_data_and_summary_agree: >-
+      Every summary number above was read directly from
+      experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-{1,2}/raw-result.json;
+      no number in this report was computed independently of that file.
+    reproduces_from_recorded_command_and_revision: true
+
+  artifact_paths:
+    - experiments/EXP-MONO-c819ba/implementation.md
+    - experiments/EXP-MONO-c819ba/implementation/
+    - experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-1/
+    - experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-2/
+    - experiments/EXP-MONO-c819ba/execution_report.yaml

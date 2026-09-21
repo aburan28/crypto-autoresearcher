@@ -1,0 +1,114 @@
+experiment:
+  id: EXP-BKKMV-002
+  hypothesis_id: H-BKKMV-001
+  version: 1
+  status: approved
+  title: "BKKMV m=6 law check: exact sectioned supports and mixed volume of the target-sectioned Semaev system at m=6 via the fiberwise (recursive resultant) evaluation-interpolation engine; test MV_6 = 125,829,120 and box saturation (candidate D2 continuation; task BKKM6)"
+  objective: >
+    The 3-point-certified law of EXP-BKKMV-001, MV_m = (m-1)! * 2^((m-1)(m-2)) with
+    MV/Bezout_box = 1 (full-box sectioned supports), predicts at m=6:
+    MV_6 = 5! * 2^20 = 125,829,120, sectioned supports = full box [0,16]^5
+    (17^5 = 1,419,857 monomials), d_total = 80, Bezout_total = 80^5 = 3,276,800,000,
+    MV/Bezout_total = 5!/5^5 = 120/3125 = 0.0384, MV/Bezout_box = 1.
+    Test this exactly at m=6 on the 3 seeded curves at certification primes, using the
+    fiberwise/recursive structure (D2's documented mitigation, research_directions_20260717.md
+    line 670) instead of brute support enumeration of the symbolic S_6. Toy prime fields only;
+    no crypto-scale claim.
+  frozen_system_definition: >
+    Same system as EXP-BKKMV-001: Sys_m = { f_j = S_m(x_1..x_{m-1}, t_j) = 0 }, j = 1..m-1,
+    n = m-1 = 5 equations in 5 unknowns at m=6. Fiberwise engine: with
+    A(X) = S_5(x_1..x_4, X) (deg_X = 8) and B_j(X) = S_3(x_5, t_j, X) (deg_X = 2),
+    f_j(x_1..x_5) = Res_X(A, B_j). The engine (i) extracts the exact dense coefficient
+    tensor of S_5 over GF(p) (support known 54777 <= 9^5 from EXP-BKKMV-001), (ii) evaluates
+    A's X-coefficients a_0..a_8 on a 17^4 tensor grid of (x_1..x_4) by exact modular tensor
+    contraction, (iii) evaluates f_j on the 17^5 grid via the exact resultant identity
+    Res_X(A,B) = b_2^8 * det(A(C_B)) for b_2 != 0 (C_B = companion matrix of B), with
+    degenerate slices b_2 = 0 / b_2 = b_1 = 0 handled by the exact formal-Sylvester specializations
+    a_8*b_1^8*A(-b_0/b_1) and a_8^2*b_0^8 (verified against the symbolic 10x10 Sylvester
+    determinant in dev/probe_kernel.sage before any run), and (iv) recovers all 17^5
+    coefficients of f_j by exact tensor-grid interpolation (inverse Vandermonde mod p;
+    degrees <= 16 per variable guaranteed by the resultant degree bounds, so interpolation
+    is exact, not approximate). Support = nonzero-coefficient set. Hull certificate: all
+    2^5 = 32 corners of [0, deg_1]x..x[0, deg_5] present in support => conv(support) = box.
+    MV by exact inclusion-exclusion over subset Minkowski sums of the certified hull boxes
+    (31 subsets), cross-checked by the box-permanent formula. All arithmetic exact mod p
+    (p in {1000003, 1000033}); no floating point in the certification path.
+  predictions_preregistered:
+    mv6: 125829120
+    sectioned_support: "full box [0,16]^5 = 1,419,857 monomials per section, up to hull-interior losses (finite-p coefficient vanishing; at p ~ 1e6 with ~1.4M coefficients that are polys in t of degree <= 16, O(10-50) interior losses per section are EXPECTED and do not change the hull/MV; all 32 corners predicted present)"
+    d_total_sectioned: 80
+    bezout_total: 3276800000
+    bezout_box: 125829120
+    ratio_mv_bezout_box: 1.0
+    ratio_mv_bezout_total: 0.0384
+    log2_mv6: 26.9069
+    log2_increment_m5_to_m6: 10.3219
+  inputs:
+    seeds: [20260717, 20260718, 20260719]
+    primes_cert: [1000003, 1000033]
+    m: 6
+    curve_generation: "per (seed,p): A,B drawn by random.Random(seed*10000007+p); resample on 4A^3+27B^2==0 (identical to EXP-BKKMV-001)"
+    section_policy: "t from random.Random(seed*10000033+p*131+m) with m=6 (same stream formula as EXP-BKKMV-001): nonzero, valid curve x-coordinate, distinct. ADAPTED: the lossless-vs-projection acceptance test of EXP-BKKMV-001 requires the unsectioned S_6 projection, which is infeasible; instead accept the first valid candidate and certify the hull by corner presence; if any corner is missing, retry with up to 12 candidates per slot (same rng stream continuation) and record tries; per-slot interior losses vs the full box are recorded."
+  controls:
+    - id: P1_dense_simplex
+      type: positive
+      what: "random dense total-degree-d systems in n vars, (n,d) in {(2,2),(2,4),(3,4),(4,8)}: pipeline MV must equal d^n exactly (ported from EXP-BKKMV-001)"
+    - id: P2_hand_value_m3
+      type: positive
+      what: "m=3 canonical sectioned support must be the full 3x3 grid and MV must equal 8 (ported)"
+    - id: P4a_engine_crossvalidation
+      type: positive
+      what: "the fiberwise engine must reproduce EXACTLY (same support sets) the symbolic sectioned supports at m=3,4,5 (Sage symbolic sectioning, the EXP-BKKMV-001 ground truth): 3 seeds at p=1000003 (lossless full boxes 9/125/6561) PLUS the lossy case m=5 at p=101 (seed 20260717, interior losses present) — equal as sets, not just sizes"
+    - id: P4b_two_prime_hull_stability
+      type: positive
+      what: "m=6 hull conclusion (conv = full box [0,16]^5, all corners present) identical at p=1000003 and p=1000033 for every measured seed; MV_6 identical at both primes. NOTE: exact sectioned supports are EXPECTED to differ across primes in hull-interior positions (finite-p coefficient vanishing); literal support equality is NOT required at m=6 (it is required and re-verified at m=3,4,5 where losses are zero at cert primes)"
+    - id: P4c_determinism
+      type: positive
+      what: "section 1 of (seed 20260717, p=1000003) recomputed in a later run: support bitmap sha256 must match the first computation exactly"
+    - id: P5_value_spotcheck
+      type: positive
+      what: "engine grid VALUES vs direct Sage univariate resultants: m=5, seed 20260717, p=1000003, one section, full 9^4 grid (6561 points, soft-capped at 240 s, else >= 512 random points); m=6, seed 20260717, p=1000003, one section, 48 seeded random grid points. All compared values must agree exactly"
+    - id: P3_bkk_bound
+      type: positive
+      what: "BKK bound on at least one real sectioned system at m<=5: torus count <= MV_actual for m=4 at p=101 (3 seeds, MV 384) and m=5 at p=101 (seed 20260717, MV 98304). m=6 counts CENSORED pre-registration: the enumeration engine needs (p-1)^4 * p evaluations (>1e10 at p=101) — infeasible; and MV_6 = 1.26e8 makes the check near-vacuous (expected O(1) points)"
+    - id: N1_same_support
+      type: negative
+      what: "classical N1 at m=3,4,5: random-coefficient systems on the same supports give identical MV (Sage, cert prime). At m=6 the MV engine consumes supports only, so random nonzero coefficients on the same support give the same MV by construction; recorded as structural, with the m<=5 classical checks carrying the empirical content"
+    - id: N2_violation_witness
+      type: negative
+      what: "degenerate repeated-section system at m=3, p=431: count must exceed MV (detector teeth; ported)"
+    - id: N3_engine_selfcheck
+      type: negative
+      what: "numpy counting engine vs naive brute force at (m=3, p=101, seed 20260717): exact match (ported)"
+    - id: P6_symbolic_crosscheck_optional
+      type: positive
+      what: "CONDITIONAL: direct symbolic Sage resultant of one sectioned S_6 polynomial vs fiberwise support, one section, seed 20260717, p=1000003. Executed only if dev/probe_symbolic6 shows a single section completes in <= ~240 s; otherwise CENSORED as infrastructure (not evidence), the engine certification resting on P4a/P5/P4c"
+  independent_variables: [seed/curve, p]
+  metrics:
+    primary: ["MV_6 (exact) vs 125,829,120", "per-section support sizes vs 1,419,857 and corner-presence vectors", "hull = full box per section (bool)", "ratios MV/Bezout_box and MV/Bezout_total"]
+    secondary: ["d_total sectioned (predicted 80)", "union-of-sections support size vs 1,419,857 (projection estimate)", "interior loss counts per section per prime", "log2 increments MV and Bezout_total", "timings per stage", "growth table extended to m=6"]
+  replication: {seeds: [20260717, 20260718, 20260719], independent_instances: 3, primes: 2}
+  budget:
+    wall_clock_seconds_per_run: 600
+    soft_budget_seconds_per_run: 540
+    total_wall_clock_seconds: 3300
+    maximum_runs: 10
+    planned_runs: "RUN-BKKMV-002-a (validate m=3,4,5 + controls), -b (m=6 p=1000003, 3 seeds), -c (m=6 p=1000033, 3 seeds + determinism), -d (BKK counts m<=5 + N2 + N3), -e (optional symbolic cross-check)"
+  stopping_rules:
+    - "any single sage invocation > 600 s: kill at a checkpoint boundary, record as failed_infrastructure (NOT evidence), split or reduce scope; seeds stay >= 3"
+    - "soft budget 540 s per run: finish current cell/section, write partial artifacts, mark remaining cells censored"
+    - "if a corner is missing after the 12-candidate search on any slot: record the actual support, mark MV_6 uncertified-by-box-path for that instance (a legitimate measurement outcome, reported as such), continue other instances"
+  invalidation_rules:
+    - "P1 or P2 fails -> validity_status: invalid (MV pipeline broken)"
+    - "P4a any support mismatch -> invalid (fiberwise engine broken; m=6 numbers void)"
+    - "P5 any value mismatch -> invalid (resultant kernel or interpolation broken)"
+    - "P4c determinism mismatch -> invalid"
+    - "count > MV_actual for any Semaev instance without a recorded positive-dimensional explanation -> invalid"
+    - "N2 does not exceed MV -> counting engine untrustworthy -> invalid"
+    - "crash/timeout -> failed_infrastructure, not evidence"
+  falsification_criterion: "with the engine certified (P4a/P5/P4c pass), measured MV_6 != 125,829,120, or any section hull != full box (corners missing on all 12 candidates of a slot), or MV/Bezout_box != 1 — falsifies the law's m=6 prediction in the exact measured scope (3 curves x p in {1000003,1000033}, m=6, toy fields)"
+  success_criterion: "MV_6 delivered exactly for 3 seeds x 2 primes with all controls passing; growth law extended to m=6 or deviation recorded; both Bezout ratios reported"
+  required_artifacts: [specification.yaml, bkkmv2_cert.sage, "dev/probe_kernel.sage + outputs", "dev/probe_symbolic6.sage + outputs", "runs/RUN-BKKMV-002-{a..e}/manifest.yaml", raw.json, stdout.txt, stderr.txt, "runs/*/supports/*.npy + sha256 index", analysis.md, "ledger/EV-BKKMV-002.yaml"]
+  assigned_to: executor
+  approved_by: coordinator
+  handoff_id: TASK-20260718-BKKM6

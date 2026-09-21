@@ -1,0 +1,398 @@
+{
+ "schema": "crypto.autoresearch.runtime_session_receipt.v1",
+ "task_id": "red-team-mono7-c819ba",
+ "role": "red-team",
+ "joints_owned": [
+  "J2-adversarial-verification"
+ ],
+ "experiment_id": "EXP-MONO-c819ba",
+ "hypothesis_id": "H-MONO-663fb4",
+ "verdict": "breaks",
+ "date": "2026-08-30",
+ "branch": "ideas-ecdlp-20260830",
+ "snapshot": {
+  "commit_sha": "11a79965469a895abb4f97b464d97cf548b480c3",
+  "receipt": "coordination/tasks/TASK-20260830-48eb5c/snapshot-receipt.json",
+  "content_verification": "All 24 declared research artifacts re-hashed with sha256 and matched byte-for-byte. The 25th path_sha256 key is the receipt's own path with an explicit null value (self-neutral convention), not a mismatch.",
+  "verification_command": "python3 -c \"import json,hashlib,os; r=json.load(open('coordination/tasks/TASK-20260830-48eb5c/snapshot-receipt.json')); [print(p, hashlib.sha256(open(p,'rb').read()).hexdigest()==h) for p,h in r['path_sha256'].items()]\""
+ },
+ "environment": {
+  "python": "3.13.1",
+  "numpy": "2.4.0",
+  "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+  "network": "none used",
+  "budget": "90 min wall clock, one attempt"
+ },
+ "independence": {
+  "statement": "Every counter-computation below uses my OWN reimplementation. I did not import, exec, or call any module under experiments/EXP-MONO-c819ba/implementation/. I read that code only to replicate the construction RULE (ascending-x QR pool, even prefix, symmetric +/- pair null draws, L2/L3 definitions and bands).",
+  "independent_pieces": [
+   "Tonelli-Shanks square roots (the Executor uses a precomputed sqrt table)",
+   "EC point add / negate / scalar multiply",
+   "trial-division factorization and the point-order elimination algorithm",
+   "group structure Z/n1 x Z/n2 and the coordinate map",
+   "exact-integer convolution tower and Python-bigint variance",
+   "FFT2 character spectrum and max_C"
+  ],
+  "faithfulness_check": {
+   "cell": "J0 (p=307, A=0, B=6, N=324, n1=n2=18) at F=162",
+   "redteam": {
+    "C": 30.468844766859,
+    "C_over_F": 0.188079288684,
+    "var_m2": 66.228395062,
+    "var_m3": 31683.598765432,
+    "var_m4": 21005603.425925925,
+    "max_rel_dev_m2": 1.0,
+    "max_rel_dev_m3": 0.0272062185642,
+    "max_rel_dev_m4": 0.010094253172
+   },
+   "archived": {
+    "C": 30.468844766858634,
+    "C_over_F": 0.18807928868431256,
+    "var_m2": 66.22839506172839,
+    "var_m3": 31683.5987654321,
+    "var_m4": 21005603.425925925
+   },
+   "conclusion": "Agreement to 12+ significant digits. The archived measurement is correct; the break is in the decision rule, not the arithmetic."
+  }
+ },
+ "derivations": {
+  "D1_automorphism": {
+   "question": "Does f(x)=x^3+B satisfy f(wx)=f(x) for w a primitive cube root of unity mod p=307, and does the truncation preserve orbit structure?",
+   "steps": [
+    "307 mod 3 = 1, so a primitive cube root of unity exists.",
+    "w = 289: 289^3 mod 307 = 1 and 1 + 289 + 289^2 = 0 mod 307. CONFIRMED primitive.",
+    "f(wx) = w^3 x^3 + B = x^3 + B = f(x). Verified computationally for ALL 307 values of x with B=6. TRUE.",
+    "sigma:(x,y)->(wx,y) verified to be a group homomorphism on 300 random point pairs, and sigma^3 = identity on all 320 affine points. It is an order-3 group automorphism of E(F_307).",
+    "Therefore QR-status of f(x) is exactly constant on {x, wx, w^2 x}, and the FULL pool (160 x-values = the fixed point x=0 plus 53 orbits of size 3; 320 points) IS sigma-invariant. Verified: pool x-set closed under x -> wx.",
+    "BUT the run's truncation is fb_full[:F], a prefix of the ASCENDING-x scan (run_experiment.py ladder_fb; curve.py factor_base_x_coords iterates x = 0..p-1). It is not orbit-aware."
+   ],
+   "measured_orbit_splitting": {
+    "N/16": {
+     "F": 20,
+     "prefix_x": 10,
+     "orbits_touched": 10,
+     "whole": 1,
+     "split": 9,
+     "split_frac": 0.9
+    },
+    "N/8": {
+     "F": 40,
+     "prefix_x": 20,
+     "orbits_touched": 18,
+     "whole": 1,
+     "split": 17,
+     "split_frac": 0.944
+    },
+    "N/4": {
+     "F": 80,
+     "prefix_x": 40,
+     "orbits_touched": 30,
+     "whole": 1,
+     "split": 29,
+     "split_frac": 0.967
+    },
+    "N/2": {
+     "F": 162,
+     "prefix_x": 81,
+     "orbits_touched": 49,
+     "whole": 9,
+     "split": 40,
+     "split_frac": 0.816
+    }
+   },
+   "sigma_invariance_of_the_measured_arm": {
+    "F=162 prefix sigma-invariant as a point set": false,
+    "points whose sigma-image lies in the prefix": "82 of 162"
+   },
+   "null_expectation": "Under a uniformly random choice of 81 of the 160 pool x-values: E[whole size-3 orbits] = 53*C(157,78)/C(160,81) = 6.75, plus P(x=0 chosen) = 0.51, total 7.26 expected vs 9 observed (~+0.7 sd).",
+   "conclusion": "The automorphism is real and the POOL is invariant, but the MEASURED ARM's orbit structure is indistinguishable from random. The automorphism explanation is REFUTED for the object measured."
+  },
+  "D2_second_j0_panel": {
+   "question": "Does a second, independent j=0 curve at a different prime show the above-band signal?",
+   "construction": "124 new j=0 curves (A=0) over primes p = 1 mod 3 in [151,997], two distinct twist classes (distinct N) per prime, excluding {127,157,307,1013,421}; all verified ordinary (trace != 0 mod p). 130 matched random-ordinary curves at primes in [151,997], A,B = SHA256('RT|ro|p|t') mod p with A,B != 0, first nonsingular ordinary hit. Identical FB rule, F = N//2 rounded down to even, prefix of the ascending-x QR pool. 30 symmetric null draws per cell in domain 'REDTEAM-J2-c819ba/v1/run-<seed>'. L2 = var_real/mean(var_null[1:29]) and L3 = (C/F)_real/mean over all 30, bands [0.7,1.4] and [0.85,1.15] -- the Executor's exact conventions. Seeds 20260805 and 20260806.",
+   "results": {
+    "both_seed_ABOVE_m4": {
+     "j0": "15/124 = 12.1%",
+     "ro": "26/130 = 20.0%",
+     "fisher_two_sided_p": 0.092
+    },
+    "both_seed_ABOVE_L3": {
+     "j0": "5/124 = 4.0%",
+     "ro": "10/130 = 7.7%"
+    },
+    "both_seed_ABOVE_m3_and_m4": {
+     "j0": "8/124 = 6.5%",
+     "ro": "15/130 = 11.5%"
+    },
+    "executor_full_escalation_criterion": {
+     "j0": "1/124 = 0.8%",
+     "ro": "2/130 = 1.5%"
+    },
+    "median_L2_m4_per_curve_seed_cell": {
+     "j0": 0.892,
+     "ro": 0.904
+    },
+    "per_cell_m4_out_of_band_rate": {
+     "j0": "44.8% of 248",
+     "ro": "56.9% of 260"
+    },
+    "archived_J0_percentiles_in_pooled_new_distribution": {
+     "L2_m4=1.873": "92.1th",
+     "L2_m4=1.571": "87.0th",
+     "L3=1.165": "93.7th"
+    },
+    "largest_effect_found": "RANDOM-ORDINARY p=971 A=162 N=1032: L2_m4 = 5.027/4.267, L3 = 1.444/1.427"
+   },
+   "counterexamples_meeting_the_full_executor_criterion_on_ORDINARY_curves": [
+    "p=379 A=143 N=365: L2_m4 2.429/2.291, L3 1.184/1.178",
+    "p=743 A=604 N=736: L2_m4 2.012/1.844, L3 1.227/1.192"
+   ],
+   "conclusion": "NO j=0 enrichment; if anything DE-enrichment. The signal is a generic property of the small-x prefix construction, not a j=0-class effect."
+  },
+  "D3_ladder_and_fine_scan": {
+   "new_curve_ladder": {
+    "design": "46 new j=0 and 49 new random-ordinary curves, rungs N/16,N/8,N/4,N/2, 2 seeds",
+    "per_cell_m4_out_of_band_rate": {
+     "j0": {
+      "N/16": "52.2%",
+      "N/8": "60.9%",
+      "N/4": "56.5%",
+      "N/2": "54.3%"
+     },
+     "ro": {
+      "N/16": "54.1%",
+      "N/8": "69.4%",
+      "N/4": "53.1%",
+      "N/2": "61.2%"
+     }
+    },
+    "both_seed_ABOVE_m4": {
+     "j0": {
+      "N/16": "6.5%",
+      "N/8": "2.2%",
+      "N/4": "21.7%",
+      "N/2": "13.0%"
+     },
+     "ro": {
+      "N/16": "16.3%",
+      "N/8": "10.2%",
+      "N/4": "8.2%",
+      "N/2": "22.4%"
+     }
+    },
+    "median_L2_m4_all_below_1": {
+     "j0": [
+      0.77,
+      0.688,
+      0.893,
+      0.824
+     ],
+     "ro": [
+      0.81,
+      0.654,
+      0.839,
+      0.912
+     ]
+    }
+   },
+   "erratic_across_rungs_example": "j=0 p=367 N=333: N/16 1.36/1.58, N/8 0.43/0.41, N/4 1.19/1.00, N/2 4.36/3.24",
+   "fine_F_scan_on_archived_J0": {
+    "design": "F = 130..198 step 4, 40 fresh null draws each",
+    "L2_m4": {
+     "130": 0.344,
+     "134": 0.259,
+     "138": 0.331,
+     "142": 0.424,
+     "146": 0.593,
+     "150": 0.565,
+     "154": 0.568,
+     "158": 0.93,
+     "162": 1.446,
+     "166": 1.236,
+     "170": 1.034,
+     "174": 1.181,
+     "178": 1.692,
+     "182": 1.727,
+     "186": 1.354,
+     "190": 1.578,
+     "194": 1.831,
+     "198": 1.847
+    },
+    "L3": {
+     "130": 0.805,
+     "146": 0.952,
+     "158": 1.022,
+     "162": 1.128,
+     "178": 1.135,
+     "182": 1.166,
+     "194": 1.191,
+     "198": 1.171
+    },
+    "conclusion": "Smooth monotone ramp; F=N/2 is NOT a local maximum and NOT a boundary event."
+   },
+   "archived_panel_extra_structure_curves_at_F_N_over_2": {
+    "CM1": "L2_m4 0.721/0.592, L3 0.936/0.946",
+    "CM2": "L2_m3/m4 BELOW_BAND both seeds (0.633/0.412, 0.496/0.276), L3 0.965/0.913",
+    "J1728": "L2_m4 1.200/0.944, L3 1.028/0.991, IN_BAND both seeds"
+   }
+  },
+  "D4_multiple_comparisons_and_null_object": {
+   "design": "200 independent null draws cached per cell for all 32 archived panel cells (11 s). 3000 replicates of the ENTIRE 32-cell two-seed decision procedure, with a held-out random symmetric subset in the real arm's slot (seed1 pop = 30 draws, seed2 pop = 30 disjoint draws, both drawn without replacement from the 200).",
+   "null_object_results": {
+    "P(>=1 cell reproducibly ABOVE_BAND at m=4 in BOTH seeds)": 0.996,
+    "P(>=1 cell meets the FULL executor escalation criterion)": 0.382,
+    "mean escalation cells per panel": 0.49,
+    "most frequently flagged null cells": "J1728|N/2 0.03, RO4|N/8 0.03, RO4|N/16 0.03, J1728|N/8 0.03, J1728|N/4 0.03"
+   },
+   "real_arm_at_200_draws": {
+    "J0|N/2 L2_m4": 1.435,
+    "J0|N/2 rank_var_m4": "167/200",
+    "J0|N/2 p_emp_var_m4": 0.169,
+    "J0|N/2 L3": 1.133,
+    "J0|N/2 rank_C_over_F": "173/200",
+    "J0|N/2 p_emp_C_over_F": 0.139,
+    "note": "L3 = 1.133 is BELOW the 1.15 band. The only both-seed-reproducible flag does not survive raising the draw count."
+   },
+   "panel_wide": {
+    "smallest p_emp for var_m4 over 32 cells": "0.124 at RO1|N/16 (not J0)",
+    "J0|N/2 rank among 32 cells at m=4": "5th most extreme",
+    "smallest p_emp for C/F over 32 cells": "0.139 at J0|N/2",
+    "Bonferroni over 32": 1.0,
+    "Bonferroni over 96": 1.0,
+    "conclusion": "No cell reaches nominal p=0.05 even uncorrected."
+   },
+   "z_score_reanalysis_of_archived_30_draw_data": {
+    "J0|N/2 run1": {
+     "z_m2": 1.19,
+     "z_m3": 1.81,
+     "z_m4": 2.19,
+     "z_L3": 1.72
+    },
+    "J0|N/2 run2": {
+     "z_m2": 0.71,
+     "z_m3": 0.72,
+     "z_m4": 0.67,
+     "z_L3": 1.43
+    },
+    "largest_in_panel": "RO1|N/16 run2: z_m2 9.51, z_m3 6.99, z_m4 5.71 (a RANDOM-ORDINARY curve, discarded by the Executor as noise-dominated)",
+    "null_population_cv_at_m4_across_cells": "0.15 to 2.48",
+    "conclusion": "The fixed multiplicative band converts 'this cell's null is tight' into 'this cell's real arm is exceptional'."
+   }
+  },
+  "D5_ordering_control_audit": {
+   "contract_text": "specification.yaml ordering_control: 'The frozen decision rule is executed on the NULL first and its label recorded. If the rule emits the same label on the null and on the treatment arm, it discriminates nothing and must be rewritten before any treatment output is read.'",
+   "measured": {
+    "null_arm_out_of_band_labels": "55 of 192 (cell x m x run) = 28.6%",
+    "per_run_per_m": {
+     "run1": {
+      "m2": "2/32",
+      "m3": "11/32",
+      "m4": "17/32"
+     },
+     "run2": {
+      "m2": "1/32",
+      "m3": "9/32",
+      "m4": "15/32"
+     }
+    },
+    "null_arm_ABOVE_BAND_cells": [
+     "run1 J0|N/8 m3 1.609, m4 2.133",
+     "run1 J1728|N/8 m3 1.451, m4 1.832",
+     "run1 J1728|N/4 m3 1.469, m4 1.746",
+     "run1 CM1|N/2 m2 1.444, m3 3.082, m4 6.378",
+     "run2 RO1|N/16 m3 1.586, m4 1.864",
+     "run2 RO2|N/2 m3 1.661, m4 2.349",
+     "run2 RO3|N/2 m4 1.491",
+     "run2 CM2|N/4 m2 1.404, m3 2.045, m4 2.740"
+    ]
+   },
+   "conclusion": "The contract's own trigger fired. CM1|N/2's NULL arm at m=4 reaches 6.378, 3.4x the J0 treatment value the gate is used to certify. The prescribed remedy (rewrite the rule before reading any treatment output) was not applied; the gate was instead repurposed as a per-cell noise screen."
+  },
+  "D6_float_tolerance": {
+   "cells_exceeding_declared_1e-10": [
+    {
+     "cell": "RO4|N/2",
+     "m": 4,
+     "residual": 3.923433659750388e-09
+    },
+    {
+     "cell": "J1728|N/2",
+     "m": 4,
+     "residual": 9.172939637998596e-10
+    }
+   ],
+   "J0_N_over_2_m4_residual": 3.990778830314602e-11,
+   "code_path": "conv.py exact_stats: var = (sumsq*N - total^2)/(N*N) with sumsq accumulated in numpy `object` dtype (Python bigint). Numerator EXACT; only the final division is float (rel err ~1e-16). run_experiment.py L2 reads per_m[m]['var_ordered'], i.e. that exact quantity.",
+   "L3_path": "C comes from numpy.fft2 (conv.py max_C), float. But C enters at FIRST power; FFT2 of an 18x18 0/1 array carries rel err ~1e-14, twelve orders below the 16.5% claimed effect. Independently confirmed by my own FFT: C = 30.468844766859 vs archived 30.468844766858634.",
+   "conclusion": "The disclosed 3.9e-9 excess does not touch the J0 cell, and the J0 finding rests on the exact-integer primary metric."
+  },
+  "D7_scope_and_quotation_audit": {
+   "asymptotic_claim": "null at ledger/hypotheses/H-MONO-663fb4.yaml line 349; preserved.",
+   "scope_creep_grep": "grep -niE 'exponent|speedup|faster|attack|pollard|sub-?exponential|crypto-scale|O\\(sqrt' over execution_report.yaml, implementation.md and both raw-result.json returned only fitted_exponent_of_N_in_C_over_sqrtF = 0.0801 (labelled toy-scale, 'NEVER EXTRAPOLATED') and 'exponent n2' meaning the group exponent. NO cost, attack or crypto-scale claim.",
+   "stage1_spot_check": {
+    "record": "knowledge/findings/KN-FIND-4c9e71.md lines 29-36",
+    "result": "Quotation VERBATIM ACCURATE modulo line wrapping (whitespace-normalised containment TRUE). Source also contains the earlier in-document claim the correction reverses ('The adversarial maximum is BOUNDED ~ 4 and NOT growing significantly with p.'), so the Executor's characterisation is accurate.",
+    "both_runs_quotation_file_sha256": "3c5d574324d38d3ba7fe4f12101450390bde8b93a0121b5c8206df81c88f4249 (byte-identical, consistent with the seed-free claim)",
+    "completeness_gap_reported": "The same section also contains 'At crypto scale (p=2^256): C_max ~ 2^{20}, yield error O(2^{-110}) -- negligible', which the execution report does not relay and which bears on HEUR-CHR-2's falsification condition."
+   },
+   "kn_open_009": "Caveat verified verbatim at lines 39-40: 'Any exceptional-curve claim must exclude j=0/1728 extra-automorphism artifacts from the random controls.'",
+   "K6_monotonicity_verified": "max_rel_dev decays strictly across N/16 -> N/2 at 24/24 (curve, m) cells. The Executor's 'no artifact-tell anywhere' claim is ACCURATE. Caveat (OBJ-7): at m=2 the values are N/F - 1 to within rounding on every curve (15/7/3/1), i.e. pinned at a combinatorial floor and unable to vary with the curve."
+  },
+  "D8_direction_of_the_aggregate_effect": {
+   "measurement": "Real arm vs 200-draw null mean at m=4, 32 archived panel cells: BELOW at 22/32; median L2_m4 = 0.757; geometric mean 0.794. At m=2: 17/32 below. At m=3: 20/32 below. C/F below at 16/32.",
+   "new_curves": "median L2_m4 at F=N/2 = 0.892 (124 j=0 curves) and 0.904 (130 ordinary); m=4 BELOW_BAND outnumbers ABOVE_BAND roughly 2:1 at every rung in both families.",
+   "nominal_sign_test": "two-sided p = 0.050 at m=4",
+   "self_imposed_caution": "The 32 archived cells are NOT independent (four rungs of each of eight curves), so the nominal p overstates the evidence. Reported as a DIRECTION TO MEASURE with curve-level independence, not as an established result."
+  }
+ },
+ "commands_run": [
+  "git rev-parse HEAD  (-> 11a79965469a895abb4f97b464d97cf548b480c3)",
+  "python3 <sha256 verification of all 25 path_sha256 entries in the snapshot receipt>",
+  "python3 <extract stage3 F=N/2 rows and z-scores from both raw-result.json>",
+  "python3 rtlib-based reproduction of the archived J0 F=162 cell",
+  "python3 <D1 automorphism and orbit-splitting analysis on J0>",
+  "python3 sweep.py j0 20260805,20260806 150 500 2 j0_a.json",
+  "python3 sweep.py j0 20260805,20260806 500 1000 2 j0_b.json",
+  "python3 sweep.py ro 20260805,20260806 150 1000 2 ro_a.json",
+  "python3 sweep.py j0 20260805,20260806 150 450 16,8,4,2 j0_ladder.json",
+  "python3 sweep.py ro 20260805,20260806 150 450 16,8,4,2 ro_ladder.json",
+  "python3 <fine F-scan F=130..198 step 4 on J0, 40 draws each>",
+  "python3 mc.py 200   (cache 200 null draws per cell for all 32 archived panel cells)",
+  "python3 <3000-replicate null-object Monte Carlo of the full decision procedure>",
+  "python3 <empirical rank p-values of the real arm against 200 draws, all 32 cells>",
+  "python3 <ordering-control label audit over both raw-result.json>",
+  "python3 <K6 max_rel_dev monotonicity audit and float-tolerance cell scan>",
+  "grep/python3 <Stage-1 verbatim quotation check against knowledge/findings/KN-FIND-4c9e71.md>"
+ ],
+ "scripts": {
+  "location": "session scratchpad only (ephemeral); sources embedded below for reproducibility because the task permits exactly two deliverable files",
+  "sha256": {
+   "rtlib.py": "34d67894be0176df6d153a61454f5f52186f591d0d26579b3181919417e459d2",
+   "sweep.py": "6fb867429a8f7b238299e095d1c174d23d49702d192149f6aa459c0811f2f85b",
+   "mc.py": "d0a7db71a40c60be9491d0816bcd8942cbf3aa44e9189a2273de6738ada4d18f"
+  },
+  "line_counts": {
+   "rtlib.py": 156,
+   "sweep.py": 103,
+   "mc.py": 25
+  },
+  "sources": {
+   "rtlib.py": "\"\"\"Red-team INDEPENDENT reimplementation (no import of the Executor's modules).\nEC over F_p, group structure, coordinate map, exact convolution, character spectrum.\"\"\"\nimport numpy as np, hashlib, math\n\ndef legendre(a,p):\n    a%=p\n    if a==0: return 0\n    return 1 if pow(a,(p-1)//2,p)==1 else -1\n\ndef sqrt_mod(a,p):\n    # Tonelli-Shanks (independent of executor's table build)\n    a%=p\n    if a==0: return 0\n    if legendre(a,p)!=1: return None\n    if p%4==3: return pow(a,(p+1)//4,p)\n    q=p-1; s=0\n    while q%2==0: q//=2; s+=1\n    z=2\n    while legendre(z,p)!=-1: z+=1\n    m=s; c=pow(z,q,p); t=pow(a,q,p); r=pow(a,(q+1)//2,p)\n    while t!=1:\n        i=0; t2=t\n        while t2!=1: t2=t2*t2%p; i+=1\n        b=pow(c,1<<(m-i-1),p)\n        m=i; c=b*b%p; t=t*c%p; r=r*b%p\n    return r\n\ndef ec_add(P,Q,A,p):\n    if P is None: return Q\n    if Q is None: return P\n    x1,y1=P; x2,y2=Q\n    if x1==x2 and (y1+y2)%p==0: return None\n    if P==Q: lam=(3*x1*x1+A)*pow(2*y1,p-2,p)%p\n    else:    lam=(y2-y1)*pow((x2-x1)%p,p-2,p)%p\n    x3=(lam*lam-x1-x2)%p; y3=(lam*(x1-x3)-y1)%p\n    return (x3,y3)\n\ndef ec_scal(k,P,A,p):\n    R=None; Q=P\n    while k>0:\n        if k&1: R=ec_add(R,Q,A,p)\n        Q=ec_add(Q,Q,A,p); k>>=1\n    return R\n\ndef enumerate_and_fb(A,B,p):\n    \"\"\"Return (all_points, fb_pool) with fb_pool = ascending-x stream of points\n    whose f(x) is a NONZERO QR, both roots, exactly as curve.factor_base_x_coords.\"\"\"\n    pts=[]; fb=[]\n    for x in range(p):\n        fx=(x*x*x+A*x+B)%p\n        if fx==0:\n            pts.append((x,0)); continue\n        if legendre(fx,p)==1:\n            y=sqrt_mod(fx,p)\n            pts.append((x,y)); pts.append((x,(-y)%p))\n            fb.append((x,y));  fb.append((x,(-y)%p))\n    return pts,fb\n\ndef factorize(n):\n    f={}; d=2\n    while d*d<=n:\n        while n%d==0: f[d]=f.get(d,0)+1; n//=d\n        d+=1\n    if n>1: f[n]=f.get(n,0)+1\n    return sorted(f.items())\n\ndef point_order(P,N,fac,A,p):\n    if P is None: return 1\n    o=N\n    for (q,e) in fac:\n        for _ in range(e):\n            if o%q: break\n            if ec_scal(o//q,P,A,p) is None: o//=q\n            else: break\n    return o\n\ndef group_structure(pts,A,p):\n    N=len(pts)+1\n    fac=factorize(N)\n    orders=[point_order(P,N,fac,A,p) for P in pts]\n    n2=max(orders); n1=N//n2\n    assert N%n2==0 and n2%n1==0,(n1,n2,N)\n    G1=pts[orders.index(n2)]\n    G2=None\n    if n1>1:\n        span=set(); cur=None\n        for _ in range(n2): span.add(cur); cur=ec_add(cur,G1,A,p)\n        for P,o in zip(pts,orders):\n            if o==n1 and P not in span: G2=P; break\n        assert G2 is not None\n    return n1,n2,G1,G2\n\ndef coord_map(N,A,p,n1,n2,G1,G2):\n    pc={None:(0,0)}; base=None\n    for k1 in range(n1):\n        cur=base\n        for k2 in range(n2):\n            if not(k1==0 and k2==0):\n                assert cur not in pc,\"collision\"\n                pc[cur]=(k1,k2)\n            cur=ec_add(cur,G1,A,p)\n        base=ec_add(base,G2,A,p) if G2 is not None else None\n        if G2 is None and k1==0: break\n    assert len(pc)==N,(len(pc),N)\n    return pc\n\ndef ind(coords,n1,n2):\n    g=np.zeros((n1,n2),dtype=np.int64)\n    for a,b in coords: g[a,b]+=1\n    return g\n\ndef stats(coords,n1,n2,N,F,ms=(2,3,4)):\n    cur=ind(coords,n1,n2); tower={1:cur}\n    for m in range(2,max(ms)+1):\n        out=np.zeros_like(cur)\n        for da,db in coords: out+=np.roll(np.roll(cur,da,0),db,1)\n        cur=out; tower[m]=cur\n    Shat=np.fft.fft2(ind(coords,n1,n2).astype(np.complex128))\n    mag=np.abs(Shat).copy(); mag[0,0]=-1.0\n    C=float(mag.max())\n    out={'C':C,'C_over_F':C/F}\n    for m in ms:\n        arr=tower[m]; tot=int(arr.sum())\n        sumsq=int((arr.astype(object)**2).sum())\n        out[m]={'var':(sumsq*N-tot*tot)/(N*N),\n                'max_rel_dev':float(np.max(np.abs(arr.astype(np.float64)-(F**m)/N))/((F**m)/N))}\n    return out\n\nclass Drawer:\n    def __init__(s,domain,label,p,m,di,c=0):\n        s.d,s.l,s.p,s.m,s.i,s.c=domain,label,p,m,di,c\n    def draw(s,M):\n        lim=(2**256//M)*M\n        while True:\n            h=int.from_bytes(hashlib.sha256(f\"{s.d}|{s.l}|{s.p}|{s.m}|{s.i}|{s.c}\".encode()).digest(),'big')\n            s.c+=1\n            if h<lim: return h%M\n\ndef draw_symmetric_null(pts,p,F,domain,m,di):\n    dr=Drawer(domain,\"null-subset\",p,m,di)\n    chosen=set(); guard=0\n    while len(chosen)<F:\n        guard+=1\n        if guard>200*F+1000: raise RuntimeError(\"reject loop\")\n        P=pts[dr.draw(len(pts))]\n        Q=(P[0],(-P[1])%p)\n        if P in chosen: continue\n        if P==Q:\n            if F-len(chosen)==1: chosen.add(P)\n            continue\n        if len(chosen)+2>F: continue\n        chosen.add(P); chosen.add(Q)\n    return list(chosen)\n\ndef ladder_F(N,denom):\n    t=max(2,N//denom); return t-t%2\n",
+   "sweep.py": "import sys,json,time,hashlib\nsys.path.insert(0,'/private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad/rt' if False else '.')\nfrom rtlib import *\n\nDOM=\"REDTEAM-J2-c819ba/v1\"\n\ndef is_p(n):\n    if n<2: return False\n    d=2\n    while d*d<=n:\n        if n%d==0: return False\n        d+=1\n    return True\n\ndef trace(N,p): return p+1-N\n\ndef build(A,B,p):\n    if (4*pow(A,3,p)+27*pow(B,2,p))%p==0: return None\n    pts,fb=enumerate_and_fb(A,B,p)\n    N=len(pts)+1\n    if trace(N,p)%p==0: return None   # supersingular -> excluded (ordinary only)\n    try:\n        n1,n2,G1,G2=group_structure(pts,A,p)\n        pc=coord_map(N,A,p,n1,n2,G1,G2)\n    except Exception as e:\n        return None\n    return dict(p=p,A=A,B=B,N=N,n1=n1,n2=n2,pts=pts,fb=fb,pc=pc,t=trace(N,p))\n\ndef cell(cv,denom,seed,ndraw=30,ms=(2,3,4)):\n    N=cv['N']; F=ladder_F(N,denom)\n    if F<4 or F>len(cv['fb']): return None\n    real=stats([cv['pc'][q] for q in cv['fb'][:F]],cv['n1'],cv['n2'],N,F,ms)\n    dom=f\"{DOM}/run-{seed}\"\n    nulls=[]\n    for i in range(ndraw):\n        s=draw_symmetric_null(cv['pts'],cv['p'],F,dom,0,i)\n        nulls.append(stats([cv['pc'][q] for q in s],cv['n1'],cv['n2'],N,F,ms))\n    out={'F':F,'C_over_F_real':real['C_over_F']}\n    for m in ms:\n        rest=[n[m]['var'] for n in nulls[1:]]           # executor convention\n        mu=sum(rest)/len(rest)\n        allv=[n[m]['var'] for n in nulls]\n        mua=sum(allv)/len(allv); sda=(sum((v-mua)**2 for v in allv)/len(allv))**.5\n        out[f'L2_m{m}']=real[m]['var']/mu\n        out[f'z_m{m}']=(real[m]['var']-mua)/sda if sda else None\n        out[f'nvn_m{m}']=nulls[0][m]['var']/mu\n        out[f'rank_m{m}']=sum(1 for v in allv if v<real[m]['var'])\n    cs=[n['C_over_F'] for n in nulls]\n    muC=sum(cs)/len(cs); sdC=(sum((v-muC)**2 for v in cs)/len(cs))**.5\n    out['L3']=real['C_over_F']/muC\n    out['z_L3']=(real['C_over_F']-muC)/sdC if sdC else None\n    out['rank_L3']=sum(1 for v in cs if v<real['C_over_F'])\n    return out\n\ndef lab(r,lo,hi): return 'IN' if lo<=r<=hi else ('ABOVE' if r>hi else 'BELOW')\n\nif __name__=='__main__':\n    mode=sys.argv[1]\n    seeds=[int(x) for x in sys.argv[2].split(',')]\n    pmin,pmax=int(sys.argv[3]),int(sys.argv[4])\n    denoms=[int(x) for x in sys.argv[5].split(',')]\n    PANEL_EXCLUDE={127,157,307,1013,421}\n    primes=[q for q in range(pmin,pmax+1) if is_p(q) and q not in PANEL_EXCLUDE]\n    rows=[]\n    t0=time.time()\n    for p in primes:\n        cands=[]\n        if mode in ('j0','both'):\n            # j=0 needs p=1 mod 3; take up to 3 distinct twist classes by smallest B\n            if p%3==1:\n                seenN=set()\n                for B in range(1,p):\n                    cv=build(0,B,p)\n                    if cv and cv['N'] not in seenN:\n                        seenN.add(cv['N']); cands.append(('J0',cv))\n                    if len(cands)>=2: break\n        if mode in ('ro','both'):\n            # matched random-ordinary: deterministic hash rule INDEPENDENT of executor's\n            for t in range(500):\n                h=hashlib.sha256(f\"RT|ro|{p}|{t}\".encode()).digest()\n                A=int.from_bytes(h[:16],'big')%p; B=int.from_bytes(h[16:],'big')%p\n                if A==0 or B==0: continue\n                cv=build(A,B,p)\n                if cv: cands.append(('RO',cv)); break\n        if mode=='j1728':\n            if p%4==1:\n                seenN=set()\n                for A in range(1,p):\n                    cv=build(A,0,p)\n                    if cv and cv['N'] not in seenN:\n                        seenN.add(cv['N']); cands.append(('J1728',cv))\n                    if len(cands)>=2: break\n        for role,cv in cands:\n            for denom in denoms:\n                for sd in seeds:\n                    c=cell(cv,denom,sd)\n                    if c is None: continue\n                    c.update(role=role,p=p,A=cv['A'],B=cv['B'],N=cv['N'],n1=cv['n1'],n2=cv['n2'],\n                             t=cv['t'],denom=denom,seed=sd)\n                    rows.append(c)\n        print(f\"  ...p={p} done  t={time.time()-t0:.0f}s  rows={len(rows)}\",file=sys.stderr)\n    json.dump(rows,open(sys.argv[6],'w'))\n    print(\"wrote\",sys.argv[6],len(rows),\"rows\",time.time()-t0)\n",
+   "mc.py": "import sys,json,time,random\nsys.path.insert(0,'.')\nfrom rtlib import *\nPANEL=[('RO1',127,3,102),('RO2',157,43,144),('RO3',307,269,6),('RO4',1013,594,534),\n       ('J0',307,0,6),('J1728',1013,594,0),('CM1',127,50,83),('CM2',127,68,30)]\nNDRAW=int(sys.argv[1]) if len(sys.argv)>1 else 200\ncache={}\nt0=time.time()\nfor role,p,A,B in PANEL:\n    pts,fb=enumerate_and_fb(A,B,p); N=len(pts)+1\n    n1,n2,G1,G2=group_structure(pts,A,p); pc=coord_map(N,A,p,n1,n2,G1,G2)\n    for denom in (16,8,4,2):\n        F=ladder_F(N,denom)\n        real=stats([pc[q] for q in fb[:F]],n1,n2,N,F)\n        ds=[]\n        for i in range(NDRAW):\n            s=draw_symmetric_null(pts,p,F,\"REDTEAM-MC/c819ba\",0,i)\n            st=stats([pc[q] for q in s],n1,n2,N,F)\n            ds.append({'v2':st[2]['var'],'v3':st[3]['var'],'v4':st[4]['var'],'cf':st['C_over_F']})\n        cache[f\"{role}|N/{denom}\"]={'F':F,'N':N,\n            'real':{'v2':real[2]['var'],'v3':real[3]['var'],'v4':real[4]['var'],'cf':real['C_over_F']},\n            'draws':ds}\n        print(f\"  {role} N/{denom} F={F} done {time.time()-t0:.0f}s\",file=sys.stderr)\njson.dump(cache,open('mc_cache.json','w'))\nprint(\"cached\",len(cache),\"cells x\",NDRAW,\"draws in\",time.time()-t0,\"s\")\n"
+  }
+ },
+ "prohibitions_observed": {
+  "status_changes": "none",
+  "ledger_writes": "none",
+  "commits": "none",
+  "files_written": [
+   "experiments/EXP-MONO-c819ba/reviews/red-team/red-team-report.yaml",
+   "experiments/EXP-MONO-c819ba/reviews/red-team/runtime-session-receipt.json"
+  ],
+  "producer_or_validator_files_touched": "none",
+  "sibling_reports_read": "none (experiments/EXP-MONO-c819ba/reviews/validator/ appeared during this session and was not opened, listed, or received by message)",
+  "impossibility_claims": "none; no bounded failure is called an impossibility, and (I1)-(I3) are untouched",
+  "network": "none"
+ }
+}

@@ -1,0 +1,622 @@
+idea:
+  id: IDEA-20260805-7abf04
+  question_id: RQ-MQOM-001
+  added: '2026-08-05'
+  title: >-
+    The zero-slack ledger: MQOM's Fiat-Shamir/grinding design inequality is met
+    with EXACT equality at every one of its six distinct (lambda, N, w, tau)
+    triples, so the scheme carries no reserve against any term the inequality
+    omits -- and the specification states in its own words that the EUF-CMA
+    proof does not yet exist
+  class: control
+
+  claim: >-
+    DEFINE the Fiat-Shamir slack functional of an MQOM2 parameter set P as
+    S_FS(P) := tau * (log2(N) - 1) + w - lambda, a single integer read off four
+    published numbers. The MQOM v2.1 specification fixes tau by
+    tau := ceil((lambda - w) / (log2(N) - 1)) so that
+    (2/N)^tau * 2^(-w) <= 2^(-lambda), which generically leaves
+    S_FS in {0, 1, ..., log2(N) - 2}. DERIVED IN THIS SESSION from Table 6 of
+    the v2.1 specification: S_FS = 0 for ALL SIX distinct triples
+    (N, w, tau) = (2048, 8, 12), (256, 9, 17), (2048, 12, 18), (256, 3, 27),
+    (2048, 6, 25), (256, 4, 36) at lambda = 128, 128, 192, 192, 256, 256.
+    The same holds for the second design equation: the 5-round batching slack
+    S_5r(P) := eta * log2|K| - lambda is EXACTLY 0 at all six sets
+    (eta * log2|K| = 8*16, 16*8, 12*16, 24*8, 16*16, 32*8). The scheme is
+    therefore tuned to the edge of both of its own soundness inequalities.
+    THE CLAIM IS NOT THAT MQOM IS BROKEN. The claim is a statement about
+    MARGIN STRUCTURE and its consequence: because the reserve is exactly zero,
+    every multiplicative or additive factor that the two inequalities omit --
+    the random-oracle query count Q, the additive (rather than multiplicative)
+    combination of the two challenge phases, the Kales-Zaverucha style
+    split-the-repetitions forgery, any commitment-binding or salt-collision
+    term, and the relaxed-opening offset log2(u) the specification itself
+    describes and declines to adopt -- lands as a bit-for-bit reduction of the
+    claimed level rather than being absorbed. The deliverable is a CHARGED
+    LEDGER: one line per omitted term, each with a derived bit cost or an
+    explicit "derivably zero", against a design with no reserve to pay them
+    from. The specification's own Section 4.1 states, in text extracted from the
+    v2.1 PDF this session, that "The formal EUF-CMA security proof of MQOM will
+    be added to a future version of the specification", so there is no proof
+    document in which those terms could already have been discharged.
+
+  object_first_candidate:
+    tracked_object: >-
+      The SLACK INTEGER of a design inequality, followed across the whole
+      parameter family. Not the transcript, not the witness, not the MQ system:
+      the single integer by which a published parameter set exceeds the
+      requirement its own designers wrote down. Followed through: published
+      table -> design equation -> slack integer -> census of terms the equation
+      omits -> revised slack. The object propagates deterministically because
+      each omitted term is an additive contribution in bits to the same integer.
+    established_families_off_limits: >-
+      Off-limits as the primary lens for this proposal: algebraic MQ solving
+      (Groebner/XL/crossbred/hybrid/Dinur -- that is IDEA-20260805-be7738 and
+      IDEA-20260805-7d97be), lattice reduction, side-channel and fault attacks
+      (2025/1895 is RELAYED and not used here), implementation bugs, and direct
+      forgery simulation at toy parameters (that is IDEA-20260801-018, which
+      this proposal neither repeats nor supersedes -- it measures an advantage,
+      this one audits an arithmetic identity and costs the terms the identity
+      leaves out).
+    newness_score: >-
+      The design equation is published and the arithmetic is trivial; what is
+      not anywhere in this corpus, and what the scout brief's T-B template asks
+      for, is the observation that the SLACK IS IDENTICALLY ZERO across the
+      entire family and the consequent term-by-term ledger. This corpus holds
+      exactly one prior MQOM proposal (IDEA-20260801-018) and it does not
+      compute a slack. Genuinely new as a framing; the underlying numbers are
+      the designers' own.
+    testability_score: >-
+      Maximal. Stage 1 is six lines of integer arithmetic reproducing Table 6
+      from four closed forms; it can be checked by hand and it can FAIL (any
+      set whose published tau differs from the ceiling formula falsifies the
+      reconstruction immediately).
+    survival_score: >-
+      The slack integer survives the entire audit by construction -- it is
+      defined by published numbers. What may not survive is the LEDGER'S
+      CONCLUSION: if every omitted term is derivably zero or already
+      compensated, the honest outcome is "MQOM's soundness accounting is tight
+      and complete", which is a real and publishable negative for this program.
+      That outcome is expected with substantial probability and is planned for.
+
+  mechanism: >-
+    ALL PARAMETER VALUES BELOW ARE READ FROM THE MQOM v2.1 SPECIFICATION
+    (Benadjila, Bouillaguet, Feneuil, Rivain, "MQOM: MQ on my Mind, Algorithm
+    Specifications and Supporting Documentation, Version 2.1", 2025-09-22),
+    fetched this session from https://mqom.org/docs/mqom-v2.1.pdf (HTTP 200,
+    707578 bytes) and read via a pure-zlib stream extractor because pdftotext
+    and pypdf are unavailable in this container. THE EXTRACTION IS LOSSY: it
+    recovers text-showing operators only, so ligatures appear as octal escapes
+    and table cells are recovered in reading order. Every number quoted here is
+    to be RE-VERIFIED against the rendered PDF as stage 0 of any experiment;
+    none of them is asserted as beyond re-checking.
+
+    THE TWO DESIGN EQUATIONS, quoted from Section 3.1 of the extracted text.
+    (E1) "we chose the parameters tau and w such that (2/N)^tau * 2^(-w)
+    <= 2^(-lambda)", with Section 2.1.4 fixing
+    tau := ceil((lambda - w) / (log2(N) - 1)).
+    (E2) "we took eta = lambda / log2|K| for the batching (5-round) variant to
+    ensure a soundness error of 1/|K|^eta = 2^(-lambda) (while eta is fixed to
+    m/mu by design for the 3-round variant)".
+
+    THE PUBLISHED TABLE (Table 6, six distinct proof-system rows, each shared by
+    three base fields):
+      short variants: N = 2048, log2 N = 11; fast variants: N = 256, log2 N = 8.
+      (lambda, N, w, tau) = (128, 2048, 8, 12), (128, 256, 9, 17),
+      (192, 2048, 12, 18), (192, 256, 3, 27), (256, 2048, 6, 25),
+      (256, 256, 4, 36).
+
+    FORCED VALUE 1, DERIVED IN THIS SESSION IN EXACT INTEGER ARITHMETIC.
+    tau_predicted = ceil((lambda - w) / (log2 N - 1)) gives
+    ceil(120/10) = 12, ceil(119/7) = 17, ceil(180/10) = 18, ceil(189/7) = 27,
+    ceil(250/10) = 25, ceil(252/7) = 36. Six for six against the published tau.
+    The reconstruction of Table 6 is therefore EXACT, which is the inventor
+    protocol's audit-1 baseline reproduction and it PASSED before this record
+    was written.
+
+    FORCED VALUE 2, THE CONTENT OF THE PROPOSAL. S_FS = tau*(log2 N - 1) + w -
+    lambda evaluates to 12*10 + 8 - 128 = 0; 17*7 + 9 - 128 = 0;
+    18*10 + 12 - 192 = 0; 27*7 + 3 - 192 = 0; 25*10 + 6 - 256 = 0;
+    36*7 + 4 - 256 = 0. SIX ZEROS. The ceiling in (E1) would generically leave
+    a remainder anywhere in [0, log2 N - 2], i.e. in [0,9] for the short sets
+    and [0,6] for the fast sets. Under a null model in which w is chosen for
+    signing cost alone, without regard to divisibility, the probability of six
+    independent exact zeros is about (1/10)^3 * (1/7)^3 = 2.9e-6 ~ 2^(-18.4).
+    The zeros are therefore deliberate: w was selected to make (lambda - w)
+    divisible by (log2 N - 1). That is a legitimate and efficient design choice.
+    Its consequence is the point: there is no rounding reserve anywhere.
+
+    FORCED VALUE 3. S_5r = eta*log2|K| - lambda is 0 at all six sets
+    (8*16, 16*8, 12*16, 24*8, 16*16, 32*8 against 128, 128, 192, 192, 256, 256),
+    while the 3-round variant's first phase, whose eta is forced to m/mu by the
+    packing rather than chosen, has LARGE slack: for MQOM2-L1-gf2-short-3r,
+    eta = 10 and |K| = 2^16 give 2^(-160) against lambda = 128, i.e. S_3r = 32
+    bits; for L1-gf16-short-3r, eta = 14, S_3r = 96; for L1-gf256-short-3r,
+    eta = 24, S_3r = 256. THE ASYMMETRY IS THE DIAGNOSTIC: where a parameter was
+    free, it was driven to zero slack; where it was forced by the packing, slack
+    is enormous. A design in which every free parameter sits exactly on its
+    constraint is a design in which the constraint is the entire security
+    argument.
+
+    THE LEDGER. Each line is a term the two inequalities do not carry, with the
+    bit cost to be DERIVED (not assumed) in the experiment:
+    (L1) QUERY COUNT. (E1) bounds the per-query success probability. An
+    adversary making Q_ro random-oracle queries succeeds with probability about
+    Q_ro * (2/N)^tau * 2^(-w). The claimed lambda-bit level is a statement about
+    WORK, so this is standard and probably already intended; the ledger's job is
+    to state whether the specification's lambda is a per-query probability bound
+    or a work bound, because the two differ by exactly log2(Q_ro) bits and the
+    reserve is zero.
+    (L2) PHASE COMBINATION. Two challenge phases each at 2^(-lambda) combine
+    additively, giving total soundness error 2^(-lambda+1) and a forgery cost of
+    2^(lambda-1). Exactly one bit, derivable, and unabsorbable at zero slack.
+    (L3) SPLIT-REPETITION FORGERY. For a multi-round Fiat-Shamir protocol the
+    Kales-Zaverucha family of attacks costs
+    min over t of [ 1/Pr(at least t of tau first-phase repetitions succeed) +
+    (N/2)^(tau - t) ] rather than the product of the two errors. Whether this
+    bites on MQOM depends on whether the first-phase challenge is GLOBAL (one
+    Gamma for all tau) or PER-REPETITION -- a structural question answerable by
+    reading Algorithm 3 and the ComputeP Alpha subroutine, at zero compute. If
+    global, the attack is already covered by (L2) and the line closes at one
+    bit; if per-repetition, the ledger must derive the optimum over t. THIS IS
+    THE SINGLE HIGHEST-VALUE UNKNOWN IN THE PROPOSAL AND IT IS DECIDED BY
+    READING, NOT BY COMPUTING.
+    (L4) GRINDING AMORTISATION. The 2^(-w) factor assumes the adversary pays
+    2^w work per usable challenge and cannot share that work across attempts.
+    The specification's own text says the grinding value is drawn as
+    (i*, val) <- XOF_5((hash, nonce)) with nonce a 32-bit counter. Two derivable
+    questions: (a) is the pair (i*, val) drawn from ONE XOF output of length
+    tau*log2(N) + w bits, so that i* and val are correlated across nonce values
+    only through the XOF -- yes, per Algorithm 4 -- and (b) does the 32-bit
+    nonce cap the honest signer's search (2^w << 2^32 for all sets, so no) or
+    the adversary's (no, the adversary may vary hash). Expected outcome:
+    derivably zero. A line that closes at zero is still a line.
+    (L5) RELAXED OPENING. The specification describes, in Section 5, a relaxed
+    vector commitment that "degrades the soundness of the proof system by an
+    offset of log2(u) bits" with u := 2N(lambda/log2 lambda)^2, and states it
+    was NOT adopted in v2. The ledger records this as the designers' own worked
+    example of an offset that must be compensated by raising parameters -- the
+    exact mechanism by which zero slack becomes a parameter change -- and
+    computes log2(u) for each set as a calibration of the scale at which such
+    offsets arrive (for lambda = 128, N = 2048: u = 2*2048*(128/7)^2, log2 u
+    about 20.9 bits).
+    (L6) SALT AND SEED COLLISIONS. Deferred in full to IDEA-20260805-cec9b6;
+    the ledger carries the line and points at it rather than double-counting.
+
+    WHY THE LEDGER IS NOT ARITHMETIC BUSYWORK. At nonzero slack, a two-bit term
+    is absorbed and nobody needs to know about it. At zero slack, the sum of the
+    ledger IS the gap between the claimed level and the derived level, and the
+    specification has no proof document in which that sum has already been
+    taken: Section 4.1 of v2.1 states the EUF-CMA proof is deferred to a future
+    version. NIST's stated reservation about MQOM, as recorded in RQ-MQOM-001,
+    is proof maturity rather than the MQ assumption. This proposal is that
+    reservation converted into an integer.
+
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-08-05'
+    corpus_paths_grepped:
+      - ledger/proposals
+      - ledger/questions
+      - ledger/goals
+      - knowledge/
+      - docs/
+    grep_results:
+      - >-
+        Exactly one prior MQOM idea exists in this corpus
+        (IDEA-20260801-018), and it proposes a toy-scale forgery-advantage
+        SIMULATION against the TCitH bound. It computes no slack, reads no
+        specification, and names no parameter set. This proposal shares its
+        target (bound tightness) and shares nothing else.
+      - >-
+        Exactly one MQOM-mentioning knowledge entry exists (KN-LIT-7620,
+        NIST IR 8610), and it asserts no per-scheme technical claim.
+      - >-
+        No hypothesis, experiment, evidence or run record with the MQOM area
+        prefix exists.
+    conclusion: >-
+      Novelty within this corpus is established for the framing. Novelty against
+      the external literature is NOT established and is not claimed: the
+      Kales-Zaverucha analysis of multi-round Fiat-Shamir MPCitH signatures is
+      an established public technique (RECALLED, UNVERIFIED -- no paper was read
+      for this record) and (L3) is an application of it, not an invention. The
+      scout brief's T-H warning binds: this corpus's novelty screen sees a
+      literature corpus in which 95 per cent of entries carry a bulk-seeding
+      caveat, so "no prior work does X" is not available to this record and is
+      not written into it.
+
+  literature_context:
+    - >-
+      READ (primary, this session, with the extraction caveat above): MQOM v2.1
+      specification, https://mqom.org/docs/mqom-v2.1.pdf, fetched HTTP 200.
+      Source of Table 6, the two design equations, Algorithms 3 and 4, the
+      Section 4.1 sentence deferring the EUF-CMA proof, and the Section 5
+      relaxed-opening discussion. Also READ: https://mqom.org/resources.html,
+      which lists v2.1 (2025-09-22) as the latest specification. THERE IS NO
+      PUBLISHED ROUND-3 SPECIFICATION AS OF THIS SESSION; Round-3 tweaks are due
+      2026-08-14. GOAL-MQOM-001's pause condition "No MQOM Round-3
+      specification can be obtained under the network policy" is therefore NOT
+      triggered and is mis-stated for the current state of the world: the
+      obstacle is that the document does not exist yet, not that the network
+      blocks it, and v2.1 IS obtainable. This record scopes everything to v2.1.
+    - >-
+      ABSTRACT ONLY (READ, https://eprint.iacr.org/2026/629, HTTP 200; PDF body
+      NOT read): Haruhisa Kosuge and Keita Xagawa, "Towards Formal Security
+      Proofs of MQOM", ePrint 2026/629, received 2026-03-31, approved
+      2026-04-02. The abstract states that MQOM's secret-key-root correlated GGM
+      tree "introduces a dependency loop in the proof", that "standard MPCitH
+      proof templates do not apply directly", and that the authors prove
+      EUF-CMA for TWO MODIFIED VARIANTS of MQOM rather than for the submitted
+      scheme. This is the external corroboration that the proof gap named in
+      Section 4.1 of the specification is real and non-trivial. It is used here
+      only as context; its content is developed in IDEA-20260805-cec9b6.
+    - >-
+      RECALLED, UNVERIFIED, A CANDIDATE TO CHECK AND NEVER AN AUTHORITY: the
+      Kales-Zaverucha attack on 5-round MPCitH Fiat-Shamir signatures and its
+      cost formula min_t [1/P1(t) + (1/p2)^(tau-t)]. No paper was retrieved for
+      this record. Retrieving it, or re-deriving the formula from scratch, is a
+      declared stage of the paired experiment, and the ledger line (L3) is
+      marked unresolved until then.
+    - >-
+      NOT READ, relayed via the session scout brief: ePrint 2025/1895
+      (differential fault attacks on MQOM) and ePrint 2026/1506. Neither is used
+      in any derivation here; both are listed so a later reader knows they were
+      seen and set aside as out of scope (fault attacks are declared off-limits
+      above).
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Full MQOM parameter set and protocol specification --> the single integer
+      S_FS = tau*(log2 N - 1) + w - lambda (and its companion S_5r).
+    what_is_discarded: >-
+      Everything except four published integers per set. The base field, n, m,
+      mu, the packing, the GGM tree structure, the commitment scheme, the
+      symmetric primitives and the entire MQ instance are discarded.
+    why_genuinely_lossy: >-
+      Extremely lossy: the fibre over S_FS = 0 contains all eighteen published
+      instances and infinitely many hypothetical ones. Nothing about the base
+      field or the MQ hardness is recoverable from S_FS. This is not the
+      change-of-coordinates failure of (Delta, Pi) = (x XOR y, x*y): the
+      parameter set cannot be reconstructed from its slack.
+    why_compatible_with_the_operations: >-
+      Compatible because S_FS is a function of exactly the quantities that the
+      designers' own soundness inequality is a function of, and because every
+      term the ledger adds is additive in bits on the same scale. The retained
+      part propagates deterministically: adding an omitted term of b bits maps
+      S_FS to S_FS - b, with no dependence on the discarded structure.
+    is_it_only_a_change_of_coordinates: >-
+      NO. It is a projection to a four-integer function of an eighteen-instance
+      family. THE FAILURE MODE CHECKED FOR IS THE MIRROR ONE -- a projection so
+      lossy that it is CONSTANT across instances and therefore says nothing.
+      That failure is REAL HERE AND IS FACED HEAD ON: S_FS is in fact constant
+      (identically 0) across all eighteen instances, so its comparator spread
+      within MQOM is exactly zero. The proposal survives only because the
+      comparator is taken OUTSIDE MQOM: the null arm computes S_FS for parameter
+      families that satisfy the same inequality WITHOUT having been tuned to it
+      (MQOM v1.0's own parameter table, and a synthetic re-optimisation sweep in
+      which w ranges over its admissible values). If those nulls also give
+      identically zero, the statistic is a constant of the apparatus and this
+      proposal's central observation collapses to "ceilings often round to
+      zero", which must then be reported as a controlled null and not as a
+      finding. THAT IS THE DECISIVE CONTROL AND IT IS RUN FIRST.
+
+  assumptions:
+    - >-
+      That the extracted text of Table 6 is faithful. The extractor recovers
+      table cells in reading order and could in principle transpose a column.
+      Stage 0 re-verifies all eighteen rows against the rendered PDF and against
+      the independent public benchmark table on https://mqom.org/ (already
+      fetched this session), whose signature sizes are a consistency check on
+      tau, eta and mu through the published size formula.
+    - >-
+      That "soundness error" in the specification's design equations means what
+      the ledger assumes it means (a per-query bound). If it already means a
+      work bound, ledger line (L1) closes at zero. This is a reading question,
+      not a mathematical one.
+    - >-
+      NO ASSUMPTION IS MADE that MQOM is insecure, that the omitted terms are
+      nonzero, or that the designers have overlooked anything. The ledger is
+      symmetric: a complete ledger summing to zero bits is a supported statement
+      that the accounting is tight, and that is a legitimate and likely outcome.
+
+  predictions:
+    - metric: >-
+        tau_reproduction: number of the six distinct proof-system parameter
+        rows of Table 6 whose published tau equals
+        ceil((lambda - w)/(log2 N - 1))
+      direction: higher
+      minimum_effect: >-
+        EXACTLY 6 of 6. Derived in this session before any experiment; a value
+        below 6 means the design equation was misread and the whole record must
+        be rewritten against what the specification actually says.
+    - metric: >-
+        S_FS: the slack integer tau*(log2 N - 1) + w - lambda, per parameter set
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0 at all eighteen published instances (six distinct values). Any
+        nonzero value falsifies the headline. This is a forced value stated
+        before the run and it can fail.
+    - metric: >-
+        S_5r: eta*log2|K| - lambda for the 5-round variants
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0 at all eighteen. Companion forced value.
+    - metric: >-
+        S_3r: eta*log2|K| - lambda for the 3-round variants, where eta = m/mu
+      direction: higher
+      minimum_effect: >-
+        STRICTLY POSITIVE at all eighteen, and specifically 32 bits for
+        L1-gf2-short-3r, 96 for L1-gf16-short-3r, 256 for L1-gf256-short-3r.
+        This is the asymmetry prediction: forced parameters carry slack, free
+        parameters do not. If the 3-round slacks are also zero, the asymmetry
+        claim is wrong and the "tuned to the edge" reading loses its support.
+    - metric: >-
+        S_FS on the NULL arm: number of distinct (lambda, N, w) combinations in
+        the null families whose slack is exactly zero, out of the number tested
+      direction: lower
+      minimum_effect: >-
+        STRICTLY BELOW 100 per cent, and the null distribution of S_FS must have
+        nonzero spread. If the null also returns identically zero, the statistic
+        is a constant of the apparatus and NO positive interpretation may be
+        reported (inventor protocol section 3). Predicted null rate under the
+        stated model: about 1/10 for short-shaped sets and 1/7 for fast-shaped.
+    - metric: >-
+        ledger_total_bits: sum over lines L1..L6 of the derived bit cost, per
+        parameter set, with each line marked derived / derivably-zero /
+        unresolved
+      direction: different
+      minimum_effect: >-
+        NO PREDICTION IS MADE FOR THE TOTAL, deliberately, because predicting it
+        would be predicting the answer. What IS pre-registered: every line is
+        assigned one of the three markers, and the count of lines left
+        "unresolved" is reported in the headline of any resulting evidence
+        record. A ledger with unresolved lines may not be summed.
+    - metric: >-
+        first_phase_challenge_structure: whether the 5-round batching challenge
+        Gamma is global across the tau repetitions or drawn per repetition, read
+        from Algorithm 3 and the ComputeP Alpha subroutine
+      direction: different
+      minimum_effect: >-
+        A BINARY ANSWER WITH A LINE-AND-ALGORITHM CITATION. This single reading
+        decides whether ledger line (L3) closes at one bit or requires a full
+        Kales-Zaverucha optimisation, and it costs no compute. It is the
+        cheapest decisive gate in the proposal and runs first after stage 0.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first, each able to terminate the audit.
+      STAGE 0 (reading, zero compute): re-verify Table 6, the two design
+      equations, the Section 4.1 EUF-CMA sentence and the Section 5
+      relaxed-opening offset against the rendered v2.1 PDF; cross-check the
+      eighteen rows against the mqom.org benchmark table through the published
+      signature-size formula. If Table 6 as extracted is wrong, STOP and rewrite.
+      STAGE 1 (arithmetic, zero compute, minutes): compute tau_predicted, S_FS,
+      S_5r, S_3r for all eighteen instances in exact integer arithmetic; run the
+      NULL arm BEFORE looking at the MQOM arm.
+      STAGE 2 (reading, zero compute): determine the first-phase challenge
+      structure and settle ledger line (L3) as one bit or as an optimisation.
+      STAGE 3 (derivation, pen and paper): fill lines L1, L2, L4, L5 with
+      derived bit costs or explicit derivably-zero statements; leave L6 to
+      IDEA-20260805-cec9b6; report the ledger with its unresolved count.
+    controls:
+      - >-
+        NULL-A (matched null of the same shape, run and committed BEFORE the
+        MQOM arm). Compute S_FS for parameter families that satisfy the same
+        inequality without having been tuned to it: (i) the MQOM v1.0 parameter
+        table (a different design by the same team, spec at
+        https://mqom.org/docs/mqom-v1.0.pdf, fetchable), and (ii) a synthetic
+        sweep in which, for each (lambda, N) in the MQOM grid, w ranges over
+        1..24 and tau is recomputed by the ceiling formula. FORCED VALUE DERIVED
+        BEFORE THE RUN: in the synthetic sweep the fraction of w values giving
+        S_FS = 0 is exactly 1/(log2 N - 1), i.e. 1/10 for N = 2048 and 1/7 for
+        N = 256; the observed fraction must match those to within the exact
+        count. THIS NULL CAN FAIL: if the sweep returns S_FS = 0 for every w,
+        the statistic is a constant of the apparatus and the proposal's headline
+        is void.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT (the effect MUST appear). Take the
+        MQOM2-L3-gf2-fast row, which has w = 3 -- an unusually small grinding
+        parameter next to w = 12 for the L3 short row -- and verify that
+        perturbing w by +1 or -1 with tau held fixed moves S_FS by exactly +1 or
+        -1. If the instrument does not respond to a one-bit perturbation of a
+        published parameter, the arithmetic pipeline is broken and NO negative
+        result may be reported from any stage.
+      - >-
+        GRADED CONTROL, at least three interior points, monotonicity reported.
+        For a fixed (lambda, N) = (128, 2048), sweep w over {6,7,8,9,10} and
+        report tau and S_FS at each point. The prediction, derived before the
+        run: tau decreases by one exactly when w crosses a multiple of 10 below
+        lambda, and S_FS traces the sawtooth (lambda - w) mod 10 complemented,
+        taking the value 0 only at w = 8 and w = 18. A monotone or flat response
+        localises a bug in the ceiling implementation rather than leaving "it
+        did not work".
+      - >-
+        VERDICT-ON-THE-NULL-FIRST. The frozen decision rule ("is the family
+        tuned to the edge?") is executed on NULL-A and committed before the MQOM
+        arm is looked at. If it emits the same verdict on both, the rule
+        discriminates nothing and must be rewritten before the MQOM arm is read.
+      - >-
+        ARCHIVE CHECK (zero compute). List every archived measurement of this
+        observable in this corpus. NOT AVAILABLE: no MQOM experiment, evidence
+        or run record exists, and no slack functional appears anywhere. That
+        unavailability is recorded here rather than claimed as a passed check.
+    required_metrics:
+      - the eighteen-row reproduction table with tau_published and tau_predicted side by side
+      - S_FS, S_5r, S_3r per instance, as exact integers
+      - the null-arm slack distribution with its committed pre-run forced fractions
+      - the graded w-sweep with monotonicity reported
+      - the ledger, one line per omitted term, each marked derived / derivably-zero / unresolved, with the unresolved count in the headline
+      - verbatim quotation of the Section 4.1 EUF-CMA sentence with a page reference from the rendered PDF, or a recorded statement that it could not be re-obtained
+
+  falsification_conditions:
+    - >-
+      Any published tau that differs from ceil((lambda - w)/(log2 N - 1)). The
+      reconstruction of Table 6 is then wrong and this record must be superseded
+      rather than patched.
+    - >-
+      Any parameter set with S_FS strictly positive. The headline "zero slack
+      everywhere" is then false as stated and must be restated as "zero slack at
+      k of eighteen".
+    - >-
+      NULL-A returning S_FS = 0 for all w. The statistic is then a constant of
+      the apparatus and the entire framing is a controlled null, to be recorded
+      as such.
+    - >-
+      The positive control failing to move S_FS under a one-bit perturbation of
+      w. Nothing negative may then be reported at all.
+    - >-
+      Reading the specification and finding that (E1) is already stated as a
+      work bound including the query count, that the two phases are already
+      combined additively in the parameter choice, and that the first-phase
+      challenge is global -- in which case lines L1, L2 and L3 close at zero or
+      one bit and the ledger's total is small. THIS IS THE MOST LIKELY SINGLE
+      OUTCOME and it is a complete, reportable result, not a failure.
+
+  confounders:
+    - >-
+      EXTRACTION FIDELITY. Every number in this record came through a lossy
+      PDF text extractor written this session. Stage 0 exists solely to remove
+      this confounder and no stage may proceed past it on the extracted text.
+    - >-
+      CONVENTION DRIFT. "lambda bits of soundness" is used in the literature
+      for at least three different quantities (per-query probability, total
+      forgery work, and bit-security after a tightness loss). The ledger must
+      fix one convention explicitly and restate every line in it, or its sum is
+      meaningless.
+    - >-
+      AUTHORSHIP ASYMMETRY. Producing an arithmetic observation about a
+      submitted scheme is cheap and reads as rigour. The graded control and the
+      pre-committed null exist precisely so that a "tuned to the edge"
+      conclusion costs something to reach.
+    - >-
+      SELECTION OF THE SLACK FUNCTIONAL. S_FS was defined after the six zeros
+      were noticed. That ordering is disclosed here rather than hidden; the
+      defence is that the functional is the designers' own inequality rearranged
+      and admits no free choice, and that the null arm tests the functional
+      rather than the observation.
+
+  interpretation_limits:
+    - >-
+      A zero slack is NOT an attack, NOT a cost, and NOT evidence that MQOM
+      fails any claimed level. It is a statement about design margin. No
+      sentence of the form "MQOM provides fewer than lambda bits" may be written
+      from this record without a completed ledger whose every line is marked
+      derived, and even then it is scoped to v2.1 and to the ROM.
+    - >-
+      Nothing here transfers to the QROM. The specification's own security
+      statement is in the ROM plus ICM, the quantum accounting is absent, and no
+      quantum claim is made or implied.
+    - >-
+      Ledger line (L3) is the one that could change a claimed level, and it is
+      the one resting on a RECALLED, UNVERIFIED attack formula. Until that
+      formula is retrieved or re-derived, the line carries no number.
+    - >-
+      This proposal is scoped to MQOM v2.1. The Round-3 specification does not
+      exist as of this session (tweaks due 2026-08-14); when it appears, every
+      number here must be recomputed against it before any statement is carried
+      forward.
+
+  heuristic_assumptions:
+    - id: HEUR-MQOM-SLACK-1
+      statement: >-
+        NONE LOAD-BEARING FOR THE HEADLINE. S_FS = 0 at the eighteen published
+        instances is an exact integer identity in four published integers,
+        proved by evaluation, not assumed. This entry exists to record that the
+        central observation is unconditional and that the only assumption is
+        evidentiary (fidelity of the extracted table), which stage 0 removes.
+      rigorous_support: >-
+        Direct evaluation of ceil((lambda - w)/(log2 N - 1)) and of
+        tau*(log2 N - 1) + w - lambda over six triples, in exact integer
+        arithmetic. Elementary.
+      validation_plan: >-
+        Recompute in the harness with a receipt, after re-verifying Table 6
+        against the rendered PDF. Not a distributional validation and not
+        presented as one.
+    - id: HEUR-MQOM-SLACK-2
+      statement: >-
+        LOAD-BEARING FOR THE INTERPRETATION, NOT FOR THE ARITHMETIC. That a
+        designer choosing w for signing cost alone would produce a remainder
+        approximately uniform on {0, ..., log2 N - 2}, so that six exact zeros
+        indicate deliberate tuning rather than coincidence.
+      rigorous_support: >-
+        None beyond the counting argument. w is chosen from a small integer
+        range under competing pressures (signing time grows as 2^w, tau shrinks
+        as w grows), and there is no reason to believe the induced distribution
+        on remainders is uniform. The 2^(-18.4) figure is therefore an
+        ILLUSTRATION OF SCALE, NOT A P-VALUE, and must never be reported as one.
+      validation_plan: >-
+        The NULL-A synthetic sweep measures the remainder distribution under the
+        stated model directly; the MQOM v1.0 table provides a second,
+        non-synthetic family by the same authors. If the v1.0 table also shows
+        identically zero slack, the "deliberate tuning" reading weakens
+        considerably and must be reported as weakened.
+
+  target_complexity:
+    time_exponent: >-
+      n/a for this audit -- no algorithm is proposed and no exponent is moved.
+      The quantity under audit is the claimed forgery WORK exponent lambda
+      itself (128, 192, 256), and the ledger's output is a possible additive
+      correction to it in bits, not a change of its functional form.
+    memory_exponent: >-
+      n/a. No memory claim is made. Memory enters this goal through
+      IDEA-20260805-be7738, not here.
+    best_known: >-
+      The best published forgery cost against MQOM v2.1 known to this record is
+      the designers' own claim of 2^lambda, with no independent third-party
+      re-derivation located in this corpus. That absence is a gap in this
+      corpus's coverage, not evidence that no such re-derivation exists.
+    hidden_overhead: >-
+      The ledger IS the hidden-overhead accounting. Its lines are exactly the
+      terms hidden behind "lambda bits of soundness".
+    tradeoff_note: >-
+      One genuine tradeoff is visible in the published table and is worth
+      recording: w trades signing time (2^w hash iterations) against tau (and
+      hence signature size). MQOM2-L3-gf2-fast sits at w = 3 while
+      MQOM2-L3-gf2-short sits at w = 12, a factor 512 in signing grinding work,
+      which is why the fast variants pay a larger tau.
+
+  dominated_by: >-
+    n/a (no result claimed). This proposal claims no attack, no speedup and no
+    Pareto point; it proposes a reading and an arithmetic ledger, so there is no
+    frontier row to be dominated by. Rows checked before writing "n/a", as the
+    inventor protocol requires: (i) time axis -- the only competing cost claim
+    on this question is the designers' 2^lambda, and this record produces no
+    competing number; (ii) memory axis -- no memory is used or claimed;
+    (iii) data/queries axis -- the audit consumes zero signatures and zero
+    oracle queries, which is strictly the cheapest possible point on that axis
+    and is the reason the proposal is worth running before anything expensive.
+    Corpus rows checked for a prior result on this question: all MQOM-mentioning
+    files (KN-LIT-7620, RQ-MQOM-001, GOAL-MQOM-001, IDEA-20260801-018,
+    IDEA-20260731-005, IDEA-20260805-19990a, IDEA-20260805-38048d); none carries
+    a cost claim about MQOM's forgery bound.
+  sota_delta: >-
+    Quantitatively: this audit changes the published forgery-cost claim by
+    exactly the sum of its ledger, which is pre-registered as UNKNOWN and is
+    predicted to be small (0 to 2 bits) if the first-phase challenge is global
+    and larger only if line (L3) opens. The delta that is certain rather than
+    predicted is evidentiary: it converts "MQOM claims 2^128 forgery cost" from
+    an unexamined statement in this corpus into either a derived one or a
+    quantified gap, at a compute cost of zero and a wall-clock cost of hours.
+
+  estimated_cost:
+    implementation: low
+    compute: negligible
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.20 that the completed ledger shows a strictly positive total exceeding
+    2 bits at any published parameter set. It is not lower because the slack is
+    verifiably zero (so nothing can be absorbed), because the specification
+    itself defers its EUF-CMA proof to a future version so no document exists in
+    which these terms were discharged, because an independent 2026 preprint
+    (2026/629, abstract READ) states that standard MPCitH proof templates do not
+    apply to MQOM's tree construction, and because this program's own record
+    (DEC-20260803-64b55b) contains two occasions in one batch where scouting was
+    wrong in the direction that would have closed work off. It is not higher
+    because the MQOM designers are experienced, because additive phase
+    combination and query counting are standard and very likely already
+    intended, because the most probable reading of the protocol has a global
+    first-phase challenge which closes the dangerous line at one bit, and
+    because "the designers' accounting is tight" is the base-rate outcome for
+    an audit of a Round-3 NIST candidate. Separately: 0.95 that the audit
+    reaches a decisive, reportable reading, because stage 1 is arithmetic and
+    stage 2 is reading.

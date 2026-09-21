@@ -1,0 +1,251 @@
+idea:
+  id: IDEA-20260816-ade53e
+  question_id: RQ-SHAONE-081e3a
+  added: '2026-08-16'
+  title: 'Charge the restarts: measure the distribution of abort depth in near-collision block search,
+    test whether per-block cost is geometric as an expected-value cost model implicitly assumes, and
+    report the tail index that determines how badly a mean-based budget under-provisions.'
+  class: mechanism
+  claim: '(A) A near-collision block search proceeds by satisfying a chain of conditions and restarting
+    when one fails. Any cost model that multiplies an expected per-block cost by a block count is
+    assuming the per-block cost distribution is well-behaved enough for its mean to be the planning
+    quantity. If the distribution is geometric, the mean is sufficient and a budget derived from it
+    is sound. If it is heavier-tailed -- because condition failures are correlated across attempts
+    through shared message freedom, or because the abort depth distribution has a slowly decaying
+    tail -- then the mean understates the budget needed for a given completion probability, and the
+    gap is a measurable number. (B) Define the abort depth as the index of the deepest condition satisfied
+    before a restart. Its full distribution is directly observable at MD5 and reduced-step scale,
+    at low cost, over many attempts. From it, both the per-attempt cost distribution and the completion-probability
+    quantiles follow. (C) The claim is that the abort depth distribution is measurable with enough
+    samples to test the geometric hypothesis, that the deviation from geometric can be reported as
+    a fitted tail index with a confidence interval, and that the ratio between the 95th-percentile
+    budget and the mean budget is the single quantity a planner actually needs and that a mean-based
+    cost model omits. (D) WHAT IS NOT CLAIMED: no attack, no new cost figure for SHA-1, no assertion
+    that any published cost model is wrong, and no security consequence. A tail index measured on
+    a reduced-step analogue is a statement about that analogue''s search dynamics. (E) A result confirming
+    the geometric hypothesis is fully valuable: it would license mean-based budgeting for this search
+    at this scale, which is currently an untested assumption in this repository.'
+  mechanism: 'STAGE 1: instrument the near-collision block search so that every restart records its
+    abort depth and the number of compression-function evaluations consumed, at no measurable overhead
+    by keeping the counters in the compiled kernel. STAGE 2: run the search to a large declared number
+    of attempts at a reduced-step analogue and at MD5 scale, collecting the full abort-depth histogram
+    rather than summary statistics. STAGE 3: test the geometric hypothesis. Under independence across
+    attempts and per-condition success probabilities p_i, the abort depth distribution has a specific
+    predicted form computable from the p_i measured at shallow depths; compare the observed deep tail
+    against that prediction. STAGE 4: fit a tail index to the per-attempt cost distribution and compute
+    the ratio of the 95th-percentile total budget to the mean-based budget. STAGE 5: null control
+    -- run the identical instrumented search with the condition set replaced by a set of independent
+    artificial conditions of matched individual success probabilities, which by construction must
+    produce the geometric form. If the null does NOT produce the geometric form, the instrument or
+    the estimator is at fault and no statement about the real condition set can be made. STAGE 6:
+    correlation probe -- measure whether abort depth in consecutive attempts sharing message freedom
+    is autocorrelated, which is the mechanism that would produce a heavy tail, so a positive tail
+    finding comes with a candidate cause rather than a bare number.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Read RQ-SHAONE-081e3a and GOAL-SHA1-001 in full; the RQ''s second target names restart
+      policy among the costs a device-hour figure does not express. Ran: grep -ril ''restart policy''
+      ledger/proposals (1 hit, read); grep -ril ''heavy tail|tail index'' ledger/proposals; grep -l
+      ''RQ-SHAONE'' ledger/proposals/*.yaml (zero); grep -ril ''near-collision'' ledger/proposals
+      (four elliptic-curve false matches). Read knowledge/techniques/KN-TECH-066.md, which describes
+      message modification and degrees-of-freedom accounting.'
+    results: 'One proposal matches restart policy: IDEA-20260807-59f5b7 under RQ-EWALK-8fa147, which
+      applies a renewal-reward estimator to charge censoring in an elliptic-curve negation-quotient
+      walk and reverses a measured speedup''s size trend. That is the closest methodological relative
+      in the repository and shares the insight that conditional-on-success numbers mislead -- but
+      its object is an elliptic-curve walk and its data are existing 16- and 18-bit artifacts, not
+      an instrumented hash search. KN-TECH-066 describes degrees-of-freedom accounting for message
+      modification but records no distribution and no tail. Zero proposals against RQ-SHAONE-081e3a.'
+    verdict: 'UNVERIFIED. Nothing is asserted about whether abort-depth distributions for near-collision
+      search have been published; measuring them would be a natural thing for an implementer to do.
+      Claimed new internally: this repository holds no abort-depth distribution for any search, and
+      the specific move of testing the geometric hypothesis against a matched artificial-condition
+      null that must produce the geometric form is assembled from IDEA-20260807-59f5b7''s censoring
+      insight plus the program''s null-control discipline in docs/inventor-protocol.md section 3.'
+  object_first_candidate:
+    tracked_object: 'The abort depth: the index of the deepest condition satisfied before a restart,
+      carried per attempt together with the evaluations that attempt consumed. What is followed through
+      the search is the SEQUENCE of abort depths across attempts, which is the object whose distribution
+      and autocorrelation determine whether a mean-based budget is sound.'
+    lossiness: Genuinely lossy. Each attempt is compressed to a single integer plus a count, discarding
+      every message word, every internal state and every condition's identity beyond its index. It
+      is compatible with the operation because the restart decision depends only on the deepest satisfied
+      index, so the retained integer is exactly the state variable governing the search's control
+      flow and it propagates. What is lost is WHICH condition failed at a given depth -- two different
+      failing conditions at the same index are indistinguishable -- and that loss is why the correlation
+      probe in STAGE 6 must be run on the raw sequence rather than reconstructed from the histogram.
+    propagation: One step of the target operation is one attempt at a near-collision block. It maps
+      the tracked object forward by appending one abort depth drawn from the search's conditional
+      structure, and by adding that attempt's evaluations to the running cost. If attempts were independent,
+      the sequence would be i.i.d. and the cost a simple sum; the proposal's entire substance is that
+      whether they are independent is a measurable question rather than a modelling choice.
+    survival_score: The abort-depth object survives the entire search by construction. It dissolves
+      in usefulness when the search is so easy that almost all attempts reach full depth -- concretely,
+      when the fraction of attempts aborting before the declared minimum depth falls below a threshold,
+      the histogram has no tail to measure. Equally it dissolves when the search is so hard that no
+      attempt exceeds a shallow depth within budget. Both boundaries are measurable, and finding the
+      analogue's parameters that sit between them is a reported result of STAGE 2.
+  null_object_control: 'Artificial independent conditions: replace the real condition set with a synthetic
+    set of independent Bernoulli conditions whose individual success probabilities are matched, condition
+    by condition, to those measured in the real search, and run the IDENTICAL instrumented search
+    loop in the same invocation. By construction this null MUST produce the geometric abort-depth
+    form. The null therefore validates the estimator and the instrument: if the artificial arm''s
+    fitted tail index deviates from the geometric prediction, the deviation is measurement error and
+    no claim about the real condition set is admissible. Only a real arm that deviates while the artificial
+    arm does not supports a heavy-tail statement.'
+  discriminated_from:
+  - 'IDEA-20260807-59f5b7 (renewal-reward charging of censored work in an elliptic-curve negation-quotient
+    walk): shares the insight that conditional-on-success costs mislead, but its object, its operation
+    and its data are elliptic-curve; this instruments a hash near-collision search and measures an
+    abort-depth distribution that record does not have.'
+  - 'KN-TECH-066 (message modification and degrees-of-freedom accounting): describes how conditions
+    are satisfied and how freedom is spent; contains no distribution, no tail index, and no independence
+    test.'
+  - 'The birthday-phase efficiency proposal in this batch: that measures wasted trail work in the
+    birthday phase; this measures restart structure in the near-collision phase. Different phase,
+    different object, no shared evidence.'
+  - 'A generic wall-clock benchmark of the search: that yields a mean time on one machine; this yields
+    a distribution, an independence test against a matched artificial null, an autocorrelation probe,
+    and a 95th-percentile-to-mean budget ratio, all in machine-independent evaluation counts.'
+  - 'RQ-INSTR-f8faa0''s machine-variance audits: those characterise timing noise on this program''s
+    hardware; this counts evaluations and is deliberately insensitive to machine speed.'
+  assumptions:
+  - Abort depth is a well-defined single integer per attempt, which requires the condition chain to
+    be totally ordered; searches with branching condition structure would need a different object
+    and are out of scope.
+  - In-kernel counters do not perturb the search's dynamics; verified by comparing evaluation totals
+    with counters enabled and disabled.
+  - The reduced-step analogue's condition chain is structurally similar enough to a full-scale one
+    that a tail finding is informative about the mechanism, not just about the analogue. This is the
+    central extrapolation assumption and no numeric transfer is performed.
+  - Per-condition success probabilities measured at shallow depths are stable enough to predict the
+    deep tail under the geometric hypothesis.
+  - Enough attempts can be run for the deep tail to be populated at all, which STAGE 2 must establish
+    before any fit is attempted.
+  predictions:
+  - metric: fitted tail index of the per-attempt cost distribution, real condition set versus matched
+      artificial independent set
+    direction: different
+    minimum_effect: 'explicit refusal to pre-commit a numeric deviation: whether the real search departs
+      from geometric is the question, and pre-committing a size would make a null result unreportable.
+      Reported as both fits with bootstrap intervals and an explicit overlap statement.'
+  - metric: fitted tail index of the artificial independent arm relative to the geometric prediction
+    direction: different
+    minimum_effect: predicted indistinguishable; any material deviation here is an instrument failure
+      that voids the real arm
+  - metric: ratio of 95th-percentile total budget to mean-based budget, real arm
+    direction: higher
+    minimum_effect: 1.5
+  - metric: lag-1 autocorrelation of abort depth across consecutive attempts sharing message freedom
+    direction: higher
+    minimum_effect: 0.05
+  minimal_test:
+    design: 'The cheapest discriminating run is STAGE 2 plus STAGE 5 at the smallest analogue only:
+      instrument the search, run a declared 10^6 attempts against the real condition set and 10^6
+      against the matched artificial independent set in the same invocation, and compare the two abort-depth
+      histograms. This costs CPU-hours, no GPU, and no collision needs to be completed at all -- aborted
+      attempts are the data, which is what makes the test cheap. It answers two things at once. Whether
+      the deep tail is populated enough for any fit, which is a precondition nobody in this repository
+      has checked. And whether the artificial arm reproduces the geometric form, which validates the
+      instrument before any claim about the real arm is entertained. If the two histograms coincide,
+      mean-based budgeting is licensed at this scale and the result is a clean measured null.'
+    controls:
+    - Matched artificial independent condition set with condition-by-condition probability matching,
+      same invocation, same loop.
+    - Counters-disabled comparison run to confirm instrumentation does not perturb the search.
+    - Shuffled-attempt-order control to break any autocorrelation, isolating whether the tail depends
+      on attempt sequence.
+    - Two independent estimator implementations for the tail fit, since a single fitting routine can
+      manufacture a tail.
+    - Report the raw histogram alongside every fit so a reader can refit without trusting the estimator.
+    required_metrics:
+    - full abort-depth histogram per arm, raw counts
+    - per-condition success probability at each depth
+    - fitted tail index with bootstrap interval per arm, from two independent estimators
+    - ratio of 95th-percentile to mean total budget per arm
+    - lag-1 and lag-2 autocorrelation of abort depth per arm
+    - evaluations consumed per attempt, distribution not just mean
+    - evaluation totals with counters enabled versus disabled
+  falsification_conditions:
+  - The artificial independent arm's fitted tail deviates from the geometric prediction, showing the
+    estimator or instrument is at fault and voiding the real arm's fit.
+  - The deep tail is unpopulated after the declared attempt budget, so no tail index exists at this
+    scale -- a budget and parameter-choice outcome, explicitly not evidence about search dynamics.
+  - Real and artificial histograms coincide within bootstrap intervals, licensing mean-based budgeting
+    at this scale and closing the heavy-tail hypothesis with a number.
+  - The two independent tail estimators disagree beyond their intervals, showing the fit is estimator-dependent
+    and no index may be reported.
+  - Counters-enabled and counters-disabled evaluation totals differ materially, showing the instrumentation
+    perturbs the search.
+  confounders:
+  - Attempt-order effects from reused message freedom can produce autocorrelation that mimics a heavy
+    tail without any distributional deviation; the shuffled-order control is the separation.
+  - Tail fitting is notoriously sensitive to the chosen threshold above which the tail is fitted,
+    and a threshold chosen after seeing data can produce any index.
+  - Reduced-step analogues can flatten the condition chain, removing exactly the depth structure the
+    measurement needs.
+  - Truncating attempts at a maximum depth silently censors the tail, and the censoring must be reported
+    rather than absorbed into the fit.
+  interpretation_limits:
+  - A tail index measured on a reduced-step analogue at declared parameters is a statement about that
+    analogue's search dynamics, not about any full-scale attack's cost.
+  - The 95th-percentile-to-mean budget ratio is a planning quantity for THIS search at THIS scale
+    and is not a correction factor for any published figure.
+  - Confirming the geometric form licenses mean-based budgeting only within the tested depth range
+    and attempt budget.
+  - Nothing here bears on SHA-1's security or on any deployed system.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The deliverable is a distribution, a tail index
+      and a percentile-to-mean ratio.
+    memory_exponent: No attack memory exponent is claimed. The histogram's storage is negligible and
+      reported as an instrument cost.
+    best_known: The incumbent is the implicit practice of budgeting near-collision block search by
+      an expected per-block cost, which RQ-SHAONE-081e3a names among the quantities a device-hour
+      figure leaves unexpressed. No algorithm is beaten; an untested distributional assumption is
+      replaced by a measured distribution.
+    hidden_overhead: Choosing the tail-fitting threshold honestly, and pre-declaring it, is the hardest
+      part and the easiest to get wrong in a way that flatters the result. Two independent estimator
+      implementations doubles the analysis work and is the control most likely to be dropped. Finding
+      analogue parameters that sit between too-easy and too-hard may itself consume several exploratory
+      runs whose cost is real and must be reported.
+  dominated_by: 'n/a (no result claimed). Checked across time, memory and data/query axes: the deliverable
+    is a distribution and a planning ratio, placing no point on any attack frontier, so the one UNVERIFIED
+    chosen-prefix cost row this repository holds is on a disjoint axis set. Not null; inapplicable,
+    and stated so.'
+  sota_delta: no attack; conceptual/measurement contribution only. Quantitatively the repository moves
+    from no abort-depth data at all to a full histogram per arm, two independently fitted tail indices
+    with intervals, an autocorrelation measurement, and a 95th-percentile-to-mean budget ratio. There
+    is no speed comparison to state because no algorithm is proposed.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Separable parts. (1) That the deep tail is populated enough for a fit
+    within a 10^6-attempt budget at some analogue parameter setting: about 0.65, and finding that
+    setting may take exploratory runs. (2) That the matched artificial arm reproduces the geometric
+    form, validating the estimator: about 0.8, since it is geometric by construction and the only
+    risk is estimator error. (3) That the real arm deviates materially from geometric: about 0.4 --
+    I would slightly bet on the geometric hypothesis holding, and that outcome is the clean measured
+    null the proposal is designed to be able to report. (4) That the two independent estimators agree:
+    about 0.6, tail fitting being what it is. Composite roughly 0.12, but the deliverable is valuable
+    in either direction of part (3), so the effective success probability of the experiment as an
+    experiment is closer to 0.3.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-SHAONE-081e3a
+  - GOAL-SHA1-001
+  - GOAL-MD5-001
+  - IDEA-20260807-59f5b7
+  - KN-TECH-066
+  - RQ-INSTR-f8faa0
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SHAONE-5482c3

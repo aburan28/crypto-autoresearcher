@@ -1,0 +1,407 @@
+schema: crypto.autoresearch.independent_liveness.v1
+id: RT-LIVE-20260824-fb2fe2
+task_id: TASK-20260824-fb2fe2
+joint: J3-peak-liveness-added-gates-qrom-cost-scope-and-proves-too-much
+recorded_at: '2026-08-24T18:08:14Z'
+review_mode:
+  role: red-team
+  policy: review-adversarial
+  reasoning_effort: xhigh
+  independent_session: true
+  experiment_runs: 0
+  read_sibling_reports: false
+method: >-
+  Reconstruct registers and operations directly from the frozen patch call
+  graph and primitive interfaces. Do not accept the producer's peak or total.
+  Count every declared wire for physical logical width even while clean, count
+  every branch bit as simultaneously live in superposition, and treat any
+  backend target or reuse not exhibited by code as simultaneous rather than
+  shared.
+symbols:
+  n: field-register width
+  s_n: declared width of S_shared, written s(n)
+  T: number of signed-window table addresses
+  q: 'ceil(log2(T)), width of a coherent address register'
+  t_qrom_n_T: coherent qROM target width, absent from the frozen implementation
+  a_backend_n_T: backend/decomposition ancilla width, absent from the frozen implementation
+  Z_eq_A: >-
+    Sum, over the eight fixed pair-match words, of the number of zero-valued
+    X/Y constant bits. Each such zero produces two surrounding X gates.
+  W_mask_A: >-
+    Sum, over the four exceptional maps, of the Hamming weight of the
+    2n-bit before-XOR-after coordinate mask.
+
+fixed_add_register_inventory:
+  quantum_source_or_upstream:
+  - name: enable
+    width: 1
+    allocation: whole circuit
+  - name: X
+    width: n
+    allocation: whole circuit
+  - name: Y
+    width: n
+    allocation: whole circuit
+  - name: A_shared_work
+    width: n
+    allocation: whole circuit
+    caution: >-
+      This wire is passed as dirty arithmetic workspace. No signed-window qROM
+      implementation demonstrates that an addressed value target aliases it.
+  - name: S_shared
+    width: s(n)
+    allocation: whole circuit
+  quantum_added:
+  - name: z_total
+    width: 1
+    allocation: whole circuit
+    information_lifetime: separately during each Total-IDiv and Total-IMul wrapper
+    cleanup: second zero predicate in each wrapper
+  - name: exception_flags
+    width: 4
+    allocation: whole circuit
+    information_lifetime: pre-map pair matches through post-map pair matches
+    cleanup: four unique-output post-map matches
+  - name: effective_enable
+    width: 1
+    allocation: whole circuit
+    information_lifetime: after pre-flags through after all exceptional XOR masks
+    cleanup: second five-control Boolean toggle while original flags remain live
+  quantum_not_declared:
+  - equality scratch; each fixed pair match targets its final flag directly
+  - coherent address
+  - sign selector
+  - qROM target
+  - qROM/backend scratch
+  - decomposition ancillas for MCX or upstream primitives
+  classical_declared_by_fixed_builder:
+  - {name: b_div, width: n, allocation: whole circuit}
+  - {name: b_mul, width: n, allocation: whole circuit}
+  - {name: m_arith, width: 'max(1,n)=n for n>=1', allocation: whole circuit}
+  classical_simultaneous_width: '3n bits for n>=1'
+  classical_baseline_status: >-
+    The patch allocates all three registers simultaneously, but the authorized
+    producer artifacts do not establish which are incremental relative to the
+    pinned source. They therefore cannot be omitted from end-to-end memory or
+    claimed as a measured delta.
+  circuit_generation_data:
+  - fixed addend coordinates a,b
+  - derived 2A,-A,-2A coordinates
+  - eight before/after comparison words and four XOR masks
+  preprocessing_cost: >-
+    Fixed-add preprocessing is O(n)-bit classical data plus one modular inverse
+    in the displayed doubling helper and gate-list synthesis. No timing or
+    storage coefficient is measured.
+
+fixed_add_live_schedule:
+  physical_quantum_width_at_every_event: '3n+s(n)+7 declared logical qubits'
+  qualification: >-
+    This is the undecomposed patch interface only. It assumes the promised
+    primitives use exactly the passed X,Y,A,S wires and that later MCX or
+    arithmetic decomposition does not introduce undeclared wires.
+  events:
+  - event: allocate
+    operation: allocate enable,X,Y,A,S,z,flags,e and three classical registers
+    information_live_added: []
+    allocated_added_qubits: 6
+  - event: pre_match_O
+    operation: 'fO ^= enable AND [(X,Y)=O]'
+    information_live_added: [fO]
+  - event: pre_match_A
+    operation: 'fA ^= enable AND [(X,Y)=A]'
+    information_live_added: [fO, fA]
+  - event: pre_match_neg_A
+    operation: 'fNA ^= enable AND [(X,Y)=-A]'
+    information_live_added: [fO, fA, fNA]
+  - event: pre_match_neg_2A
+    operation: 'fN2A ^= enable AND [(X,Y)=-2A]'
+    information_live_added: [fO, fA, fNA, fN2A]
+    note: mutual exclusivity does not permit qubit reuse in superposition
+  - event: compute_effective
+    operation: 'e ^= enable AND NOT(fO OR fA OR fNA OR fN2A)'
+    information_live_added: [fO, fA, fNA, fN2A, e]
+  - event: x_center
+    operation: unconditional X-=a
+    information_live_added: [fO, fA, fNA, fN2A, e]
+  - event: y_center
+    operation: controlled Y-=b
+    information_live_added: [fO, fA, fNA, fN2A, e]
+  - event: idiv_zero_compute
+    operation: 'z ^= [X=0]'
+    information_live_added: [fO, fA, fNA, fN2A, e, z]
+    peak_information_bits: 6
+  - event: idiv_wrap
+    operation: 'CX z->X[0]; promised IDiv(X,Y,A,S); CX z->X[0]'
+    information_live_added: [fO, fA, fNA, fN2A, e, z]
+  - event: idiv_zero_uncompute
+    operation: 'z ^= [restored X=0]'
+    information_live_added: [fO, fA, fNA, fN2A, e]
+    cleanup: z=0
+  - event: square_minus
+    operation: controlled source square-minus block
+    information_live_added: [fO, fA, fNA, fN2A, e]
+  - event: add_3a
+    operation: controlled X+=3a
+    information_live_added: [fO, fA, fNA, fN2A, e]
+  - event: imul_zero_compute
+    operation: 'z ^= [X=0]'
+    information_live_added: [fO, fA, fNA, fN2A, e, z]
+    peak_information_bits: 6
+  - event: imul_wrap
+    operation: 'CX z->X[0]; promised IMul(X,Y,A,S); CX z->X[0]'
+    information_live_added: [fO, fA, fNA, fN2A, e, z]
+  - event: imul_zero_uncompute
+    operation: 'z ^= [restored X=0]'
+    information_live_added: [fO, fA, fNA, fN2A, e]
+    cleanup: z=0
+  - event: controlled_negation
+    operation: controlled X=-X
+    information_live_added: [fO, fA, fNA, fN2A, e]
+  - event: x_uncenter
+    operation: unconditional X+=a
+    information_live_added: [fO, fA, fNA, fN2A, e]
+  - event: final_y_subtract
+    operation: controlled Y-=b
+    information_live_added: [fO, fA, fNA, fN2A, e]
+  - event: exceptional_masks
+    operation: four sequential flag-controlled before-XOR-after pair masks
+    information_live_added: [fO, fA, fNA, fN2A, e]
+    qrom_accesses: 0
+    note: the fixed addend and masks are compile-time constants
+  - event: uncompute_effective
+    operation: repeat the five-control Boolean toggle
+    information_live_added: [fO, fA, fNA, fN2A]
+    cleanup: e=0
+  - event: post_match_A
+    operation: clear fO from output A
+    information_live_added: [fA, fNA, fN2A]
+  - event: post_match_2A
+    operation: clear fA from output 2A
+    information_live_added: [fNA, fN2A]
+  - event: post_match_O
+    operation: clear fNA from output O
+    information_live_added: [fN2A]
+  - event: post_match_neg_A
+    operation: clear fN2A from output -A
+    information_live_added: []
+    cleanup: all four flags are zero if the promised uniqueness argument holds
+  - event: end
+    operation: all added information is clean; allocated wires still exist
+    information_live_added: []
+
+fixed_add_incremental_operation_inventory:
+  exact_at_patch_instruction_level:
+    pair_match_toggles:
+      count: 8
+      each: 'one MCX with 2n+1 controls, targeting an exception flag'
+      basis_flip_cost: '2*Z_eq_A X gates total across all eight matches'
+      decomposition_cost: symbolic
+    zero_predicate_toggles:
+      count: 4
+      each: 'one MCX with n controls plus 2n surrounding X gates'
+      total: '4 MCX_n + 8n X'
+    zero_wrapper_bit_toggles:
+      count: 4
+      total: '4 CX'
+    effective_enable_toggles:
+      count: 2
+      each: 'one MCX with 5 controls plus 8 X gates around complemented flags'
+      total: '2 MCX_5 + 16 X'
+    exceptional_pair_masks:
+      count: 4
+      total: 'W_mask_A flag-controlled CX gates; 0 <= W_mask_A <= 8n'
+    promised_primitives:
+      IDiv: 1
+      IMul: 1
+    generic_coordinate_updates:
+      uncontrolled_constant_additions: 2
+      controlled_updates: 5
+      controlled_breakdown:
+      - first Y-=b
+      - source square-minus
+      - X+=3a
+      - X=-X
+      - final Y-=b
+      cost_delta: >-
+        The imported arithmetic bodies and the cost of adding their controls
+        are not expanded in the frozen producer artifacts.
+    symbolic_added_gate_expression: >-
+      4*MCX_n + 8*MCX_(2n+1) + 2*MCX_5
+      + (8n+16+2*Z_eq_A)*X + (4+W_mask_A)*CX + Delta_controlled_arithmetic.
+  notation_ambiguities:
+  - >-
+    ZEQ_n is defined as a zero predicate including uncompute, while the table
+    separately counts four compute-or-uncompute calls. The circuit has two
+    compute/uncompute pairs, so the cost is either 2*ZEQ_n under the definition
+    or 4 single-toggle costs under the call count; 4*ZEQ_n would double count.
+  - >-
+    EQ2_n is defined to include streamed qROM work, but qROM loads/unloads are
+    also listed separately. A production model must choose one accounting
+    boundary to avoid omission or double counting.
+  - >-
+    MCX synthesis, promised IDiv/IMul expansion, and controlled arithmetic
+    deltas are symbolic, so no exact Toffoli or depth coefficient follows.
+
+signed_window_reconstruction:
+  implementation_status: absent
+  exact_observation: >-
+    The patch defines a CoherentSignedWindowBackend Protocol and a plan of
+    relation-name strings. No address or sign wire is allocated; none of the
+    compare_addressed_pair, apply_addressed_constant, or
+    apply_addressed_xor_mask methods is called. validate_backend invokes only
+    assert_targets_clean.
+  compulsory_high_level_requests_if_implemented:
+    addressed_pair_equalities: 8
+    addressed_arithmetic_constants: 5
+    addressed_pair_xor_masks: 4
+    inverse_cleanup: >-
+      Every materialized lookup target and all backend work must be uncomputed;
+      the frozen artifacts supply no integer load/unload count.
+    address_and_sign_preservation: required but not implemented
+  qrom_cost_status:
+    loads: symbolic and uncounted
+    unloads: symbolic and uncounted
+    table_passes: symbolic and uncounted
+    target_width: symbolic and unallocated
+    backend_ancillas: symbolic and unallocated
+    table_data: >-
+      At least O(T*n) classical relation/mask data or an equivalent reversible
+      derivation is required. Exact storage, preprocessing, and lookup costs
+      depend on the missing backend.
+  conservative_unverified_reuse_peak: >-
+    W_window = 3n+s(n)+7 + q + 1_sign + t_qrom(n,T) + a_backend(n,T).
+    Because no code demonstrates aliasing, t_qrom and backend ancillas must be
+    simultaneous with A_shared_work, flags, e, and z. A materialized
+    coordinate target alone gives t_qrom>=n; a pair target can give 2n. A
+    target-free table-controlled synthesis may keep t_qrom=0 but transfers the
+    unresolved cost into a T-dependent gate count. Neither branch is frozen.
+  leading_width_result: not_established_for_signed_window
+  asymptotic_gate_order_result: not_established
+  reason: >-
+    T(n), qROM implementation, primitive decompositions, control deltas,
+    target reuse, and cleanup are all absent or symbolic. The source order
+    cannot be compared end to end under these omissions.
+
+reuse_audit:
+  verified:
+  - z is cleared before leaving each displayed total wrapper.
+  - flags and effective-enable cross the arithmetic core simultaneously.
+  - the fixed-add pair matches target final flag wires and allocate no separate equality bit.
+  not_verified:
+  - A_shared_work reuse as a signed-window qROM target
+  - address/sign register allocation and lifetime
+  - qROM target load/unload sequence
+  - qROM and comparator scratch cleanup
+  - MCX or primitive-decomposition ancilla requirements
+  - whether b_div and b_mul histories can be reused rather than remain simultaneous
+
+proves_too_much_results:
+- object: source-like core with ordinary partial IDiv/IMul and no X=0 totalization
+  result: caught
+  basis: >-
+    The frozen omit_totalization mutation replaces IDiv with a partial
+    operation and fails at centered X=0. The displayed mutation does not
+    separately isolate a partial-IMul-only defect, so that narrower mutation
+    remains a useful repair control, but the named composite object is not
+    certified.
+- object: four-way router with flags cleared from pre-map rather than unique post-map outputs
+  result: caught
+  basis: >-
+    On enabled O, premature cleanup suppresses the O->A mask and leaves the
+    effective-enable bit dirty; the expected output and cleanup signature fail.
+- object: enabled-only test suite with no zero digit
+  result: caught_by_coverage_audit
+  basis: >-
+    The frozen suite explicitly runs enable=0 for every F_13 pair, address and
+    sign, totaling 676 disabled cases. An enabled-only suite cannot satisfy the
+    recorded completion gate.
+- object: curve-point-only disabled test suite that omits invalid field bitstrings
+  result: caught_by_coverage_audit
+  basis: >-
+    The disabled loop covers all 13^2 canonical field pairs for each of four
+    address/sign choices, not just the seven subgroup encodings.
+- object: classical address loop that never represents a coherent superposed address
+  result: survives
+  basis: >-
+    exact_ecadd_reference.py receives a classical integer address and performs
+    a Python table lookup. The patch has no address register or shared coherent
+    backend. Basis-block permutation plus linear extension therefore assumes a
+    common block-diagonal circuit that the artifacts do not implement. In
+    addition, SignedWindowCompletionPlan.validate_backend accepts any backend
+    whose assert_targets_clean returns, even if comparison, constants and masks
+    are no-ops.
+
+staged_diff_attestation_assessment:
+  producer_attestation: git diff --check passed
+  independent_exact_path_check:
+    command: >-
+      git diff --check 4dd71da5a5d519d5b4109119bdc49486b30faf62
+      e9d405357955e72bea4bbe307d31261b1f1a2716 -- <exact producer directory>
+    exit_code: 2
+    findings: 5
+    finding_kind: new blank line at EOF
+    affected_files:
+    - construction-and-proof.yaml
+    - exact_ecadd_reference.py
+    - resource-and-gate-accounting.yaml
+    - source-provenance.yaml
+    - test_exact_ecadd_reference.py
+  assessment: >-
+    The producer receipt's hygiene attestation is false because its earlier
+    untracked-tree command inspected no producer bytes. The snapshot receipt
+    correctly preserves and discloses the discrepancy. EOF blank lines have no
+    identified semantic effect on YAML parsing or Python execution, so this is
+    a receipt-integrity objection, not evidence against the arithmetic or a
+    reason to alter immutable producer bytes.
+
+joint_result:
+  verdict: breaks
+  scope: J3_only
+  holds:
+  - >-
+    At the undecomposed fixed-add interface, the allocated quantum inventory is
+    X,Y,A,S,enable plus six added scalar qubits, with no declared fourth n-bit
+    quantum register. This is compatible with a conditional leading
+    3n+O(log n) fixed-add statement.
+  breaks:
+  - >-
+    The signed-window leading-width boundary is not supported because address,
+    sign, qROM targets, backend ancillas, target reuse and cleanup are not
+    implemented.
+  - >-
+    The classical-address proves-too-much object survives, so the artifacts do
+    not establish coherent address semantics.
+  inconclusive:
+  - >-
+    Preservation of the source asymptotic gate order: qROM/table work,
+    primitive expansions, MCX synthesis, controlled-arithmetic deltas and T(n)
+    are symbolic or absent.
+  claim_ceiling_enforced: true
+  excluded_conclusions:
+  - exact 835-qubit count
+  - exact logarithmic coefficient
+  - exact Toffoli or depth coefficient
+  - practical speedup
+  - algorithmic or scientific ECDLP advance
+  - P1553 progress or B71 admission
+  - novelty, support, completion or breakthrough
+
+cheapest_falsification_control: >-
+  Instantiate a deliberately no-op two-address backend whose
+  assert_targets_clean succeeds. It is accepted by the current
+  validate_backend method, immediately demonstrating that the integration
+  contract proves too much. The repair control must then make that backend fail
+  and run one genuine two-address shared circuit on a phase-sensitive address
+  superposition, checking the addressed translation, preserved address/sign,
+  and zero qROM/comparator/mask targets.
+required_repair_evidence:
+- A concrete two-or-more-address coherent backend with explicit address, sign, target and ancilla registers.
+- An auditable lookup/apply/unlookup schedule covering eight relations, five constants and four masks.
+- Peak liveness recomputed from that concrete schedule with A/S reuse proven, not asserted.
+- Primitive-expanded or consistently symbolic costs with non-overlapping ZEQ, EQ2 and qROM boundaries.
+- Explicit classical storage and preprocessing cost, including T(n).
+- An additive receipt correction for the inaccurate git-diff-check attestation; producer bytes remain unchanged.
+artifact_paths:
+- coordination/goals/GOAL-ECDLP-001/proposals/QEC-EXACT-ADD-PREADMISSION-20260824-4c797e/red-team/TASK-20260824-fb2fe2/independent-liveness.yaml
+- coordination/goals/GOAL-ECDLP-001/proposals/QEC-EXACT-ADD-PREADMISSION-20260824-4c797e/red-team/TASK-20260824-fb2fe2/red-team-report.yaml
+- coordination/goals/GOAL-ECDLP-001/proposals/QEC-EXACT-ADD-PREADMISSION-20260824-4c797e/red-team/TASK-20260824-fb2fe2/runtime-session-receipt.json

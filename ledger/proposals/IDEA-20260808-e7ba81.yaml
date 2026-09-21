@@ -1,0 +1,290 @@
+idea:
+  id: IDEA-20260808-e7ba81
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  title: FN-DSA sampler exactness is a SPIKED-COVARIANCE detection problem, not a goodness-of-fit
+    problem, so the deviation-to-signature-count curve is the BBP phase transition T = 2n/eps^2
+    with a SHARP threshold — below which no number of signatures helps the top-eigenvalue
+    statistic at all.
+  class: measurement
+  claim: 'For an FN-DSA signature scheme of lattice dimension D = 2n (n = 512 or 1024), let
+    the sampler''s per-node width error be modelled as a rank-r multiplicative perturbation
+    of the ideal output covariance, Cov(z) = sigma^2 (I + sum_{j<=r} eps_j P_j) with P_j orthogonal
+    projectors of rank D/2^{level(j)}. Then: (1) the GPV/Klein design makes the IDEAL covariance
+    exactly spherical, so ANY deviation of the sample covariance''s spectrum from Marchenko-Pastur
+    is attributable to sampler error and to nothing else — this is the null the scheme''s
+    own design supplies for free; (2) the correct detector is the largest eigenvalue of the
+    centred sample covariance of T signatures, not a chi-square or Kolmogorov-Smirnov test
+    on coordinate marginals; (3) that detector obeys the Baik-Ben Arous-Peche transition:
+    with gamma = D/T, a spike of relative size eps separates from the bulk if and only if
+    eps > sqrt(gamma), giving the exact deviation-to-signature-count curve T_crit = D/eps^2,
+    and BELOW that threshold the top eigenvalue carries asymptotically ZERO information no
+    matter how many more signatures are collected at fixed eps — the statistic does not degrade
+    gracefully, it has a phase boundary. CLAIM: this replaces the goal''s qualitative "deviation-to-signature-count
+    curve" with a closed form, and it predicts that a coordinate-marginal chi-square test
+    requires more signatures than the eigenvalue test by a factor of order D/log D, i.e. roughly
+    50x at n = 512.'
+  mechanism: 'FALCON''s ffSampling walks a binary tree of depth log2(n) + 1 built from the
+    LDL decomposition of the secret Gram matrix; each leaf samples an integer with a centre
+    and a width sigma_i = sigma/||b~_i||, where b~_i are the Gram-Schmidt norms of the secret
+    basis. The output is z = sum_i z_i b~_i, and the GPV guarantee is that if every z_i is
+    an exact discrete Gaussian of width sigma_i then Cov(z) = sigma^2 I EXACTLY — spherical,
+    hence secret-independent. That is the entire security argument for distributional exactness,
+    and it has a remarkable consequence for measurement: the ideal second moment is a KNOWN,
+    PARAMETER-FREE matrix. Any per-leaf width error eps_i (from floating-point evaluation
+    of sigma_i, from a reformulated integer sampler, from table truncation in the base sampler)
+    enters as Cov(z) = sigma^2 (I + sum_i eps_i b~_i b~_i^T / ||b~_i||^2), a perturbation
+    whose EIGENVECTORS ARE THE SECRET Gram-Schmidt directions. So the deviation is not diffuse;
+    it is LOW RANK when the errors are shared across a subtree (which is exactly what a floating-point
+    or table defect does — it is a property of the sampler code, not of the leaf), and its
+    eigenvectors are the trapdoor. That is why a spectral detector is the matched instrument
+    and a coordinate chi-square is not: the chi-square spends D degrees of freedom to find
+    a signal that lives in r << D of them. Random matrix theory then supplies the exact detectability
+    threshold: for a rank-one spike of strength eps in dimension D with T samples, the top
+    sample eigenvalue detaches from the Marchenko-Pastur bulk iff eps > sqrt(D/T), and the
+    top eigenVECTOR has non-zero asymptotic overlap with the spike direction iff the same
+    inequality holds. Above threshold the overlap is (1 - gamma/eps^2)/(1 + gamma/eps) — so
+    the instrument returns not just "deviation detected" but a quantified fraction of the
+    trapdoor direction recovered, which is precisely the quantity the goal needs to convert
+    a distributional deviation into a key-recovery statement.'
+  why_not_a_renamed_known_approach: 'Nearest known method inside this corpus: H-FNDSA-58b464,
+    which proposes to track the SECOND-MOMENT TENSOR of the signature cloud along a width
+    homotopy connecting Babai nearest-plane to Klein. Same moment, different question: that
+    record builds a positive control (a deliberately biased sampler) and traces the tensor
+    along it; it does not ask what the DETECTION THRESHOLD of that tensor is, and without
+    a threshold a positive control calibrates nothing quantitative. IDEA-20260805-4a6dc7 is
+    the record that says the natural chi-square/KS instrument CANNOT be calibrated as specified;
+    this proposal answers that objection with a different statistic that has a closed-form
+    null (Tracy-Widom) and a closed-form power curve (BBP), which is exactly what a calibrated
+    instrument means. Nearest external method: Nguyen-Regev "learning a parallelepiped", which
+    attacks NTRUSign through the FOURTH moment because NTRUSign''s second moment is already
+    secret-dependent. FN-DSA''s second moment is spherical BY DESIGN, so the fourth-moment
+    route is answering a question FN-DSA does not pose; the right question is the size of
+    the DEPARTURE from a known spherical second moment, which is a spiked-covariance problem
+    and not a moment-inversion problem.'
+  predictions:
+  - observable: Largest eigenvalue lambda_1 of the centred sample covariance of T signatures
+      from a REFERENCE exact sampler (arbitrary-precision rational arithmetic, no floating
+      point) at reduced dimension D in {64, 128, 256}.
+    metric: Standardised deviation (lambda_1 - mu_TW) / sigma_TW against the Tracy-Widom-1
+      law with the standard Marchenko-Pastur centring and scaling.
+    predicted: Consistent with Tracy-Widom-1 at every T; no spike. This is the NULL and it
+      must pass before any measurement on the standardised sampler is interpretable.
+  - observable: lambda_1 for a POSITIVE-CONTROL sampler in which exactly one tree node's width
+      is multiplied by (1 + eps), eps swept over a pre-declared grid straddling sqrt(D/T).
+    metric: Detection rate at a fixed false-positive level, as a function of eps/sqrt(D/T).
+    predicted: 'A SHARP transition at eps/sqrt(D/T) = 1: detection rate near the false-positive
+      level below 1 and rising steeply above it, with the transition width shrinking like
+      D^{-1/3} (the Tracy-Widom fluctuation scale). A GRADUAL, threshold-free power curve
+      falsifies the BBP framing and would mean the perturbation is not effectively low-rank.'
+  - observable: Overlap |<v_1, b~_j/||b~_j||>|^2 between the top sample eigenvector and the
+      perturbed Gram-Schmidt direction, above threshold.
+    metric: Measured overlap versus the BBP prediction (1 - gamma/eps^2)/(1 + gamma/eps).
+    predicted: Agreement within Monte-Carlo error. Disagreement means the perturbation is
+      not aligned with a single Gram-Schmidt direction, which is itself a structural finding
+      about how sampler error propagates through the tree.
+  - observable: Signature count required for detection at fixed eps, for the eigenvalue detector
+      versus a coordinate-marginal chi-square detector.
+    metric: T_eigen / T_chisq at matched power.
+    predicted: T_eigen / T_chisq of order (log D)/D, i.e. the eigenvalue detector needs roughly
+      D/log D fewer signatures. If the ratio is near 1, the low-rank premise is wrong and
+      the chi-square objection of IDEA-20260805-4a6dc7 stands unrelieved.
+  minimal_test: 'All at REDUCED dimension D in {64, 128, 256} with a reference exact sampler;
+    no FN-DSA parameter-set claim is attempted. (1) Build a Klein/GPV sampler over a known
+    NTRU-shaped basis in exact rational arithmetic — the null. (2) Verify Cov(z) = sigma^2
+    I to within Monte-Carlo error and verify lambda_1 follows Tracy-Widom-1. (3) Build the
+    positive control by perturbing ONE node width by (1 + eps). (4) Sweep eps across the predicted
+    threshold sqrt(D/T) at three values of T and record the detection curve. (5) ONLY THEN,
+    and as a separate task, run the same detector on the sampler the draft standard specifies.
+    The ordering is not a formality: per the goal''s next_action, no detection claim is admissible
+    until the positive control demonstrates the instrument can see a deviation of known size,
+    and BBP tells you in advance which sizes are visible.'
+  controls:
+  - 'EXACT-SAMPLER NULL (required by the goal): arbitrary-precision rational Klein sampler.
+    The spectrum must be Tracy-Widom. A null that shows a spike means the reference implementation
+    is wrong.'
+  - 'MATCHED-T NULL: for every reported detection, a null run at the SAME T, same D, same
+    code path, differing only in the eps that is set to zero. This is the null-object-of-the-same-shape
+    requirement, and here the "parameter meant to destroy the effect" is eps itself, so the
+    artifact tell (a quantity that fails to decay as eps -> 0) is directly testable.'
+  - 'PERMUTATION CONTROL: randomly permute the signature index before forming the sample covariance.
+    The spectrum must be unchanged (it is exchangeable); any change indicates a serial-correlation
+    artifact in the sampler''s randomness source rather than a distributional defect.'
+  - 'ROTATION CONTROL: apply a fixed random orthogonal Q to all signatures. The eigenvalue
+    spectrum must be exactly invariant; the coordinate chi-square statistic must NOT be. That
+    single contrast demonstrates, at zero cost, why the spectral statistic is the right object.'
+  confounders:
+  - The signature vector is an integer vector, not continuous; discreteness perturbs Marchenko-Pastur
+    at small sigma. Report sigma/1 (the width in lattice units) and restrict to regimes where
+    sigma >= 4 so the discrete Gaussian is close to continuous, or use the exact discrete
+    null instead of the asymptotic one.
+  - FN-DSA signatures are compressed and only s2 is transmitted; the recoverable vector may
+    be a projection of z rather than z itself. If so, the effective D is halved and the threshold
+    changes by sqrt(2). Fix which vector is observed BEFORE declaring the threshold.
+  - Sampler errors that are IDENTICAL across all leaves produce a perturbation proportional
+    to I, which is a pure scale change and is INVISIBLE to the top-eigenvalue-versus-bulk
+    comparison (it shifts both). Such an error is detectable only via the overall scale, i.e.
+    by comparing ||z||^2 to D sigma^2. Report that channel separately; a rank-D spike is the
+    blind spot of this instrument and must be named as such rather than discovered later.
+  - Real floating-point defects may perturb the CENTRE rather than the WIDTH, which shifts
+    the mean rather than the covariance. Centring the sample covariance discards exactly that
+    signal. Report the sample MEAN as a separate statistic against its own null.
+  falsification_conditions:
+  - The positive control's detection curve has no sharp transition at eps = sqrt(D/T), or
+    the transition location scales differently with D or T — the BBP framing is wrong for
+    this perturbation class and the closed-form curve is void.
+  - The exact-sampler null shows a spike — the reference is defective and nothing downstream
+    is interpretable (an instrument outcome, not evidence about FN-DSA).
+  - T_eigen / T_chisq is near 1 — the perturbation is not low-rank and the claimed 50x instrument
+    gain does not exist.
+  - Above threshold, the top eigenvector overlap does not match the BBP formula — the spike
+    is not aligned with a Gram-Schmidt direction and the trapdoor-recovery interpretation
+    fails even where detection succeeds.
+  interpretation_limits: 'TOY SCALE in dimension: D <= 256 against FN-DSA''s D = 1024 and
+    2048. The BBP threshold formula is asymptotic in D and T with gamma fixed, so its use
+    at D = 1024 is an EXTRAPOLATION of a limit theorem, clearly labelled, not a measurement.
+    A measured T_crit at D = 256 does not license a statement about FN-DSA-512 signature counts;
+    what transfers is the FUNCTIONAL FORM T = D/eps^2, and even that only if the D-scaling
+    is confirmed across the three tested dimensions. Detection of a deviation is NOT key recovery:
+    it is the first of the two stages, and the second (turning an eigenvector overlap into
+    a certified trapdoor) is not proposed here. Under AGENTS.md rule 7 and RQ-FNDSA-001''s
+    own claim_tier_ceiling, nothing here may be phrased as a statement about the standardised
+    parameter set.'
+  assumptions:
+  - FN-DSA's signing uses a Klein/GPV-type recursive sampler (ffSampling) over a tree derived
+    from the secret basis, with per-leaf widths sigma/||b~_i||. RECALLED from the FALCON design;
+    RQ-FNDSA-001 explicitly marks all such claims UNVERIFIED and forbids experiment design
+    before the primary text is filed. This proposal inherits that gate.
+  - The ideal output covariance is exactly sigma^2 I. This is the GPV guarantee and is the
+    load-bearing assumption of the whole instrument; if the standardised sampler's ideal covariance
+    is NOT spherical (e.g. because of a deliberate perturbation or a different normalisation),
+    the null changes and must be recomputed from the specification.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: Realistic sampler defects (floating-point width evaluation, integer reformulation,
+      base-sampler table truncation) perturb the output covariance in a form of rank r = O(log
+      D) rather than rank Theta(D), because the defect is a property of shared CODE evaluated
+      at each node and therefore common to all leaves beneath a node.
+    rigorous_ingredient: The exact algebraic identity Cov(z) = sigma^2 sum_i (sigma_i^2/sigma^2)
+      b~_i b~_i^T, which reduces to sigma^2 I exactly when sigma_i = sigma/||b~_i||. Any deviation
+      is therefore EXACTLY a sum of rank-one terms indexed by leaves, with coefficients equal
+      to the squared relative width errors. The rank of the perturbation is the number of
+      DISTINCT error values, and that is a fact about the code, not a heuristic.
+    distribution_imitated: The classical spiked-covariance model of Johnstone, in which a
+      small number of population eigenvalues exceed the bulk. HA-1 asserts FN-DSA sampler
+      error lands in that model rather than in a full-rank perturbation model.
+    validation_route: 'Directly checkable without any statistics: instrument a reference implementation
+      to emit the realised sigma_i for all D leaves under a chosen floating-point precision,
+      and count DISTINCT relative errors. If that count is O(D) rather than O(log D), HA-1
+      is false and the instrument''s advantage shrinks to sqrt(D/r). This costs one instrumented
+      run and should be done FIRST, before any signature sampling.'
+    tail_checks: Report the full sorted spectrum of the realised relative-error vector, not
+      its rank. A perturbation with one large and D small errors behaves as rank one for detection
+      but as rank D for the scale channel.
+  - id: HA-2
+    statement: The centred sample covariance of T FN-DSA signatures under an exact sampler
+      has largest eigenvalue obeying the Tracy-Widom-1 law with Marchenko-Pastur centring,
+      uniformly for D/T in a stated interval bounded away from 0 and 1, despite the coordinates
+      being discrete and the underlying lattice being structured (negacyclic).
+    rigorous_ingredient: Tracy-Widom universality for sample covariance matrices of i.i.d.
+      entries with finite fourth moment. The GPV guarantee supplies exactly the isotropy the
+      theorem needs; what is not supplied by any theorem is independence ACROSS coordinates,
+      since z's coordinates are correlated through the lattice.
+    distribution_imitated: Marchenko-Pastur / Tracy-Widom for white Wishart matrices.
+    validation_route: 'Empirical: at D in {64, 128, 256} and several T, compare the standardised
+      lambda_1 to Tracy-Widom-1 by Kolmogorov distance over >= 2000 independent replications.
+      Also compare the BULK to Marchenko-Pastur, which is a far more sensitive check than
+      the edge and costs the same data. TOY SCALE.'
+    tail_checks: Tracy-Widom has a heavy left and light right tail; report both tails separately.
+      A right-tail excess with a correct bulk is the signature of a spike; a wrong bulk means
+      the isotropy assumption itself has failed and the edge comparison is meaningless.
+  target_complexity:
+    time_exponent: 'NOT AN ATTACK COMPLEXITY. The relevant "exponent" is in the DATA axis
+      and it is the deliverable: signature count T = D/eps^2 for detection, versus T = Theta(D/eps^2
+      * D/log D) for a coordinate chi-square at matched power. The instrument''s cost is one
+      D x D covariance accumulation, O(T D^2) time and O(D^2) memory, which is negligible
+      against the data cost.'
+    memory_exponent: O(D^2) machine words for the covariance accumulator; at D = 2048 that
+      is 4 x 10^6 words, i.e. nothing. The instrument is data-bound, never memory-bound.
+    best_known_baseline: 'The instrument the corpus currently has: chi-square / Kolmogorov-Smirnov
+      on coordinate marginals, which IDEA-20260805-4a6dc7 records as not calibratable as specified,
+      and the second-moment tensor of H-FNDSA-58b464, which has no stated threshold. Against
+      "no calibrated instrument", the baseline for the data axis is undefined, and saying
+      so is more honest than inventing one.'
+    hidden_overhead_disclosure: The BBP threshold is an asymptotic statement; at finite D
+      there is an O(D^{-1/3}) transition width, so "sharp" means sharp on the D^{-1/3} scale
+      and a claim of a sharp threshold at D = 64 is not credible. The formula also assumes
+      the spike strength eps is fixed as D, T grow; a defect whose eps itself scales with
+      D changes the curve and must be modelled separately.
+    time_memory_tradeoff: 'Not applicable. The relevant tradeoff is DATA versus EFFECT SIZE
+      and it is the result: T eps^2 = D is a conserved product along the detectability boundary.'
+  sota_delta: 'Against the campaign''s own instrument axis: converts an uncalibratable test
+    into one with a closed-form null (Tracy-Widom), a closed-form power curve (BBP), and a
+    predicted instrument gain of order D/log D in signature count. Against FN-DSA''s security:
+    ZERO unless a deviation is actually measured, and this proposal predicts no deviation
+    — it builds the ruler, it does not claim a reading.'
+  dominated_by: 'n/a (no attack-cost result claimed). Instrument-axis Pareto check performed:
+    IDEA-20260801-010, IDEA-20260805-2bbfb2, -4a6dc7, -637a3b, H-FNDSA-58b464 and H-FNDSA-6a9cbb
+    are the six FN-DSA records in the corpus; none states a detection threshold, so none dominates
+    on the power axis. H-FNDSA-6a9cbb (exact-arithmetic Klein family) DOMINATES this proposal
+    on the NULL-CONSTRUCTION axis and should be treated as its dependency rather than its
+    competitor — the exact reference sampler it builds is precisely what step (1) of my minimal
+    test needs.'
+  estimated_cost: 'Implementation: medium. An exact-rational Klein sampler at D <= 256 (or
+    reuse of H-FNDSA-6a9cbb''s), a covariance accumulator, and Tracy-Widom / MP reference
+    distributions. 400-600 lines. Compute: medium. The data cost dominates: at D = 256 and
+    eps = 0.05 the threshold T is about 10^5 signatures per replication, and 2000 replications
+    for the null distribution is 2 x 10^8 sampler calls. Budget one to two core-days, and
+    cut it by reducing replications for the sweep while keeping them high for the null.'
+  recommended_priority: high
+  honest_prior_of_survival: P(the BBP framing is the correct model for sampler-error detection)
+    ~ 0.75 — the algebra reducing Cov(z) to a sum of rank-one Gram-Schmidt terms is exact,
+    so the only question is HA-1's rank claim. P(HA-1 holds, i.e. realistic defects are effectively
+    low-rank) ~ 0.55; this is the crux and it is checkable in one instrumented run before
+    any statistics. P(the sharp transition is resolved at D <= 256) ~ 0.6. P(the standardised
+    sampler shows any detectable deviation at all) ~ 0.10 — FN-DSA's sampler has had years
+    of scrutiny and the honest prior is that it is exact to well below any reachable eps;
+    the value of the work is the calibrated UPPER BOUND on eps, which the goal's completion
+    criterion accepts explicitly as a valid outcome.
+  novelty_status: unverified
+  novelty_screen: 'Corpus screened: EXISTING_PROPOSALS.txt (IDEA-20260801-010, -20260805-2bbfb2,
+    -4a6dc7, -637a3b), EXISTING_HYPOTHESES.txt (H-FNDSA-58b464, H-FNDSA-6a9cbb), CATALOGUE_TITLES.txt
+    (no FN-DSA entries), KNOWLEDGE_BARRIERS.txt (KN-TECH-023, -046), ledger/goals/GOAL-FNDSA-001.yaml
+    and ledger/questions/RQ-FNDSA-001.yaml in full. WEB SCREEN NOT PERFORMED (tool failure).
+    Specific external prior-art risk I could not check: whether spiked-covariance / BBP analysis
+    has already been applied to Gaussian-sampler side-channel or distributional attacks. That
+    is the single most important thing to check before dispatch.'
+  discriminated_from: H-FNDSA-58b464 tracks the same second-moment object along a width homotopy
+    but states no detection threshold; this proposal's entire content is the threshold and
+    the resulting signature-count curve, and it predicts that record's homotopy will show
+    a phase transition rather than a smooth trend. IDEA-20260805-4a6dc7 argues the marginal
+    chi-square instrument cannot be calibrated; this proposal agrees and supplies a different
+    statistic with a closed-form power function, so it is the constructive answer to that
+    record rather than a restatement of it. IDEA-20260805-2bbfb2 attacks the "exact discrete
+    Gaussian" framing as false as stated; this proposal takes the sphericity of the ideal
+    covariance — the part that IS exact — and uses it as the null.
+  lossy_projection_test: 'PASSES. The tracked object is the empirical second-moment matrix
+    of the signature cloud, S_T = (1/T) sum z_t z_t^T. It is lossy in a strong and quantifiable
+    way: it discards ALL odd-order information (the mean and every odd cumulant), all fourth-
+    and higher-order structure, and the entire ordering of the sample — the fibre over a given
+    S_T is the orbit of the sample under any transformation preserving second moments, which
+    is enormous. What it discards is discarded COMPATIBLY with the target''s operations, because
+    the scheme''s own security argument is a statement about the second moment (GPV sphericity):
+    the quantity the design guarantees is exactly the quantity retained, and it propagates
+    deterministically through the sampler''s linear reconstruction z = sum z_i b~_i. Contrast:
+    tracking the signature list itself, or tracking z in a rotated frame, loses nothing and
+    would be a change of coordinates. Note the cost of the lossiness, stated in the confounders:
+    the discarded odd part is exactly where a CENTRE error would live, and this object is
+    blind to it.'
+  source_refs:
+  - RQ-FNDSA-001 and GOAL-FNDSA-001 (corpus, read in full) — the goal's demand for a deviation-to-signature-count
+    curve, for a biased positive control and an exact null, and its claim-tier ceiling.
+  - KN-TECH-023 (corpus, not read line by line this session) — lattice trapdoors and signature
+    paradigms, the technique entry under which the GPV sphericity guarantee sits.
+  - 'Baik-Ben Arous-Peche phase transition and Marchenko-Pastur / Tracy-Widom edge universality:
+    standard random matrix theory, cited from memory, NOT checked against primary text this
+    session. The exact overlap formula (1 - gamma/eps^2)/(1 + gamma/eps) must be re-derived
+    or re-read before it is used in any record.'

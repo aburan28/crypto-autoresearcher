@@ -1,0 +1,203 @@
+experiment:
+  id: EXP-AES-7ecc87
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-AES-7e22e8
+  question_id: RQ-AES-001
+  goal_id: GOAL-AES-001
+  batch_id: null
+  assigned_to: executor
+  title: >-
+    Review-required contract: column-coset vs diagonal-coset integral depth
+    on reduced-round AES under the GCM counter byte placement, with a row
+    sibling null and GCM's own message-limit charge
+
+  objective: >-
+    If separately approved, frozen and authorized: measure the reduced-round
+    integral balance of the AES-GCM counter's column-3 coset against the
+    campaign's committed diagonal-coset reference (REF-C), across a
+    position-set x dimension-ladder x round-count grid, with a row-position
+    sibling null and a PRP decay control, and report whether the column
+    coset dies exactly one round earlier than the diagonal coset as ShiftRows
+    index arithmetic predicts. This contract is an instrument design and a
+    pre-execution declaration. No run has happened.
+
+  what_this_is_not:
+    - Not an attack on AES or AES-GCM, not a key recovery, not a certificate of any kind.
+    - Not a claim about full-round or deployed AES-GCM under any outcome.
+    - Not a statement about the published state of the art in either direction.
+    - Not an approval, freezing, execution authorization, run, observation, or evidence.
+
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: >-
+      TOY ONLY. A completed run could support, at most: (1) that the full
+      2^32 column coset balances exactly through r=3 and dies at r=4 on the
+      tested keys and seeds; (2) that the d-ladder depth is non-decreasing
+      across the tested dimension points; (3) that the row sibling null
+      differs from the column arm; (4) that GCM's own 2^32-2 message limit
+      caps the largest aligned column coset at 2^30, with the tag-mask
+      extension to 2^31 stated as a derivation, not separately measured by
+      this contract. NOTHING ELSE. This is explicitly a MODE result about
+      AES-GCM/AES-CTR byte placement, never a statement about full-round AES.
+
+  inputs:
+    cipher:
+      variant: "AES, C1 reduced-round convention, no final MixColumns"
+      state_layout: "column-major, state[t][c] = byte[4c+t]"
+      round_counts: [3, 4, 5, 10]
+    position_sets:
+      diagonal_baseline: "D_0 = {0,5,10,15}"
+      column_gcm: "column 3 = bytes {12,13,14,15}"
+      row_sibling_null: "{0,1,2,3}"
+      prp_control: "keyed PRP of the same block size, no AES structure"
+    dimension_ladder_d: [8, 16, 24, 30, 31, 32]
+    seeds:
+      master_seed: 7ecc87001
+      domain: "EXP-AES-7ecc87/v1"
+      seed_derivation_rule: >-
+        ASCII bytes of domain || "|" || label || "|" || decimal(d) || "|" ||
+        decimal(r) || "|" || decimal(counter), hashed SHA-256, digest
+        interpreted big-endian and reduced by rejection sampling. Labels are
+        exactly one of {"diagonal","column","row","prp"}. Reproduces every
+        instance bit-for-bit from (master_seed, domain, label, d, r, counter).
+    known_answer_gate:
+      diagonal_at_d32: "must return 16/16 at r=4 and 0/16 at r=5, reproducing REF-C in the same binary on the same two keys"
+      degenerate_d8: "single active byte; every arm must reproduce the committed 1-byte result, exact through r=3, null from r=4"
+
+  arms_and_controls:
+    treatment: "column-3 coset (the GCM placement), full grid"
+    baseline: "diagonal D_0 coset, must reproduce REF-C exactly (known-answer gate)"
+    sibling_null: "row {0,1,2,3} coset, isolates 'column' as the load-bearing description rather than 'any 4 bytes'"
+    decay_control: "PRP null at r=10, every arm must read the PRP null"
+    ordering_control: >-
+      The diagonal known-answer gate and the d=8 degenerate gate are both
+      executed and must pass BEFORE any column reading is believed.
+    comparability_policy: >-
+      No number from this contract may be compared with any published
+      cryptanalysis figure. The only comparison licensed is against this
+      repository's own committed REF-C measurement (MEAS-GOAL-AES-002-002).
+
+  stages_cheapest_first:
+    - id: stage-1-derivation
+      cost: "zero compute, minutes"
+      content: "Re-check the ShiftRows index-arithmetic argument that column 3 maps to one byte per column."
+      can_terminate_run: true
+      termination_rule: "A defect in the index arithmetic ends the contract here with no compute spent."
+    - id: stage-2-known-answer-gates
+      cost: "seconds to minutes"
+      content: "Diagonal-at-d32 gate and d=8 degenerate gate, both in the same binary."
+      can_terminate_run: true
+      termination_rule: "Either gate failing halts the package; no column reading may be reported."
+    - id: stage-3-full-sweep
+      cost: "~4 minutes on 4 cores, dominated by four d=32 sweeps at ~2^34 AES evaluations"
+      content: "Full 4-arm x 6-ladder-point x 4-round-count sweep, plus PRP decay control."
+      can_terminate_run: false
+      termination_rule: "Budget or memory ceiling halts the sweep at the point reached; partial coverage is reported, never estimated."
+
+  metrics:
+    primary:
+      - "balance_fraction: fraction of trials reading all-zero accumulator, per (position set, d, r)."
+      - "death_round: smallest r at which balance_fraction reads 0, per (position set, d)."
+    secondary:
+      - "d-ladder monotonicity verdict per position set."
+      - "row-vs-column divergence at d=32."
+      - "PRP-null read at r=10, every arm."
+
+  heuristic_under_test: HEUR-AES-7e22e8-1
+
+  preregistered_prediction:
+    quantity: "column-coset balance_fraction at r=3 and r=4; d-ladder monotonicity."
+    formula: >-
+      balance_fraction(column, d=32, r=3) = 1.0 (16/16); balance_fraction
+      (column, d=32, r=4) = 0.0 (0/16); balance_fraction non-decreasing in d
+      for d in {8,16,24,30,31,32}, saturating by d=24.
+    source: >-
+      Derived in H-AES-7e22e8 mechanism section from ShiftRows index
+      arithmetic. No external source cited.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Reduced-round only (r=3-5, decay at r=10), toy keys and seeds. The
+      d-ladder's top cell (d=32) is the full block, but this is a reduced-
+      round MODE measurement, never a full-round or crypto-scale statement.
+    correspondence: null
+
+  tail_checks:
+    - "Row sibling-null check: row arm must diverge from column arm at d=32, or the 'column' attribution is withdrawn."
+    - "PRP-null at r=10 for every arm, no exceptions."
+
+  replication:
+    seeds: [7ecc87001, 7ecc87002, 7ecc87003]
+    independent_instances: 3
+    interpretation: >-
+      Three seeds per (position set, d, r) cell; balance_fraction at d=32,
+      r in {3,4} is expected exact and seed-invariant given the deterministic
+      structured-plaintext construction.
+
+  budget:
+    wall_clock_seconds_per_run: 300
+    total_cpu_hours: 1
+    maximum_memory_gb: 1
+    maximum_runs: 3
+    maximum_workers: 4
+
+  stopping_rules:
+    - Do not execute unless this contract is separately approved, frozen, archived, and authorized under a batch of GOAL-AES-001.
+    - Stop before any column reading if the diagonal known-answer gate or the d=8 degenerate gate fails.
+    - Stop the whole package if the PRP-null control fails to read null at r=10 for any arm.
+    - Stop at the first budget, memory, or wall-clock ceiling and record what was covered rather than truncating silently.
+
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any change to the position-set definitions, the dimension ladder, or the decision rule after any number has been observed.
+    - Comparison of any measured value against a recalled or published cryptanalysis figure.
+    - Absence of the diagonal known-answer gate or the row sibling-null arm.
+
+  success_criterion: >-
+    This contract has no current success outcome because it is not authorized
+    for execution. IF a separately approved, frozen successor is executed,
+    its only positive disposition is: the diagonal gate reproduces REF-C
+    exactly; the d=8 degenerate gate reproduces the committed 1-byte result;
+    the column coset balances 16/16 at r=3 and reads 0/16 at r=4; the
+    d-ladder is non-decreasing and saturates by d=24; the row sibling null
+    diverges from the column arm at d=32; and the PRP-null control reads
+    null at r=10 in every arm. THAT DISPOSITION ESTABLISHES NO ATTACK AND NO
+    STATEMENT ABOUT FULL-ROUND OR DEPLOYED AES-GCM.
+
+  falsification_criterion: >-
+    H-AES-7e22e8 is falsified, in whole or in the named part, by any of:
+    F5-a the column arm balances through r=4 (16/16) -- the one-round deficit
+    is wrong; F5-b the row arm behaves identically to the column arm at
+    d=32 -- 'column' is not the load-bearing description; F5-c the d-ladder
+    shows depth decreasing with d -- instrument failure; F5-d the diagonal
+    gate fails to reproduce REF-C -- nothing may be reported.
+
+  outcomes:
+    no_execution_authorization: "The only current disposition: a review_required draft. No run, no observation, no evidence."
+    future_complete_readout: "Only after separate approval, freezing, authorization and valid execution under a GOAL-AES-001 batch; toy-tier MODE result only."
+    infrastructure_or_integrity_failure: >-
+      A timeout, crash, or missing dependency is INFRASTRUCTURE SIGNAL and is
+      NEVER negative mathematical evidence against H-AES-7e22e8 (AGENTS.md
+      rule 5).
+
+  required_artifacts_if_later_authorized:
+    - Frozen approved specification with a freeze receipt binding its SHA-256.
+    - Raw per-cell records: (position_set, d, r, seed, trial ordinal, accumulator state), one JSON object per line.
+    - The diagonal known-answer gate log and the d=8 degenerate gate log.
+    - Manifest, environment, exact argv, stdout, stderr, timestamps, resource measurements.
+    - Snapshot archive followed by independent validation and red-team review.
+
+  approval_requirements:
+    - Independent review confirms the ShiftRows index-arithmetic argument before any compute is authorized.
+    - Independent review confirms the row sibling null and PRP control can actually fail.
+    - Coordinator separately approves and freezes a successor contract without editing this draft.
+    - A GOAL-AES-001 batch exists to host the dispatch.
+
+  approval_status: >-
+    Pending review. No approved_by field is present because this draft is
+    not approved and only the Coordinator may approve it (AGENTS.md rule 1).

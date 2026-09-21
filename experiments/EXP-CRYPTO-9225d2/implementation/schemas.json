@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "experiments/EXP-CRYPTO-9225d2/implementation/schemas.json",
+  "title": "EXP-CRYPTO-9225d2 structural schemas",
+  "disclosure": "Structural schema validity alone does not prove arithmetic correctness, checker independence, or scientific validity. A document can satisfy every schema below and still be produced by a non-independent checker, an uncertified fixture, or an unrun/fabricated measurement. Schema conformance is checked here as a NECESSARY, not SUFFICIENT, condition for admission. See preparation-report.yaml and independent_checker.py's authorship disclosure for what remains outstanding.",
+  "definitions": {
+    "u32": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "u64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "hex32": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "32-byte value as 64 lowercase hex characters (field/scalar residue or SHA-256 digest)."
+    },
+    "sha256_hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "seed": {
+      "type": "integer",
+      "enum": [20260825, 20260826, 20260827, 20260828, 20260829, 20260830, 20260831, 20260901, 20260902, 20260903]
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["A_boot_1", "B_boot_1", "A_boot_2"]
+    },
+    "scalar_routine": {
+      "type": "string",
+      "enum": ["reference", "planted", "null"]
+    },
+    "field_primitive": {
+      "type": "string",
+      "enum": ["M", "S", "I"]
+    },
+    "rho_order_bits": {
+      "type": "integer",
+      "enum": [40, 48, 56]
+    },
+    "modeled_workers": {
+      "type": "integer",
+      "enum": [1, 2, 256]
+    },
+    "modeled_dp_bits": {
+      "type": "integer",
+      "enum": [104, 112, 120]
+    },
+    "exact_rational": {
+      "type": "object",
+      "description": "An exact rational value, compared as integers before any decimal rendering (spec.goe_ruler.exact_representation).",
+      "required": ["numerator", "denominator"],
+      "properties": {
+        "numerator": { "type": "integer" },
+        "denominator": { "type": "integer", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "schemas": {
+    "inputs": {
+      "title": "inputs.json",
+      "type": "object",
+      "required": ["seed", "environment", "scalar_routine_or_primitive", "operand_or_scalar_hashes", "draw_rejections"],
+      "properties": {
+        "seed": { "$ref": "#/definitions/seed" },
+        "environment": { "$ref": "#/definitions/environment" },
+        "scalar_routine_or_primitive": {
+          "oneOf": [
+            { "$ref": "#/definitions/scalar_routine" },
+            { "$ref": "#/definitions/field_primitive" }
+          ]
+        },
+        "operand_or_scalar_hashes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/hex32" }
+        },
+        "draw_rejections": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 },
+          "description": "Every rejection j value recorded during deterministic drawing (spec.deterministic_bytes.draw)."
+        }
+      },
+      "additionalProperties": true
+    },
+    "admission_hashes": {
+      "title": "admission.json (hash-bearing subset)",
+      "type": "object",
+      "required": [
+        "source_commit", "source_dirty_state", "executable_sha256", "image_sha256",
+        "dependency_hashes", "fixture_certificate_hashes",
+        "implementation_review_refs", "independent_checker_review_refs"
+      ],
+      "properties": {
+        "source_commit": { "type": ["string", "null"] },
+        "source_dirty_state": { "type": ["boolean", "null"] },
+        "executable_sha256": { "oneOf": [{ "$ref": "#/definitions/sha256_hex" }, { "type": "null" }] },
+        "image_sha256": { "oneOf": [{ "$ref": "#/definitions/sha256_hex" }, { "type": "null" }] },
+        "dependency_hashes": {
+          "type": "object",
+          "additionalProperties": { "oneOf": [{ "$ref": "#/definitions/sha256_hex" }, { "type": "null" }] }
+        },
+        "fixture_certificate_hashes": {
+          "type": "object",
+          "additionalProperties": { "oneOf": [{ "$ref": "#/definitions/sha256_hex" }, { "type": "null" }] }
+        },
+        "implementation_review_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "independent_checker_review_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "field_operation_counts": {
+      "title": "count-results.jsonl (one record per line)",
+      "type": "object",
+      "required": ["seed", "environment", "scalar_routine_or_primitive", "repeat_index", "M", "S", "I", "linear_ops", "integer_work", "branch_copy_ops", "hash_calls", "sink_bytes", "raw_goe_rational"],
+      "properties": {
+        "seed": { "$ref": "#/definitions/seed" },
+        "environment": { "$ref": "#/definitions/environment" },
+        "scalar_routine_or_primitive": {
+          "oneOf": [
+            { "$ref": "#/definitions/scalar_routine" },
+            { "$ref": "#/definitions/field_primitive" }
+          ]
+        },
+        "repeat_index": { "type": "integer", "minimum": 0, "maximum": 4, "description": "0 = designated first timed repeat for headline exact-count comparisons; 1-4 the remaining timed repeats. Warmup is repeat_index=-1 and recorded separately." },
+        "M": { "type": "integer", "minimum": 0 },
+        "S": { "type": "integer", "minimum": 0 },
+        "I": { "type": "integer", "minimum": 0 },
+        "linear_ops": { "type": "integer", "minimum": 0 },
+        "integer_work": { "type": "integer", "minimum": 0 },
+        "branch_copy_ops": { "type": "integer", "minimum": 0 },
+        "hash_calls": { "type": "integer", "minimum": 0 },
+        "sink_bytes": { "type": "integer", "minimum": 0 },
+        "raw_goe_rational": { "$ref": "#/definitions/exact_rational" }
+      },
+      "additionalProperties": false
+    },
+    "blinded_prediction_report": {
+      "title": "predictor-report.json / blind-label-commitment.json",
+      "type": "object",
+      "required": ["commitment_digest_hex", "committed_at_domain", "unblinded", "reviewer_eligibility_attestation", "read_access_attestation"],
+      "properties": {
+        "commitment_digest_hex": { "$ref": "#/definitions/sha256_hex" },
+        "committed_at_domain": { "type": "string" },
+        "unblinded": {
+          "type": "object",
+          "required": ["revealed", "M", "S", "I", "nonce_hex"],
+          "properties": {
+            "revealed": { "type": "boolean" },
+            "M": { "type": ["integer", "null"], "minimum": 0 },
+            "S": { "type": ["integer", "null"], "minimum": 0 },
+            "I": { "type": ["integer", "null"], "minimum": 0 },
+            "nonce_hex": { "type": ["string", "null"] }
+          }
+        },
+        "reviewer_eligibility_attestation": { "type": ["string", "null"] },
+        "read_access_attestation": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "fixture_certificate": {
+      "title": "fixture-certificates.json entries",
+      "type": "object",
+      "required": ["k_bits", "N_hex", "p_hex", "Gx_hex", "Gy_hex", "N_certificate", "p_certificate", "admission_lock_hash"],
+      "properties": {
+        "k_bits": { "$ref": "#/definitions/rho_order_bits" },
+        "N_hex": { "type": "string" },
+        "p_hex": { "type": "string" },
+        "Gx_hex": { "type": "string" },
+        "Gy_hex": { "type": "string" },
+        "N_certificate": { "$ref": "#/schemas/pocklington_certificate" },
+        "p_certificate": { "$ref": "#/schemas/pocklington_certificate" },
+        "admission_lock_hash": { "oneOf": [{ "$ref": "#/definitions/sha256_hex" }, { "type": "null" }] }
+      },
+      "additionalProperties": false
+    },
+    "pocklington_certificate": {
+      "title": "recursive Pocklington certificate node",
+      "type": "object",
+      "required": ["n", "factored_part_product", "witnesses", "recursive_subcertificates", "base_case_trial_division"],
+      "properties": {
+        "n": { "type": "string", "description": "decimal string, arbitrary precision" },
+        "factored_part_product": { "type": "string" },
+        "witnesses": { "type": "array", "items": { "type": "string" } },
+        "recursive_subcertificates": { "type": "array", "items": { "$ref": "#/schemas/pocklington_certificate" } },
+        "base_case_trial_division": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "job_artifact_record": {
+      "title": "manifest.yaml / execution-report.yaml per-job record (JSON projection)",
+      "type": "object",
+      "required": ["logical_job_id", "job_type", "seed_or_rung", "status", "required_files_present", "artifact_sha256"],
+      "properties": {
+        "logical_job_id": { "type": "string" },
+        "job_type": { "type": "string", "enum": ["arithmetic", "rho"] },
+        "seed_or_rung": { "type": ["integer", "object"] },
+        "status": { "type": "string", "enum": ["completed_valid", "invalid_measurement", "negative_observation", "specification_error", "implementation_error", "infrastructure_error", "resource_exhaustion", "unrun", "inconclusive"] },
+        "required_files_present": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "artifact_sha256": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/sha256_hex" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "summary_model_row": {
+      "title": "model-rows.json entry (one of exactly nine)",
+      "type": "object",
+      "required": ["m", "d_bits", "feasible", "transition_goe_rational", "total_transitions_L", "parallel_rounds_R", "expected_endpoints_E", "table_slot_count", "table_bytes", "labeled_calibration_status"],
+      "properties": {
+        "m": { "$ref": "#/definitions/modeled_workers" },
+        "d_bits": { "$ref": "#/definitions/modeled_dp_bits" },
+        "feasible": { "type": "boolean" },
+        "transition_goe_rational": { "$ref": "#/definitions/exact_rational" },
+        "total_transitions_L": { "type": ["string", "null"], "description": "modeled, not measured; decimal string for arbitrary precision" },
+        "parallel_rounds_R": { "type": ["string", "null"] },
+        "expected_endpoints_E": { "type": ["string", "null"] },
+        "table_slot_count": { "type": ["integer", "null"] },
+        "table_bytes": { "type": ["string", "null"] },
+        "labeled_calibration_status": {
+          "type": "string",
+          "enum": ["descriptively_calibrated_on_these_three_rungs", "conditional_uncalibrated_model"],
+          "description": "Only eligible for the calibrated label when every instrument gate and all three ten-seed mean windows pass (spec.model_256.calibrated_label_gate)."
+        }
+      },
+      "additionalProperties": true
+    },
+    "checkpoint": {
+      "title": "checkpoint-index.json entry",
+      "type": "object",
+      "required": ["logical_job_id", "checkpoint_present", "checkpoint_sha256", "checkpoint_byte_length", "completed_work_boundary"],
+      "properties": {
+        "logical_job_id": { "type": "string" },
+        "checkpoint_present": { "type": "boolean" },
+        "checkpoint_sha256": { "oneOf": [{ "$ref": "#/definitions/sha256_hex" }, { "type": "null" }] },
+        "checkpoint_byte_length": { "type": ["integer", "null"], "minimum": 0 },
+        "completed_work_boundary": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "incomplete_or_failure_outcome": {
+      "title": "shared shape for UNRUN / INCONCLUSIVE / invalid / failed receipts",
+      "type": "object",
+      "required": ["logical_job_id_or_cell", "outcome_class", "reason", "retained_partial_receipt_paths"],
+      "properties": {
+        "logical_job_id_or_cell": { "type": "string" },
+        "outcome_class": {
+          "type": "string",
+          "enum": ["specification_error", "implementation_error", "infrastructure_error", "resource_exhaustion", "invalid_measurement", "unrun", "inconclusive"]
+        },
+        "reason": { "type": "string" },
+        "retained_partial_receipt_paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

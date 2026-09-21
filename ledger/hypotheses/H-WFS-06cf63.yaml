@@ -1,0 +1,320 @@
+hypothesis:
+  id: H-WFS-06cf63
+  question_id: RQ-WFS-e776b6
+  derived_from_idea: IDEA-20260809-792aca
+  status: proposed
+  added: '2026-08-25'
+
+  statement: >-
+    SCOPE. One reference multi-round public-coin argument implemented inside this
+    program - a sumcheck-style protocol over a small prime field with 3 to 4 rounds -
+    made non-interactive by a PARAMETERIZED Fiat-Shamir transform whose hash input can
+    be configured to include or omit each of a fixed list of elements. CLAIM TIER toy;
+    every artifact is against this program's own reference implementation with a
+    deliberately weakened transform. NO THIRD-PARTY PROOF SYSTEM, LIBRARY, CIRCUIT OR
+    DEPLOYMENT IS EXAMINED OR NAMED, AND NO DISCLOSURE IS MADE ABOUT ANY.
+
+    THE HYPOTHESIS, IN THREE PARTS.
+    (W1) THE OMISSION SPACE IS FINITE AND ENUMERABLE. The Fiat-Shamir challenge for
+      round i must be derived from the statement, the public parameters, the round
+      index, and every prior prover message. The single-element omission classes are
+      therefore exactly one per such element, and the class list is closed and
+      countable BEFORE any forgery is attempted.
+    (W2) EACH SINGLE-ELEMENT OMISSION IS CONSTRUCTIVELY EXPLOITABLE. For each
+      single-element omission there is a CONSTRUCTION - not a search - producing a
+      proof of a FALSE statement that the honest verifier accepts. Constructive means
+      the forgery is produced in bounded time with no rejection sampling over the
+      challenge space, and this is what makes the count decidable.
+    (W3) THE COMPLETE TRANSFORM IS TIGHT ON THIS IMPLEMENTATION. With every element
+      hashed, no forgery in the declared construction class is producible, and honest
+      proofs of true statements verify at every omission setting - so the omissions are
+      invisible to functional testing, which is the whole reason the failure class
+      survives in practice.
+
+    PRE-REGISTERED PREDICTION AND ITS INTERESTING FAILURE. All single-element
+    omissions of the statement or of a prior message yield forgeries. A CLASS WITH NO
+    FORGERY IS THE INFORMATIVE OUTCOME: it identifies an element that is not
+    load-bearing in this protocol, and the reason must be stated structurally rather
+    than recorded as a budget shortfall.
+
+  mechanism: >-
+    Fiat-Shamir binds a prover's choices by making the challenge a deterministic
+    function of everything already chosen. Each omission removes a binding and leaves
+    some prover choice FREE AFTER the challenge is fixed, which is exactly the freedom
+    a forgery consumes. The three families are structurally different and are
+    constructed differently.
+    STATEMENT OMISSION. If the statement is not in the hash input, the prover runs the
+    honest protocol on a statement it likes, obtains a transcript, and only then
+    selects the claimed statement to be one the transcript satisfies. The statement is
+    chosen last, so soundness never binds it.
+    PRIOR-MESSAGE OMISSION. If the round-i challenge does not depend on the round-j
+    message for some j < i, the prover fixes the challenge, then rewinds and re-chooses
+    that message to satisfy the verifier's check at the challenge it already knows.
+    For a sumcheck round this is solving a univariate linear or low-degree condition,
+    which is a direct algebraic construction.
+    ROUND-INDEX OMISSION. If the round index or domain separator is absent, messages
+    and challenges from different rounds become interchangeable, and a transcript can
+    be assembled by transplanting a valid round into a position where its statement is
+    false.
+    THE COMPLETE-TRANSFORM CONTROL IS WHAT MAKES THE COUNT MEAN ANYTHING. If a forgery
+    is constructible with everything hashed, the implementation has an unrelated
+    soundness defect and every per-class result is confounded by it, because the class
+    would then "succeed" for the wrong reason.
+
+  assumptions:
+    - >-
+      The reference protocol is implemented correctly enough that honest proofs of
+      true statements verify; this is checked directly and is a precondition, not an
+      assumption carried forward.
+    - >-
+      The honest verifier used to accept forgeries is written independently of the
+      prover and of the forgery constructions, so that acceptance is not an artifact
+      of a shared helper.
+    - >-
+      "Constructive" is defined operationally as bounded-time production with no
+      rejection sampling over the challenge space, and the contract measures
+      construction time so a disguised search is visible.
+    - >-
+      Multi-element omissions are a superset of single-element ones in exploitability
+      but are NOT assumed to be so; the contract enumerates pairs as a secondary arm
+      and reports them separately.
+
+  proof_search_map:
+    bottleneck: >-
+      Whether each single-element omission admits a CONSTRUCTION rather than a search.
+      Everything the record claims - the completeness of the enumeration and its value
+      as ground truth for the later decidability work - rests on that distinction, and
+      no amount of compute substitutes for it.
+    baseline_embedding:
+      parameter_slice: >-
+        The complete transform is the zero-omission slice of the parameterized family.
+        The same code path, with the omission list empty, must reproduce a sound
+        argument; the family therefore contains the correct construction as a slice
+        rather than approximating it.
+      reproduction_check: >-
+        Frozen regression fixture - honest proofs of true statements verify, and every
+        forgery construction in the declared class is attempted and must fail, at the
+        zero-omission slice. Recorded before any per-class result is reported.
+    observation_collision:
+      observable: 'the per-class verdict: forgery found / no forgery found'
+      distinct_preimage_search: >-
+        THE COLLISION IS NAMED AND IT IS THE FAILURE MODE THE DESIGN MUST AVOID. "No
+        forgery found" is returned identically by (a) an element that is genuinely not
+        load-bearing in this protocol, (b) a forgery construction that was never
+        implemented for that class, and (c) a budget or implementation shortfall.
+        THREE GROUND TRUTHS, ONE OBSERVABLE. The separating condition is that every
+        "no forgery" verdict must carry an explicit structural reason naming which
+        prover freedom the omission fails to open, and the construction attempt must be
+        recorded with its time. A "no forgery" verdict with no structural reason is
+        recorded as UNDETERMINED, never as a negative.
+    constructive_transforms:
+      - transform: specialization_pack
+        proposed_object: >-
+          Replace a sampled search over weak-transform instances with a complete
+          enumeration over the finite omission lattice, one artifact per class, with
+          the zero-omission slice as the control.
+        predicted_gain: >-
+          A closed ground-truth table against which any later decidability procedure
+          can be scored for false negatives, which a sample cannot provide.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold "the transform looks fine under functional testing" fixed and vary the
+          omission, showing that honest proofs verify identically across the whole
+          lattice while soundness does not.
+        predicted_gain: >-
+          A demonstration that functional testing has zero discriminating power on this
+          lattice, which is the reason the failure class persists.
+    quantifier_order: >-
+      CLAIMED. FOR EACH single-element omission class c in the enumerated list, THERE
+      EXISTS a construction A_c and a false statement S_c such that the honest verifier
+      accepts A_c's proof of S_c under c. The construction may depend on c. NOT
+      CLAIMED, and it is the dangerous stronger reading: that a single construction
+      works for all classes, or that the result says anything about a protocol other
+      than the reference one implemented here.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "In this program's reference 3-to-4-round sumcheck-style argument over the
+        declared field, k of the n enumerated single-element omission classes admit a
+        constructive forgery of a false statement accepted by an independently written
+        honest verifier, with the remaining n - k carrying stated structural reasons."
+        It certifies nothing about any other protocol, any library, any deployed
+        system, or the decidability question the goal ultimately asks.
+      nearby_object_control: >-
+        The zero-omission slice, where the conclusion "a forgery exists" must be FALSE.
+        A method that produces a forgery there has not identified the load-bearing
+        structure and is finding an unrelated soundness bug.
+    proof_obligations:
+      - claim: The enumerated class list is closed over single-element omissions.
+        responsibility: scope
+      - claim: Each reported forgery proves a statement that is genuinely false.
+        responsibility: correctness
+      - claim: Each reported forgery is accepted by an independently written honest verifier.
+        responsibility: soundness
+      - claim: Each forgery is a construction, not a search, evidenced by bounded time and no challenge-space resampling.
+        responsibility: feasibility
+      - claim: The zero-omission slice admits no forgery in the declared construction class.
+        responsibility: baseline
+      - claim: Honest proofs of true statements verify at every omission setting.
+        responsibility: interface
+
+  asymptotic_claim: null
+  asymptotic_claim_note: >-
+    Explicitly null. No complexity claim; the forgeries are constant-round
+    constructions on a toy protocol and no exponent is involved.
+
+  heuristic_assumptions: []
+  heuristic_assumptions_note: >-
+    Empty. Every claim is a construction exhibited on a concrete implementation, or a
+    check performed on it. Nothing is conditioned on a distributional assumption.
+
+  predictions:
+    - metric: >-
+        number of enumerated single-element omission classes admitting a constructive
+        forgery, out of the total enumerated
+      direction: different
+      minimum_effect: >-
+        All classes omitting the statement or a prior prover message. A class with no
+        forgery is the informative outcome and must carry a structural reason; without
+        one it is UNDETERMINED and is not counted in either direction.
+    - metric: forgery construction wall time per class
+      direction: lower
+      minimum_effect: >-
+        Under 10 seconds per class on the declared toy parameters, with zero
+        resamplings over the challenge space. A class requiring search indicates the
+        mechanism is different from the one claimed and the class is reported as
+        search-based, not constructive.
+    - metric: forgeries constructible under the complete transform
+      direction: lower
+      minimum_effect: >-
+        Exactly 0 in the declared construction class. Any nonzero value indicates an
+        unrelated soundness defect and voids every per-class result.
+    - metric: honest-proof verification rate at every omission setting
+      direction: different
+      minimum_effect: >-
+        Exactly 1.000. If honest proofs fail under some omission, the omission is
+        visible to functional testing and the record's central point - that these
+        defects are invisible to functional testing - is falsified for that class.
+    - metric: independent-verifier acceptance rate of reported forgeries
+      direction: different
+      minimum_effect: >-
+        Exactly 1.000. A forgery accepted only by the prover's own verifier is not a
+        forgery and is discarded and counted.
+
+  test_boundary:
+    instances: >-
+      One reference sumcheck-style argument with 3 and 4 rounds, over a prime field of
+      at least 61 bits so that a challenge collision is not an accident, on a claim
+      about the sum of a low-degree multivariate polynomial over the boolean cube.
+    parameters:
+      rounds: [3, 4]
+      field_bits: 61
+      omission_lattice: >-
+        single-element omissions of statement, public parameters, round index/domain
+        separator, and each prior prover message; plus all pairs as a secondary arm
+      forgeries_per_class: 3
+      seeds: [20260825, 20260826, 20260827]
+    implementation: >-
+      Python 3.11, pure Python integer arithmetic modulo a fixed prime; the prover, the
+      honest verifier and the forgery constructions in three separate modules with the
+      verifier importing neither of the others; hashing by hashlib with the hash input
+      assembled from an explicit, configurable element list.
+    budget:
+      wall_clock_seconds: 1800
+      total_cpu_hours: 1.0
+      memory_gb: 2
+      maximum_runs: 20
+
+  distinguishable_outcomes:
+    - outcome: >-
+        COMPLETE ENUMERATION. Every enumerated single-element class yields a
+        constructive forgery in bounded time, all accepted by the independent verifier,
+        with zero forgeries at the zero-omission slice and honest proofs verifying
+        everywhere.
+      what_observing_it_would_mean: >-
+        (W1), (W2) and (W3) all hold in scope. The program owns a closed, artifact-
+        backed ground-truth table for this reference protocol, against which any later
+        decidability procedure can be scored for false negatives - which is where the
+        goal's actual research content lies. It remains a statement about this
+        program's own weakened reference implementation and about nothing else.
+    - outcome: >-
+        A CLASS WITH NO FORGERY AND A STATED REASON. Some single-element omission
+        yields no forgery, and the structural reason is named - the omitted element is
+        already determined by another hashed element, or the freedom it opens is not
+        usable by the verifier's check.
+      what_observing_it_would_mean: >-
+        (W2) is FALSE as stated and the enumeration's premise is refined rather than
+        refuted: not every hash-input element is load-bearing in every protocol. This
+        is the most valuable single outcome available here, because it is precisely the
+        case a later decidability procedure must get right, and it is why the class is
+        enumerated completely rather than sampled.
+    - outcome: >-
+        A CLASS WITH NO FORGERY AND NO REASON. Some class yields no forgery and no
+        structural explanation is produced within budget.
+      what_observing_it_would_mean: >-
+        UNDETERMINED, and recorded as such in both the count and the deliverable. It is
+        NOT evidence that the element is not load-bearing, and it is NOT evidence that
+        it is. Treating it as either would be exactly the observation collision the
+        proof_search_map names.
+    - outcome: >-
+        COMPLETE-TRANSFORM CONTROL FAILS. A forgery is constructible with every element
+        hashed.
+      what_observing_it_would_mean: >-
+        (W3) fails and the reference implementation has a soundness defect unrelated to
+        Fiat-Shamir. EVERY PER-CLASS RESULT IS VOID, because a class could succeed for
+        that unrelated reason. The deliverable is the defect, and the enumeration is
+        re-run only after it is fixed under a new contract.
+    - outcome: >-
+        HONEST PROOFS FAIL UNDER SOME OMISSION.
+      what_observing_it_would_mean: >-
+        The omission is visible to ordinary functional testing for that class, which
+        contradicts the record's premise that these defects are functionally invisible.
+        The class is reported separately and is excluded from the ground-truth table,
+        because a defect a test suite catches is not the defect the goal is about.
+    - outcome: >-
+        A FORGERY THAT IS A SEARCH. A class yields acceptance only after many
+        resamplings over the challenge space.
+      what_observing_it_would_mean: >-
+        (W2)'s constructive claim fails for that class even though exploitability may
+        hold. The class is reported as SEARCH-BASED with its measured resampling count,
+        which is a materially weaker and differently useful fact, and it must not be
+        counted in the constructive column.
+    - outcome: >-
+        INFRASTRUCTURE. A construction crashes or the run exceeds budget.
+      what_observing_it_would_mean: >-
+        NOTHING ABOUT THE CLASS (AGENTS.md rule 5). failed_infrastructure, re-dispatched
+        or reported as an unfilled cell, never as "no forgery exists".
+
+  falsification_conditions:
+    - A forgery is constructible under the complete transform, voiding every per-class result.
+    - Some single-element omission admits no forgery and no structural explanation.
+    - A reported forgery is rejected by the independently written honest verifier.
+    - A reported forgery proves a statement that is not in fact false.
+    - Honest proofs of true statements fail to verify at some omission setting.
+    - A forgery requires resampling over the challenge space, refuting its constructive character.
+
+  interpretation_limits:
+    - >-
+      EVERY CERTIFICATE IS AGAINST THIS PROGRAM'S OWN REFERENCE IMPLEMENTATION WITH A
+      DELIBERATELY WEAKENED TRANSFORM. No third-party proof system, library, circuit or
+      deployment is examined, named, tested or implicated, and no disclosure obligation
+      arises from any outcome.
+    - >-
+      No new attack class is claimed. The weak-Fiat-Shamir failure mode is published
+      and has been found repeatedly in practice; the content here is the complete
+      per-class enumeration with an artifact for each, produced inside this program.
+    - >-
+      The result is ground truth for a decidability question, not an answer to it. A
+      complete table of exploitable omissions says nothing by itself about whether
+      exploitability is decidable from a transform's specification.
+    - >-
+      Toy protocol, toy parameters, one field. A protocol whose verifier check has a
+      different algebraic shape may not admit the same constructions, and nothing here
+      generalizes across protocol families.
+
+  prior_evidence_refs:
+    - RQ-WFS-e776b6
+    - IDEA-20260809-792aca
+    - GOAL-WFS-001
+
+  proposed_by: coordinator
+  proposed_at: '2026-08-25'

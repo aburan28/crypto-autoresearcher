@@ -1,0 +1,162 @@
+task_report:
+  task_id: TASK-20260908-42e809
+  goal_id: GOAL-SCURVE-15e805
+  batch_id: BATCH-0aef14
+  role: executor
+  what_ran: >-
+    (1) Raw-fetched RFC 7748 and RFC 8032 via `curl -s -o <file> <url>`
+    (never a summarizing fetch tool), confirmed HTTP 200 on both, computed
+    sha256 of each raw file, and transcribed every L3-relevant value (field
+    prime, curve448 Montgomery A/base point/order/cofactor, the large-d
+    birational Edwards d/base point, and edwards448's d/base point/order/
+    cofactor) with exact line citations into raw-transcription.yaml. This
+    discharges capsule successor requirement SR1 (audit-plan.yaml global
+    precondition P1) for lane L3 specifically. (2) Executed lane L3 exactly
+    as specified in audit-plan.yaml: certified all three sourceable base-
+    point candidates (M1 curve448 Montgomery, M2 large-d birational Edwards,
+    M3 edwards448/Goldilocks) for on-curve validity, non-identity, l*B=O via
+    a from-scratch scalar multiplication (x-only Montgomery ladder for M1,
+    complete twisted-Edwards addition for M2/M3), and Hasse-interval
+    uniqueness of h*l; ran all three of L3's declared controls (positive:
+    order-4 and order-2l constructed points; parameter-matched negative:
+    Curve25519 base point through the identical Montgomery code path;
+    same-shape null: quadratic-twist points and 1000 random (x,y) pairs plus
+    a bit-randomization decay check) on both the M1 and M3 models before
+    treating any candidate result as a finding, per global precondition P4.
+    Total arithmetic wall-clock time measured: 2.39 seconds, well inside the
+    lane's stated 300-second order-of-magnitude budget; no stopping-rule
+    invocation was needed anywhere in this task.
+
+  key_finding_summary: >-
+    M1 (curve448 Montgomery, RFC 7748) and M3 (edwards448/Ed448-Goldilocks,
+    RFC 7748 and RFC 8032 cross-checked identical) both certify cleanly:
+    on-curve, non-identity, l*B=O, Hasse-interval-unique -- no falsifier
+    condition triggered for either. M2 (the large-d birational Edwards model,
+    also given in RFC 7748) triggers L3's falsifier: its literally-transcribed
+    base point has l*B = the order-2 point (0,p-1), not the identity, so its
+    TRUE order is 2*l, not l. This was diagnosed, not merely observed: three
+    independent cross-checks (d is a non-residue so the curve genuinely has a
+    complete addition law; the point's negation is self-consistent under
+    doubling; and RFC 7748's own stated birational map recovers curve448's
+    u=5 exactly from this point) all confirm the transcription is correct and
+    the point really does correspond to the same underlying curve448 point up
+    to sign -- the mismatch is explained by this specific birational chart
+    mapping the Montgomery identity to the Edwards point (0,-1) rather than
+    to (0,1). This is reported as a measured, mechanism-identified finding
+    outside L3's three anticipated outcome_interpretations (it is not a
+    transcription defect and not a cross-document inconsistency), per
+    AGENTS.md's instruction to preserve unexpected observations rather than
+    force-fit or discard them. Full detail: base-point-audit.yaml.
+
+  unretrieved:
+    - item: 'ePrint 2015/625 pre-rotation Goldilocks base point'
+      reason: 'Requires PDF fetch/parse, explicitly out of scope for this task per its constraints.'
+      status: UNRETRIEVED (not guessed, not reconstructed from memory or from the quarantined parameter-capsule.yaml section 5)
+
+  unresolved: []
+  stopping_rule_invoked: false
+  budget_status:
+    task_budget: {wall_clock_seconds: 3600, memory_gb: 2}
+    task_budget_used: 'well under; arithmetic phase measured at 2.39s, total session well under an hour'
+    lane_L3_own_subbudget: {production_seconds: 300, verification_seconds: 10, note: 'order-of-magnitude estimate per audit-plan.yaml, not a hard figure'}
+    lane_L3_subbudget_used: '2.39s measured for the arithmetic (all candidates + all controls)'
+
+  sr1_discharge_status: >-
+    SR1 is discharged for lane L3 SPECIFICALLY: every value L3 needs (field
+    prime, both curves' coefficients, both models' base points, the declared
+    order, the cofactor) was raw-fetched, sha256-hashed, and line-cited in
+    raw-transcription.yaml, with zero reliance on parameter-capsule.yaml
+    section 5. This does NOT discharge SR1 for the other lanes P1 lists
+    (L1, L4, L5, L6, L9, D1, D2, D3, D5) -- those lanes need their own
+    values (e.g. D1 needs primality-of-l evidence, L1 needs field-size
+    justification detail, etc.) not transcribed in this task, and remain
+    blocked on P1 until a future task raw-transcribes what THEY specifically
+    need.
+
+  prohibited_source_compliance: >-
+    No value from parameter-capsule.yaml section 5
+    ("unverified_retrieval_transcript", USE_PROHIBITED) was read into, or used
+    to produce, any certificate or measurement in this task. That section was
+    only located (grep for its header) to confirm scope, never opened for
+    content.
+
+  p2_compliance: >-
+    No SafeCurves True/False comparison cell was emitted anywhere in this
+    task's artifacts. All results are reported as measured quantities
+    (on-curve boolean, l*B value, Hasse-interval count, control pass/fail)
+    against L3's OWN falsifier and outcome_interpretations only, per global
+    precondition P2 remaining open (capsule conflict C6b, SafeCurves
+    thresholds unsourced).
+
+  no_safety_or_vulnerability_claim: >-
+    This task makes no statement, and implies none, about whether curve448,
+    the large-d birational Edwards curve, or edwards448/Ed448-Goldilocks is
+    safe, unsafe, vulnerable, or free of vulnerabilities. The M2 finding
+    above is a base-point group-law bookkeeping fact about one specific,
+    non-normalized literal reading of RFC 7748's coordinates; it is not a
+    weakness of any curve, is not an attack, and is not a criterion pass/fail
+    against any named security requirement. No curve attack was run, no
+    private key was tested, requested, stored, or derived, and no experiment
+    record was created.
+
+  deviations_from_protocol: >-
+    One declared deviation from RFC 7748's own pseudocode: the Montgomery
+    ladder's final step was changed from "return x2 * z2^(p-2)" (RFC 7748
+    section 5) to "report (x2, z2) and treat z2==0 as O", because the RFC's
+    own division step collapses O and the finite point (0,0) to the same
+    output. This is documented in base-point-audit.yaml
+    (scalar_multiplication_methods.montgomery_model) and does not change
+    which candidates pass or fail any check -- it is required to make the
+    l*B=O test well-defined at all. No other deviation from audit-plan.yaml's
+    lane L3 specification occurred. M2 (the large-d Edwards row) was
+    certified in addition to the two candidates named as a minimum in the
+    task handoff (M3 edwards448, M1 curve448), because its parameters were
+    fully retrievable from the same raw-fetched document; this is an
+    enumeration of an additional sourceable candidate as instructed by L3's
+    mechanism ("enumerate the candidate base points"), not a deviation.
+
+  resolved_model_self_report:
+    requested_policy: executor-implementation
+    requested_reasoning_effort: medium
+    fallback_allowed: false
+    fallback_used: false
+    self_reported_model_id: 'claude-sonnet-5 (Claude Sonnet 5, Anthropic)'
+    note: >-
+      Self-report only, per instructions; no separate inference metadata
+      endpoint was queried in this task.
+
+  bedrock_attestation:
+    amazon_bedrock_selected: false
+    amazon_bedrock_configured: false
+    amazon_bedrock_probed: false
+    amazon_bedrock_contacted: false
+    amazon_bedrock_used: false
+    statement: >-
+      No provider, backend, endpoint, or model identifier containing
+      "Bedrock" (case-insensitively) was selected, probed, configured, or
+      contacted at any point in this task. All computation was local Python
+      3 arithmetic; the only network calls made were the two `curl` GETs to
+      www.rfc-editor.org recorded in raw-transcription.yaml.
+
+  artifact_paths:
+    - coordination/goals/GOAL-SCURVE-15e805/batches/BATCH-0aef14/tasks/TASK-20260908-42e809/raw-transcription.yaml
+    - coordination/goals/GOAL-SCURVE-15e805/batches/BATCH-0aef14/tasks/TASK-20260908-42e809/base-point-audit.yaml
+    - coordination/goals/GOAL-SCURVE-15e805/batches/BATCH-0aef14/tasks/TASK-20260908-42e809/task-report.yaml
+
+  completion_gate_self_check:
+    - 'Both RFC documents fetched as raw plain text via curl, sha256 recorded, every L3-relevant value transcribed with line citation: MET (raw-transcription.yaml).'
+    - 'No value from parameter-capsule.yaml section 5 used in any certificate or measurement: MET.'
+    - 'Every sourceable base-point candidate certified on-curve, non-identity, l*B=O, Hasse-interval-unique, with model (M1/M2/M3) stated: MET for all three candidates (M2 correctly reports l*B=O as FAIL, per its own measured result, not omitted).'
+    - "All three of L3's declared controls ran and outcomes reported: MET (base-point-audit.yaml controls section)."
+    - 'No SafeCurves True/False comparison cell emitted: MET.'
+    - 'Task report states plainly what ran, what is UNRETRIEVED/UNRESOLVED, makes no safety/vulnerability conclusion: MET (this file).'
+
+  note_for_coordinator_and_reviewers: >-
+    The M2 falsifier trigger is a genuine, mechanism-diagnosed result, not an
+    error to be silently corrected or a candidate to be dropped from the
+    report. It is surfaced here exactly as required by AGENTS.md's rule
+    against discarding unexpected observations, and is scoped precisely (one
+    specific non-normalized birational chart's literal coordinates, under a
+    from-scratch a=1 unified Edwards addition law) so it cannot be read as a
+    claim about any deployed curve25519/curve448/Ed448 implementation, all of
+    which use correctly normalized group laws.

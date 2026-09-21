@@ -1,0 +1,489 @@
+validation_report:
+  id: VAL-20260803-1f6b64
+  task_id: TASK-20260803-1f6b64
+  goal_id: GOAL-AES-003
+  batch: BATCH-009
+  validates_archive: TASK-20260803-cca84d   # snapshot commit db9322b6
+  producer_task: TASK-20260803-a0a7b9
+
+  # ============================================================
+  # VERDICT — WRITTEN FIRST, PER TASK CARD DISCIPLINE
+  # ============================================================
+  verdict: passed
+  verdict_statement: >-
+    PASSED as an admissible research receipt. The 44-artifact snapshot at
+    commit db9322b6 hash-verifies exactly against the receipt; the null-object
+    construction in yoyo_sbox_v4.c is, on line-by-line inspection, a sound
+    exact-conditional-law lazy sampler for a uniform random bijection given the
+    four oracle queries a trial makes -- I find no exploitable structure, and
+    the cross-trial birthday bound is a valid (if slightly loose) application
+    of the union bound. All three headline statistical intervals (matched,
+    8x-exposure, pooled) and both null-object R_null readings independently
+    reproduce to the reported digit from the raw run JSONs, using code I wrote
+    myself, not the producer's analyze.py or the Coordinator's recomputation.
+    The RC-11 McNemar-collapses-to-unpaired-binomial claim reproduces exactly
+    from the raw hit_trials arrays. The G1-G3-bit-identical-to-N2 explanation
+    is code-verified true; G4-G6 are correctly NOT claimed identical, and I
+    flag below that the task card handed to me overstated this ("G1-G6...
+    bit-identical") relative to what the producer's own RESULTS.json actually
+    and correctly says. OUTCOME-A (the r=5 excess did not survive cipher
+    substitution at this scale) is the correct reading of the preregistered
+    decision rule applied to this data.
+    This verdict does NOT mean the r=5 excess is real, does not support any
+    ECDLP claim, and does not authorize promotion -- per docs/claims-and-verification.md
+    and the task card, those are Coordinator/Reviewer calls, not mine.
+  limitations_that_do_not_change_the_verdict:
+    - "The 'pooled' null-object statistic (N1+N2, 7 hits / 9,663,676,415 trials) double-counts data: N1 is a byte-for-byte PREFIX of N2's cipher-stream draws (same seed_thread => same seed_cipher for both), and I confirmed N1's single hit trial [0,128282052] IS N2's first hit trial, not a distinct event. Pooling them as independent exposure is a real methodological error the producer did not flag (unlike its correct non-independence flag on G1-G6). It does not change OUTCOME-A: the PREREGISTERED decision rule in PREREGISTRATION.md section 4 is keyed to the MATCHED-exposure test (N1 vs P1) plus R_null's CI, neither of which uses the pooled figure, and the pooled p-value/CI is close enough to the N2-alone reading [p=8.79e-10, CI 6.74-59.27] that no qualitative conclusion moves."
+    - "SEARCH_RECORD.md's S1 file-space counts (1040 files / 444 JSON / 13444 experiments files) do not reproduce exactly against a clean checkout of the cited revision 16bbb893 (I get 1016 / 442 / 13430 -- see artifact_checks). This is a ~2% discrepancy, most plausibly explained by transient/untracked files present in the live working tree at search time (e.g. __pycache__) that are absent from a fresh checkout of the same commit. The DECISIVE finding (S4: exactly two sbox_spec forms, aes and rand:<seed>, campaign-wide before this batch) reproduces EXACTLY under my own independent JSON-walk of the cited revision, and the keyword-grep S2 file list (8 files) reproduces exactly. The absence claim itself is not weakened by the S1 count imprecision."
+
+  # ============================================================
+  # SNAPSHOT AND ARTIFACT INTEGRITY
+  # ============================================================
+  artifact_checks:
+    - check: "Coordinator-committed snapshot, not a working-tree-only receipt"
+      result: PASS
+      detail: >-
+        db9322b6 (TASK-20260803-cca84d) is an ancestor of the current HEAD
+        (550232e9); `git status --short` on the checked-out tree is clean.
+        Read the committed snapshot, not a live working copy.
+    - check: "All 44 declared producer paths sha256-match the receipt"
+      result: PASS
+      detail: >-
+        Recomputed sha256 of every path in path_sha256 (44 entries;
+        declared_path_count 45 = 44 producer artifacts + the receipt itself).
+        Zero mismatches, zero missing files.
+    - check: "Binary correctly excluded, not silently dropped"
+      result: PASS
+      detail: >-
+        src/yoyo_sbox_v4 is in excluded_by_explicit_path with a stated reason
+        (compiled artifact; source is the artifact of record), consistent
+        with the v2/v3 convention this campaign already uses.
+    - check: "Certificate discipline"
+      result: PASS
+      detail: >-
+        RESULTS.json declares certificate.kind: none with the correct reason
+        (pure measurement, no discrete-log solve, no relation claimed).
+        Correctly requires no verifier per docs/claims-and-verification.md.
+    - check: "Claim tier"
+      result: PASS
+      detail: >-
+        claim_tier: toy is declared and matches the tested scale (<=2^33
+        trials, reduced-round software SPN). No crypto- or medium-scale
+        assertion appears anywhere in the bound artifacts.
+
+  # ============================================================
+  # PRIORITY 1 — IS THE NULL OBJECT ACTUALLY A NULL OBJECT?
+  # ============================================================
+  null_object_construction_review:
+    verdict: SOUND — no exploit found
+    method: "Read yoyo_sbox_v4.c worker() directly (not the producer's prose description), traced the idealperm branch line by line."
+    findings:
+      - claim: "Forward sampling: c0 uniform 128 bits; c1 uniform, redrawn if == c0."
+        assessment: >-
+          Correct injectivity rejection for two forward queries E(p0),E(p1)
+          on distinct domain points p0!=p1 (guaranteed by the amask
+          rejection loop, unchanged from v3).
+      - claim: "c0' != c1' whenever the trial is non-trivial (the only case counted)."
+        assessment: >-
+          VERIFIED by code inspection: the `trivial` flag is set false iff
+          some byte in a swapped word differs between c0 and c1 pre-swap; at
+          that byte position post-swap c0' and c1' necessarily disagree
+          (they trade values there). So the two inverse queries are always
+          on distinct points in the case that is measured -- ruling out a
+          possible edge case (c0'==c1') that would otherwise need separate
+          handling and was not sloppily ignored.
+      - claim: "Inverse queries D(c0'),D(c1') return the exact conditional law given the two established forward pairs."
+        assessment: >-
+          VERIFIED. D(c0') correctly returns p0/p1 if c0' equals the
+          PRE-swap c0/c1 (memcmp against c0o/c1o, saved before the swap
+          loop mutates c0/c1 in place -- checked this is not a variable-reuse
+          bug), else draws fresh q0 excluded from {p0,p1} (the only domain
+          points already assigned an image). D(c1') additionally excludes
+          q0 from its own fresh draw, correctly accounting for the new
+          forward pair (q0 -> c0') the first inverse query may have just
+          created. This is exactly the standard "lazy PRP sampling"
+          technique from indifferentiability proofs, not an approximation.
+      - claim: "The plaintext stream is the same source used by every real-cipher arm; only the ciphertext side is replaced."
+        assessment: >-
+          VERIFIED: amask-driven p0/p1 generation is byte-identical code
+          (the v3 code path, untouched); the idealperm branch only replaces
+          the two enc_r()/dec_r() calls. p0,p1 draws come from stream `st`;
+          c0,c1 (and any fresh q0,q1) come from an entirely separate stream
+          `stc`, seeded by seed_thread XOR a fixed constant. This is why the
+          plaintext_stream_digest gate (identical digest across N1/P1/P2) is
+          a meaningful, and passing, check.
+      - claim: "Cross-trial independence (no global permutation state) is justified by a birthday-style bound of <=2^-56 at <=2^36 queries in a 2^128 domain."
+        assessment: >-
+          The math is a valid, slightly loose, union bound: for Q queries
+          in a domain of size D, P(any collision) <= C(Q,2)/D < Q^2/D. At
+          Q=2^36, D=2^128: Q^2/D = 2^72/2^128 = 2^-56, exactly what is
+          claimed (the tighter Q^2/(2D) would give 2^-57; the stated bound
+          is conservative in the right direction, not wrong). This is the
+          standard justification used for per-call lazy PRP sampling in
+          provable-security arguments and is sound here.
+      - claim: "splitmix64's second stream (ciphertext side) is a fixed shift of the plaintext stream and does not leak."
+        assessment: >-
+          The two streams ARE deterministically related (same GAMMA
+          increment, so same underlying arithmetic-progression states,
+          shifted by a fixed, printed k). This is standard, intended
+          practice for splitmix64 (Steele/Vigna): the mixing finalizer
+          is specifically designed so any two states, however related,
+          produce statistically independent-looking output streams. I did
+          not find a mechanism by which the yoyo statistic (a coincidence
+          count on specific diagonal bytes of q0^q1) could exploit this
+          relationship -- the finalizer's avalanche destroys any linear
+          relationship between the states before it reaches the output
+          bits the probe reads. Recorded as assessed, not proof; this is
+          the one place a determined adversarial construction argument
+          (rather than code reading) could still find something, and the
+          preregistration's own residual limitation U4 already covers the
+          adjacent, more general worry (probe-geometry x block-cipher
+          interaction an ideal permutation cannot model).
+    what_the_yoyo_could_still_exploit: >-
+      Nothing found in the sampling code itself. The one thing I could not
+      fully rule out by code reading (as opposed to a deeper cryptanalytic
+      argument) is exactly what the preregistration's own U4 names: if the
+      r=5 excess were driven by an interaction between the probe geometry
+      and generic 128-bit block-cipher structure that an ideal permutation
+      does not model (rather than by AES/SPN structure specifically), this
+      null object would read at the null regardless of whether that generic
+      interaction is real. The producer states this as a residual limitation
+      rather than a defence; I agree with that framing and do not find grounds
+      to go further.
+    prefix_consistency_check_not_requested_but_performed: >-
+      N1 (log2N=30) and N2 (log2N=33) share identical seed/armid/threads, and
+      therefore identical seed_cipher per thread; I confirmed N1's sole hit
+      trial [thread 0, index 128282052] is literally N2's first hit trial,
+      i.e. N1 is an exact prefix run of N2 at the cipher-stream level. This
+      is further evidence the construction behaves exactly as specified
+      (deterministic, stateless-across-trials, purely a function of
+      seed_thread and trial index) -- but it is also the source of the
+      pooled-statistic non-independence flagged in limitations above.
+
+  rank1_grounding_review:
+    objection: "Why not just use the existing r=10 arm as the null object?"
+    verdict: >-
+      The producer's refusal to substitute r=10 AES for a true null object is
+      correct and not a relabelling. r=10 is another point of the SAME
+      one-parameter SPN family under test (same S-box, same key schedule,
+      same round function evaluated more times); a null object under
+      inventor-protocol section 3 must substitute the OBJECT, not another
+      parameter setting of it. The producer's three stated reasons (removes
+      the round function entirely rather than merely running more of it;
+      converts the analytic null denominator into a measured one, which
+      r=10 does not do; and is not confounded with the hypothesis under
+      test, since "r=10 reads at the null" is what the decay hypothesis
+      itself predicts, making it a circular control) are each independently
+      sufficient and I agree with all three. The r=10 arm (P2-R10-PAIR) is
+      correctly kept as a SEPARATE decay check, not conflated with the null
+      object, matching what inventor-protocol section 3 actually asks for
+      (a decay check AND a null object, not one standing in for the other).
+
+  # ============================================================
+  # PRIORITY 2 — INDEPENDENT STATISTICAL RECOMPUTATION
+  # ============================================================
+  metric_recomputations:
+    - id: RECOMP-1-matched
+      description: "P1-R5-PAIR (14 hits / 2^30) vs N1-IDEAL-P30 (1 hit / 2^30), exact conditional-binomial rate-ratio test, matched exposure"
+      method: "Own Python implementation using scipy.stats.binomtest and scipy.stats.beta.ppf (Clopper-Pearson on the conditional binomial, mapped through the rate-ratio transform), NOT analyze.py, NOT the Coordinator's code, reading only raw JSON fields (W_ge1_nontrivial, trials) from runs/P1-R5-PAIR.json and runs/N1-IDEAL-P30.json"
+      reported: {p: 0.0009765625, ci: [2.130042, 591.968494]}
+      recomputed: {p: 0.0009765625, ci: [2.130041650243243, 591.9684937325794]}
+      result: MATCH to the reported digit
+    - id: RECOMP-2-8x
+      description: "P1-R5-PAIR (14/2^30) vs N2-IDEAL-P33 (6/2^33), 8x exposure"
+      reported: {p: 8.792130e-10, ci: [6.738687, 59.265560]}
+      recomputed: {p: 8.792130091914169e-10, ci: [6.738687249533026, 59.265559744963426]}
+      result: MATCH to the reported digit
+    - id: RECOMP-3-pooled
+      description: "P1-R5-PAIR (14/2^30) vs N1+N2 pooled (7/(2^30+2^33))"
+      reported: {p: 5.862436e-10, ci: [6.798468, 52.695837]}
+      recomputed: {p: 5.862435922000005e-10, ci: [6.79846819827893, 52.695836610232455]}
+      result: MATCH to the reported digit
+      caveat: "See limitations: this pooled figure double-counts an overlapping (prefix) sample; N2-alone is the statistically correct 8x-exposure comparison and it is RECOMP-2, which reproduces cleanly and independently."
+    - id: RECOMP-4-Rnull-N1
+      description: "N1's own rate-ratio reading against the modeled analytic null (1.0)"
+      reported: {R_null: 1.00, ci: [0.025, 5.572]}
+      recomputed: {R_null: 1.0, ci: [0.025317807984289876, 5.571643390938898]}
+      method: "Exact Garwood (chi-squared-based) Poisson CI on the observed count x=1, mapped by /1.0"
+      result: MATCH
+    - id: RECOMP-5-Rnull-N2
+      description: "N2's own rate-ratio reading against the modeled analytic null (~8.0)"
+      reported: {R_null: 0.75, ci: [0.275, 1.632]}
+      recomputed: {R_null: 0.75, ci: [0.27523678168635635, 1.6324342528148357]}
+      result: MATCH
+    - id: RECOMP-6-RC11-pairing
+      description: "RC-11 exact McNemar test recomputed from the raw (thread,trial_index) hit lists of P1-R5-PAIR and P2-R10-PAIR, not from any reported 2x2 table"
+      method: >-
+        Loaded runs/P1-R5-PAIR.json and runs/P2-R10-PAIR.json, verified
+        plaintext_stream_digest is identical between them (it is), computed
+        the intersection/difference of the two hit_trials index sets myself.
+      recomputed_table: {n11: 0, n10: 14, n01: 1, n00: 1073741809}
+      recomputed_test: {discordant_pairs: 15, p: 0.0009765625, ratio_ci: [2.130042, 591.968494]}
+      result: >-
+        MATCH to the reported table and to the claim that the McNemar test on
+        n11=0 collapses arithmetically to the identical binomial(15,1/2) as
+        the unpaired test. Independently confirms RC-11 does not sharpen the
+        interval, exactly as the producer states plainly rather than dresses up.
+
+  # ============================================================
+  # PRIORITY 3 — THE G1-G6 UNPREREGISTERED GEOMETRY ARMS
+  # ============================================================
+  control_checks:
+    - id: G1-G6-explanation
+      claim_examined: >-
+        Producer's claim: G1/G2/G3 (amask 2,4,15; smask fixed at 1) are
+        bit-identical to N2 on every statistic including the hit-index list,
+        because the surrogate's ciphertext stream is disjoint from the
+        plaintext stream, so amask cannot change sampled cipher outputs; while
+        G4/G5/G6 (smask 2,7,13; amask fixed at 1) are NOT identical to N2,
+        because smask changes the swap applied to the (amask-independent)
+        ciphertexts. No pooled CI is computed over any of these six arms.
+      verified_against_raw_data: >-
+        Pulled all 6 G-run JSONs directly. G1, G2, G3: W_ge1_nontrivial=6,
+        W_ge1_by_word=[2,2,0,2], and hit_trials index lists IDENTICAL to each
+        other and to N2, despite three DIFFERENT plaintext_stream_digest
+        values (confirming amask genuinely changed the plaintexts drawn).
+        G4, G5, G6: W_ge1_nontrivial = 4, 10, 5 respectively -- NOT equal to
+        N2's 6, and NOT equal to each other; their plaintext_stream_digest
+        equals N2's exactly (amask=1 in all three, as expected), yet their
+        outcomes differ because smask (not amask) determines the swap.
+      verified_against_code: >-
+        Confirmed in yoyo_sbox_v4.c: within the idealperm branch, c0/c1 are
+        drawn from stream `stc`, which is seeded purely from seed_thread
+        (itself a function of seed/armid/thread index only) -- NOT from
+        amask, NOT from how many draws the p1-rejection loop consumed on
+        the separate `st` stream. The swap loop that produces c0'/c1' reads
+        `smask` directly. So for fixed seed/armid/threads/smask, the entire
+        chain c0,c1,c0',c1',q0,q1,W is a pure function of trial index and
+        `stc`'s state, independent of amask -- this is a genuine, provable,
+        pathwise identity of THIS construction, not a copy-paste bug or
+        shared-state defect. G4-G6 correctly differ because smask enters
+        that computation and amask does not.
+      additional_independent_check: >-
+        N1 (2^30 trials) and N2 (2^33 trials) share identical seed_thread and
+        therefore identical `stc`; N1's single hit trial is literally N2's
+        first hit trial (verified above), confirming the same pathwise
+        determinism the producer invokes for G1-G3.
+      verdict: "Explanation VERIFIED CORRECT. Not a bug. Correctly excluded from any pooled CI."
+    - id: G1-G6-task-card-overstatement
+      finding: >-
+        The task handoff given to me states "the producer reports these
+        [G1-G6] came back bit-identical to N2 on every statistic including
+        the hit-index list." That is TRUE of G1/G2/G3 only. RESULTS.json
+        itself (unpreregistered_geometry_extension) is precise and correct:
+        it labels G1/G2/G3 identical_to_N2_on_statistic_keys: true and
+        G4/G5/G6 identical_to_N2_on_statistic_keys: false, with different
+        W_ge1_nontrivial values (4, 10, 5) reported for the latter three.
+        The overstatement is in the framing handed to me, not in the
+        producer's own artifact, and it is directionally an OVERclaim of
+        how uniform the geometry-extension result is -- flagged per the
+        "audit in both directions" instruction.
+
+  # ============================================================
+  # PRIORITY 4 — SEARCH-RECORD AUDIT (re-ran the globs myself)
+  # ============================================================
+  search_record_audit:
+    method: >-
+      Checked out a fresh, detached git worktree at the cited revision
+      16bbb893b0a345d3c66cfacd1e179bb2d456b21b (confirmed to be a clean
+      ancestor of HEAD) and re-ran the producer's own commands against it,
+      plus an independent from-scratch JSON walk (not using the producer's
+      script) to rebuild the sbox_spec inventory.
+    file_count_reproduction:
+      reported: {campaign_files: 1040, campaign_json: 444, source_files: 608, ledger_files: 1452, experiments_files: 13444}
+      my_rerun_at_cited_revision: {campaign_files: 1016, campaign_json: 442, source_files: 608, ledger_files: 1452, experiments_files: 13430}
+      result: >-
+        PARTIAL MISMATCH: source_files and ledger_files match exactly;
+        campaign_files, campaign_json and experiments_files are each a few
+        percent lower under a clean checkout than reported. Most plausible
+        explanation is transient/untracked files (e.g. __pycache__, or
+        other producer sessions' in-flight artifacts) present in the live
+        working tree at the moment of the actual search but not part of the
+        committed tree at that revision. This is a genuine imprecision in
+        SEARCH_RECORD.md's S1 table and is recorded as such; it is NOT
+        fabrication (the counts are the right order of magnitude and the
+        commands as described do produce close numbers), but "the same
+        document records the search performed" (DEC-20260803-f6f113's
+        mechanical remedy) should mean the count is exactly reproducible
+        from the cited revision, and here it is not, quite.
+    keyword_grep_reproduction:
+      command: "grep -ril -e 'random permutation' -e 'randperm' -e 'ideal permutation' -e 'ideal cipher' -e 'lazy sampl' -e 'random bijection' --include='*.c' --include='*.py' --include='*.h' coordination/goals/GOAL-AES-003 experiments"
+      reported_file_list: [8 files, listed in SEARCH_RECORD.md S2]
+      my_rerun_result: "Identical 8 files, identical list, at the cited revision."
+      result: EXACT MATCH
+    decisive_finding_reproduction:
+      claim: "Exactly two sbox_spec forms exist campaign-wide before this batch: 'aes' and 'rand:<seed>'."
+      method: "Independent from-scratch Python script (not parse_verify.py, not analyze.py): globbed every campaign JSON at the cited revision, walked every nested object, extracted sbox_spec from every object also carrying a whist*/W_ge1* key."
+      my_result: >-
+        438 of 442 globbed JSON files parsed; 415 objects found carrying a
+        whist/W_ge1* key; sbox_spec distribution restricted to exactly two
+        forms: 'aes' (83 occurrences) and 'rand:<seed>' (29 distinct seeds,
+        totaling the remainder). No 'ideal' or other structureless form
+        present at this revision.
+      result: >-
+        EXACT MATCH on the decisive finding despite the S1 count
+        imprecision above. Also independently re-verified the Coordinator's
+        post-archive claim ("3 forms after this batch") against current
+        HEAD: {aes, rand, ideal} all present, 'ideal' appearing 9 times --
+        confirms the Coordinator's own independent count.
+      verdict: "The absence claim (no prior cipher-substituting null object) is TRUE and reproduces under my own independent code and a genuinely fresh checkout, notwithstanding the S1 count imprecision noted above."
+
+  # ============================================================
+  # AUDIT IN BOTH DIRECTIONS — WHAT THE TASK CARD OR PRIOR RECORDS GOT WRONG
+  # ============================================================
+  overstatement_and_understatement_findings:
+    - id: FINDING-1-sigterm-mischaracterized
+      severity: notable
+      direction: overstatement/conflation IN THE HANDOFF TO ME, not in the producer's bound artifacts
+      finding: >-
+        My task handoff states: "The producer disclosed one SIGTERM during
+        v4 development (caught by a smoke test, no measurement ran against
+        the defective build)." I searched every bound artifact of
+        TASK-20260803-a0a7b9 (RESULTS.json, PREREGISTRATION.md,
+        SEARCH_RECORD.md, budget_stamps.jsonl, drive.sh, drive2.sh,
+        commands.txt) for any mention of SIGTERM, a kill signal, or a
+        process crash. There is none. What actually exists:
+        (a) DEVIATION 2 in RESULTS.json: the FIRST v4 build had a JSON
+        formatting bug (a missing comma from an insertion point placed
+        after v3's final comma-less field), caught by the 2^20 SMOKE-IDEAL
+        run and fixed before any measurement arm ran. This is a build/JSON
+        bug, not a SIGTERM.
+        (b) D-B8-1 in ledger/evidence/EV-AES-8b8dcf.yaml (a DIFFERENT batch,
+        BATCH-008): "The producer's first equivalence attempt was SIGTERMed
+        at 120 s by a foreground tool timeout." This is the actual SIGTERM
+        in the campaign's history, and it belongs to a prior batch's
+        producer, not to this task's v4 development. RESULTS.json's own
+        DEVIATION 3 correctly cites this as the REASON this task's arms
+        were run in the background ("because BATCH-008 lost
+        K-EQUIV-R5-K1.ATTEMPT1 to a 120 s foreground tool timeout. No arm
+        was interrupted in this task.") -- i.e. the producer explicitly
+        states no SIGTERM occurred in this task.
+        My handoff conflated two separate, correctly-disclosed events from
+        two different batches into one false composite claim. I could not
+        confirm the disclosure I was asked to confirm because it does not
+        exist as described; the two real, separately-disclosed events are
+        both accurate and complete as recorded in their own artifacts.
+      is_this_negative_evidence: >-
+        No. Per AGENTS.md rule 5 and the task card's own reminder, neither
+        the actual BATCH-008 SIGTERM nor this task's build-bug-caught-by-smoke-test
+        is negative mathematical evidence; both are infrastructure/build
+        events, correctly disclosed in their own respective artifacts.
+    - id: FINDING-2-G1-G6-overstated-in-handoff
+      severity: minor
+      direction: overstatement in the handoff to me
+      finding: "See control_checks/G1-G6-task-card-overstatement above: 'G1-G6 bit-identical to N2' is only true of G1-G3; the producer's own RESULTS.json is precise about this and does not make the overstated claim itself."
+    - id: FINDING-3-pooled-statistic-not-flagged-by-producer
+      severity: notable
+      direction: understatement (producer did not flag a real issue it flagged correctly elsewhere)
+      finding: >-
+        The producer correctly identifies and flags non-independence for
+        G1-G6 (excluding them from any pooled CI, with an explicit
+        "THE_IMPORTANT_CAVEAT" section) but does NOT apply the same scrutiny
+        to N1 vs N2, which are ALSO non-independent (N1 is a byte-for-byte
+        prefix of N2 at the cipher-stream level, as I independently
+        verified via the hit-trial-index subset check). The "pooled"
+        statistic in RESULTS.json (7 hits / 9,663,676,415 trials) silently
+        treats N1 and N2 as if independent. See metric_recomputations
+        RECOMP-3 and the top-level limitations for why this does not change
+        OUTCOME-A, but it is an inconsistency in how carefully non-independence
+        was checked across the same task's own arms.
+    - id: FINDING-4-search-record-file-counts-imprecise
+      severity: minor
+      direction: overstatement of precision (not of the conclusion)
+      finding: "See search_record_audit above: S1's file counts do not reproduce exactly from the cited revision, though the decisive S4 finding does."
+    - id: FINDING-5-null-object-construction-and-headline-are-not-overstated
+      severity: n/a (confirms no defect, stated for balance)
+      finding: >-
+        Everything checked under Priority 1 and Priority 2 -- the
+        construction's soundness, the r=10-is-not-a-substitute reasoning,
+        the exact reproduction of every reported statistic, and the RC-11
+        reduction -- holds up under independent, from-scratch re-derivation.
+        RESULTS.json's own framing ("removes ONE artifact explanation ...
+        leaves every other standing") is calibrated correctly and is not an
+        overclaim: OUTCOME-A rules out probe-geometry-plus-structureless-cipher
+        as the explanation for the r=5 excess, and nothing more. It does not,
+        and does not claim to, establish that the excess is a genuine AES/SPN
+        property versus some other unexcluded artifact (e.g. the T-table
+        implementation itself, a mask/geometry interaction specific to real
+        block-cipher structure per residual limitation U4, or a
+        yet-untested confound). This is the correct scope, not an overclaim.
+
+  # ============================================================
+  # HEURISTIC / COST-MODEL / PROOF-ARCHITECTURE CHECKS
+  # ============================================================
+  heuristic_validation_checks:
+    applicable: false
+    reason: >-
+      This is not a heuristic-validation experiment in the exemplar sense of
+      docs/target-result-profile.md (no Dickman-de Bruijn-style CDF
+      prediction, no Deuring-style correspondence sampling). It is a
+      controls-before-belief (inventor-protocol section 3) null-object
+      measurement, which is checked under control_checks and
+      null_object_construction_review above instead.
+  cost_model_checks:
+    applicable: false
+    reason: "No concrete-cost or complexity table is asserted anywhere in the bound artifacts; none applies."
+  proof_architecture_checks:
+    applicable: false
+    reason: "No theorem, asymptotic bound, or reduction is claimed; this is a pure toy-tier measurement task with certificate.kind: none."
+
+  # ============================================================
+  # BUDGET / DEVIATIONS / TOY-TIER DISCIPLINE
+  # ============================================================
+  budget_and_deviation_review:
+    - "Producer declared 5400s wall clock, consumed 2584s per the final (superseding, immutably-retained) budget_stamps.jsonl entry. Within budget."
+    - "Producer's 3 disclosed deviations (non-blind preregistration per BATCH-008 precedent; the JSON-formatting bug caught by a smoke test before any measurement ran; running arms in the background because of a DIFFERENT batch's prior foreground timeout) are all accurately and completely disclosed in RESULTS.json, and none is presented as, or should be read as, negative mathematical evidence."
+    - "Toy tier confirmed throughout: PREREGISTRATION.md, RESULTS.json and SEARCH_RECORD.md all carry an explicit toy-tier statement; no full-round or deployed-AES claim, and no comparison to published cryptanalysis, appears anywhere in the bound artifacts."
+
+  whole_report_parse_statement: >-
+    I read this entire report back, top to bottom, after writing it (not
+    only the section I last edited), and confirm it is internally consistent
+    (the verdict stated first matches the detail that follows) and free of
+    an unfilled placeholder verdict field.
+
+  no_promotion_no_status: >-
+    This report assigns no official research state, no evidence strength,
+    and recommends no promotion of any hypothesis or knowledge item. It is a
+    receipt-admissibility ruling only, per agents/validator.md.
+
+  inference:
+    policy: review-adversarial
+    requested_policy: review-adversarial
+    requested_policy_source: "AGENTS.md default for the Validator role."
+    resolved_model_id: claude-sonnet-5
+    resolved_model_display_name: "Claude Sonnet 5"
+    fallback_used: false
+    model_verified: false
+    model_verified_reason: "orchestration.adapter doctor --probe was not run in this task."
+    reasoning_effort: null
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
+    independence: >-
+      Session and implementation independence from the producer
+      (TASK-20260803-a0a7b9) and from the Coordinator's own snapshot-archive
+      recomputation (TASK-20260803-cca84d): every statistical figure above
+      was recomputed from raw run JSONs with code I wrote in this session,
+      not by re-running or importing analyze.py, build_results.py, or any
+      Coordinator script. NOT model independence: this session and the
+      Coordinator's archive task both resolve to claude-sonnet-5 under
+      standing basis 0137a051eb5828789eb267fa83c8278086578d4c. Nothing here
+      counts toward a GOAL-AES-003 closure quorum.
+
+  artifact_paths:
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-1f6b64/validation_report.yaml
+    - coordination/goals/GOAL-AES-003/archives/TASK-20260803-cca84d/snapshot-receipt.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/PREREGISTRATION.md
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/RESULTS.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/SEARCH_RECORD.md
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/src/yoyo_sbox_v4.c
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/runs/N1-IDEAL-P30.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/runs/N2-IDEAL-P33.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/runs/P1-R5-PAIR.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/runs/P2-R10-PAIR.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/runs/G1-IDEAL-a2-s1.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/runs/G2-IDEAL-a4-s1.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/runs/G3-IDEAL-a15-s1.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/runs/G4-IDEAL-a1-s2.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/runs/G5-IDEAL-a1-s7.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-009/tasks/TASK-20260803-a0a7b9/runs/G6-IDEAL-a1-s13.json
+    - ledger/evidence/EV-AES-8b8dcf.yaml
+    - ledger/decisions/DEC-20260803-f6f113.yaml

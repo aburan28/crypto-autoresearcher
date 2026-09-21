@@ -1,0 +1,186 @@
+run_manifest:
+  task_id: TASK-20260815-e61cca
+  role: executor
+  goal: GOAL-HQC-001
+  batch: BATCH-174014
+  experiment_id: EXP-HQC-982268
+  hypothesis_id: H-HQC-18d1b4
+  claim_tier: toy
+  design_reference: design.md, written and frozen before either script ran on real data
+  git:
+    commit: 5e7d4f88013d46631949d619939ed652da4ea850
+    branch: claude/run-experiments-lc5syr
+    dirty: true
+    dirty_paths_note: 'Working tree was dirty at run time solely because this
+      task''s own untracked task directory
+      (coordination/goals/GOAL-HQC-001/batches/BATCH-174014/tasks/) did not yet
+      exist as a tracked path -- ''?? coordination/goals/GOAL-HQC-001/batches/BATCH-174014/tasks/''
+      is the entire dirty_paths list reported by both scripts'' own git_state().
+      No tracked file was modified by either script; both import stage_a.py,
+      measure.py and matched_pair.py read-only.'
+  environment:
+    python: see shard_8001_8002_discard_prefix_results.json.environment and
+      ivw_pooling_check_results.json.environment (recorded per-script, not
+      duplicated here to avoid transcription error)
+    numpy: recorded per-script in each results JSON's own environment block
+    platform: recorded per-script in each results JSON's own environment block
+  commands:
+  - script: shard_8001_8002_discard_prefix.py
+    command: 'PYTHONDONTWRITEBYTECODE=1 python3 shard_8001_8002_discard_prefix.py --out-dir .'
+    exit_code: 0
+    stdout_log: stdout.log
+    stderr_log: stderr.log
+  - script: ivw_pooling_check.py
+    command: 'PYTHONDONTWRITEBYTECODE=1 python3 ivw_pooling_check.py --out-dir .'
+    exit_code: 0
+    stdout_log: stdout.log
+    stderr_log: stderr.log
+    note: 'Appended to the SAME stdout.log/stderr.log as the first script (both
+      runs are visible in sequence in stdout.log); a single task-level
+      run_manifest.yaml covers both scripts per the dispatch queue''s single
+      declared artifact_paths list for this task.'
+  seeds_and_shard_indices:
+    master_seed: 20260804
+    seed_scheme_source: 'stage_a.py MASTER_SEED, EXP-HQC-982268.replication.seed_scheme;
+      per-trial key = sha_key(ps_id, "T", shard, MASTER_SEED); per-trial domain
+      tag = b"v<k>" + trial_index.to_bytes(8,"little"), independent of call
+      boundaries or history (Red Team code trace, TASK-20260814-a49f1c
+      Section 2, treated as settled per the handoff).'
+    part_a_shards: [8001, 8002]
+    part_a_trial_indices_verification_calls: '[0, 10000) per (shard, variant), 4 calls'
+    part_a_trial_indices_analysis_calls: '[0, 30000) per (shard, variant), 4 calls,
+      of which [0,10000) is discarded and [10000,30000) is retained for every
+      statistic'
+    part_a_warmup_calls: '8 calls of 300 trials each (one per run_arm invocation,
+      4 verification + 4 analysis), thrown away, no shared PRNG state with the
+      timed calls (CTRStream is keyed per (shard, trial_index), independent of
+      call history)'
+    part_b_no_new_sampling: true
+    part_b_reads_only: 'TASK-20260809-a79e4f matched_pair_results.json
+      stage_1.matched_pair.per_shard.{shard_5000,shard_6000} and
+      stage_2.matched_pair.per_shard.{shard_8001,shard_8002}, plus both
+      stages'' pooled cells for the se_ivw/se_pooled_concatenated ratio.'
+  provenance:
+    stage_a_py_sha256_measured: 06a0a618432c00fe26c72ecf05a8d89489db61c5183931fdb76a378717681405
+    stage_a_py_sha256_expected: 06a0a618432c00fe26c72ecf05a8d89489db61c5183931fdb76a378717681405
+    stage_a_py_match: true
+    measure_py_sha256_measured: a4fd1ecb63f0ddc83c02ef45f2c65ab31cf13d13e7ae94f500e67465b24f5dc8
+    measure_py_sha256_expected: a4fd1ecb63f0ddc83c02ef45f2c65ab31cf13d13e7ae94f500e67465b24f5dc8
+    measure_py_match: true
+    matched_pair_py_sha256_measured: 66266a6178eb46e0b37ec0afdb2620064db56bff82318498e2dd83af1bd1c821
+    matched_pair_py_sha256_expected: 66266a6178eb46e0b37ec0afdb2620064db56bff82318498e2dd83af1bd1c821
+    matched_pair_py_match: true
+    matched_pair_py_expected_source: "TASK-20260814-8bbdd2's own measured/
+      self-consistency-pinned value for this file, per that task's own
+      recommendation that future tasks in this family cite the measured
+      value as the pin. Independently re-confirmed by both that task's
+      Validator and Red Team reviewers, and re-confirmed again here."
+    prior_results_json_sha256: e9282100958a219e949be8d3e241da2427ed1d0c22a12417b9825ecc047c0f80
+    prior_results_json_path: coordination/goals/GOAL-HQC-001/batches/BATCH-412513/tasks/TASK-20260809-a79e4f/matched_pair_results.json
+    bootstrap_utility_functions_note: 'sha256_file, core_seconds, git_state and
+      load_module_fail_closed are LOCALLY RE-DEFINED in BOTH scripts, not
+      imported via mp_mod.*, for the same bootstrap chicken-and-egg reason
+      TASK-20260814-8bbdd2 disclosed (EV-HQC-469c08 O10): matched_pair.py''s
+      own load_module cannot be called to sha256-verify-and-load
+      matched_pair.py itself before it has been loaded. This is disclosed
+      here in the SAME place as the correction, unlike the mischaracterization
+      EV-HQC-469c08 O10 found in TASK-20260814-8bbdd2''s design.md Section 1.
+      make_defected_decode_blocks, matched_pair_stats, arm_hists, cell and
+      run_arm ARE genuinely imported via mp_mod.*, never re-derived, in both
+      scripts.'
+  disjointness_proof:
+    step1_verification_vs_committed_statistics: PASS
+    step2_analysis_prefix_vs_verification_raw: PASS
+    overall_status: PASS
+    limitation: 'WEAKER than TASK-20260814-8bbdd2''s direct bit-identical-array-
+      vs-committed-record check. Stage 2 never persisted a raw per-trial S
+      array for shards 8001/8002, so no direct raw-array comparison against a
+      PREVIOUSLY-COMMITTED array is possible. Step 1 confirms a dedicated
+      verification call made INSIDE this task''s own execution reproduces the
+      committed DERIVED statistics; Step 2 confirms within-task, cross-call
+      raw bit-identity between the verification call and the real analysis
+      call''s discarded prefix, both in the SAME process. See design.md
+      Section 3 and shard_8001_8002_discard_prefix_results.json.disjointness_proof.limitation_note
+      for the full argument. Not treated as equivalent to the direct check
+      anywhere in this record.'
+  f_invariant_check:
+    overall_status: PASS
+    mismatch_count_shard_8001: 0
+    mismatch_count_shard_8002: 0
+  hard_invariants:
+    d2_d3_violations_verification_calls: 0 on all 4 calls (8001/8002 x defected/undefected, n_trials=10000)
+    d2_d3_violations_analysis_calls: 0 on all 4 calls (8001/8002 x defected/undefected, n_trials=30000)
+    verification_call_hard_invariants_match_committed_stage2: true (D2_violations,
+      D3_violations, D3_cap, D3_max_w all matched exactly on all 4 (shard, variant) pairs)
+  timings:
+    shard_8001_8002_discard_prefix_py:
+      core_seconds_authorized: 500.0
+      core_seconds_spent: 93.839
+      wall_seconds_authorized: 1800.0
+      wall_seconds_spent: 93.828
+    ivw_pooling_check_py:
+      core_seconds_spent: 0.3321
+      wall_seconds_spent: 0.1921
+    total_measured:
+      core_seconds: 94.1711
+      wall_seconds: 94.0201
+      note: 'Sum of both scripts'' own measured spend, reported exactly, never
+        estimated after the fact. Well inside the 500 core-second / 1,800
+        wall-clock authorization (18.8% core-second / 5.2% wall-clock of budget).'
+    runs_used: 2 (one execution of each of the two scripts; both scripts ran
+      exactly once, matching the dispatch queue's runs_authorized: 2)
+  validity:
+    shard_8001_8002_discard_prefix_py: valid_measurement
+    ivw_pooling_check_py: valid_measurement
+    overall_task_validity: valid_measurement
+    reason: 'Both scripts'' pre-registered mechanically-sound criteria (design.md
+      Section 8) were fully met: fail-closed selftests PASS, wrapper genuinely
+      calls the unmodified decode_blocks, the two-step adapted disjointness
+      proof PASSES on all 4 (shard, variant) pairs, the F[:, 0:n_e-1]
+      structural invariant PASSES on both shards, D2/D3 clean on all 8
+      sampling calls, no call truncated, every call delivered its full
+      requested trial count, each shard''s own estimator returns a finite
+      diff and finite positive SE_paired at k=17, and the IVW combination
+      produced a finite se_ivw at k=17 for both shard pairs from finite
+      committed inputs.'
+  certificate:
+    kind: none
+    why: 'No discrete-log solve or factor-base relation is claimed anywhere in
+      this task. This is a pure measurement/recomputation task on a joint-
+      moment estimator''s scaling behaviour; certificate.kind = none per
+      docs/claims-and-verification.md, stated explicitly rather than omitted.'
+  budget_authorized:
+    wall_clock_seconds: 1800
+    memory_gb: 2
+    maximum_runs: 2
+    core_seconds: 500
+  protocol_deviations:
+  - 'NONE of the kind AGENTS.md rule 5 / the handoff cares about (no silent
+    modification of the hypothesis, success criteria, or reused functions;
+    no adaptive stopping; no omitted runs). The one disclosed, non-blocking
+    deviation is the SAME bootstrap-function local-redefinition pattern
+    TASK-20260814-8bbdd2 disclosed for itself (see provenance.bootstrap_utility_functions_note
+    above), stated correctly here (unlike that task''s design.md Section 1,
+    per EV-HQC-469c08 O10) rather than mischaracterized as import-reuse.'
+  - 'Part A''s two-step disjointness proof is, BY DESIGN and BY NECESSITY
+    (the data gap named in the dispatch queue''s known_code_gap_note), WEAKER
+    than TASK-20260814-8bbdd2''s direct raw-array check. This is not a
+    deviation from THIS task''s own pre-registered design (design.md Section
+    3 states the weaker check in advance and names the limitation before any
+    data existed), but it IS a deviation from the stronger standard the
+    sibling task in this family was able to meet, and is reported as such per
+    the handoff''s own explicit instruction.'
+  anomalies:
+  - 'Both single-shard-only local exponents for shards 8001 and 8002 came out
+    NEGATIVE (8001: -0.268; 8002: -0.866) -- i.e. SE_paired at k=17
+    INCREASED from the committed T=10,000 point to this task''s new,
+    disjoint T=20,000 tail on BOTH shards individually, the opposite
+    direction from a 1/sqrt(T) shrinkage and the opposite sign from BOTH of
+    shards 5000''s (+2.836) and 6000''s (+1.402) single-shard exponents
+    (EV-HQC-469c08 O6), which were positive (SE decreased, just at a rate far
+    outside the [0.4,0.6] band). Recorded as an observation, not
+    interpreted; see four_shard_exponent_report.md for the full completed
+    table. No conclusion is drawn here about what this sign difference means
+    for the shard-specific-vs-general question.'
+  no_files_outside_write_scope: true
+  write_scope: coordination/goals/GOAL-HQC-001/batches/BATCH-174014/tasks/TASK-20260815-e61cca/

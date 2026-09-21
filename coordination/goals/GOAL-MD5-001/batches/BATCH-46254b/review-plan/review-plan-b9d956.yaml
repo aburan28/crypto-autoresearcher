@@ -1,0 +1,229 @@
+# Review plan for the BATCH-46254b red-team round on BCP-1.
+# Written by the Coordinator on 2026-08-20, committed in the control-plane
+# refresh BEFORE TASK-20260810-b9d956 runs. AGENTS.md "Review architecture":
+# the prior, the owned joints, the blindness declaration, the proves-too-much
+# objects, and the blind re-derivation are all fixed here first.
+
+review_plan_record:
+  task_id: TASK-20260810-b9d956
+  goal_id: GOAL-MD5-001
+  question_id: RQ-MDFIVE-6870c1
+  batch_id: BATCH-46254b
+  recorded_by: coordinator
+  recorded_at: '2026-08-20'
+  written_before: >-
+    Any reviewer for TASK-20260810-b9d956 has started. This plan is committed
+    in the same control-plane refresh commit that makes b9d956 dispatchable;
+    the reviewer's prompt references this path and nothing else plans the round.
+
+review_plan:
+  claim_under_review: >-
+    As its producer (TASK-20260810-26d0d5, frozen in BCP-1) stated it: the
+    REDISCOVERY/CONSUMPTION scoring rule, the closed hash-manifested input set,
+    the quarantine marker and the pre-registered expected-answer digest make
+    "blind" CHECKABLE rather than merely asserted for a later blind-calibration
+    run, against the two mechanical contamination channels (solver-process
+    input set; self-attested authoring read history), with the model's parametric
+    prior knowledge named as the one channel no file-system rule reaches.
+
+  coordinator_prior: >-
+    Written before any reviewer runs. (1) I expect the hardest joint to be
+    input_manifest COMPLETENESS: BCP-1 itself concedes the check verifies the
+    recorded set against the MANIFEST but cannot verify the set covers every
+    file the solver process could read, and I expect the red team to confirm
+    that a single omitted file (environment, deleted-after-read, /proc)
+    nullifies the firewall for one contaminated run while the run still scores
+    as REDISCOVERY-eligible, and to state precisely under what wrapper
+    assumptions the gap closes. (2) I expect "canonical serialization" of
+    pre_registered_expected_answer_digest to be a real defect: two natural
+    serializations of the same payload yield different sha256, so the INV-7
+    digest gate is undecidable as written until one serialization is fixed
+    byte-for-byte. (3) I expect the null-object control's "comparable cost"
+    criterion to be under-defined (no tolerance, no named baseline, and
+    partial method recall is not excluded by constant permutation), consistent
+    with the evidential asymmetry BCP-1 already concedes. (4) I do NOT expect
+    a break of the certificate independence rule as written: it is mechanical
+    (two pinned implementations, wrapper recompute), and its only weakness is
+    pre-implementation (md5_collision_pair is absent from harness/runner.py),
+    which BCP-1 already gates against. If the red team breaks nothing, that is
+    itself informative: it says the protocol's declared-not-checked list is
+    complete and the residual risk is the known parametric channel.
+
+  joints:
+    - joint: >-
+        Completeness of run.inputs.input_manifest: whether the recorded
+        hash set can be treated as covering every file the solver process
+        could read, or whether an omitted file makes the firewall vacuous for
+        that run.
+      assigned_to: TASK-20260810-b9d956
+      attack_plan: >-
+        Construct a synthetic solver working directory in which a file
+        containing the (synthetic) quarantined payload is reachable by the
+        process through a channel the manifest construction plausibly misses
+        (an environment variable, a file deleted after being read, or
+        /proc/self/fd), while the input_manifest omits it. Show that BCP-1's
+        one checkable predicate (manifest hashes vs quarantine MANIFEST
+        hashes) passes for this contaminated run. Then state exactly which
+        assumptions about the future run wrapper's manifest construction
+        would close the gap, and whether each assumption is checkable from the
+        committed manifest alone or remains a declaration. Where I think it
+        breaks: completeness is an assertion about process behavior; no
+        post-hoc check on manifest bytes can establish it, so the protocol's
+        checkable/declared boundary in firewall.closed_hash_manifested_input_set
+        must be exact or the red team has found a mislabeled check.
+      breaking_artifact: >-
+        A written counterexample (directory layout + manifest + the check
+        predicate's verdict on it) demonstrating a contaminated run scoring
+        REDISCOVERY-eligible, plus the corrected checkable/declared boundary.
+    - joint: >-
+        encoding_provenance_declaration: whether the self-attested
+        authoring-read declaration can be converted from declaration to
+        check by any mechanism available in this program, or whether it
+        remains a pure declaration whose only deterrent is the fabrication
+        rule.
+      assigned_to: TASK-20260810-b9d956
+      attack_plan: >-
+        Enumerate the runtimes and their enforcement (AGENTS.md: api_direct
+        enforces write_scope and command allow-lists, says nothing about
+        reads; this runtime enforces neither by declaration) and check whether
+        any session-level read history is persisted anywhere in the repository
+        (search for session/log artifacts). If nothing converts the
+        declaration to a check, evaluate the deterrent honestly (a false
+        attestation is fabrication under AGENTS.md rule 5) and state whether
+        a technical substitute exists within reach — for example a
+        two-session design in which the encoding is re-derived from the
+        specification by a session that provably could not have read the
+        quarantined material — or whether it belongs in residual_risk with a
+        BCP-2 amendment note.
+      breaking_artifact: >-
+        A written determination: checkable or declared, the mechanism (or its
+        absence) named, and either a concrete BCP-2 amendment candidate or an
+        explicit residual-risk statement.
+    - joint: >-
+        pre_registered_expected_answer_digest: whether "the sha256 of the
+        canonical serialization of the payload" is a well-defined quantity as
+        written, i.e. whether INV-7's pre-dispatch gate is decidable.
+      assigned_to: TASK-20260810-b9d956
+      attack_plan: >-
+        Build one synthetic MD5 collision pair (constructed locally, no
+        published path required or used), serialize the payload in at least
+        two natural canonical forms (e.g. JSON with sorted keys vs a YAML
+        block; hex-encoded vs binary packing; with vs without trailing
+        newline), compute sha256 of each, and show the digests differ. Conclude
+        that until exactly one serialization is fixed byte-for-byte in BCP-1 or
+        the MANIFEST specification, comparing a search's output digest against
+        the pre-registered value is undecidable, and write the serialization
+        specification the gate needs.
+      breaking_artifact: >-
+        Two serializations of the same payload with different digests, plus
+        the byte-exact serialization spec the digest gate requires.
+    - joint: >-
+        Null-object control discriminative power: whether the variant-contrast
+        criterion ("success against the variant at comparable cost indicates
+        genuine search") is well-defined enough to be falsifiable, given that
+        partial method recall transfers and the variant's own difficulty may
+        differ from standard MD5's.
+      assigned_to: TASK-20260810-b9d956
+      attack_plan: >-
+        Analyze the three confounds: (i) partial recall — a model that
+        remembers the METHOD (differential-path structure) rather than the
+        specific values may transfer to a permuted-constant variant at less
+        than full cost, so variant failure does not exclude partial recall;
+        (ii) intrinsic difficulty — the permuted-constant variant may be
+        easier or harder than standard MD5, so a cost mismatch is
+        non-directional without a difficulty baseline; (iii) "comparable cost"
+        names no tolerance and no baseline run. For each, state whether the
+        control retains discriminating value under a precise definition; if
+        not, propose the cheapest falsifiable refinement (e.g. a second
+        variant with known different expected cost, or a matched-budget
+        success-rate comparison instead of a cost comparison) or record it in
+        residual_risk consistent with consequence_1_evidential_asymmetry.
+      breaking_artifact: >-
+        A written analysis of the three confounds with either a falsifiable
+        refinement of the control's protocol or an explicit unfixable-residual
+        statement.
+    - joint: >-
+        Certificate independence rule enforceability: whether the
+        md5_collision_pair schema as written admits a run-wrapper
+        implementation that records solver-reported digests instead of
+        independently recomputing them, before the certificate kind exists in
+        harness/runner.py.
+      assigned_to: TASK-20260810-b9d956
+      attack_plan: >-
+        Read the verification path in harness/runner.py and identify the
+        process boundary between run wrapper and solver. Determine whether
+        the schema's verified_by entries (implementation id + computed digests
+        per message) are checkable as WRAPPER-recomputed values or are
+        self-reported fields a wrapper could copy from the solver's output.
+        If the schema admits the copying implementation, name the precise
+        additional check that makes wrapper-recompute checkable (e.g. the
+        wrapper's recomputation is the only code path that may set verified,
+        and the schema must carry the wrapper commit that performed it) and
+        state it as a BCP-2 amendment candidate or a wrapper-implementation
+        requirement.
+      breaking_artifact: >-
+        A written determination of whether the schema as written admits a
+        wrapper that violates the independence rule, and the minimal
+        check or amendment that closes it.
+
+  blindness:
+    mutual: true
+    lifted_for: []
+    rationale: >-
+      Single-reviewer round: there is no sibling report to read. b9d956 must
+      not read TASK-20260810-bde128's outputs (none exist at plan time and
+      none may be created before this round's report is archived), anything
+      under coordination/goals/GOAL-MD5-001/quarantine/ (none exists), or any
+      other session's notes. The reviewer attests sources_read in its report.
+
+  proves_too_much:
+    objects:
+      - >-
+        OBJECT A (known CONSUMPTION): a synthetic run manifest whose
+        input_manifest contains the sha256 of a file whose content equals the
+        synthetic quarantined payload registered in a toy quarantine
+        MANIFEST. The rule's verdict on this object is known: CONSUMPTION,
+        recorded invalid, never a weaker pass.
+      - >-
+        OBJECT B (known non-collision certificate): a certificate whose
+        message_1 and message_2 do not actually collide (digests differ).
+        The rule's verdict is known: verified must be false; the certificate
+        requirement MD5(message_1) == MD5(message_2) == digest fails.
+      - >-
+        OBJECT C (known-good REDISCOVERY): a synthetic manifest containing no
+        quarantined hash, a truthful four-field declaration, and a genuine
+        locally-constructed colliding pair verified by two independent
+        implementations. The rule's verdict is known: REDISCOVERY-eligible.
+    failure_signature: >-
+      The scoring predicate must reject A as CONSUMPTION and B as
+      verified:false, and accept C as scorable. An argument (or check) that
+      scores A as REDISCOVERY-eligible, accepts B, or rejects C has proved
+      too much and is wrong somewhere it has not been read closely enough.
+    assigned_to: TASK-20260810-b9d956
+
+  blind_rederivation:
+    required: true
+    quantity: >-
+      The CONSUMPTION predicate as a function of its two declared inputs:
+      given (i) the definition of run.inputs.input_manifest as the closed
+      hash-manifested set of every file the solver process can read, and
+      (ii) the quarantine MANIFEST's per-file sha256 list, derive the boolean
+      predicate that decides CONSUMPTION for input clause (1) and the
+      invalidity condition it triggers (INV-2), from the statements in BCP-1
+      sections (b) and (c) only — not from any account of how the producer
+      intended it to be implemented.
+    parameters: >-
+      BCP-1 sections (b) blind_scoring_rule and (c) collision_certificate_format
+      as the sole source of the quantity's statement; the synthetic manifests
+      of proves_too_much objects A and C as the test inputs.
+    blind_from:
+      - coordination/goals/GOAL-MD5-001/batches/BATCH-46254b/task-cards/TASK-20260810-26d0d5.md
+      - ledger/handoffs/TASK-20260810-26d0d5.yaml
+      - >-
+        the self_report section of
+        coordination/goals/GOAL-MD5-001/batches/BATCH-46254b/protocol/BCP-1.yaml
+        (the producer's execution notes; sections (a)-(h) and the firewall
+        remain fair game as the quantity's own statement)
+    assigned_to: TASK-20260810-b9d956
+
+  procedure_deviations: []

@@ -1,0 +1,261 @@
+idea:
+  id: IDEA-20260816-23332f
+  question_id: RQ-QRE-6dba8c
+  added: '2026-08-16'
+  title: Peak ancilla width is a supremum of the live-qubit trace, but the error-correction bill is
+    charged against the integral of that trace; build the allocation trace as a first-class measured
+    object for reversible arithmetic and measure how often peak and integral disagree on which of
+    two circuits is cheaper.
+  class: mechanism
+  claim: '(A) Reversibility is paid for in ancillas that are allocated, used, and uncomputed, and
+    the standard summary of that payment is a single number, peak live-qubit width, which the imported
+    ALECF benchmark uses directly (its score multiplies Toffoli count by peak qubits, verified as
+    1316081 times 1152 equals 1516125312). Peak width is the supremum of a function of time, the live-qubit
+    trace t maps to the number of allocated non-free qubits at step t. (B) The claim is that the trace,
+    not its supremum, is the object with propagation structure, and that two derived scalars, sup
+    of the trace and the integral of the trace over the circuit''s duration, are not monotone in one
+    another across scheduling variants of one fixed arithmetic function. In plain terms: a circuit
+    can have a lower peak and a larger area under the curve, or the reverse, and which one a cost
+    model charges is a modelling choice. (C) The claim is that the uncomputation share, the fraction
+    of Toffoli gates spent on the reverse pass rather than the forward pass, is separately measurable
+    in a classical simulator and is the mechanism generating that non-monotonicity: deferring uncomputation
+    lowers gate count and raises the integral, while eager uncomputation does the reverse. (D) The
+    claim is that this can be measured today at toy scale, exactly, by instrumenting allocation and
+    free events in a classical reversible interpreter, with no quantum hardware and no error-correction
+    model needed for the measurement itself. (E) WHAT IS NOT CLAIMED: no claim that either scalar
+    is the correct one, no claim about how any physical machine charges for idle qubits, no claim
+    that any published estimate uses the wrong summary, no attack, and no statement about whether
+    any circuit family is cheap or expensive at cryptographic size. The model-flattering direction
+    is stated but not adjudicated: charging only for peak width flatters a designer who parks many
+    ancillas idle for a long time, while charging the integral flatters a designer who accepts a tall
+    narrow spike.'
+  mechanism: 'STAGE 1: instrument the interpreter. Extend a classical reversible-circuit interpreter
+    so that every allocate and free event is timestamped by gate index, producing the exact live-qubit
+    trace as a step function. Peak width is its maximum; the lifetime integral is the sum over gate
+    indices of the live count. Both are exact integers, not estimates. STAGE 2: build the family.
+    Take one fixed arithmetic function, modular multiplication over a small prime, and generate scheduling
+    variants that differ only in uncomputation placement, from fully eager (uncompute each intermediate
+    immediately) to fully lazy (uncompute everything at the end), with intermediate pebbling depths.
+    All variants compute the same function and all restore ancillas, which the interpreter enforces.
+    STAGE 3: measure. For each variant record (toffoli, peak_width, lifetime_integral, uncomputation_share,
+    depth). STAGE 4: test monotonicity. Count the ordered pairs of variants where peak_width ranks
+    them one way and lifetime_integral ranks them the other. That count, normalized, is the primary
+    quantity. STAGE 5: run the null arm, a family of random reversible programs with the same allocation-event
+    statistics but no uncomputation semantics, through the identical measurement. STAGE 6: report
+    the trace shapes, the disagreement rate, its difference from null, and the uncomputation share
+    as a function of pebbling depth, without recommending a summary statistic.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read RQ-QRE-6dba8c in full. Listed and read the title and class lines of all ten proposals
+      that reference it (IDEA-20260809-5a9246, 6090bf, 63fc4a, 61bedf, 593de3, 5d88bd, 5a36f3, 623d8d,
+      5de637 and IDEA-20260815-f4c398). Read the ALECF benchmark README under experiments/EXP-ALECF-001/source/README.md,
+      which specifies the ancilla-restoration and forward-then-reverse validity conditions. Grepped
+      ledger/proposals/ case-insensitively for uncomputation, ancilla, pebbling and reversible.
+    results: 'IDEA-20260809-61bedf argues that quoting a qubit count paired with a runtime hides a
+      tradeoff dial and proposes reporting space-time volume instead. That is the closest record and
+      it is about the reporting format of published headline estimates. It does not construct an allocation
+      trace, does not measure uncomputation share, and does not test monotonicity between two derived
+      scalars across scheduling variants of a fixed function. IDEA-20260809-623d8d concerns windowed
+      arithmetic, where the tradeoff is generated by a table-size parameter rather than by uncomputation
+      placement. IDEA-20260809-593de3 counts the modular-arithmetic layer and validates by classical
+      simulation, which shares the instrument but not the object: it produces gate counts, not allocation
+      traces. Grep for ''pebbling'' in ledger/proposals/ returned no proposal whose title concerns
+      pebbling schedules.'
+    verdict: 'UNVERIFIED. Space-time cost accounting and reversible pebbling are long-established
+      subjects outside this repository and nothing is asserted about their published content. What
+      is claimed new here is only the packaging: the live-qubit trace as the tracked object, the peak-versus-integral
+      disagreement rate as the measured quantity, the uncomputation share as the proposed mechanism,
+      and an allocation-statistics-matched null. Assembled from known parts: reversible simulation,
+      ancilla lifetime accounting, and rank-disagreement statistics.'
+  object_first_candidate:
+    tracked_object: 'The live-qubit trace of a reversible circuit: the integer-valued step function
+      L(t) giving the number of allocated, not-yet-freed qubits after gate t, together with the derived
+      pair (sup L, sum of L over t) and the forward/reverse label on each gate.'
+    lossiness: 'The projection from a circuit to its live-qubit trace discards a great deal: which
+      qubits are live, what values they hold, the arithmetic being performed, and the gate types.
+      Only a count per time step survives. This discard is compatible with the target operation because
+      the operation of interest, scheduling transformation, acts on allocation and free events directly
+      and the count is closed under it. The retained part propagates deterministically: moving an
+      uncomputation later in the schedule shifts free events to larger t and therefore raises L on
+      an interval, exactly and predictably, without needing to know what the qubits held. The second
+      projection, trace to peak, discards the entire shape and keeps one number, which is where the
+      information relevant to the integral is lost; that is the lossiness the proposal measures rather
+      than the one it relies on.'
+    propagation: 'One step of the target operation is a single uncomputation deferral: take an intermediate
+      whose uncomputation sits at gate index i and move it to index j greater than i. Acting on the
+      trace, this adds one to L(t) for every t in the interval [i, j) and leaves L elsewhere unchanged.
+      Consequently the lifetime integral increases by exactly (j minus i), deterministically, while
+      the peak increases by one only if L already attained its maximum somewhere in that interval,
+      and otherwise does not change at all. That asymmetry is the whole mechanism: the integral responds
+      to every deferral, the peak responds only to deferrals that cross the current maximum, so the
+      two scalars decouple as soon as the trace is not flat.'
+    survival_score: 'The trace survives every scheduling transformation exactly, because it is defined
+      by allocation events which are what scheduling manipulates; it dissolves only when the circuit
+      is compiled to a different gate-set granularity, at which point time is reparameterized and
+      the integral changes by a convention-dependent factor while the peak does not. Concretely the
+      structure survives the full pipeline from source schedule to gate-level trace and dies at the
+      granularity boundary, which is one step and a nameable one. The measurable survival statement
+      is: peak is granularity-invariant, the integral is not, and the ratio of integrals under two
+      granularities is the number that quantifies where the object stops being well-defined.'
+  null_object_control: 'The null object is a random straight-line reversible program with the same
+    number of gates, the same number of allocate and free events, and the same allocation-event inter-arrival
+    distribution as the measured family, but with the events placed at random subject to the constraint
+    that every allocation is freed. It computes nothing meaningful and has no forward/reverse structure.
+    The identical instrumentation and the identical peak-versus-integral disagreement computation
+    run on it in the same invocation. For the signal arm to mean anything the null must show a LOWER
+    disagreement rate, or a differently shaped uncomputation-share curve: if random allocation traces
+    disagree at the same rate, then the disagreement is a generic property of step functions with
+    these event statistics and carries no information about uncomputation strategy, and the honest
+    record is a controlled null.'
+  discriminated_from:
+  - 'IDEA-20260809-61bedf (report space-time volume rather than a qubit-count/runtime pair): a reporting-format
+    argument about published headline estimates; this proposal constructs the underlying trace as
+    a measured object, measures a disagreement rate between two of its summaries, and identifies uncomputation
+    placement as the generating mechanism.'
+  - 'IDEA-20260809-593de3 (count the modular-arithmetic layer and validate by classical simulation):
+    shares the classical-simulation instrument but produces gate counts for a costing pipeline; this
+    produces allocation traces and does not feed any costing pipeline.'
+  - 'IDEA-20260809-623d8d (windowed arithmetic tradeoff curve): the tradeoff there is driven by table
+    size and lookup cost; here the arithmetic is fixed and only uncomputation placement moves.'
+  - 'The first proposal in this batch (scalarization rank inversion over a circuit population): that
+    one holds the resource vector fixed and varies the scalarization; this one holds the summary statistics
+    fixed and varies the schedule, and its object is a time-indexed trace rather than a five-tuple.'
+  assumptions:
+  - An interpreter's gate index is an acceptable proxy for time when computing the lifetime integral;
+    wall-clock or depth-weighted time would give a different integral and that alternative is a stated
+    variant, not the default.
+  - Uncomputation placement can be varied over a wide enough range at toy scale to generate non-flat
+    traces; if the arithmetic is too small the trace is nearly constant and the effect cannot appear.
+  - Every generated variant computes the identical function and restores every ancilla, enforced by
+    the interpreter rather than assumed.
+  - Peak width as used by the imported ALECF benchmark corresponds to the supremum of this trace including
+    input registers; the alternative convention excluding inputs is measured as a secondary metric.
+  predictions:
+  - metric: fraction of ordered scheduling-variant pairs ranked oppositely by peak width and by lifetime
+      integral
+    direction: higher
+    minimum_effect: 0.15
+  - metric: uncomputation share (reverse-pass Toffoli count divided by total Toffoli count) at the
+      fully eager end of the family
+    direction: higher
+    minimum_effect: 0.3
+  - metric: ratio of lifetime integral between the laziest and the most eager variant computing the
+      same function
+    direction: higher
+    minimum_effect: 1.5
+  - metric: peak-versus-integral disagreement rate on the measured family minus the same rate on the
+      allocation-matched null
+    direction: higher
+    minimum_effect: 0.05
+  minimal_test:
+    design: One prime, one function, one script. Fix p at 13 bits and implement reversible modular
+      multiplication as a composition of reversible adders with named intermediates. Generate 60 scheduling
+      variants indexed by a single pebbling-depth parameter from fully eager to fully lazy, all validity-gated
+      by classical simulation on 4096 random inputs plus an ancilla-restoration check. Instrument
+      allocate and free events, emit the exact trace per variant, and compute peak width, lifetime
+      integral, uncomputation share and depth. The discriminating output is a single scatter of peak
+      against integral over the 60 variants together with the count of oppositely-ranked pairs. In
+      the same invocation generate 60 allocation-matched random reversible programs and compute the
+      identical statistics. If the two disagreement rates coincide within the bootstrap interval,
+      the record is a controlled null and the mechanism claim fails at this scale. Compute is minutes;
+      the engineering is the instrumented interpreter, which is reusable by several other contracts
+      in this bucket.
+    controls:
+    - Allocation-matched random reversible program family, run through identical instrumentation in
+      the same invocation.
+    - Ancilla-restoration gate on every variant, so no variant can win on peak or integral by leaving
+      garbage.
+    - Identical-function gate across all variants on the same test vectors.
+    - 'A flat-trace control: a circuit constructed to have constant L(t) by design, on which peak
+      and integral must agree on every pair by construction, as an instrument check.'
+    - 'Granularity control: report every trace statistic under both Toffoli-atomic and Toffoli-decomposed
+      conventions.'
+    required_metrics:
+    - live-qubit trace per variant
+    - peak live-qubit width
+    - ancilla lifetime integral
+    - uncomputation share
+    - toffoli count
+    - depth
+    - ancilla-restoration pass indicator
+    - granularity-ratio of the integral
+  falsification_conditions:
+  - The disagreement rate between peak and integral is below 0.02 across the whole family, meaning
+    the two summaries effectively agree at this scale.
+  - The measured disagreement rate is indistinguishable from the allocation-matched null.
+  - The flat-trace instrument control shows a nonzero disagreement rate, falsifying the instrument.
+  - Uncomputation share does not vary by more than 0.05 across the eager-to-lazy family, meaning the
+    family does not exercise the proposed mechanism.
+  - Every variant turns out to have the same peak width, so the peak axis is constant and no disagreement
+    is possible by construction.
+  confounders:
+  - Gate-index time is not physical time; a variant that is lazy in gate index may not be lazy in
+    depth, and the integral under a depth-weighted clock could rank differently. Both clocks must
+    be reported.
+  - Small register widths make fixed overhead dominate the peak, suppressing variation that would
+    appear at larger widths.
+  - The pebbling-depth parameter may induce a monotone family by construction, in which case low disagreement
+    is a property of the generator rather than of circuit space.
+  - Ancilla reuse across subroutine boundaries can make free events cluster, coupling the null's event
+    statistics to the signal arm's in a way that weakens the null.
+  interpretation_limits:
+  - Measured on toy modular multiplication, the numbers say nothing quantitative about 256-bit point-addition
+    circuits.
+  - A disagreement rate does not establish that either summary is wrong; it establishes only that
+    the choice between them changes orderings.
+  - No error-correction model is used or validated here, so nothing follows about physical qubit-seconds;
+    the connection to physical cost is a separate contract.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Gate counts here are for toy modular arithmetic
+      and are not attack costs.
+    memory_exponent: No attack memory exponent is claimed. The ancilla counts measured are properties
+      of toy circuits generated for this contract.
+    best_known: The incumbent summary is peak live-qubit width as used by the imported ALECF scoring
+      functional (score equals rounded mean Toffoli count times peak qubits, verified against both
+      committed score.json files). The proposal does not beat that summary; it measures where an alternative
+      summary disagrees with it.
+    hidden_overhead: 'The instrumented interpreter is the real cost and it hides the usual trap: an
+      allocation event model that is slightly wrong (for example, counting a borrowed qubit as freshly
+      allocated) shifts the integral systematically while leaving the peak untouched, which would
+      manufacture exactly the effect being looked for. The flat-trace control exists for that reason.
+      Human cost also hides in defining the forward/reverse label per gate, which is unambiguous only
+      if the generator emits it.'
+  dominated_by: n/a (no result claimed). I checked the committed frontier rows available in this bucket,
+    the two ALECF points (1316081, 1152) and (1423723, 1141), and this proposal contributes no circuit
+    to either axis. Since no attack or algorithm is proposed, there is no time/memory/data frontier
+    on which it could be dominated.
+  sota_delta: no attack; conceptual/measurement contribution only. The only numbers produced are peak
+    widths and lifetime integrals of toy circuits generated for the contract, which have no counterpart
+    in any existing frontier to compare against.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Part (B), that peak and integral disagree on some scheduling-variant
+    pairs of a fixed function: 0.8, because the propagation argument makes it near-certain in principle,
+    with the risk that toy register widths make the trace too flat to show it. Part (C), that uncomputation
+    share is the mechanism generating the disagreement, evidenced by a monotone relation between pebbling
+    depth and integral: 0.65, since other allocation effects can dominate at small size. Part (D),
+    that the disagreement rate exceeds the allocation-matched null by at least 0.05: 0.45, because
+    the null is deliberately strong and random step functions disagree readily. That the instrument
+    itself is trustworthy after the flat-trace control passes: 0.8.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-QRE-6dba8c
+  - RQ-ALECF-001
+  - EXP-ALECF-001
+  - EXP-ALECF-003
+  - IDEA-20260809-61bedf
+  - IDEA-20260809-593de3
+  - IDEA-20260809-623d8d
+  - docs/inventor-protocol.md
+  - harness/toycurve.py
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ALECF-1ddb1a

@@ -1,0 +1,272 @@
+idea:
+  id: IDEA-20260816-75df2c
+  question_id: RQ-BLAKE-584719
+  added: '2026-08-16'
+  title: Build the four chimeras that separate BLAKE3's message schedule from its round count and
+    its finalization, run the identical trail-search and diffusion instrument on each, and attribute
+    any BLAKE3-versus-BLAKE2s divergence to one named design change instead of to the pair of names.
+  class: mechanism
+  claim: '(A) A divergence between two primitives named BLAKE3 and BLAKE2s is not a result, because
+    the names bundle at least three independent changes: the message schedule, the round count, and
+    the finalization. The claim is that the bundle can be factored by construction. Define the chimera
+    lattice: arm 00 = BLAKE2s schedule with BLAKE2s finalization, arm 10 = BLAKE3 schedule with BLAKE2s
+    finalization, arm 01 = BLAKE2s schedule with BLAKE3 finalization, arm 11 = BLAKE3 schedule with
+    BLAKE3 finalization, each evaluated at a common sweep of round counts so that round count is a
+    third, orthogonal, continuously varied axis rather than a bundled constant. (B) Because the tracked
+    quantity (per-round trail weight, and separately the exact diffusion round) is measured on every
+    cell of the lattice by the same instrument in the same invocation, any observed BLAKE3-versus-BLAKE2s
+    difference decomposes into a schedule main effect, a finalization main effect, a round-count effect,
+    and their interactions -- a plain factorial decomposition, computed rather than argued. (C) NOT
+    CLAIMED: the chimeras are LABORATORY OBJECTS and none of them is BLAKE3 or BLAKE2s. No certificate,
+    bound, or observation about arm 10 or arm 01 is a statement about any real primitive, and every
+    record row carries a non_standard flag. No attack, no break, no security consequence, and no statement
+    about seven-round BLAKE3 follows from any cell. (D) The negative outcome is explicitly usable:
+    if the main effects are all inside the measured band, the deliverable is the measured statement
+    that at the reached round counts neither the schedule change nor the finalization change moves
+    the tracked quantity by more than that band -- which is a quantified version of exactly what the
+    transfer argument assumes, and is worth more than a divergence nobody can attribute.'
+  mechanism: 'The mechanism is a factorial design executed on constructed objects. Stage one: express
+    both round functions in the same parameter-only generator from the transfer-curve record, so that
+    a chimera is literally a different argument tuple and not a different program. Stage two: build
+    the four schedule-by-finalization arms and validate each against itself -- arm 00 must reproduce
+    the BLAKE2s reference implementation''s outputs bit for bit and arm 11 must reproduce BLAKE3''s,
+    which is a strong correctness check that costs nothing and catches the class of bug that would
+    otherwise be reported as a finding. Arms 10 and 01 have no reference and are validated only by
+    construction, which is stated rather than hidden. Stage three: run the trail-weight instrument
+    and the exact symbolic diffusion instrument on all four arms at every round count in the swept
+    range, three seeds each. Stage four: compute the factorial decomposition -- schedule main effect
+    as the mean of (10 minus 00) and (11 minus 01), finalization main effect as the mean of (01 minus
+    00) and (11 minus 10), interaction as their difference -- with the reproducibility band from seed
+    repetition carried through. Stage five: run the same decomposition on random-parameter null arms
+    occupying the same lattice, so that the size of a main effect is read against the size of an effect
+    the design produces by chance.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Same corpus greps as the transfer-curve record: grep -ril blake, grep -ril chacha, grep
+      -ril ''message schedule'', grep -ril ''bound-per-round|per-round bound'' over ledger/proposals
+      and ledger/hypotheses. Additionally grepped for ablation-style precedent by reading IDEA-20260809-3a39bc
+      in full (the ChaCha20-Poly1305 clamping/mask ablation) and skimming the class fields of IDEA-20260813-878855
+      and IDEA-20260813-93a735. Read RQ-BLAKE-584719 and GOAL-BLAKE-001 in full; read docs/inventor-protocol.md
+      sections 1-5 and 8.'
+    results: 'IDEA-20260809-3a39bc is the closest METHODOLOGICAL precedent in this repository: it
+      ablates clamping and the keystream mask in ChaCha20-Poly1305 and states in its own controls
+      that ablated implementations are labelled non-standard and no certificate against an ablated
+      variant is presented as a certificate against the AEAD. That control language is adopted here
+      verbatim in spirit. No BLAKE record of any kind exists in ledger/proposals -- zero hits under
+      RQ-BLAKE-584719. No factorial or chimera design over a hash''s schedule and finalization was
+      found anywhere in the corpus. RQ-BLAKE-584719''s second target (''ISOLATE WHAT CHANGED ... score
+      each change separately where the design permits'') names this need but does not construct the
+      lattice.'
+    verdict: 'UNVERIFIED. Nothing is asserted about the external literature. Assembled from known
+      parts: factorial ablation as a design (standard experimental method), the ablation-labelling
+      controls already established in this repository by IDEA-20260809-3a39bc, and the encoding generator
+      from the transfer-curve record. Claimed new HERE: the specific schedule-by-finalization lattice
+      with round count as an orthogonal swept axis, the self-validation gate that arms 00 and 11 must
+      reproduce their real references bit for bit, and the null lattice that supplies the by-chance
+      effect size against which a main effect is read.'
+  object_first_candidate:
+    tracked_object: The pair (per-round trail weight W(r), exact full-diffusion round d) as a function
+      of position in the schedule-by-finalization lattice. The object followed through the computation
+      is the EFFECT VECTOR -- the set of differences between lattice cells -- rather than any single
+      cell's number, because the effect vector is what factors and a single cell's number does not.
+    lossiness: 'Lossy twice over. First within a cell: W(r) discards trail positions, message differences
+      and clustering exactly as in the transfer-curve record, and d discards which bits depend on
+      which, keeping only the round at which all do. Second across cells: the effect vector discards
+      every cell''s absolute level and keeps only differences, which is a further deliberate loss.
+      What makes the second discard compatible with the operation: the design changes are independent
+      by construction (a schedule table and a finalization map are separate arguments to the generator),
+      so differences are the quantity that propagates additively through the lattice while absolute
+      levels carry an encoding-dependent offset that cancels. The absolute levels are still recorded,
+      because a reader who wants the offset must be able to get it.'
+    propagation: 'One step of the target operation -- one round of the chimera''s permutation -- acts
+      on the object in two ways that the lattice separates. The schedule axis acts by changing WHICH
+      message words are injected into which state words at that round, so it moves W(r) through the
+      freedom available to a trail at that round. The finalization axis does not act on intermediate
+      rounds at all: it acts only at the terminal step, on how the permuted state is folded into a
+      chaining value. That asymmetry is a prediction of the design, not an assumption of it: the finalization
+      main effect on W(r) for r strictly less than the full round count should be ZERO by construction,
+      and measuring a nonzero one is an instrument defect. The diffusion metric d propagates differently:
+      the schedule axis changes when a message bit first reaches each state word, and the finalization
+      axis changes only the final round''s dependency closure.'
+    survival_score: 'The effect vector survives as long as both instruments return comparable rows
+      on all four cells at the same r. It dissolves at the first round count where any cell hits the
+      ceiling, because a factorial decomposition with a missing cell is not a decomposition. Concretely:
+      the lattice is analysed only over the rounds where all four arms (and all four null arms) returned
+      at least a certified lower bound with matching optimality status. That is a stricter and smaller
+      round range than the transfer-curve record''s Rmax, and it is expected to be roughly one to
+      two rounds shorter.'
+  null_object_control: 'A full null lattice of the same shape: four cells built from two random schedule
+    tables (call them S_a, S_b, each a uniform random set of per-round permutations of 0..15) crossed
+    with two random finalization maps of the same algebraic shape as the real ones (random GF(2)-linear
+    feed-forward patterns over the same state words), run at the same round counts, three seeds, in
+    the same invocation by the same instrument. The null lattice yields a schedule main effect and
+    a finalization main effect that arise purely from parameter choice with no design intent. What
+    the null must show: the null main effects must be SMALLER than the real main effects for the real
+    ones to mean anything, and the null must supply a nonzero by-chance effect size so that the comparison
+    is possible at all. If the null lattice''s schedule main effect is as large as the real one, the
+    measurement is reporting that any schedule change of this shape moves the metric by that much,
+    which is a statement about ARX schedules in general and not about BLAKE3''s -- a complete and
+    reportable result, but not the attribution the record set out to make.'
+  discriminated_from:
+  - 'IDEA-20260809-3a39bc: the same ablation philosophy applied to a different object (Poly1305 clamping
+    and mask in an AEAD commitment construction). That record ablates to attribute the cost of a CERTIFICATE
+    construction; this one ablates to attribute a per-round BOUND and a diffusion round, and adds
+    an orthogonal round-count axis and a full null lattice, neither of which appears there.'
+  - 'The transfer-curve record in this same bucket: that one measures two cells (00 and 11) and reports
+    their difference; this one measures the four-cell lattice and factors that difference. They share
+    the generator and are deliberately siblings -- this record is void without that one''s parameter-swap
+    identity proof.'
+  - 'KN-TECH-077 (related-key, known-key, rotational cryptanalysis): that note changes the ORACLE
+    and keeps the primitive fixed. This record changes the PRIMITIVE by construction and keeps the
+    oracle fixed at the single-key differential model. Opposite axes.'
+  - 'H-ARGON-ef2f0b: also isolates a specification mechanism (RFC 9106''s within-window offset transform)
+    against a matched null graph. Same discipline, entirely different object -- a memory-hard function''s
+    reference DAG rather than an ARX permutation''s trail weight -- and no shared instrument.'
+  assumptions:
+  - The schedule and the finalization are genuinely separable arguments in both specifications, i.e.
+    neither round function's internals depend on which finalization follows. This must be checked
+    against pinned primary text, not assumed.
+  - Arm 00 reproducing BLAKE2s bit for bit and arm 11 reproducing BLAKE3 bit for bit is achievable;
+    if it is not, the lattice is not anchored to the real primitives and the whole design collapses
+    to a study of four synthetic objects.
+  - Effects are approximately additive over the lattice at the reached round counts. The interaction
+    term is measured precisely so this assumption is tested rather than relied on.
+  - A random GF(2)-linear feed-forward is a fair null for a real finalization; if the real finalizations
+    are not linear, the null must be redefined and the record says so rather than proceeding.
+  predictions:
+  - metric: finalization main effect on W(r) for r strictly below the full round count
+    direction: lower
+    minimum_effect: 0 -- forced value. The finalization does not act on intermediate rounds by construction,
+      so a nonzero measured effect here is an instrument defect and halts the analysis
+  - metric: schedule main effect on the exact full-diffusion round d
+    direction: different
+    minimum_effect: at least 1 round of difference is the smallest the integer metric can express;
+      below that it is reported as unresolvable rather than as zero
+  - metric: interaction term between schedule and finalization on W(r)
+    direction: lower
+    minimum_effect: predicted below the measured seed band; a large interaction would mean the two
+      axes are not separable and would falsify the design's premise, which is a usable result
+  - metric: real schedule main effect versus null-lattice schedule main effect
+    direction: higher
+    minimum_effect: 'REFUSING TO PRE-COMMIT, with reason: the null effect size is measured by this
+      same run and is unknown beforehand. The frozen rule is that the real effect must exceed the
+      larger null effect by more than the seed band to be called an attribution'
+  minimal_test:
+    design: 'Skip trail search entirely for the first pass and run the lattice on the DIFFUSION metric
+      alone, which is exact, deterministic, solver-free and costs milliseconds. Build all four real
+      arms and all four null arms, compute the exact bit-dependency closure round by round, and read
+      the full-diffusion round d for each of the eight cells at every round count from 1 to 10. That
+      single cheap pass tests three things that gate the expensive version: whether arms 00 and 11
+      reproduce their references bit for bit (correctness), whether the finalization main effect on
+      intermediate-round diffusion is exactly zero (instrument sanity, a forced-value prediction),
+      and whether the schedule main effect on d is even resolvable at integer granularity. If the
+      schedule main effect on d is unresolvable, the trail-weight version is unlikely to resolve one
+      either and the budget request should be reconsidered rather than spent.'
+    controls:
+    - Full null lattice (two random schedules x two random finalizations) run in the same invocation
+      by the same instrument, supplying the by-chance effect size.
+    - 'Self-validation gate: arm 00 must equal the BLAKE2s reference bit for bit and arm 11 must equal
+      the BLAKE3 reference bit for bit on all published test vectors including keyed and multi-chunk
+      cases.'
+    - 'Non-standard labelling: every row from arms 10 and 01 carries a non_standard flag, and no claim
+      about either is written as a claim about a real primitive.'
+    - 'Forced-zero control: the finalization main effect on intermediate-round metrics must be exactly
+      zero; a nonzero value halts analysis.'
+    - Seed repetition (three seeds) on every cell, giving the band the effects are read against.
+    required_metrics:
+    - W(r) per lattice cell per round with optimality status
+    - exact full-diffusion round d per lattice cell
+    - schedule main effect on each metric
+    - finalization main effect on each metric
+    - schedule-by-finalization interaction term
+    - null-lattice main effects and interaction
+    - seed band per cell
+    - bit-for-bit reference agreement flag for arms 00 and 11
+  falsification_conditions:
+  - Arm 00 or arm 11 fails bit-for-bit agreement with its reference -- the lattice is not anchored
+    and nothing downstream is interpretable.
+  - The finalization main effect on an intermediate-round metric is nonzero, indicating the generator
+    leaks finalization into the round function.
+  - The interaction term exceeds both main effects, meaning the axes are not separable and the factorisation
+    the record is built on does not exist for these designs.
+  - Null-lattice main effects match or exceed the real main effects, so the measurement attributes
+    nothing to BLAKE3's specific choices.
+  - The round range where all eight cells return comparable rows is empty or a single round.
+  - The specifications turn out to entangle schedule and finalization so that arms 10 and 01 cannot
+    be defined without an arbitrary choice; the arbitrary choice is then the result, and it is reported
+    as such.
+  confounders:
+  - An arbitrary decision hidden in constructing arms 10 and 01 -- for instance how a schedule defined
+    for 7 rounds is extended to 10 -- which would show up as a schedule main effect that is really
+    an extension-policy effect. Mitigated by declaring the extension policy before the run and by
+    running a second extension policy as a sensitivity arm.
+  - Round-count and schedule are not fully orthogonal if a schedule table has fewer rows than the
+    round count swept; the extension policy above is exactly this confounder.
+  - Solver regime differences across cells, so that an effect is really an optimality-status effect.
+    Mitigated by analysing only rounds where all cells share optimality status.
+  - The diffusion metric saturates (d reached by every cell at the same low round), compressing all
+    effects to zero for reasons of metric ceiling rather than design similarity.
+  - Reference-implementation error making the self-validation gate pass against a wrong reference.
+  interpretation_limits:
+  - Arms 10 and 01 are constructed objects with no standing as cryptographic primitives; nothing measured
+    on them is a statement about BLAKE3, BLAKE2s, or any deployed system.
+  - An attribution is an attribution of a MEASURED METRIC's movement, not of security. A schedule
+    main effect on trail weight is not a schedule effect on attack cost.
+  - Scoped to the round range where all eight cells returned comparable rows, which is expected to
+    be shorter than the transfer-curve record's Rmax.
+  - If the extension policy for schedules turns out to drive the schedule main effect, the record
+    measures the policy and says so; that is a real but different result.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The lattice produces effect sizes on measured metrics,
+      not complexities.
+    memory_exponent: No attack memory exponent is claimed.
+    best_known: The incumbent is the unfactored comparison itself -- the practice of attributing a
+      BLAKE3-versus-BLAKE2s difference to 'BLAKE3' as a name. RQ-BLAKE-584719's second target asks
+      for exactly this factoring and no record in this repository supplies it. This does not beat
+      any attack; it replaces a name with three named axes.
+    hidden_overhead: 'Constructing arms 10 and 01 honestly is the hidden cost: every entanglement
+      between schedule and finalization in the specifications becomes an arbitrary decision that must
+      be declared, defended, and sensitivity-tested with a second policy, which doubles part of the
+      run. The eight-cell lattice at three seeds is also 6x the naive two-arm cost before any round
+      is swept, and the strict all-cells-comparable rule wastes rows that individually succeeded.'
+  dominated_by: 'n/a (no result claimed on any attack frontier). Pareto check: this record produces
+    no time, memory or data/query row, so there is no frontier position to be dominated on. As a measurement
+    it is dominated by any run that factors the same effects over a longer round range or with a third
+    axis (rotation constants) added, and that successor is named here so the record can be superseded.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. The quantitative delta is: zero
+    of the three bundled design changes currently carry a separately measured effect in this repository,
+    and a run would carry three main effects plus one interaction, each with a seed band and a by-chance
+    null comparator, over a stated round range.'
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'By part. That the schedule and finalization are cleanly separable in
+    both specifications so arms 10 and 01 are definable without arbitrary choices: 0.45 -- round counts
+    differ, so a schedule extension policy is probably needed and probably arbitrary, which I expect
+    to be the main finding rather than a nuisance. That arms 00 and 11 reproduce their references
+    bit for bit: 0.85, this is ordinary implementation work with published vectors. That the forced-zero
+    finalization control passes: 0.9, and if it fails the instrument is wrong in a way worth knowing.
+    That the diffusion-metric minimal test resolves a nonzero schedule main effect: 0.5 -- ARX designs
+    diffuse fast and integer round granularity may saturate. That the expensive trail-weight lattice
+    yields a round range with all eight cells comparable: 0.25, the strictest gate and the likeliest
+    budget failure. That the interaction term is small enough for the factorisation to be meaningful:
+    0.6.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-BLAKE-584719
+  - GOAL-BLAKE-001
+  - IDEA-20260809-3a39bc
+  - KN-TECH-076
+  - KN-TECH-077
+  - H-ARGON-ef2f0b
+  - docs/inventor-protocol.md
+  - templates/research-records.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-BLAKE-b75207

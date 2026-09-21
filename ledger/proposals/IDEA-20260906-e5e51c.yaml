@@ -1,0 +1,632 @@
+idea:
+  id: IDEA-20260906-e5e51c
+  question_id: RQ-MLKEM-001
+  added: '2026-09-06'
+  title: >-
+    ML-KEM's key-derivation map d -> rho is PUBLIC, FIXED and UNSALTED, so it
+    admits the full multi-target and time-memory-data tradeoff machinery that
+    the AES reference computation does not; the lattice attack, by contrast,
+    amortises across targets not at all. Two cost curves with different slopes
+    in the target count N must cross, the crossing point N* is a closed-form
+    function of one gate count, and at ML-KEM-1024 it is plausibly a single
+    digit. Track the SALT STRUCTURE as the object and compute N*
+  class: algorithm
+
+  claim: >-
+    (A) THE ASYMMETRY, STATED PRECISELY. Consider a population of N distinct
+    FIPS 203 ML-KEM-1024 public keys and the goal "recover the decapsulation key
+    of at least one of them". Two attack families price this differently:
+    LATTICE. Cost is N-INDEPENDENT per success, because each key expands its own
+    public matrix A from its own rho and the resulting q-ary lattices share no
+    basis, no sieve database and no preprocessing. Attacking the best of N is
+    the weak-key lane, which this program already opened (IDEA-20260805-1d76e9,
+    H-MLKEM-dc51f5) and which returned "the luckiest key is not lucky enough".
+    So the lattice curve is flat in N at the committed 270.7236234535225
+    gate-bits (EV-MLKEM-020, primal_bdd under RC.MATZOV).
+    SYMMETRIC. Under FIPS 203 key generation the whole key is a function of a
+    32-byte seed d and the published rho equals G(d || k)[0:32] with G =
+    SHA3-512 (the premise established or refuted by IDEA-20260906-c5bfc2's
+    Stage 0). The map d -> rho carries NO per-key salt, no nonce, and no
+    target-dependent input whatsoever: it is one fixed function shared by every
+    ML-KEM key on earth at a given parameter set. Therefore a single trial tests
+    a guessed d against ALL N targets at once via one table lookup, and the cost
+    to break some key falls as 2^{256}/N. Writing g for log2(gates per
+    Keccak-f[1600]) in a declared basis, the symmetric curve is
+    256 - log2(N) + g gate-bits.
+    (B) THE CROSSING, IN CLOSED FORM. The two curves cross at
+    log2(N*) = g - 14.7236234535225 at ML-KEM-1024 (full-keyspace convention;
+    g - 15.7236234535225 under the average-trial convention). For g = 17.6 this
+    is N* about 7; for g = 16 it is N* about 2.4; for g <= 14.72 the symmetric
+    attack already wins at N = 1. At ML-KEM-512 and ML-KEM-768 the same formula
+    gives log2(N*) = 115.8 + g and 55.0 + g, i.e. N* far beyond any conceivable
+    population, so THE CLAIM IS CONFINED TO ML-KEM-1024 and says so.
+    (C) THE SECOND ASYMMETRY, WHICH IS THE ONE THAT IS NOT FOLKLORE. The natural
+    objection is that NIST's reference computation amortises identically, so the
+    category comparison is unchanged. It does not amortise identically, and the
+    difference is structural rather than quantitative. Exhaustive key search on
+    AES-256 recovers one of N keys from N (plaintext, ciphertext) pairs only if
+    the pairs share a plaintext; with per-target plaintexts the search is
+    effectively SALTED and a trial tests one target, so its cost is
+    N-independent in the same way the lattice attack is. ML-KEM's d -> rho map
+    has no such per-target input. The claim is therefore: the multi-key security
+    degradation of ML-KEM's key-derivation path is STRICTLY STEEPER in N than
+    that of the reference computation its category is defined against, and the
+    gap is exactly log2(N) bits.
+    (D) THE THIRD LEVER, PRECOMPUTATION. Because the map is fixed and unsalted,
+    Hellman-style tables apply without modification, and the Biryukov-Shamir
+    tradeoff TM^2D^2 = N^2 with precomputation P = N/D describes the achievable
+    surface. This gives an attacker with 2^{100} bits of storage and a one-time
+    2^{216} precomputation an ONLINE cost per new ML-KEM-1024 target far below
+    the lattice figure, at the price of a precomputation the lattice attack does
+    not have to pay. The deliverable is the surface, not a slogan.
+    (E) WHAT DISCRIMINATES. EXPLANATION A, NO CROSSING AT REACHABLE N - the
+    counted g places N* above, say, 2^{40}, which is more ML-KEM-1024 keys than
+    will plausibly exist; then the multi-key lane closes with a number, the flat
+    lattice curve is the operative one at every realistic population, and the
+    salt asymmetry is real but inert. EXPLANATION B, CROSSING AT SMALL N - N* is
+    single-digit or low-double-digit; then for any realistic deployment the
+    cheapest known route to "some ML-KEM-1024 key" contains no lattice, and both
+    this program's cost tables and the single-target framing of the NIST
+    categories are measuring the wrong thing for multi-key deployments.
+    (F) WHAT IS NOT CLAIMED. No break of any single key. No claim that N* is
+    small - that depends on g, uncounted. No claim about ML-KEM-512 or
+    ML-KEM-768, where the formula itself forecloses the lane. No claim that NIST
+    categories are wrong; they are single-target by definition and this is a
+    statement about a setting they do not model.
+
+  mechanism: >-
+    STAGE 0, INHERIT OR REFUTE THE PREMISE. Identical to IDEA-20260906-c5bfc2
+    Stage 0: verify against FIPS 203 known-answer vectors that rho equals the
+    first 32 bytes of SHA3-512(d || k). If that fails, this record fails with
+    it.
+    STAGE 1, THE SALT AUDIT, ZERO COMPUTE AND THE LOAD-BEARING STEP. Enumerate
+    every input to the map that produces rho and classify each as
+    TARGET-DEPENDENT or GLOBAL. The claim in (C) is exactly that the only
+    non-global input is d itself. Do the same enumeration for the reference
+    computation under each of the readings of the key-search game (shared
+    plaintext, per-target plaintext, per-target tweak). The deliverable is a
+    two-column table, and it is falsifiable by inspection: if any global-looking
+    input turns out to be target-dependent, the slope claim collapses.
+    STAGE 2, THE CROSSING SURFACE. With g counted as in IDEA-20260906-c5bfc2
+    Stage 1, evaluate log2(N*) at all three parameter sets under both trial
+    conventions, and plot the three-axis surface (log2 time, log2 memory,
+    log2 N) for the symmetric family against the single point the lattice family
+    occupies. Include the Biryukov-Shamir sheet with P = N/D marked, since a
+    precomputation-inclusive total is a different claim from an online cost and
+    the record must report both.
+    STAGE 3, THE MATCHED-REFERENCE ARM. Recompute the same surface for AES-256
+    key search under each reading of the key-search game, so that the slope
+    comparison in (C) is made between two measured curves rather than between a
+    measured curve and an assumption. This is where IDEA-20260829-bc9cc5's
+    reference-side machinery is reused rather than duplicated.
+    STAGE 4, THE POPULATION QUESTION, HONESTLY BOUNDED. N is not a free
+    parameter; it is the number of distinct long-lived ML-KEM-1024 keys an
+    attacker can collect. This program has an instrument for exactly this kind
+    of census - EV-MLKEM-d146a5, the deployment census IDEA-20260814-10e5e1
+    consumes - and the honest deliverable is a RANGE of N with its sourcing,
+    not a chosen N. Where no census row exists, N is left parametric and the
+    verdict is reported as a function of N.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      THE crypto-kb MCP INDEX WAS UNAVAILABLE (CRYPTO_KB_QDRANT_URL is
+      ':memory:'; search_knowledge errors), so the semantic novelty screen COULD
+      NOT BE RUN and no citation here carries `kb` provenance. Substitute
+      screen, all performed this session: read the full 90-row inventory of
+      proposals bound to RQ-MLKEM-001/002/003; read RQ-MLKEM-001 and
+      RQ-MLKEM-003 in full; enumerated all 32 H-MLKEM hypotheses and all 34
+      staged EXP-MLKEM specifications by id and title; read IDEA-20260829-bc9cc5
+      in full and IDEA-20260814-10e5e1, IDEA-20260805-690de8,
+      IDEA-20260828-5b7795, IDEA-20260829-cca84c in part; read EV-MLKEM-020
+      lines 440-519; read KN-OPEN-016 and KN-OPEN-026 in full.
+      Greps: `Keccak|preimage|SHA3-512|seed d|32-byte seed` over
+      ledger/proposals, case-insensitive - every hit is the schema field
+      `distinct_preimage_search`, none is a symmetric attack;
+      `seed|Keccak|preimage|SHA3|SHAKE` over knowledge/open-problems - four
+      files, none ML-KEM. Web: three WebSearch queries this session; no WebFetch
+      for this record.
+    results: >-
+      Multi-target ML-KEM appears in this repository in exactly one shape: the
+      WEAK-KEY lane, IDEA-20260805-1d76e9 and H-MLKEM-dc51f5, which selects the
+      most favourable LATTICE instance out of N by a norm order statistic and
+      reports two forced values closing it. That lane's N enters through the
+      order statistic of a geometric quantity; here N enters as a linear divisor
+      of a search space, which is a different dependence and a different object.
+      IDEA-20260806-7c1ae4's four-predicate census and EV-MLKEM-d146a5 supply
+      deployment multiplicities but for failure-oracle reachability, not for
+      key-derivation collisions. Nothing in the lane mentions salting, Hellman
+      tables, or a target-count slope.
+      Outside this repository I could not check. Multi-target attacks on
+      unsalted key-derivation are a standard concern in symmetric cryptography,
+      and it is entirely possible that ML-KEM's seed handling has been analysed
+      this way in public; a reviewer with retrieval must look, and the specific
+      thing to look for is a published statement of the crossing point against a
+      lattice cost at ML-KEM-1024.
+    verdict: >-
+      UNVERIFIED. The premise is `recalled`, the external check could not be
+      run, and the decisive constant g is uncounted. Claimed new RELATIVE TO
+      THIS REPOSITORY: (i) target-count SLOPE as the tracked object, (ii) the
+      closed-form crossing N*, (iii) the salt-structure asymmetry between
+      ML-KEM's derivation path and the AES reference, and (iv) the observation
+      that the lattice family's slope in N is exactly zero and has never been
+      stated as a cost-model fact.
+
+  object_first_candidate:
+    established_families_off_limits: >-
+      Off-limits as the primary lens: primal and dual lattice attacks and every
+      variant filed in this lane; hybrid/MITM guessing splits
+      (IDEA-20260901-67f498, -7eb9e1); the coefficient-isometry amortisation
+      family (IDEA-20260722-001, -20260805-690de8, KN-LIT-7663); the weak-key
+      order-statistic family (IDEA-20260805-1d76e9, -3d71ca, H-MLKEM-dc51f5),
+      declared off-limits precisely because it is the nearest multi-target
+      object and the regression risk is highest there; decryption-failure and
+      failure-boosting; algebraic attacks; implementation side channels.
+    tracked_object: >-
+      THE SLOPE OF log2(COST) IN log2(N), the target count - one signed rational
+      number per attack family. Not the cost, not the secret, not the lattice:
+      the DERIVATIVE of the priced cost with respect to the size of the attacked
+      population. The lattice family's value is 0; the unsalted-derivation
+      family's value is -1; a salted derivation family's value would be 0. The
+      object is the derivative because that is what decides the crossing, and no
+      record in this repository has ever computed it for any ML-KEM attack.
+    lossiness: >-
+      LOSSY, aggressively so, and that is what makes it useful. The underlying
+      state is a full attack description - algorithm, parameters, memory layout,
+      instance distribution, success criterion. The projection retains ONE
+      rational number. It discards the absolute cost entirely (an attack at
+      2^{400} and one at 2^{140} have the same slope if both are flat in N), the
+      memory, the data, and every lattice quantity. NOT A CHANGE OF COORDINATES:
+      the slope does not determine the cost at any N, so the map is
+      catastrophically many-to-one, and one must recombine it with the intercept
+      to say anything - which is exactly what the crossing computation does.
+      THE COMPATIBILITY CONDITION: the operation the object must survive is
+      "add one more independent target to the population". Under that operation
+      a family's cost function is composed with N -> N + 1, and the slope is by
+      construction the invariant that propagates deterministically under it,
+      because slope is defined by that very operation. The discarded structure -
+      everything about how one target is attacked - is discarded compatibly,
+      since adding a target does not change how a single target is attacked in
+      EITHER family. That is the whole reason the two families can be compared
+      at all despite sharing no mathematics.
+    propagation: >-
+      One step is one added target. Symmetric family: the table of published rho
+      values grows by one entry, the per-trial test remains one comparison
+      against a lookup structure, and the expected trial count falls by the
+      factor N/(N+1) - deterministic and exactly countable. Lattice family: a
+      new lattice appears, sharing no basis with the others, and the cheapest
+      per-success cost is unchanged - also deterministic. CHEAP INTERNAL
+      FALSIFIER: at N = 1 both families must return exactly the costs already
+      committed in EV-MLKEM-020 and in IDEA-20260906-c5bfc2's Stage 2; if the
+      pipeline does not reproduce them at N = 1 it is not measuring a slope
+      about the right point.
+    survival_score: >-
+      The slope survives all the way to the population census and dissolves
+      exactly there: it is a property of the attack, but the VERDICT needs N,
+      and N is a deployment fact this program can bound only from a census with
+      its own sourcing limits. It also dissolves if a lattice amortisation
+      across distinct keys is ever exhibited, which would change the lattice
+      slope from 0 to something negative; no such amortisation is known to me
+      and the record explicitly does not claim none exists (that would be a
+      closure without an argument).
+
+  null_object_control: >-
+    NULL-SALT, THE DECISIVE NULL. Run the identical multi-target pipeline
+    against a HYPOTHETICAL salted variant of ML-KEM in which rho =
+    G(d || k || salt) with a fresh public 32-byte salt per key. The measured
+    slope must move from -1 to 0. OBJECT REMOVED: the shared derivation.
+    OBJECT PRESERVED: everything else including the seed length. If the pipeline
+    reports the same slope for both, it is reading the seed length rather than
+    the salt structure and the whole record is void.
+    NULL-N1, THE SINGLE-TARGET NULL. At N = 1 the pipeline must return exactly
+    255 + g (or 256 + g) and 270.7236234535225 respectively. Any deviation
+    means the harness is not anchored to the committed numbers.
+    NULL-LAT, THE LATTICE SLOPE NULL, AND IT CAN FAIL. Measure the lattice
+    family's slope empirically rather than assuming it: at reduced dimension,
+    attack the best of N synthetic ML-KEM-shaped instances and fit the slope of
+    log2(best-of-N cost) against log2(N). The FORCED expectation is a slope
+    strictly between -1 and 0 arising only from the weak-key order statistic
+    (which H-MLKEM-dc51f5 measured and found small), not from amortisation. If
+    the measured slope is materially below that, the lattice family amortises
+    in a way this program has not documented and THAT is the finding.
+    NULL-AES, THE MATCHED REFERENCE. Same pipeline on AES-256 key search under
+    both readings of the game. Shared-plaintext reading must give slope -1;
+    per-target-plaintext reading must give slope 0. If the pipeline cannot
+    separate those two readings it cannot support claim (C).
+    FORCED VALUES DECLARED BEFORE MEASUREMENT: (1) the symmetric slope is -1 by
+    construction and carries no information - only the INTERCEPT g does;
+    (2) N* is undefined at ML-KEM-512 and ML-KEM-768 for any reachable N, by
+    arithmetic, and must not be reported as a finding there; (3) precomputation-
+    inclusive totals can never beat 2^{256} overall work, so the tradeoff sheet
+    moves online cost only.
+
+  discriminated_from:
+    - >-
+      IDEA-20260805-1d76e9 and H-MLKEM-dc51f5 are the nearest records: they also
+      attack a population of N ML-KEM keys. But their N enters through the ORDER
+      STATISTIC of the secret's norm - the attacker picks the luckiest LATTICE
+      instance and still runs a lattice attack - and they closed the lane with
+      two forced values showing the luckiest key is not lucky enough. Here N
+      enters as a linear divisor of a SEARCH SPACE, no key is luckier than any
+      other, and no lattice is run at all. The two records would give opposite
+      answers to "does N help", for different reasons, which is precisely why
+      both are needed.
+    - >-
+      IDEA-20260906-c5bfc2 (this session) establishes the single-target ceiling
+      and explicitly excludes multi-target amortisation so that its bound is the
+      conservative one. This record supplies exactly the excluded half and adds
+      what c5bfc2 does not have: the slope object, the salt asymmetry against
+      the reference computation, and the tradeoff surface. Neither subsumes the
+      other; c5bfc2 alone cannot produce a crossing point and this record alone
+      has no ceiling.
+    - >-
+      IDEA-20260805-3d71ca selects among many CIPHERTEXTS under ONE static key
+      by a cheap proxy for the projected-error norm. Same word "many", different
+      quantity - it multiplies targets within one lattice, where amortisation is
+      genuine, and it says nothing about a population of distinct keys.
+    - >-
+      IDEA-20260829-bc9cc5 re-prices the AES reference and names a
+      time-memory-tradeoff key search as its NEARBY-OBJECT CONTROL. This record
+      turns that control into a first-class arm on the ML-KEM side and adds the
+      salt structure, which bc9cc5 does not examine because a single-target
+      reference has no salt question.
+
+  citations:
+    - ref: EV-MLKEM-020 (committed evidence record, this repository)
+      provenance: internal
+      claim: >-
+        primal_bdd under RC.MATZOV at 140.1994731076207 / 200.9587149140538 /
+        270.7236234535225 log2 rop against cutoffs 143 / 207 / 272; peak sieve
+        database log2 M = 88.494071 / 131.657286 / 180.924993 Z_q elements;
+        VAL-CTRL-A gives primal_bdd 140.199473 below primal_usvp 143.771733 and
+        dual_hybrid 145.528285 at Kyber-512. All figures are single-target.
+      verified_by: >-
+        idea-generator, 2026-09-06: partial read of lines 440-519 plus a
+        targeted grep of the whole file. Not a full-file read.
+    - ref: H-MLKEM-dc51f5 and IDEA-20260805-1d76e9 (this repository)
+      provenance: internal
+      claim: >-
+        The multi-target WEAK-KEY lane for ML-KEM, whose scope line reads
+        "multi-target key recovery against N independently keyed ML-KEM" and
+        which reports two forced values deciding the lane negatively for
+        deployed parameters. Cited as the nearest prior art and as the source of
+        the GAIN(u) balance machinery this record's NULL-LAT arm reuses.
+      verified_by: >-
+        idea-generator, 2026-09-06: read the hypothesis header (id, question_id,
+        scope line, status) and the 90-row proposal inventory entry. The full
+        601-line hypothesis was NOT read.
+    - ref: >-
+        FIPS 203 key generation - d is 32 bytes, (rho, sigma) = G(d || k) with
+        G = SHA3-512, rho published inside ek
+      provenance: recalled
+      claim: >-
+        The structural premise, shared with IDEA-20260906-c5bfc2 and not read
+        from primary text by this program. The specific detail this record needs
+        beyond that one is the ABSENCE of any per-key salt or tweak in the input
+        to G, which is what makes the slope -1. A reviewer must confirm both.
+      verified_by: null
+    - ref: >-
+        M. Hellman, "A cryptanalytic time-memory trade-off" (1980); A. Biryukov
+        and A. Shamir, "Cryptanalytic time/memory/data tradeoffs for stream
+        ciphers" (ASIACRYPT 2000), TM^2D^2 = N^2 with precomputation P = N/D
+      provenance: recalled
+      claim: >-
+        That fixed unsalted one-way functions admit these tradeoff families with
+        the stated relations. Recalled from model knowledge; not fetched. The
+        exact constraint region (including T >= D^2) must be re-derived from the
+        source before any surface is published, and the record's Stage 2 says
+        so.
+      verified_by: null
+    - ref: KN-OPEN-026 (this repository)
+      provenance: internal
+      claim: >-
+        Records that the concrete structure discount for ML-KEM is 1-3 bits and
+        that no standardized parameter set is claimed compromised by any of its
+        three sources; cited here only to fix the SIZE of the lattice-side
+        levers this record's symmetric lever is being compared against.
+      verified_by: 'idea-generator, 2026-09-06: read in full'
+
+  assumptions:
+    - >-
+      FIPS 203 key generation is as recalled and contains no per-key salt in the
+      input to G. Refuted at Stage 0 means the record is refuted.
+    - >-
+      The N targets are distinct keys at the same parameter set, so they share
+      the byte k and therefore the same function d -> rho.
+    - >-
+      "Recover at least one key of N" is accepted as a meaningful attack goal
+      for a deployed population. It is NOT the goal the NIST categories define,
+      and the record never conflates them.
+    - >-
+      The lattice family does not amortise across distinct keys. This is
+      ASSUMED, not proved, and NULL-LAT is the arm that tests it; the record
+      does not declare cross-key lattice amortisation impossible.
+    - >-
+      Table lookup against N stored rho values is charged at O(1) amortised
+      gates per trial with N words of memory. At N below 2^{50} this is
+      generous to the attacker on time and honest on memory; both are reported.
+
+  predictions:
+    - metric: >-
+        log2(N*), the target count at which the symmetric curve crosses the
+        committed lattice figure at ML-KEM-1024, computed as
+        g - 14.7236234535225
+      direction: different
+      minimum_effect: >-
+        The lane is live if log2(N*) <= 20 (a population of a million keys is
+        reachable for a widely deployed KEM) and closes if log2(N*) >= 40. Any
+        counted g gives a definite answer.
+    - metric: >-
+        measured slope of log2(cost) in log2(N) for the symmetric family
+      direction: lower
+      minimum_effect: >-
+        -1.0 exactly, forced. A measured value differing from -1 by more than
+        0.05 indicates a harness error, not a finding.
+    - metric: >-
+        measured slope of log2(cost) in log2(N) for the lattice family at
+        reduced dimension (NULL-LAT)
+      direction: different
+      minimum_effect: >-
+        The forced expectation is a small negative number attributable entirely
+        to the weak-key order statistic. A measured slope below -0.25 would
+        indicate undocumented cross-key amortisation and would be a larger
+        finding than the record's own claim.
+    - metric: >-
+        slope of the AES-256 reference under the per-target-plaintext reading
+      direction: different
+      minimum_effect: >-
+        0.0 exactly. If it is -1, the salt asymmetry in claim (C) is false and
+        that leg is refuted.
+
+  minimal_test:
+    design: >-
+      THE CHEAPEST VALID DISCRIMINATOR IS STAGE 1 PLUS ARITHMETIC, AND IT NEEDS
+      NO LATTICE COMPUTE AT ALL. Enumerate the inputs of the ML-KEM derivation
+      map and of the AES key-search game, classify each as global or
+      target-dependent, and read the two slopes off that table; then compute
+      log2(N*) in closed form from g (counted once, shared with
+      IDEA-20260906-c5bfc2 Stage 1) and EV-MLKEM-020's committed constants. That
+      is a morning's work and it decides claim (C) and produces N*. The
+      empirical NULL-LAT arm - fitting the lattice slope at reduced dimension -
+      is the follow-on and is the only part needing reduction runs; it must be
+      run at d <= 180 with a CONTENT-PINNED strategies file, because this
+      program has measured that a d=512 / beta=55 / mpfr=100 cell ran at least
+      14448 s without completing, and that a path-pinned rather than
+      content-pinned BKZ strategies file silently changed a reduction from 9
+      tours to 26 on a d=64 cell. No step of this record requires a tour count.
+    controls:
+      - NULL-SALT, the salted-variant control - slope must move from -1 to 0.
+      - NULL-N1, the single-target anchor - both families must return their committed costs at N = 1.
+      - NULL-LAT, the measured lattice slope at reduced dimension, which can fail and would be the bigger finding if it did.
+      - NULL-AES, the matched reference under both readings of the key-search game.
+      - Forced-value declaration filed before any measurement.
+    required_metrics:
+      - the two-column global-versus-target-dependent input table for both maps
+      - slope of log2(cost) in log2(N) per family, with its derivation
+      - log2(N*) at all three parameter sets under both trial conventions
+      - the (log2 time, log2 memory, log2 N) surface for the symmetric family, with the Biryukov-Shamir sheet and P = N/D marked
+      - fitted lattice slope with confidence interval and the dimensions it was fitted at
+      - the population range for N with its sourcing, or an explicit statement that N is left parametric
+
+  falsification_conditions:
+    - >-
+      If Stage 1 finds any per-key salt or tweak in the input to G, the
+      symmetric slope is 0, the curves never cross, and the record is REFUTED at
+      its central claim.
+    - >-
+      If the AES reference's slope under the per-target-plaintext reading is
+      also -1, claim (C)'s asymmetry is false and the multi-key degradation of
+      ML-KEM is no worse than the reference's, which closes the decision-
+      relevance of the crossing even if the crossing exists.
+    - >-
+      If the counted g places log2(N*) above 40 at ML-KEM-1024, the lane closes
+      with a number: the crossing exists but is unreachable, and the record
+      reports that as the answer rather than reframing the question.
+    - >-
+      If NULL-LAT measures a lattice slope materially below -0.25 at reduced
+      dimension, this record's comparison is invalid as stated, and the correct
+      response is to report the undocumented lattice amortisation, not to
+      salvage the crossing.
+
+  confounders:
+    - >-
+      DEFINITION DRIFT ON THE ATTACK GOAL. "Break one of N" and "break this one"
+      are different problems with different security definitions, and slipping
+      between them is the easiest way to manufacture an apparent break. Every
+      number must carry its goal.
+    - >-
+      The lattice figure 270.7236234535225 is single-target under RC.MATZOV and
+      inherits every defect EV-MLKEM-020 records (H6 rop-unit purpose never
+      stated, H11 cutoffs unverifiable, a memory model whose sourcing claim is
+      unsupported). The crossing point inherits all of them on one side.
+    - >-
+      Table lookup at large N is not free in a memory-access-charged metric, and
+      this record charges it at O(1) amortised. Under the same memory-access
+      metrics IDEA-20260816-7bc28c proposes for the sieve, the symmetric side
+      would also take a charge - far smaller, but not zero, and the record must
+      not quietly exempt itself from the metric it benefits from.
+    - >-
+      Precomputation-inclusive versus online-only accounting differ by up to
+      2^{216} in the tradeoff arm. Reporting only the online cost would be an
+      overclaim of exactly the kind this program's contract exists to prevent.
+    - >-
+      N is a deployment quantity, not a mathematical one, and deployment
+      censuses in this program (EV-MLKEM-d146a5) have already produced rows
+      marked unbounded. An unbounded row must stay parametric rather than being
+      filled with a convenient number.
+
+  interpretation_limits:
+    - >-
+      Confined to ML-KEM-1024. The formula itself forecloses ML-KEM-512 and
+      ML-KEM-768 at any reachable population, and no result here may be quoted
+      about them except as a closure.
+    - >-
+      This is about the key-derivation path, not about MLWE. A crossing would
+      say that a deployment's weakest link is symmetric, not that the lattice
+      problem is easier than believed.
+    - >-
+      The NIST categories are single-target by definition. Nothing here is a
+      claim that ML-KEM-1024 fails a category, and any such reading is a
+      misreading the record disclaims in advance.
+    - >-
+      Claim tier: the salt audit and the closed-form crossing are exact
+      derivations at full standardized scale; the NULL-LAT slope fit is toy-tier
+      and transfers to FIPS 203 dimensions by assumption only, which is stated
+      wherever it is used.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For the fixed public map F(d) = SHA3-512(d || k)[0:32] and N targets
+        rho_1..rho_N that are images of independent uniform seeds, the expected
+        number of trials of uniformly random d until F(d) lies in
+        {rho_1..rho_N} is 2^{256}/N (1 + o(1)) uniformly for
+        1 <= N <= 2^{128}, and the number of false positives encountered is
+        O(1) in expectation.
+      rigorous_support: >-
+        Rigorous for a uniformly random function F by the coupon/geometric
+        argument, and the union of N targets is exactly the balls-in-bins
+        occupancy computation. The heuristic content is only that Keccak-based
+        SHA3-512 restricted to a 256-bit input window behaves like a uniformly
+        random function for occupancy statistics - the same random-function
+        model under which SHA3's own preimage resistance is stated. The
+        uniformity range is stated because at N approaching 2^{256} the
+        approximation degrades and the attack becomes trivial for reasons that
+        have nothing to do with cryptanalysis.
+      validation_plan: >-
+        Sample at reduced output width where the whole image is enumerable:
+        F_w(d) = SHA3-512(d || k)[0:w] for w in {2, 3, 4} bytes, with N in
+        {1, 4, 16, 64, 256} targets and 10^5 independent searches per cell.
+        Compare the empirical mean trial count against 2^{8w}/N and the
+        empirical false-positive count against its Poisson prediction; tail
+        check on the 99.9th percentile of the trial count against the geometric
+        tail. Transfer assumption, explicit: results at w <= 4 transfer to
+        w = 32 on the random-function model only.
+    - id: H2
+      statement: >-
+        The lattice family's cost to recover at least one of N independently
+        generated ML-KEM keys equals the single-target cost times
+        (1 + o(1)) N^{-s} with s bounded above by the weak-key order-statistic
+        exponent that H-MLKEM-dc51f5 already bounds, and in particular s is
+        strictly less than 1 and plausibly near 0 for CBD secrets at FIPS 203
+        parameters.
+      rigorous_support: >-
+        Rigorous: s <= 1 trivially, since attacking N targets independently
+        costs N times one target and taking the best cannot beat picking one at
+        random by more than the order statistic allows. The imitated classical
+        statement is the extreme-value behaviour of the minimum of N samples
+        from the secret-norm distribution, which is the exact object
+        H-MLKEM-dc51f5 Part C formalises as GAIN(u). NOT rigorous: that there is
+        no OTHER cross-key amortisation mechanism; that is an absence-of-
+        knowledge statement and the record labels it as one rather than as a
+        closure.
+      validation_plan: >-
+        Sample: at d in {96, 128, 160} and beta in {25, 35, 45}, generate N in
+        {1, 8, 64} independent ML-KEM-shaped instances per cell, run the same
+        frozen reduction on each, record the per-instance blocksize at which the
+        target is recovered, and fit s from log2(min over N) against log2(N).
+        Compare against the GAIN(u) prediction from H-MLKEM-dc51f5 evaluated at
+        the same secret law. Tail check: at N = 1 the fitted curve must pass
+        through the measured single-instance value exactly. Every cell uses a
+        CONTENT-PINNED BKZ strategies file with its hash recorded, because this
+        program measured a path-pinned file silently changing 9 tours to 26 on a
+        d=64 cell; and no cell reports or depends on a tour count, because this
+        program measured that tour count to completion is not derivable from
+        what the instrument records.
+
+  target_complexity:
+    time_exponent: >-
+      2^{256}/N evaluations of Keccak-f[1600], i.e. 256 - log2(N) + g gate-bits,
+      against a lattice family that is FLAT in N at 270.7236234535225 gate-bits
+      (ML-KEM-1024). The exponent moves in the DATA axis, which is the axis this
+      lane has never priced: every one of the 90 filed ML-KEM proposals prices
+      time or memory, and none prices a target count.
+    memory_exponent: >-
+      N words for the target table (32 bytes each), i.e. 2^{log2 N + 8} bits,
+      versus 2^{180.924993} Z_q elements for the lattice attack. At N = 2^{40}
+      that is 2^{48} bits against roughly 2^{183} bits - a 135-bit memory
+      advantage that persists at every N in range.
+    best_known: >-
+      For the single-target problem, EV-MLKEM-020's primal_bdd under RC.MATZOV
+      at 270.7236234535225 gate-bits (ML-KEM-1024). For the N-target problem
+      there is NO best-known figure in this program at all, which is itself part
+      of the finding: the lane has no committed number for the quantity a
+      deployment actually cares about.
+    hidden_overhead: >-
+      Understated here: the lookup cost at large N under a memory-access-charged
+      metric; the false-positive verification keygens (O(1) expected, charged
+      once); the precomputation in the tradeoff arm, which is reported
+      separately and never folded into an online figure. Overstated here: no
+      cross-trial amortisation of the constant portion of the Keccak absorb is
+      claimed (see IDEA-20260906-c5bfc2 H2), so the per-trial figure is an upper
+      bound. On the lattice side, EV-MLKEM-020 records the o(n) in
+      2^{0.2075 n + o(n)} as unbounded by anything this program holds.
+    tradeoff_note: >-
+      The full Biryukov-Shamir surface TM^2D^2 = N^2 with N = 2^{256} and
+      precomputation P = N/D applies because the map is fixed and unsalted; an
+      attacker with D = 2^{40} targets and M = 2^{100} bits reaches online
+      T = 2^{232} after a one-time P = 2^{216} precomputation. Parallelisation
+      is embarrassing on the symmetric side (independent trials, no
+      communication) and is not on the sieve side, so every axis of the tradeoff
+      favours the symmetric row except total work.
+
+  dominated_by: >-
+    AT ML-KEM-512 AND ML-KEM-768, FOR EVERY REACHABLE N: DOMINATED by
+    EV-MLKEM-020's committed primal_bdd figures, by 115.8 + g - log2(N) and
+    55.0 + g - log2(N) bits respectively, which stay positive for any N below
+    2^{115} and 2^{55}. Said first and without hedging.
+    AT ML-KEM-1024: dominated for N < N*, dominating for N > N*, with
+    log2(N*) = g - 14.7236234535225 uncounted. On the memory and parallelism
+    axes it dominates at every N. Pareto check performed against every row this
+    program holds: EV-MLKEM-020's eighteen enumeration-costed cells (219.04 to
+    745.26 bits), its RC.MATZOV triple at Kyber-512 (140.199473 / 143.771733 /
+    145.528285), EV-MLKEM-015's pinned-estimator figures, the weak-key lane's
+    committed forced values (IDEA-20260805-1d76e9 / H-MLKEM-dc51f5), and the
+    external corpus points KN-LIT-110, KN-LIT-122, KN-LIT-7617, KN-LIT-7663,
+    KN-LIT-7667. NOT checked and named as such: any published multi-key analysis
+    of ML-KEM key derivation, which is exactly where this record is most likely
+    to be pre-empted.
+  sota_delta: >-
+    ML-KEM-1024, N = 1: 15.7236 - g bits, sign unknown (this is
+    IDEA-20260906-c5bfc2's number, restated for continuity).
+    ML-KEM-1024, N = 2^{20}: 35.7 - g bits IN THE SYMMETRIC ATTACK'S FAVOUR
+    under the average-trial convention, i.e. for any g below 35.7 the symmetric
+    route is cheaper than the committed lattice figure at a million targets.
+    Since every plausible g is far below 35.7, THE CROSSING IS NOT IN DOUBT AT
+    LARGE N; what is in doubt is only whether N* is small enough to matter, and
+    that is the number the record delivers.
+    ML-KEM-512 at N = 2^{20}: -94.8 - g bits (worse). ML-KEM-768 at N = 2^{20}:
+    -34.0 - g bits (worse). Memory delta: +135 bits or more in the symmetric
+    attack's favour at every parameter set and every N in range.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: >-
+    0.2. Decomposed: P(the FIPS 203 premise and the absence of a per-key salt
+    both hold) about 0.85; P(the crossing exists at ML-KEM-1024 for some
+    reachable N, given that) about 0.9, since the arithmetic is nearly forced;
+    P(N* is small enough - say below 2^{20} - to be decision-relevant) about
+    0.6; P(this is not already published, so that it survives as a contribution
+    rather than as a rediscovery) about 0.25, which is the term that dominates
+    and which I cannot improve without the retrieval index that is down. I would
+    not be surprised to learn that a multi-key analysis of ML-KEM seed handling
+    already exists, and if it does, the useful residue is the CROSSING against
+    this program's own committed lattice figure, which is a repository-local
+    calibration that no external paper would have produced.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-09-06'
+  source_refs:
+    - RQ-MLKEM-001
+    - EV-MLKEM-020
+    - IDEA-20260906-c5bfc2
+    - IDEA-20260805-1d76e9
+    - H-MLKEM-dc51f5
+    - IDEA-20260829-bc9cc5
+  id_allocation_provenance: >-
+    ID supplied pre-minted and --check-ed free by the driving session
+    (tools/allocate_id.py). This subagent has no Bash access, minted nothing,
+    and allocated no identifier of any kind.

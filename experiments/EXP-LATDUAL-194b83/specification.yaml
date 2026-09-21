@@ -1,0 +1,218 @@
+experiment:
+  id: EXP-LATDUAL-194b83
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-ba5bd8; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-ba5bd8
+  question_id: RQ-MLKEM-003
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure the rank of the true secret's FFT dual-distinguisher score across an exhaustively
+    enumerated candidate space at small LWE parameters, against the rank law forced by the independence
+    heuristic, with a b-uniform null arm
+  objective: 'The run reduces exactly one uncertainty: whether the independence-style heuristic''s
+    consequence for the rank of the true candidate holds, at small parameters where the rank is exactly
+    computable and the secret is known by construction. Stated as parts: (i) does the pipeline''s
+    null arm produce a rank uniform on the candidate index set, which is the precondition for reading
+    anything from the signal arm; (ii) at each grid point (n, m, N, k_fft, structured or plain), what
+    is the empirical P(R <= r), and how does it differ in sign and magnitude from the P_iid built
+    from that same run''s held-out empirical null score law; (iii) does that difference drift with
+    n across the tested range, and if so in which direction. The run is not asked whether the dual
+    attack beats the primal attack, is not asked anything about ML-KEM parameter sets, and is not
+    asked to reproduce or refute any external table. It is asked for one number per grid point with
+    an interval, plus the null that licenses reading it. A run returning D(r) consistent with zero
+    everywhere is a complete and successful run: it measures that the heuristic''s rank consequence
+    holds in the tested regime, which is a usable obstruction for anyone proposing to attack the heuristic
+    at those parameters.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: at the specific tested (q,
+      n, m, k_fft, secret law, error law, reduction routine, seed set), the measured rank distribution
+      of the true candidate differs from the independence-forced rank law by D(r) with the stated
+      intervals, and the matched b-uniform null arm showed rank uniformity within its own interval.
+      WHAT DOES NOT FOLLOW: nothing about ML-KEM-512/768/1024 or any FIPS 203 parameter set; nothing
+      about whether the dual attack beats the primal attack at any dimension; nothing about the correctness
+      of any published analysis; no security consequence for any deployed system; and no extrapolation
+      of D(r) beyond the tested n, since the drift measurement spans at most sixteen dimensions and
+      carries no model licensing extension.'
+  inputs:
+    procedure: 'STAGE 0 (cost: 0 compute, ~2h human). Freeze parameter grid, seed schedule, fixed-point
+      precision, tie rule and the exact definition of the held-out block; commit before any run. STAGE
+      1 (cost: low). Instance generation: for each seed sample A, s, e; emit the plain, the module-structured
+      and the b-uniform null instance from the same seed. STAGE 2 (cost: medium, dominant). Exact-integer
+      q-ary dual lattice construction and reduction in pure Python; record every output vector''s
+      integer coordinates and exact squared norm. STAGE 3 (cost: medium). Exhaustive scoring of all
+      q^{k_fft} candidates with the fixed-point cosine table; record the sorted score vector''s summary
+      and the true candidate''s rank R. STAGE 4 (cost: low). Held-out-block empirical null; construct
+      P_iid. STAGE 5 (cost: low). Null arm: repeat stages 2-4 on the b-uniform instance with identical
+      reduction output. STAGE 6 (cost: low). Positive control with e=0 and scale control with score/k_fft.
+      STAGE 7 (cost: low). Bootstrap intervals, drift regression in n, tie-exclusion accounting, and
+      emission of immutable run records through harness/runner.py.'
+    instrument: 'Python 3.11 standard library only, as verified in this environment: neither numpy
+      nor fpylll nor Sage is installed, and no Sage is used. Exact integer arithmetic throughout;
+      fractions.Fraction for Gram-Schmidt in the reduction; a precomputed integer cosine table of
+      stated bit precision for scoring; random.Random seeded per run. Run records, seeds and the inference
+      block are emitted through harness/runner.py in the existing run-record format. No external solver,
+      no estimator and no network access are on the critical path.'
+    parameters: q in {97, 257, 769}; module rank k in {1, 2} over cyclotomic degree d with n = k*d
+      and n in {24, 32, 40, 48}; m in {2n, 3n}; secret and error from a centered binomial with eta
+      in {2, 3}; k_fft in {1, 2} so the candidate space is at most 769^2 = 591361 entries; N swept
+      over {8, 16, 32, 64, 128} per instance; 200 seeds per primary grid point and 50 per exploratory
+      point; fixed-point cosine precision 32 bits.
+  controls:
+  - Null arm with b uniform and an independent nominal secret, executed in the same invocation from
+    the same seed stream.
+  - Positive control with error e identically zero, where R must equal 1 at every N above the rank
+    threshold; failure indicts the scoring code.
+  - 'Scale control: rerun scoring with the score divided by k_fft and confirm R is bit-identical,
+    exercising the invariance that motivates the object.'
+  - 'Vector-order permutation control: reorder the dual vectors before summation and confirm R is
+    unchanged up to quantisation ties.'
+  - 'Enumeration completeness assertion: the scored candidate multiset has cardinality exactly q^{k_fft}.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The identical pipeline is run on a null instance of the same shape:
+    same A, same q, same dimensions, same dual-vector set, same scoring code, same seed schedule,
+    but with b drawn uniformly from Z_q^m instead of As+e, and a nominal secret s'' drawn independently.
+    R is computed for s''. The null must show R uniform on {1, ..., q^{k_fft}} within its bootstrap
+    interval and D(r) indistinguishable from zero. If the null shows a non-uniform R, the scoring
+    or reduction pipeline imprints a preference independent of any planted secret, every signal-arm
+    number is an artifact, and the result is recorded as a controlled null under inventor-protocol
+    section 3.'
+  independent_variables:
+  - lattice dimension n
+  - retained dual-vector count N
+  - k_fft
+  - structured versus plain instance family
+  - modulus q
+  metrics:
+    primary:
+    - rank R of the true candidate, signal arm
+    - rank R of the nominal candidate, null arm
+    - D(r) at r in {1,2,4,8,16}
+    - KS distance of null-arm R to uniform
+    secondary:
+    - exact squared norms of retained dual vectors
+    - quantisation-tie exclusion count
+    - wall clock per run
+    - peak resident memory per run
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: D(1), the signed discrepancy at rank one between the measured probability that the true
+      candidate scores highest and the probability the independence-forced rank law assigns to that
+      event, at each grid point, with a 2000-resample bootstrap interval; plus the null arm's KS distance
+      to uniform.
+    formula: P_iid(R <= r) = sum over j < r of C(M-1, j) * Integral over t of f_sig(t) * F_null(t)^{M-1-j}
+      * (1 - F_null(t))^{j} dt, with M = q^{k_fft} the candidate count, F_null the empirical CDF of
+      wrong-candidate scores on the held-out coordinate block, and f_sig the empirical density of
+      the true candidate's score across seeds at the same grid point. D(r) = P_measured(R<=r) minus
+      this quantity. Both are computed from the same run's data; no external cost model supplies either.
+    source: Pre-registered in the parent proposal IDEA-20260816-ba5bd8 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Tested at q <= 769, n <= 48, k_fft <= 2, module rank <= 2, with exhaustive candidate
+      enumeration. These are toy parameters chosen because exhaustive enumeration and known-secret
+      ground truth are both required and both dissolve above them. The only transfer assumption stated
+      is the trivial one: none. No extrapolation from these parameters to ML-KEM-512/768/1024 or any
+      FIPS 203 dimension is performed or licensed, and the drift-in-n regression is reported strictly
+      as a within-range slope with its interval, not as a model.'
+    correspondence: null
+  tail_checks:
+  - Smallest N, where R should be near-uniform in both arms and the arms indistinguishable.
+  - Largest N, where the signal arm should approach R=1 and any residual floor is itself a finding.
+  - Grid corners where q^{k_fft} is smallest, checking that tie exclusions do not dominate.
+  - Seeds producing anomalously short dual vectors, checked separately so a heavy tail in reduction
+    quality is not read as a heuristic effect.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Stop and report an instrument defect if the null arm's KS distance to uniform exceeds 0.05 at
+    any primary grid point.
+  - Stop a grid point after 200 seeds or 6 wall-clock hours, whichever comes first, and report the
+    achieved seed count with the interval it supports.
+  - Stop the exploratory grid if tie exclusions exceed 20 percent and re-freeze the precision parameter
+    before continuing.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The null arm shows rank uniformity within its stated interval at every primary
+    grid point, and D(1) is reported at every primary grid point with a bootstrap interval of width
+    at most 0.05, whatever the value of D(1) turns out to be.
+  falsification_criterion:
+  - 'Null arm not uniform: no signal-arm number is interpretable and the run reports an instrument
+    defect.'
+  - 'Zero-error positive control does not yield R=1: the scoring code is wrong and the run is void.'
+  - 'Score/k_fft rescaling changes R: the invariance premise fails as implemented.'
+  - 'Signal arm indistinguishable from null at every N: the tested regime is unreachable with this
+    reduction, reported as a reachability floor and not as evidence about the heuristic.'
+  - 'D(1) within interval of zero across the whole grid: the entry''s motivating expectation is refuted
+    and the measured agreement is the result.'
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-ba5bd8
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - A Coordinator must decide whether pure-Python exact-integer reduction is acceptable or whether
+    provisioning fpylll changes the parameter reach enough to justify the dependency; this environment
+    has neither numpy nor fpylll.
+  - The exact held-out-block construction keeping P_iid independent of the scored block must be pinned
+    in the frozen protocol; the draft states the requirement but not a unique construction.
+  - The tie rule and fixed-point precision are stated as parameters but their forced values per q
+    are not derived.
+  - Whether the module-structured arm belongs in this contract, or should be deferred to the matched-null
+    contract in this same batch, is a scoping decision.

@@ -1,0 +1,213 @@
+idea:
+  id: IDEA-20260808-d07cd4
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-QRUOV-001
+  goal_id: GOAL-QRUOV-001
+  title: If QR-UOV's quotient polynomial is not squarefree, the oil module lifts through the
+    Jacobson radical by Newton iteration in polynomial time, so the security exponent is set
+    by the RADICAL degree ell/e and not by ell -- an exponent collapse by the multiplicity
+    e, with a closed-form 1/q density of non-squarefree f
+  class: algorithm
+  claim: 'Let A = F_q[t]/(f), deg f = ell, and write f = prod f_i^{e_i}. CLAIM, with an explicit
+    algorithm. (1) CRT splits A into local rings A_i = F_q[t]/(f_i^{e_i}), and the public
+    key, the oil module and every derived system split correspondingly -- all publicly computable,
+    since f is a system parameter. (2) Each A_i has Jacobson radical N_i = (f_i)/(f_i^{e_i})
+    with A_i/N_i = F_{q^{d_i}}, d_i = deg f_i. (3) Reducing the public key modulo N_i yields
+    a UOV instance over F_{q^{d_i}} with the SAME block counts (v, m, o). (4) Given the reduced
+    oil module, the lift to A_i is a NEWTON ITERATION: writing a lifted basis as x + delta
+    with delta in N_i^k, the isotropy condition P(x+delta, x''+delta'') = 0 expands to P(x,x'')
+    + [P(x,delta'') + P(delta,x'')] + P(delta,delta''), and the quadratic term lies in N_i^{2k},
+    so modulo N_i^{2k} the lifting equation is LINEAR in delta. Hence ceil(log2 e_i) linear
+    solves complete the lift. CONSEQUENCE: total key-recovery cost is max_i cost(UOV over
+    F_{q^{d_i}}) + poly, so the exponent is governed by max_i deg f_i and is INDEPENDENT of
+    the multiplicities e_i. For f = g^e with deg g = ell/e this is an exponent collapse by
+    the factor e relative to the matched extension-field baseline over F_{q^ell}. DENSITY:
+    a uniformly chosen degree-ell polynomial is non-squarefree with probability exactly 1/q,
+    so if any implementation or Round-3 tweak permits f to be chosen without a squarefreeness
+    check, one in q parameter choices is in this family.'
+  mechanism: Nilpotents cannot hide anything from an attacker because the defining condition
+    of the oil module is quadratic, and a quadratic condition modulo a nilpotent ideal linearises
+    after one step of Newton's method. The only thing a non-squarefree quotient buys the designer
+    is key size; it buys no security beyond the radical quotient. This is the same phenomenon
+    as Hensel lifting a root of a polynomial over Z_p from mod p to mod p^k, applied to a
+    module rather than a root.
+  why_not_a_renamed_known_approach: 'Nearest known method: the folklore reduction "QR-UOV
+    over A = F_q[t]/(f) with f irreducible is a UOV over F_{q^ell}", which covers only the
+    field case. Nearest internal record: IDEA-20260805-bd8339 claims the exponent is governed
+    by d_max(f), the largest factor degree, via a CRT split and a rank spectrum. This record
+    AGREES on d_max for the squarefree case and adds the case that record does not treat:
+    repeated factors, where the relevant quantity is deg f_i and not e_i * deg f_i, together
+    with an explicit lifting ALGORITHM and its cost (ceil(log2 e_i) linear solves) rather
+    than a rank statement. IDEA-20260805-bb9f73 audits the DIRECTION of the folklore reduction;
+    it does not treat non-squarefree f.'
+  predictions:
+  - observable: whether the reduced-then-lifted attack recovers the true oil module at toy
+      parameters with f = g^2 and f = g^3
+    metric: certificate -- recovered module annihilates the public map exactly
+    predicted: Yes, in ceil(log2 e) linear solves after the reduced-instance solve. Failure
+      to lift is the clean falsification.
+  - observable: number of Newton steps and per-step linear system size
+    metric: integer steps, matrix dimensions
+    predicted: ceil(log2 e) steps, each a linear system of dimension O(o(v+o) * deg f_i) over
+      F_{q^{d_i}}. More than logarithmically many steps means the linearisation is wrong.
+  - observable: measured cost ratio between attacking A = F_q[t]/(g^e) directly and attacking
+      F_q[t]/(g) then lifting
+    metric: field operations
+    predicted: Ratio at least q^{(e-1) deg g * c} for the relevant attack exponent c, i.e.
+      an exponent collapse rather than a constant. A ratio near 1 falsifies the claim.
+  - observable: density of non-squarefree degree-ell polynomials over F_q
+    metric: exact rational
+    predicted: exactly 1/q, by the standard squarefree-density count. This is arithmetic,
+      not measurement.
+  minimal_test: 'Toy, certified, cheap. Build QR-UOV-shaped keys over A = F_q[t]/(f) at q
+    = 7 and 11 with (a) f irreducible of degree 4, (b) f = g^2 with deg g = 2, (c) f = g_1
+    g_2 with distinct irreducible quadratics, and (v, m) small enough that the reduced instance
+    is solvable in seconds. For (b): solve the reduced instance over F_{q^2}, run the Newton
+    lift, and verify the lifted module annihilates the full public map. Compare the total
+    cost against solving over A directly. Emit a certificate for every recovered module.'
+  controls:
+  - 'IRREDUCIBLE CONTROL (a): the lift must be a no-op (radical is zero) and the direct and
+    reduced costs must coincide. A speedup there means the harness is measuring something
+    else.'
+  - 'SQUAREFREE-REDUCIBLE CONTROL (c): the CRT split must apply with no lifting, and the cost
+    must be governed by max deg f_i -- this is the case IDEA-20260805-bd8339 already claims,
+    so agreement with it is a cross-check on both records.'
+  - 'RANDOM-MODULE NULL: attempt the same lift starting from a WRONG reduced module. The Newton
+    step must fail to produce a consistent lift; if it succeeds, the lifting criterion is
+    not discriminating and the certificate is worthless.'
+  - 'e-SWEEP: e = 2, 3, 4 with deg g fixed. Cost must be flat in e (that is the claim) while
+    the direct cost grows. A cost that grows with e falsifies the claim.'
+  confounders:
+  - The linearised lifting system may be singular for some keys (the smoothness condition),
+    in which case the lift needs a different starting point; the frequency of that must be
+    measured rather than assumed to be zero.
+  - '"QR-UOV-shaped" is this program''s construction, not necessarily the spec''s; if the
+    spec''s block structure differs, the CRT split may not be as clean. The spec read is step
+    zero.'
+  - If the spec MANDATES f irreducible, the record's positive branch is a design statement
+    about implementations and tweaks, not about the submitted scheme, and must be labelled
+    as such.
+  falsification_conditions:
+  - The Newton lift fails to converge or requires more than logarithmically many steps.
+  - The wrong-module null lifts successfully (criterion not discriminating).
+  - Cost grows with e, contradicting the multiplicity-independence claim.
+  interpretation_limits: If QR-UOV's specification fixes f irreducible, this is not an attack
+    on QR-UOV; it is a statement that irreducibility is load-bearing rather than a convenience,
+    plus a quantified penalty for relaxing it, plus a 1/q density. That is still one half
+    of GOAL-QRUOV-001's second completion horn (a measured weak-quotient-polynomial density
+    bound). Toy scale for all measured numbers.
+  assumptions:
+  - f is a public system parameter (RECALLED).
+  - The oil object is a free A-module (RECALLED from QR-UOV's construction).
+  - Characteristic odd or even, both handled; char 2 changes the polar conventions only.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: For a QR-UOV-shaped key over a local ring A_i with residue field F_{q^{d_i}},
+      the linearised lifting map (delta -> P(x,delta') + P(delta,x') modulo N^{2k}) is surjective
+      for all but a q^{-1}-fraction of keys, uniformly for e_i <= 4 and d_i <= 4.
+    rigorous_ingredient: The lifting map is F_q-linear and its source and target dimensions
+      are computable exactly from (v, m, o, d_i, e_i); surjectivity is therefore a rank condition
+      on an explicit matrix, and Newton's lemma applies verbatim once surjectivity holds.
+    distribution_imitated: '"The linearised lifting matrix behaves like a uniformly random
+      matrix of its shape" -- the standard corank distribution over F_q, giving failure probability
+      O(q^{-1}).'
+    validation_route: For 10^3 keys at each of (q, deg g, e) in {7,11} x {2,3} x {2,3}, compute
+      the rank of the linearised lifting matrix and tabulate the corank distribution against
+      the random-matrix prediction. TOY SCALE, explicitly.
+    tail_checks: Record the maximum observed corank; a heavy tail means a weak/strong-key
+      family inside the non-squarefree family and must be reported as a sub-finding.
+  target_complexity:
+    time_exponent: 'Key recovery over A = F_q[t]/(g^e) costs C(F_{q^{deg g}}) + poly, versus
+      the matched extension-field baseline C(F_{q^{e deg g}}). If the baseline attack has
+      cost (q^{ell})^{alpha} then the reduced attack has cost (q^{ell/e})^{alpha}: the exponent
+      falls by the factor e. That is an exponent move in the field-degree parameter, not a
+      constant.'
+    memory_exponent: Also falls by the factor e in the exponent, since the reduced instance's
+      Macaulay matrix is over a field q^{ell/e} times smaller in the exponent; the lifting
+      steps add only polynomial memory. Memory is charged at the reduced instance's size and
+      reported.
+    best_known_baseline: The matched extension-field-UOV baseline over F_{q^ell} that GOAL-QRUOV-001
+      declares as its yardstick, and IDEA-20260805-bd8339's d_max statement for the squarefree
+      case.
+    hidden_overhead_disclosure: The poly in "+ poly" is ceil(log2 e) linear solves of dimension
+      O(o(v+o) ell), which at published sizes is not negligible in absolute terms even though
+      it is asymptotically invisible. It is tabulated, not hidden.
+    time_memory_tradeoff: None introduced; the lift is deterministic and low-memory, so the
+      tradeoff position is inherited unchanged from whatever attack solves the reduced instance.
+  sota_delta: 'For f = g^e: an exponent collapse by the factor e relative to the declared
+    matched baseline, e.g. e = 3 at ell = 6 takes an attack of cost (q^6)^alpha to (q^2)^alpha.
+    For f irreducible: zero delta, and the record says so. Density of the affected family:
+    exactly 1/q for uniform f.'
+  dominated_by: 'For squarefree f: dominated by IDEA-20260805-bd8339''s d_max statement, which
+    already covers that case -- explicitly conceded. For non-squarefree f: not dominated by
+    any corpus row. Frontier rows checked: IDEA-20260805-bd8339 (d_max, rank spectrum), -bb9f73
+    (reduction direction audit), -8d9ac0 (ell-cancellation), IDEA-20260801-015 (toy compression
+    comparison), plus the matched extension-field baseline itself.'
+  estimated_cost: 'Implementation medium: a QR-UOV-shaped key generator over a general quotient
+    ring, a CRT splitter, a Newton lifter, a certificate checker. Compute low: q = 7, 11 with
+    deg f = 4 is seconds to minutes.'
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the Newton lift works as described: ~0.85 (the linearisation
+    is standard; the risk is the surjectivity condition). That QR-UOV''s spec permits non-squarefree
+    f: ~0.1 -- the likely outcome is that f is mandated irreducible, in which case the deliverable
+    is the quantified penalty and the 1/q density, which is still one of the goal''s stated
+    completion items.'
+  novelty_status: unverified
+  novelty_screen: Same corpus screen as M1-03, plus the titles/claims of IDEA-20260805-bd8339,
+    -bb9f73, -8d9ac0 and hypotheses H-QRUOV-677301 (f irreducible, so A = F_{q^ell}) and H-QRUOV-e8ae3e.
+    Note H-QRUOV-677301 explicitly scopes itself to f IRREDUCIBLE, which is precisely the
+    gap this record fills. WEB NOT CHECKED.
+  discriminated_from: 'IDEA-20260805-bd8339: d_max and a rank spectrum for the CRT split;
+    treats factor DEGREES, not MULTIPLICITIES, and proposes no lifting algorithm. H-QRUOV-677301:
+    scoped to f irreducible. IDEA-20260805-8d9ac0: ell-cancellation audit for the matched
+    baseline; no ring degeneration.'
+  source_refs:
+  - QR-UOV specification (Furue, Ikematsu, Kiyomura, Takagi) -- REQUIRED READ, NOT YET READ.
+  - The 1/q squarefree density is the standard count (the proportion of squarefree monic polynomials
+    of degree >= 2 over F_q is 1 - 1/q); elementary, no citation needed.
+  proof_search_map:
+    bottleneck: Recovering the oil module over a ring with nilpotents. If nilpotents cost
+      nothing, the whole security of a non-squarefree quotient rests on its radical quotient.
+    baseline_embedding:
+      parameter_slice: e = 1 (f squarefree). The radical is zero, the lift is empty, and the
+        cost equals the CRT statement already in the corpus -- so the method must reproduce
+        IDEA-20260805-bd8339 exactly at e = 1.
+      reproduction_check: 'Symbolic and by fixture: run the pipeline on a squarefree f and
+        require it to return the same cost and the same recovered module as a direct CRT attack.'
+    observation_collision:
+      observable: A recovered oil module together with its annihilation certificate.
+      distinct_preimage_search: Distinct modules with the same reduction mod N exist -- there
+        are |N|^{o(v+o)} lifts of a given reduced module -- so the reduced module does NOT
+        determine the lift. That is exactly why the lifting step is necessary, and the certificate
+        at full precision is what disambiguates. Collision found, and it is handled rather
+        than hidden.
+    constructive_transforms:
+    - transform: telescoping_potential
+      proposed_object: The N-adic filtration of the lifting error, with each Newton step halving
+        its N-valuation, charged against the finite length e_i of the local ring.
+      predicted_gain: ceil(log2 e_i) steps, each linear -- the entire multiplicity contributes
+        only logarithmically.
+    quantifier_order: FORALL local components A_i and FORALL keys outside a q^{-1}-fraction,
+      THERE EXISTS a lift of the reduced oil module computable in ceil(log2 e_i) linear solves.
+      The exceptional fraction is allowed to depend on the key; no uniform-over-all-keys claim
+      is made.
+    method_ceiling:
+      strongest_certifiable_claim: '"Multiplicities in f contribute only polynomially to key-recovery
+        cost." It cannot certify anything about the cost of the reduced instance itself.'
+      nearby_object_control: A ring with a radical that is NOT nilpotent of small index, or
+        a non-quadratic defining condition, where Newton's linearisation fails. The method
+        must fail there; if it appears to succeed, it is not tracking the radical.
+    proof_obligations:
+    - claim: CRT splits key, module and derived systems compatibly.
+      responsibility: correctness
+    - claim: The lifting equation is linear modulo N^{2k}.
+      responsibility: correctness
+    - claim: ceil(log2 e) steps suffice.
+      responsibility: runtime
+    - claim: Surjectivity of the linearised map holds outside a q^{-1}-fraction.
+      responsibility: success_probability
+    - claim: The reduced instance's own cost is untouched.
+      responsibility: scope
+    not_applicable_reason: null

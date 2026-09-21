@@ -1,0 +1,293 @@
+idea:
+  id: IDEA-20260816-6e0226
+  question_id: RQ-BLAKE-584719
+  added: '2026-08-16'
+  title: Treat the compression function's input tuple -- chaining value, block, block length, counter,
+    flag word -- as an encoding map from semantic tree positions, and prove or refute its injectivity
+    by exhaustive enumeration over a declared finite class of inputs, modes and tree shapes, with
+    the class boundary written down before the enumeration starts.
+  class: control
+  claim: '(A) BLAKE3''s tree mode is secure only if no two semantically distinct inputs ever present
+    identically to the compression function. That is not a cryptographic assumption; it is an INJECTIVITY
+    PROPERTY of a small encoding map, and injectivity of a map with a finite domain is decidable by
+    enumeration. Define E: (mode, key material, input bytes, tree position) -> (chaining value slot,
+    block bytes, block length, counter, flag word). Fix a finite class C by bounding input length,
+    the number of distinct keys and context strings, and the set of tree shapes reachable at those
+    lengths. Enumerate every element of C, canonicalise the resulting compression-function input tuples
+    with the chaining-value slot treated SYMBOLICALLY (as an opaque label naming which subtree produced
+    it, never as a hash output), and check for collisions. (B) The deliverable is a completeness statement
+    of the exact form: over class C, defined by these bounds, the encoding is injective / is not injective,
+    and here is the boundary of C together with the regions deliberately left outside it and why.
+    A negative result -- injective everywhere in C -- is the intended and most likely outcome and
+    is a first-class deliverable, because what it produces is not a verdict but a CLASS BOUNDARY:
+    the largest enumerated region in which the property is known to hold, which no record in this
+    repository currently states. (C) NOT CLAIMED: nothing about inputs outside C; nothing about the
+    compression function''s cryptographic strength, since the audit treats it as an opaque label and
+    never evaluates it; no attack, no break, no security consequence for any deployed system; and
+    no claim that C is the natural or maximal class -- C is a budget-shaped choice and is presented
+    as one. (D) If a collision within C is found it is a DEFECT REPORT, disclosed to maintainers before
+    any deliverable is published per RQ-BLAKE-584719''s constraint, and it is written as a statement
+    about the mode within C, never as a statement about anything fielded.'
+  mechanism: 'The whole point is that no solver is involved. Stage one: read the pinned specification
+    and write down E explicitly as a total function in code -- for each mode (unkeyed, keyed, key-derivation
+    with its two stages) and each tree position (chunk start, chunk interior, chunk end, parent, root)
+    the exact tuple that reaches the compression function. Stage two: declare C by three bounds --
+    maximum input length L (in chunks and in bytes, including the boundary lengths 0, 1, chunk_size
+    - 1, chunk_size, chunk_size + 1 and multi-chunk cases straddling every power of two), a key set
+    K of size k containing structured adversarial choices (all zeros, all ones, keys equal to plausible
+    chaining values, keys differing in one bit), and a context set X of the same character. Stage
+    three: instrument a pure-Python re-implementation of the mode so that every call to the compression
+    function is intercepted and its input tuple logged with the SEMANTIC LABEL of the input that produced
+    it. Stage four: run every element of C through the instrumented implementation, collecting tuples.
+    Stage five: group tuples by their non-chaining-value fields and by the symbolic identity of the
+    chaining-value slot; any group containing two distinct semantic labels is a candidate collision,
+    which is then re-derived by hand before it is recorded as anything. Stage six: state C''s boundary
+    and enumerate, explicitly, the regions NOT covered -- lengths beyond L, keys outside K, and any
+    structural case the re-implementation does not realise.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril blake over ledger/ knowledge/ experiments/ (only RQ-BLAKE-584719 and GOAL-BLAKE-001
+      in the ledger); grep -ril 'length extension|domain separation' over ledger/proposals; grep -ril
+      'merkle|tree mode|tree-mode' over ledger/proposals ledger/hypotheses; grep -ril 'keyed hashing|key-derivation
+      mode|XOF|extendable-output' over ledger/proposals knowledge/techniques. Read RQ-BLAKE-584719
+      and GOAL-BLAKE-001 in full including the next_action block that names this audit as the opening
+      move; read docs/inventor-protocol.md sections 1-5 and 8; inspected the heads of the domain-separation-adjacent
+      records EV-DS-003 and EXP-DS-001.
+    results: Zero BLAKE proposals exist. The domain-separation grep returned IDEA-20260805-fbe36a
+      (SLH-DSA FORS multi-target occupancy), IDEA-20260731-006, IDEA-20260809-7f2d9c, IDEA-20260805-cec9b6
+      and IDEA-20260808-95a21c; the last is the closest in spirit -- a Merkle-Damgard chaining observation
+      about a forger changing only the last transcript block under FAEST's Fiat-Shamir grinding --
+      but its object is a forgery cost accounting, not an encoding-injectivity enumeration, and it
+      concerns a signature transcript rather than a tree hash's flag surface. The DS-prefixed records
+      (EV-DS-003, EXP-DS-001) are ECDLP-domain records where DS abbreviates something else entirely
+      and share nothing beyond the letters. GOAL-BLAKE-001's next_action explicitly directs that the
+      domain-separation audit opens the campaign, and no record implements it.
+    verdict: 'UNVERIFIED. No claim is made about what the published literature contains regarding
+      BLAKE3''s domain separation; the program cannot read it. Assembled from known parts: the notion
+      that flag-based domain separation must be injective is the design''s own stated premise as relayed
+      in RQ-BLAKE-584719, and exhaustive enumeration of a finite space is not a technique anyone invented.
+      Claimed new HERE: the specific framing of the flag surface as an encoding map E whose injectivity
+      is decided by enumeration with the chaining value held SYMBOLIC (so the audit is independent
+      of the compression function''s strength), the pre-declared class C with its boundary published
+      as the deliverable, and the treatment of the clean outcome as a class-boundary measurement rather
+      than as a null report.'
+  object_first_candidate:
+    tracked_object: The compression-function input tuple (cv_slot_label, block_bytes, block_len, counter,
+      flags), carrying with it the semantic label of the input and tree position that produced it.
+      The object followed through the computation is this labelled tuple -- the interface between
+      the mode and the primitive -- and specifically its cv_slot component held as an OPAQUE SYMBOL
+      rather than as a 256-bit value.
+    lossiness: 'Genuinely lossy, and the specific loss is what makes the audit possible at all. Discarded:
+      the numerical value of every chaining value, which is replaced by a symbol naming the subtree
+      that produced it. Also discarded: the message bytes'' meaning, retained only as bytes. What
+      survives propagation, and why: the mode''s routing decisions -- which flags are set, what counter
+      is used, what block length is declared -- are computed from the input''s STRUCTURE (length,
+      position, mode) and never from a chaining value''s numeric content, so the routing propagates
+      deterministically under the symbolic substitution. This is exactly the lossy-projection test
+      passing: were the flags to depend on hash output values, the projection would break and the
+      audit would be void, and checking that they do not is stage one of the mechanism rather than
+      an assumption. The loss is also what bounds the claim: a collision found here is a structural
+      collision, and a collision in the discarded numeric component (two subtrees producing the same
+      chaining value) is a hash-collision question this audit deliberately cannot and does not address.'
+    propagation: One step of the target operation is one compression-function call in the tree walk.
+      It acts on the tracked object by consuming a labelled tuple and producing a new cv_slot_label
+      attached to a new position in the tree, with the mode's rules deciding the next tuple's flags,
+      counter and block length purely from structural state (chunk index, byte offset within chunk,
+      subtree height, whether the node is root). The propagation is therefore a deterministic finite-state
+      walk over tree positions, and the enumeration is a traversal of that walk for every element
+      of C.
+    survival_score: 'The object survives the entire computation without dissolving -- it is defined
+      at every compression call from the first chunk block to the root, for every input in C. That
+      is unusual and it is the reason this is cheap. Where it dissolves is at the CLASS boundary,
+      not at a round or a depth: beyond L chunks the enumeration is not run, and beyond the key and
+      context sets K and X the tuple space is not visited. The survival statement is therefore a statement
+      about C''s size, and it is stated concretely: with L chunks and k keys and x contexts, the number
+      of enumerated compression calls is bounded and reported exactly, and every input beyond it is
+      named as unvisited.'
+  null_object_control: 'The null object is a DELIBERATELY BROKEN mode of identical shape: the same
+    tree walk with the same tuple structure, but with the flag word forced to a constant (or with
+    the chunk counter omitted from the tuple), so that the encoding is known a priori to be non-injective.
+    The IDENTICAL enumeration, over the identical class C, in the same invocation, must FIND collisions
+    in the null. What the null must show for the signal arm to mean anything: the enumeration must
+    report a nonzero and correctly localised collision count on the broken mode -- specifically it
+    must identify, as a semantic-label pair, at least one pair the constructor knows it planted. If
+    the enumerator reports the broken mode clean, the enumerator does not detect collisions and a
+    clean report on the real mode means nothing whatsoever. This is the difference between an audit
+    and an assertion that an audit ran, and it is executable in the same invocation because the broken
+    mode is the same code with one argument changed. Run several planted breakages of different kinds
+    (constant flags, dropped counter, dropped block length, keyed and unkeyed initial states merged)
+    so that detection sensitivity is measured per field rather than once.'
+  discriminated_from:
+  - 'IDEA-20260808-95a21c: also reasons about what a chaining construction lets an adversary vary,
+    but its object is the forgery cost charged by a Fiat-Shamir-with-grinding analysis in FAEST, and
+    its deliverable is a bit count in a cost model. This record''s object is an encoding map''s injectivity
+    over an enumerated class and its deliverable is a class boundary; there is no shared metric and
+    no shared primitive.'
+  - 'The trail-search records in this bucket: those measure the PERMUTATION and need a solver, a ceiling,
+    and seeds. This record never invokes the compression function at all -- it holds it symbolic --
+    and therefore has no solver, no ceiling and no budget outcome to confuse with a mathematical one.'
+  - 'Generic collision search on BLAKE3: not that, and deliberately not. A collision here is a structural
+    collision in the mode''s encoding, found by enumeration without computing a single hash; a hash
+    collision is a different object that this audit cannot see and does not look for.'
+  - 'KN-TECH-076 (automated trail search): the standard implementation layer for symmetric analysis
+    in this corpus, and explicitly NOT used here. RQ-BLAKE-584719 states this audit needs no solver,
+    and using one would import the solver''s budget failure modes into a finite check that does not
+    have any.'
+  assumptions:
+  - The mode's routing decisions (flags, counter, block length, initial state) are computed from structural
+    properties only and never from chaining-value contents. This is checked in stage one against pinned
+    primary text and is the enabling assumption of the whole audit; if it fails, the audit is void
+    and that failure is itself the finding.
+  - The pinned reference implementation is correct, validated against published test vectors including
+    keyed, key-derivation and multi-chunk cases. RQ-BLAKE-584719's second constraint says an audit
+    against a subtly wrong implementation produces the spurious finding hardest to retract.
+  - The instrumented pure-Python re-implementation makes exactly the same compression calls, in the
+    same order, with the same tuples, as the pinned reference. Checked by output agreement on every
+    test vector, which is necessary but not sufficient, and the insufficiency is stated.
+  - Class C's bounds are budget choices with no claimed naturalness; nothing about C's edges is assumed
+    to be where structure changes.
+  predictions:
+  - metric: number of colliding semantic-label pairs found in the real mode over class C
+    direction: lower
+    minimum_effect: 0 -- forced value. The design's own premise predicts exactly zero, and this is
+      the prediction the audit exists to test rather than to confirm
+  - metric: number of planted-breakage pairs detected in each null arm
+    direction: higher
+    minimum_effect: 100 percent of planted pairs must be detected and correctly localised to the field
+      that was broken; anything less means the enumerator's sensitivity is unknown and the clean report
+      on the real mode is uninterpretable
+  - metric: fraction of the declared class C actually enumerated
+    direction: higher
+    minimum_effect: 1.0 -- forced value. A partially enumerated class is not a class boundary, and
+      any shortfall is reported by shrinking C rather than by reporting a fraction
+  - metric: number of distinct compression-function input tuples visited
+    direction: different
+    minimum_effect: no pre-committed value; this is a descriptive count reported for reproducibility,
+      and pre-committing it would require knowing the tree walk's structure before reading the specification
+  minimal_test:
+    design: 'The cheapest discriminating measurement is the null arm alone, run first and run small.
+      Build the instrumented mode, plant one breakage (force the flag word to a constant), and enumerate
+      a tiny class -- inputs of 0, 1, 63, 64, 65, 1023, 1024, 1025, 2048 bytes in the unkeyed mode
+      only, one key, no contexts. If the enumerator does not immediately surface the planted collisions
+      as semantic-label pairs, everything downstream is worthless and the cost of learning that is
+      seconds. If it does, enumerate the same tiny class on the REAL unkeyed mode: this already covers
+      chunk-start, chunk-end, parent, root and the single-chunk-versus-multi-chunk boundary, which
+      is the majority of the structural surface, at a cost measured in seconds. Only then is the full
+      class -- keyed mode, key-derivation''s two stages, larger L, structured key and context sets
+      -- worth requesting, and the request can quote a measured per-input enumeration cost rather
+      than an estimate.'
+    controls:
+    - Planted-breakage null arms (constant flags, dropped counter, dropped block length, merged keyed/unkeyed
+      initial states), each enumerated over the identical class C in the same invocation, with detection
+      required.
+    - 'Test-vector precondition: the pinned reference must pass all published vectors including keyed,
+      key-derivation and multi-chunk cases before instrumentation.'
+    - 'Trace-agreement control: the instrumented re-implementation''s outputs must equal the pinned
+      reference''s on every test vector.'
+    - 'Symbolic-chaining-value control: re-run the whole enumeration with chaining-value labels randomly
+      permuted; the collision verdict must be unchanged, confirming no result depends on numeric content.'
+    - 'Boundary-length control: the class must explicitly include 0, 1, chunk_size-1, chunk_size,
+      chunk_size+1 and lengths straddling each power-of-two subtree boundary, and the record must
+      show they were visited.'
+    required_metrics:
+    - count of colliding semantic-label pairs in the real mode over C
+    - count and localisation of detected planted pairs per null arm
+    - number of compression-call tuples enumerated
+    - number of distinct inputs enumerated
+    - explicit statement of C's bounds (L, |K|, |X|, tree shapes)
+    - list of regions named as outside C
+    - wall-clock of the enumeration
+  falsification_conditions:
+  - A null arm's planted collisions are not detected -- the enumerator has unknown sensitivity and
+    no clean report is interpretable.
+  - The instrumented re-implementation disagrees with the pinned reference on any test vector.
+  - Stage one finds that a routing decision depends on chaining-value content, which voids the symbolic
+    substitution and turns the audit into a different, harder problem.
+  - The class C as declared cannot be fully enumerated within budget, so the deliverable's completeness
+    statement is not available at the declared bounds.
+  - A collision is found in the real mode within C and survives hand re-derivation -- which falsifies
+    the totality premise and becomes a maintainer disclosure before it becomes any other kind of record.
+  - The chaining-value-permutation control changes the verdict, indicating the analysis leaked numeric
+    content.
+  confounders:
+  - An instrumented re-implementation that agrees on outputs but makes different internal calls (for
+    example by batching or by a different chunk-splitting order), so the enumerated tuple set is not
+    the real one. Output agreement is necessary and not sufficient, and the record must say so.
+  - A specification ambiguity resolved silently by the reference implementation, so the audit checks
+    the reference's reading rather than the specification's. Mitigated by recording every place the
+    two could differ.
+  - Class C chosen so its bounds sit exactly where structure is uniform, producing a clean result
+    that says less than its size suggests. Mitigated by mandating boundary lengths and power-of-two
+    straddles.
+  - Semantic labelling that is too coarse, so two genuinely distinct inputs receive the same label
+    and a real collision is invisible. Mitigated by labelling with the full input description rather
+    than a digest of it.
+  - Planted breakages that are all of one kind, measuring sensitivity to one field and claiming it
+    for all.
+  interpretation_limits:
+  - The verdict holds over class C and nowhere else. C is a budget choice and its bounds carry no
+    structural significance.
+  - The compression function is held opaque, so nothing here speaks to its strength; a clean encoding
+    on top of a broken primitive would still read clean here, and that is by construction.
+  - A clean result is a statement about the mode within C, not a proof of domain separation, and specifically
+    not a statement about any deployed system that uses BLAKE3.
+  - The audit checks the reference implementation's realisation of the mode as much as the specification's,
+    and the two are separated only where stage one explicitly records a possible divergence.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Enumeration cost is O(|C| times the compression
+      calls per input), reported as a measured count and wall-clock, and this is an audit cost rather
+      than an attack cost.
+    memory_exponent: No attack memory exponent is claimed. Peak memory is the tuple table's size,
+      bounded by the number of enumerated compression calls, and is reported as a count.
+    best_known: 'The incumbent is the design-time argument that flag-based domain separation is total,
+      as relayed (unverified) in RQ-BLAKE-584719. This does not beat it and cannot: it converts an
+      unquantified totality claim into a totality statement over an explicitly bounded, exhaustively
+      enumerated class, which is a narrower but checkable object.'
+    hidden_overhead: Two places. First, writing E honestly from primary text is the entire intellectual
+      content and produces no artifact anyone will point at; every ambiguity found there is unpaid
+      work that decides whether the result is about the specification or about a reference implementation.
+      Second, the semantic labelling scheme is where a lazy choice silently destroys the audit --
+      coarse labels make collisions invisible and nobody notices, because the report looks identical
+      to a clean one. The null arms exist precisely to price that risk, and they roughly double the
+      run.
+  dominated_by: 'n/a (no result claimed on any attack frontier). Pareto check across time, memory
+    and data/queries: this record emits no attack row, so there is no frontier row it could occupy.
+    As an audit it is dominated by any later enumeration over a strictly larger class C'' that contains
+    C, and that successor relation is the intended way to supersede it -- a bigger class, not a better
+    argument.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: this repository
+    currently states domain-separation totality over a class of size zero, and a run would state it
+    over a class of explicitly counted size |C| with the enumerated compression-call count printed.
+    The delta is the class, measured in inputs and calls, plus a measured detection sensitivity from
+    the planted nulls.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'By part. That the routing decisions are structural and the symbolic substitution
+    is valid: 0.9 -- flag-based separation is defined structurally by construction, but the check
+    is stage one for a reason. That the planted nulls are detected and localised: 0.85, this is straightforward
+    engineering and the main risk is coarse labelling. That the real mode enumerates clean over a
+    nontrivial C: 0.9 -- this is the expected outcome and the record''s value is the class boundary
+    rather than the verdict, which is why a high prior here does not make the work pointless. That
+    a genuine structural collision is found within a budget-sized C: 0.03, low but not zero, and it
+    is the only outcome that would require maintainer disclosure before publication. That the resulting
+    class boundary is large enough that a reader finds it informative rather than trivial: 0.55, the
+    real risk, and it is a function of how honestly C''s bounds are chosen rather than of luck.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-BLAKE-584719
+  - GOAL-BLAKE-001
+  - IDEA-20260808-95a21c
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - AGENTS.md
+  - templates/research-records.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-BLAKE-a85617

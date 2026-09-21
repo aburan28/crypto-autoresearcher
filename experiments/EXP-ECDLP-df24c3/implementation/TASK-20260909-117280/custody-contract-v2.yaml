@@ -1,0 +1,29 @@
+zero_run_custody_contract:
+  version: scoped-negative-implementation-custody-v2
+  experiment_id: EXP-ECDLP-df24c3
+  applies_before: [implementation, corpus_traversal, execution]
+  artifact_schemas:
+    source-commit.txt: one lowercase 40-or-64-hex git commit, newline terminated
+    corpus-index.jsonl: canonical JSON rows {record_path,record_blob_id,source_commit}; UTF-8-bytewise sorted and SHA-256 manifest-bound
+    control-fixtures/: immutable inventory.json with {path,sha256,expected_disposition}; no unlisted file accepted
+    selector-exclusions.jsonl: canonical JSON row {statement_identity,reason,source_commit}
+    scope-comparisons.jsonl: closed v4 comparison envelopes; each payload/outer digest verified
+    linkage-resolution.jsonl: canonical JSON row {statement_identity,resolution,goal_ids,idea_ids,experiment_ids,l3_membership}
+    non-duplication-gate.yaml: derived counts plus every included comparison-row identity/hash
+    environment-manifest.yaml: canonical command, interpreter version, dependency lock digest, platform, and source-commit binding
+    immutable-receipt: canonical JSON with artifact manifest SHA-256 and parent commit
+  cross_binding:
+    rule: >-
+      Every artifact row names source_commit and statement_identity; each must
+      match corpus-index. The receipt hashes a sorted manifest of every named
+      artifact. Missing, duplicate, altered, unlisted, or cross-identity data
+      produces a typed refusal before any output disposition.
+  ownership:
+    executor_may_write_only: experiments/EXP-ECDLP-df24c3/implementation/TASK-20260909-117280/
+    coordinator_must_archive: true
+  authorization_resolver:
+    input: canonical JSON authorization envelope {experiment_id,source_commit,implementation_review_id,coordinator_decision_id,nonce,signature}
+    checks: [experiment_id_exact, source_commit_exact, implementation_review_passed, coordinator_decision_allows_execution, nonce_unused, signature_valid, provider_not_bedrock]
+    result: allow_static_mock_only | refuse
+    refusal_receipt: canonical JSON {reason,failed_check,authorization_envelope_sha256,recorded_at}; no corpus or fixture read on refusal
+  does_not: [authorize_corpus_traversal, authorize_execution, authorize_scientific_result]

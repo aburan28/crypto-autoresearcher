@@ -1,0 +1,168 @@
+validation_falsification_plan:
+  task_id: TASK-20260730-131
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-040
+  idea_id: IDEA-20260729-001
+  decision_ref: DEC-20260730-037
+  role: executor
+  convention: CSIDH-COLLIMATION-FC0-R2
+  recorded_at: '2026-08-03T07:20:00Z'
+  git_revision_at_execution: 912e45f90b1a7c77ef9d8c1c7318cba6e7e827dd
+
+  scope: >-
+    Pre-registers, BEFORE any real-width measurement, how the host_width_contract
+    would be validated against real per-slot widths sourced from an admissible
+    CollimationSieve pin, and the concrete conditions that would FALSIFY the
+    contract's operator-consumption model. No measurement is performed in this
+    batch (zero curve/isogeny/quantum compute); this is a frozen pre-registration.
+
+  registered_before_measurement: true
+  measurement_performed: false
+  requires_admissible_pin_before_execution: true
+  blocking_prerequisite: >-
+    An admissible CollimationSieve pin (or an equivalent host-sourced width
+    accessor). BATCH-020 no_admissible_pin is retained, so this plan is not yet
+    executable; it does not authorize inventing a pin, an API, or a width.
+
+  # ---------------------------------------------------------------------------
+  # Prerequisites the host-width contract itself surfaced (host_width_contract.yaml
+  # emission_gap). These MUST be resolved from the host, not invented, before the
+  # ladder below can run.
+  # ---------------------------------------------------------------------------
+  prerequisites:
+  - id: PRE-1
+    statement: >-
+      A width-emission point exists for all twelve hooks (only M_tail has one now,
+      symbolic-only). Real widths for the other eleven have no emission channel.
+    resolution_required_from: CollimationSieve@6f9188e4 (host width accessor) or a
+      host-populated width_decl extension of each birth_* signature.
+    invented_here: false
+  - id: PRE-2
+    statement: The authoritative width UNIT (dimension) for each object class.
+    resolution_required_from: CollimationSieve@6f9188e4 width accounting.
+    invented_here: false
+
+  # ---------------------------------------------------------------------------
+  # Validation procedure — mapped to the inventor-protocol §6 validation ladder.
+  # ---------------------------------------------------------------------------
+  validation_procedure:
+    ladder_ref: docs/inventor-protocol.md#6-the-validation-ladder
+    steps:
+    - id: V-L1
+      ladder_step: 1_isolate_each_assumption
+      action: >-
+        For each object class {W, R, B, M_tail}, read the real per-slot width and
+        its unit from the host accounting in isolation, at the smallest host
+        parameter where the width is directly observable. Record the specific
+        failure mode hunted: a width whose unit is not additively composable within
+        a stage (dimension mismatch), or a width that is not defined at per-slot
+        granularity.
+      failure_mode_hunted: unit_or_granularity_incompatibility
+    - id: V-L2
+      ladder_step: 2_scaled_down_full_pipeline
+      action: >-
+        On the smallest host instance whose true peak live-memory is directly
+        enumerable, populate the contract's per-slot widths, run the composition
+        operator (within-stage sum, across-stage max over stage_live_sets), and
+        compare the operator-predicted peak against the host's directly measured
+        peak as a MEASURED RATIO (predicted/measured), not an extrapolation. Include
+        the predicted NON-peak stages as negative cases.
+      comparison_metric: ratio_operator_peak_over_measured_peak
+      negative_cases_required: true
+    - id: V-L3
+      ladder_step: 3_real_object_with_named_cheats
+      action: >-
+        Run the operator on a real-scale host instance with each cheat named and
+        classified completeness-preserving or soundness-losing; delegate any lost
+        soundness to a specific V-L1 measurement.
+    - id: V-L4
+      ladder_step: 4_reproducibility_pointer
+      action: >-
+        Rebuild every width figure and the operator output from the recorded host
+        pin and command; list artifacts rather than asserting availability.
+
+  # ---------------------------------------------------------------------------
+  # Controls before belief (inventor-protocol §3). The known artifact tell here is
+  # M-dominance (RT-20260730-129 OBJ-2): the toy peak stage was an artifact of the
+  # stipulated-heaviest class, not a structural fact. The real-width validation
+  # must beat a null object of the same shape.
+  # ---------------------------------------------------------------------------
+  controls_before_belief:
+    null_object:
+      description: >-
+        Random / permuted assignment of per-slot widths of the same shape (same
+        hooks, same stage membership, widths shuffled across classes).
+      pass_condition: >-
+        The operator's predicted PEAK STAGE identity under real widths must differ
+        from, and predict the measured peak better than, the null object's. If the
+        operator predicts the peak equally well on scrambled widths, the peak
+        identity is an artifact (the M-dominance tell) and NOT a structural memory
+        fact.
+    structural_tell_check:
+      quantity: peak_stage_identity_stability
+      expectation_under_increasing_destroyer: >-
+        As the parameter that should destroy a spurious peak (width randomization
+        magnitude) increases, a genuine structural peak should persist while an
+        artifact peak should wander. A peak that does not move under randomization
+        that should destroy it is suspected artifact.
+
+  # ---------------------------------------------------------------------------
+  # Pre-registered FALSIFICATION conditions. Each is concrete and CAN fail; the
+  # plan is not unfalsifiable.
+  # ---------------------------------------------------------------------------
+  falsification_conditions:
+  - id: F1
+    condition: >-
+      The host emits per-slot widths whose units are not consistent/additive across
+      the classes co-live in a stage (dimension mismatch), so within_stage_rule
+      (sum) is not dimensionally valid.
+    falsifies: composition_operator.within_stage_rule (additivity assumption)
+    decision_if_met: operator_consumption_model_rejected_requires_amendment
+  - id: F2
+    condition: >-
+      operator-predicted peak disagrees with the host's directly measured peak
+      beyond a pre-declared tolerance on the V-L2 scaled instance
+      (|ratio - 1| exceeds tolerance registered before measurement).
+    falsifies: composition_operator (peak prediction)
+    decision_if_met: operator_rejected
+  - id: F3
+    condition: >-
+      a stage the operator predicts to be NON-peak is the host's actual peak stage
+      (max-over-stages selection wrong, or a live-set member is missing/extra
+      relative to stage_live_sets).
+    falsifies: across_stage_rule or stage_live_sets membership
+    decision_if_met: membership_or_selector_rejected
+  - id: F4
+    condition: >-
+      the host exposes no accessor able to emit a per-slot width at the object
+      granularity the operator requires (granularity mismatch; PRE-1 unresolvable).
+    falsifies: host_width_contract structurally (emission-point assumption)
+    decision_if_met: contract_structurally_rejected_requires_redesign
+  - id: F5
+    condition: >-
+      real-width operator does not beat the null object (controls_before_belief):
+      predicted peak-stage identity is not more accurate than the scrambled-width
+      null.
+    falsifies: claim that the operator captures a structural memory fact
+    decision_if_met: peak_identity_labeled_artifact_not_structural
+
+  success_criteria_if_not_falsified:
+    statement: >-
+      If none of F1..F5 are met on the V-L2 scaled instance, the contract is
+      recorded as SCALED-VALIDATED at that instance size ONLY. This is explicitly
+      NOT QUERY_MEMORY clearance, NOT a cryptographic-scale bound, and NOT a
+      security/breakthrough/completion claim.
+    still_open_after_success:
+    - cryptographic_scale_extrapolation
+    - QM-STOPPING (tau / joint finiteness)
+    - QUERY_MEMORY reconciliation
+
+  non_claims:
+    invents_pin: false
+    invents_api: false
+    invents_width_or_unit: false
+    performs_measurement_now: false
+    claims_query_memory_clearance: false
+    claims_cryptographic_scale: false
+  disposition: FC0_QUERY_MEMORY_SEMANTICS_UNRECONCILED
+  non_extrapolation: true

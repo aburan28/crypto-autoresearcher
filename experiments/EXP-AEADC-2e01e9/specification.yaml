@@ -1,0 +1,315 @@
+experiment:
+  id: EXP-AEADC-2e01e9
+  hypothesis_id: H-AEADC-10bc5f
+  derived_from_idea: IDEA-20260809-313546
+  question_id: RQ-AEADC-8db132
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: >-
+    Ten two-key AES-GCM commitment certificates at a named standard parameter set, constructed by
+    linear solve and re-verified by an independent stock library, with a third-key rejection
+    control and a measured solve-versus-search cost separation
+  objective: >-
+    The single uncertainty a run reduces is whether this program can PRODUCE and INDEPENDENTLY
+    VERIFY a two-key AES-GCM commitment certificate at full standard parameters, and whether the
+    construction is a linear solve rather than a search. A run establishes (i) whether the two-tag
+    equality system is consistent at the named parameter set, which is the gate on the whole goal's
+    premise; (ii) the measured construction wall clock per certificate with the solve step timed
+    separately from the key schedules; (iii) whether both decryptions of each certificate are
+    accepted by two independent verifiers, one of them a stock library; and (iv) whether the same
+    ciphertext is rejected under a third unrelated key, which is what distinguishes an engineered
+    collision from a broken tag check. The artifact bytes themselves are the deliverable and are
+    recorded in the run package.
+  what_this_is_not:
+  - >-
+    NOT a confidentiality break and NOT a forgery under an unknown key. The construction requires
+    the adversary to CHOOSE BOTH KEYS, and no record derived from this run may state otherwise.
+  - >-
+    Not a novelty claim. The technique is published and externally dominates this record; what is
+    claimed is the ARTIFACT inside this program, verified here.
+  - >-
+    Not a statement about any deployed product, protocol, vendor or key. It is a statement about
+    the mode's key-commitment property at a named parameter set.
+  - >-
+    Not an attack on AES, on GHASH as a MAC under an unknown key, or on the confidentiality of GCM.
+  - >-
+    Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: full_parameters
+    exact_scope_a_run_could_support: >-
+      Maximal supportable scope - at the named NIST SP 800-38D parameter set, ten concrete
+      ciphertexts exist, each of which decrypts successfully under two attacker-chosen keys to two
+      distinct chosen plaintexts, each verified by two independent implementations one of which is
+      a stock library, each rejected under a third unrelated key, each constructed in a stated
+      number of milliseconds. WHAT DOES NOT FOLLOW - no confidentiality break; no forgery under an
+      unknown key; no statement about the security of any protocol that uses GCM, since whether
+      key-commitment is required is a property of the protocol and not of the mode; and no
+      statement about any deployed system.
+  inputs:
+    procedure: >-
+      STAGE 0 (reading, zero compute) - obtain NIST SP 800-38D primary text, or record exactly
+      which sources were tried and what they returned; name the exact parameter set, key length,
+      IV length, tag length and block count in the manifest. Nothing is constructed from recalled
+      coefficients. STAGE 1 (seconds) - the TEST-VECTOR PRECONDITION - the construction
+      implementation and BOTH verifiers reproduce the SP 800-38D test vectors exactly. A failure
+      here stops everything and is reported as such. STAGE 2 (seconds) - the CONSISTENCY GATE -
+      derive the two tag equations symbolically at the named parameter set, assemble the linear
+      system over GF(2^128) in the designated block subset, and report its rank and consistency
+      BEFORE attempting any solve. An inconsistent system is the cheapest kill of the whole lane
+      and is a reportable deliverable. STAGE 3 (seconds) - mint ten certificates with declared
+      seeds, each carrying two distinct meaningful plaintexts; time the linear solve separately
+      from the AES key schedules and from I/O. STAGE 4 (seconds) - verify each certificate under
+      each of its two keys with BOTH verifiers, and under a third unrelated key with both verifiers.
+      STAGE 5 (zero compute) - record the certificate bytes, the verification matrix and the
+      timing table in the run package, together with the explicit scope statement that both keys
+      are adversary-chosen.
+    instrument: >-
+      One construction implementation written for this goal, using GF(2^128) linear algebra written
+      from the field definition. Two independent verifiers - one written for this goal, one a stock
+      library not written for this goal, with its name and version recorded. Timing via a monotonic
+      clock with the solve, the key schedules and the I/O reported separately. Recorded through
+      harness/runner.py.
+    parameters: >-
+      A NIST SP 800-38D parameter set named exactly in the contract before approval - key length,
+      96-bit IV, 128-bit tag, and a declared ciphertext block count. Ten certificates, each with a
+      recorded seed. Two distinct meaningful plaintexts per certificate, declared in advance so
+      that 'meaningful' is checkable rather than asserted. One third unrelated key per certificate,
+      drawn from the same seed stream and recorded.
+  controls:
+  - >-
+    STOCK-LIBRARY CHECK (mandatory). At least one verification uses an implementation NOT written
+    for this goal, with its name and version recorded. A certificate verified only by its author's
+    code proves nothing, and a run without this arm is invalid_measurement.
+  - >-
+    SINGLE-KEY / THIRD-KEY CONTROL, the nearby object where the effect must NOT appear. Each
+    ciphertext must FAIL authentication under a third, unrelated key under BOTH verifiers. FORCED
+    VALUE - 10 of 10 rejections. If a certificate is accepted under an unrelated key, the tag check
+    is broken and NO acceptance anywhere in the run means anything.
+  - >-
+    TEST-VECTOR PRECONDITION. All three implementations pass the SP 800-38D test vectors before any
+    certificate is minted, as a frozen regression fixture. This is the baseline reproduction the
+    proof_search_map requires and it can fail.
+  - >-
+    CONSISTENCY GATE BEFORE SOLVE. The rank and consistency of the assembled system are reported
+    before any solution is attempted, so an inconsistent system is recorded as a mathematical
+    result rather than discovered as a failed solve.
+  - >-
+    DEGENERATE-SLICE CONTROL. With K1 equal to K2 the system must be trivially consistent and any
+    ciphertext must verify. If the construction special-cases that slice or fails on it, the
+    implementation does not reduce to the baseline and its general output is suspect.
+  - >-
+    SOLVE-VERSUS-SEARCH INSTRUMENTATION. The construction reports the number of candidate
+    ciphertexts it evaluated. FORCED VALUE - exactly one, since a solve evaluates one. Any value
+    above one means the implementation is searching and the measured wall clock does not test the
+    mechanism claimed.
+  independent_variables:
+  - certificate index, 1 through 10, each with an independent seed
+  - 'verifier: goal-written implementation versus stock library'
+  - 'key under which decryption is attempted: K1, K2, or the unrelated K3'
+  - 'key relation: K1 not equal to K2 (treatment) versus K1 equal to K2 (degenerate slice control)'
+  metrics:
+    primary:
+    - >-
+      system_consistency - boolean per parameter set, whether the assembled two-tag linear system
+      over GF(2^128) is consistent, reported with the system's rank and dimensions. This is the
+      gate on the goal's premise and is computed before any solve.
+    - >-
+      independent_verification_pass_count - integer out of 20 (10 certificates times 2 keys),
+      counted separately for each of the two verifiers. Both counts must be 20.
+    - >-
+      third_key_rejection_count - integer out of 10 per verifier, forced to 10.
+    - >-
+      construction_wall_clock_ms - milliseconds per certificate on the recorded machine, reported
+      as a triple (linear solve, AES key schedules, everything else) so the claim that cost is
+      dominated by the solve is decidable rather than asserted.
+    secondary:
+    - >-
+      candidate_ciphertexts_evaluated - integer per certificate, forced to exactly 1. Any larger
+      value means the construction searched.
+    - >-
+      certificate_size_bytes - integer per certificate, the total bytes a third party needs to
+      re-verify.
+    - >-
+      test_vector_pass_count - integer per implementation, over the SP 800-38D vector set.
+    - >-
+      degenerate_slice_pass - boolean, whether the construction reduces correctly at K1 equal to K2.
+    - >-
+      the stock library's name and exact version, and the primary-text source or the recorded
+      failure to obtain it.
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: >-
+      construction_wall_clock_ms per certificate at the named standard parameter set, and
+      independent_verification_pass_count under both verifiers.
+    formula: >-
+      Predicted construction_wall_clock_ms below 1000 on the recorded machine with the linear-solve
+      component dominating, and predicted independent_verification_pass_count of 20 out of 20 under
+      each verifier, with third_key_rejection_count 10 out of 10. Under the null that the mechanism
+      is misunderstood, either the system is inconsistent (system_consistency false, and no
+      certificate exists to time) or the construction requires enumeration
+      (candidate_ciphertexts_evaluated above 1 and wall clock unbounded).
+    source: >-
+      Pre-registered in the parent proposal IDEA-20260809-313546, whose predictions block states
+      'milliseconds' for construction time and 'both accept' for independent verification, and
+      whose falsification_conditions name inconsistency and independent rejection. The 1000 ms
+      operationalization of 'milliseconds' is the Coordinator's, fixed here before any run and
+      never tuned to data.
+  scale_relevance:
+    tier: full_parameters
+    justification: >-
+      Executed at a NIST SP 800-38D standard parameter set, not at a reduced one, so there is no
+      scale transfer and no extrapolation - which is the entire point of the record, since a toy
+      certificate would prove nothing about the artifact this goal needs. The boundary that remains
+      is not scale but QUANTIFIER - both keys are adversary-chosen - and it is stated in the claim
+      ceiling, the interpretation limits and every deliverable rather than in a footnote.
+    correspondence: >-
+      Not applicable. The measurement is made directly on the object of interest at its deployed
+      parameters; there is no proxy and no correspondence to justify.
+  tail_checks:
+  - >-
+    Report the rank and the dimensions of the linear system, not only its consistency, so a system
+    that is consistent but degenerate is visible.
+  - >-
+    Report the two recovered plaintexts per certificate in full, so 'two distinct meaningful
+    plaintexts' is checkable by a reader rather than asserted by the run.
+  - >-
+    Report the timing distribution across all ten certificates, not the mean, since a single slow
+    certificate would indicate a fallback path.
+  - >-
+    Report the verification result of every (certificate, key, verifier) triple individually - 60
+    rows - rather than an aggregate, since one rejection voids the claim and an aggregate can hide
+    it.
+  - >-
+    Report the exact byte-level diff between the two verifiers' parsing of each certificate, so an
+    acceptance that depends on a lenient parser is visible.
+  replication:
+    seeds:
+    - 20260825
+    - 20260826
+    - 20260827
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 2
+    maximum_runs: 10
+  stopping_rules:
+  - Stop immediately if any implementation fails the SP 800-38D test vectors; nothing downstream is admissible.
+  - >-
+    Stop immediately if the consistency gate reports an inconsistent system; that is the
+    deliverable and no solve is attempted.
+  - Stop immediately if any certificate is accepted under the third unrelated key.
+  - >-
+    Stop at maximum_runs or total_cpu_hours, whichever binds first. A budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  - >-
+    The parameter set, plaintext pairs and seeds are frozen before Stage 3 and are not revised
+    after seeing any construction outcome.
+  invalidation_rules:
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 3). Inability to install a stock
+    library is infrastructure, not a finding about the mechanism.
+  - >-
+    A run in which no stock-library verification was performed is invalid_measurement - the
+    comparison the contract exists to make was not made.
+  - >-
+    A run in which the third-key control was not executed in the same invocation as the treatment
+    is invalid_measurement.
+  - >-
+    Any claimed certificate whose acceptance cannot be independently re-verified by the run wrapper
+    makes the run completed_invalid (docs/claims-and-verification.md).
+  - >-
+    A run whose parameters differ from the frozen contract - a different tag length, a shortened
+    IV, a reduced block count - is a DIFFERENT experiment and requires a new contract. In
+    particular a certificate at reduced parameters does NOT satisfy this contract, whose entire
+    content is that the parameters are standard.
+  success_criterion: >-
+    All three implementations pass the SP 800-38D test vectors; the consistency gate reports the
+    two-tag system consistent with its rank stated; ten certificates are minted with
+    candidate_ciphertexts_evaluated exactly 1 each; independent_verification_pass_count is 20 out
+    of 20 under BOTH verifiers; third_key_rejection_count is 10 out of 10 under both; and
+    construction_wall_clock_ms is below 1000 per certificate with the solve component dominating.
+    The certificate bytes and the 60-row verification matrix are recorded in the run package.
+  falsification_criterion:
+  - >-
+    The linear system is INCONSISTENT at the named standard parameter set - the construction does
+    not apply as described, the mechanism in H-AEADC-10bc5f is wrong, and the goal's premise must
+    be re-derived. This is a fully reportable negative and it is the cheapest one available.
+  - >-
+    Any independent verification rejects a certificate under either of its two keys - the
+    certificate is invalid and nothing is recorded as an artifact.
+  - >-
+    candidate_ciphertexts_evaluated exceeds 1, or construction_wall_clock_ms exceeds 1000 with the
+    excess outside the solve - the construction is searching, so the mechanism claimed is not the
+    mechanism used and the timing says nothing about the hypothesis.
+  - >-
+    A certificate is ACCEPTED under the third unrelated key - the tag check is broken and every
+    acceptance in the run is void.
+  - >-
+    Any implementation fails the SP 800-38D test vectors - the instrument is not GCM and nothing is
+    reportable.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, stock library name and version, resolved model/inference block and environment
+  - raw-result.json carrying the per-certificate record, not summaries
+  - the full certificate bytes for all ten certificates, in a form a third party can re-verify unaided
+  - the 60-row (certificate, key, verifier) verification matrix, including all third-key rows
+  - the SP 800-38D test-vector pass record for all three implementations
+  - the linear system's rank, dimensions and consistency verdict, recorded before any solve
+  - the per-certificate timing triple (solve, key schedules, other) and candidate count
+  - the primary-text source for the parameter set, or a recorded statement of which sources were tried and what they returned
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - >-
+    Coordinator approval and the user's authorization are required before execution. This contract
+    is review_required and is NOT approved; approved_by is null and execution_authorized is false
+    (AGENTS.md rule 1).
+  - >-
+    The exact parameter set - key length, IV length, tag length, block count - must be named in
+    writing before approval. 'Full standard parameters' is not a parameter set, and the whole claim
+    of this contract is that the parameters are standard.
+  - >-
+    The proof_search_map on H-AEADC-10bc5f must be audited before implementation, per KN-TECH-080
+    and the Coordinator's proof-oriented dispatch gate, since the mechanism rests on a linearity
+    claim.
+  - >-
+    The publication-and-disclosure posture must be settled before approval. This artifact is a
+    key-commitment certificate for a widely deployed mode; the run package is internal and no agent
+    publishes it.
+  derivation_provenance:
+    tool: coordinator-authored contract under /design-experiment
+    source_record: IDEA-20260809-313546
+    authored_at: '2026-08-25'
+    note: >-
+      Controls are taken verbatim in substance from the parent proposal's controls block - stock
+      library check, single-key control, test-vector precondition - and the predictions and
+      falsification conditions from its own blocks. The consistency gate before solve, the
+      degenerate-slice control, the candidate-count instrumentation and the 60-row verification
+      matrix are Coordinator additions that make the solve-versus-search claim decidable rather
+      than narrated. Boilerplate identical across contracts by program rule comes from the fixed
+      table. No field is invented; a value the proposal did not supply is a declared derivation gap.
+  derivation_gaps:
+  - >-
+    The exact standard parameter set is NOT named by the parent proposal. It must be fixed before
+    approval, since the contract's only claim of interest is that the parameters are standard and
+    an unnamed parameter set makes that claim uncheckable.
+  - >-
+    Which block subset carries the solved unknowns is unspecified. The choice affects both the
+    system's rank and how much chosen plaintext remains steerable, and it must be declared before
+    the run rather than selected to make a certificate work.
+  - >-
+    'Two distinct meaningful plaintexts' is not operationalized. The pair must be declared in
+    advance so a reader can check it, rather than judged after the fact.
+  - >-
+    The stock library is not named. Its identity and version determine whether the independent
+    verification is genuinely independent, and it must be recorded in the manifest.
+  - >-
+    The 1000 ms bound is a Coordinator operationalization of the parent's word 'milliseconds' and
+    is machine-dependent. It discriminates solve from search by three or more orders of magnitude,
+    which is the intent, but a reviewer may reasonably ask for a machine-relative bound instead;
+    changing it after the run requires a versioned protocol_amendment.

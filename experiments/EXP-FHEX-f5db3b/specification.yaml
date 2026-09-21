@@ -1,0 +1,218 @@
+experiment:
+  id: EXP-FHEX-f5db3b
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-df7016; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-df7016
+  question_id: RQ-FHE-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure the total variation distance between flooded release distributions under two fixed
+    toy secrets as a function of flooding standard deviation, alongside a same-distribution sampling
+    floor, and locate the crossing.
+  objective: The one uncertainty a run reduces is whether the closeness a flooding countermeasure
+    is meant to produce is measurable as a curve at toy parameters, and over what range of flooding
+    standard deviations it is measurable at all. (i) It establishes the same-distribution sampling
+    floor at the exact sample count and binning used, which decides whether any reported distance
+    is a distance or an artifact of finite sampling, and which is the number a careless version of
+    this measurement would omit. (ii) It produces the total variation distance across a twelve-point
+    grid of flooding standard deviations for two minimally different secrets and for two random secrets,
+    so the curve and its dependence on secret closeness are both outputs. (iii) It places the worst-case-derived
+    and the estimate-derived flooding standard deviations on the same axis as the measured crossing,
+    which is the comparison the whole framing exists to make, while computing no attack advantage
+    and constructing no distinguisher. A run also states, as a measured ceiling rather than an opinion,
+    the range of flooding standard deviations this method can and cannot reach.
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: at N=8 with a 30-bit modulus,
+      these two fixed secret pairs, this enumeration of encryption randomness, these three binnings
+      and this sample count, the total variation distance between flooded release distributions takes
+      the measured values across the grid, the same-distribution floor takes its measured value, and
+      the crossing sits at the measured flooding standard deviation relative to the pre-flooding standard
+      deviation. What does NOT follow: no distinguishing advantage for any adversary, no statement
+      that any flooding calibration is sufficient or insufficient, no claim about approximate FHE
+      security, and nothing about deployed precision. Distances above the crossing are UNMEASURED,
+      not zero, and the run must say so wherever the curve ends.'
+  inputs:
+    procedure: 'STAGE 0 (hours implementation): toy scheme in exact integers with an exactly sampleable
+      discrete flooding kernel and no floating-point tail truncation. STAGE 1 (minutes): enumerate
+      2^16 encryption randomness values per secret for both secret pairs, building exact pre-flooding
+      release distributions on three binnings. STAGE 2 (minutes): measure the same-distribution floor
+      by splitting one secret''s enumeration in half and computing the distance between halves at
+      each binning and each sample count. STAGE 3 (minutes): convolve each pre-flooding distribution
+      with the flooding kernel at twelve standard deviations from 0.25 to 16 times the pre-flooding
+      standard deviation, and compute total variation exactly on the binned distributions. STAGE 4
+      (minutes): the large-sigma second null across the whole grid. STAGE 5 (core-hours): repeat at
+      2^20 samples to expose the floor''s scaling. STAGE 6 (minutes): locate the crossing per binning,
+      compute the worst-case-derived and estimate-derived sigma from the same implementation, and
+      emit the curve, the floor, the crossing and both derived sigmas on one axis.'
+    instrument: Python 3 with arbitrary-precision integers for ring arithmetic and for the discrete
+      flooding kernel, sampled by exact rejection so the kernel's tail is not truncated at the regime
+      where the distance is decided; numpy only for histogram accumulation and the total variation
+      sum, with the sum computed twice by independent code paths and required to agree exactly. Deterministic
+      seeding and run manifests through harness/runner.py conventions. No Sage, no external FHE library,
+      no statistics package for the distance.
+    parameters: 'Ring degree N = 8. Modulus q: one 30-bit prime. Secret pair A: two ternary secrets
+      differing in exactly one coordinate. Secret pair B: two independently drawn random ternary secrets.
+      Encryption randomness enumeration: 2^16 per secret in the base arm, 2^20 in the scaling arm.
+      Flooding kernel: discrete Gaussian at twelve standard deviations, sigma_flood / sigma_pre in
+      {0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 10, 13, 16}. Binnings: three bin widths spanning a factor
+      of 16. Large-sigma second null at sigma_flood / sigma_pre = 64. Circuit depth 1.'
+  controls:
+  - Same-distribution sampling floor at identical sample count and binning, in the same invocation.
+  - Large-sigma second null, which must sit at the floor across the whole grid.
+  - Random-secret arm alongside the minimally-different-secret arm, testing the assumption that close
+    secrets are the hard case.
+  - Binning sweep at three bin widths, since total variation on binned data depends on the binning
+    and a single choice could flatter the result.
+  - Sample-count sweep at 2^16 and 2^20, exposing the floor's scaling directly.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Null arm: compute the identical total variation distance between two
+    independent sample sets drawn from the SAME distribution, at the identical sample count and identical
+    alphabet binning, in the same invocation. This is the sampling floor and it is strictly positive;
+    any measured distance below it is not a distance. For the signal arm to mean anything the same-distribution
+    floor must be measurably below the two-secret distance at small sigma_flood, establishing that
+    the estimator has resolution at all, and the knee is defined as the crossing. A second null uses
+    two secrets in a scheme where flooding is applied at a sigma so large that closeness is unarguable,
+    which must sit at the floor across the whole grid; if it does not, the estimator is biased and
+    no number in the run is usable.'
+  independent_variables:
+  - flooding standard deviation relative to the pre-flooding standard deviation
+  - secret pair (minimally different versus random)
+  - binning width
+  - sample count (2^16 versus 2^20)
+  metrics:
+    primary:
+    - total variation distance between the two flooded release distributions, per grid point and binning
+    - same-distribution sampling floor at matched sample count and binning
+    - crossing point, i.e. the smallest flooding standard deviation at which the distance falls to
+      the floor
+    - pre-flooding standard deviation measured from the enumeration
+    secondary:
+    - total variation for the large-sigma second null across the grid
+    - the worst-case-derived and estimate-derived flooding sigma computed from the same implementation
+    - scaling of the floor between 2^16 and 2^20 samples
+    - spread of the crossing across the three binnings
+    - agreement between the two independent distance computations
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: 'The crossing point: the smallest ratio sigma_flood / sigma_pre at which the measured
+      total variation distance falls to the measured same-distribution floor.'
+    formula: 'd_TV(sigma) = (1/2) * sum_bins |P_{s0,sigma}(bin) - P_{s1,sigma}(bin)|, with P_{s,sigma}
+      the binned flooded release distribution under secret s; floor(n, binning) = the same statistic
+      between two independent halves of a single secret''s enumeration at sample count n. Crossing
+      = min{sigma / sigma_pre : d_TV(sigma) <= floor}. Predicted d_TV at sigma/sigma_pre = 1 exceeds
+      10 times the floor for secret pair A; predicted crossing >= 3; predicted large-sigma null within
+      the floor at every grid point.'
+    source: Pre-registered in the parent proposal IDEA-20260816-df7016 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'N = 8, one 30-bit prime, two hand-chosen secrets, and 2^20 samples at most. This
+      is chosen so the pre-flooding release distribution can be enumerated over the encryption randomness
+      exactly, which is the only way to know that the measured distance is not a sampling artifact
+      of the pre-flooding stage. Nothing transfers numerically: the crossing is set by the achievable
+      sample count and by the pre-flooding distribution''s shape, both of which are entirely different
+      at deployed parameters. The contract makes one explicit negative transfer statement, tested
+      by the run itself: the range of flooding standard deviations reachable by direct distance measurement
+      at any affordable sample count is bounded, and the run reports that bound rather than implying
+      the regime above it is safe or unsafe.'
+    correspondence: null
+  tail_checks:
+  - Report the contribution to the total variation from the outermost 1 percent of bins separately,
+    since at large flooding standard deviation the whole distance lives in the tails.
+  - Report the distance computed with the kernel's tail truncated at 6 and at 12 standard deviations,
+    exposing sensitivity to the kernel's own tail.
+  - Report the floor's own distribution over 100 independent half-splits, not only its mean, and compare
+    the signal against its 95th percentile.
+  - Report the crossing computed on each of the three binnings separately and never pooled.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Stop and report a resolution ceiling, not a null result, if the distance has not reached the floor
+    by sigma_flood / sigma_pre = 16.
+  - Abort as instrument failure if the large-sigma second null exceeds the floor.
+  - Abort if the two independent distance computations disagree.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A crossing located inside the grid on at least two of the three binnings, with
+    those crossings within a factor of 2 of each other, a distance at sigma/sigma_pre = 1 exceeding
+    10 times the floor for secret pair A, and the large-sigma null within the floor throughout.
+  falsification_criterion:
+  - The large-sigma second null exceeds the floor, invalidating the estimator.
+  - The distance is at the floor already at sigma/sigma_pre = 0.25, meaning the enumeration or binning
+    destroyed the signal before flooding.
+  - No crossing inside the grid, which is reported as a resolution ceiling rather than a result.
+  - Crossings differ by more than a factor of 2 across binnings, making the statistic a binning artifact.
+  - The floor fails to scale with sample count between 2^16 and 2^20.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-df7016
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The Coordinator must fix the binning convention or accept that the deliverable is a family of
+    crossings indexed by binning; no principle in the contract selects one.
+  - The worst-case-derived flooding sigma must be derived from a named source before it can be placed
+    on the axis, which re-engages the RQ-FHE-001 primary-source constraint that KN-LIT-7675 does not
+    discharge (it is marked citation_verified web).
+  - Whether total variation is the right distance, as against a Renyi or KL divergence that a flooding
+    argument might actually be stated in, is undetermined; the contract measures total variation deliberately
+    to avoid importing a framework, and that choice needs a ruling.
+  - The choice of two fixed secrets rather than a distribution over secret pairs is a simplification
+    whose effect is untested beyond the random-pair arm.

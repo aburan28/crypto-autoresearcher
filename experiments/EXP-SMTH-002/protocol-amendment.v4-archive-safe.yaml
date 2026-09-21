@@ -1,0 +1,415 @@
+protocol_operations:
+  id: EXP-SMTH-002-AMEND-004
+  task_id: TASK-20260801-065
+  base_contract: >-
+    Effective contract obtained by applying EXP-SMTH-002-AMEND-003 to
+    experiments/EXP-SMTH-002/specification.yaml.
+  operation_semantics: >-
+    Apply operations in listed order to a deep copy of base_contract. Replace
+    requires the target to exist and replaces its entire value. Any failed
+    precondition is invalid_integrity. No implicit merge applies.
+  status: draft_review_required
+  execution_authorized: false
+  scientific_design_unchanged: true
+
+  transport_binding:
+    remote_kind: GitHub ordinary Git over HTTPS
+    github_limits_source: https://docs.github.com/en/repositories/creating-and-managing-repositories/repository-limits
+    enforced_single_object_limit_bytes: 104857600
+    enforced_push_limit_bytes: 2000000000
+    lfs_used: false
+    shard_object_cap_bytes: 12582912
+    other_individual_object_cap_bytes: 67108864
+    aggregate_shard_cap_bytes: 1610612736
+    aggregate_other_tracked_cap_bytes: 268435456
+    aggregate_tracked_push_cap_bytes: 1879048192
+    push_headroom_bytes: 120951808
+    derivation: >-
+      128*12582912 = 1610612736 shard bytes. Adding 268435456 other tracked
+      bytes gives 1879048192, which is 120951808 below 2000000000. Every shard
+      is 12 MiB and every other individual artifact is at most 64 MiB, both
+      strictly below the 100-MiB object limit.
+
+  operations:
+  - op: replace
+    target_path: /factorization_pipeline/shard_policy
+    literal_value:
+      logical_records_per_shard: 32704
+      shard_count_exact: 128
+      maximum_compressed_bytes_per_shard: 12582912
+      maximum_logical_bytes_per_record: 1024
+      exact_filename_rule: shard-{index:03d}.jsonl.gz for index 0..127
+      close_fsync_hash: >-
+        Write to the exact final repository-relative path plus suffix .partial,
+        close and fsync, verify record count and compressed-byte cap, atomically
+        rename to the final path, fsync its directory, then record SHA-256,
+        compressed bytes, logical bytes and first/last indices before opening
+        the next shard.
+  - op: replace
+    target_path: /writer_topology
+    literal_value:
+      workers: 4 factorization workers
+      writer: >-
+        Exactly one writer consumes a bounded 4096-record queue in sequential
+        index order. Exactly one .partial or final gzip shard is open at once.
+        No tar, bundle, pack or second copy of certificate bytes is created.
+      bounded_queue_records: 4096
+      maximum_simultaneously_open_certificate_shards: 1
+      maximum_process_output_handles: 8
+      repository_paths_are_final_evidence: true
+  - op: replace
+    target_path: /frozen_budget
+    literal_value:
+      maximum_runs: 1
+      maximum_resume_count: 1
+      maximum_factorization_calls: 4186112
+      maximum_primality_checks: 50233344
+      maximum_primality_checks_per_integer: 12
+      maximum_certificate_reconstructions: 4186112
+      maximum_wall_seconds: 7200
+      maximum_cpu_seconds: 28800
+      maximum_peak_rss_bytes: 4294967296
+      maximum_total_disk_bytes: 2147483648
+      maximum_tracked_certificate_shard_bytes: 1610612736
+      maximum_other_tracked_artifact_bytes: 268435456
+      maximum_untracked_temporary_bytes: 134217728
+      reserved_git_worktree_and_index_overhead_bytes: 134217728
+      maximum_tracked_push_bytes: 1879048192
+      maximum_individual_shard_bytes: 12582912
+      maximum_individual_other_artifact_bytes: 67108864
+      maximum_workers: 4
+      maximum_process_output_handles: 8
+      no_network_during_run: true
+      joint_safety_derivation: >-
+        1.5 GiB certificate shards + 256 MiB other tracked artifacts + 128 MiB
+        temporary bytes + 128 MiB Git worktree/index reserve = 2 GiB local disk.
+        Tracked bytes are capped at 1.75 GiB, below the GitHub 2-GB push limit.
+      stop_semantics: >-
+        Crossing a physical, individual-object, aggregate-object or push cap
+        yields failed_infrastructure_or_budget at the next record boundary.
+        False certificates, seed collisions, record oversize or hash mismatch
+        yield invalid_integrity. Neither outcome is mathematical evidence.
+  - op: replace
+    target_path: /required_artifacts
+    literal_value:
+    - experiments/EXP-SMTH-002/implementation/pilot_driver.py
+    - experiments/EXP-SMTH-002/implementation/implementation.md
+    - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/manifest.yaml
+    - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/command.txt
+    - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/environment.json
+    - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/stdout.log
+    - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/stderr.log
+    - experiments/EXP-SMTH-002/runs/RUN-SMTH-PILOT-001/raw-result.json
+    - experiments/EXP-SMTH-002/results/feasibility_report.json
+    - experiments/EXP-SMTH-002/results/seed_roster.json
+    - experiments/EXP-SMTH-002/results/certificates/shard_manifest.json
+    - experiments/EXP-SMTH-002/results/certificates/shard-000.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-001.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-002.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-003.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-004.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-005.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-006.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-007.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-008.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-009.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-010.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-011.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-012.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-013.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-014.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-015.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-016.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-017.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-018.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-019.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-020.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-021.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-022.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-023.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-024.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-025.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-026.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-027.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-028.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-029.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-030.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-031.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-032.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-033.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-034.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-035.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-036.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-037.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-038.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-039.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-040.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-041.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-042.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-043.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-044.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-045.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-046.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-047.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-048.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-049.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-050.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-051.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-052.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-053.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-054.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-055.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-056.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-057.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-058.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-059.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-060.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-061.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-062.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-063.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-064.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-065.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-066.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-067.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-068.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-069.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-070.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-071.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-072.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-073.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-074.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-075.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-076.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-077.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-078.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-079.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-080.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-081.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-082.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-083.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-084.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-085.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-086.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-087.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-088.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-089.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-090.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-091.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-092.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-093.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-094.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-095.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-096.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-097.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-098.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-099.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-100.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-101.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-102.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-103.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-104.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-105.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-106.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-107.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-108.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-109.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-110.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-111.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-112.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-113.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-114.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-115.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-116.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-117.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-118.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-119.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-120.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-121.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-122.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-123.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-124.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-125.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-126.jsonl.gz
+    - experiments/EXP-SMTH-002/results/certificates/shard-127.jsonl.gz
+  - op: replace
+    target_path: /controls
+    literal_value:
+    - First and last record of every shard are independently reconstructed.
+    - Every certificate reconstruction result is true before shard acceptance.
+    - Exact total and per-object counts match the frozen design.
+    - Seed roster regeneration reproduces every stream hash with zero collisions.
+    - An injected composite-as-prime certificate is rejected.
+    - An injected one-byte shard mutation fails SHA-256.
+    - Process output handles never exceed eight and certificate shards never exceed one.
+    - A synthetic twelve-factor certificate is rejected if any alleged factor is composite.
+    - A 1025-byte logical record is rejected before the writer.
+    - Every shard is at most 12582912 bytes and has the exact frozen filename.
+    - Aggregate shard bytes are at most 1610612736.
+    - Every other artifact is at most 67108864 bytes and their aggregate is at most 268435456.
+    - Total tracked pilot bytes are at most 1879048192 before staging.
+    - Canonical seed-roster and shard-manifest SHA-256 values are independently reproduced.
+  - op: replace
+    target_path: /shard_manifest_contract
+    literal_value:
+      canonical_path: experiments/EXP-SMTH-002/results/certificates/shard_manifest.json
+      exact_entries: 128
+      entry_fields:
+      - repository_relative_path
+      - shard_index
+      - first_record_index
+      - last_record_index
+      - record_count
+      - compressed_bytes
+      - logical_bytes
+      - gzip_sha256
+      aggregate_fields:
+      - total_records
+      - total_compressed_bytes
+      - total_logical_bytes
+      - exact_path_roster_sha256
+      - every_object_below_github_limit
+      - aggregate_below_push_cap
+
+  exact_shard_path_roster:
+  - experiments/EXP-SMTH-002/results/certificates/shard-000.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-001.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-002.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-003.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-004.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-005.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-006.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-007.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-008.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-009.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-010.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-011.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-012.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-013.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-014.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-015.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-016.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-017.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-018.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-019.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-020.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-021.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-022.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-023.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-024.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-025.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-026.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-027.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-028.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-029.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-030.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-031.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-032.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-033.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-034.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-035.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-036.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-037.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-038.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-039.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-040.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-041.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-042.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-043.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-044.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-045.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-046.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-047.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-048.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-049.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-050.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-051.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-052.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-053.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-054.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-055.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-056.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-057.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-058.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-059.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-060.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-061.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-062.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-063.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-064.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-065.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-066.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-067.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-068.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-069.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-070.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-071.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-072.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-073.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-074.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-075.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-076.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-077.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-078.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-079.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-080.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-081.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-082.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-083.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-084.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-085.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-086.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-087.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-088.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-089.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-090.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-091.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-092.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-093.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-094.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-095.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-096.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-097.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-098.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-099.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-100.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-101.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-102.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-103.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-104.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-105.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-106.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-107.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-108.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-109.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-110.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-111.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-112.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-113.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-114.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-115.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-116.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-117.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-118.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-119.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-120.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-121.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-122.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-123.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-124.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-125.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-126.jsonl.gz
+  - experiments/EXP-SMTH-002/results/certificates/shard-127.jsonl.gz
+
+  effective_contract_checks:
+    - >-
+      required_artifacts contains exactly 139 paths: 11 non-shard plus 128 shards.
+    - exact_shard_path_roster contains exactly 128 unique paths and equals the shard subset of required_artifacts.
+    - No certificate_shards.tar path or tar reconstruction control remains.
+    - Every individual cap is below 104857600 bytes.
+    - Aggregate tracked cap is below 2000000000 bytes.
+    - Scientific counts remain 32 arrays and 4186112 factorizations.
+    - No curve, factor base, S3, source, plant, p-value, evidence or state mode exists.
+
+  release_condition: >-
+    Fresh independent committed-byte PASS plus a new Coordinator authorization
+    superseding TASK-20260801-064 is required before implementation or execution.

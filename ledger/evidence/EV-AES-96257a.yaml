@@ -1,0 +1,155 @@
+evidence:
+  id: EV-AES-96257a
+  hypothesis_id: RQ-AES-003
+  hypothesis_note: >-
+    hypothesis_id carries the QUESTION id, following the convention of
+    EV-AES-001..005 and EV-AES-d8a13e. No H-* record is bound.
+  experiment_ids: []
+  run_ids: []
+  task_ids:
+    - TASK-20260802-4500d4
+    - TASK-20260802-447db8
+    - TASK-20260802-d8a5ed
+    - TASK-20260802-5baf79
+    - TASK-20260802-fa1dcc
+    - TASK-20260802-4072e6
+  type: measurement
+  direction: mixed
+  strength: replicated
+  strength_basis: >-
+    Both producer packages were bound by a DISPATCHER-VERIFIED snapshot archive
+    (TASK-20260802-d8a5ed) before either reviewer read them, and both an
+    independent validator and an independent red team returned. Session and
+    implementation independence only; NOT model independence under standing basis
+    0137a051eb5828789eb267fa83c8278086578d4c, so nothing counts toward a closure
+    quorum. The strength is held at `replicated` and NOT raised despite three
+    implementations now agreeing exactly, because of OBS-B3-4 below.
+  claim_tier: toy
+  claim_tier_basis: >-
+    Reduced-round AES-shaped SPN, r in {4,5,6}, one 2^32 diagonal coset, a small
+    number of keys, one machine. Nothing about full-round or deployed AES; no
+    comparison to published cryptanalysis in either direction.
+  certificate_refs: []
+  proof_status: empirical_only
+  proof_refs: []
+
+  observations:
+    - id: OBS-B3-1
+      statement: >-
+        THREE INDEPENDENT IMPLEMENTATIONS NOW AGREE EXACTLY on the r=4 M0 arm:
+        n = 547608330240 with occupancy histogram {0: 4278190080, 256: 16777216}
+        and max_occ 256, reproduced by BATCH-002's engine, by the BATCH-002
+        validator's engine, and now by this batch's independently written
+        collide.c at a DIFFERENT window partitioning and a different counter width.
+      status: CONFIRMED
+    - id: OBS-B3-2
+      statement: >-
+        THE CROSS-INSTRUMENT ANCHOR AGREES EXACTLY where it could run. BATCH-001's
+        count5 and BATCH-002's cnt, on an identical configuration with neither
+        source edited, both return n = 2147661752 with n_alt, max_occ 12 and ALL
+        THIRTEEN occupancy histogram bins identical.
+      status: CONFIRMED
+      limits: >-
+        Engine B's SOFTWARE T-table path -- the path BATCH-002 used for every
+        matrix-varying arm -- never produced a count; both attempts timed out
+        (resource_exhaustion, not evidence). The producer's own read was NARROWED,
+        NOT CLOSED. The red team then corrected that read as too conservative for
+        the batch as a whole, because rank 1's collide.c supplied the missing
+        coverage at a different partitioning. Both readings are recorded; the
+        Coordinator adopts the red team's, which is the more favourable one, ONLY
+        because it rests on a measurement rank 1 actually made.
+    - id: OBS-B3-3
+      statement: >-
+        UNDER M1 AT r=5, ON A KEY AND BASE THE PRODUCER GENERATED ITSELF with an
+        engine it wrote from scratch and pinned to FIPS-197, n mod 8 = 0. The
+        frozen falsification criterion for the r=5 half of CORR-20260802-46b73b
+        was not met. M1's non-singularity was verified by the producer's own
+        arithmetic with the determinant computed twice by independent methods, and
+        independently CONFIRMED by the validator.
+      status: CONFIRMED
+      limits: >-
+        The producer did NOT reproduce BATCH-002's exact M1 counts under their key;
+        budget forced dropping four arms. It declined to call the rule strengthened
+        by more than one arm's worth, and that self-assessment is adopted here.
+    - id: OBS-B3-4
+      statement: >-
+        THE FINDING THAT GOVERNS THIS RECORD AND CAPS ITS STRENGTH. THERE IS NO
+        DECAY CONTROL AND NO NULL ARM, ANYWHERE IN THIS CAMPAIGN, FOR THE
+        ZERO-ENTRY MATRICES. The red team extracted all 22 counting arms carrying
+        n_mod8 across BATCH-001/002/003 and recomputed n mod 8 from n itself,
+        agreeing on all 22. EVERY arm at r >= 6 uses AES MixColumns. NOT ONE
+        EXISTS UNDER M0 OR M1.
+      why_it_matters: >-
+        Under M1 at r=5 the occupancy histogram is
+        {0:4284365663, 256:6167727, 512:3085256, 768:1029383, 1024:257247,
+        1280:51908, 1536:8656, 1792:1296, 2048:149, 2304:10, 2560:1} -- EVERY FIBER
+        SIZE IS A MULTIPLE OF 256, exactly as under M0 at r=4. Under AES
+        MixColumns at r=5 the histogram is Poisson-shaped with max_occ 12 and has
+        no such divisibility. So the zero-entry matrices exhibit a fiber degeneracy
+        that PLAUSIBLY FORCES n mod 8 = 0 INDEPENDENTLY OF ROUND COUNT. If that is
+        what is happening, OBS-B3-3 is not evidence about round structure at all.
+        Whether the property dies at r=6 under a zero-entry layer is UNMEASURED.
+      status: >-
+        OPEN AND UNRESOLVED. The BATCH-001 validator recorded this exact gap three
+        batches ago -- its not_executed list contains "MixColumns-with-a-zero-entry
+        control: my substitute circulant is SINGULAR, so the run aborted" -- and it
+        was never filled. Every decay figure this campaign holds is decay evidence
+        for the NO-ZERO-ENTRY layer only.
+    - id: OBS-B3-5
+      statement: >-
+        SINGLE-SLOT HINT CORRUPTION IS COMPLETE. Slot t=1 alone and slot t=2 alone
+        each give {0: 4}; pooled with BATCH-002's t=0 arm, {0: 12} over 12
+        diagonals. Only the slot index was varied from BATCH-002's run.
+      status: CONFIRMED
+      limits: >-
+        The red team notes rank 4 has NO POSITIVE CONTROL: the declared
+        backward-compatibility check compares a false-hint {0:4} against a
+        false-hint {0:4} and could not detect an all-empty regression. A true-hint
+        arm through the same modified binary is required and was not run.
+    - id: OBS-B3-6
+      statement: >-
+        A CAPABILITY LIMIT, PREDICTED FROM SOURCE BEFORE MEASURING. count5.c uses a
+        uint8 SATURATING counter, so it cannot represent the r=4 critical arm whose
+        max occupancy is exactly 256; it would report max_occ 255, overflow true,
+        and a wrong n. That arm was never cross-checkable on engine A even with
+        unlimited time. The red team's refinement is adopted: this disqualifies
+        engine A as ARBITER for dense-occupancy configurations, and does not make
+        547608330240 unverifiable, since three implementations agree on it.
+      status: CONFIRMED
+
+  boundaries:
+    - >-
+      WHAT REMAINS SPECIFICALLY ABOUT AES IS NOW VERY LITTLE, AND THIS BATCH MOVED
+      IT FURTHER AWAY. The S-box was already excluded: the r=4 and r=5 properties
+      reproduce with uniformly random bijective S-boxes at 120/120. BATCH-002 and
+      BATCH-003 now take most of AES MixColumns out as well. What remains as
+      hypothesis is the SHAPE. The only AES-specific load-bearing object left is
+      the key schedule in the hint construction, whose r=6 result is DOMINATED and
+      whose r=7 result is NOT a key recovery. This is a scoping statement, not a
+      closure: the S-box and key-schedule lanes are unprobed.
+    - >-
+      The r=5 yoyo signal is the one campaign result whose S-box dependence has
+      NEVER been measured. A single arm with a random bijective S-box would settle
+      whether any result in this campaign is AES-specific. It is in no queue.
+    - >-
+      Nothing here is a statement about full-round or deployed AES, and no
+      comparison to published cryptanalysis is made in either direction.
+
+  unresolved_confounds:
+    - OBS-B3-4, the missing decay control for zero-entry matrices. This is the batch's governing open item.
+    - The software counting kernel is anchored at count level only via rank 1's single M0 r=4 arm; engine B's soft path never produced a count.
+    - Rank 4 has no positive control.
+    - The validation report does not parse as YAML (unquoted colon, line 844). Content intact; archived unedited; recorded in the archive note.
+
+  reviewed_by:
+    - TASK-20260802-5baf79 (independent validator; per-claim verdicts including one UNDERSTATED finding)
+    - TASK-20260802-fa1dcc (independent red team; 8 objections, 6 required controls)
+  reviewed_at: 2026-08-03
+
+  inference:
+    policy: coordinator-orchestration-code
+    requested_policy: coordinator-orchestration-code
+    resolved_model: claude-opus-5
+    fallback_used: true
+    model_verified: false
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c

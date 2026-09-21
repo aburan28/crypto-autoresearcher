@@ -1,0 +1,150 @@
+experiment:
+  id: EXP-ICEX-fafeec
+  hypothesis_id: H-ICEX-6d0c9a
+  version: 1
+  title: >-
+    Realised multi-target amortization of shared-walk collision search against
+    the sqrt(M) prediction, with storage charged and a partitioned-table planted
+    defect
+  status: draft
+  objective: >-
+    Measure the realised amortization factor A(M) = M * ops_1 / ops_M in GROUP
+    OPERATIONS for batch sizes M in {1, 4, 16, 64} at toy prime-order subgroup
+    sizes, with distinguished-point storage charged in stored group elements and
+    in bytes, and compare against the classical sqrt(M) prediction. Both sides of
+    the amortization ratio are group-operation counts; no wall-clock quantity
+    appears in any ratio.
+  inputs:
+    subgroup_bit_sizes: [32, 36]
+    batch_sizes: [1, 4, 16, 64]
+    repetitions_per_cell: 30
+    walk: r-adding walk, r frozen at approval and recorded per run
+    distinguished_point_granularity: frozen at approval and recorded per run
+  controls:
+  - >-
+    NAMED NULL N1, BATCH SIZE ONE. Forced value - the M = 1 arm must reproduce
+    the single-target baseline group-operation count exactly, run for run, on
+    identical seeds. A departure means the batch code path is not the baseline
+    code path.
+  - >-
+    NAMED NULL N2, NO SHARING. M targets solved with M independent tables and no
+    cross-target matching. Forced value - A = 1.00 within 0.10 at every M.
+    Anything below means unintended sharing and voids the run.
+  - >-
+    NAMED CONTROL N3, PARTITIONED-TABLE PLANTED DEFECT, DEFECT OF KNOWN SIZE. The
+    shared table is artificially split into 4 independent partitions, so only
+    M/4 targets can collide usefully with each other. Predicted magnitude,
+    binding - A = sqrt(M/4), that is exactly 2.00 at M = 16 and 4.00 at M = 64
+    against unpartitioned predictions of 4.00 and 8.00. The instrument must
+    report each within 0.50. The two-point ladder is the demonstrated dynamic
+    range; a control that merely returns a number is not accepted.
+  - >-
+    NAMED CONTROL N4, CURVE-FREE Z/n IMPLEMENTATION CHECK. The identical batch
+    machinery run on Z/n with a pseudorandom step function and no curve. LABEL,
+    PRE-STATED - A(M) = sqrt(M) is curve-free BY CONSTRUCTION, since the
+    classical analysis uses only the group law; this arm is an IMPLEMENTATION
+    check and is never reported as a curve control, and no outcome on A(M) from
+    any arm is an elliptic-curve statement.
+  - >-
+    NAMED CONTROL N5, CERTIFICATE VERIFICATION. Every recovered scalar is
+    verified by an independent [k]P = R check before any cost from that run is
+    admitted.
+  independent_variables: [batch_size, subgroup_bit_size, sharing_mode]
+  metrics:
+    primary:
+    - realised_amortization_factor_A_of_M_dimensionless
+    - total_group_operations_to_solve_the_whole_batch_count
+    secondary:
+    - group_operations_per_target_count
+    - stored_distinguished_points_count_and_bytes
+    - peak_resident_memory_bytes
+    - wall_clock_seconds_recorded_but_never_used_in_a_ratio
+    - seconds_per_group_operation_reported_separately
+    - repetition_level_distribution_of_total_operations
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: >-
+      A(M) = M * ops_1 / ops_M, where ops_1 is the mean group-operation count of
+      the single-target baseline over its repetitions and ops_M is the mean
+      group-operation count to solve all M targets. Numerator and denominator are
+      both group-operation counts.
+    formula: >-
+      A(M) = sqrt(M), that is 1.00, 2.00, 4.00 and 8.00 at M = 1, 4, 16 and 64,
+      each to within 25 percent.
+    source: >-
+      Classical shared-walk collision analysis for parallel collision search with
+      distinguished points, as recorded in KN-TECH-006.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Subgroups at 32 and 36 bits, giving single-target costs of order 2^16 and
+      2^18 group operations, so 30 repetitions per cell are affordable. The
+      batch-to-group-size ratio at these sizes does not represent a deployed
+      ratio and no extrapolation to deployed batch sizes is offered.
+    correspondence: null
+  tail_checks:
+  - >-
+    The LARGEST batch size is reported individually with its storage footprint,
+    since that is where storage bites hardest and where a memory-bound regime
+    would first appear.
+  - >-
+    The slowest decile of repetitions at each M is reported with its
+    distinguished-point parameters, since a heavy tail in collision search is
+    expected and a mean alone would hide it.
+  replication:
+    seeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+    independent_instances: 8
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 60
+    maximum_memory_gb: 16
+    maximum_runs: 240
+  stopping_rules:
+  - >-
+    Stop a run at 3600 s and record it as resource_exhaustion. A stopped run
+    contributes no operation count and is never averaged in.
+  - >-
+    Stop increasing M when the distinguished-point table exceeds the declared
+    memory budget; report the largest reached M as reached and every larger M as
+    unreached, never extrapolated.
+  - >-
+    Stop the experiment if either null fails, before any amortization factor is
+    interpreted.
+  invalidation_rules:
+  - >-
+    Any amortization ratio whose numerator and denominator are not both
+    group-operation counts is invalid_measurement. A wall-clock-over-operations
+    quantity is not a cost.
+  - >-
+    Failure of the M = 1 arm to reproduce the single-target baseline exactly
+    invalidates every factor in the run.
+  - >-
+    A no-sharing arm reporting A below 1.00 beyond 0.10 invalidates the run.
+  - >-
+    Failure of the partitioned-table plant to return its predicted value within
+    0.50 invalidates every factor in the run.
+  - >-
+    Any claimed solve without an independently verified [k]P = R certificate is
+    invalid_measurement.
+  success_criterion: >-
+    Both nulls hold at their forced values; the partitioned-table plant returns
+    2.00 and 4.00 within 0.50; and A(M) matches sqrt(M) within 25 percent at
+    every M in the declared ladder, with the storage footprint reported per M.
+  falsification_criterion: >-
+    A realised A(M) departing from sqrt(M) by more than 25 percent at any M with
+    both nulls and the plant passing falsifies HEUR-001 within the tested scope
+    and identifies the batch size at which the idealisation breaks. Storage
+    exceeding the budget before M = 64 is a REACH limit, reported as such, and is
+    not a falsification of the sqrt(M) factor.
+  required_artifacts:
+  - curve and subgroup parameters, generator, order and cofactor per instance
+  - target list per batch, with the scalars sealed until verification
+  - per-run group-operation counters, separately for walk steps, table lookups and verification
+  - distinguished-point table size in elements and bytes, sampled over the run and at its end
+  - peak resident memory per run
+  - independent [k]P = R certificate for every recovered scalar
+  - null, planted-partition and curve-free Z/n arm outputs under the identical code path
+  - seconds per group operation, reported separately and never used in a ratio
+  - per-run manifest, command, environment, git commit, stdout, stderr, validity status
+  assigned_to: executor
+  approved_by: null

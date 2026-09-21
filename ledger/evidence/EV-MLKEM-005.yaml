@@ -1,0 +1,103 @@
+evidence:
+  id: EV-MLKEM-005
+  hypothesis_id: H-MLKEM-002
+  experiment_ids: [EXP-MLKEM-002]
+  run_ids: [RUN-MLKEM-005, RUN-MLKEM-006, RUN-MLKEM-007, RUN-MLKEM-008]
+  type: empirical
+  direction: supports
+  strength: moderate
+  claim_tier: laboratory_implementation_conformance
+  certificate_refs:
+    - coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/archives/TASK-20260724-229/snapshot-receipt.json
+  proof_status: empirical_only
+  proof_refs:
+    - experiments/EXP-MLKEM-002/execution-report.yaml
+    - experiments/EXP-MLKEM-002/analysis/premise_verdicts.yaml
+    - experiments/EXP-MLKEM-002/analysis/coverage_maps.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/summary.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/summary.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/summary.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/summary.json
+    - coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/tasks/TASK-20260724-230/validation_report.yaml
+    - coordination/goals/GOAL-MLKEM-001/batches/BATCH-005/tasks/TASK-20260724-231/red_team_report.yaml
+  observations:
+    - >-
+      All four planned EXP-MLKEM-002 runs reached completed_valid under Cursor
+      Grok 4.5 with requested_policy executor-terra and fallback_used true. The
+      run package is snapshot 28608fb8a48ffbb8291c82810f2867553d3fe6f1; the
+      validator recomputed all 39 receipt hashes against that commit with zero
+      mismatches (TASK-20260724-230, accept_with_qualifications).
+    - >-
+      CTRL-SOURCE-PREMISE returned present for both inherited premises. At
+      peeled commit 1d363f3 (v5.9.1-stable), mlkem_cmp_avx2 in
+      wolfcrypt/src/wc_mlkem_asm.S ends at vmovdqu 1504(%rdi) and therefore
+      compares 1536 of the 1568 ML-KEM-1024 ciphertext bytes; at peeled commit
+      ac01707 (v5.9.2-stable) the same function adds vmovdqu 1536(%rdi) for the
+      final 32 bytes. mlkem_cmp_neon in wolfcrypt/src/port/arm/armv8-mlkem-asm.S
+      loads the full length but reduces with ins v9.b[0], v8.b[1] at v5.9.1 and
+      with ext v9.16b, v8.16b, v8.16b, #8 at v5.9.2. The coordinator, the
+      validator, and the red team each read this assembly independently.
+    - >-
+      CTRL-NEGATIVE-HARNESS passed and was reported before any library-build
+      conclusion: a deliberately truncated harness-side comparator was flagged
+      with exactly its omitted ranges [384,768), [544,1088), [784,1568),
+      establishing generator adequacy for this omission class independently of
+      any wolfSSL build.
+    - >-
+      Measured primitive silent sets match the source-level omissions.
+      BUILD-PREFIX-AVX2 on ML-KEM-1024 has silent set exactly {1536..1567}
+      (32 indices, empty unstable set, coverage fraction 1.0, 6272 mutation
+      events); BUILD-PREFIX-NEON under qemu-aarch64 has silent cardinalities
+      384, 544, and 784 following the (i mod 64) >= 32 half-block pattern plus
+      the ML-KEM-1024 remainder. Both were independently recomputed by the
+      validator from the raw per-index tables.
+    - >-
+      BUILD-POSTFIX-AVX2 and BUILD-POSTFIX-NEON show zero silent indices and
+      zero scalar-versus-optimized disagreements at coverage fraction 1.0 for
+      all three parameter sets and both seeds. Pre-fix AVX2 ML-KEM-1024 shows 32
+      disagreements against its scalar reference; all other pre-fix
+      parameter-set combinations show zero.
+    - >-
+      Algorithm-18 integration on pre-fix AVX2 silent indices accepted a mutated
+      ciphertext on 43 of 64 index/seed pairs (20 indices on both seeds, 9 on
+      neither, 3 seed-dependent). This is mechanism-consistent rather than
+      universal: a mutation in the uncompared tail that changes the decrypted
+      message produces a re-encryption differing inside the compared prefix, so
+      the FO comparison still rejects. No exploitation path was built or
+      estimated.
+    - >-
+      Independent red team (TASK-20260724-231) could not falsify the outcome.
+      It corroborated both premises against NVD/CNA records and its own reading
+      of the assembly, defeated the fabrication objection (OBJ-006) and the
+      generator-adequacy objection (OBJ-007), and left five scope-narrowing
+      objections standing: primitive silence is not universal FO accept
+      (OBJ-001), the post-fix null is generator-scoped (OBJ-002), the probe
+      calls optimized symbols directly and NEON was never checked at the
+      Algorithm-18 boundary (OBJ-003), exact ciphertext blobs are not archived
+      (OBJ-004), and the conformance anchor is the weakest accepted one
+      (OBJ-005).
+  inference: >-
+    Within this laboratory boundary, a byte-complete single-byte differential
+    suite applied directly to the ML-KEM comparison primitive discriminates a
+    source-verified incomplete re-encryption comparison from a conforming one:
+    it detected both verified omissions with silent sets matching the source,
+    detected its own truncated negative control, and produced no disagreement on
+    either post-fix backend at complete byte coverage. This supports H-MLKEM-002
+    scoped to the two audited wolfSSL commits, the attested backends, the three
+    parameter sets, the two seeds, and the single-byte xor generator. It is a
+    defensive conformance result about specific builds; it is not an attack, an
+    oracle, an exploitability finding, or any statement about MLWE hardness or
+    passive ML-KEM security.
+  boundaries:
+    - claim_tier is laboratory implementation conformance, never cryptanalytic advantage
+    - scoped to peeled commits 1d363f3 and ac01707 and to the backends built and attested here
+    - post-fix zero-disagreement is a null under one generator and does not prove comparison correctness for multi-byte, alignment, length-dependent, key-dependent, shared-defect, or timing-only classes
+    - NEON results are qemu-aarch64 primitive-level measurements with no Algorithm-18 integration check
+    - the conformance anchor is deterministic encapsulate/decapsulate self-consistency plus scalar cross-commit equality, the weakest anchor the protocol accepts
+    - vendor-reported CVE-2026-10097 exploitation figures were not re-executed and remain uncorroborated by this program
+  unresolved_confounds:
+    - Manifest wall times exclude configure, compile, and probe-repair work, so stage resource accounting is incomplete (validator D-BUDGET-WALL-EXCLUDES-BUILD)
+    - RUN-MLKEM-008 raw.json stores NEON silent sets and counts but not the full per-index rows retained for the x86 runs (validator D-RUN008-RAW-GRID-TRUNCATION)
+    - Recorded command strings for runs 006 through 008 are stylized summaries rather than exact argv
+    - Exact ciphertexts are reconstructible only by rebuilding and replaying the probe from committed seeds and digests
+  reviewed_by: coordinator

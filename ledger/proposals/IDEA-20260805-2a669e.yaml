@@ -1,0 +1,562 @@
+idea:
+  id: IDEA-20260805-2a669e
+  question_id: RQ-SQISIGN-001
+  added: '2026-08-05'
+  title: >-
+    Abort conditioning: the Fiat-Shamir-with-aborts leakage template, recorded
+    in this corpus for lattice signatures and never once pointed at an isogeny
+    signature, applied to SQIsign's signing retry loop - where the whole
+    question reduces to whether one acceptance probability depends on the
+    secret ideal
+  class: mechanism
+
+  claim: >-
+    A signer that RETRIES on failure does not publish a sample from its nominal
+    commitment distribution; it publishes a sample CONDITIONED ON ACCEPTANCE,
+    and the conditioning tilts the published law by exactly the acceptance
+    probability. Write mu for the nominal law of the commitment randomness
+    psi and a(psi; I_tau) for the probability that a signing attempt using psi
+    completes, given the secret ideal I_tau. The published commitment law is
+        nu_{I_tau}(psi) = a(psi; I_tau) * mu(psi) / abar(I_tau),
+        abar(I_tau) = E_mu[a(.; I_tau)],
+    and therefore THE ENTIRE ABORT-INDUCED LEAKAGE IS THE DEPENDENCE OF a ON
+    I_tau AND NOTHING ELSE. Two consequences, both forced and both derived
+    before any run: (i) if a(psi; .) is constant in I_tau for mu-almost every
+    psi, then nu is the SAME LAW for every secret, the leakage is EXACTLY ZERO,
+    and this entire surface closes by derivation at zero compute - which is
+    precisely the property Lyubashevsky-style rejection sampling is ENGINEERED
+    to have, and which GPV/Falcon achieves differently by making the output law
+    trapdoor-independent (both paradigms recorded in this corpus at
+    KN-TECH-023, READ); (ii) if it is not constant, the across-secret
+    chi-squared divergence is CV^2 where CV is the relative standard deviation
+    of a across secrets at fixed psi, the statistical distance between two
+    secrets' published commitment laws is approximately 0.399*CV, and the number
+    of signatures a distinguisher needs is approximately CV^-2. THREE NUMBERS,
+    ONE RELATION, NO SIMULATION REQUIRED. The proposal is to enumerate every
+    abort and retry in SQIsign's signing procedure, decide for each whether its
+    condition can depend on I_tau, and either close the surface with a named
+    obstruction or produce CV and the resulting signature count. NOTHING IN THIS
+    CORPUS HAS EVER ASKED AN ISOGENY SCHEME THIS QUESTION.
+
+  object_first_candidate:
+    tracked_object: >-
+      The ACCEPTANCE INDICATOR of a single signing attempt, A in {0,1}, followed
+      through the retry loop into the law of the PUBLISHED commitment - i.e. the
+      tilt factor a(psi; I_tau)/abar(I_tau) that the conditioning applies to
+      mu. Not the transcript, not the response, not the isogeny: the
+      one-bit outcome of an attempt, and the measure it reweights.
+    established_families_off_limits: >-
+      OFF-LIMITS as the primary lens: (i) SIDE CHANNELS OF EVERY KIND, and this
+      exclusion is load-bearing rather than decorative - the obvious reading of
+      "the signer retried" is a TIMING observation, and RQ-SQISIGN-001 scopes
+      this question to distributional leakage in its own words ("not timing:
+      distributional"). This proposal assumes the adversary sees ONLY the
+      published transcripts and never observes an abort, a retry count, or a
+      wall-clock. That restriction is what makes the object interesting: the
+      abort is invisible and still tilts the published law; (ii)
+      endomorphism-ring and path-finding attacks, GOAL-SSI-001's lane; (iii) the
+      SIDH/Kani torsion-image template and the published-data-surface inventory,
+      GOAL-SQISIGN-002's lane; (iv) lattice reduction and hint integration -
+      the template is imported from the lattice world but the machinery is not;
+      (v) the graph-mixing analysis of the sibling proposal
+      IDEA-20260805-bb4bf8, which is a different tilt of the same commitment law
+      and is deliberately kept separate so the two effects cannot be confused.
+    newness_score: >-
+      The template is old and famous on the lattice side: rejection sampling
+      exists BECAUSE naive Fiat-Shamir signatures leak the secret through the
+      accepted distribution. KN-TECH-023 (READ in-repo) records both lattice
+      answers - Fiat-Shamir-with-aborts and GPV's trapdoor-independent Gaussian
+      output. What is new here is the DIRECTION OF TRANSFER. This corpus's
+      technique index contains no application of abort conditioning to any
+      isogeny scheme, and the isogeny literature's framing of SQIsign's signing
+      failures is (RECALLED, UNVERIFIED) as an efficiency matter - "the
+      algorithm sometimes fails and we retry" - rather than as a measure-tilting
+      one. The transfer is not obviously blocked, and the reason it is not
+      blocked is worth stating: nothing in the lattice analysis uses a lattice.
+      It uses only that a retry loop conditions on success.
+    testability_score: >-
+      The decisive stage is a READING task with a binary output per abort site,
+      and it is testable by inspection. The quantitative stage needs a toy
+      implementation of the signing loop, which is expensive; it is therefore
+      gated behind the reading stage and behind a derivation that may close the
+      question without it.
+    survival_score: >-
+      The object survives exactly as far as the retry loop reaches. If the
+      specification has no data-dependent retry at all, the object does not
+      exist and the proposal closes itself in one reading - which is a real
+      outcome and is pre-declared as one, not as a failure.
+
+  mechanism: >-
+    DERIVED HERE. The protocol shape and every claim about SQIsign's signing
+    procedure are RECALLED, UNVERIFIED: no SQIsign specification of any version
+    has been read by this program (RQ-SQISIGN-001.provenance), and its
+    constraints forbid designing on unverified per-scheme claims. Stage 0 is the
+    gate that replaces recall with quotation.
+
+    THE TILT, DERIVED IN FULL. A signing attempt draws commitment randomness
+    psi from mu, then runs a procedure that either completes and publishes a
+    transcript or fails and restarts with fresh psi. Let
+    a(psi; I_tau) = Pr[attempt completes | psi, I_tau], the probability taken
+    over any further randomness in the attempt. The loop terminates with
+    probability 1 whenever abar(I_tau) = E_mu[a] > 0, and the law of the psi
+    that is finally published is
+        nu_{I_tau}(psi) = a(psi; I_tau) mu(psi) / abar(I_tau).
+    This is elementary and exact - it is the law of the first success in a
+    sequence of i.i.d. attempts - and it is the whole mechanism.
+
+    WHAT LEAKS AND WHAT DOES NOT. Two secrets I_tau, I_tau' produce published
+    laws nu, nu'. Their total-variation distance is
+        TV(nu, nu') = (1/2) E_mu | a/abar - a'/abar' |.
+    IF a DOES NOT DEPEND ON I_tau, THIS IS EXACTLY ZERO, no matter how wildly a
+    varies in psi. THAT IS THE CENTRAL AND SLIGHTLY COUNTERINTUITIVE POINT, and
+    it is why the naive framing of this audit is wrong: a strongly
+    psi-dependent abort is HARMLESS for key leakage (it changes the law the
+    simulator must match, not the law's dependence on the key), while a weakly
+    I_tau-dependent one is not. A design review that checks "is the acceptance
+    rate high" is checking the wrong quantity; the quantity is
+    d a / d I_tau.
+
+    THE FORCED QUANTITATIVE RELATION. Normalise r(psi) = a(psi; I_tau)/abar and
+    let CV be the relative standard deviation of the tilt ACROSS SECRETS at
+    fixed psi. Then the chi-squared divergence between two secrets' published
+    laws is
+        chi^2(nu' || nu) = Var(r'/r) = CV^2 (to leading order),
+    the statistical distance is TV = (1/2) E|r'/r - 1| and, for a fluctuation
+    that is approximately Gaussian, E|X - 1| = sqrt(2/pi)*sd(X) = 0.7979*CV,
+    hence
+        TV = 0.399 * CV,
+    and the number of published signatures needed to distinguish two secrets'
+    transcript streams with constant advantage is
+        N_detect = Theta(1/chi^2) = Theta(CV^-2) = Theta(0.159/TV^2).
+    ALL THREE RELATIONS ARE FIXED BEFORE ANY MEASUREMENT. A measured CV of 2^-32
+    means 2^64 signatures; a measured CV of 2^-64 means 2^128 and the surface is
+    dead at any budget. A single measured CV therefore converts directly into a
+    signature count, which is the form GOAL-SQISIGN-001's completion criterion
+    asks for.
+
+    WHERE THE ABORTS ARE, AS CANDIDATES TO CHECK RATHER THAN AS FACTS. RECALLED,
+    UNVERIFIED, and every item is a line to find in the specification or to
+    strike: (A1) the ideal-to-isogeny / KLPT-style step failing to solve a norm
+    equation for the required norm, retried with fresh commitment randomness;
+    (A2) the cyclicity / non-backtracking condition on the composite of the
+    dual challenge with the response failing, retried; (A3) Cornacchia's
+    algorithm failing to represent a value as a norm, retried; (A4) in a
+    higher-dimensional variant, a dimension-2 isogeny computation failing to
+    take the required form. FOR EACH, THE AUDIT ASKS ONE QUESTION: does the
+    failure condition read I_tau, or only public data and fresh randomness? A1
+    is the one to look at first, because a norm equation whose target norm is
+    built from the secret ideal is precisely a condition that reads I_tau; A2 is
+    the one most likely to be secret-independent, because cyclicity is a
+    condition on the composite's kernel. NEITHER GUESS IS ASSERTED; both are
+    written down in advance so that the reading cannot be steered by what it
+    finds.
+
+    THE STRUCTURAL COMPARISON THAT MAKES THIS A TRANSFER AND NOT A REINVENTION.
+    KN-TECH-023 (READ) records that GPV hash-and-sign makes the signature
+    distribution independent of the trapdoor by discrete Gaussian sampling, and
+    tags Fiat-Shamir-with-aborts as the other lattice paradigm. Both are
+    ENGINEERED SOLUTIONS TO EXACTLY THE TILT DERIVED ABOVE. The audit's real
+    question is therefore not "does SQIsign leak" but "which of the two
+    engineered answers, if either, does SQIsign's signing procedure implement,
+    and is the implementation's independence argument stated or assumed?" That
+    is a well-posed question about a document, it has a definite answer, and no
+    record in this corpus has asked it of any isogeny scheme.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    screened_on: '2026-08-05'
+    corpus_paths_grepped:
+      - knowledge/techniques (case-insensitive grep for "rejection sampling",
+        "with aborts", "abort")
+      - ledger/proposals (RQ-SQISIGN-001 prior art)
+    grep_results:
+      - >-
+        Only KN-TECH-022 and KN-TECH-023 match the abort/rejection terms, and
+        both are LATTICE entries. No technique, proposal, hypothesis, experiment
+        or evidence record applies abort conditioning to an isogeny scheme.
+      - >-
+        The single prior proposal on this question (IDEA-20260801-020) tests a
+        divergence between transcripts and a baseline; it does not model the
+        retry loop, does not mention conditioning, and derives no relation
+        between a tilt and a signature count. This proposal is not a variant of
+        it.
+    conclusion: >-
+      Novel within this corpus as an application. NOT claimed novel externally -
+      abort conditioning is a standard concern and the SQIsign team may well
+      have addressed it explicitly in text this program has not read. The screen
+      is discounted for the corpus-wide reason in the ANGLE-BRIEF: 7420 of 7809
+      literature entries carry a bulk-seeding caveat while their
+      citation_verified field reads "read", so absence from this corpus is not
+      evidence of absence anywhere.
+
+  literature_context:
+    - >-
+      NOT READ: any SQIsign specification or paper. Every statement about
+      SQIsign's signing procedure, including the abort candidates A1-A4, is
+      RECALLED, UNVERIFIED and is a candidate to check. No theorem number, page,
+      author, venue or measurement is asserted.
+    - >-
+      READ IN-REPO: knowledge/techniques/KN-TECH-023.md, "Lattice trapdoors,
+      signature paradigms, and concrete-hardness estimation", whose tags include
+      fiat-shamir-with-aborts and whose text states that GPV's discrete Gaussian
+      sampling "makes the signature distribution independent of the trapdoor".
+      That entry is the DONOR of this transfer and is cited for the paradigm
+      only, not for any claim about isogenies.
+    - >-
+      READ IN-REPO: knowledge/techniques/KN-TECH-057.md, for the matched
+      full-cost path-finding baselines this proposal does not compete with.
+    - >-
+      RELAYED VIA scratchpad/scout/ANGLE-BRIEF.md, NOT READ: ePrint 2025/830,
+      reported as a simple-power-analysis attack on Cornacchia's algorithm in
+      an SQIsign context. Listed for a specific reason and NOT used: it is
+      evidence that Cornacchia sits in the signing path at all, which is what
+      makes abort candidate A3 worth looking for - but it is a SIDE-CHANNEL
+      paper and side channels are off-limits here by RQ scoping. The two
+      questions must not be merged.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      The full signing attempt - commitment randomness, secret ideal, every
+      intermediate quaternion object, the response, and the abort/retry history
+      - projected onto the single bit A in {0,1} and, through the loop, onto the
+      tilt r(psi) = a(psi; I_tau)/abar(I_tau) applied to the published
+      commitment law.
+    what_is_discarded: >-
+      Everything except one bit per attempt, and in the published record not
+      even that - only the reweighting it induces on the commitment law.
+    why_genuinely_lossy: >-
+      Maximally lossy per attempt: one bit. The fibre over A = 1 is the whole
+      space of successful signing runs.
+    why_compatible_with_the_operations: >-
+      Compatible in the exact sense the test requires: the acceptance bit
+      propagates deterministically through the retry loop as a reweighting of
+      the measure, by the elementary first-success law. No approximation enters
+      at the projection.
+    is_it_only_a_change_of_coordinates: >-
+      NO. A one-bit projection of a signing run is not invertible in any sense,
+      so the KN-LIT-7595 failure - (Delta, Pi) = (x xor y, x*y) in
+      characteristic 2, where the pair is recoverable as the roots of
+      t^2 + Delta t + Pi and nothing was discarded - cannot apply.
+    which_failure_was_checked_for: >-
+      THE MIRROR FAILURE - a projection so lossy it is CONSTANT across
+      instances, zero comparator spread. CHECKED, AND THE ANSWER IS THE ENTIRE
+      RESEARCH QUESTION RATHER THAN A DEFECT. The projection is constant across
+      secrets exactly when a(psi; .) does not depend on I_tau, and that is the
+      null hypothesis, derived in advance, with a forced value of zero and a
+      falsifier. The design is deliberately arranged so that the mirror failure
+      firing IS the deliverable (a derived closure with a named obstruction)
+      rather than a wasted budget. What would be a genuine defect is a
+      measurement whose comparator spread is zero for INSTRUMENTAL reasons, and
+      the positive control exists precisely to rule that out: a planted
+      secret-dependent abort with a known CV must be detected at the predicted
+      signature count, or nothing may be reported.
+
+  assumptions:
+    - >-
+      That a retry loop exists at all. If the specification's signing procedure
+      is failure-free, the object does not exist, and the deliverable is that
+      statement with the relevant lines quoted. Pre-declared as an outcome, not
+      a failure.
+    - >-
+      That the adversary observes only published transcripts. If retry counts or
+      timings are observable the analysis changes completely and becomes a
+      side-channel question, which RQ-SQISIGN-001 places out of scope. The
+      restriction is stated because it is the difference between this proposal
+      and a side-channel one.
+    - >-
+      That the Gaussian approximation E|X - 1| = sqrt(2/pi)*sd(X) is used only
+      to convert CV into TV, and that N_detect = Theta(CV^-2) is the load-bearing
+      relation. If the tilt is heavy-tailed the constant 0.399 is wrong while
+      the CV^-2 scaling survives; the deliverable reports CV and chi^2 directly
+      and treats TV as derived, so a heavy tail damages a presentation constant
+      and not a conclusion.
+
+  predictions:
+    - metric: >-
+        secret_dependence_of_the_acceptance_probability: for each abort site
+        found in the specification, a BINARY determination of whether its
+        failure condition reads the secret ideal
+      direction: different
+      minimum_effect: >-
+        A yes/no per site, with the deciding lines quoted. This is the cheapest
+        decisive gate in the proposal and it can end the line at zero compute:
+        all-no closes the abort surface with a named obstruction ("the
+        acceptance predicate is a function of public data and fresh randomness
+        only, hence the published commitment law is identical for every secret")
+        plus forward guidance to the non-abort tilts.
+    - metric: >-
+        CV: relative standard deviation, across independent secret keys at
+        matched commitment randomness, of the per-attempt acceptance probability
+        at a toy parameter set
+      direction: lower
+      minimum_effect: >-
+        FORCED VALUE UNDER THE NULL: exactly 0. Any measured CV > 0 that
+        survives the matched null converts by the frozen relation
+        N_detect = Theta(CV^-2) into a signature count, and THAT COUNT, not the
+        CV, is the reportable quantity. Thresholds fixed now: CV <= 2^-64 means
+        the surface is dead at any plausible budget; CV in [2^-64, 2^-32] means
+        it is dead at realistic budgets but alive in principle and must be
+        recorded as such; CV >= 2^-32 means N_detect <= 2^64 and the finding is
+        routed to independent review under AGENTS.md rule 12.
+    - metric: >-
+        TV between two secrets' published commitment laws, computed from the
+        measured CV by the frozen relation TV = 0.399*CV, and separately
+        measured directly at toy scale
+      direction: different
+      minimum_effect: >-
+        The two must agree within a factor of 2. A disagreement means the tilt
+        is not approximately Gaussian, in which case the derived constant is
+        withdrawn and only chi^2 and CV are reported. Pre-registering the
+        agreement check is what stops a post-hoc choice between the two numbers.
+    - metric: >-
+        positive_control_detection: the signature count at which the instrument
+        detects a PLANTED secret-dependent abort of known CV_planted
+      direction: different
+      minimum_effect: >-
+        Within a factor of 4 of the predicted 0.159/TV^2 = Theta(CV_planted^-2).
+        If the instrument needs materially more, its power is overstated and
+        every negative it produced must be rescoped.
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first, and the cheapest is decisive. STAGE 0
+      (reading, zero compute, GATE): obtain the Round-3 specification and
+      reference implementation; enumerate every abort, failure branch and retry
+      in the signing procedure; for each, quote the failure condition and
+      determine whether it reads the secret. If no site reads the secret, STOP
+      and write the closure. STAGE 1 (pen and paper, zero compute): for each
+      secret-reading site, derive a(psi; I_tau) in closed form if the condition
+      is arithmetic - a norm equation's solvability, for instance, is a
+      congruence-and-size condition whose probability is often computable - and
+      derive CV analytically. A closed-form CV closes the question without any
+      implementation, and this is the outcome to hope for. STAGE 2 (toy
+      measurement, gated): implement the identified abort site only - NOT the
+      whole scheme - at a toy prime, and measure a over R secrets at matched
+      commitment randomness. STAGE 3: convert CV to N_detect, compare against
+      the KN-TECH-057 matched baselines at the same parameters, and state the
+      conclusion scoped to the exact sites, parameters and toy scale examined.
+      ORDERING RULE, FROZEN: the null arm's CV is computed and recorded before
+      the treatment arm's is looked at.
+    controls:
+      - >-
+        MATCHED NULL, SAME SHAPE, CAN FAIL: an abort site whose condition is
+        constructed to depend on psi ONLY - strongly psi-dependent, so the
+        acceptance rate varies as much as the treatment's, but secret-blind by
+        construction. FORCED VALUE DERIVED PRE-RUN: CV across secrets exactly 0.
+        It CAN fail, and a failure would be highly informative: it would mean
+        the measurement pipeline couples the secret into the estimate through
+        some shared randomness or normalisation, which invalidates the treatment
+        arm too. This null is matched on the thing that matters - the magnitude
+        of the psi-dependence - rather than merely being "random", which is the
+        distinction the corpus's null census says is usually missed.
+      - >-
+        POSITIVE CONTROL, MUST FIRE: a PLANTED abort of known secret-dependence,
+        e.g. reject when a stated public function of (psi, I_tau) falls in a set
+        of measure eps, giving a CV fixed by construction. The instrument must
+        detect it within a factor of 4 of the predicted signature count. IF IT
+        DOES NOT, NO NEGATIVE RESULT MAY BE REPORTED FROM ANY ARM. Its
+        comparator and threshold are both fixed here, before any run.
+      - >-
+        GRADED CONTROL, FIVE POINTS, THREE INTERIOR, MONOTONICITY REPORTED: the
+        planted abort at eps in {0, 0.01, 0.03, 0.1, 0.3}. Measured CV must be
+        monotone increasing in eps and measured N_detect monotone decreasing,
+        with eps = 0 recovering the null exactly. This localises an instrument
+        fault to a sensitivity range instead of leaving a bare "not detected",
+        and the parameter eps is precisely the one meant to destroy the effect,
+        so a measured quantity that fails to decay as eps -> 0 is the canonical
+        artifact tell and is pre-declared as such.
+      - >-
+        ARCHIVE CHECK, zero compute: no prior measurement of this observable
+        exists in this corpus, in any family. Recorded as an absence.
+    required_metrics:
+      - the enumerated abort sites with their failure conditions quoted verbatim
+      - a closed-form a(psi; I_tau) per secret-reading site, or a recorded
+        statement that no closed form was found
+      - CV per arm with its estimator and standard error
+      - N_detect derived from CV by the frozen relation
+      - the positive control's detection point against its prediction
+      - the graded curve and its monotonicity verdict
+
+  falsification_conditions:
+    - >-
+      No abort site reads the secret. The abort surface closes by derivation;
+      the deliverable is the obstruction, the quoted conditions, and forward
+      guidance to the tilts that are NOT abort-induced (the commitment walk's
+      mixing, IDEA-20260805-bb4bf8; the response representative's law, the S1
+      family of IDEA-20260805-18a4d4).
+    - >-
+      The matched null returns a nonzero across-secret CV. The pipeline couples
+      the secret spuriously; the treatment arm is invalid and nothing is
+      reported from it.
+    - >-
+      The positive control is not detected near its predicted signature count.
+      The instrument's power is overstated and no negative is admissible.
+    - >-
+      The graded curve is non-monotone in eps, or does not go to zero at
+      eps = 0. The measurement is an artifact.
+    - >-
+      A measured CV >= 2^-32 at toy scale. That is a finding, not a
+      falsification, and it is routed to independent review under AGENTS.md rule
+      12 before it is written anywhere as a conclusion.
+    - >-
+      The specification has no retry loop. The object does not exist; recorded
+      as such.
+
+  confounders:
+    - >-
+      TOY SCALE CHANGES THE ACCEPTANCE RATE. Norm-equation solvability
+      probabilities depend on the size of the numbers involved, so a CV measured
+      at a toy prime may not be the CV at p ~ 2^256 in either direction. The
+      deliverable must report CV as a function of the toy parameter and refuse
+      to extrapolate a single point.
+    - >-
+      SHARED RANDOMNESS. If the estimator reuses commitment randomness across
+      secrets improperly, an apparent across-secret CV can be manufactured. The
+      matched null exists to catch exactly this and is the reason it is matched
+      on psi-dependence magnitude rather than merely randomised.
+    - >-
+      ESTIMATOR NOISE FLOOR. With R secrets and M attempts each, the measured CV
+      has its own sampling floor of order 1/sqrt(M); a measured CV at or below
+      that floor is a floor reading and must be reported as an upper bound, never
+      as a value. The floor is computed and reported before the estimate.
+    - >-
+      TIMING CONTAMINATION. If a toy implementation's abort is inferred from
+      wall-clock rather than from the branch taken, the experiment has silently
+      become a side-channel experiment, which is out of scope. The instrument
+      must read the branch.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER TOY for any measurement, theory for the derivation. AGENTS.md
+      rule 7: no toy CV is a statement about deployed parameters.
+    - >-
+      A closure here closes THE ABORT SURFACE ONLY, at the sites actually
+      enumerated, in the version actually read. It says nothing about the
+      commitment walk's mixing or about the response representative's law, and
+      the forward guidance names both so the closure cannot be over-read.
+    - >-
+      This proposal costs NO hard problem, does not enter GOAL-SSI-001's
+      endomorphism-ring lane, does not enter GOAL-SQISIGN-002's published-data
+      surface, and stays out of the broken SIDH torsion-image setting.
+    - >-
+      A nonzero CV is a DISTINGUISHING statement first. Converting it to key
+      recovery requires an additional argument that this proposal does not
+      supply and does not pretend to; the honest deliverable of a positive
+      outcome is a signature count for distinguishing, plus a named open
+      question about conversion.
+
+  heuristic_assumptions:
+    - id: HEUR-AB-1
+      statement: >-
+        NONE LOAD-BEARING FOR THE TILT ITSELF. nu = a*mu/abar is the exact law
+        of the first success in a sequence of i.i.d. attempts, and
+        "TV(nu, nu') = 0 whenever a does not depend on I_tau" follows
+        immediately. The record's headline is unconditional; this entry exists
+        to say so.
+      rigorous_support: >-
+        Elementary conditioning. Derived in the mechanism above in one line.
+      validation_plan: >-
+        Independent re-derivation, plus the matched null whose forced value is
+        exactly 0.
+    - id: HEUR-AB-2
+      statement: >-
+        FORALL sufficiently small fluctuations, the across-secret tilt ratio is
+        approximately Gaussian, so TV = sqrt(2/pi)/2 * CV = 0.399*CV, and
+        N_detect = Theta(CV^-2).
+      random_model_justification: >-
+        The CV^-2 sample-complexity scaling is the standard chi-squared
+        relation and does not need Gaussianity. Gaussianity is used ONLY for the
+        constant 0.399 relating TV to CV, and is stated separately for exactly
+        that reason.
+      validation_plan: >-
+        Measure TV directly at toy scale and compare against 0.399*CV; require
+        agreement within a factor of 2, pre-registered. On disagreement, withdraw
+        the constant and report chi^2 and CV only.
+    - id: HEUR-AB-3
+      statement: >-
+        The toy-scale CV is directionally representative of the CV at deployed
+        parameters.
+      random_model_justification: >-
+        NONE. This is the weakest link in the record and is not defended. A norm
+        equation's solvability probability depends on the size of its target,
+        and there is no argument here that the secret-dependence of that
+        probability is scale-stable.
+      validation_plan: >-
+        Measure CV at three or more toy parameter sizes and report the TREND,
+        with an explicit refusal to extrapolate from any single point. If the
+        trend is not monotone the extrapolation is withdrawn entirely rather
+        than reported with a caveat.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT MOVED BY THE AUDIT ITSELF, and this record does not dress an
+      audit as an exponent result. What the audit CAN produce is a signature
+      count N_detect for a distinguisher, which is a data-axis quantity rather
+      than a time exponent. Against docs/target-result-profile.md's
+      exponent-first bias: this is not exponent work, and it is proposed because
+      it is a cheap gate on a Round-3 candidate whose stated weakness is the
+      intricacy of its signing procedure - which is exactly where retry loops
+      live.
+    memory_exponent: n/a for the audit.
+    best_known: >-
+      KN-TECH-057's matched full-cost baselines (MITM p^{2/3} over F_{p^2},
+      Delfs-Galbraith p^{1/3} over F_p, van Oorschot-Wiener p^{1/2} over
+      F_{p^2} and p^{1/4} over F_p conditional on unproven subgraph mixing),
+      READ in-repo. Any transcript-based cost must be reported against these and
+      not against the easier rows.
+    hidden_overhead: >-
+      For a positive outcome, the conversion from distinguishing to key recovery
+      is entirely unaccounted and is named as such rather than hidden in a
+      cofactor.
+    tradeoff_note: >-
+      An abort-conditioning attack, if one existed, would trade TIME for DATA:
+      N_detect signatures instead of computation. That axis is invisible to the
+      KN-TECH-057 rows, all of which are computation-only, so a comparison would
+      require adding a data column that this corpus does not currently have.
+
+  dominated_by: >-
+    n/a (no attack claimed). FRONTIER ROWS CHECKED before writing null: the four
+    KN-TECH-057 full-cost rows in time and memory under the Wiener 3D wiring
+    model; Wesolowski's p^{1/3+o(1)} in time AND memory per
+    docs/target-result-profile.md, noted as Pareto-INCOMPARABLE to the
+    p^{1/2}-time/negligible-memory row rather than dominating it; and the
+    DATA/QUERY axis, which is the axis this proposal would occupy and on which
+    the corpus holds NO row for any isogeny scheme - an absence recorded here
+    rather than papered over. WHAT WAS NOT CHECKED: the external SQIsign
+    literature, since no specification or paper has been read; that gap is why
+    novelty_status is unverified.
+  sota_delta: >-
+    No attack. The quantitative deliverable is a frozen conversion, stated
+    before any measurement, from one measured number to a decision:
+    CV -> N_detect = Theta(CV^-2), with thresholds fixed at CV <= 2^-64 (dead at
+    any budget), CV in [2^-64, 2^-32] (dead at realistic budgets, alive in
+    principle), CV >= 2^-32 (N_detect <= 2^64, routed to rule-12 review). No
+    record in this corpus states such a conversion for any isogeny scheme, and
+    the corpus contains zero SQISIGN-area records of any kind.
+
+  estimated_cost:
+    implementation: >-
+      Stage 0-1: none beyond reading and algebra, and they may settle the
+      question outright. Stage 2: MEDIUM-HIGH and deliberately gated - it needs
+      only the identified abort site, not the whole scheme, but a norm-equation
+      solvability site still needs quaternion arithmetic, and this container has
+      numpy 2.4.6 and NOTHING ELSE relevant (sympy, scipy, Sage and PARI all
+      VERIFIED ABSENT on this machine, 2026-08-05).
+    compute: low
+  recommended_priority: medium-high
+  honest_prior_of_survival: >-
+    0.55 that at least one abort site in the signing procedure has a
+    secret-reading failure condition. It is not lower because a retry loop
+    around a norm equation whose target is built from the secret ideal is the
+    natural shape of the recalled algorithm, and because the scheme's own stated
+    weakness is the intricacy of the objects manipulated in ideal-to-isogeny
+    conversion - intricacy is where conditional branches live. It is not higher
+    because competent designers know the Fiat-Shamir-with-aborts lesson, because
+    the redesign is reported (RELAYED, NOT READ) to sample the response from a
+    more natural distribution, and because the whole recalled picture may simply
+    be wrong.
+    SEPARATELY, 0.10 that a measured CV exceeds 2^-32 at toy scale, and 0.03
+    that anything survives the scale question in HEUR-AB-3. The audit is
+    proposed on the asymmetry: a derived closure costs a day of reading, and the
+    tail outcome is a data-axis attack on a Round-3 candidate.

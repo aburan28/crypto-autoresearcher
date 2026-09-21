@@ -1,0 +1,778 @@
+idea:
+  id: IDEA-20260829-a2b5d7
+  question_id: RQ-MLDSA-ffa0f5
+  status: proposed
+  proposed_by: idea-generator
+  added: '2026-08-29'
+  title: >-
+    The one FIPS 204 decoder that is NOT a bijection onto its declared domain is
+    skDecode, and the standard closes the hole with the sentence "trusted
+    sources" rather than a check. Derive the exact fraction of length-correct
+    private keys that decode OUT OF RANGE (1 minus (5/8)^2048 at ML-DSA-44), and
+    then measure which malformations are SELF-ENFORCING (a verifier catches
+    them) and which are SILENT but destroy the rejection-sampling uniformity
+    that makes z independent of s1 - decided by a hole census in the accepted-z
+    support with a placebo band as the positive control.
+  class: control
+
+  claim: >-
+    (A) THE SPECIFICATION CLAIM, WHICH IS ALL THAT IS ASSERTED HERE ABOUT THE
+    DOCUMENT. FIPS 204's private-key decoder accepts every byte string of the
+    correct length. Its own algorithm listing annotates the s1 and s2 unpacking
+    with a remark that the decoded values may lie outside [-eta, eta] if the
+    input is malformed, in explicit contrast with the t0 unpacking, which is
+    annotated as always in range. RECALLED FROM MEMORY AND FROM THIS CORPUS'S
+    OWN TRANSCRIPTION (IDEA-20260805-bb52fa mechanism (2)); NOT RE-FETCHED THIS
+    SESSION. The standard's remedy is a precondition - that skDecode be run only
+    on input from trusted sources - and NOT a normative range check. THAT IS A
+    SPECIFICATION STATEMENT AND IT IS WHERE THIS RECORD'S DOCUMENT CLAIM STOPS.
+    Whether the precondition is prudent, whether an implementation is
+    non-conformant for omitting a check the standard never mandates, and whether
+    NIST intends to change it are all outside this record.
+
+    (B) THE ARITHMETIC CLAIM, WHICH IS EXACT AND NEEDS NO MEASUREMENT.
+    s1 and s2 are packed at bitlen(2 eta) bits per coefficient as the unsigned
+    value eta - s. At eta = 2 that is 3 bits, so 8 codes represent 5 legal
+    values and 3 of 8 per-coefficient codes decode to s in {-3, -4, -5}. At
+    eta = 4 it is 4 bits, so 16 codes represent 9 legal values and 7 of 16
+    decode to s in {-5, ..., -11}. Over the 256(k + l) coefficients of (s1, s2)
+    the fraction of length-correct private keys that decode entirely IN range is
+    GENERATOR-COMPUTED, RE-DERIVATION REQUIRED:
+      ML-DSA-44  (eta 2, 3 bits, 2048 coefficients)  (5/8)^2048  = 1.0e-418
+      ML-DSA-65  (eta 4, 4 bits, 2816 coefficients)  (9/16)^2816 = 2.0e-704
+      ML-DSA-87  (eta 2, 3 bits, 3840 coefficients)  (5/8)^3840  = 1.6e-784
+    So essentially EVERY length-correct byte string that is not an honest key
+    decodes to an out-of-range key, and skDecode as specified returns it.
+    CONSISTENCY CHECK CARRIED BY THE SAME ARITHMETIC: 128 + 32(l + k)bitlen(2
+    eta) + 32 * 13 k evaluates to 2560 / 4032 / 4896 bytes, which reproduces the
+    private-key sizes recalled from FIPS 204 Table 2 exactly at all three sets.
+    A record whose packing widths were wrong would miss those three numbers.
+
+    (C) THE MATHEMATICAL CLAIM, WHICH IS SEPARATE AND WEAKER. beta = tau * eta
+    is the bound on the sup-norm of c s1 and c s2 that the whole correctness and
+    zero-knowledge argument rides on. An out-of-range key breaks it by a known,
+    exact factor: the extreme decodable magnitude is 2^bitlen(2 eta) - 1 - eta,
+    i.e. 5 / 11 / 5, so the true sup-norm envelope becomes tau times that,
+    GENERATOR-COMPUTED as 195 / 539 / 300 against beta = 78 / 196 / 120.
+    TWO CONSEQUENCES, WITH OPPOSITE DETECTABILITY, AND SEPARATING THEM IS THE
+    POINT OF THE EXPERIMENT.
+    (C1) CORRECTNESS, POSSIBLY SELF-ENFORCING. The Line-23 check enforces the
+    low-part bound against the WRONG beta, so HighBits(w - c s2) can differ from
+    HighBits(w) and the signature fails to verify. The fraction of emissions on
+    which the guarantee LAPSES is bounded above by
+    1 - (1 - (envelope - beta)/(2 gamma2))^(256k), GENERATOR-COMPUTED as
+    0.467 / 0.634 / 0.505. That is an UPPER BOUND on the verification-failure
+    rate and not a prediction of it, because the lapse only bites when the
+    offending coefficient of c s2 actually attains a large value.
+    (C2) ZERO KNOWLEDGE, SILENT BY CONSTRUCTION. The accepted z is uniform on
+    the box of radius gamma1 - beta ONLY IF the sup-norm of c s1 is at most
+    beta. When a coefficient a of c s1 exceeds beta, the accepted z coefficient
+    is uniform on the INTERSECTION of (-gamma1 + a, gamma1 + a] with the
+    acceptance box, which is the box minus a one-sided HOLE of width
+    |a| - beta at one end. A verifier cannot see this: every emitted signature
+    is a syntactically and algebraically valid ML-DSA signature under a valid
+    public key. THE FALSIFIABLE CLAIM IS THE HOLE. For a maximally out-of-range
+    s1 at ML-DSA-44 the hole has relative width up to 117/261988 = 4.47e-4 of
+    the accepted support, it appears on the roughly 1.2 per cent of coefficients
+    whose |c s1| exceeds beta, and the number of accepted z coefficients landing
+    inside the predicted hole regions is EXACTLY ZERO, against about 54 expected
+    over 10^4 signatures if the accepted z law were the uniform one the scheme
+    advertises.
+
+    (D) WHAT THIS IS NOT. NOT A BREAK OF ML-DSA. Every object here concerns a
+    key that ML-DSA.KeyGen cannot produce, so nothing is asserted about MLWE,
+    MSIS or SelfTargetMSIS in any direction, and no forgery under an unknown key
+    is constructed. NOT A FAULT ATTACK: no computation is glitched and no device
+    is touched; a byte string is handed to a documented API entry point, which
+    is the import path the pqc-forum thread cited below is about. NOT A
+    CONFORMANCE VERDICT on any implementation.
+
+  mechanism: >-
+    (1) WHY THIS OBJECT IS DIFFERENT FROM EVERY PRIOR PROPOSAL IN THE LANE. All
+    twelve filed records track something downstream of a VALID key: the four
+    Algorithm 7 rejection predicates and their rates (031ce2, bb52fa, 4f83f6,
+    60ba98, 6d1b97), the t0 channel and its price (630606, 6109f8, 65739b,
+    71fc18), the signature byte fibre with pk fixed (e5f947), or the testing and
+    deployment volumes that would exercise them (8f3496, fa04dc). The tracked
+    object HERE is the KEY-VALIDITY PREDICATE as a function of the private-key
+    byte string, followed forward into three separate downstream observables -
+    signing termination, verification outcome, and the shape of the accepted z
+    support. It enters the computation strictly before every object those twelve
+    records track.
+
+    (2) THE LOSSY PROJECTION, AND WHY IT IS NOT A CHANGE OF COORDINATES. The
+    projection sends a 2560-to-4896-byte private key to the triple
+    (max |s1| - eta, max |s2| - eta, consistency flag), where the consistency
+    flag records whether t1 * 2^d + t0 equals A s1 + s2 and whether tr equals
+    H(pk). Everything else is discarded: the message, the randomness, the seed,
+    the individual coefficients, t0 itself. The fibre over an observed triple is
+    astronomically large, so nothing reconstructs the key from it. The discard
+    is COMPATIBLE with the target's operations because every downstream
+    quantity that the experiment measures is a function of sup-norms and of the
+    consistency flag alone - the correctness lapse in (C1) is driven by the
+    sup-norm of c s2, which is bounded by tau times max |s2|, and the hole in
+    (C2) by the sup-norm of c s1 - so the retained part propagates
+    deterministically through the signing loop. THE MIRROR FAILURE WAS CHECKED
+    AND DOES NOT OCCUR: the projection is not constant across instances, because
+    it takes at least four materially different values in the design (conforming
+    zero excess; small excess; maximal excess; consistent-components-broken),
+    and those four values are predicted to give three DIFFERENT downstream
+    verdicts. A projection returning the same verdict on all four arms is the
+    pre-registered tell that the instrument is dead.
+
+    (3) THE THREE MALFORMATION CLASSES, WHICH THE EXPERIMENT MUST SEPARATE.
+    CLASS R (RANGE): s1 or s2 coefficients outside [-eta, eta], everything else
+    consistent. Predicted PARTIALLY SILENT: some emissions fail verification,
+    most do not, and the accepted-z hole is present on every emission.
+    CLASS C (COMPONENT CONSISTENCY): s1, s2 in range but t0, t1 or rho taken
+    from a different key, so that t1 * 2^d + t0 is not A s1 + s2. Predicted
+    FULLY SELF-ENFORCING: the verifier's reconstruction misses and essentially
+    no emission verifies, because the identity A z - c t1 2^d = w - c s2 + c t0
+    that IDEA-20260805-630606 mechanism (2) derives fails coefficient-wise.
+    CLASS T (BINDING): s1, s2, t0, t1 all consistent but tr not equal to H(pk).
+    Predicted FULLY SELF-ENFORCING for a verifier holding the real pk, since mu
+    differs and the challenge equality misses; and this is the arm that also
+    tests whether an implementation recomputes tr rather than trusting it.
+    A DESIGN THAT REPORTED ONE NUMBER FOR "MALFORMED KEYS" WOULD AVERAGE THESE
+    THREE AND SAY NOTHING. The deliverable is the three-row table.
+
+    (4) THE HOLE CENSUS, WHICH IS THE ONE MEASUREMENT THAT CANNOT BE FAKED. Hold
+    sk (the auditor holds it; this is a measurement, not an attack). For each
+    signature and each coefficient index, compute a = (c s1)_j exactly. If
+    |a| <= beta the coefficient contributes nothing. If |a| > beta, the
+    predicted hole is the interval of accepted z values of width |a| - beta at
+    the end of the acceptance box on the side away from a. COUNT how many
+    accepted z coefficients fall inside their own predicted hole. FORCED VALUE
+    UNDER THE MECHANISM: exactly 0, always, at any sample size, because those
+    values are unreachable. FORCED VALUE UNDER THE NULL THAT THE MECHANISM IS
+    WRONG (accepted z genuinely uniform on the full box): Poisson with mean
+    equal to the summed relative hole measure, GENERATOR-COMPUTED at about 54
+    over 10^4 signatures at ML-DSA-44 with a maximally out-of-range s1. A
+    Poisson(54) variable equals 0 with probability e^-54, so 10^4 signatures
+    decide it outright.
+
+    (5) THE PLACEBO BAND, WHICH IS THE POSITIVE CONTROL AND IS MANDATORY. A
+    counter that returns 0 has demonstrated nothing until it has been shown to
+    count. For every predicted hole, construct a PLACEBO BAND of identical width
+    placed at a seeded random location inside the acceptance box away from both
+    ends, and run the identical counter over it. FORCED VALUE: Poisson with the
+    same mean, about 54 over 10^4 signatures. IF THE PLACEBO COUNT IS ALSO ZERO,
+    THE COUNTER IS BROKEN AND NO ZERO FROM THE REAL BAND MAY BE REPORTED. This
+    is the instrument-fires requirement stated as an executable arm, and it is
+    the reason this design can distinguish "the hole is real" from "the counter
+    never fires".
+
+    (6) WHAT EACH OUTCOME MEANS, DECLARED BEFORE THE RUN. E1 SELF-ENFORCING: the
+    class-R verification-failure rate is at least 1e-3 at 10^4 emissions. Range
+    malformation is then caught by ordinary sign-then-verify testing, the
+    defect class is NOT of the GOAL-MLKEM-002 shape, and the standard's
+    trusted-source precondition is doing less work than it appears to. E2
+    SILENT: the class-R failure rate is below 1e-3 while the hole census returns
+    0 against a firing placebo. Range malformation is then invisible to every
+    verifier and visible only to a party holding sk, which IS the
+    GOAL-MLKEM-002 shape, and the honest replacement for the standard's sentence
+    is a number - the hole measure - rather than a precondition. E3 INSTRUMENT
+    FAILURE: the placebo does not fire, or the conforming arm emits a
+    non-verifying signature; nothing is reported.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: >-
+        pqc-forum thread "ML-DSA and decoding of malformed private keys",
+        list.nist.gov pqc-forum, initiated by Guillaume Endignoux, with
+        Bas Westerbaan, Uri Blumenthal, Mike Ounsworth, Paul Hoffman and
+        Sophie Schmieg
+      provenance: retrieved
+      claim: >-
+        Endignoux states that "there exist malformed inputs than can cause
+        skDecode to return values that are not in the correct range", that the
+        specification's remedy is that skDecode "should only be run on input
+        that comes from trusted sources", and that the ambiguity risks
+        divergent implementations and "incompatibilities (or worse,
+        vulnerabilities)". The thread converges on a 32-byte seed private-key
+        format because it ensures "all private keys are valid". NO
+        QUANTIFICATION AND NO MEASUREMENT OF CONSEQUENCES APPEARS IN THE THREAD
+        AS SUMMARISED, AND NO NIST RESPONSE APPEARS IN IT. This is the nearest
+        prior art known to this session and it is why the record's
+        novelty_status is unverified and its contribution is measurement rather
+        than discovery.
+      verified_by: >-
+        idea-generator, 2026-08-29, WebFetch of
+        https://groups.google.com/a/list.nist.gov/g/pqc-forum/c/9nVfHKtid-k;
+        summary-level read of the thread page, individual messages not opened
+        separately.
+    - ref: >-
+        draft-connolly-cfrg-ml-dsa-security-considerations-02, IETF
+        Internet-Draft, sections 2.1 and 3.2.3
+      provenance: retrieved
+      claim: >-
+        "Using the seed as the signing key format makes it impossible to create
+        a malformed key: the key generation algorithm enforces the correct
+        mathematical distributions for all derived key components", and "The
+        expanded format admits the possibility of malformed keys if the
+        components are modified or constructed outside of the key generation
+        algorithm", with the recommendation that implementations accepting
+        expanded keys should validate components. The draft states the RISK and
+        does not state what breaks or at what rate.
+      verified_by: >-
+        idea-generator, 2026-08-29, WebFetch of
+        https://www.ietf.org/archive/id/draft-connolly-cfrg-ml-dsa-security-considerations-02.html;
+        read against a targeted extraction prompt, not a full linear read of the
+        draft.
+    - ref: "C2SP/wycheproof pull request 112, Add ML-DSA test vectors"
+      provenance: retrieved
+      claim: >-
+        TITLE AND URL ONLY, seen in a WebSearch result list; the page was NOT
+        fetched. Named because a public ML-DSA test-vector corpus is the most
+        likely place a malformed-private-key vector already exists, which would
+        dominate this proposal's exhibition half. Stage 0 must open it.
+      verified_by: >-
+        idea-generator, 2026-08-29, WebSearch tool result list only; page not
+        opened, contents not verified.
+    - ref: "FIPS 204, Module-Lattice-Based Digital Signature Standard, NIST, 2024-08-13"
+      provenance: recalled
+      claim: >-
+        NOT FETCHED THIS SESSION. Recalled and cross-read against this corpus's
+        own transcription: the skDecode range annotations, the s1/s2 packing at
+        bitlen(2 eta) bits as eta minus the coefficient, Table 1's eta, tau, k,
+        l, gamma1, gamma2, beta, and Table 2's private-key sizes 2560 / 4032 /
+        4896. Every algorithm number, line number and section number that a
+        derived record might quote is recalled and must be re-read under a run
+        record before any of it is asserted.
+      verified_by: null
+    - ref: IDEA-20260805-bb52fa
+      provenance: internal
+      claim: >-
+        Records the FIPS 204 skDecode annotations verbatim from a 2026-08-06
+        fetch receipt, including that the t0 unpacking is annotated as always in
+        range while s1 and s2 "may lie outside [-eta, eta] if input is
+        malformed". Supplies the exact envelope argument that this record reuses
+        with eta replaced by the extreme decodable magnitude.
+      verified_by: >-
+        idea-generator, 2026-08-29, full read of all 619 lines.
+    - ref: IDEA-20260805-630606
+      provenance: internal
+      claim: >-
+        Derives the identity A z - c t1 2^d = w - c s2 + c t0, which is the
+        exact statement that class C breaks.
+      verified_by: >-
+        idea-generator, 2026-08-29, full read of all 556 lines.
+    - ref: IDEA-20260821-60ba98
+      provenance: internal
+      claim: >-
+        Establishes that the emitted-law distance between a conforming signer
+        and one whose accept set is enlarged equals the firing rate of the
+        dropped conjunct. Cited to mark the boundary: that identity is about a
+        VALID key and a changed loop, and it does not cover a changed KEY, which
+        alters the loop's per-attempt law rather than its accept set.
+      verified_by: >-
+        idea-generator, 2026-08-29, full read of all 863 lines.
+
+  assumptions:
+    - >-
+      That the s1/s2 packing is unsigned-then-subtract at bitlen(2 eta) bits, so
+      that codes above 2 eta decode to values below -eta. If the packing instead
+      rejects or saturates, claim (B) is void and the proposal is withdrawn.
+      Stage 0 checks this and the private-key size arithmetic is the free
+      cross-check.
+    - >-
+      That skDecode as specified performs no range test on s1 and s2. If a
+      normative range test exists elsewhere in the standard's prose, the
+      specification claim in (A) is wrong and the record is superseded; the
+      arithmetic in (B) and the mechanism in (C) survive as statements about an
+      implementation that omits the prose requirement.
+    - >-
+      That an implementation is available that accepts an expanded private key
+      as a byte string. Seed-only implementations are OUT OF SCOPE by
+      construction, and the record says so rather than generalising.
+
+  proof_search_map:
+    bottleneck: >-
+      The step whose removal changes the conclusion is the inference from
+      "sup-norm of c s1 exceeds beta" to "the accepted z support has a hole".
+      Everything else is counting. That inference needs the accepted z law to be
+      the y law shifted by c s1 and then truncated to the acceptance box, which
+      is exactly what Algorithm 7 does, and it needs the shift to be applied
+      BEFORE the norm test rather than after.
+    baseline_embedding:
+      parameter_slice: >-
+        The old-method boundary is the conforming key, i.e. max |s1| = eta.
+        There the hole width max(0, |c s1| - beta) is identically zero for every
+        coefficient, every prediction of this record collapses to "accepted z is
+        exactly uniform", and the scheme's own uniformity lemma is recovered.
+      reproduction_check: >-
+        Symbolic: substitute |c s1| <= beta into the hole-width formula and
+        check it vanishes identically. Empirical: on a conforming key, the hole
+        census must be vacuous (empty band set) and the placebo band must still
+        fire at its Poisson mean. Frozen fixture of 10^3 conforming signatures.
+    observation_collision:
+      observable: >-
+        The certificate carrying the conclusion is the pair (hole count,
+        placebo count) together with the exhibited malformed private key and one
+        signature it produced.
+      distinct_preimage_search: >-
+        Two distinct ground-truth situations giving the same observable were
+        searched for and one was found. (i) A genuinely out-of-range key with a
+        real hole. (ii) A CONFORMING key run through a buggy counter whose band
+        arithmetic is off by one, which also returns hole count 0. The separator
+        is the placebo arm, which returns about 54 in case (i) and also about 54
+        in case (ii) - so the placebo alone does NOT separate them. The
+        additional separating condition is the GRADED arm: a key with excess
+        exactly 1 above eta has a hole of width tau, and a key with excess 3 has
+        a hole of width 3 tau, so the placebo-matched sensitivity must scale
+        linearly in the excess. A counter that returns 0 at every excess
+        including excess 0 is in case (ii).
+    constructive_transforms:
+      - transform: stronger_invariant
+        proposed_object: >-
+          Carry the per-coefficient pair (excess of |c s1| above beta, side of
+          the box on which the hole sits) rather than the scalar "key is
+          malformed". The stronger state is what survives the rejection loop and
+          what makes the census a deterministic prediction instead of a
+          statistical one.
+        predicted_gain: >-
+          Converts a distributional claim requiring a hypothesis test into an
+          exact-zero prediction with a matched placebo, which is decidable at
+          10^4 signatures instead of at an unknown sample size.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the observable "signature verifies" fixed and vary the forgotten
+          structure - which of classes R, C, T produced the key. The intrinsic
+          invariant that separates them is the hole census, which is nonvacuous
+          only for class R.
+        predicted_gain: >-
+          Separates detectable malformation from silent malformation, which the
+          standard's single trusted-source sentence conflates.
+    quantifier_order: >-
+      FOR ALL parameter sets in {44, 65, 87}, FOR ALL private-key byte strings
+      sk that skDecode accepts, THERE EXISTS a per-coefficient excess function
+      e_j(sk, c) = max(0, |(c s1)_j| - beta) such that FOR ALL messages and FOR
+      ALL accepted signatures, z_j avoids an interval of width e_j at one end of
+      the acceptance box. Note the order: the excess depends on the key AND the
+      challenge, and it is quantified before the message, which is why the
+      prediction is per-signature and deterministic rather than an average.
+      A claim with the quantifiers reversed - one hole for all challenges - is
+      NOT made.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The strongest thing this method can certify is that a party HOLDING sk
+        can distinguish a range-malformed signer from a conforming one from
+        signatures alone, and at what rate. It cannot certify that a party
+        without sk can, it cannot certify recovery of s1, and it cannot certify
+        anything about a key that ML-DSA.KeyGen could have produced.
+      nearby_object_control: >-
+        The nearby object where the hoped-for conclusion fails is a key with
+        max |s1| = eta exactly - a conforming key at the boundary. There the
+        hole width is exactly zero and the census is vacuous. A method that
+        reported a hole there would be reporting an artifact, which is why the
+        conforming arm is run first and its verdict committed before any
+        malformed arm is examined.
+    proof_obligations:
+      - claim: >-
+          The fraction of length-correct private keys decoding entirely in range
+          is (5/8)^2048, (9/16)^2816 and (5/8)^3840
+        responsibility: size
+      - claim: >-
+          The accepted z coefficient law is the y law shifted by c s1 and
+          truncated to the acceptance box, hence has a hole of width
+          max(0, |c s1| - beta)
+        responsibility: correctness
+      - claim: >-
+          The verification-failure rate for class R is at most
+          0.467 / 0.634 / 0.505
+        responsibility: strictness
+      - claim: >-
+          The placebo counter returns a Poisson count with the derived mean on a
+          conforming key
+        responsibility: interface
+      - claim: >-
+          Class C and class T emissions fail verification at rates
+          indistinguishable from 1
+        responsibility: baseline
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        fraction of length-correct private-key byte strings that decode entirely
+        within [-eta, eta], recomputed in exact rational arithmetic from the
+        packing widths
+      direction: lower
+      minimum_effect: >-
+        FORCED VALUES, DERIVED BEFORE ANY RUN, 1.0e-418 / 2.0e-704 / 1.6e-784 at
+        ML-DSA-44 / -65 / -87, with the per-coefficient in-range code fractions
+        exactly 5/8, 9/16 and 5/8. Any deviation in the exponent's leading digit
+        falsifies the packing arithmetic and halts the package.
+    - metric: >-
+        verification rate of emissions from a class-R (maximally out-of-range)
+        signer under an independently written verifier, 10^4 emissions per
+        parameter set
+      direction: lower
+      minimum_effect: >-
+        Strictly between 1 - 0.467 and 1 at ML-DSA-44 and correspondingly at the
+        other two sets. The pre-registered split is at a failure rate of 1e-3,
+        which separates outcome E1 from outcome E2 as defined in mechanism (6).
+        A measured failure rate of exactly 0 over 10^4 emissions is reported as
+        an upper bound of 3.0e-4 with its sample size, never as zero.
+    - metric: >-
+        hole census - number of accepted z coefficients falling inside their own
+        predicted hole interval, class-R key, 10^4 signatures at ML-DSA-44
+      direction: lower
+      minimum_effect: >-
+        FORCED VALUE 0, exactly, at any sample size. The comparator is the
+        placebo band's count on the same run, forced to Poisson with mean about
+        54 at that sample size. A nonzero hole count falsifies the mechanism in
+        (C2) outright and is the single most informative negative available.
+    - metric: >-
+        placebo band count, identical counter, matched total band measure,
+        conforming key AND class-R key
+      direction: higher
+      minimum_effect: >-
+        At least 20 on both arms at 10^4 signatures (a Poisson(54) variable
+        falls below 20 with probability under 1e-7). BELOW THAT THE COUNTER HAS
+        NO POWER AND THE ZERO FROM THE REAL BAND IS UNINTERPRETABLE; nothing
+        else in the package may be reported.
+    - metric: >-
+        verification rate of emissions from class-C (inconsistent components)
+        and class-T (wrong tr) signers
+      direction: lower
+      minimum_effect: >-
+        Below 1e-3 at 10^4 emissions, i.e. essentially all emissions fail. If
+        either class verifies at a rate above 0.01 the census in mechanism (3)
+        is wrong and the three-row table is restated before anything else is
+        said.
+    - metric: >-
+        graded sensitivity - hole census placebo-matched detection threshold as
+        the s1 excess above eta is swept over {0, 1, 2, 3, extreme}
+      direction: higher
+      minimum_effect: >-
+        The predicted hole measure must grow monotonically and approximately
+        linearly in the excess, and must be exactly zero at excess 0. A
+        detection statistic that does not decay to the placebo level at excess 0
+        is the canonical artifact tell of docs/inventor-protocol.md section 3.
+
+  minimal_test:
+    design: >-
+      FOUR STAGES, CHEAPEST FIRST, EACH ABLE TO TERMINATE THE LINE.
+      STAGE 0 (reading, zero compute, TERMINATING). Re-obtain FIPS 204 under a
+      run record and read verbatim, with page numbers, the s1/s2 packing width,
+      the skDecode range annotations, the trusted-source sentence, and Table 2's
+      private-key sizes. Open the C2SP/wycheproof ML-DSA test-vector set and
+      record whether a malformed-private-key vector already exists; if it does,
+      this record's exhibition half is dominated and says so. If the packing is
+      not unsigned-then-subtract, STOP.
+      STAGE 1 (arithmetic, milliseconds, TERMINATING). Recompute the in-range
+      fractions, the extreme decodable magnitudes 5 / 11 / 5, the envelopes
+      195 / 539 / 300 against beta 78 / 196 / 120, and the three
+      guarantee-lapse upper bounds. Reproduce 2560 / 4032 / 4896. If any of
+      these misses, STOP and re-derive.
+      STAGE 2 (conforming baseline plus placebo, minutes). Build a pure-Python
+      ML-DSA on hashlib SHAKE plus an INDEPENDENTLY WRITTEN verifier sharing no
+      code path with the signer. Emit 10^3 conforming signatures per parameter
+      set, confirm 100 per cent verification, and run the placebo counter to
+      confirm it fires at its Poisson mean. COMMIT THIS VERDICT BEFORE ANY
+      MALFORMED ARM IS EXAMINED.
+      STAGE 3 (the three malformation classes, minutes to an hour). Construct
+      one class-R, one class-C and one class-T private key per parameter set as
+      byte strings, decode them, emit 10^4 signatures each, and record
+      verification rate, hole census, placebo count, and the graded excess
+      sweep. Emit as the deliverable artifact, per parameter set, the tuple
+      (malformed sk hex, pk hex, message, signature hex, verifier verdict from
+      two independent implementations, hole count, placebo count, seed).
+      WHAT DISCRIMINATES. Stage 3's class-R verification rate separates E1 from
+      E2 at a threshold fixed in advance. The hole census against the placebo
+      separates "silent malformation leaves a deterministic trace in the
+      transcript" from "silent malformation is also traceless". The class-C and
+      class-T arms separate "malformed keys are dangerous in general" from
+      "exactly one of three malformation classes is silent", which is the
+      difference between a headline and a correct headline.
+    controls:
+      - >-
+        CONFORMING NULL, FORCED VALUE PRE-DERIVED, CAN FAIL. 10^3 conforming
+        emissions per parameter set must verify 10^3 out of 10^3 under the
+        independent verifier and the hole band set must be empty. Any conforming
+        emission that fails means the implementation is wrong and NOTHING in the
+        package may be reported.
+      - >-
+        PLACEBO BAND POSITIVE CONTROL, MANDATORY, MUST FIRE. Identical counter,
+        identical total band measure, seeded random placement away from the box
+        ends, run on BOTH the conforming and the class-R arms. Forced value
+        Poisson mean about 54 at 10^4 signatures. A placebo count below 20 voids
+        every zero in the package. This is the arm that answers "has this check
+        ever been shown to trigger".
+      - >-
+        DELIBERATELY MALFORMED POSITIVE CONTROL FOR THE VERIFIER. A signature
+        with one z coefficient set just above gamma1 - beta must be REJECTED by
+        the independent verifier. If it is accepted, the verifier is not
+        enforcing the norm check and no verification rate from any arm is
+        interpretable.
+      - >-
+        GRADED EXCESS SWEEP, FIVE POINTS {0, 1, 2, 3, extreme}, MONOTONICITY
+        REPORTED. The hole measure must be exactly 0 at excess 0 and grow
+        approximately linearly thereafter.
+      - >-
+        SECOND INDEPENDENT VERIFIER for every exhibited artifact. A certificate
+        re-verified by only one implementation is not a certificate under
+        RQ-MLDSA-ffa0f5's methods clause.
+      - >-
+        ARCHIVE CHECK, ZERO COMPUTE. Record that no prior measurement of this
+        observable exists in this corpus, as an ABSENCE and not as a passed
+        check, and record the Stage 0 wycheproof finding beside it.
+    required_metrics:
+      - the packing width, the range annotations and the trusted-source sentence quoted verbatim with pages and a fetch receipt
+      - the three in-range fractions, the three extreme magnitudes, the three envelopes and the three lapse bounds, as exact rationals and as floats
+      - conforming verification rate per parameter set with seeds, committed before any malformed arm
+      - placebo count per arm with its Poisson mean and interval
+      - hole census count per arm at 10^4 signatures
+      - verification rate per malformation class per parameter set with Clopper-Pearson intervals, zero counts reported as upper bounds with sample size
+      - the graded excess sweep with monotonicity reported
+      - the exhibited artifact tuple per class per parameter set, with two independent verifier verdicts
+
+  falsification_conditions:
+    - >-
+      The packing is not unsigned-then-subtract, or a normative range check on
+      s1 and s2 exists in the standard. Claim (A) or claim (B) is then wrong and
+      the record is superseded rather than patched.
+    - >-
+      The recomputed in-range fractions or the private-key sizes 2560 / 4032 /
+      4896 do not reproduce. The arithmetic is wrong and the package halts.
+    - >-
+      The hole census returns a nonzero count on the class-R arm while the
+      conforming null is clean. The mechanism in (C2) is false, the accepted z
+      law is not the truncated shifted law, and this is the most interesting
+      outcome available.
+    - >-
+      The placebo band does not fire. The counter has no power; no zero is
+      reportable; the outcome is an instrument statement under AGENTS.md rule 3
+      and never evidence about the scheme.
+    - >-
+      The class-R verification rate is indistinguishable from 1 AND the hole
+      census is inconclusive. Range malformation is then invisible on every axis
+      this design can see, which is a bounded negative reported with its
+      sensitivity and its searched classes, not a clean bill of health.
+    - >-
+      Class C or class T emissions verify at an appreciable rate. The
+      three-class census is wrong; restate before reporting anything.
+
+  confounders:
+    - >-
+      IMPLEMENTATION SELF-CONFIRMATION. Measuring what a verifier accepts with a
+      verifier written by the same hand as the signer tests nothing. The
+      independent-verifier requirement is the main threat to validity, not a
+      formality.
+    - >-
+      A ZERO IS COMFORTABLE. "The hole census returned 0" is exactly what the
+      mechanism predicts and exactly what a broken counter returns. The placebo
+      band exists so that the zero costs something to assert, and the graded
+      sweep exists so that the placebo cannot be satisfied by a counter that
+      fires only on wide bands.
+    - >-
+      PURE-PYTHON SCALE. A pure-Python signer is roughly three orders of
+      magnitude slower than an optimised C one, which is why the design is sized
+      at 10^4 emissions per arm and why every rate below 3e-4 is reported as a
+      bound rather than a measurement.
+    - >-
+      MAXIMALLY OUT OF RANGE IS NOT TYPICAL. The class-R key used for the
+      headline is the extreme one. A key that is out of range by one unit on a
+      handful of coefficients has a hole measure smaller by orders of magnitude
+      and may be undetectable at this sample size; the graded sweep is what
+      keeps the record from generalising from the extreme to the typical.
+    - >-
+      THE THREE CLASSES ARE NOT EXHAUSTIVE. Malformations that mix classes, or
+      that put t0 out of its own range (which the standard annotates as
+      impossible), are not searched, and the negative rows bound only the
+      searched classes.
+
+  interpretation_limits:
+    - >-
+      NOT A BREAK, NOT A FORGERY, NOT A VULNERABILITY REPORT AGAINST ANY
+      IMPLEMENTATION. Every key discussed is one that ML-DSA.KeyGen cannot
+      produce. Nothing here bears on MLWE, MSIS or SelfTargetMSIS in any
+      direction, and any downstream sentence readable as such is defective
+      regardless of what was measured.
+    - >-
+      THE SPECIFICATION CLAIM AND THE MATHEMATICAL CLAIM MUST NEVER BE MERGED.
+      "FIPS 204 states a precondition rather than mandating a check" is a
+      statement about a document, checkable by reading it. "An out-of-range key
+      breaks the accepted-z uniformity" is a statement about mathematics,
+      checkable by derivation and measurement. A record that lets the first
+      slide into "FIPS 204 is wrong" has committed the error this lane exists to
+      avoid.
+    - >-
+      The hole in (C2) is a trace visible to a party HOLDING sk. Nothing here
+      says a party without sk can see it, and no signature count for recovering
+      s1 is claimed, estimated or implied.
+    - >-
+      Seed-only private-key implementations are outside the scope by
+      construction, and the IETF draft cited above states that the seed format
+      makes malformed keys impossible. A result here is a statement about the
+      expanded-key import path only.
+    - >-
+      NO STATUS CHANGE to any record is proposed or implied, and no criticism of
+      the pqc-forum participants or of the IETF draft is made; both are cited as
+      the prior art that makes this record's contribution measurement rather
+      than discovery.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The coefficients of LowBits(w) and of y, with w = A y and y drawn fresh
+        by ExpandMask at each attempt, behave as independent uniforms on their
+        respective ranges - 2 gamma2 integers for LowBits(w) and 2 gamma1
+        integers for y - for the purpose of computing the guarantee-lapse upper
+        bounds 0.467 / 0.634 / 0.505 and the placebo Poisson mean of about 54 at
+        10^4 signatures.
+      rigorous_support: >-
+        The classical statement imitated is that a linear image of a uniformly
+        drawn mask, taken modulo a fixed bucket width, is uniform. The rigorous
+        half is exact and is carried over from IDEA-20260805-bb52fa: over Z_q
+        the reduction mod 2^d is uniform except for a 1/1023 excess at the
+        single class 0, because q - 1 = 1023 * 8192, and that excess sits at the
+        centre so it can only thin the tails. The independence across the 256k
+        coefficients is NOT proved and is the weak half; its failure would move
+        the placebo mean but not the FORCED ZERO of the real band, which is
+        deterministic and needs no distribution at all.
+      validation_plan: >-
+        Measure the empirical accepted-z marginal on the CONFORMING arm at 10^4
+        signatures per parameter set and compare against the exact uniform on
+        the acceptance box by a chi-square over 256 equal bins, reporting the
+        statistic and its p-value; and measure the placebo count against its
+        Poisson mean with an exact interval. Tail check: the largest observed
+        |z| against the exact quantile at 1 - 1/(256 l N). A conforming arm that
+        fails the uniformity test invalidates the placebo calibration and hence
+        every zero in the package, and must be reported before any malformed
+        arm.
+    - id: H2
+      statement: >-
+        For a class-R key with all s1 coefficients at the extreme decodable
+        magnitude, the coefficients of c s1 behave as signed sums of tau
+        independent values of that magnitude, so that the fraction of
+        coefficients with |c s1| exceeding beta is about 1.2 per cent at
+        ML-DSA-44, which is what converts the per-coefficient hole width into
+        the aggregate hole measure and hence into the placebo mean of about 54.
+      rigorous_support: >-
+        Unconditional envelope, no distribution needed: |c s1| is at most tau
+        times the extreme magnitude, i.e. 195 / 539 / 300, which is what bounds
+        the hole width. The classical statement imitated for the FRACTION is the
+        discrete Irwin-Hall law for a signed sum of tau bounded terms, whose
+        standard deviation is the extreme magnitude times the square root of
+        tau, i.e. 31.2 at ML-DSA-44, putting beta = 78 at about 2.5 standard
+        deviations.
+      validation_plan: >-
+        Sample 10^5 challenges from SampleInBall against a fixed class-R s1 and
+        measure the empirical fraction of coefficients with |c s1| > beta
+        against the pre-registered 1.2 per cent, and the empirical standard
+        deviation against 31.2. This is a direct measurement of the same
+        quantity at the same parameters, needs no signing, and costs seconds; a
+        deviation beyond three standard errors means the placebo mean is
+        mis-set and the sample size must be re-derived before the census is
+        read.
+    - id: H3
+      statement: >-
+        NONE LOAD-BEARING FOR THE HEADLINE. The in-range fractions in claim (B),
+        the extreme magnitudes, the envelopes 195 / 539 / 300, and the FORCED
+        ZERO of the hole census on a class-R key follow from the packing
+        definition, the triangle inequality, and the fact that a truncated
+        shifted uniform cannot take values outside the shifted support. This
+        entry records that the record's central prediction is unconditional and
+        that its only remaining assumptions are evidentiary.
+      rigorous_support: >-
+        Counting over a finite code alphabet; sup-norm subadditivity under
+        multiplication by a fixed-weight ternary polynomial; the definition of
+        conditioning.
+      validation_plan: >-
+        Symbolic re-derivation by a second party, plus an exhaustive check at a
+        reduced ring degree that the decodable-value set is exactly as counted,
+        plus the private-key-size cross-check against 2560 / 4032 / 4896.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS MOVED AND NONE IS CLAIMED. This is a conformance and
+      correctness measurement about a fielded standard, and saying so plainly is
+      what docs/target-result-profile.md's cost-honesty clause requires. The
+      exponent this lane must never claim to move is the MLWE / MSIS /
+      SelfTargetMSIS one, and RQ-MLDSA-ffa0f5 forbids it explicitly. The one
+      quantity here with exponent-like character is the fraction of
+      length-correct private keys that decode in range, which is 10^-418 at
+      ML-DSA-44 - a statement about an encoding, not about a hard problem. The
+      measurement cost is 4 arms x 3 parameter sets x 10^4 signing operations,
+      i.e. about 1.2e5 signatures total.
+    memory_exponent: >-
+      Negligible. The census is two integer counters per coefficient index; the
+      peak working set is one signature plus a 256k-entry band table, under
+      100 MB even with transcripts retained.
+    best_known: >-
+      IN CORPUS - nothing; no ML-DSA experiment, run or evidence record exists,
+      and none of the twelve RQ-MLDSA-ffa0f5 proposals tracks key validity.
+      EXTERNAL - the pqc-forum thread and the IETF security-considerations draft
+      state the object qualitatively and give no rate, no hole, and no artifact;
+      the C2SP/wycheproof ML-DSA vector set may already contain a
+      malformed-private-key vector and was NOT opened, which is the single most
+      likely way this record's exhibition half is already dominated.
+    hidden_overhead: >-
+      The real cost is writing the second, independent verifier, and it is
+      deliberate: a shared implementation would be cheaper and worthless. The
+      second hidden cost is that every rate below 3e-4 remains a bound at 10^4
+      emissions however the arms are arranged, which no cleverness in the
+      estimator removes.
+    tradeoff_note: >-
+      The trade is budget rather than time against memory. The design buys a
+      deterministic exact-zero prediction with a matched placebo at 10^4
+      signatures instead of a distributional hypothesis test at an unknown and
+      possibly unaffordable sample size. Every arm is embarrassingly parallel
+      across keys and messages; nothing here needs a shared table.
+
+  dominated_by: >-
+    n/a (no attack, no cost triple, no Pareto point claimed). ROWS ACTUALLY
+    CHECKED BEFORE WRITING. (i) All twelve RQ-MLDSA-ffa0f5 proposals, read in
+    full or in large part this session - IDEA-20260805-031ce2, -630606, -bb52fa,
+    IDEA-20260808-4f83f6, -e5f947, IDEA-20260821-60ba98, -6109f8, -65739b,
+    -6d1b97, -71fc18, IDEA-20260828-8f3496, -fa04dc. None tracks key validity;
+    bb52fa mentions skDecode only to establish that t0 is always in range, which
+    is the CONTRAST this record uses. (ii) The sibling RQ-MLDSA-001, whose scope
+    is assumption calibration and fault classes, neither of which is touched.
+    (iii) Targeted greps over ledger/proposals for skDecode, malformed key and
+    related terms, which return only bb52fa's t0 range annotation and unrelated
+    ML-KEM records. (iv) The three cost axes on which a competitor could
+    dominate - TIME (about 1.2e5 signatures against the 10^9 a direct rate
+    measurement of the ct0 predicate would need), MEMORY (negligible),
+    DATA/QUERIES (all queries are to a signer whose key the auditor already
+    holds, so there is no query cost in the adversarial sense at all).
+    NOT CHECKED, AND SAID SO - whether the C2SP/wycheproof ML-DSA test vectors
+    already include malformed-private-key cases, and whether any published
+    implementation-security paper measures the accepted-z hole. Absence of a
+    search result is never evidence that something was not done.
+  sota_delta: >-
+    no attack; specification and measurement contribution only. Quantitatively,
+    it replaces "skDecode should only be run on input from trusted sources" with
+    four numbers per parameter set - the fraction of length-correct keys
+    decoding in range (1.0e-418 / 2.0e-704 / 1.6e-784), the broken envelope
+    (195 / 539 / 300 against beta 78 / 196 / 120), the guarantee-lapse upper
+    bound (0.467 / 0.634 / 0.505), and a measured verification-failure rate -
+    plus a three-class partition of malformations into self-enforcing and
+    silent, plus a portable artifact tuple a second implementation re-verifies.
+    Against the external state of the art the delta is quantification, not
+    discovery: the pqc-forum thread and the IETF draft already name the hole and
+    stop at "or worse, vulnerabilities".
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    BY PART. (i) That the in-range fractions and the private-key-size
+    cross-check survive independent re-derivation, about 0.9 - the packing
+    widths are forced by three size identities landing exactly, and the main
+    remaining risk is that the packing is signed rather than
+    unsigned-then-subtract. (ii) That the specification claim in (A) survives a
+    fresh read of FIPS 204, about 0.85 - it is corroborated by two independent
+    retrieved external sources, and the residual risk is a normative range
+    requirement stated in prose away from the algorithm listing. (iii) That the
+    hole census returns an exact zero against a firing placebo, about 0.8 - the
+    prediction is deterministic, so the risk is entirely in the counter's band
+    arithmetic, which is what the graded sweep is for. (iv) That class R turns
+    out SILENT (outcome E2) rather than self-enforcing, about 0.5 - the
+    guarantee-lapse bound is an upper bound and the true failure rate could sit
+    anywhere below it, which is precisely why the threshold is fixed in advance.
+    (v) That this is NEW rather than already sitting in a public test-vector
+    corpus, about 0.3, and I would not bet on novelty here.

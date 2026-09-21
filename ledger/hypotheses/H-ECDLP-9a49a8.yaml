@@ -1,0 +1,268 @@
+hypothesis:
+  id: H-ECDLP-9a49a8
+  question_id: RQ-INSTR-f8faa0
+  statement: >-
+    In-place rewriting of committed ledger records is detectable by a
+    CONSERVATION LAW rather than by a diff. Canonicalizing each record to a flat
+    multiset of scalar leaf values - discarding nesting and key ordering - makes
+    a legitimate mechanical reshape the IDENTITY on that projection while a value
+    edit is not. Three signals follow: S1, a record's scalar value multiset
+    changes in a commit later than its birth commit with no superseding record
+    minted in that commit; S2, an evidence or decision record gains or alters
+    numeric fields in a commit that adds zero run artifacts; S3, an archive
+    receipt's declared record set differs from the commit's actual changed
+    paths. S2 is the sharp one and would have fired immediately on the one known
+    incident. Source proposal: IDEA-20260808-90c7ab.
+  mechanism: >-
+    A naive textual diff loses nothing and is therefore a change log rather than
+    a detector, which is exactly why an in-place rewrite was buried among 694
+    insertions and was found only by a validator reading git history afterwards.
+    The value-multiset projection is genuinely lossy - structure is discarded -
+    and what it discards is discarded COMPATIBLY with the operation of interest,
+    since reshaping preserves values. The retained part therefore propagates
+    deterministically and a change in it is exactly a value edit. The hard case
+    is a reshape that ALSO flips one value, which is the shape of the real
+    incident: the multiset changes even though the structure change is
+    legitimate, while a structure-aware diff would report a large
+    legitimate-looking change and bury the flip.
+  assumptions:
+    - >-
+      Ledger records are parseable YAML with stable scalar leaves. Records that
+      do not parse are reported as UNCOVERED, never as firings.
+    - >-
+      Commit history is intact and unrebased for the range examined. Historical
+      rebases confuse birth-commit attribution and the affected range is reported
+      as unresolvable rather than as firings.
+    - >-
+      Some legitimate additions do add numeric fields without new runs - a
+      validator disclosing an independently computed hash, for instance. S2 must
+      distinguish ADDED disclosure fields from ALTERED claim fields, or the
+      false-positive rate will make the detector unusable.
+    - >-
+      Bulk formatting passes can alter numeric representation without altering
+      value, so canonicalization must compare PARSED values, never strings.
+  proof_search_map:
+    bottleneck: >-
+      The step whose removal leaves the defect undetected is the choice of
+      projection. A diff is not a detector; the conservation law is.
+    baseline_embedding:
+      parameter_slice: >-
+        The exact boundary of the existing method is commit-time verification: a
+        commit is checked against its OWN declared paths. That check cannot, by
+        construction, see a LATER commit rewriting an EARLIER record, which is
+        the failure that actually occurred.
+      reproduction_check: >-
+        A frozen regression fixture: the known incident commit must fire S2 when
+        the detector is run over the committed history.
+    observation_collision:
+      observable: 'The canonical multiset of scalar leaf values of a record.'
+      distinct_preimage_search: >-
+        PERFORMED, AND THE COLLISION IS THE DESIGN. Every re-nesting of the same
+        values maps to the same multiset, which is precisely what makes a
+        legitimate reshape invisible to the detector and a value edit visible.
+        The residual collision risk is a value edit that PERMUTES values without
+        changing the multiset; that class is disclosed as outside coverage
+        rather than claimed as detected.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          The flat scalar-leaf multiset of a record, as a canonical form
+          invariant under re-nesting and key reordering.
+        predicted_gain: >-
+          Converts a defect that required a determined validator reading git
+          history into a standing automated predicate with a known positive,
+          three nulls, and a measured sensitivity floor.
+    quantifier_order: >-
+      FOR ALL commits later than a record's birth commit, if the record's value
+      multiset changes and no superseding record is minted in that commit, S1
+      fires. The existential that would break the design is THERE EXISTS a
+      legitimate reshape whose value multiset changes, which is the reshape null.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        That, over the committed and unrebased range examined, certain records'
+        scalar values changed after archival without a superseding record in the
+        same commit. It CANNOT allege fabrication, cannot see uncommitted work,
+        and establishes nothing about any elliptic curve.
+      nearby_object_control: >-
+        The documented mechanical reshape, whose own note asserts no field's
+        VALUE was changed, and a legal correction accompanied by a superseding
+        record. Two nearby objects on which the detector must stay silent.
+    proof_obligations:
+      - claim: The known incident commit fires S2
+        responsibility: baseline
+      - claim: The documented reshape does not fire S1
+        responsibility: interface
+      - claim: A legal superseding correction does not fire
+        responsibility: interface
+      - claim: Detection is flat in the number of planted flips
+        responsibility: correctness
+      - claim: Uncovered ranges are reported as uncovered, never as firings
+        responsibility: scope
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-RESHAPE-1
+      formal_statement: >-
+        RESHAPE INVARIANCE. Every legitimate mechanical reshape of a ledger
+        record preserves the multiset of scalar leaf values exactly, so the
+        canonical projection is invariant under reshaping and changes only under
+        a value edit.
+      random_model_justification: >-
+        None needed and none offered - this is an algebraic invariance claim, not
+        a distributional one. It is EXACT for a pure re-nesting, which is a
+        relabelling of leaves and by definition preserves the leaf multiset. The
+        assumption is only that real reshapes are pure in this sense.
+      supporting_results:
+        - >-
+          Internal, committed: an evidence record in this repository carries a
+          documented mechanical reshape with its own note asserting that no
+          field's VALUE was changed. That assertion is the ground truth against
+          which the projection is tested; if the projection differs, either the
+          assertion or the projection is wrong, and BOTH outcomes are worth
+          knowing. This design session did not open that record and the
+          experiment must open it.
+      validation_experiment_ids:
+        - EXP-ECDLP-ba780a
+      falsification_condition: >-
+        The documented reshape changes the value multiset. Either the reshape was
+        not pure or the canonicalization is wrong; the detector is over-strict
+        and must be fixed before deployment.
+  structural_ingredients:
+    - description: >-
+        The motivating incident, as recorded in the committed correction:
+        commit a325d824 (2026-07-26 19:07:05 -0700, 82 files) archived 13 run
+        records together with an evidence record, a decision record and a
+        hypothesis status flip; commit 5de2db97 (2026-07-26 20:40:10 -0700, 6
+        files, 694 insertions and 213 deletions), 93 minutes later, REWROTE the
+        analysis document, the evidence record and the decision record, ADDING
+        ZERO RUN RECORDS. The superseded text reported two data points and
+        concluded the structured solve was NOT cheaper; the replacement asserts
+        measurements at bit sizes the superseded text said could not be generated
+        and inverts the inference.
+      citation: ledger/corrections/CORR-20260727-007.yaml
+      provenance: internal
+      verified_by: >-
+        Coordinator subagent under TASK-20260904-43152a opened
+        ledger/corrections/CORR-20260727-007.yaml by pattern search on
+        2026-09-04 and read its defect (b) block VERBATIM, including both commit
+        identifiers, their timestamps, the file and line counts, the
+        zero-run-records statement, and the what_the_superseded_text_said and
+        corrected_reading blocks. The source proposal's characterisation is
+        CONFIRMED faithful in every detail reproduced above. The same block
+        records that the correction does NOT allege fabrication, and that caveat
+        is carried forward.
+      role: >-
+        Supplies the known positive the detector must fire on, and fixes the
+        exact commit pair the sensitivity floor is measured against.
+  reduction_chain:
+    core_problem: >-
+      Whether this program can detect, automatically and retrospectively, a
+      committed record whose values changed after archival without a superseding
+      record.
+    corollaries: []
+  predictions:
+    - metric: >-
+        S1 and S2 firing counts across the committed history (integers), with the
+        known incident commit as a required positive
+      direction: different
+      minimum_effect: >-
+        S2 MUST fire on the known incident commit. If it does not, the detector
+        is broken and no other verdict it produces is admissible.
+    - metric: 'S1 firings on documented legitimate reshapes (integer count)'
+      direction: lower
+      minimum_effect: >-
+        Zero, by construction of the value-multiset projection. The documented
+        reshape is the specific null and must not fire.
+    - metric: 'S3 firings - archive receipts whose declared set mismatches the commit (integer count)'
+      direction: different
+      minimum_effect: >-
+        Reported, no value predicted. Any nonzero count is an evidence-integrity
+        finding.
+    - metric: >-
+        detection rate under planted flips at levels 1, 2, 5 and 20 flipped
+        values inside an otherwise legitimate large change (dimensionless, 0 to 1
+        per level)
+      direction: different
+      minimum_effect: >-
+        FLAT AT 1.0 ACROSS ALL FOUR LEVELS if the projection is right. A
+        detection rate that RISES with the number of flips indicates the detector
+        is thresholding on change MAGNITUDE rather than on the conservation law,
+        which is the wrong mechanism and a pre-registered falsification.
+    - metric: >-
+        total records whose value multiset changed after birth, as a count and as
+        a fraction of records examined, with the examined-range coverage fraction
+        reported beside it
+      direction: different
+      minimum_effect: >-
+        Reported as the baseline. This number does not currently exist anywhere
+        in the program and its value is the deliverable.
+  test_boundary:
+    instances:
+      - 'The full committed and unrebased history of the ledger record tree, with the coverage fraction reported.'
+      - 'Synthetic histories carrying planted edits of four declared kinds.'
+      - 'The documented mechanical reshape as the matched null.'
+      - 'A legal correction accompanied by a superseding record in the same commit.'
+    parameters:
+      signals: 'S1 value-multiset change after birth; S2 numeric change with zero run artifacts; S3 receipt-versus-commit path mismatch'
+      canonicalization: 'flat multiset of PARSED scalar leaves, nesting and key order discarded, numeric representation normalized'
+      planted_flip_levels: '1, 2, 5, 20'
+    implementation: >-
+      A git-history walk with YAML canonicalization; linear in commits times
+      records touched, streaming, negligible memory.
+    budget:
+      wall_clock_seconds_per_run: 600
+      total_cpu_hours: 1
+      maximum_memory_gb: 8
+      maximum_runs: 3
+  falsification_conditions:
+    - >-
+      The known incident commit does not fire S2. The instrument is broken and
+      nothing is reportable.
+    - >-
+      The documented reshape fires S1. The detector is over-strict, unusable, and
+      must be fixed before deployment.
+    - >-
+      A legal correction accompanied by a superseding record fires. The
+      instrument penalizes the corrections the contract requires and would be
+      switched off within a week.
+    - >-
+      Detection rises with the number of planted flips. The mechanism is
+      magnitude-thresholding rather than conservation, and the design is wrong.
+    - >-
+      The false-positive rate from legitimate disclosure additions is high enough
+      that the detector cannot be run. That is a DESIGN COST requiring a schema
+      change to mark disclosure blocks, and it is reported as such rather than as
+      a refutation.
+  interpretation_limits:
+    - >-
+      Process instrumentation, not a cryptographic claim and not an accusation
+      about any session. A firing means a record's values changed after archival
+      without a superseding record in that commit; it is a contract-compliance
+      fact.
+    - >-
+      The known incident's own correction record states that it does NOT allege
+      fabrication and notes that one column was positively reproduced. That
+      framing is carried forward in every report.
+    - >-
+      Historical firings are handled by SUPERSEDING RECORDS, never by editing the
+      records that fired - which would repeat the original defect.
+    - >-
+      THIS ESTABLISHES NOTHING ABOUT ELLIPTIC CURVES OR THE ECDLP. The detector
+      reads YAML and git metadata. A curve-free object - any versioned record
+      tree - would produce the same kind of output, so the scope statement is
+      unconditional and declared in advance.
+    - >-
+      COVERAGE LIMIT, WHICH IS THE REACHABLE-SCALE STATEMENT HERE: the instrument
+      sees only committed state. Work never committed is invisible, rebased
+      ranges are unresolvable, and both are reported as UNCOVERED with the
+      coverage fraction attached to every result. A permutation of values that
+      leaves the multiset unchanged is also outside coverage, and that class is
+      disclosed rather than claimed as detected.
+  status: proposed
+  proposed_by: coordinator
+  source_refs:
+    - ledger/proposals/IDEA-20260808-90c7ab.yaml
+    - ledger/corrections/CORR-20260727-007.yaml
+    - ledger/questions/RQ-INSTR-f8faa0.yaml
+    - AGENTS.md
+    - experiments/EXP-ECDLP-ba780a/specification.yaml

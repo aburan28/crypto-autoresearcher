@@ -1,0 +1,69 @@
+pre_snapshot_audit:
+  archive_task_id: TASK-20260822-532ed3
+  producer_task_id: TASK-20260822-6039d9
+  producer_task: TASK-20260822-6039d9
+  recorded_at: '2026-08-22T07:26:37Z'
+  performed_by: coordinator_control_plane
+  producer_status: completed
+  outcome: snapshot_requires_successor
+  observation: tracked staged sharded-directory symlink bypasses --base path discovery
+  command_mode: --base
+  exit_status: 0
+  receipt_label: STAGED_SYMLINK_BASE_MODE_RC
+  expected_exit_status: nonzero
+  completion_gate_satisfied: false
+  disposition: snapshot_requires_successor
+  source_files_modified_by_audit: false
+  frozen_successor_ids:
+    correction_task: TASK-20260822-f5b650
+    correction_archive: TASK-20260822-d0b004
+  inspected_uncommitted_scope:
+    source_and_test_paths: 5
+    report_paths: 3
+    out_of_scope_paths: []
+  residual_finding:
+    id: B1-STAGED
+    title: Base-scoped merge hygiene omits a staged symlink on an otherwise clean branch
+    setup:
+      - Initialize a temporary Git repository.
+      - Commit regular ledger/goals/GOAL-BASE-001.yaml and tag it base-tree.
+      - Stage, but do not commit, a directory symlink at ledger/goals/GOAL-BYPASS-002.
+      - Point the symlink at an external directory containing syntactically valid goal.yaml.
+      - Run the patched check_merge_hygiene.py --base base-tree.
+    exact_observation:
+      scoped_path_count: 0
+      command_exit_code: 0
+      fingerprint: STAGED_SYMLINK_BASE_MODE_RC 0
+      output: >-
+        PASS: no conflict markers, no unparseable records, no identifier
+        collisions, no new legacy GOAL identifiers
+    cause: >-
+      touched_files() derives scoped paths only from merge-base..HEAD and then
+      intersects that set with git ls-files. A newly staged path is tracked in
+      the index but absent from HEAD, so the symlink group sees no path. The
+      new regression tests invoked --absolute and therefore did not exercise
+      the documented --base/pre-commit mode.
+    disposition: requires_new_successor
+    reason_not_overwritten: >-
+      TASK-20260822-6039d9 consumed its one allowed Executor invocation and
+      produced a completed result. Its code and reports are preserved exactly;
+      a fresh task owns the correction.
+  coordinator_amendment:
+    exact_correction_scope:
+      - tools/check_merge_hygiene.py
+      - tools/test_goal_id_random_suffix.py
+    required_behavior:
+      - >-
+        In --base mode, union merge-base..HEAD paths with staged index and
+        tracked worktree add/modify/rename paths before scoped checks.
+      - A real staged directory-symlink fixture must make --base exit nonzero.
+      - Committed symlink rejection and regular-path behavior remain unchanged.
+      - No untracked-file coverage claim is authorized.
+    existing_rechecks_rebound_to_correction_archive:
+      red_team: TASK-20260822-12a697
+      validator: TASK-20260822-623567
+  authority_effect:
+    merge_authorized: false
+    erank_opening_authorized: false
+    rank_search_effect: none
+    research_state_effect: none

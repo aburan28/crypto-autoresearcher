@@ -1,0 +1,238 @@
+idea:
+  id: IDEA-20260820-08e04e
+  question_id: RQ-SQISIGN-001
+  added: '2026-08-20'
+  title: Reused-state exchangeability defect in pairs of public SQIsign transcripts
+  class: distributional implementation-fault audit
+  claim: >-
+    A signer whose per-signature mutable state is restored, duplicated, or reused
+    can induce a cross-signature exchangeability defect in otherwise valid public
+    transcripts. The proposal claims only that this defect is testable under a
+    declared state-reuse oracle; it does not claim key recovery, a timing channel,
+    a signature-size channel, or a change to the supersingular-isogeny baseline.
+  mechanism: >-
+    Define O_state-reuse(k, j) to restore the signing implementation's mutable
+    randomness/sampler state to checkpoint k before producing transcript j, while
+    all message and public-domain inputs remain freshly sampled. Partition each
+    published transcript into protocol-labelled public fields and compute
+    permutation-invariant pair features: repeated public commitments, equality of
+    verifier-derived strata, coordinate-wise rank coincidences, and a kernel
+    two-sample statistic on ordered pairs. Independent fresh-state transcripts are
+    exchangeable after conditioning on public inputs. Reusing a checkpoint can
+    couple two signatures through the same hidden sampling branch and violate that
+    conditional exchangeability even when each marginal transcript appears valid.
+  novelty_status: unverified
+  status: proposed
+  source_refs:
+    - id: RQ-SQISIGN-001
+      provenance: internal
+      verified_by: TASK-20260820-bdae64
+    - id: KN-TECH-057
+      provenance: internal
+      verified_by: TASK-20260820-bdae64
+    - id: KN-TECH-058
+      provenance: internal
+      verified_by: TASK-20260820-bdae64
+    - id: IDEA-20260805-2a669e
+      provenance: internal
+      verified_by: TASK-20260820-bdae64
+    - id: IDEA-20260815-e72354
+      provenance: internal
+      verified_by: TASK-20260820-bdae64
+    - id: SQIsign specification and implementation literature, exact primary source not retrieved in this task
+      provenance: recalled
+      verified_by: null
+  novelty_screen:
+    method: >-
+      Screened all 24 current RQ-SQISIGN-001 proposal records by identifier and
+      mechanism, and compared the candidate with the stale read-only knowledge-index
+      results supplied in the frozen task context.
+    results: >-
+      Nearest prior work covers generic transcript tests, abort conditioning,
+      retry latency, signature length, commitment collisions, canonicalization,
+      simulator audits, and conversion fibres. None of those records, as screened,
+      specifies checkpoint restoration as an explicit oracle and tests conditional
+      pair exchangeability while excluding timing and length. The knowledge results
+      were low-specificity and the corpus snapshot is stale.
+    verdict: >-
+      Unverified. Distinctness from the screened local proposals is not a literature
+      novelty result, and absence from the stale index is not evidence of absence.
+  object_first_candidate:
+    tracked_object: >-
+      The conditional joint law of two labelled public transcripts under shared
+      versus independently refreshed signer state.
+    lossiness: >-
+      Public-field feature maps discard secret state and may merge different reuse
+      events; a null result closes only the chosen oracle, fields, and statistics.
+    propagation: >-
+      A duplicated internal sampler branch can propagate to equality or dependence
+      among public commitments and verifier-derived public strata.
+    survival_score: >-
+      Pre-register conditional HSIC, collision excess, and classifier AUC; survival
+      requires family-wise corrected rejection on an untouched message set and the
+      same direction in a second deterministic seed block.
+  predictions:
+    - metric: conditional pair-classifier AUC for reused-state versus fresh-state transcripts
+      direction: increase above chance
+      minimum_effect: AUC at least 0.60 with a 95% bootstrap lower bound above 0.55
+    - metric: excess repeated-public-field collision probability after public-input matching
+      direction: positive
+      minimum_effect: at least 0.02 absolute excess with corrected p-value below 0.01
+    - metric: true-simulator null classifier AUC
+      direction: remain at chance
+      minimum_effect: AUC between 0.47 and 0.53 and no corrected rejection
+  minimal_test:
+    design: >-
+      At a toy parameter set, generate balanced pairs from the declared
+      O_state-reuse oracle, an otherwise identical fresh-state signer, a true
+      simulator, and a planted-positive generator that copies one designated public
+      field with known probability 0.20. Freeze the feature map and thresholds before
+      opening the held-out message and seed blocks.
+    controls:
+      - Matched no-fault true-simulator null with identical public inputs and sample count.
+      - Fresh-state real-signer control with state checkpointing disabled.
+      - Planted positive that copies a labelled public field in 20 percent of pairs.
+      - Message permutation and public-key permutation controls.
+      - Signature byte length removed from every feature vector.
+      - Wall-clock time, retry counts, and all other timing observations unavailable to the test.
+    required_metrics:
+      - Conditional classifier AUC with bootstrap confidence interval.
+      - Collision excess with exact permutation p-value.
+      - Conditional HSIC with family-wise error correction.
+      - Acceptance rate and public-field parse-failure rate reported separately.
+  controls:
+    - True simulator with fresh independent state for every transcript pair.
+    - Real signer with fresh independent state for every transcript pair.
+    - Planted public-field reuse positive of calibrated strength.
+    - Same-state oracle with messages relabelled after transcript production.
+    - Negative control feature made from fresh independent public randomness of equal dimension.
+  falsification_conditions:
+    - >-
+      Reject the mechanism for the tested oracle if the reused-state arm remains
+      inside the pre-registered null bands for all primary metrics while the planted
+      positive is detected with at least 0.90 power.
+    - >-
+      Reject the claimed state-specific interpretation if the same effect appears in
+      the matched true-simulator null or survives after replacing the reuse oracle by
+      a semantically inert checkpoint operation.
+    - >-
+      Treat the test as invalid, not negative evidence, if the planted positive is
+      missed, parsing differs across arms, or any timing or signature-length feature
+      reaches the classifier.
+  confounders:
+    - Deterministic message hashing can create benign public-field dependence.
+    - Rejection sampling can change pair counts unless acceptance is conditioned identically.
+    - Parser normalization can create apparent equality after distinct byte encodings.
+    - Checkpoint instrumentation itself can perturb the sampler or random stream.
+  interpretation_limits:
+    - This is a toy distributional audit, not a production exploit.
+    - A distinguisher does not imply secret-key recovery or forgery.
+    - A null result does not cover other state objects, checkpoint locations, or implementations.
+    - The proposal is separate from retry-latency and signature-length channels.
+    - The proposal does not alter or test GOAL-SSI-001 hard-problem assumptions.
+  heuristic_assumptions:
+    - id: H1
+      formal_statement: >-
+        Conditional on fixed public inputs, fresh signer state makes two no-fault
+        transcript draws exchangeable under pair permutation.
+      rigorous_support: >-
+        Exchangeability follows exactly if the implementation draws independent state
+        from the same distribution and the public conditioning variables are fixed.
+      distribution_imitated: Independent conditional transcript draws from the true simulator.
+      validation_plan: >-
+        Test pair permutations separately for the true simulator and fresh-state signer
+        before comparing either with the reuse oracle.
+      falsification_condition: >-
+        The assumption fails for the tested implementation if the fresh-state arm has
+        a stable pair-order effect after public-input matching.
+    - id: H2
+      formal_statement: >-
+        The chosen public-field features retain at least one dependence introduced by
+        O_state-reuse at the tested checkpoint.
+      rigorous_support: >-
+        No general guarantee is claimed; exact copied-field collisions are a rigorous
+        positive only for the planted generator.
+      distribution_imitated: A sparse shared-latent-variable perturbation of the null pair law.
+      validation_plan: >-
+        Calibrate power over planted copy probabilities from 0.02 through 0.20, then
+        freeze the minimum detectable effect.
+      falsification_condition: >-
+        Planted dependence at the registered minimum is not detected with 0.90 power.
+  target_complexity:
+    time_exponent: null
+    memory_exponent: null
+    best_known: >-
+      This is not an isogeny-solving algorithm. KN-TECH-058 remains the relevant
+      hard-problem baseline: unconditional Fp2 time p^(1/2)(log p)^O(1) with
+      polynomial memory, and conditional p^(1/3+o(1)) time and memory only under
+      Heuristic 1.
+    hidden_overhead: >-
+      Audit cost is O(N^2) for the naïve pair kernel or O(N log N) with registered
+      random features. KN-TECH-058's conditional baseline has superpolynomial hidden
+      overhead and no concrete-performance claim.
+    tradeoff_note: >-
+      Random-feature dimension trades memory and detection power; it does not change
+      the cryptanalytic time exponent. Reductions and the GRH boundary remain unverified.
+  cost_model:
+    time: O(N log N) registered-feature audit after N transcript generations per arm
+    memory: O(Nd) stored public features, reducible to O(d) streaming moments
+    data_or_queries: 4N signing or simulation queries across reuse, fresh, simulator, and planted arms
+    preprocessing: Freeze parser, public-field map, conditioning strata, and thresholds on calibration data
+    oracle: >-
+      O_state-reuse permits restoration of a declared mutable-state checkpoint before
+      signing; it reveals no clock, retry counter, internal state value, or secret.
+    verification: O(N) transcript verification plus independent recomputation of all registered statistics
+  proof_search_map:
+    exact_baseline_reproduction: >-
+      Reproduce equality of the no-fault true-simulator and fresh-state pair metrics
+      within registered confidence bands before inspecting the fault arm.
+    observation_collision_search: >-
+      Search for distinct null mechanisms, including message hashing and parser
+      normalization, that yield the same collision or HSIC observation.
+    quantifier_order: >-
+      For each fixed toy parameter set, implementation, checkpoint, public-input
+      sampler, feature map, and state-reuse probability, probability is taken over
+      precommitted fresh seeds and messages; no universal implementation claim follows.
+    method_ceiling: >-
+      The method can establish a distributional mismatch for the tested oracle, but
+      cannot identify the reused secret state or prove a forgery advantage.
+    nearby_object_control: >-
+      Apply a semantically inert checkpoint/restore to a separate diagnostic PRNG not
+      consumed by signing; an effect there diagnoses instrumentation artifacts.
+  nearest_neighbors:
+    - id: IDEA-20260805-2a669e
+      overlap: Both examine conditioning effects in published transcripts.
+      discriminator: This proposal intervenes by checkpoint restoration and tests cross-signature exchangeability, not abort conditioning.
+    - id: IDEA-20260815-e72354
+      overlap: Both consider signer retries or mutable execution state.
+      discriminator: Retry counts and latency are unavailable here; only public transcript fields enter the test.
+    - id: IDEA-20260815-dc0277
+      overlap: Both ask whether published signatures partition into observable strata.
+      discriminator: Signature byte length is removed here and state reuse is an explicit intervention.
+    - id: IDEA-20260808-ee5d81
+      overlap: Both can observe repeated public commitments.
+      discriminator: Commitment equality is one preregistered feature, not the mechanism; the mechanism is coupled state across distinct signatures.
+  dominated_by: n/a (no result claimed)
+  sota_delta:
+    time_exponent_delta: 0
+    memory_exponent_delta: 0
+    data_or_query_exponent_delta: 0
+    concrete_speedup_claim: 0
+    baseline: KN-TECH-058 Fp2 unconditional and conditional hard-problem rows
+    caveats: >-
+      No hard-problem improvement is claimed; conditional p^(1/3+o(1)) retains
+      Heuristic 1, superpolynomial hidden overhead, unverified reductions, and the
+      stated GRH boundary.
+  estimated_cost: >-
+    Low-to-moderate toy audit: four balanced arms, 2^12 to 2^15 transcripts per arm,
+    O(N log N) analysis, and no production key-recovery campaign.
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.35 for detecting a registered joint-distribution defect under an intentionally
+    strong checkpoint-reuse oracle; below 0.10 for translating it into a security
+    break without additional evidence.
+  proposed_by: idea-generator
+  proposed_at: '2026-08-20T00:00:00Z'
+  id_allocation_provenance: >-
+    Preallocated by the Coordinator with tools/allocate_id.py and frozen in
+    BATCH-74c282 before this Idea Generator task.

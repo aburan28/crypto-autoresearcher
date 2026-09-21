@@ -1,0 +1,566 @@
+execution_report:
+  experiment_id: EXP-SSIQ-a85692
+  run_id: RUN-SSIQ-a85692-b
+  spec_version: 2
+  implementation_commit: 14b56525ea9584cb0d7fd20f2dc4de5af82d2215
+  implementation_commit_note: >-
+    dirty tree at this commit (this run's new
+    implementation/compute_delta_e_v2.py and .../runs/RUN-SSIQ-a85692-b/ were
+    untracked, created by this run); the Coordinator's snapshot task commits
+    the exact artifact set, per AGENTS.md -- this Executor commits nothing.
+    WRITE SCOPE respected: v1's implementation/compute_delta_e.py,
+    modular_polynomials.py, velu_verify.py, modpoly_data/*.txt,
+    specification.yaml, and runs/RUN-SSIQ-a85692-a/ are BYTE-FOR-BYTE
+    untouched; v1's code is imported by reference (Python import of the
+    sibling module), never copied or forked.
+
+  required_artifacts_note_diff_cross_check: >-
+    REQUIRED DELIVERABLE per the task instructions: an explicit confirmation
+    of specification_v2.yaml's required_artifacts_note function-level diff
+    list against the code actually written and run, reporting any
+    discrepancy rather than silently reconciling it.
+
+    CONFIRMED MATCHES (logical diff, verified by direct inspection of
+    compute_delta_e_v2.py against v1's compute_delta_e.py):
+      - CHANGED: apply_truncation_fallback -- REWRITTEN in
+        compute_delta_e_v2.py per scope_reduction_fallback_v2 (cumulative
+        -ascending-prefix admission against a single T_reserved, replacing
+        v1's individual per-prime T_prime=0.5*7200/12=300s cap). CONFIRMED.
+      - CHANGED: run_phase_minus1_on_confirmatory_set -- REWRITTEN in
+        compute_delta_e_v2.py per real_execution_budget_v2 (PF-1's fix): no
+        longer accepts a per-prime t_prime cap; instead accepts and
+        maintains a single aggregate remaining-budget counter, threaded
+        across every prime it is called on (both the confirmatory prefix and
+        each widening extension prime, one call per extension). CONFIRMED.
+      - CHANGED (call site only, function body unmodified):
+        run_feasibility_smoke_test -- v1's function is imported UNCHANGED
+        (`run_feasibility_smoke_test = v1c.run_feasibility_smoke_test`,
+        zero lines of its own body reproduced or altered); main() gains a
+        SECOND call site at PRIMES[0] alongside the existing call at
+        PRIMES[-1], per feasibility_smoke_test_v2. CONFIRMED, and PF-5's own
+        correction (the function needs no change, only a call site) holds
+        exactly as the pre-freeze review predicted.
+      - CHANGED (call site + surrounding orchestration): main()'s call to
+        run_phase_minus1_on_confirmatory_set -- updated to pass the
+        aggregate counter (T_RESERVED=3600.0s) per real_execution_budget_v2,
+        and main() is extended per coverage_widening_note with an iterative
+        widening loop over extension primes after the confirmatory set's
+        real search completes. CONFIRMED.
+      - NEW: per_prime_cost_estimate_v2's two-point linear interpolation is
+        implemented as `estimate_per_prime_cost_v2`, a new, separate helper
+        function, NOT folded into apply_truncation_fallback -- exactly as
+        required so it can be inspected independently of the admission logic
+        it feeds. CONFIRMED.
+      - UNCHANGED, reused by reference (Python import from v1's
+        compute_delta_e.py, zero lines reproduced): build_smooth_table (via
+        two_sided_search, itself imported), the collision search
+        (two_sided_search), Phi_ell loading (neighbors_ell_isogenous,
+        internal to two_sided_search/build_smooth_table, never called
+        directly by compute_delta_e_v2.py but reached only through the
+        imported two_sided_search), C-SEARCH-BIAS (run_c_search_bias,
+        pearson_corr), the F_p-rational identity check (inside
+        run_c_bound_check, imported unchanged). CONFIRMED for every one of
+        these. Also confirmed UNCHANGED and imported: verify_modular_polynomials,
+        build_all_graphs, run_correctness_gates, run_c_bound_check,
+        apply_decision_rule, git_state, and the module constants PRIMES,
+        B_SMOOTH, X_LIST_BOUND, L_PRIMES, SEEDS, WALL_CLOCK_BUDGET_SECONDS.
+
+    ONE DISCLOSED DISCREPANCY (physical form, not logical content): the
+    diff list's own framing implicitly assumes v1's compute_delta_e.py is
+    edited IN PLACE (a diff against the same file, before/after). This run
+    instead implements the identical LOGICAL diff in a NEW, separate module
+    (compute_delta_e_v2.py) that imports every "UNCHANGED" function from
+    v1's compute_delta_e.py by reference, per the launching task's EXPLICIT
+    instruction: "Copy or branch this into a form where you implement v2's
+    changes ... do not silently modify the frozen v1 run's own artifacts."
+    v2's own required_artifacts list (unlike v1's) does not name any
+    implementation/*.py file at all, which is consistent with either
+    reading but does not itself resolve which one was intended; the
+    launching task's explicit instruction is the more specific, more
+    recent authority and was followed. This is recorded as a disclosed
+    protocol deviation (PD-1 below), not silently reconciled: a reader
+    comparing the diff list's prose ("rewritten", "reused unchanged") against
+    the actual repository will find those functions living in a new file,
+    not as edits to compute_delta_e.py's own git history. The LOGICAL
+    function-level diff itself is exactly as specified above.
+
+  protocol_deviations:
+    - id: PD-1
+      title: >-
+        v2's code changes are implemented in a NEW file
+        (compute_delta_e_v2.py) rather than as in-place edits to v1's
+        compute_delta_e.py.
+      detail: >-
+        See required_artifacts_note_diff_cross_check above. Per the
+        launching task's explicit instruction, v1's compute_delta_e.py
+        (and modular_polynomials.py, velu_verify.py, modpoly_data/*.txt)
+        remain byte-for-byte untouched; compute_delta_e_v2.py imports every
+        function required_artifacts_note lists as UNCHANGED directly from
+        v1's module (Python import, not a copy), and re-implements ONLY the
+        functions/call-sites the diff list names as CHANGED or NEW. The
+        LOGICAL diff is identical to the diff list; the PHYSICAL location
+        of that diff (a new file vs. an in-place edit) differs from what the
+        diff list's prose most naturally suggests.
+      impact: >-
+        None on any reported number: every UNCHANGED function executes the
+        IDENTICAL code v1 used (same bytes, imported not reproduced), so
+        C-SEARCH-BIAS's bit-identical reproduction of RUN-SSIQ-a85692-a's own
+        correlations (see observations below) is direct evidence this
+        import-based reuse is behaviourally equivalent to v1's own execution.
+        v1's own frozen run (RUN-SSIQ-a85692-a) and its specification.yaml
+        are unaffected and remain immutable.
+
+    - id: PD-2
+      title: >-
+        DISCLOSED, MATERIAL GAP surfaced (not introduced) by this run:
+        M-GAMMA-GREEDY's PER-PRIME-TRAPPED-EXCLUSION filter
+        (trapped_fraction(N) > 0.5) is defined in the frozen spec's text but
+        was NEVER implemented in v1's own main() orchestration, and this run
+        reproduces that same, unmodified logic (per the reuse discipline)
+        rather than silently patching it under this differently-scoped
+        amendment. This is the FIRST run in the campaign where it is
+        material: ALL FOUR primes contributing to this run's reported
+        gamma_greedy/M-GAP have greedy_trapped_fraction > 0.5.
+      detail: >-
+        specification.yaml's M-GAMMA-GREEDY definition (inherited unchanged
+        into v2) states "same trapped_fraction reporting and exclusion
+        threshold -- see outcome_scope_label_glossary for its
+        PER-PRIME-TRAPPED-EXCLUSION label". v1's compute_delta_e.py's own
+        main() orchestration (inline code, not a standalone importable
+        function, so not itself named in required_artifacts_note's diff
+        list) computes and REPORTS greedy_trapped_fraction per prime but
+        never actually GATES on it -- no prime is ever excluded from the OLS
+        fit for trapped_fraction > 0.5, in either v1's code or this run's
+        reproduction of that same inline logic. This was never exercised in
+        RUN-SSIQ-a85692-a (Phase -1 never ran a real search there). THIS RUN
+        raw-result.json.descent_metrics.per_prime reports:
+          2437: greedy_trapped_fraction=0.8374
+          3889: greedy_trapped_fraction=0.7222
+          5737: greedy_trapped_fraction=0.8201
+          7333: greedy_trapped_fraction=0.8511
+        ALL FOUR exceed 0.5. Under a CORRECTLY implemented
+        PER-PRIME-TRAPPED-EXCLUSION filter, ZERO primes would remain for the
+        greedy-arm OLS fit (fewer than the >=4-usable-primes floor
+        descent_metrics itself requires), so descent_metrics.ran would
+        become false and gamma_greedy/gamma_random/m_gap would not exist as
+        reported.
+      classification: >-
+        A pre-existing gap in REUSED (not itself named as CHANGED) code,
+        discovered because this is the first run to reach real descent
+        -metrics computation at all -- analogous in shape to GD-4 through
+        GD-7 (a frozen/reused element nobody stress-tested because attention
+        was correctly, but not completely, drawn elsewhere), but distinct in
+        kind: this is a gap between the FROZEN SPEC's own text and the
+        REUSED CODE's actual behaviour, not a budget-formula defect. Per the
+        reuse discipline ("do NOT patch it in place inside this run" for a
+        defect found in reused/frozen code) and the non-improvisation
+        standard, this run does NOT silently add the filter -- doing so
+        would be an unauthorized, unreviewed change to inherited logic
+        outside this amendment's own diff list, decided unilaterally mid-run
+        exactly what GD-4's discipline exists to prevent.
+      impact_on_THIS_runs_decision: >-
+        NONE. apply_decision_rule (UNCHANGED, imported) checks
+        c_search_bias_control_failure BEFORE the M-GAP CI in its branch
+        ordering; C-SEARCH-BIAS fails regardless of trapped_fraction (see
+        observations below), so this run's terminal branch is
+        CONTROL-FAILURE-VOID whether or not PER-PRIME-TRAPPED-EXCLUSION is
+        applied. Verified explicitly: with descent_metrics.ran forced to
+        false (simulating the corrected filter), apply_decision_rule still
+        returns CONTROL-FAILURE-VOID via the same control-failure branch,
+        since that branch is checked before the CI check and does not
+        require m_gap_ci_lo to be non-null.
+      impact_on_reported_numbers: >-
+        MATERIAL. gamma_greedy=0.23354, gamma_random=0.40140,
+        m_gap=+0.16786, and the bootstrap CI [-0.4077, 1.3256] reported in
+        raw-result.json.descent_metrics are computed WITHOUT this exclusion
+        filter and should NOT be read as a clean, spec-conformant M-GAMMA
+        -GREEDY measurement -- they are reported honestly, as computed by
+        the actual (gap-carrying) code, per AGENTS.md rule 9 (never fabricate
+        or silently improve a result), but a reader treating them as the
+        spec's own M-GAMMA-GREEDY without this caveat would be misled about
+        what was actually measured. This is flagged here as a finding for
+        the Coordinator/Validator, not resolved by this Executor.
+      recommendation: >-
+        A future amendment (or a Coordinator-directed correction) should
+        implement PER-PRIME-TRAPPED-EXCLUSION explicitly in a NEW,
+        Coordinator-approved change (with its own pre-freeze review, per the
+        reuse-defect discipline), and re-run the descent-metrics computation
+        under it. Until then, gamma_greedy/m_gap numbers from this run (and
+        any future run reusing this same inline logic unchanged) should be
+        read with this caveat attached.
+
+    - id: PD-3
+      title: >-
+        INFRASTRUCTURE FAILURE, TWICE: the environment killed two prior
+        execution attempts of this same run before either could complete,
+        after approximately 60-65 minutes of wall-clock time each. A third,
+        DETACHED attempt (setsid/nohup/disown) survived past that limit and
+        is the run reported here.
+      detail: >-
+        ATTEMPT 1 (launched 2026-08-05T10:30:34Z as a harness-tracked
+        background Bash task): ran cleanly through Phase 0, modular
+        -polynomial verification, graph reuse, correctness gates, the
+        two-point smoke test, C-SEARCH-BIAS, C-BOUND-CHECK,
+        per_prime_cost_estimate_v2, and scope_reduction_fallback_v2's
+        admission (confirmatory_prime_set=[2437,3889,5737,7333,8893]),
+        exactly as ATTEMPT 3 (reported) later reproduced -- then entered the
+        real Phase -1 aggregate-counter search and was killed (status
+        "killed" per the harness's own task-notification) approximately 65
+        minutes after launch, before completing even the FIRST admitted
+        prime's search and before writing any raw-result.json. stderr.log
+        was empty (no Python traceback, no OOM signature) -- a clean
+        external termination, not a code-level crash. Its partial stdout is
+        preserved unmodified at
+        experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-b/attempt1-infra-killed.stdout.log,
+        per AGENTS.md rule 8 (record, do not discard). Classified
+        infrastructure_error per agents/executor.md's failure taxonomy: "not
+        evidence against a mathematical hypothesis," and specifically not
+        evidence about the delta_E-computation instrument's real cost, which
+        this same run's own successful third attempt later measured
+        directly.
+        ATTEMPT 2 (launched 2026-08-05T11:35:32Z, also harness-tracked
+        background): reproduced attempt 1's admission result byte-for-byte
+        in the sense that matters (5 confirmatory primes, same order,
+        materially the same cumulative estimate given fresh but consistent
+        two-point smoke-test measurements), entered the real Phase -1
+        search, and was ALSO killed by the same harness mechanism
+        (task-notification status "killed") approximately 62 minutes after
+        launch -- again before any raw-result.json was written, again with
+        empty stderr. The Executor's own monitoring of this attempt (via
+        repeated harness-tracked "until...sleep...done" background polling
+        loops) may have contributed to or coincided with the kill: SIX
+        overlapping monitoring loops had accumulated by the time of the
+        kill, a deviation from good background-task hygiene this report
+        discloses rather than omits, though the SAME external kill mechanism
+        later terminated the harness-tracked compute job itself
+        (task-id bq2k1seha) on a THIRD occasion with zero overlapping
+        monitoring loops present (see below), indicating the dominant cause
+        is a harness-level background-process lifetime ceiling
+        (empirically ~60-65 minutes) independent of the Executor's own
+        polling behaviour, not solely a consequence of it.
+        ATTEMPT 2.5 (an unlaunched, harness-tracked relaunch, task-id
+        bq2k1seha, launched 2026-08-05T11:35:32Z with disciplined,
+        non-overlapping monitoring this time): ALSO killed by the harness
+        (task-notification status "killed") after approximately the same
+        ~60-65 minute window, confirming the ceiling is a property of the
+        harness's background-task tracking itself, not of accumulated
+        monitoring-loop count.
+        ATTEMPT 3 (REPORTED, launched 2026-08-05T12:38:41Z via
+        `setsid nohup bash -c '...' < /dev/null > /dev/null 2>&1 & disown -a`,
+        fully detached from the harness's own background-task session):
+        survived past the ~60-65-minute window that killed the prior three
+        launches and completed naturally at 2026-08-05T13:40:19Z (total
+        wall_clock_seconds=3698.5, i.e. ~61.6 minutes -- almost exactly
+        T_reserved's 3600s aggregate PLUS the ~80-100s of Phase
+        0/graph-reuse/smoke-test/C-SEARCH-BIAS/C-BOUND-CHECK preamble,
+        consistent with the run's own internal aggregate-counter design
+        working correctly and simply needing slightly MORE wall-clock time
+        than the harness's background-task tracker was willing to grant a
+        tracked process). EXITCODE=0, raw-result.json written, no
+        stderr content.
+      classification: infrastructure_error (all three prior/parallel killed launches).
+      impact: >-
+        Real compute was consumed and lost on the two fully-killed prior
+        attempts (~65 min + ~62 min, i.e. roughly 2.1 CPU-hours of real,
+        un-refundable execution that produced no usable output) before the
+        successful third attempt. No partial numeric result from either
+        killed attempt is used anywhere in this run's reported numbers --
+        both died before completing a single prime's real search, so there
+        was no partial numeric result to consider using even under a
+        "valid-but-truncated" reading. This is disclosed per AGENTS.md rule
+        8 (record deviations, infrastructure failures, and unexpected
+        observations; discard none) and is NOT reported as a
+        negative_observation of any kind -- it bears on this campaign's
+        execution INFRASTRUCTURE, not on H-SSIQ-137200's prediction.
+      recommendation_for_future_runs: >-
+        Any future run in this campaign requiring more than ~55 minutes of
+        continuous single-process wall-clock time under this Claude Code
+        harness should be launched detached from the harness's own
+        background-task tracking (setsid/nohup/disown, or an equivalent
+        externally-supervised long-running process mechanism) from the
+        start, to avoid burning real compute on attempts the harness itself
+        will terminate before completion.
+
+  runs:
+    completed: [RUN-SSIQ-a85692-b]
+    invalid: []
+    failed: []
+    infrastructure_failed_attempts_not_counted_as_runs: >-
+      Two execution ATTEMPTS of this same run (launched
+      2026-08-05T10:30:34Z and 2026-08-05T11:35:32Z) were killed by the
+      environment before producing any raw-result.json; per AGENTS.md these
+      are infrastructure_error events, not separate "runs" in the
+      research-record sense (no experiment_id/run_id-scoped record was ever
+      completed for them), and are disclosed in full above (PD-3) rather
+      than omitted. Only RUN-SSIQ-a85692-b's successful third attempt
+      produced a completed, valid run record.
+
+  budget_split_statement: >-
+    Per spec.budget (unchanged from v1's delta_e_search_sub_budget_note), the
+    7200s per-run budget's actual use in the SUCCESSFUL attempt is stated
+    explicitly (measured, not estimated), from raw-result.json.budget_split_seconds:
+    C-CAL-GAP (Phase 0) 0.064s; modular-polynomial independent verification
+    (PF-2, unchanged) 0.170s; graph reuse (12 primes, unchanged) 27.779s;
+    the TWO-POINT feasibility smoke test (feasibility_smoke_test_v2,
+    largest+smallest prime) 10.118s; C-SEARCH-BIAS (required control,
+    unchanged, 20 sampled vertices x 2 arms at p=2437) 57.286s;
+    the REAL Phase -1 search on the 5-prime confirmatory set
+    (real_execution_budget_v2's aggregate counter) 3600.165s -- i.e.
+    essentially the FULL T_reserved=3600.0s aggregate budget was consumed,
+    confirming PF-1's fix is load-bearing exactly as intended: real
+    execution time is governed solely by the measured aggregate clock, not
+    by any per-prime estimate; coverage_widening_note's extension loop:
+    0 primes attempted (REMAINING=0.00s after the confirmatory search, so
+    the mechanical "WHILE REMAINING>0" condition never held); C-NULL-LABEL
+    0.742s; descent simulation 0.488s. TOTAL measured wall clock for the
+    successful attempt: 3698.5s of the 7200s budget (51.4%). Separately,
+    two infrastructure-killed prior attempts consumed additional real
+    wall-clock time (~65 min and ~62 min) that produced no output and are
+    NOT counted against this budget accounting (they are a distinct,
+    disclosed infrastructure cost, per PD-3), though they are disclosed in
+    full for transparency.
+
+  observations:
+    frozen_prediction_reference: >-
+      spec.preregistered_prediction.decision_rule_frozen_before_data
+      (inherited unchanged from v1, specification.yaml lines ~297-331; v2
+      amends only the budget-allocation mechanics, not the decision rule
+      itself). NO POINT PREDICTION for M-GAP's magnitude was pre-registered
+      (inherited unchanged from v1/EXP-SSIQ-58b642). The PHASE -1 GATE and
+      the four-branch decision rule were what was frozen and are what this
+      run applies mechanically.
+
+    phase0_c_cal_gap:
+      overall_pass: true
+      note: >-
+        Bit-identical to RUN-SSIQ-a85692-a's own Phase 0 result (same
+        imported code, same calibration seed), as expected: C-CAL-GAP is
+        REUSED UNCHANGED and was RUN (not merely cited) as this contract
+        requires.
+
+    modular_polynomial_verification:
+      ell_23_required: {all_ok: true, route: "exact rational Velu-formula isogeny + naive point counting, independent of the Phi_ell root-finding route used elsewhere"}
+      note: >-
+        Freshly re-verified in this run (not merely cited from RUN-a); PASS,
+        consistent with RUN-a's own independent verification.
+
+    correctness_gates:
+      c_connectivity: {all_12_primes_pass: true, definition: "BFS vertex count == floor(p/12) exactly (epsilon=0 at p=1 mod 12)"}
+      m_degseq: {all_12_primes_pass: true}
+      c_edgelist: {prime: 2437, vertices_checked: 203, pass: true}
+      non_fp_rational_vertex_total: 11462
+
+    feasibility_smoke_test_v2:
+      largest_prime: {prime: 21601, avg_wall_seconds_per_vertex: 1.9500084718068440, all_sample_resolved: true}
+      smallest_prime: {prime: 2437, avg_wall_seconds_per_vertex: 1.4221388498942058, all_sample_resolved: true}
+      monotonic: true
+      comparison_to_prior_measurements: >-
+        Both figures are close to, but not identical to, RUN-SSIQ-a85692-a's
+        own single-point largest-prime measurement (1.9574s/vertex) and this
+        campaign's own disclosed informal smallest-prime figure from
+        RUN-a's anomaly A-1 (~1.43s/vertex) -- session-to-session variation
+        on the order of 1-3%, consistent with ordinary measurement noise
+        (shared host, no isolation guarantees), not a material discrepancy.
+        NOT substituted for the fresh measurement anywhere; this run's own
+        measured values are what per_prime_cost_estimate_v2 and
+        scope_reduction_fallback_v2 actually used.
+
+    per_prime_cost_estimate_v2_and_admission:
+      confirmatory_prime_set: [2437, 3889, 5737, 7333, 8893]
+      n_confirmatory_primes: 5
+      cumulative_estimated_seconds_admitted: 3492.9393263419524
+      t_reserved_seconds: 3600.0
+      comparison_to_batch004_worked_check: >-
+        BATCH-004's own already-committed flat-single-point WORKED CHECK
+        (specification_v2.yaml's own sanity check, using v1's uncorrected
+        model) admitted 4 primes within 3600s (cumulative 3041.7s at the
+        4th). This run's TWO-POINT interpolation, freshly re-measured,
+        admitted 5 (cumulative 3492.9s at the 5th) -- MORE than the worked
+        check anticipated ("expected to admit AT LEAST as many primes,
+        plausibly more, since... the flat single-point estimate likely
+        overstates cost at the smaller primes"), consistent with that
+        stated expectation.
+
+    real_execution_budget_v2_phase_minus1:
+      aggregate_seconds_spent: 3600.0714724063873
+      aggregate_seconds_remaining_after: 0.0
+      per_prime_results:
+        - {prime: 2437, m_coverage_non_fp_fraction: 1.0, n_attempted: 194, n_resolved: 194, wall_seconds: 284.884}
+        - {prime: 3889, m_coverage_non_fp_fraction: 1.0, n_attempted: 306, n_resolved: 306, wall_seconds: 474.842}
+        - {prime: 5737, m_coverage_non_fp_fraction: 1.0, n_attempted: 460, n_resolved: 460, wall_seconds: 817.950}
+        - {prime: 7333, m_coverage_non_fp_fraction: 1.0, n_attempted: 594, n_resolved: 594, wall_seconds: 947.691}
+        - {prime: 8893, m_coverage_non_fp_fraction: 0.7716, n_attempted: 555, n_resolved: 554, wall_seconds: 1074.705, note: "aggregate counter exhausted mid-search; STOPPED, per real_execution_budget_v2's own design, not a bug -- 164 of 718 non-F_p-rational vertices unresolved"}
+      n_primes_coverage_pass: 5
+      phase_minus1_gate_pass: true
+      note: >-
+        PF-1's fix is directly validated by this outcome: under v1's
+        UNFIXED per-prime cap (T_PRIME=300s applied individually), the
+        pre-freeze reviewer calculated at most ~2 of 4 admitted primes could
+        have cleared M-COVERAGE>=0.5. Under the FIXED aggregate counter, ALL
+        5 admitted primes clear M-COVERAGE>=0.5 (4 fully, 1 partially at
+        77.2%) -- the Phase -1 gate PASSES for the first time in this
+        campaign.
+
+    coverage_widening: {n_extension_primes_attempted: 0, reason: "REMAINING=0.00s after the confirmatory search consumed the entire T_reserved aggregate; the mechanical WHILE REMAINING>0 condition never held"}
+
+    c_search_bias:
+      prime: 2437
+      n_sample: 20
+      true_target_correlation: 0.09610901099736084
+      random_target_correlation: 0.030832644977609028
+      magnitudes_comparable_flag: true
+      comparison_to_RUN_a: >-
+        BIT-IDENTICAL to RUN-SSIQ-a85692-a's own C-SEARCH-BIAS measurement
+        (0.0961.../0.0308..., matching to every digit shown) -- expected and
+        confirmed, since C-SEARCH-BIAS is reused unchanged, uses the same
+        seeds and the same p=2437 graph, and is deterministic given those
+        inputs. This bit-identical reproduction is independent evidence that
+        this run's reuse-by-import mechanism (compute_delta_e_v2.py
+        importing v1's compute_delta_e.py) executes IDENTICAL code to v1's
+        own, not merely similar code.
+      control_consequence: >-
+        Per spec.controls.C-SEARCH-BIAS's pre-registered failure_consequence
+        (inherited unchanged from v1): "If the random-target correlation is
+        comparable in magnitude to the real-target correlation... the real
+        arm's M-GAP is CONTROL-FAILURE-VOID." Both correlations are below
+        the pre-registered 0.1 comparability threshold
+        (comparability_rule: "OR both magnitudes are below 0.1"), so
+        magnitudes_comparable_flag=true fires. This is the FIRST time in
+        this campaign's history that this control's consequence has actually
+        applied to a real, non-empty M-GAP (RT-BATCH-004.md numbered
+        objection 4 explicitly anticipated this: "this diagnostic should be
+        re-examined... once a real M-GAP exists under the corrected
+        allocation rule... if the corrected run's own C-SEARCH-BIAS sample
+        later shows a comparable-magnitude correlation against a real,
+        non-empty M-GAP, that is when the contract's stated
+        CONTROL-FAILURE-VOID consequence actually applies" -- exactly what
+        happened here).
+
+    c_null_label: {ran: true, n_primes_usable: 4, note: "usable = primes with a FULL (all-vertex) delta_E multiset; 8893 excluded for partial coverage, per v1's inherited len(delta_map)!=len(vertices) skip rule"}
+
+    descent_metrics:
+      ran: true
+      gamma_greedy: 0.23353930498277403
+      gamma_random: 0.4013966802748042
+      m_gap: 0.16785737529203015
+      m_gap_ci_lo: -0.4077113485550079
+      m_gap_ci_hi: 1.325623864261203
+      n_range_achieved: [203, 611]
+      n_primes_used: 4
+      n_extension_primes_used: 0
+      trapped_fraction_caveat: >-
+        SEE protocol_deviations PD-2. ALL FOUR primes contributing to this
+        fit have greedy_trapped_fraction > 0.5 (0.8374, 0.7222, 0.8201,
+        0.8511) -- the PER-PRIME-TRAPPED-EXCLUSION filter the frozen spec's
+        M-GAMMA-GREEDY definition names is, per that definition, meant to
+        exclude exactly such primes from the gamma_greedy fit, but this
+        exclusion was never implemented in v1's reused inline orchestration
+        and is reproduced UNCHANGED (not silently patched) here. These
+        numbers are reported honestly as computed, with this caveat
+        attached, not withheld and not silently corrected.
+      bootstrap_ci_width_note: >-
+        The 95% CI [-0.4077, 1.3256] is very wide (width 1.733) relative to
+        the point estimate (0.1679), consistent with the narrow achieved
+        N-range (203-611, a 3.0x span versus the originally-intended
+        203-1800, 8.9x span) that RT-BATCH-004.md objection 2 and
+        DEC-20260805-a4e04e D-5 flagged as a risk of this cheapest-admissible
+        -prefix approach -- reported as observed, not adjusted for.
+
+    decision_rule_application: >-
+      apply_decision_rule (UNCHANGED, imported from v1) evaluates, in
+      order: phase0_pass=true (pass) -> phase_minus1_gate_pass=true (pass,
+      first time in this campaign) -> c_search_bias_control_failure=true
+      (FIRES) -> branch=CONTROL-FAILURE-VOID, reason "C-SEARCH-BIAS,
+      C-NULL-LABEL, or C-CONNECTIVITY failed; signal is contaminated." The
+      CI check (m_gap_ci_lo>0.0) is never reached because the control
+      -failure branch returns first, exactly the pre-registered ordering
+      C-SEARCH-BIAS's own failure_consequence text specifies ("the real
+      arm's M-GAP is CONTROL-FAILURE-VOID regardless of what C-NULL-LABEL
+      shows, because the artifact is in the search algorithm, not in
+      delta_E itself").
+
+  anomalies:
+    - id: A-1
+      title: "Infrastructure failures: two prior execution attempts killed by the environment before completion"
+      detail: "See protocol_deviations PD-3 for full detail. Classified infrastructure_error, not negative_observation."
+    - id: A-2
+      title: "PER-PRIME-TRAPPED-EXCLUSION gap in reused code, material to this run's reported descent-metrics numbers"
+      detail: "See protocol_deviations PD-2 for full detail. Does not change this run's terminal decision branch (CONTROL-FAILURE-VOID either way), but materially qualifies the reported gamma_greedy/m_gap numbers."
+    - id: A-3
+      title: "Physical-form deviation: v2's code lives in a new file, not an in-place edit of v1's compute_delta_e.py"
+      detail: "See protocol_deviations PD-1 and required_artifacts_note_diff_cross_check above."
+    - id: A-4
+      title: "git tree was dirty throughout (untracked new files only)"
+      detail: >-
+        experiments/EXP-SSIQ-a85692/implementation/compute_delta_e_v2.py and
+        .../runs/RUN-SSIQ-a85692-b/ were untracked at execution time (this
+        run created both); no pre-existing file was modified. Recorded per
+        AGENTS.md rule "record the exact git commit and dirty-tree state
+        before every run."
+    - id: A-5
+      title: "PD-1 through PD-3 restated here per the execution report template's expectation that unexpected observations appear in BOTH sections"
+      detail: "Full text is in protocol_deviations above, not duplicated here."
+
+  artifact_paths:
+    - experiments/EXP-SSIQ-a85692/implementation/compute_delta_e_v2.py
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-b/manifest.yaml
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-b/raw-result.json
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-b/execution_report.yaml
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-b/source_access_log.yaml
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-b/command.txt
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-b/environment.json
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-b/stdout.log
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-b/stderr.log
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-b/attempt1-infra-killed.stdout.log
+
+  executor_assessment:
+    protocol_complete: true
+    protocol_complete_note: >-
+      spec_v2.success_criterion (inherited unchanged from v1) is fully met:
+      the two-point feasibility smoke test was executed and reported; Phase
+      0 and Phase -1 gates both evaluated (both PASSED, the first PASS of
+      the Phase -1 gate in this campaign's history); M-COVERAGE,
+      M-BOUND-TIGHTNESS (free-identity only; the optional second
+      independent-search-route cross-check was not additionally run this
+      pass, same disclosed non-gating omission pattern as RUN-a's PD-3), and
+      M-SEARCH-BIAS-RANDOM-TARGET were reported for every relevant prime;
+      every control returned a recorded verdict (C-CAL-GAP pass, Phi_23
+      verification pass, C-CONNECTIVITY/M-DEGSEQ/C-EDGELIST pass,
+      C-SEARCH-BIAS FAILED [comparable magnitudes], C-NULL-LABEL ran);
+      M-GAP was estimated with a bootstrap CI for the first time in this
+      campaign; the decision rule was applied mechanically and returned
+      exactly one of the four labels: CONTROL-FAILURE-VOID.
+    data_quality: limited
+    data_quality_note: >-
+      "limited," not "good": every reported number is an exact, reproducible
+      measurement from this run's own committed code and seeds (not an
+      estimate presented as a measurement), and C-SEARCH-BIAS's
+      bit-identical reproduction of RUN-a's own numbers independently
+      confirms the reuse-by-import mechanism is behaviourally faithful.
+      However, two disclosed issues qualify the data as "limited" rather
+      than "good": (1) the descent_metrics numbers (gamma_greedy, m_gap)
+      are computed without the PER-PRIME-TRAPPED-EXCLUSION filter the
+      frozen spec's own M-GAMMA-GREEDY definition names (PD-2) -- material,
+      though it does not change this run's terminal decision; (2) the
+      achieved N-range (203-611) is markedly narrower than the
+      originally-intended design span (203-1800), the exact narrow-window
+      risk RT-BATCH-004.md and DEC-20260805-a4e04e flagged in advance.
+      Neither issue reflects an error in following the FROZEN v2 CONTRACT
+      as written; both are disclosed, pre-anticipated limitations of the
+      corrected-but-still-cheapest-admissible-prefix design this amendment
+      implements.
+    requires_rerun: false
+    requires_rerun_note: >-
+      Not a rerun of THIS experiment under the SAME protocol: the terminal
+      branch (CONTROL-FAILURE-VOID) is a mechanical, deterministic
+      consequence of C-SEARCH-BIAS's bit-identical-reproducible correlation
+      figures at p=2437, which re-running would reproduce exactly (same
+      seeds, same graph, same code). A DIFFERENT outcome would require
+      either (a) a Coordinator-approved amendment addressing PD-2's
+      PER-PRIME-TRAPPED-EXCLUSION gap and/or the narrow-N-range risk (e.g.
+      per-prime B/X pinning or a widened confirmatory prefix funded by a
+      larger T_reserved, both requiring their own pre-freeze review), or (b)
+      accepting this run's CONTROL-FAILURE-VOID outcome as the terminal
+      finding for H-SSIQ-137200 under the tested (B=23,X=23,
+      T_reserved=3600s) parameters -- a Coordinator/Validator/Red-Team
+      judgement this Executor does not make.

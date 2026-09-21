@@ -1,0 +1,119 @@
+name: kb
+
+# The retrieval layer, kept separate from validate.yml on purpose.
+#
+# Three things need checking over two different populations of PR:
+#
+#   * The frozen evaluation slice names ~625 repository paths. Deleting one
+#     silently invalidates every question label that references it, and the
+#     campaign that deleted it is the one that can fix it. That check is pure
+#     stdlib and sub-second, so it runs on any PR that touches the corpus.
+#   * The staging rules must still reach every family of record, and the
+#     disclosed staging debt must not grow. That measures the *repository*,
+#     not kb/, so it also runs on any PR that touches the corpus -- see the
+#     step below for why gating it behind kb/ was a mistake.
+#   * The suite itself builds a 610-document corpus and queries it. That is a
+#     kb/ concern, and making every research PR wait on it is exactly the
+#     coupling this repository removes elsewhere.
+
+on:
+  pull_request:
+    paths:
+      - 'kb/**'
+      - 'knowledge/**'
+      - 'ledger/**'
+      - 'docs/**'
+      - '.mcp.json'
+      - '.github/workflows/kb.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'kb/**'
+      - 'knowledge/**'
+      - 'ledger/**'
+      - 'docs/**'
+      - '.mcp.json'
+      - '.github/workflows/kb.yml'
+
+jobs:
+  kb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # so the base ref is resolvable for the diff below
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # No install: the manifest is a text file and the paths are on disk.
+      # This must stay cheap, because it runs on research PRs that have no
+      # interest in the retrieval layer.
+      - name: Frozen evaluation slice still resolves
+        run: |
+          python3 - <<'PY'
+          import pathlib, sys
+          manifest = pathlib.Path("kb/src/crypto_kb/eval/corpus_manifest.txt")
+          paths = [
+              line.strip()
+              for line in manifest.read_text(encoding="utf-8").splitlines()
+              if line.strip() and not line.startswith("#")
+          ]
+          missing = [p for p in paths if not pathlib.Path(p).is_file()]
+          if missing:
+              print(f"FAIL: {len(missing)} of {len(paths)} frozen slice paths no longer exist:")
+              for p in missing[:20]:
+                  print(f"  - {p}")
+              print(
+                  "\nEvery question label naming one is now unmeasurable. Re-check "
+                  "kb/tests/retrieval_eval/questions.jsonl, then regenerate with "
+                  "`crypto-kb eval-manifest --write` and re-measure BASELINE."
+              )
+              sys.exit(1)
+          print(f"PASS: all {len(paths)} frozen slice paths resolve")
+          PY
+
+      # The suite is a kb/ concern. Skipped when a PR only moves records.
+      - name: Did this change touch kb/?
+        id: touched
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="origin/${{ github.base_ref }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          if git diff --name-only "$base"...HEAD 2>/dev/null | grep -q '^kb/'; then
+            echo "kb=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "kb=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # This one measures the repository, so it has to run on the PRs that
+      # change the repository. Gating it behind `touched` is why four of its
+      # pins drifted unnoticed to 10,922/76/75/103 against a live
+      # 11,014/80/79/105: the corpus grows through research PRs, which skip
+      # the suite, so the drift only ever surfaced on an unrelated kb/ PR and
+      # landed on whoever opened it. Root validate.yml does not close the gap
+      # either -- its pytest discovery is scoped to tests/, never kb/tests/.
+      #
+      # Deliberately not an editable install: five wheels and PYTHONPATH cover
+      # the whole import chain (no docling, no qdrant, no model download), so
+      # this costs ~20s on a research PR instead of the full suite's minutes.
+      # Skipped when the full suite runs below and already covers it.
+      - name: Corpus staging coverage and disclosed debt
+        if: steps.touched.outputs.kb != 'true'
+        run: |
+          pip install --quiet pyyaml pydantic pydantic-settings structlog pytest
+          PYTHONPATH=kb/src python3 -m pytest kb/tests/unit/test_repo_corpus.py -q
+
+      - name: Install crypto-kb
+        if: steps.touched.outputs.kb == 'true'
+        run: pip install -e "kb[index,mcp,dev]"
+
+      # Embedded in-process Qdrant and the pinned dependency-free embedder, so
+      # this needs no service container and no model download.
+      - name: Run the retrieval suite
+        if: steps.touched.outputs.kb == 'true'
+        working-directory: kb
+        run: python3 -m pytest -q

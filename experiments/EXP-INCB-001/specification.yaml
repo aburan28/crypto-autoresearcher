@@ -1,0 +1,42 @@
+experiment:
+  id: EXP-INCB-001
+  hypothesis_id: H-INCB-001
+  version: 1
+  status: approved
+  title: "D3 barrier measurement: richness profile of EC factor-base chord arrangements vs random and grid controls"
+  objective: >
+    Measure the full richness distribution of the chord-line arrangement of a factor base
+    on E(F_p) at the toy primes fixed by candidate D3, and test whether its fitted richness
+    exponent is separated from a matched random null by > 3 standard errors at all three
+    sizes (the candidate's quantitative promotion gate), or is statistically indistinguishable
+    (generic-ceiling / barrier reading). Model-level measurement only; no crypto-scale claim.
+  inputs:
+    primes: [211, 1009, 4099]
+    curve_selection: "per p: set_random_seed(20260717); a,b = F(randint(1,p-1)) until 4a^3+27b^2 != 0; keep only if ordinary (trace mod p != 0); record a, b, n = #E(F_p), trace"
+    b_grid_rule: "B in {round_half_up(n^(1/4)), round_half_up(n^(1/3)), round_half_up(n^(2/5))}, deduped, keep B >= 8 (A2 target-family rule, which D3 inherits: 'B grid as in A2'; A2 excludes B < 8)"
+    fb_semantics: "factor base = x-set X of size B (A2 semantics: 'FB: x-set of size B'): seeded randint(0,p-1) draws, first B distinct values that lift to E; incidence point set P_X = ALL curve points with x in X (both +/- y), so M = 2B unless a y=0 (2-torsion) x is hit"
+    arrangement: "all distinct affine lines through unordered pairs of DISTINCT points of the point set; vertical lines included; tangents (point doubling) excluded by construction; line set deduplicated"
+    richness_profile: "c_r = number of arrangement lines containing exactly r points of the point set, for r >= 2 (every arrangement line has >= 2 by construction)"
+    exponent_fit: "tau_hat = - slope of unweighted OLS of log(c_r) on log(r) over support {r >= 2 : c_r > 0}; recorded null if fewer than 2 support points"
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]
+    random_control_seed_rule: "set_random_seed(seed + 10^9); M uniform random distinct points of F_p^2, M matched to the EC instance's actual M"
+    grid_control: "deterministic, no RNG: first M points of an a x a integer grid (a = ceil(sqrt(M))), row-major, offset (0,0), step 1; no wraparound since a < p at all tested sizes"
+    first_moment_predictions:
+      random: "expected collinear-triple count T = C(M,3) * (p-2)/(p^2-2)"
+      ec: "expected exactly-3-rich lines c_3 ~= C(M,2) * (B/L) / 3, L = #x in F_p lifting to E (counted exactly in-script)"
+  controls:
+    - "negative (random null): matched-M uniform random point sets; pass = measured triple count T within 3 SE (across seeds) of the exact prediction C(M,3)*(p-2)/(p^2-2) at every cell"
+    - "positive (sensitivity): deterministic integer-grid point sets (known incidence-rich); pass = z_grid_vs_random > 3 at every cell, else the measurement lacks sensitivity to richness excess"
+  independent_variables: ["family in {ec, random, grid}", p, B, seed]
+  metrics:
+    primary: [fitted richness exponent tau_hat per instance, "cell separation z = |mean_tau_ec - mean_tau_random| / sqrt(se_ec^2 + se_random^2)"]
+    secondary: [c_r histogram, c_3, triple count T, num_lines, max_richness, total_incidences, excess ratio mean_c3_ec / mean_c3_random, first-moment prediction errors]
+  replication: {seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722], independent_instances: 6}
+  budget: {wall_clock_seconds_per_run: 600, total_wall_clock_seconds: 2400, maximum_runs: 8}
+  stopping_rules: ["any single sage invocation running > 600 s: kill it, record as infrastructure timeout (NOT evidence against the hypothesis), reduce to seeds 20260717..20260719 (minimum 3) or sizes, record the deviation in analysis.md and the EV record"]
+  invalidation_rules: ["positive control not separated (z_grid_vs_random <= 3 in any cell): measurement insensitive -> invalid", "negative control deviates > 3 SE from the exact random prediction in any cell without a recorded explanation -> invalid", "fewer than 3 seeds completed in any cell -> degraded/invalid with reason recorded"]
+  success_criterion: "z_ec_vs_random > 3 at all three sizes p (candidate D3 quantitative promotion gate; the 'excess/opening' outcome that would promote A2)"
+  falsification_criterion: "z_ec_vs_random <= 3 at one or more sizes (no measured curve-specific richness excess beyond noise at the tested scale; generic-ceiling/barrier reading). Either outcome is a valid measurement; the Coordinator decides hypothesis status."
+  required_artifacts: [specification.yaml, incbarrier1_richness.sage, runs/RUN-INCB-001-a/manifest.yaml, runs/RUN-INCB-001-a/raw.json, runs/RUN-INCB-001-a/stderr.txt, analysis.md]
+  assigned_to: executor
+  approved_by: coordinator

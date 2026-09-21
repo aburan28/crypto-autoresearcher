@@ -1,0 +1,142 @@
+proof_search_map:
+  schema: crypto.autoresearch.proof_search_map.v1
+  id: P1553-MIXED-RADIX-FOUR-DECK-CORRECTION-20260824-ae00db
+  task_id: TASK-20260824-ae00db
+  packet: P1553-MIXED-RADIX-FOUR-DECK-CORRECTION-20260824-ae00db
+  claim_under_audit: >-
+    The accepted five-restrictable-deck mixed-radix reduction remains valid when
+    exact subset stability is available only for F_0 through F_3, provided the
+    full fifth deck is public, labelled, reconstructible, and scanned within the
+    same aggregate interaction budget.
+  status: complete_for_producer_stage
+  
+  audits:
+    exact_baseline_reproduction:
+      applies: true
+      baseline_source:
+        record: EV-ECDLP-e60f3a
+        provenance: internal
+      reproduced_components:
+        - Prime-order G=<P>, B=N^(1/5), m=2^ceil(log2(B)), and C=sum_{i=0}^4 m^i.
+        - Five 2m-element signed independently labelled decks with coefficient sigma(d+1)m^i.
+        - Target shift R=Q+[C]P and decoder modulo N.
+        - Complete-transcript rather than marginal-query success.
+        - Fully serialized ell=B^(9/4+o(1)) and hard aggregate k=B^(5/4+o(1)).
+        - MPZ substitution 3*ell*(k+1)^2/N=B^(-1/4+o(1)).
+      changed_components:
+        - Five dyadic isolation paths become four paths, changing 5*log2(2m) to exactly 4*log2(2m) calls.
+        - The fifth isolated label is replaced by reconstruction and scan of all 2m public labelled F_4 occurrences.
+        - The added scan costs B^(1+o(1)), below the unchanged B^(5/4+o(1)) aggregate cap.
+      audit_result: pass_at_producer_stage
+      break_condition: >-
+        Any dependency on restricting F_4, any loss of its coefficient labels,
+        or any fifth-deck resource not charged to ell or k invalidates the
+        additive correction.
+  
+    observable_collision_search:
+      applies: true
+      observables:
+        - Generic encoding equality between residual W and reconstructed F_4 entries.
+        - Occurrence labels (4,d,sigma) attached to every public F_4 entry.
+        - The final observable verification bit for [xhat]P=Q.
+      collisions_examined:
+        - kind: modular_coefficient_collision
+          consequence: Distinct integer coefficients can encode the same group element, but decoding modulo N preserves the final equality.
+        - kind: sign_collision
+          consequence: Several signed labels may match W; any matching label describes W and therefore yields a verifying modulo-N candidate.
+        - kind: cross_deck_encoding_collision
+          consequence: Deck provenance remains part of the occurrence label; only an F_4 label is used for the fifth coefficient.
+        - kind: duplicate_occurrence_encoding
+          consequence: Multiplicity changes the number of matches, not existence or decoder correctness.
+        - kind: hidden_coordinate_observable
+          consequence: Explicitly absent; adding coordinates or representation leakage changes the model and voids transfer.
+      audit_result: pass_at_producer_stage
+      break_condition: >-
+        If public equality is unavailable, labels are hidden, or the scan uses an
+        uncharged representation oracle, the proof stops at the residual W.
+  
+    quantifier_order_and_constructive_transform:
+      applies: true
+      quantifier_order:
+        - For every sufficiently large prime N and prime-order generic group G=<P>.
+        - Fix the five public arbitrary signed occurrence-labelled decks and all target-independent serialized advice before Q is known.
+        - For every Q and every adaptive canonical dyadic restriction path in exactly F_0 through F_3, require exact existential answers with F_4 whole.
+        - Over uniform x modulo N and all allowed randomness, count only complete transcripts ending in explicit verification.
+        - There exists a deterministic transcript-to-candidate transform given the exact answers and public labelled deck.
+      constructive_transform:
+        input: Q, serialized object, exact predicate interface, and public labelled F_4.
+        steps:
+          - Set R=Q+[C]P.
+          - In each i=0,1,2,3, perform one predicate call per dyadic level and retain the queried half iff true, otherwise its complement.
+          - Compute W=R-sum_{i=0}^3 encoding(e_i).
+          - Reconstruct and scan all 2m labelled F_4 occurrences for an encoding equal to W.
+          - Decode xhat=(sum_i sigma_i(d_i+1)m^i-C) mod N.
+          - Return only if [xhat]P=Q.
+        total_restriction_calls: 4*log2(2m)
+        added_scan: B^(1+o(1))
+      audit_result: pass_at_producer_stage
+      break_condition: >-
+        Reversing the setup/target quantifiers, replacing exact adaptive success
+        by marginal success, or making F_4 reconstruction target-conditioned
+        removes the constructive reduction claimed here.
+  
+    method_ceiling_and_nearby_object_control:
+      applies: true
+      method_ceiling:
+        nearby_interface: >-
+          Exact subset stability is provided in only F_0,F_1,F_2; both F_3 and
+          F_4 remain public, full, labelled, and reconstructible.
+        same_method_cost: >-
+          After three dyadic isolations the residual must be matched against
+          pairs from two full decks. Direct Cartesian enumeration costs
+          Theta((2m)^2)=Theta(B^2), exceeding k=B^(5/4+o(1)).
+        conclusion: >-
+          This proof method stops. It does not prove that a smarter two-deck
+          procedure is impossible, and it supplies no generic-ECDLP lower bound.
+      known_false_oracle_control:
+        object: >-
+          A nearby predicate-shaped object that returns true for every dyadic
+          restriction, including restrictions that contain no witness.
+        known_false_property: It does not answer the exact existential predicate.
+        expected_proof_behavior: >-
+          Repeatedly selecting the first half can lose every witness; then no F_4
+          entry matches W or final verification rejects. Thus the argument does
+          not prove recovery for this known-inexact object.
+      audit_result: pass_at_producer_stage
+      break_condition: >-
+        If the proposed proof still guaranteed recovery for the always-true
+        inexact control or fit the explicit two-full-deck Cartesian scan under
+        k, it would be proving too much or miscounting cost.
+  
+  mandatory_controls:
+    hidden_fifth_labels:
+      result: decoder_stops
+    opaque_fifth_handles:
+      result: accounting_stops
+    marginal_per_query_success:
+      result: reduction_stops
+    target_advice_or_unbounded_words:
+      result: mpz_mapping_stops
+    coordinate_p1553_or_field_oracle:
+      result: theorem_nonapplicable
+    fifth_encoding_collisions:
+      result: harmless_only_when_a_matching_occurrence_label_is_available
+    corrupt_restriction_answer:
+      result: no_match_or_final_verification_rejects
+  
+  dependencies:
+    - record: EV-ECDLP-e60f3a
+      relation: immutable accepted predecessor evidence
+      provenance: internal
+    - record: DEC-20260824-8ab7e3
+      relation: immutable predecessor decision and claim ceiling
+      provenance: internal
+    - record: MPZ-2020-996
+      relation: retrieved generic-model inequality and interface
+      provenance: retrieved
+  
+  scope_guard: >-
+    Passing these producer audits is not independent validation and changes no
+    research state. The map deliberately preserves coordinate-aware P1553,
+    random-deck-only, target-dependent, representation-sensitive, and smarter
+    three-restrictable-deck routes as open.

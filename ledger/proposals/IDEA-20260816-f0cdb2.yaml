@@ -1,0 +1,264 @@
+idea:
+  id: IDEA-20260816-f0cdb2
+  question_id: RQ-AEADC-8db132
+  added: '2026-08-16'
+  title: 'Grade a repeated nonce by what it costs rather than by whether it happened: track the affine
+    difference system that keystream reuse hands an adversary in a counter-mode AEAD, and measure
+    recovered-plaintext yield as a graded function of repeat multiplicity and of the overlap profile
+    of the repeated messages'
+  class: measurement
+  claim: '(A) In any counter-mode-style AEAD the confidentiality consequence of a repeated nonce is
+    not a binary event but a rank: r ciphertexts produced under one (key, nonce) pair yield exactly
+    the r-1 independent pairwise plaintext differences on the byte positions where the messages overlap,
+    and nothing else about the plaintexts. The recoverable information is therefore a function of
+    three declared parameters -- the multiplicity r, the overlap length profile of the r messages,
+    and the redundancy of the plaintext source -- and that function is measurable rather than assumed.
+    (B) The measurable quantity is the fraction of plaintext bits that a fixed, declared, source-model
+    decoder recovers from the difference system, as a surface over (r, overlap, source entropy per
+    byte). The claim is that this surface is graded and monotone in r and in overlap length, that
+    it saturates well before r reaches the message count, and that the saturation point is where a
+    deployment-relevant number lives: below it, a repeated nonce costs a countable number of bits;
+    above it, additional repeats buy the decoder almost nothing. (C) The mode, not the primitive,
+    is the object. The block cipher slot is filled by an ideal permutation realised as a seeded, lazily
+    sampled random bijection; the same surface must appear with that substitution, because the claim
+    is about the composition''s accounting and not about AES. (D) NOT CLAIMED, explicitly: no attack
+    on any AEAD used with distinct nonces; no statement that any deployment repeats nonces; no recovery
+    of the authentication key, of the block cipher key, or of the polynomial-MAC key, which is a different
+    object and belongs to RQ-POLYMAC-7c89e4; no security consequence for any product, protocol or
+    service; and no claim that the decoder used here is the best possible decoder, so every recovered-bit
+    number is a lower bound on what the difference system permits and is reported as such. A negative
+    outcome -- a flat, ungraded surface -- is itself the usable measured obstruction: it would say
+    that grading a nonce repetition by multiplicity is the wrong accounting and that only the binary
+    event matters.'
+  mechanism: 'STAGE 1, symbolic and zero-compute: write the mode as a two-layer composition, a keystream
+    layer that is a function of (key, nonce, counter) only, and an authentication layer. Show on paper
+    that under a fixed (key, nonce), the ciphertext tuple determines the plaintext tuple only up to
+    the diagonal translation by the unknown keystream, so the tracked object -- the tuple of pairwise
+    differences -- is exactly the quotient, and its dimension is (r-1) times the overlap length in
+    bits. This fixes what is recoverable in principle before any measurement. STAGE 2: implement the
+    mode over a small block width with the primitive slot filled by a seeded random bijection, so
+    the arithmetic is exact and the sampling is reproducible. STAGE 3: draw plaintext tuples from
+    declared source models spanning a range of per-byte entropies, from a highly redundant model to
+    a uniform one, encrypt each tuple under one repeated nonce, and hand the resulting difference
+    system to a fixed decoder whose rules are frozen before any run. STAGE 4: sweep r and the overlap
+    profile, and record the recovered-bit fraction and its confidence interval at each cell. STAGE
+    5: run the identical decoder against the null arm, in which the same plaintext tuples are encrypted
+    under distinct nonces so the diagonal action is not shared and the difference system carries no
+    plaintext information. STAGE 6: report the surface, the saturation point in r, and the null arm
+    on the same axes. Refutation is a surface that is flat in r, or a null arm that matches the signal
+    arm, either of which retires the graded framing within the tested scope.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Ran, from the repository root: grep -ril for aead, nonce reuse, nonce-misuse, GCM, SIV,
+      RUP, unverified plaintext, key-commitment and partitioning-oracle across ledger/proposals/,
+      ledger/hypotheses/ and knowledge/; then a second pass restricted to AEADC, nonce-misuse, GCM-SIV,
+      release of unverified, key commitment, partitioning oracle and multi-user bound. Read in full
+      ledger/questions/RQ-AEADC-8db132.yaml and ledger/questions/RQ-POLYMAC-7c89e4.yaml. Read the
+      title, class and claim head of every proposal filed against RQ-AEADC-8db132, and read IDEA-20260809-47a08e
+      in full as the nearest control-class neighbour. Read docs/inventor-protocol.md sections 1 through
+      5 and section 8.'
+    results: 'RQ-AEADC-8db132 carries eight proposals and every one of them is about key or context
+      commitment: IDEA-20260809-313546 (two-key GCM certificate), IDEA-20260809-3a5c29 (context versus
+      key commitment), IDEA-20260809-33f26f (k-way collision cost curve), IDEA-20260809-3da508 (committing-construction
+      overhead), IDEA-20260809-439aa8 (padding-fix bound), IDEA-20260809-4719b8 (commitment harness),
+      IDEA-20260809-47a08e (reduction-based null object), IDEA-20260809-44b750 (partitioning query
+      yield). None of them touches the keystream layer or nonce repetition. RQ-POLYMAC-7c89e4 names
+      a nonce-misuse target explicitly, but its object is authentication-key recovery cost for GHASH
+      and Poly1305; the keystream-side difference system is not named there. No proposal or hypothesis
+      in the corpus contains the phrase difference system or an equivalent framing for keystream reuse.'
+    verdict: 'UNVERIFIED. This program cannot read external literature, so no assertion is made about
+      what is or is not published; keystream reuse under a repeated key is elementary and standard,
+      and the pairwise-difference structure is certainly known outside this repository. What is claimed
+      new is only internal and only in framing: turning that structure into a measured surface over
+      (multiplicity, overlap, source entropy) with a frozen decoder and an executable null arm, in
+      a repository where every AEADC record so far is about commitment. Assembled from known parts:
+      the two-layer view of counter-mode AEAD, the diagonal-translation quotient, the ideal-primitive
+      substitution, and this program''s own null-object discipline from docs/inventor-protocol.md
+      section 3.'
+  object_first_candidate:
+    tracked_object: The tuple of pairwise plaintext differences on the overlapping byte positions
+      of the r messages sent under one repeated nonce -- equivalently, the orbit of the plaintext
+      r-tuple under the diagonal translation by the unknown keystream, carried as an explicit (r-1)-by-L
+      array of byte differences together with the overlap mask.
+    lossiness: 'Genuinely lossy, and the loss is quantified: the plaintext tuple lives in a space
+      of dimension r times L bytes and the tracked object lives in dimension (r-1) times L, so exactly
+      L bytes of information -- the whole keystream prefix, and with it the absolute value of every
+      plaintext -- are discarded. The discard is compatible with the mode''s operation because the
+      keystream enters every ciphertext by the same additive action, so the quotient is invariant
+      under the one thing that is unknown. The retained part propagates deterministically: any further
+      ciphertext under the same nonce extends the array by one row without disturbing existing rows.'
+    propagation: 'One step of the target operation is one additional encryption under the already-repeated
+      nonce. It acts on the tracked object by appending a single difference row against a fixed reference
+      message, and by intersecting the overlap mask with the new message length. No existing entry
+      changes, which is why the object supports a graded accounting at all: the rank grows by exactly
+      the new overlap length in bits, and by nothing else. A step that changes the nonce leaves the
+      object untouched, and a step that changes the key destroys it entirely.'
+    survival_score: 'The object survives, by construction, for as many repeats as occur under one
+      nonce -- its algebra never dissolves. What dissolves is its usefulness: the decoder''s recovered-bit
+      fraction is expected to rise with r and then saturate, and the survival score is reported as
+      the smallest r at which the marginal recovered-bit gain per additional repeat falls below one
+      tenth of the gain from the second to the third repeat, stated separately at each declared source
+      entropy. Concretely, the tested range is r from 2 to 32 and the saturation index is reported
+      as a number in that range or as not reached within it.'
+  null_object_control: 'The identical decoder, running in the same invocation, against two nulls of
+    the same shape. NULL ONE: the same plaintext tuples encrypted under r DISTINCT nonces, producing
+    an array of the same dimensions built from unrelated keystreams. NULL TWO: an array of the same
+    dimensions filled with uniform random bytes. For the signal arm to mean anything, both nulls must
+    show a recovered-bit fraction statistically indistinguishable from the decoder''s prior on the
+    source model alone, within the declared confidence interval, at every cell of the sweep. If either
+    null shows a rising trend in r, the decoder is reading its own source model rather than the difference
+    system and the entire signal arm is uninterpretable.'
+  discriminated_from:
+  - IDEA-20260809-313546 and IDEA-20260809-3a5c29 construct key-commitment and context-commitment
+    certificates. Those are statements about two keys opening one ciphertext; this record has one
+    key throughout and never constructs a collision.
+  - RQ-POLYMAC-7c89e4 names the nonce-misuse cliff as authentication-key recovery cost for GHASH and
+    Poly1305. That object is the polynomial MAC key. This record never touches the authenticator and
+    would produce the same surface with the authentication layer deleted.
+  - IDEA-20260809-44b750 counts candidate keys eliminated per partitioning query. That is a search
+    over a key set; this is a rank accounting over one key.
+  - The standard two-time-pad observation, which states that reuse is catastrophic. This is not that
+    statement; it is the graded function whose existence that statement leaves unmeasured, and its
+    negative outcome -- a flat surface -- would confirm the binary framing rather than the graded
+    one.
+  - IDEA-20260809-47a08e is a null-object control for the certificate machinery. This record supplies
+    its own two nulls for a different measurement and shares only the discipline.
+  assumptions:
+  - The mode under test factors into an additive keystream layer keyed by (key, nonce, counter) and
+    an authentication layer, which is true of the counter-mode-style compositions being modelled and
+    is checked symbolically in stage 1 rather than assumed silently.
+  - An ideal permutation in the primitive slot is an adequate stand-in for the block cipher at the
+    accounting level, so any measured effect that changes when the primitive is swapped is a primitive
+    effect and not a mode effect.
+  - The declared plaintext source models are a fair spread of redundancy levels; no claim is made
+    that any of them resembles deployed traffic.
+  - The frozen decoder is fixed before any run and is never tuned on observed results, so its recovered-bit
+    fraction is a lower bound on what the difference system permits.
+  - Small block width preserves the accounting structure; the arithmetic of the quotient does not
+    depend on block size, and this is argued symbolically rather than extrapolated.
+  predictions:
+  - metric: recovered plaintext bit fraction above the source prior, at r=8 and full overlap, highest-redundancy
+      source
+    direction: higher
+    minimum_effect: 0.15
+  - metric: saturation index in r, defined as the smallest r whose marginal gain is below one tenth
+      of the r=2 to r=3 gain
+    direction: different
+    minimum_effect: 8
+  - metric: recovered bit fraction in both null arms, at every cell
+    direction: different
+    minimum_effect: 0.02
+  - metric: absolute difference between the real-primitive arm and the ideal-permutation arm at matched
+      cells
+    direction: lower
+    minimum_effect: 0.03
+  minimal_test:
+    design: One process, one seed file, four arms executed in the same invocation. Implement a counter-mode
+      keystream over a 16-bit block with the primitive slot filled by a seeded lazily-sampled bijection.
+      Fix three plaintext source models at declared per-byte entropies. For each of r in {2,4,8,16,32}
+      and each of three overlap profiles, draw 200 independent tuples, encrypt under one repeated
+      nonce, and run the frozen decoder over the difference array; record the recovered-bit fraction
+      with a bootstrap confidence interval. In the same loop and from the same tuples, run the two
+      null arms -- distinct nonces, and uniform random arrays -- through the identical decoder. Then
+      rerun the r sweep at one overlap profile with a real block cipher in the primitive slot. The
+      discriminating comparison is the shape of recovered-bit fraction against r in the signal arm
+      versus the flat line the nulls must produce, and the primitive-swap arm is what separates a
+      mode result from a primitive result. Total cost is minutes on one core.
+    controls:
+    - NULL ONE, distinct-nonce arm, run in the same invocation over the identical plaintext tuples.
+    - NULL TWO, uniform random difference arrays of matched dimensions through the identical decoder.
+    - 'Primitive-substitution arm: real block cipher versus seeded ideal permutation at matched cells;
+      a difference beyond the declared tolerance means the measurement is reading the primitive.'
+    - Round-trip validation of the mode implementation against its own decryption before any measurement
+      run.
+    - 'Decoder freeze: the decoder file hash is recorded in the run manifest before the first arm
+      executes, so no post-hoc tuning is possible.'
+    required_metrics:
+    - recovered plaintext bit fraction, per cell, with bootstrap confidence interval
+    - marginal recovered-bit gain per additional repeat
+    - saturation index in r
+    - rank of the difference system in bits, computed exactly and compared against the predicted (r-1)
+      times overlap
+    - null-arm recovered-bit fraction at every cell
+    - wall-clock and sample count per cell for reproducibility accounting
+  falsification_conditions:
+  - The recovered-bit fraction is flat in r across the whole sweep at every source model, which retires
+    the graded framing within the tested scope.
+  - Either null arm shows a recovered-bit fraction rising with r, which makes the signal arm uninterpretable
+    and the instrument invalid.
+  - The exactly computed rank of the difference system disagrees with (r-1) times the overlap length,
+    which means the stage-1 symbolic argument is wrong and everything downstream is void.
+  - The primitive-substitution arm differs from the real-primitive arm beyond the declared tolerance,
+    which means the effect is a primitive property and does not belong in this bucket.
+  - The saturation index is not reached anywhere in r up to 32, leaving the graded claim unsupported
+    at the tested scale.
+  confounders:
+  - The decoder's own source model can manufacture apparent recovery from nothing; this is exactly
+    what null two is for.
+  - Overlap profile and multiplicity are correlated in any naive sweep, so they must be crossed explicitly
+    rather than varied together.
+  - Small block width may make counter-block collisions non-negligible, contaminating the keystream
+    layer; the collision count is recorded per run and cells with any collision are reported separately.
+  - Bootstrap intervals on a bounded fraction are skewed near the endpoints and can fake significance
+    at high redundancy.
+  - Seed reuse across arms would correlate the signal and null arms; the seed schedule is declared
+    and disjoint.
+  interpretation_limits:
+  - Every number is a lower bound on what the difference system permits, because the decoder is fixed
+    and is not the best possible decoder.
+  - The surface is a statement about the declared source models and the tested block width, and transfers
+    to nothing else without a separate argument.
+  - Nothing here says anything about whether any deployment repeats a nonce, and no such inference
+    is licensed.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement itself is linear in the total ciphertext
+      bytes processed.
+    memory_exponent: No attack exponent is claimed. The instrument holds one (r-1)-by-L byte array
+      at a time, so memory is linear in r times the message length.
+    best_known: The incumbent is the standard binary statement that a repeated nonce in a counter-mode
+      AEAD destroys confidentiality for the affected messages. This record does not beat it; it refines
+      its granularity into a measured function and can fail to do so.
+    hidden_overhead: 'The human cost is the decoder specification: writing a source-model decoder
+      that is defensible, frozen, and not accidentally tuned is most of the work, and a weak decoder
+      silently understates the whole surface. Lower-order compute cost hides in the bootstrap resampling,
+      which dominates the arithmetic.'
+  dominated_by: n/a (no result claimed). This is a measurement contract with no attack on any frontier,
+    so there is no time, memory or data axis on which it could be dominated. Checked against the AEADC
+    proposal set (all eight are commitment records) and against RQ-POLYMAC-7c89e4, whose nonce-misuse
+    target is authentication-key recovery on a different object; neither frontier contains a row this
+    could sit on.
+  sota_delta: no attack; conceptual/measurement contribution only. The quantitative deliverable is
+    a surface of recovered-bit fraction over (r, overlap, source entropy) with confidence intervals
+    and a saturation index, where the corpus currently holds no number at all.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'Split by part. That the difference system has rank exactly (r-1) times
+    the overlap: near certainty, roughly 0.97, since it is a one-line algebraic fact checked symbolically
+    in stage 1, and the residual is implementation error. That the measured recovered-bit surface
+    is monotone and graded in r: about 0.8, because redundant source models plainly admit more decoding
+    with more equations. That the surface saturates within r at most 32 at a well-defined index: about
+    0.5, since saturation may be gradual enough that the declared threshold never fires. That the
+    ideal-permutation arm matches the real-primitive arm within tolerance: about 0.85, and a mismatch
+    would be the more interesting outcome because it would say the measurement was never a mode measurement.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-AEADC-8db132
+  - RQ-POLYMAC-7c89e4
+  - IDEA-20260809-313546
+  - IDEA-20260809-3a5c29
+  - IDEA-20260809-47a08e
+  - IDEA-20260809-44b750
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-AEADC-c669b3

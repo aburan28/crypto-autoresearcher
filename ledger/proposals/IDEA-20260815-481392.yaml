@@ -1,0 +1,220 @@
+idea:
+  id: IDEA-20260815-481392
+  question_id: RQ-PAIR-f2e31f
+  added: '2026-08-15'
+  title: >-
+    SUBGROUP MEMBERSHIP CHECKS ARE THE PAIRING ANALOGUE OF COFACTOR HANDLING
+    AND ARE SKIPPED FOR PERFORMANCE: build the accept/reject matrix for
+    BLS12-381 library APIs on points outside the prime-order subgroups
+  class: control
+
+  claim: >-
+    Pairing libraries expose deserialization and pairing APIs that may or
+    may not check subgroup membership, and skipping the check is a
+    documented performance choice. Whether a given API accepts a point of
+    the wrong order, and what the pairing then returns, is a per-API fact
+    that determines whether a protocol built on it is sound.
+
+  mechanism: >-
+    Construct points in each relevant group that are on the curve but
+    outside the prime-order subgroup. Pass each through every library entry
+    point -- deserialize, pairing, group operations -- and record acceptance
+    and output.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Grep 'subgroup membership' (9), 'BLS12-381', 'cofactor clearing';
+      read of GOAL-PAIR-001.
+    results: >-
+      Subgroup membership appears in the corpus; no record builds a per-
+      API acceptance matrix against pinned library versions.
+    verdict: >-
+      ADAPTATION. Subgroup-check omission is documented in the pairing
+      literature; the contribution is a pinned per-API matrix in this
+      program's evidence format.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE ACCEPTANCE VERDICT of each library entry point on out-of-
+      subgroup points.
+    lossiness: >-
+      A verdict per API discards the downstream consequence, so the
+      pairing output on accepted bad points is recorded alongside it.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while libraries are installable and version-pinnable; APIs
+      without a documented contract are the matrix's most useful entries.
+
+  null_object_control: >-
+    NULL 1 -- valid in-subgroup points, which every API must accept. NULL 2
+    -- points not on the curve at all, which every API must reject;
+    acceptance there is a critical bug independent of subgroup questions.
+
+  discriminated_from:
+    - >-
+        The Ed25519 cofactor records in this series, which concern a
+        different curve and a different API surface but the same failure
+        shape.
+    - >-
+        Published pairing-library security notes, which describe the issue
+        without pinned per-API certificates.
+
+  assumptions:
+    - >-
+        Out-of-subgroup points are constructible in each relevant group,
+        including the extension-field group where construction is harder.
+    - >-
+        Library entry points are enumerable from documentation;
+        undocumented internal paths are out of scope and listed as such.
+
+  predictions:
+    - metric: >-
+        valid-point null
+      direction: different
+      minimum_effect: >-
+        FORCED accepted everywhere.
+    - metric: >-
+        off-curve null
+      direction: different
+      minimum_effect: >-
+        FORCED rejected everywhere; acceptance is a critical bug.
+    - metric: >-
+        out-of-subgroup acceptance per API
+      direction: different
+      minimum_effect: >-
+        The matrix; each acceptance checked against that API's
+        documented contract before being called a defect.
+
+  minimal_test:
+    design: >-
+      One library, all documented entry points, both nulls, all relevant
+      groups.
+    controls:
+      - >-
+          Valid-point and off-curve nulls.
+      - >-
+          Version pinning per library.
+      - >-
+          Each acceptance checked against the API's documented contract
+          before being called a defect.
+    required_metrics:
+      - >-
+          Acceptance matrix per API and group, with pairing output where
+          accepted.
+      - >-
+          Documented-contract comparison per acceptance.
+      - >-
+          Both null outcomes.
+
+  falsification_conditions:
+    - >-
+        An off-curve point is accepted. Critical bug, independent of this
+        record's question.
+    - >-
+        Valid points are rejected. Harness misconfigured.
+    - >-
+        An API accepts out-of-subgroup points contrary to its documented
+        contract. A defect requiring disclosure handling.
+    - >-
+        All acceptances are within documented contracts. The matrix is
+        then documentation of where callers must check, which is still
+        useful.
+
+  confounders:
+    - >-
+        CONTRACT VERSUS DEFECT: an API documented as unchecked is not
+        buggy when it accepts, and conflating the two would produce false
+        vulnerability reports.
+    - >-
+        GROUP ASYMMETRY: constructing out-of-subgroup points is much
+        harder in the extension-field group, so an empty result there may
+        reflect construction difficulty rather than API strictness.
+
+  interpretation_limits:
+    - >-
+        Documents API behaviour against pinned versions; makes no protocol
+        security claim.
+    - >-
+        Scoped to documented entry points and the tested library version.
+    - >-
+        Acceptance within a documented contract is a caller obligation,
+        not a library defect.
+
+  heuristic_assumptions:
+    - id: HEUR-PAIR-SUB-1
+      statement: >-
+        Out-of-subgroup points are constructible in every group where
+        the API surface accepts input.
+      rigorous_support: >-
+        Rigorous ingredient: the curve group order factors with a known
+        cofactor, so points of cofactor order exist and are computable
+        by scalar multiplication. THE GAP: in the extension-field group
+        the cofactor is large and its factorisation-based construction
+        is more delicate, so constructibility there is not automatic and
+        an empty row may be a construction failure.
+      falsification_condition: >-
+        A group where no out-of-subgroup point can be constructed within
+        budget.
+      validation_plan: >-
+        SAMPLE: all relevant groups, with construction verified by an
+        independent order check. TAIL CHECK: the extension-field group,
+        reported separately as the likeliest construction failure.
+        TRANSFER: none beyond tested versions.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is one API call per matrix cell.
+    memory_exponent: >-
+      Negligible.
+    best_known: >-
+      Incumbents are published pairing-library security notes and the
+      libraries' own documentation; neither provides a pinned per-API
+      matrix.
+    hidden_overhead: >-
+      Constructing out-of-subgroup points in the extension-field group is
+      the dominant effort and may bound the matrix's completeness.
+    tradeoff_note: >-
+      A per-API matrix is precise and version-bound; general guidance is
+      durable and unactionable. This record takes the first.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As guidance: dominated by published library
+    security notes. As a pinned matrix: none exists here. Not null on any
+    axis.
+  sota_delta: >-
+    No attack, no exponent. Content delivered: a pinned per-API acceptance
+    matrix for out-of-subgroup points across a pairing library's documented
+    entry points, with each acceptance checked against its documented
+    contract so caller obligations and library defects are separated.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.9 that the library is installable and pinnable. 0.6 that out-of-
+    subgroup points are constructible in every relevant group, with the
+    extension-field group the likely failure. 0.25 that an acceptance
+    contradicts a documented contract.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-PAIR-f2e31f
+    - RQ-PAIR-21313f
+    - GOAL-PAIR-001
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

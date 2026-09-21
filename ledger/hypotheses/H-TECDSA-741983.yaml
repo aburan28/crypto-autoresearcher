@@ -1,0 +1,151 @@
+hypothesis:
+  id: H-TECDSA-741983
+  question_id: RQ-TECDSA-8d340d
+  derived_from_idea: IDEA-20260809-986269
+  added: '2026-08-25'
+  statement: >-
+    A reference threshold ECDSA implementation can be built in which every auxiliary zero-knowledge
+    proof is INDEPENDENTLY SWITCHABLE and every proof's parameters are exposed, and whose honest path
+    is validated to a declared standard BEFORE any attack code exists - specifically, that across a
+    declared matrix of party counts, thresholds, and adversarial-but-honest message orderings, the
+    fraction of produced signatures that verify under an independently written stock ECDSA verifier
+    is exactly 1, and that every session is byte-for-byte replayable from its recorded seed.
+    THE SECOND AND MORE CONSEQUENTIAL CLAIM, and the one that makes this record a measurement rather
+    than a build order - in MOST configurations of the matrix, disabling an individual auxiliary
+    proof does NOT break honest-path functionality: the protocol still runs, still terminates, and
+    still emits a signature that a stock verifier accepts. If that is so, then functional testing
+    cannot detect a missing proof, which is precisely why a proof set must be an experimental
+    variable rather than an implementation detail, and precisely why an attack found against an
+    implementation whose honest path was never validated is indistinguishable from a bug report
+    against that implementation.
+    The record asserts no property of any published protocol and no property of any deployed system.
+    It asserts a property of an artifact this program builds and of the testing regime that would or
+    would not find defects in it.
+  mechanism: >-
+    Threshold ECDSA signing distributes the computation of the nonce and of the signature share
+    across parties, and the auxiliary zero-knowledge proofs exist to bind each party's contribution
+    to committed values rather than to make the arithmetic work. The arithmetic closes without them:
+    an honest party that computes its share correctly produces a correct share whether or not it also
+    proves it did. Therefore disabling a proof removes a soundness guarantee while leaving the
+    functional path intact, and a test suite that checks only "does a valid signature come out"
+    is blind to the removal. That is the mechanism behind the second claim, and it is also the
+    mechanism behind the danger the record names - an implementation whose honest path is not
+    separately validated will, when an attack succeeds against it, leave the experimenter unable to
+    distinguish a protocol weakness from a defect in the party code, the serialization, the ordering,
+    or the proof parameters. Gating the attack surface on a passing honest-path suite converts that
+    distinction from an intention into a construction: the attack code is unreachable while the
+    suite is red.
+  assumptions:
+    - >-
+      The threshold ECDSA protocol specification is fetched and filed from primary text under a run
+      record before any component is implemented. The parent proposal records the specifications as
+      REQUIRED READS and NOT YET READ; an implementation written from recall is not a reference
+      implementation of anything.
+    - >-
+      The stock verifier is an ECDSA verifier not written for this goal and not sharing code with the
+      threshold implementation. A signature verified only by code written alongside the signer is not
+      verified.
+    - >-
+      "Honest path" means every party follows the protocol. Adversarial-but-honest ORDERING means the
+      message schedule is permuted and delayed adversarially while every message content is honest;
+      it does not mean any party deviates.
+    - >-
+      Deterministic replay means that re-running a session from its recorded seed and message
+      schedule reproduces every party's outgoing message byte-for-byte, including proof transcripts
+      where proofs are enabled.
+    - >-
+      No claim is made or implied about which proofs a correct protocol requires. Disabling a proof
+      in this artifact is an experimental manipulation of this artifact, not a proposal that any
+      protocol omit it.
+  test_boundary:
+    instances: >-
+      One curve and one hash, both fixed and named from the filed specification; the reference
+      implementation built for this goal; one independently written stock ECDSA verifier.
+    parameters: >-
+      At least three party counts and at least two thresholds, giving at least six matrix cells;
+      each cell run with all proofs enabled and with each auxiliary proof individually disabled;
+      each cell run under at least three message orderings including one adversarially permuted and
+      one with adversarial delay; a declared number of independent sessions per cell with recorded
+      seeds.
+    implementation: >-
+      Every auxiliary proof behind an independent flag, every proof parameter exposed as a
+      configuration value, every session seeded and replayable, and the attack surface gated on the
+      honest-path suite passing.
+    out_of_scope: >-
+      Any attack, any adversarial party behaviour, any claim about a published protocol, any claim
+      about a deployed system or wallet, and any performance comparison against a production
+      implementation.
+  distinguishable_outcomes:
+    - outcome: >-
+        With all proofs enabled, the honest-path signature validity fraction under the stock verifier
+        is exactly 1 in every matrix cell and under every ordering; every session replays
+        byte-for-byte; the planted-negative controls are all caught; and the proof-ablation survival
+        fraction is high, meaning most single-proof-disabled configurations still emit
+        stock-verifiable signatures.
+      means: >-
+        The precondition is discharged and the second claim is supported at the tested matrix.
+        Functional testing is confirmed blind to a missing proof, which is the finding that justifies
+        making the proof set an experimental variable. Later attack work in this goal becomes
+        interpretable, because a failure can be attributed to the manipulation rather than to the
+        implementation.
+    - outcome: >-
+        Honest-path validity is exactly 1 everywhere and replay is deterministic, but the
+        proof-ablation survival fraction is LOW - disabling a proof reliably breaks the functional
+        path in most configurations.
+      means: >-
+        The second claim is REFUTED at the tested matrix. Functional testing does detect missing
+        proofs here, so the danger the record names does not apply to this artifact, and the case for
+        treating the proof set as an experimental variable is weakened to whatever configurations
+        survive. This is a negative result for the parent proposal's second prediction and is
+        recorded as one.
+    - outcome: >-
+        Honest signing fails in any configuration with all proofs enabled.
+      means: >-
+        The precondition is NOT discharged. All attack work in this goal is blocked until the defect
+        is located and fixed. This is an infrastructure outcome about the artifact, never evidence
+        about threshold ECDSA.
+    - outcome: >-
+        Sessions are not deterministically replayable from their seeds.
+      means: >-
+        Certificate verification is impossible for any later result in this goal, because an attack
+        that cannot be replayed cannot be checked. Blocking, and it must be fixed before any
+        measurement is recorded.
+    - outcome: >-
+        A planted-negative control passes - a deliberately corrupted share, or a signature on a
+        different message, is accepted by the stock verifier or by the validation suite.
+      means: >-
+        The validation suite has no discriminating power. Every "valid" it reported is void and the
+        run set is INVALID, not positive. This is the control that prevents a suite which accepts
+        everything from being mistaken for a suite that passed.
+  prior_evidence_refs:
+    - RQ-TECDSA-8d340d
+    - GOAL-TECDSA-001
+    - IDEA-20260809-986269
+  falsification_conditions:
+    - Honest signing fails in any configuration with all proofs enabled.
+    - Any session is not byte-for-byte replayable from its recorded seed and message schedule.
+    - Any planted-negative control is accepted by the stock verifier or by the validation suite.
+    - >-
+      The proof-ablation survival fraction is low, refuting the claim that functional testing cannot
+      find a missing proof.
+    - >-
+      The stock verifier shares code, constants or a serialization module with the threshold
+      implementation, in which case its agreement carries no information and the run is invalid.
+  interpretation_limits:
+    - >-
+      A correct reference implementation is infrastructure, not a result. It makes no statement about
+      any published protocol, any deployed system, or the security of threshold ECDSA.
+    - >-
+      The proof-ablation survival fraction is a property of THIS artifact at the tested matrix. It
+      does not transfer to another implementation and it certainly does not license omitting a proof
+      anywhere.
+    - >-
+      Validity fraction 1 across a finite matrix is not a proof of correctness. It is a bounded
+      validation whose boundary is the matrix, and every report names the matrix.
+    - >-
+      No attack is authorized, designed or implied by this record. The attack gate exists to make
+      later work interpretable, not to schedule it.
+  status: proposed
+  proposed_by: idea-generator
+  specified_by: coordinator
+  specified_at: '2026-08-25'

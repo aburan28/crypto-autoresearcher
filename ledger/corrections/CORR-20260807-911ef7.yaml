@@ -1,0 +1,95 @@
+correction:
+  id: CORR-20260807-911ef7
+  recorded_at: '2026-08-07'
+  recorded_by: coordinator (GOAL-ENDO-001, BATCH-aa267f)
+  type: repeated_a_reviewers_count_without_checking_it
+  supersedes: []
+  corrects:
+  - ledger/corrections/CORR-20260807-0f5d56.yaml
+  - coordination/goals/GOAL-ENDO-001/batches/BATCH-aa267f/reviews/validator-icinv/validation_report.yaml
+  record_type: correction
+  record_id: CORR-20260807-0f5d56
+  field: >-
+    the standing_instrument_gap_carried_forward block's count of how many
+    EXP-ICINV-4d33aa run manifests carry `code.dirty: true`
+  prior_value: >-
+    "`run.code.dirty` is TRUE in every EXP-ICINV-4d33aa manifest and only
+    harness/exp_icinv.py is hash-pinned, so 17 of the 19 measurement runs have
+    no binding between their numbers and the exact source that produced them."
+    The claim originates in VAL-20260807-9c31ab and this Coordinator repeated it
+    verbatim.
+  corrected_value: >-
+    `code.dirty` IS NOT TRUE IN EVERY MANIFEST: the split is 13 true, 6 false, of
+    19. Measured directly by parsing all nineteen manifests
+    (tools/check_run_source_provenance.py, and an independent count while
+    building it). The Validator overstated it and the Coordinator repeated the
+    overstatement without checking a number that a one-line script settles --
+    the same failure mode this batch has already corrected twice.
+  why_the_conclusion_survives_and_gets_stronger: >-
+    The substantive claim was never really about the dirty flag, and measuring
+    it properly makes the defect WORSE rather than milder: ZERO of the nineteen
+    manifests pin the source that produced them -- not 17 of 19, and not only
+    the dirty ones. The six runs recording `dirty: false` are equally unbound,
+    because `dirty` is a whole-tree boolean that says nothing about which files
+    a run imported. That is the sharper statement of N6 and it is what the fix
+    in this commit addresses: `dirty: false` offered false comfort, and a run
+    could be "clean" and still unreproducible.
+  what_the_fix_does: >-
+    harness/runner.py:source_provenance() now records a sha256 for every repo
+    .py the run actually imported, derived from sys.modules rather than from a
+    declared list, together with each file's status against HEAD (clean /
+    modified / untracked). write_run() refuses to create a run directory at all
+    when any executed source is unpinnable, and the refusal is checked BEFORE
+    makedirs so a refused run leaves no empty immutable RUN id behind (a test
+    caught that ordering defect in the first version of the fix and pins it
+    now). untracked_source_vs_output() splits untracked paths into source and
+    run output, which is the original N6 defect: outputs are untracked while
+    being written, so ignoring untracked files wholesale also hid an untracked
+    .py that a run imported. tools/check_run_source_provenance.py audits the
+    committed corpus and is ADVISORY by default -- every run predating the fix
+    is unpinned, and erroring on them retroactively would convert one
+    campaign's debt into every campaign's red build.
+  scope_limit_stated_plainly: >-
+    This fix binds FUTURE runs. It does not and cannot repair the nineteen
+    existing EXP-ICINV-4d33aa runs or the thirteen EXP-INSTR-85b102 runs, whose
+    source is pinned nowhere. EXP-INSTR-85b102's D6 pre-repair source remains
+    permanently unrecoverable (CORR-20260807-0f5d56 finding V11); nothing in
+    this commit changes that, and no claim about those runs' reproducibility is
+    strengthened by it.
+  required_action:
+  - >-
+    Cite CORR-20260807-0f5d56's instrument-gap paragraph only together with this
+    record. Its conclusion stands and is strengthened; its count does not.
+  - >-
+    N6's blocking precondition (protocol_amendment v2 change A6) is now
+    SATISFIABLE: a successor run executed through harness/runner.py will pin its
+    source automatically. Verify with
+    `python3 tools/check_run_source_provenance.py --experiment <EXP> --strict`
+    before admitting any successor run as evidence.
+  evidence_artifacts:
+  - harness/runner.py
+  - tools/check_run_source_provenance.py
+  - tests/test_harness.py
+  refs:
+  - GOAL-ENDO-001
+  - BATCH-aa267f
+  - EXP-ICINV-4d33aa
+  - EXP-INSTR-85b102
+  - VAL-20260807-9c31ab
+  - CORR-20260807-0f5d56
+  - DEC-20260807-c8aa8b
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one model
+      the session runs on. Recorded, never silently substituted (AGENTS.md
+      rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session.

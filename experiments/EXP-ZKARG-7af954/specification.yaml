@@ -1,0 +1,229 @@
+experiment:
+  id: EXP-ZKARG-7af954
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-30b3fd; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-30b3fd
+  question_id: RQ-WFS-e776b6
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Tabulate the exact soundness bit discrepancy introduced by deriving Fiat-Shamir challenges
+    as a k-bit digest reduced modulo p, over a named grid of output lengths, primes, attainable-set
+    sizes and repetition counts, with uniform-sampler nulls
+  objective: 'The one uncertainty a run reduces: how large, in bits, the soundness accounting error
+    is when a challenge is obtained by plain modular reduction of a hash output, at shapes that can
+    be named rather than in the abstract. Specifically (i) it produces the exact rational mass function
+    of the reduced challenge, verified against a direct enumeration at a tiny output length, so that
+    the closed form used across the grid rests on a checked instrument; (ii) it evaluates the adversary-optimal
+    per-attempt success as the sum of the d largest masses and reports the signed bit discrepancy
+    against the nominal d/p at every cell of a frozen grid of k, p, d and t, in exact arithmetic to
+    forty digits, giving a table rather than an inequality; (iii) it separates the shapes where the
+    discrepancy exceeds one bit from the shapes where it is below 2 to the minus 40 and therefore
+    unreachable, so that future contracts in this question can cite a computed boundary instead of
+    assuming reduction bias away or invoking it vaguely. The run makes no measurement of any implementation,
+    executes no protocol, and searches for no forgery.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: under the stated model that
+      the digest is uniform on k bits and that the adversary may choose which d residues it can answer,
+      the exact soundness inflation caused by plain modular reduction is the tabulated delta_bits
+      at each named (k, p, d, t), and the maximiser over the named prime list for each k is the reported
+      entry. What does NOT follow: that any implementation anywhere derives challenges this way, since
+      none is examined; that any protocol is insecure or that any parameter set is inadequate; that
+      the inflation is attained rather than bounded when the protocol fixes the attainable set; that
+      a concrete hash contributes no further bias, since hash non-uniformity is excluded by construction;
+      and any attack, break, speedup or security consequence whatsoever.'
+  inputs:
+    procedure: 'STAGE 0 (cost: minutes) Freeze the grid: the four output lengths, the twelve named
+      primes, the four values of d, the four repetition counts, and the two null constructions; freeze
+      the exact-arithmetic requirement and the print precision. STAGE 1 (cost: seconds) Implement
+      the mass function in exact Fractions and verify it at k equal to 12 against direct enumeration
+      over all 4096 digests for three small primes; abort on any disagreement. STAGE 2 (cost: seconds)
+      Compute r, high mass and low mass for every (k, p) cell and record them as exact integers and
+      rationals. STAGE 3 (cost: seconds) Compute the greedy adversary sum for each d and the signed
+      delta_bits at 60-digit decimal precision, then the linear-in-t column. STAGE 4 (cost: seconds)
+      Run both null arms in the same invocation: the uniform synthetic vector and the permuted true
+      vector, requiring exactly zero and exact equality respectively. STAGE 5 (cost: seconds) Run
+      the deliberately floating-point recomputation and record how many cells it rounds to zero, as
+      a note on why exact arithmetic is required. STAGE 6 (cost: minutes) Emit the table plus the
+      boundary summary of cells above one bit and below 2 to the minus 40, and write the immutable
+      run record.'
+    instrument: 'Python 3 standard library only, no Sage and no third-party numerics for the load-bearing
+      path: fractions.Fraction for exact masses, decimal.Decimal at 60-digit context for the final
+      logarithms, and plain integer arithmetic for 2^k mod p. The direct-enumeration verifier at k
+      equal to 12 is written as a separate function that shares no code with the closed-form implementation.
+      Execution is wrapped by harness/runner.py so commit, environment, timings, seeds and the immutable
+      record are captured, and the emitted table is re-checked cell by cell by an independently written
+      verifier that recomputes delta_bits from r, high and low alone.'
+    parameters: 'k in {12, 64, 128, 192, 256}, where 12 exists only for the enumeration cross-check.
+      Twelve named primes: three toy primes 251, 257 and 1021; three primes immediately above powers
+      of two at the 32, 63 and 127 bit levels; three primes immediately below powers of two at the
+      same levels; one 255-bit prime; and two mid-range primes with no special relation to a power
+      of two. d in {1, 2, 4, 16}. t in {1, 8, 32, 128}. Print precision 60 decimal digits, reporting
+      40 significant digits. Total grid cells: 5 times 12 times 4 times 4 equal to 960, plus 2 null
+      arms times the same grid. Sample size is not applicable: every cell is computed exactly, not
+      sampled.'
+  controls:
+  - Uniform synthetic mass vector pushed through the identical delta_bits code, which must return
+    exactly zero.
+  - Permuted true mass vector, which must return an identical delta_bits, confirming permutation invariance
+    of the greedy sum.
+  - p equal to a power of two, where the reduction is exactly uniform and r equals zero, giving delta_bits
+    exactly zero.
+  - Independent recomputation of the mass function by direct enumeration over all 2^k residues at
+    a tiny k such as 12, compared exactly against the closed form.
+  - A floating-point recomputation of the whole table run alongside the exact one, reported only to
+    show how many entries floating point silently rounds to zero.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): NULL OBJECT: an unbiased challenge sampler of the same shape, realised
+    as the identical pipeline applied to k chosen so that p divides 2^k exactly, which happens only
+    for p equal to a power of two, and additionally as a synthetic mass vector set to exactly 1/p
+    in every coordinate and pushed through the identical delta_bits computation in the same invocation.
+    The null must return delta_bits identically zero to the last exact digit for every d and every
+    t. If the null returns anything nonzero, the pipeline itself is manufacturing bits, likely through
+    a floating-point conversion, and no signal-arm number may be reported. A second null uses a random
+    permutation of the true mass vector, which must return the same delta_bits as the true vector
+    because the greedy sum is permutation-invariant, confirming that the measurement reads mass and
+    not residue identity.'
+  independent_variables:
+  - hash output length k
+  - prime p and its relation to the nearest power of two
+  - attainable-set size d
+  - repetition count t
+  metrics:
+    primary:
+    - r equal to 2^k mod p
+    - exact high and low residue masses
+    - adversary-optimal per-attempt success as an exact rational
+    - signed delta_bits at 40 significant digits
+    - count of cells with delta_bits above one bit
+    secondary:
+    - maximising prime per k over the named list
+    - count of cells with delta_bits below 2 to the minus 40
+    - number of cells that a floating-point recomputation rounds to zero
+    - wall time of the full table
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: delta_bits, the signed difference in bits between the adversary-optimal per-attempt
+      success under reduction and the nominal uniform value, at every cell of the frozen grid, plus
+      its multiplier under t-fold repetition.
+    formula: 'Let r equal 2^k mod p, hi equal (floor(2^k/p) plus 1) divided by 2^k, lo equal floor(2^k/p)
+      divided by 2^k. Adversary-optimal single-shot success S(d) equals min(d, r) times hi plus max(0,
+      d minus r) times lo. Then delta_bits(k, p, d, t) is defined as t times (log2 S(d) minus log2
+      (d/p)). Pre-registered values: delta_bits equals exactly 0 whenever p divides 2^k; delta_bits
+      is exactly linear in t; and delta_bits is bounded above by t times log2(1 plus p/2^k), which
+      is the pre-registered ceiling every cell must respect.'
+    source: Pre-registered in the parent proposal IDEA-20260816-30b3fd before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'The computation is exact at every listed k including 256 and at a 255-bit prime,
+      so there is no scale gap in the arithmetic itself: cryptographic-size parameters are evaluated
+      directly rather than extrapolated. The toy tier is assigned because the object evaluated is
+      an accounting model, not a protocol execution, and because the adversary-choice assumption that
+      makes the inflation attained is verified nowhere in this run. The only transfer assumption is
+      the model itself, namely that the digest is uniform and that the attainable set is adversary-chosen;
+      both are stated, neither is tested here.'
+    correspondence: null
+  tail_checks:
+  - Inspect the maximum delta_bits cell in the grid and confirm it respects the pre-registered ceiling
+    t times log2(1 plus p/2^k).
+  - Inspect the minimum nonzero delta_bits cell and confirm the exact-arithmetic path did not underflow
+    to zero where the ceiling says it should not.
+  - Check the primes immediately below powers of two separately from those immediately above, since
+    the two families have different r behaviour and averaging them would hide the tail.
+  - Report the largest t column and confirm exact linearity across all four values rather than only
+    at the endpoints.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt if the k equal to 12 enumeration cross-check disagrees with the closed form.
+  - Halt if either null arm returns a nonzero or unequal delta_bits.
+  - The run has no compute budget risk; if wall time exceeds ten minutes, the implementation is materialising
+    the length-p mass vector and must be fixed rather than extended.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The run succeeds if the closed-form mass function is verified by enumeration
+    at k equal to 12, both null arms return their forced values exactly, and the full 960-cell table
+    of exact delta_bits is emitted with the boundary summary naming which shapes exceed one bit and
+    which fall below 2 to the minus 40, whether or not any shape exceeds one bit.
+  falsification_criterion:
+  - Enumeration at k equal to 12 disagrees with the closed-form mass function.
+  - The uniform null returns a nonzero delta_bits.
+  - The permuted-mass null returns a different delta_bits than the true mass vector.
+  - Any cell violates the pre-registered ceiling t times log2(1 plus p/2^k).
+  - delta_bits is not exactly linear in t at any fixed (k, p, d).
+  - Every cell falls below 2 to the minus 40, which falsifies the conjecture that a reachable shape
+    exists in the named grid and closes the record with that obstruction stated together with the
+    prime families that would need to be added to reopen it.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-30b3fd
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - 'The adversary-choice assumption needs a precise protocol-side condition from the Coordinator:
+    which classes of protocol actually let a prover select which d residues it can answer, since without
+    that the table is a bound and not a value.'
+  - The named prime list is chosen by judgement; the Coordinator must rule on whether the extremal
+    candidate should be stated as a maximiser over the list or whether a genuine optimisation over
+    primes in a size band is required.
+  - Whether the shared-salt repetition case, excluded here because a sibling record owns repetition
+    dependence, should be referenced explicitly in the contract or left out entirely.
+  - The threshold of one bit for declaring a cell material is arbitrary and needs to be either justified
+    or replaced by a relative criterion.

@@ -1,0 +1,260 @@
+idea:
+  id: IDEA-20260816-698819
+  question_id: RQ-SLHDSA-001
+  added: '2026-08-16'
+  title: 'Grade simulated faults on a stateless hash-based signer by (how many bits, which field,
+    transient or persistent) and measure, per grade, two rates that must be reported together: the
+    probability the fault forces a few-time-key index collision, and the probability a cheap sign-then-verify
+    self-check catches it first.'
+  class: mechanism
+  claim: '(A) A FAULT MODEL IS A LATTICE, NOT AN ADJECTIVE. ''Fault attacks break stateless hash-based
+    signatures'' is not a predicate. ''A fault of grade (1 bit, message-randomizer field, transient)
+    induces a few-time-key index collision with probability p and is caught by sign-then-verify with
+    probability q'' is. The object is the graded fault, and the deliverable is the pair (p, q) measured
+    per grade over an enumerable toy parameter set. (B) THE TWO RATES MUST BE REPORTED TOGETHER. An
+    exploitability rate alone is a number that flatters the attacker; a detection rate alone flatters
+    the defender. Their crossing -- the coarsest grade at which exploitability first exceeds detectability
+    -- is the only summary that is honest about both, and it is a single well-defined grade coordinate.
+    (C) THE CLAIM. At toy parameters, with a small hash output width and small tree and few-time-signature
+    parameters, both rates are measurable by direct simulation with enough replicates to give tight
+    binomial intervals, and the index-collision event is checkable exactly rather than statistically,
+    because the signer''s chosen index is observable to the harness by construction. (D) WHAT IS NOT
+    CLAIMED. No physical fault injection: this environment cannot glitch anything, and the fault is
+    a deliberate in-memory mutation performed by the harness, which is a SIMULATION of an assumed
+    capability and not a demonstration of one. No forgery is exhibited and none is attempted -- the
+    measured event is the index collision and the resulting revealed-leaf fraction, not a completed
+    forgery. No claim about SLH-DSA at FIPS 205 parameters, whose tree and few-time-signature dimensions
+    are far larger and where the collision structure differs. No claim about what any published fault
+    attack achieves. (E) WHY THE NEGATIVE IS USABLE. If sign-then-verify catches every grade that
+    is exploitable at all, that is a measured statement with a number: it tells a later record exactly
+    which grades a cheap countermeasure covers at these parameters, and where it stops.'
+  mechanism: 'STAGE 1: implement a small stateless hash-based signer -- a Merkle hypertree over a
+    few-time signature layer, with a message-randomizer input feeding index derivation -- at a hash
+    output width narrow enough that index collisions occur at measurable rates. STAGE 2: define the
+    grade lattice explicitly: FIELD in {randomizer, index-derivation output, few-time-key seed, authentication
+    path node}, WIDTH in {1, 2, 4, 8} flipped bits, PERSISTENCE in {transient single invocation, persistent
+    across k invocations}. STAGE 3: for each grade, run R signing invocations with the fault applied
+    by the harness at the named field, and record (a) whether the derived few-time-key index equals
+    one previously used, (b) the fraction of the target few-time-signature''s leaves that the accumulated
+    signatures now reveal, and (c) whether a sign-then-verify check on the produced signature fails.
+    STAGE 4: compute p and q per grade with binomial intervals, and locate the crossing grade. STAGE
+    5: run the null arm. STAGE 6: report the two-rate surface and the crossing, with the simulation
+    caveat attached to every number.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read RQ-SLHDSA-001 in full, including its explicit target on fault and memory-corruption
+      chains as a separate claim class. Grepped ledger/proposals/ and ledger/hypotheses/ for 'fault'
+      (six-plus proposals), 'fault grade' (zero hits), 'success rate per fault' (zero hits), 'index
+      reuse' (zero hits), 'message randomizer' and 'randomizer R' (IDEA-20260805-fbe36a, IDEA-20260805-705614,
+      H-SLHDSA-3a403a). Read the titles of IDEA-20260813-945a67, IDEA-20260805-fbe36a, IDEA-20260805-705614
+      and the fault-oracle persistence automaton proposal surfaced by the fault grep.
+    results: The SLH-DSA fault lane is occupied but by different objects. IDEA-20260813-945a67 works
+      under a frozen single-fault model on address handling and produces a constants-tracked ADRS
+      alias propagation bound with subtree-reuse certificates -- a bound with certificates, not a
+      measured per-grade rate. A second record, titled as a fault-oracle persistence automaton with
+      a minimal address-repair boundary and classed as control, models persistence structurally. IDEA-20260805-fbe36a
+      and IDEA-20260805-705614 both concern the interleaved-target occupancy bound and its quantifier
+      order, with no fault anywhere. 'fault grade', 'success rate per fault' and 'index reuse' return
+      zero hits across the whole ledger and knowledge corpus. No record measures a fault-success rate
+      as a function of a graded fault, and none pairs it with a detection rate.
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature. Assembled from known parts:
+      fault grading by width, field and persistence is ordinary experimental structure, and the SLH-DSA
+      fault surface is already an explicit target of RQ-SLHDSA-001 with two proposals in the lane.
+      Claimed new only within this repository: measuring exploitability and detectability as a PAIR
+      of rates on the same graded lattice in the same invocation, and reporting their crossing grade
+      as the summary rather than reporting either alone.'
+  object_first_candidate:
+    tracked_object: The (few-time-key index, revealed-leaf set) pair actually used by a signing invocation,
+      followed across a sequence of invocations under a graded fault. The revealed-leaf set accumulates;
+      the index is the coordinate on which accumulation collides.
+    lossiness: 'Genuinely lossy. Everything about the signature except which few-time key was selected
+      and which of its leaves became public is discarded: the message, the hash values, the authentication
+      paths, the tree structure above the few-time layer. What is retained is the occupancy pattern
+      on the few-time index space. That is compatible with the operation because a forgery in this
+      construction is built from revealed leaves at a reused index, so the discarded material does
+      not enter the event being counted. Two entirely different message streams that produce the same
+      index-and-leaf occupancy are equivalent for this measurement, which is exactly the equivalence
+      the object encodes.'
+    propagation: 'One signing invocation acts on the tracked object by selecting an index (a deterministic
+      function of the randomizer and the message under the unfaulted signer, and a perturbed function
+      under a fault at the randomizer or the index-derivation output) and adding that index''s newly
+      revealed leaves to the accumulated set. Under a fault of grade (field, width, persistence),
+      the index selection becomes a perturbed draw whose collision probability with the existing occupancy
+      is the quantity measured, and the leaf accumulation is unchanged in form. One step is therefore:
+      draw index, union leaves, test collision, test self-check.'
+    survival_score: Stated as the number of faulted invocations after which the accumulated revealed-leaf
+      fraction at any single index stops increasing -- the point at which further faults add nothing,
+      because the reachable leaf set at that index is exhausted. Reported as a curve of maximum per-index
+      revealed fraction against invocation count, per grade. A grade whose curve saturates immediately
+      does not survive; one whose curve climbs steadily does.
+  null_object_control: 'Faults of the IDENTICAL grade -- same width, same persistence, same harness
+    mechanism, same seeds -- injected into a field that provably cannot affect index derivation: a
+    padding byte, or a copy of the public seed used only on the verification side and never read during
+    index selection. Executed interleaved with the signal grades in the same invocation of the same
+    code. For the signal rates to mean anything the null must show an index-collision rate statistically
+    indistinguishable from the UNFAULTED baseline, whose own collision rate is nonzero at toy parameters
+    and must be measured rather than assumed to be zero. A null that shows elevated collisions means
+    the harness''s fault mechanism is perturbing the signer through some path other than the named
+    field, and no grade''s number is reportable. The unfaulted baseline is itself a required arm and
+    is the reference both other arms are compared against.'
+  discriminated_from:
+  - 'IDEA-20260813-945a67 (constants-tracked ADRS alias propagation bound under a frozen single-fault
+    model, with subtree-reuse certificates or an enumerated non-alias class): that produces a BOUND
+    with certificates over an address-aliasing structure; this produces MEASURED RATES over a graded
+    lattice and produces no bound. A bound and a rate are not substitutes: the bound holds for all
+    instances in its model, the rate describes a specific parameter set, and neither implies the other.'
+  - 'The fault-oracle persistence automaton and minimal address-repair boundary proposal in the same
+    lane: it models persistence as automaton structure; here persistence is one of three grade coordinates
+    and its effect is measured, not modelled.'
+  - 'IDEA-20260805-fbe36a and IDEA-20260805-705614 (interleaved-target occupancy moment, and the quantifier-order
+    audit of the same bound): both are fault-free analyses of the multi-target security term. This
+    proposal''s index collisions are induced by a fault rather than by the honest signing distribution,
+    and the two occupancy processes are different.'
+  - H-SLHDSA-3a403a, which concerns the message randomizer within the honest scheme rather than under
+    mutation.
+  - 'Physical fault injection as a category: none occurs. The fault is an in-memory mutation performed
+    by the harness, and the record states that this simulates an assumed capability rather than demonstrating
+    one.'
+  assumptions:
+  - An adversary capable of flipping a chosen number of bits in a chosen field at a chosen time is
+    ASSUMED; this environment performs an in-memory mutation and demonstrates no physical fault capability
+    whatsoever.
+  - The toy signer's index-derivation structure is representative in form of the construction being
+    reasoned about, which is a similarity of shape and not of parameters.
+  - Sign-then-verify is the cheap self-check under test; other countermeasures are out of scope and
+    their absence is not evidence about them.
+  - Index collisions at toy hash widths occur at rates high enough to measure, which is why the widths
+    are chosen small and is itself an artifact of the parameter choice.
+  - The harness's mutation affects only the named field, verified by the null arm rather than assumed.
+  predictions:
+  - metric: index-collision rate on the null arm (fault in a non-index-affecting field) versus the
+      unfaulted baseline
+    direction: different
+    minimum_effect: 'forced: statistically indistinguishable, with the difference''s 95 percent interval
+      containing zero'
+  - metric: index-collision rate as fault width grows from 1 to 8 bits at the randomizer field
+    direction: higher
+    minimum_effect: predicted non-decreasing; no numeric minimum is pre-committed because the rate
+      depends on the index-derivation width, which is a parameter rather than a hypothesis
+  - metric: sign-then-verify detection rate for faults at the authentication-path-node field
+    direction: higher
+    minimum_effect: 'forced value 1.0: a corrupted authentication path cannot verify against the public
+      root, so a self-check must catch it every time; any value below 1.0 means the self-check is
+      not implemented correctly'
+  - metric: sign-then-verify detection rate for faults at the message-randomizer field
+    direction: lower
+    minimum_effect: 'forced value 0.0: a faulted randomizer produces a signature that is internally
+      consistent and verifies, so a self-check cannot see it; any nonzero value means the harness
+      is leaking the fault into another field'
+  minimal_test:
+    design: 'Fix one toy parameter set with a 16-bit hash output, a two-layer hypertree and a few-time
+      layer with a small number of leaves. Run three arms interleaved: unfaulted baseline, a grade-(randomizer,
+      1 bit, transient) signal, and the matched null at the same grade in a padding byte. R = 5000
+      signing invocations per arm with recorded seeds. Record index collisions, per-index revealed-leaf
+      fractions, and sign-then-verify outcomes. This is a few core-minutes and settles the two structural
+      predictions that make everything else interpretable: the authentication-path grade must be detected
+      at rate exactly 1.0 and the randomizer grade at exactly 0.0, and the null must match the unfaulted
+      baseline. If the null is elevated, the fault mechanism is contaminated and the full lattice
+      is not worth running; if the two forced detection rates come out right, the grade sweep is worth
+      its cost.'
+    controls:
+    - Unfaulted baseline arm, run interleaved, whose own index-collision rate is measured rather than
+      assumed to be zero.
+    - Matched-grade null in a non-index-affecting field, same seeds and same mutation mechanism.
+    - Authentication-path forced-detection control, which must give detection rate exactly 1.0.
+    - Randomizer forced-non-detection control, which must give detection rate exactly 0.0.
+    - 'Seed-matched pairing: signal, null and baseline share the same message stream and the same
+      signer seeds so the arms differ only in the mutation.'
+    - 'Mutation-fidelity control: the number of bits actually changed in memory is counted and compared
+      to the nominal grade width.'
+    required_metrics:
+    - index-collision rate per grade with binomial 95 percent interval
+    - sign-then-verify detection rate per grade with interval
+    - crossing grade where collision rate first exceeds detection rate
+    - maximum per-index revealed-leaf fraction against invocation count, per grade
+    - unfaulted baseline collision rate
+    - null-arm collision rate
+    - 'mutation-fidelity: measured versus nominal flipped bits'
+  falsification_conditions:
+  - 'The null arm''s collision rate differs significantly from the unfaulted baseline: the mutation
+    mechanism is not confined to the named field and no grade is reportable.'
+  - 'The authentication-path grade''s detection rate is below 1.0: the self-check is misimplemented.'
+  - 'The randomizer grade''s detection rate is above 0.0: the fault is leaking into a field the self-check
+    can see.'
+  - Collision rate is non-monotone in fault width at a fixed field beyond binomial error.
+  - Mutation-fidelity counts disagree with nominal grade widths, meaning the lattice coordinates do
+    not name what they claim.
+  confounders:
+  - Toy hash widths make baseline index collisions common, so a signal must be measured against that
+    baseline rather than against zero.
+  - A fault in one field may propagate into another through shared buffers in the implementation,
+    which the null arm is designed to detect but only for the specific null field chosen.
+  - Sign-then-verify shares code with signing, so a fault that corrupts shared state could be masked;
+    an independent verifier implementation would be needed to exclude this and is listed as a gap.
+  - Persistent faults across k invocations make the arms non-independent, so binomial intervals understate
+    uncertainty for persistent grades.
+  - Revealed-leaf fraction depends on the message distribution, which must be fixed and recorded or
+    the accumulation curve is not comparable across grades.
+  interpretation_limits:
+  - The fault is simulated by in-memory mutation. Nothing here shows that any physical fault of any
+    grade is achievable on any device.
+  - Rates measured at toy hash widths and tiny trees do not transfer to FIPS 205 parameters, where
+    the index space is vastly larger and collisions correspondingly rarer.
+  - An index collision with revealed leaves is not a forgery; no forgery is exhibited and the gap
+    between the two is not measured here.
+  - Detection rates are for one specific cheap self-check and say nothing about other countermeasures.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. No forgery is constructed and no attack cost is
+      computed.
+    memory_exponent: No attack exponent is claimed. The harness stores the accumulated occupancy table,
+      linear in the number of invocations.
+    best_known: Within this repository the incumbents in the SLH-DSA fault lane are IDEA-20260813-945a67's
+      constants-tracked ADRS alias propagation bound and the fault-oracle persistence automaton proposal;
+      both produce structural objects and neither produces a measured per-grade rate. For a paired
+      exploitability-and-detectability rate the incumbent is nothing.
+    hidden_overhead: 'The lower-order term that hides here is shared code between signing and verification:
+      a self-check built from the same primitives can be blinded by the same fault, and excluding
+      that requires an independently derived verifier, which doubles the implementation cost and is
+      not budgeted. The human cost is the standing risk that a reader converts a toy collision rate
+      into a statement about a standardized parameter set, which the record must refuse in every citation.'
+  dominated_by: 'n/a (no result claimed). No forgery, no attack cost, so no time/memory/data frontier
+    row applies; all three axes were considered and none is populated. Not null: the frontier question
+    does not arise rather than being won. The nearest cost-bearing object in this lane would be a
+    concrete multi-target attack cost of the kind RQ-SLHDSA-001 names as a target, which this neither
+    computes nor competes with.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: produces a paired
+    (exploitability, detectability) rate per grade over a lattice of at most 32 grades with binomial
+    intervals at R=5000, plus a single crossing-grade coordinate, where the current corpus state is
+    two structural fault objects and no measured rate at any grade. No attack cost changes in any
+    direction.'
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the two forced detection rates come out exactly at 1.0 and 0.0:
+    0.75, with the risk concentrated in shared-code masking between the signer and its self-check
+    rather than in the mathematics. That the null arm matches the unfaulted baseline: 0.65, because
+    confining an in-memory mutation to one logical field is harder than it sounds in a Python implementation
+    with shared buffers. That a crossing grade exists at all within the tested lattice, rather than
+    detection dominating everywhere or nowhere: 0.5. That the toy signer''s index structure is close
+    enough in form to be worth reasoning from: 0.5, and this is the weakest link in the whole proposal.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-SLHDSA-001
+  - IDEA-20260813-945a67
+  - IDEA-20260805-fbe36a
+  - IDEA-20260805-705614
+  - H-SLHDSA-3a403a
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - AGENTS.md
+  - harness/runner.py
+  - harness/ctrl_valueshuffle.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SIDECH-8e197f

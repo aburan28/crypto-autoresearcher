@@ -1,0 +1,114 @@
+# STAGING DRAFT — not a ledger record. Promote via Coordinator only.
+# ID verified free 2026-08-07 with tools/allocate_id.py --check.
+experiment:
+  id: EXP-RLWE-59d3fb
+  hypothesis_id: null
+  version: 1
+  title: >-
+    Resolve GOAL-RLWE-001's prior-art pivot (Karenin-Kirshanova rank-generality)
+    and, contingent on clearing, run the calibrated NTRU-control BKZ sweep
+  status: draft
+  objective: >-
+    This is a TWO-STAGE experiment because the second stage cannot be
+    preregistered until the first resolves a binary fact this program does not
+    currently have. Stage A: determine whether Karenin-Kirshanova (AfricaCrypt
+    2024, eprint 2024/844) is arbitrary-rank or rank-2-only. Stage B (contingent
+    on Stage A NOT closing the goal): run the DSD detector on M and on the
+    matched NTRU positive control, calibrated on the CONCRETE fatigue curve
+    q = 0.004*n^2.484, to obtain the fitted exponent q*(n) for the module
+    formulation.
+  inputs:
+    stage_a:
+      target_document: Karenin and Kirshanova, "Finding Dense Submodules with
+        Algebraic Lattice Reduction", AfricaCrypt 2024 / eprint 2024/844
+      acquisition_routes:
+        - interlibrary loan / university proxy access to the AfricaCrypt 2024 proceedings (Springer LNCS)
+        - direct author email request (standard, low-friction in this community)
+        - author's personal/institutional homepage, checked periodically (was dead at last check, 2026-08-06)
+        - Sci-Hub or similar is NOT an authorized route for this program; do not use it
+      also_acquire_if_possible: Kirchner-Fouque 2017 ("Revisiting Lattice
+        Attacks on Overstretched NTRU Parameters"), still unread as primary by
+        this program per the 2026-08-06 pressure test
+    stage_b:
+      ring_degrees: [8, 16, 32, 64]
+      module_ranks_m: [1, 2, 4]
+      modulus_sweep: log-spaced around the CONCRETE fatigue point 0.004*n^2.484 for each n, both above and below
+  controls:
+    - >-
+      Matched NTRU positive control, calibrated on the CONCRETE curve (at n=64
+      that is q ~ 2^7.0, NOT the naive 2^14.9 the first draft used). The
+      control must FAIL (not fire) below its own fatigue point and FIRE above
+      it -- a control that fires everywhere is not discharged, per the
+      2026-08-06 pressure test's finding on this exact point.
+    - >-
+      vol(N) computed as the exact integer isqrt(det Gram) per instance, never
+      from the sigma*sqrt((m+1)n) heuristic (which the pressure test showed is
+      a biased over-estimate).
+  independent_variables: [n, m, q, formulation (module vs Kannan)]
+  metrics:
+    primary:
+      - dsd_event_fires (boolean, per instance): Z-rank and x-stability of the shortest-vector span
+      - fitted_exponent_c in q*(n) ~ n^c, with confidence interval
+    secondary:
+      - block_size_at_fixed_success_probability, module vs Kannan formulation, both at EXACT normalized covolume (not the n->infinity limit)
+      - orthogonality_defect_of_rotation_basis, to flag the n=32-64 range where the pressure test predicted length-threshold detectors misclassify
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: dsd_event_fires
+    formula: >-
+      Module formulation fires above SOME q*(n); Kannan formulation does not
+      fire at any tested q (no dense submodule exists there by construction).
+      No prediction is made for the value of the exponent c -- that is
+      genuinely unknown and is what this experiment measures.
+    source: >-
+      Corrected PORTFOLIO.md M1 section and 2026-08-06 pressure test, which
+      already demonstrated the module-side firing at n=8 (BKZ-20: Z-rank 8 on
+      M, Z-rank 1 on matched Kannan) -- this experiment extends that single
+      demonstrated point into a swept curve.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      n<=64 with today's lattice tooling. The fitted exponent is an
+      extrapolation target, not a claim about any deployed FHE parameter set
+      until independently validated at larger n or matched against a
+      theoretical derivation.
+    correspondence: null
+  tail_checks:
+    - >-
+      At n=64 (upper end of sweep), compare the length-threshold detector
+      against the exact Z-rank/primitivity/qR^(m+2)-membership test from the
+      2026-08-06 pressure test's n=8 verification -- the orthogonality defect
+      grows like 1.14^n and the pressure test predicted misclassification
+      exactly in this range.
+  replication:
+    seeds: [1, 2, 3, 4, 5]
+    independent_instances: 10 per (n, m, q) triple, given the wide per-instance
+      spread (0.88-1.51 at n=8) the pressure test measured
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 40
+    maximum_memory_gb: 16
+    maximum_runs: 600
+  stopping_rules:
+    - >-
+      Stage A must resolve (arbitrary-rank / rank-2-only / genuinely
+      unobtainable within budget) before Stage B's dispatch queue opens. If
+      Stage A resolves "arbitrary-rank", GOAL-RLWE-001 closes on collision and
+      Stage B does not run.
+  invalidation_rules:
+    - A DSD-fires verdict inferred from vector length alone, without the exact Z-rank/primitivity check, is invalidated per the pressure test's detector-requirement finding.
+  success_criterion: >-
+    Stage A resolves the pivot question with primary-text evidence (not a
+    third-hand characterization). If Stage B runs: NTRU control passes its
+    own fatigue-point boundary test, and a fitted q*(n) for the module
+    formulation is obtained with stated uncertainty.
+  falsification_criterion: >-
+    Stage A resolves "arbitrary-rank" (closes the goal on collision, not a
+    failure). Stage B: NTRU control fires below its own calibrated fatigue
+    point (instrument miscalibrated) or R-LWE never fires at any tested q
+    (mechanism absent at these scales).
+  required_artifacts:
+    - Stage A: the acquired primary text or a documented, exhausted acquisition attempt log
+    - Stage B: fitted curve with confidence interval, control pass/fail log, orthogonality-defect table
+  assigned_to: executor
+  approved_by: null

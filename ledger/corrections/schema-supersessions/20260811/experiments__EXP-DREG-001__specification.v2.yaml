@@ -1,0 +1,138 @@
+experiment:
+  id: EXP-DREG-001
+  hypothesis_id: H-DREG-001
+  version: 1
+  title: >-
+    Block-m4ri exact-rank instrument and the d_reg / d_ff ladder past the memory
+    wall (n = 17..24), boolean chained Semaev m=3 vs T11-certified null.
+  status: running   # 2026-07-18: validation phase underway; anchors 1-2 PASS (EV-DREG-001)
+  objective: >-
+    Reduce the uncertainty in RQ-DREG-001 (the honest ledger's D6, the one cell
+    that can falsify the core): build the checkpointable block-m4ri full-rank
+    instrument (matmul-reduce per column block + echelonized-basis carry),
+    validate it against every existing exact cell, then measure d_reg(n),
+    d_ff(n), and the deficit series for sem and null at n = 17, 18, 21, 24 with
+    >=8 random R and bootstrap CIs. Discharges review correction C1 (no valid
+    n=17 null measurement exists in the prior artifacts).
+  inputs:
+    systems: >-
+      Boolean chained Semaev m=3 systems from the existing semaev_tree builder
+      (same generators as the h012 series, for continuity), >=3 toy curves,
+      >=8 random targets R per n.
+    null: >-
+      T11-certified support-matched semi-regular null (identical monomial
+      support / degree profile, coefficients randomized). The miscalibrated D6
+      null (linear monomials injected) is excluded.
+    validation_anchors: >-
+      Exact cells the new instrument MUST reproduce before past-wall trust:
+      n=15 sem rank 69,073; n=18 sem rank 143,882 (two independent engines
+      agree); null == sr_pred_D at every n<=15 cell of the h012 series.
+    prior_deficit_series: "1322 / 1862 / 1999 at n = 12 / 15 / 18 (full exact)."
+  controls:
+    - T11-certified support-matched semi-regular null, same (n, D) cells (the
+      reference the deficit is defined against).
+    - >-
+      Dense m4ri engine on the same matrices at n<=18 (engine cross-validation;
+      prior agreement: 143,882 by two engines at n=18).
+    - >-
+      Checkpoint-resume consistency: every past-wall cell computed twice from
+      different column-block partitions; identical rank required.
+    - Same-seed re-run (determinism / infrastructure-failure separation).
+  independent_variables:
+    - system (semaev | null)
+    - n (12, 15, 17, 18, 21, 24)
+    - degree cap D (<=6)
+    - target R (>=8 per n)
+    - column-block partition (for the checkpoint-consistency control)
+  metrics:
+    primary:
+      - d_reg(n) per system (first D at which full rank is reached), >=8 R
+      - deficit(n, D) = sr_pred_D - rank_full(n, D); growth-exponent fit + CI
+      - gap(n) = d_reg(n) - d_ff(n), per system, with bootstrap CIs
+    secondary:
+      - rank_full(n, D) table both arms; d_ff(n) with max_D=6
+      - wall time and peak RSS per cell (instrument cost model; n=21 sem full
+        estimated ~2,000 s / ~34 GB from the h012 extrapolation)
+      - prediction interval for d_reg(30) under the null-tracking model
+  replication:
+    seeds: [1, 2, 3]
+    independent_instances: ">=3 curves x >=8 targets per n"
+  budget:
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 120
+    maximum_memory_gb: 40
+    maximum_runs: 120
+  stopping_rules:
+    - >-
+      Instrument phase gates the measurement phase: no past-wall number is
+      recorded until every validation anchor reproduces exactly.
+    - A cell exceeding the wall/memory cap is recorded as censored (with the
+      checkpoint state preserved for resume), never as failed evidence.
+    - Stop the n-ladder after two consecutive fully-censored sizes; the ceiling
+      is reported, not smoothed over.
+    - If d_reg(sem) < d_reg(null) at any n, run the confirmation arm (all 8 R,
+      both partitions) before touching any other cell.
+  invalidation_rules:
+    - Subset-column ranks are invalid for the sem arm (h012 finding iv) and are
+      excluded wherever they appear.
+    - Timeout/OOM = failed_infrastructure, excluded from fits (AGENTS rule 5).
+    - A checkpoint-resume mismatch invalidates the cell and the instrument
+      returns to the validation phase.
+    - A non-0-dimensional system (builder bug) = invalid, not evidence.
+  success_criterion: >-
+    d_reg(sem) < d_reg(null) at any n (CI-separated), OR deficit(n) grows
+    super-linearly (growth-exponent CI excludes 1 from below), OR gap(n) bounded
+    / grows strictly slower than the null gap with non-overlapping bootstrap CIs.
+    Any of these is a growing structural invariant at the bar and triggers the
+    EXP-R6-001 / H096 composition.
+  falsification_criterion: >-
+    d_reg(sem) tracks the null within CIs at all reachable n and the deficit
+    series continues decelerating or shrinks relative to rank: scoped KILL —
+    "no signal seen at reachable scale," with the n-ceiling and censoring
+    reported per the honest-ledger discipline.
+  required_artifacts:
+    - src/h012c_block_m4ri.py (instrument, committed)
+    - runs/<run-id>/manifest.yaml (command, commit, dirty-tree, env, seeds, params)
+    - runs/<run-id>/raw.json (per-cell ranks, d_ff, deficits, timings, checkpoint hashes)
+    - runs/<run-id>/stdout.txt and stderr.txt
+    - checkpoint files per past-wall cell (resumable)
+    - analysis.md (growth fits, CIs, verdict against the frozen criteria,
+      explicit censoring table)
+  assigned_to: executor
+  approved_by: coordinator   # DEC-20260717-002
+
+handoff:
+  id: TASK-20260717-001
+  from: coordinator
+  to: executor
+  objective: >-
+    Build the checkpointable block-m4ri full-rank instrument, validate it on the
+    three anchor cells, then run the d_reg/d_ff ladder to the new ceiling.
+  uncertainty_reduced: >-
+    Whether the boolean Semaev d_reg tracks the semi-regular null past n=15
+    (D6, the one core-falsifying open cell), and whether the n=17 null rank
+    equals sr_pred_D = 126,922 by an actual measurement (review correction C1).
+  inputs:
+    - experiments/EXP-DREG-001/specification.yaml
+    - "inputs/h100_session/h012b_denseT_n15f.json (anchor: n=15 sem 69,073)"
+    - "inputs/h100_session/h012b_denseT_n18.json (anchor: n=18 sem 143,882)"
+    - inputs/h100_session/h012_peel_rank_n18.json (anchor cross-check)
+    - "ecdlp-autolab src/: semaev_tree builder, ic_first_fall_fast.py, T11 null"
+  constraints:
+    - Full-column exact ranks only for sem; subset ranks are invalid (finding iv).
+    - Censored cells are reported as censored, never as evidence.
+    - Do not run while status is review_required (status is approved).
+  deliverables:
+    - committed instrument src/h012c_block_m4ri.py
+    - rank/deficit/d_ff table n=12..24 both arms with CIs
+    - validation log reproducing the three anchors exactly
+    - analysis.md with the frozen-criteria verdict and censoring table
+  budget:
+    wall_clock_seconds: 432000
+    memory_gb: 40
+    maximum_runs: 120
+  completion_gate:
+    - Every planned cell has a terminal state (measured | censored | invalid).
+    - All three validation anchors reproduced exactly before past-wall cells exist.
+    - Raw results, resource metrics, and summaries agree; artifacts checksummed.
+  return_format: execution_report

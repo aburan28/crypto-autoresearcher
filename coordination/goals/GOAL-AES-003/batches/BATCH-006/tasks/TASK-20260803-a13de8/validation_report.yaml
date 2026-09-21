@@ -1,0 +1,943 @@
+validation_report:
+  id: VAL-20260803-a13de8
+  task_id: TASK-20260803-a13de8
+  goal_id: GOAL-AES-003
+  batch: BATCH-006
+  role: validator
+  produced_at_utc: "2026-08-03T17:55:00Z"
+  validated_snapshot_commit: 1fe0332c
+  producer_task_id: TASK-20260803-0764fc
+  snapshot_archive_task_id: TASK-20260803-cd2b5e
+  claim_tier: toy
+  certificate:
+    kind: none
+    why: >-
+      This report re-measures counting statistics and recomputes arithmetic. No
+      discrete log, no relation, no key recovery is claimed, attempted or
+      implied. Nothing here speaks to full-round or deployed AES, and no
+      comparison to published cryptanalysis is made in either direction
+      (RQ-AES-003 R3).
+
+  inference:
+    policy: validator-review
+    requested_policy: validator-review
+    resolved_model: claude-opus-5
+    fallback_used: true
+    fallback_basis: >-
+      orchestration/model-policies.yaml routes validator work to a GPT-5.6
+      family policy alias. Claude Code cannot resolve those identifiers;
+      .claude/agents/ subagents run `model: inherit`. The requested policy and
+      the resolved model therefore differ and that is recorded rather than
+      silently substituted (CLAUDE.md model policy note).
+    model_verified: false
+    model_verified_reason: >-
+      No `python3 -m orchestration.adapter doctor --probe` exists under this
+      harness. The model identifier is asserted by the runtime, not probed.
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
+    independence: >-
+      SESSION-INDEPENDENT BUT NOT MODEL-INDEPENDENT. This review was produced in
+      a different session from TASK-20260803-0764fc, with an independently
+      written measurement implementation, but on the SAME resolved model family
+      as the producer and the Coordinator. Under standing basis
+      0137a051eb5828789eb267fa83c8278086578d4c nothing in this report counts
+      toward a completion quorum, which requires three CONCUR attestations with
+      pairwise-distinct resolved models (AGENTS/CLAUDE rule 8).
+    assigns_no_official_state: >-
+      This report assigns no hypothesis status, no evidence strength, and
+      recommends no promotion. Those are Coordinator acts.
+
+  # ------------------------------------------------------------------
+  artifact_checks:
+    - check: snapshot digest verification, all 192 declared paths
+      method: >-
+        For every path in
+        archives/TASK-20260803-cd2b5e/snapshot-receipt.json path_sha256, the
+        blob was read with `git show 1fe0332c:<path>` and sha256'd in-process.
+        Not trusted from the receipt's own assertion.
+      result: >-
+        191 of 192 match exactly. 0 missing. The single mismatch is the
+        receipt's OWN entry for itself
+        (archives/TASK-20260803-cd2b5e/snapshot-receipt.json), which is
+        structurally unverifiable: a file cannot contain its own hash.
+      verdict: CONFIRMED
+    - check: does 1fe0332c contain exactly the declared path set under BATCH-006
+      result: >-
+        Yes, with one expected extra:
+        batches/BATCH-006/dispatch_queue.json, which is batch infrastructure and
+        not a producer artifact. No undeclared producer artifact is present.
+      verdict: CONFIRMED
+    - check: the receipt file itself changed after the snapshot commit
+      finding: >-
+        At 1fe0332c the receipt has NO `DISPATCHER_VERIFICATION_STATUS` block
+        (sha256 82982085c61d22b3d8f82109a3f2dd360518256b23ed657cce39905ed9cbf2b6).
+        The block was added in the FOLLOWING commit d6f362f8 (sha256
+        8d9f870d32b4272d45ed315f408f211041b551c2b4eb269d2d84773fdc15003e, equal
+        to the working tree). The receipt's self-entry, 184491a8..., equals
+        neither. This is disclosure appended after the fact, which is the honest
+        direction, but it means the receipt read by a reviewer is not the
+        receipt bound by the commit it describes.
+      verdict: RECORDED, not a defect in the producer's evidence
+    - check: DISPATCHER_VERIFICATION_STATUS honesty
+      finding: >-
+        The block states verified=false because 1fe0332c's commit message does
+        not name TASK-20260803-cd2b5e. I read the commit message directly: it is
+        "record the VERIFIED BATCH-006 snapshot archive" and names no task id.
+        The self-description is accurate, and the commit message's own word
+        "VERIFIED" is now known to be false of itself. Under AGENTS rule 7
+        anything derived from this archive is PUBLISHED BUT NOT OFFICIAL. I
+        validated it anyway because the content is committed and hash-bound and I
+        checked the digests myself; that is what the Validator prohibition on
+        working-tree-only receipts requires, and it is met.
+      verdict: CONFIRMED as stated
+    - check: instrument provenance
+      result: >-
+        Executed binary yoyo_sbox_v2 sha256
+        d30e4d720317706043b263742062273d22fbe054f56a58a8b351f3bbb3fd9ff0 ==
+        BATCH-004/tasks/TASK-20260803-367b1b/yoyo_sbox_v2 and == the value
+        recorded in BATCH-005's PREREGISTRATION. Source copy sha256
+        6bda2ab7f3c8e6dee358d3fcba52803e4e43f794f963bafabc51cc0de379bc9c ==
+        BATCH-004/tasks/TASK-20260803-367b1b/src/yoyo_sbox_v2.c and == the blob
+        committed at 1fe0332c. Provenance chain intact.
+      verdict: CONFIRMED
+    - check: is the EXECUTED binary hash-bound by the archive
+      finding: >-
+        NO. yoyo_sbox_v2 is untracked and absent from path_sha256; only its
+        source and its recorded sha256 are in the archive. Additionally, the
+        .gitignore rule added by 34572ac8 to ignore it
+        (.gitignore:143) carries a DOUBLED path prefix
+        ("...BATCH-006/tasks/TASK-20260803-b8e91c/coordination/goals/.../TASK-20260803-0764fc/yoyo_sbox_v2")
+        and does not match the file: `git check-ignore -v` returns rc=1. The
+        binary stayed out of the archive only because it was never `git add`ed,
+        not because the rule worked. The archive path set is nonetheless exact.
+      severity: minor process defect, recorded not repaired
+      mitigation: >-
+        I did not need the binary: I wrote my own implementation from the source
+        specification and reproduced the counts exactly (below), which is a
+        stronger reproducibility check than a byte-identical binary.
+      verdict: RECORDED
+    - check: pins and S-box tables
+      result: >-
+        28 of 28 pin files present, all with pin_pass=true, sbox_bijective=true,
+        roundtrip_failures=0. All 27 dumped S-box tables are permutations of
+        0..255. I independently regenerated all 27 tables in Python from their
+        seeds using the stated Fisher-Yates/splitmix64 rejection sampler: 27 of
+        27 match byte for byte, 0 mismatches.
+      verdict: CONFIRMED
+    - check: budget and dropped work records
+      result: >-
+        budget_stamps.jsonl records start 1785772410, binding stop 1785778410,
+        finish at elapsed 4089 s with 1911 s remaining, halted_on_budget=false,
+        runs/dropped.txt empty, 34 measuring arms against a declared 40. The one
+        infrastructure event (A2-R4-K1 attempt 1 killed by the harness 600 s tool
+        timeout) is recorded, the empty output preserved as
+        A2-R4-K1.ATTEMPT1-INTERRUPTED.json, and explicitly classified as
+        infrastructure error and not as a reading. That classification is
+        correct under AGENTS rule 3.
+      verdict: CONFIRMED
+    - check: git_state recorded by the producer
+      result: >-
+        RESULTS.json records commit 4f0d2d1f with dirty_tree=true. That is the
+        pre-snapshot commit the producer ran at, which is the correct thing to
+        record; the snapshot 1fe0332c is downstream of it. The dirty-tree flag is
+        set and explained (the task wrote only inside its own untracked
+        directory). No misrepresentation.
+      verdict: CONFIRMED
+
+  # ------------------------------------------------------------------
+  independent_implementation:
+    what: >-
+      I wrote a fresh C implementation of the measured object from the
+      specification in yoyo_sbox_v2.c's header comment, deliberately NOT reusing
+      its code paths: plain byte-oriented AES with an explicit state array, the
+      LITERAL inverse cipher (InvShiftRows / InvSubBytes / InvMixColumns) rather
+      than the equivalent-inverse U-tables, MixColumns computed per column rather
+      than by T-table lookup, the S-box built from a from-scratch multiplicative
+      inverse search plus the affine map, and the PW/CW geometry rebuilt from the
+      stated diagonal formulas.
+    what_is_deliberately_shared: >-
+      The splitmix64 stream, the key derivation seed ^ 0xA5A5A5A5A5A5A5A5, the
+      thread-seed formula and the N/nthr trial split are reproduced on purpose.
+      They are part of the arm's definition, not part of the cipher, and
+      reproducing them is what makes an exact count comparison possible. Stated
+      plainly so that "independent" is not read as more than it is: the RNG is
+      shared, the cryptography and the statistic are not.
+    self_check: >-
+      FIPS-197 C.1 known-answer test computed 69c4e0d86a7b0430d8cdb78070b4c55a
+      (the expected value), decryption round-trip true, and the geometry dump
+      reproduced PW=[[0,5,10,15],[4,9,14,3],[8,13,2,7],[12,1,6,11]] and
+      CW=[[0,13,10,7],[4,1,14,11],[8,5,2,15],[12,9,6,3]] exactly.
+    cost: >-
+      About 1.03e6 trials/s at r=4 on 2 threads, roughly 2.3x slower than the
+      producer's T-table binary. This is what bounded how much could be
+      re-executed.
+
+  # ------------------------------------------------------------------
+  metric_recomputations:
+    - id: RECOMP-1
+      target: "PRIORITY 1: A1-R4-MAIN, the batch falsifier, full re-execution"
+      producer_value:
+        arm: A1-R4-MAIN
+        rounds: 4
+        trials: 2147483648
+        W_ge1_nontrivial: 2147483648
+        W_ge1_by_word: [0, 2147483648, 2147483648, 2147483648]
+        whist: [0, 0, 0, 2147483648, 0]
+        trivial_swaps_excluded: 0
+      my_value:
+        W_ge1_nontrivial: 2147483648
+        W_ge1_by_word: [0, 2147483648, 2147483648, 2147483648]
+        whist: [0, 0, 0, 2147483648, 0]
+        trivial_swaps_excluded: 0
+        key_hex: 25b3faa13dbaeaab5491571199979d53
+        thread_seeds: [11400714758318102301, 4354685486758105890]
+        wall_seconds: 2294.2
+        trials_executed: 2147483648
+      note: >-
+        FULL 2^31 trials re-executed under my own implementation, not a prefix
+        and not a projection. Exact agreement in every field.
+      verdict: CONFIRMED
+    - id: RECOMP-2
+      target: "A0-REPRO-R5-K1, the rare-event reproduction control"
+      why_it_matters: >-
+        This is the strongest cross-implementation check in the batch. A
+        saturated arm agrees trivially once the cipher is right; a count of 14
+        hits in 2^30 trials, with the per-word breakdown [4,4,2,4], agrees only
+        if every trial's plaintext draw, swap, decryption and word-zero test
+        matches exactly.
+      producer_value: {W_ge1_nontrivial: 14, W_ge1_by_word: [4, 4, 2, 4], whist: [1073741810, 14, 0, 0, 0]}
+      my_value: {W_ge1_nontrivial: 14, W_ge1_by_word: [4, 4, 2, 4], whist: [1073741810, 14, 0, 0, 0], wall_seconds: 1422.9}
+      also: >-
+        These equal BATCH-005 D-AES-K1's recorded values, so my run reproduces a
+        prior batch as well as this one.
+      verdict: CONFIRMED
+    - id: RECOMP-3
+      target: "A3-R3-MAIN and A4-R2-MAIN, full re-execution"
+      producer_value:
+        A3: {trials: 16777216, trivial_swaps_excluded: 65713, nontrivial_trials: 16711503, W_ge1_nontrivial: 16711503, whist: [0, 0, 0, 16711503, 0]}
+        A4: {trials: 1048576, trivial_swaps_excluded: 0, W_ge1_nontrivial: 1048576, whist: [0, 0, 0, 1048576, 0]}
+      my_value: identical in every field, including the non-obvious
+        trivial_swaps_excluded = 65713 at r=3
+      verdict: CONFIRMED
+    - id: RECOMP-4
+      target: "A5-R4-R1-K1, r=4 under a drawn S-box (prefix)"
+      my_value: >-
+        2^24-trial prefix of the same stream under rand:20260803001 at r=4:
+        rate 1.0, whist [0,0,0,N,0], W_ge1_by_word [0,N,N,N]. Same pattern as the
+        AES S-box.
+      scope: prefix only, not the full 2^30; the full arm was not re-executed
+      verdict: CONFIRMED at prefix scope
+    - id: RECOMP-5
+      target: "PRIORITY 2: RC-8 ALIVE counts, recomputed from the 28 raw per-arm JSONs"
+      method: >-
+        I ignored the producer's RESULT table entirely and recomputed from
+        runs/B*.json: v = nontrivial_trials * 4 / 2^32, ratio = X/v, Poisson
+        upper tail P(K>=X|v) and lower tail P(K<=X|15.63v) summed in-process.
+      my_value:
+        n_draws: 27
+        ALIVE_T5_FULL: 25
+        ALIVE_T5_SIMPLE: 27
+        DEAD: 0
+        INDETERMINATE_T5_FULL: 2
+        not_alive_T5_FULL: [B11-RAND-20260803711 (X=6, P(K>=6|1)=5.942e-4), B25-RAND-20260803725 (X=9, P(K>=9|1)=1.1252e-6)]
+        B0_AES_REF: X=12, ALIVE under both rules
+      producer_value: {ALIVE_T5_FULL: 25, ALIVE_T5_SIMPLE: 27, DEAD: 0}
+      verdict: CONFIRMED
+    - id: RECOMP-6
+      target: "PRIORITY 2: the exact binomial lower bounds"
+      method: >-
+        Clopper-Pearson one-sided 95% lower bound solved by bisection on the
+        exact binomial tail P(K>=k|n,p)=0.05 with exact integer binomials. No
+        normal approximation, no scipy.
+      my_value:
+        k25_n27: 0.784700
+        k27_n27: 0.894981
+        k27_n29_pooled: 0.798439
+        k29_n29_pooled: 0.901855
+        k2_n2_figure_being_replaced: 0.223607
+      producer_value: {0.784700038857546, 0.8949807698236556, 0.7984394120784961, 0.9018553723227043, 0.22360679774997896}
+      verdict: CONFIRMED, all five to every printed digit
+    - id: RECOMP-7
+      target: "the two prior draws used in the pooling"
+      method: I read the prior arms' raw JSONs rather than the producer's summary.
+      my_value: >-
+        rand:20260803001 (BATCH-004 Y-R1-main, 2^31): X=22, v=2.0, ratio 11.0,
+        P(K>=22|2)=4.44e-16 -> ALIVE under T5-FULL.
+        rand:20260803002 (BATCH-004 Y-R2-main, 2^31): X=41, v=2.0, ratio 20.5,
+        P(K>=41|2)=0 -> ALIVE under T5-FULL.
+      consequence: >-
+        The pooling to k=27,n=29 is arithmetically legitimate: both priors do
+        qualify under the strict rule. The exchangeability assumption behind
+        pooling is separate and the producer states it.
+      verdict: CONFIRMED
+    - id: RECOMP-8
+      target: exact 95% Poisson intervals reported per arm
+      my_value: >-
+        X=14 -> [7.653930, 23.489621]; X=6 -> [2.201894, 13.059474];
+        X=9 -> [4.115373, 17.084803]; X=27 -> [17.793170, 39.283582], i.e.
+        [8.896585, 19.641791] on the excess factor at v=2.
+      producer_value: identical to every printed digit
+      verdict: CONFIRMED
+    - id: RECOMP-9
+      target: PREREGISTRATION arithmetic slip
+      finding: >-
+        PREREGISTRATION.md section 3 registers the pooled 29-draw bound as
+        `0.05^(1/29) = 0.9014`. The correct value is 0.9018553723, and
+        RESULTS.json reports 0.9019. The prereg figure was slightly wrong and the
+        reported figure is right. Direction of the error is against the
+        producer's own interest (the prereg understated the bound), and RESULTS
+        does not silently inherit it.
+      verdict: RECORDED, immaterial
+
+  # ------------------------------------------------------------------
+  control_checks:
+    - id: CTRL-1
+      name: "null-object control at r=4 -- RUN BY ME, NOT BY THE PRODUCER"
+      why: >-
+        docs/inventor-protocol.md section 3: a statistical signal without a
+        null-object control is not evidence, and the report must state what the
+        measured quantity SHOULD do as the parameter meant to destroy it
+        increases. BATCH-004/005 froze a structure-destroyed control (amask=15,
+        all four plaintext words active, which destroys the diagonal-coset
+        structure). BATCH-006 ran NO such control at r=4. Without it, "rate 1.0
+        at r=4" is not distinguishable from "this statistic reads 1.0 at r=4 for
+        any input geometry", which would make it an artifact of W-counting rather
+        than a property of the coset structure.
+      what_i_ran: >-
+        My own implementation, r=4, amask=15, smask=1, 2^20 trials, seed 431001.
+        Same at r=3 and r=5.
+      result:
+        r4_amask15: {W_ge1: 0, rate: 0.0, whist: [1048576, 0, 0, 0, 0]}
+        r3_amask15: {W_ge1: 0, rate: 0.0}
+        r5_amask15: {W_ge1: 0, rate: 0.0}
+      reading: >-
+        THE CONTROL PASSES. Destroying the coset structure takes the statistic
+        from rate 1.0 to rate 0.0 at r=4 -- not to the null, but below it, on
+        every trial. The r=4 saturation is therefore bound to the
+        single-active-word geometry and is NOT an artifact of how W is counted.
+        This is the check the batch needed and did not have, and it comes out in
+        the producer's favour.
+      verdict: CONFIRMED (control absent from the batch, supplied and passed here)
+    - id: CTRL-2
+      name: "does the r=4 pattern track the ACTIVE word, or the word index 0"
+      why: >-
+        The producer records "word 0, the active word, never preserved" but ran
+        only amask=1, so word 0 and "the active word" are confounded in its data.
+        The two hypotheses are distinguishable in one minute and were not
+        distinguished.
+      what_i_ran: r=4, 2^20 trials, at amask in {1, 2, 4} and smask in {1, 2, 4}
+      result:
+        amask1_smask1: {W_ge1_by_word: [0, N, N, N]}
+        amask2_smask1: {W_ge1_by_word: [N, 0, N, N]}
+        amask4_smask1: {W_ge1_by_word: [N, N, 0, N]}
+        amask1_smask2: {W_ge1_by_word: [0, N, N, N]}
+        amask1_smask4: {W_ge1_by_word: [0, N, N, N]}
+      reading: >-
+        The zero-difference index tracks the ACTIVE word, not the index 0, and is
+        insensitive to smask. The correct statement of the structural fact is
+        "the active word is never preserved and the other three always are", not
+        "word 0 is never preserved". The producer's wording is true of its data
+        and too narrow as a general statement.
+      verdict: CONFIRMED and GENERALISED
+    - id: CTRL-3
+      name: key-block dependence of the r=4 reading
+      what_i_ran: r=4, amask=1, smask=1, 2^20 trials, at arm seeds 999001 and 777333
+        (neither used anywhere in this campaign)
+      result: rate 1.0 and whist [0,0,0,N,0] at both
+      reading: The r=4 reading is not specific to the two key blocks the producer ran.
+      verdict: CONFIRMED
+    - id: CTRL-4
+      name: positive control (reproduction) declared by the producer
+      result: >-
+        A0-REPRO was required by the frozen contract to return exactly 14 hits
+        and key bdf3823182ad657dab3d556b3886ba72. It did, and so did my
+        independent re-run. The positive control is satisfied.
+      verdict: CONFIRMED
+    - id: CTRL-5
+      name: null-object control for the RC-8 draws
+      finding: >-
+        BATCH-006 ran no structure-destroyed arm for any of the 27 draws. The
+        draws inherit their null-object control from BATCH-004/005's sd arms
+        (amask=15), which I checked from the raw files and which do sit at null:
+        Y-AES-sd, Y-R1-sd X=0, Y-R2-sd X=4 at 2^30, SD31-R1 X=1, SD31-R2 X=1 at
+        2^31. The prior control behaves as it should. But no drawn S-box in THIS
+        batch has its own null-object arm, so for 25 of the 27 draws the claim
+        that the ALIVE reading reflects coset structure rests on transfer from
+        two other S-boxes.
+      verdict: INCOMPLETE for this batch, mitigated by prior batches
+    - id: CTRL-6
+      name: PRP-null constant, the denominator of every excess factor
+      result: >-
+        The producer does not assert the analytic 4*2^-32 null is unmeasured; it
+        correctly cites CORR-20260803-c92db5's finding that BATCH-002 measured it
+        (12 observed vs 16.0 over 2^34) and the red team's nine-arm aggregate
+        (26 vs 29.0, ratio interval [0.586, 1.314]). It then carries that
+        +/-31% forward and says explicitly that it is irrelevant for the r=4
+        saturated arms and NOT irrelevant for draws near the T5-FULL threshold.
+        That is the correct handling and I could not improve on it.
+      verdict: CONFIRMED
+
+  # ------------------------------------------------------------------
+  rulings_on_the_assigned_questions:
+
+    - priority: 1a
+      question: >-
+        Is 2^30 the arithmetic ceiling of this statistic rather than an effect
+        size?
+      ruling: CONFIRMED -- and it should never be quoted as a magnitude.
+      basis: >-
+        The excess factor is defined as X / (nontrivial_trials * 4 * 2^-32),
+        which is identically (hit rate) * 2^30. The hit rate is a probability and
+        cannot exceed 1. Therefore the excess factor cannot exceed 2^30 =
+        1073741824, and it attains that value if and only if the rate is exactly
+        1.0. A1, A2, A3, A4 and A5 all report exactly 1073741824 (A3 reports
+        1073741823.976, which is the same ceiling with the analytic null rounded
+        to 7 digits in the emitted JSON -- I checked that this is a print
+        artifact, not a sub-ceiling reading).
+        "Excess 2^30" is therefore a restatement of the null model's assumed
+        per-trial probability, and carries NO information about how large the
+        r=4 effect is. It is a saturation artifact. The correct statement is
+        "rate 1.0, i.e. the statistic is deterministic at r=4 at this geometry".
+        A deterministic event compared against a probabilistic null is a category
+        difference, not a large effect size, and the ratio 2^30 would be
+        identical for any deterministic property whatever.
+        I agree with the task card's framing and state it plainly.
+      note_in_the_producers_favour: >-
+        The producer said exactly this itself, unprompted, in
+        observations_not_interpretation[1]: "the ARITHMETIC MAXIMUM ... a
+        saturation ceiling, not an unbounded effect size, and must not be read as
+        '2^30 times stronger than r=5' in any extrapolative sense." It did not
+        need to be caught on this.
+
+    - priority: 1b
+      question: Is the pairing real?
+      ruling: CONFIRMED, checked field by field from the raw artifacts.
+      basis: >-
+        I loaded BATCH-004 runs/Y-AES-main.json, runs/Y-AES-main-r6.json,
+        BATCH-005 runs/D-AES-K1.json and BATCH-006 runs/A1-R4-MAIN.json,
+        runs/A2-R4-K1.json, runs/A0-REPRO-R5-K1.json directly and compared the
+        emitted fields myself rather than reading the producer's
+        pairing_verification block.
+        A1 vs Y-AES-main and vs Y-AES-main-r6: sbox_spec aes, sbox_seed 0,
+        sbox_first8, amask 1, smask 1, trials 2147483648, log2N 31, seed 431001,
+        arm_id 1, threads 2, key_hex 25b3faa13dbaeaab5491571199979d53,
+        thread_seeds [11400714758318102301, 4354685486758105890] -- all equal.
+        Only `rounds` differs (4 vs 5, 4 vs 6).
+        A2 and A0 vs D-AES-K1: all of the above equal with key_hex
+        bdf3823182ad657dab3d556b3886ba72 and thread_seeds
+        [11400714758317678269, 4354685486758533762]. Only `rounds` differs for
+        A2; A0 matches on rounds too, being the reproduction control.
+        I additionally reproduced key_hex and thread_seeds from the seed in my
+        own implementation, so the emitted values are not merely equal to each
+        other but equal to what the documented derivation produces.
+        The structural argument holds independently: key state is
+        seed ^ 0xA5A5A5A5A5A5A5A5, thread seed is
+        seed ^ armid*0x1234567891 ^ (t+1)*0x9E3779B97F4A7C15, and the plaintext
+        pair is drawn from the thread state before any encryption call. None of
+        these reads `rounds`.
+      one_field_that_differs_and_should: >-
+        trivial_swaps_excluded is 0 for A1 and 2 for Y-AES-main-r6. That is an
+        OUTPUT of the measurement (a swap is trivial when the swapped ciphertext
+        bytes already agree, which depends on the round count), not an input, so
+        it does not weaken the pairing. The producer's field list correctly
+        contains inputs only.
+
+    - priority: 1c
+      question: >-
+        Is the profile monotone decreasing and saturated at r <= 4, so that r=5
+        is not a peak but the last sub-saturated above-null round count?
+      ruling: >-
+        CONFIRMED as to the two substantive parts. The Coordinator queue's "peak
+        at r=5" is REFUTED. One word of the producer's phrasing is OVERSTATED.
+      basis: >-
+        Measured on this instrument, at amask=1 smask=1, with r=5 and r=6 taken
+        from the paired prior arms:
+        r=2 rate 1.0 (ceiling), r=3 rate 1.0 (ceiling), r=4 rate 1.0 (ceiling,
+        confirmed by me at full 2^31), r=5 excess 13.5x with exact 95% interval
+        [8.90, 19.64] and 14.0x at the other key block, r=6 excess 0.5x (X=1
+        against v=2.0).
+        The r=5 interval [8.90, 19.64] excludes both the ceiling above and the
+        null below. So the ordering r<=4 saturated > r=5 above null > r=6 at or
+        below null holds, and there is no round count at which the statistic is
+        higher than at r=4. "Peak at r=5" is refuted: a peak requires a lower
+        reading on the low side, and there is none.
+        "r=5 is the last round count with a sub-saturated, above-null reading" is
+        correct on the measured set {2,3,4,5,6,10}.
+      the_overstated_word: >-
+        MONOTONE. The measured sequence is not monotone decreasing. Taking the
+        campaign's own readings: r=6 reads 0.5x (BATCH-004, X=1) and r=10 reads
+        0.75x and 1.63x (BATCH-001) and pooled 0.75 (BATCH-002 arm_A3/A3b, 12
+        observed vs 16.0 expected). r=10 is not below r=6. What is true is that
+        the sequence is non-increasing down to the null and then fluctuates
+        AROUND the null, which is exactly what a dead statistic should do and is
+        not a violation of anything. "Monotone decreasing" is a stronger claim
+        than the data support and should be stated as "decreasing to the null by
+        r=6 and consistent with the null at r=6 and r=10".
+        This is a wording defect, not a reading defect, and it does not affect
+        the refutation of "peak at r=5".
+      what_this_does_NOT_establish: >-
+        Nothing about round counts outside {2,3,4,5,6,10}, other (amask, smask)
+        geometries, other key blocks, other S-boxes, or full-round AES.
+
+    - priority: 2
+      question: Which liveness criterion governs, and what bound follows?
+      ruling: >-
+        THE STRICT BATCH-004 RULE GOVERNS. The bound that follows is 0.7847
+        unpooled and 0.7984 pooled. THE 0.90 TARGET IS NOT MET.
+      basis: >-
+        The campaign froze ONE liveness criterion, not two. BATCH-004's
+        PREREGISTRATION, lines 236-239, freezes a three-outcome rule: ALIVE iff
+        X/v >= 5 AND P(K>=X|lambda=v) < 1e-6; DEAD iff X/v <= 2.5 AND
+        P(K<=X|lambda=15.63v) < 1e-3; otherwise INDETERMINATE.
+        BATCH-005's T5 is NOT an independently frozen alternative. Its own text,
+        at line 132, reads: "T5 -- per-arm liveness. BATCH-004's frozen rule:
+        excess factor >= 5x is ALIVE." It presents itself as a QUOTATION of
+        BATCH-004 and drops the Poisson conjunct in the act of quoting. A
+        defective restatement of a frozen rule does not create a second frozen
+        rule; it creates an error in BATCH-005. Choosing it now, after seeing
+        that it is the one that reaches the target, would be selecting the
+        criterion on the data.
+        Under the governing rule, 25 of 27 draws are ALIVE. Exact binomial
+        one-sided 95% lower bound: p_lo = 0.784700. Pooled with the two prior
+        draws, both of which I verified qualify under the same strict rule:
+        27 of 29, p_lo = 0.798439.
+      on_the_third_reading: >-
+        The producer's "reading 2", preserving means NOT DEAD, gives 27/27 and
+        0.8950 (29/29 and 0.9019 pooled). It is not the frozen criterion and was
+        not frozen anywhere before this batch; it was constructed in this task.
+        It should not govern. It is a legitimate observation -- see below -- but
+        not a basis for the campaign's scoping bound.
+      the_honest_summary_line: >-
+        The campaign's central scoping figure moves from 0.224 to 0.7847
+        (0.7984 pooled) under the criterion the campaign actually froze. That is
+        a large and real improvement -- it is the difference between "at least a
+        fifth of bijections" and "at least four fifths" -- and it is NOT the 0.90
+        the campaign named as its target. Reporting 0.90 here would require
+        either a criterion the campaign did not freeze or a definition of
+        "preserving" invented after the counts were seen. Do not paper over it:
+        the target was missed, by two draws.
+      what_would_reach_it: >-
+        Not my call to recommend, but stated as arithmetic since the question was
+        asked: under the governing rule, 0.90 needs k=n=29, i.e. the two
+        INDETERMINATE draws resolved ALIVE. Both sit above the null (X=6 and X=9
+        against v=1.0) and below the X>=10 the Poisson conjunct forces at 2^30.
+        Re-running those two draws at 2^31 would double v to 2.0, where the
+        ALIVE threshold in ratio terms is unchanged but the Poisson conjunct is
+        far easier to clear; whether they then read ALIVE is exactly the open
+        question and I do not predict it.
+      scope_limits_that_survive_either_reading: >-
+        All 27 draws share ONE key block (arm seed 631001) and one plaintext
+        stream. p is bounded at that key block, at r=5, at 2^30 exposure, at
+        amask=1 smask=1. The Clopper-Pearson bound assumes the draws are i.i.d.
+        Bernoulli in ALIVE/not-ALIVE; the shared key block is the assumption most
+        likely to be violated, and the producer says so. The bound is not
+        marginalised over keys and must not be quoted as if it were.
+
+    - priority: 3a
+      question: >-
+        Do r=3 and r=4 arms already exist in BATCH-001/tasks/yoyo5/analysis.json,
+        and is the producer's narrower surviving claim right?
+      ruling: CONFIRMED on both counts.
+      basis: >-
+        I opened the file. Entries 1 and 2 are rounds 3 and rounds 4, amask 1,
+        smask 1, trials 4294967296, seed 20260802, W_ge1_nontrivial 4294967296,
+        excess_factor 1073741824.0, whist [0,0,0,4294967296,0]. summary.txt
+        tabulates them in plain text. A second r=4 arm at 2^33 under seed
+        88881111 is also present. So the low side of the profile was measured on
+        2026-08-02 and read saturated, and the dispatch queue's assertion that
+        the instrument has only ever run at r in {2,5,6,10} is FALSE.
+        I then ran the search myself rather than accepting the producer's:
+        walked the whole repository, found 106 files containing W_ge1 / W>=1 /
+        wge1, extracted every "rounds": <n>, and tabulated. Outside BATCH-006,
+        rounds 3 and 4 appear in exactly two files, both
+        BATCH-001/tasks/yoyo5/ (analysis.json and analysis_seed1.json), and
+        rounds 2 in BATCH-002 (RESULTS.json, arm_PC.json). I also tabulated
+        rounds per batch over every object carrying a W_ge1_nontrivial field:
+        BATCH-002 {2,5,6,10}, BATCH-003 {}, BATCH-004 {5,6}, BATCH-005 {5}.
+        This independently confirms the producer's surviving claims that
+        yoyo_sbox_v2 had run only at r in {5,6} and that BATCH-002's probe.c had
+        run only at r in {2,5,6,10}.
+
+    - priority: 3b
+      question: >-
+        Do the PRODUCER's own absence claims meet the CORR-20260803-c92db5 bar?
+      ruling: MIXED. Two of its absence claims are sound. One is OVERSTATED.
+      sound:
+        - claim: "yoyo_sbox_v2 has only ever run at r in {5,6}; probe.c only at r in {2,5,6,10}"
+          status: CONFIRMED
+          why: >-
+            Paths and commands named in RESULTS.json.repository_search
+            (grep -rl W_ge1 over coordination ledger knowledge docs experiments,
+            103 files enumerated in the artifact, plus a repository-wide grep for
+            rounds 3 and 4). I reproduced the search independently and got the
+            same answer. This meets the bar exactly.
+        - claim: "no r=4 arm has ever been run under a non-AES S-box"
+          status: CONFIRMED
+          why: >-
+            The only prior r=4 arms are BATCH-001's, on yoyo2.c, which is AES-NI
+            and hardwires the S-box in silicon -- the substitution is not
+            expressible there. No other instrument ran r=4. The claim follows.
+        - claim: "arm seed 631001 and S-box seeds 202608037xx appear nowhere else"
+          status: CONFIRMED
+          why: I re-ran the greps; both return nothing outside this task.
+      overstated:
+        - claim: "no r=4 arm has ever been PAIRED to an r=5 arm on key and stream"
+          status: OVERSTATED -- not established, and contradicted on the best
+            available reading of the artifacts the producer itself tabulated.
+          why: >-
+            BATCH-001's r=4 and r=5 arms at master seed 20260802 share seed,
+            trial count 2^32, amask 1 and smask 1. In yoyo2.c the per-thread
+            state is seed ^ 0xA5A5A5A5A5A5A5A5*(t+1) and the plaintext pair is
+            drawn from that state before any encryption; `rounds` enters only
+            inside the AES-NI round loop. BATCH-001's PREREGISTRATION line 247
+            states "Master seed 20260802. All keys, plaintexts and per-trial
+            randomness ... derived from it." The same second r=4/r=5 pairing
+            exists at seed 88881111.
+            By precisely the structural argument the producer uses to justify its
+            OWN pairing, BATCH-001's r=4 and r=5 arms are already paired on key
+            and stream.
+            More decisively for the CORR-c92db5 bar: the producer named no search
+            for this sub-claim at all. It named paths for the ROUND-COUNT absence
+            claim, and then attached the pairing sub-claim to the same bullet
+            without evidence. That is the failure mode the correction was written
+            about, in miniature and in the producer's own report -- three
+            paragraphs after it correctly caught the Coordinator committing it.
+          what_i_could_NOT_establish: >-
+            BATCH-001's analysis.json does not record a key_hex or the key
+            argument passed to yoyo2.c, and no command log survives in that task
+            directory. So I cannot verify the pairing from emitted fields the way
+            I verified BATCH-006's. The honest status is NOT ESTABLISHED IN
+            EITHER DIRECTION, which is itself enough to make the producer's
+            unqualified negative wrong.
+          what_would_have_been_correct: >-
+            "No r=4 arm has previously been paired to an r=5 arm with the pairing
+            VERIFIED from emitted per-arm key and thread-seed fields, and none on
+            this instrument." That is true, checkable, and materially weaker.
+          materiality: >-
+            LOW for the batch's conclusions. The r=4 reading stands on its own
+            re-measured counts and does not depend on being the first paired one.
+            The defect is in the novelty framing, not the measurement.
+
+    - priority: 4
+      question: >-
+        Is whist = [0,0,0,N,0] at r <= 4, with the active word never preserved, a
+        genuine structural fact or an artifact of how W is counted?
+      ruling: GENUINE, and I extend the statement. It is UNEXPLAINED.
+      basis: >-
+        Verified by full re-execution at 2^31 (r=4), 2^30 (r=4, second key
+        block), full 2^24 (r=3) and full 2^20 (r=2): whist[3] = N and every other
+        bin 0, on every trial, with no exception in 2^31 + 2^30 + 2^24 + 2^20
+        trials. W is never 4, so the active word is never preserved; W is never
+        2, 1 or 0, so the other three always are.
+        NOT an artifact of the counting: CTRL-1 shows that destroying the coset
+        structure (amask=15) at the same round count drives the statistic to
+        W=0 on every trial. A counting artifact would not switch off when only
+        the input geometry changes.
+        Extension the producer did not make (CTRL-2): the never-preserved index
+        is the ACTIVE word, not the index 0. At amask=2 the pattern is
+        [N,0,N,N]; at amask=4 it is [N,N,0,N]. It is insensitive to smask
+        (tested 1, 2, 4) and to the key block (tested 4 arm seeds).
+        Also holds under a drawn, non-AES S-box (A5 and my prefix re-run), so it
+        is not a property of the AES S-box.
+        Also present on the OTHER instrument: BATCH-001's yoyo2.c, AES-NI, r=3
+        and r=4, records whist [0,0,0,4294967296,0] -- the identical pattern,
+        from a different implementation of the same object, a day earlier. Two
+        independent instruments and now a third (mine) agree.
+      unexplained: >-
+        I offer no mechanism and none is offered in the artifacts. Recorded as an
+        open structural observation. Under RQ-AES-003 R3 no comparison to
+        published cryptanalysis is drawn in either direction, so no attribution
+        is made here.
+      consequence_for_how_it_is_reported: >-
+        Because the event is deterministic, the Poisson machinery does not apply
+        to it. "P(K >= 2^31 | lambda = 2.0) = 0.0" is a true but empty statement,
+        and the exact-95 interval [2147483648, 2147483648] is degenerate by
+        construction. The r <= 4 arms should be reported as a deterministic
+        structural property with the geometry named, and kept out of any table
+        that lists excess factors as effect sizes.
+
+  # ------------------------------------------------------------------
+  audit_in_both_directions:
+    understatements_found:
+      - >-
+        THE STRONGEST RESULT IN THE BATCH IS NOT ITS HEADLINE. A0-REPRO
+        reproduced BATCH-005's D-AES-K1 exactly -- 14 hits in 2^30, per-word
+        [4,4,2,4], full whist -- and my independently written implementation
+        reproduced it a third time. A rare-event count agreeing to the unit
+        across three implementations and two sessions is a much stronger
+        statement about instrument correctness than any of the saturated arms,
+        and it appears as observation 3 of 3 rather than as a headline.
+      - >-
+        A5-R4-R1-K1 shows the r=4 saturation holds under a drawn, non-AES S-box.
+        The producer labelled it exploratory and did not feature it, but it is
+        the single arm that shows the r=4 structure is not a property of the AES
+        S-box. I confirmed it at prefix scope. It deserves more weight than
+        "exploratory profile fill" gives it.
+      - >-
+        ZERO DEAD among 27 draws is a stronger negative-result statement than the
+        ALIVE count conveys. The two non-ALIVE draws are INDETERMINATE, both
+        above the null (X=6 and X=9 against v=1.0), not at it. Under the
+        governing rule they cannot be counted as preserving, but "25 alive, 2
+        indeterminate, 0 dead" is a materially different picture from "25 of 27",
+        and the producer's THREE_OUTCOME_BREAKDOWN block does report it properly.
+      - >-
+        The producer flagged its own excess-factor ceiling, its own informed-not-
+        blind prediction, its own concurrency deviation, and its own refusal to
+        pick the flattering liveness rule, without being asked. Three of the four
+        cut against its own headline.
+    overstatements_found:
+      - >-
+        The word MONOTONE, in "monotone decreasing" -- the profile is decreasing
+        to the null and then fluctuating around it; r=10 is not below r=6.
+        See ruling 1c.
+      - >-
+        "no r=4 arm has ever been PAIRED to an r=5 arm on key and stream" --
+        not established, no search named, contradicted on the best reading of
+        BATCH-001. See ruling 3b.
+      - >-
+        The commit message of 1fe0332c calls the archive VERIFIED. It is not.
+        This is the Coordinator's defect, is self-disclosed in the receipt's
+        DISPATCHER_VERIFICATION_STATUS added afterwards, and is not repairable
+        since the commit is pushed.
+
+  # ------------------------------------------------------------------
+  scaled_down_ladder_checks:
+    applicability: >-
+      docs/inventor-protocol.md section 6 governs claims of an improvement that
+      cannot be executed at the scale where it would matter. THIS BATCH MAKES NO
+      SUCH CLAIM. It claims no speedup, no complexity improvement, no attack, and
+      no advantage over any baseline. It reports counting statistics on a
+      reduced-round toy object and explicitly declares no hypothesis supported,
+      rejected or closed.
+    consequence: >-
+      The step-2 requirement (measured ratio against a baseline on a scaled-down
+      instance of the same shape) has no referent here and its absence is NOT a
+      failure. I record this explicitly so that the absence of ladder evidence is
+      not later read as an unmet obligation, and equally so that no reader takes
+      this batch as evidence of a speedup. It is not, and does not claim to be.
+    reproducibility_pointer_exercised: >-
+      YES, and this is the part of the ladder that does apply. I did not accept
+      the reproduction instructions as asserted. I rebuilt the measurement from
+      the committed source specification with my own implementation, rebuilt the
+      27 S-box tables from their seeds in a second language, and re-executed four
+      arms to completion (2^31 + 2^30 + 2^24 + 2^20 trials) plus ten control
+      arms. Artifacts rebuilt and listed, not asserted.
+
+  heuristic_validation_checks:
+    applicability: >-
+      NOT APPLICABLE. This batch validates no analytic heuristic in the exemplar
+      style of docs/target-result-profile.md: there is no Dickman-de Bruijn style
+      pre-registered distributional prediction, no correspondence substituting
+      for direct sampling, and no smoothness or tail statistic.
+    the_one_modelled_quantity: >-
+      The single modelled input is the PRP null P(W>=1) ~ 4*2^-32. It is
+      pre-registered (it is compiled into the instrument at yoyo_sbox_v2.c line
+      28 and was fixed in BATCH-002, long before these samples), and it has been
+      checked against measurement -- see CTRL-6. Its residual +/-31% uncertainty
+      is carried explicitly into the excess factors by the producer. This
+      satisfies the pre-registration and sample-integrity requirements to the
+      extent they apply.
+    sampling_integrity: >-
+      Sample sizes, all arm seeds, all S-box seeds, thread counts and the trial
+      split are in the manifest and in each arm's own JSON. Every statistic in
+      this report was recomputed from raw per-arm counts, never copied from the
+      producer's tables.
+
+  cost_model_checks:
+    applicability: >-
+      NO CONCRETE COST TABLE IS PRESENTED by this batch -- no field-operation
+      count, no attack cost, no time-memory tradeoff, no success probability
+      inversion. There is therefore nothing to check for unit honesty or for
+      per-attempt-cost x inverse-success-probability bookkeeping.
+    resource_records:
+      - >-
+        Wall times are recorded per arm and declared as measured under 2-way
+        concurrency for Section B, not compared to prior batches' sequential
+        timings. Correct handling of a real confound.
+      - >-
+        PEAK RSS WAS NOT SAMPLED. RESULTS.json says so and gives the reason (no
+        /usr/bin/time on the image) and an argument that allocation is well under
+        1 MB. Reading the source, the per-arm allocation is 256-entry tables,
+        eight 256-entry uint32 T-tables and a small per-thread job struct, so the
+        argument is sound, but the 8 GB memory cap is unmeasured rather than
+        measured. Recorded as a gap, not a fabrication -- the missing datum stays
+        missing and is reported as such.
+      - >-
+        The RC-8 mispricing recorded in CORR-20260803-9a67de is now settled by
+        measurement: the 28 Section B arms plus 28 pins completed in 2584 s of
+        the section, against the "75 minutes each" that got the control declined
+        twice. The correction's ~28x figure is of the right order. The control
+        was affordable, and it was run.
+
+  # ------------------------------------------------------------------
+  work_not_done:
+    - item: Independent re-execution of the 27 RC-8 drawn-S-box arms
+      status: NOT CHECKED
+      reason: >-
+        BUDGET, not evidence. At my implementation's measured 0.75e6 trials/s at
+        r=5, one 2^30 arm costs ~1420 s; 27 arms cost ~10.6 hours against a
+        4800 s budget. A timeout or a cost ceiling is resource exhaustion and is
+        never negative evidence about those arms.
+      what_stands_in_its_place: >-
+        (a) all 28 arms' verdicts and bounds recomputed by me from the raw
+        counts; (b) all 27 S-box tables regenerated independently from their
+        seeds in Python and matched byte for byte; (c) the r=5 counting path
+        validated end to end by my exact reproduction of A0-REPRO's 14-hit rare
+        event; (d) a drawn-S-box arm re-run at prefix scope. The counts
+        themselves are single-instrument for those 27 arms and that is the
+        residual gap.
+    - item: r=4 at other (amask, smask) geometries at full trial counts
+      status: PARTIAL
+      reason: I ran amask in {1,2,4} and smask in {1,2,4} at 2^20 only. The
+        pattern is unambiguous at that scale but the large-N confirmation exists
+        only at amask=1, smask=1.
+    - item: Whether the two INDETERMINATE draws read ALIVE at higher exposure
+      status: NOT CHECKED
+      reason: Not assigned and not affordable. It is the measurement that would
+        settle the 0.7847-vs-0.90 question.
+    - item: Model-independent review
+      status: NOT POSSIBLE under this harness
+      reason: See the inference block. Session-independent only.
+  budget_accounting:
+    declared_wall_clock_seconds: 4800
+    declared_memory_gb: 8
+    halted_on_budget: false
+    note: >-
+        Finished inside the budget. The heavy arms were run sequentially in
+        two concurrent slots as instructed; no arm was killed and no reading was
+        taken from an interrupted run.
+
+  # ------------------------------------------------------------------
+  limitations:
+    - >-
+      TOY TIER. Everything verified here is scoped to a software T-table AES-128
+      permutation reduced to r in {2,3,4,5,6} with the full FIPS-197 key
+      schedule; the (amask, smask) geometries actually run; the key blocks
+      431001, 531001, 631001 and my two extra probe seeds; at most 2^31 trials
+      per arm; and the S-boxes actually drawn. NOTHING here speaks to full-round
+      or deployed AES, and no comparison to published cryptanalysis is made in
+      either direction.
+    - >-
+      The RC-8 bound is conditional on ONE key block and one plaintext stream. It
+      is not marginalised over keys and must not be quoted as if it were. Its
+      i.i.d. assumption is the weakest link and the shared key block is the
+      reason.
+    - >-
+      27 draws out of 256! bijections bound a fraction. They say nothing about
+      structure.
+    - >-
+      My implementation shares the producer's PRNG stream, key derivation and
+      trial split by design. Independence is of the cipher, the inverse cipher,
+      the geometry and the statistic -- not of the randomness source. A defect in
+      splitmix64 or in the seed derivation would be invisible to both of us.
+    - >-
+      The executed binary is not hash-bound by the archive; only its source and a
+      recorded digest are. See artifact_checks.
+    - >-
+      The archive is hash-bound but NOT dispatcher-verified. Under AGENTS rule 7
+      anything derived from it is published but not official, and this report
+      inherits that status.
+    - >-
+      Session-independent, NOT model-independent. Nothing here counts toward a
+      closure quorum.
+
+  # ------------------------------------------------------------------
+  verdict: passed
+  verdict_basis: >-
+    Every artifact required by the frozen contract is present and bound to the
+    run. 191 of 192 snapshot digests verify, the one exception being the
+    receipt's structurally unverifiable self-entry. The instrument provenance
+    chain verifies to BATCH-004. The batch's falsifier, A1-R4-MAIN, was
+    re-executed IN FULL at 2^31 trials under an implementation I wrote from the
+    specification, and agrees in every emitted field; A0-REPRO's 14-hit rare
+    event, A3 and A4 likewise agree exactly. The RC-8 ALIVE counts, all Poisson
+    tails, all exact 95% intervals and all five Clopper-Pearson bounds recompute
+    from the raw per-arm counts to every printed digit. The positive control is
+    satisfied and the null-object control -- absent from this batch at r=4 -- was
+    supplied by me and passes. No number in the producer's report was found to be
+    fabricated, mis-transcribed or unsupported.
+    The report is therefore ADMISSIBLE EVIDENCE at the toy tier, subject to the
+    limitations above and to the three overstatements recorded in
+    audit_in_both_directions, none of which is a measurement defect.
+  what_this_verdict_does_NOT_mean: >-
+    A passed validation means the receipt is admissible. It does not support any
+    claim about AES security, does not demonstrate a speedup or an attack, does
+    not establish an official state or an evidence strength, and does not
+    authorize promotion. It also does not endorse the 0.90 figure: under the
+    criterion the campaign froze, the bound is 0.7847 unpooled and 0.7984 pooled,
+    and the 0.90 target is NOT met.
+
+  run_ids:
+    - TASK-20260803-0764fc/runs/A0-REPRO-R5-K1
+    - TASK-20260803-0764fc/runs/A1-R4-MAIN
+    - TASK-20260803-0764fc/runs/A2-R4-K1
+    - TASK-20260803-0764fc/runs/A3-R3-MAIN
+    - TASK-20260803-0764fc/runs/A4-R2-MAIN
+    - TASK-20260803-0764fc/runs/A5-R4-R1-K1
+    - TASK-20260803-0764fc/runs/B0-AES-REF
+    - TASK-20260803-0764fc/runs/B01..B27-RAND-202608037xx
+
+  artifact_paths:
+    - coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-a13de8/validation_report.yaml
+
+  inputs_read:
+    - AGENTS.md
+    - CLAUDE.md
+    - agents/validator.md
+    - docs/inventor-protocol.md
+    - ledger/corrections/CORR-20260803-c92db5.yaml
+    - ledger/corrections/CORR-20260803-9a67de.yaml
+    - coordination/goals/GOAL-AES-003/batches/BATCH-006/dispatch_queue.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-006/archives/TASK-20260803-cd2b5e/snapshot-receipt.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-0764fc/PREREGISTRATION.md
+    - coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-0764fc/RESULTS.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-0764fc/budget_stamps.jsonl
+    - coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-0764fc/yoyo_sbox_v2.c.readonly_copy
+    - coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-0764fc/runs/ (64 files)
+    - coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-0764fc/sboxes/ (54 files)
+    - coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-367b1b/PREREGISTRATION.md
+    - coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-367b1b/runs/
+    - coordination/goals/GOAL-AES-003/batches/BATCH-005/tasks/TASK-20260803-48a239/PREREGISTRATION.md
+    - coordination/goals/GOAL-AES-003/batches/BATCH-005/tasks/TASK-20260803-48a239/runs/
+    - coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/yoyo5/analysis.json
+    - coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/yoyo5/summary.txt
+    - coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/yoyo5/yoyo2.c
+    - coordination/goals/GOAL-AES-003/batches/BATCH-001/tasks/yoyo5/PREREGISTRATION.md
+
+  commit_discipline:
+    committed_by_me: false
+    git_add_run: false
+    note: >-
+      This report is left UNCOMMITTED in the working tree under the assigned
+      write scope. The Coordinator's ledger archive task stages it. No ledger
+      record, no producer artifact and no shared file was modified.
+    WARNING_FOR_THE_ARCHIVE_TASK: >-
+      MY WRITE-SCOPE DIRECTORY IS GITIGNORED. `git check-ignore -v` reports
+      .gitignore:142 matching
+      coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-a13de8/
+      and therefore this file. `git status` does NOT list it and a plain
+      `git add` on it will silently do nothing and exit 0. The archive task must
+      use `git add -f` and must then verify the path actually appears in the
+      commit's tree rather than reading a zero exit status as success. This is
+      the same class of failure that left 1fe0332c unverifiable: a pipeline step
+      that reported success without its result being checked.
+  parser_confirmation:
+    check: yaml.safe_load executed on this exact file after writing it
+    result: PARSED
+    top_level_report_keys: 32
+    bytes: >-
+      deliberately not recorded. Any figure written here would be the size
+      BEFORE this block was added, and a stale number is a wrong number.
+    when_utc: "2026-08-03T18:02:00Z"
+    defects_the_check_caught_before_delivery:
+      - >-
+        A list item beginning with a double-quoted scalar followed by trailing
+        unquoted text (a YAML ParserError at the former line 688). Rewritten as a
+        folded block scalar.
+      - >-
+        A mapping key `budget_accounting` indented as a sibling of the items of
+        the `work_not_done` LIST rather than of the list itself (a ParserError at
+        the former line 800). Re-indented one level out.
+    note: >-
+      Both defects were introduced by me and both would have made this file
+      unparseable, which is the failure the task card named. The confirmation
+      above was written only after a successful load of the final bytes.

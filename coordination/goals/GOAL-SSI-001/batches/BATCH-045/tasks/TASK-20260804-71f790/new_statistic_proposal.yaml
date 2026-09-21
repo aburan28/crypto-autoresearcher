@@ -1,0 +1,187 @@
+new_statistic_proposal:
+  task_id: TASK-20260804-71f790
+  goal_id: GOAL-SSI-001
+  motivated_by: EXP-SSI-S1 clean negative (EV-SSI-17c854)
+  context_summary: >-
+    EXP-SSI-S1 tested chi2_7 on KLPT kernel-scalar residues mod 7 at p=6143.
+    Clean negative: 688-element norm-D pool has near-uniform s mod 7 distribution
+    (chi2=1.07, p=0.983). Gaussian-weighted selection from this pool cannot produce
+    detectable marginal bias at any single modulus. The fundamental limitation is
+    the MODEL (all-pool Gaussian sampling), not the STATISTIC.
+
+  proposals:
+    - id: IDEA-CRT-INDEP
+      title: "CRT independence test: joint (s mod 7, s mod 11) under key-dependent selection"
+      class: measurement
+      status: proposed_as_final_check
+      priority: low
+
+      claim: >-
+        The norm constraint Nrd(gamma) = D defines a codimension-1 algebraic variety
+        in Z^4. The kernel-scalar projections s mod 7 and s mod 11 are both RATIONAL
+        functions of (a,b,c,d) on this variety. If the variety's mod-77 image does not
+        factorize as a Cartesian product in P^1(Z/7Z) x P^1(Z/11Z), then the joint
+        distribution P(s mod 7, s mod 11) is non-product even when both marginals are
+        uniform. Key-dependent Gaussian concentration could AMPLIFY this non-factorization
+        if concentration centers happen to lie in non-product regions.
+
+      mechanism: >-
+        The norm form g(a,c) + g(b,d) = D creates an algebraic LINK between coordinates.
+        The mod-7 kernel scalar s_7 = -M00_7/M01_7 and the mod-11 kernel scalar
+        s_11 = -M00_11/M01_11 are both deterministic functions of the SAME (a,b,c,d).
+        Under CRT, independence of (s_7, s_11) requires that the norm-D variety's image
+        in P^1(F_7) x P^1(F_11) equidistributes as a product. This is a
+        non-trivial claim about the specific quadratic form
+        g(x,y) = 1536x^2 + 6143xy + 6143y^2 and the specific representations rho_7, rho_11.
+        Chi2_7 tests only the marginal and CANNOT detect joint non-independence.
+
+      why_chi2_7_missed_it: >-
+        Chi2_7 computes sum_k (O_k - E_k)^2/E_k on MARGINAL residue counts.
+        Even if P(s_7=a, s_11=b) != P(s_7=a)*P(s_11=b), the marginal P(s_7=a) =
+        sum_b P(s_7=a, s_11=b) can still be uniform. The joint test has 76 df
+        (7*11 - 1 = 76) and detects correlational structure invisible to the 6-df
+        marginal test.
+
+      novelty_status: adaptation
+      novelty_note: >-
+        CRT-based independence tests are standard in number theory and cryptanalysis
+        (cf. Coppersmith's multivariate attacks, lattice-based tests on simultaneous
+        residues). The adaptation is applying this to KLPT kernel scalars on a specific
+        quaternion norm variety. Not genuinely new as a technique.
+
+      theoretical_prediction: >-
+        EXPECTED NEGATIVE. Algebraic number theory (Siegel's mass formula, Hasse-Minkowski
+        local-global principle for quadratic forms) predicts that integral quadratic forms
+        equidistribute well over Z/NZ for squarefree N coprime to the discriminant.
+        The 688 solutions at p=6143 are EXACTLY the full set of norm-D elements in the
+        maximal order, and their residue distribution should approach the local densities
+        predicted by the mass formula. This gives near-uniform marginals AND near-product
+        joints. The test is proposed as a FALSIFICATION of this expectation, not because
+        the expectation is believed wrong.
+
+      predictions:
+        - metric: chi2_joint_77
+          description: "chi-squared on 7x11 = 77 bins of the joint distribution (s mod 7, s mod 11)"
+          direction: higher_than_expected
+          minimum_effect: "chi2_joint > 96.2 (p < 0.05 at df=76) under H1; expect ~76 under H0"
+        - metric: mutual_information_joint
+          description: "I(s_7; s_11) under key-dependent selection"
+          direction: higher
+          minimum_effect: "I > 0.02 bits to be distinguishable from estimation noise at n=2000"
+
+      minimal_test:
+        design: >-
+          Extend exp_ssi_s1.py to compute rho_11: O -> M_2(Z/11Z) for the same 688 norm-D
+          elements. For each key and each transcript, record BOTH s mod 7 and s mod 11.
+          Compute the chi-squared statistic on the 77-cell joint distribution. Compare:
+          real (key-dependent KLPT) vs simulator (uniform joint) vs independent-key control.
+        parameters:
+          p: 6143
+          D: 131072
+          moduli: [7, 11]
+          joint_cells: 77
+          n_transcripts_per_key: 400
+          n_keys: 5
+          alpha: 0.001
+          df: 76
+        controls:
+          - "CTRL-SIM: uniform draw from {0,...,6} x {0,...,10} (product distribution)"
+          - "CTRL-POOL: uniform draw from 688 norm-D elements (measures pool non-factorization)"
+          - "CTRL-INDEP: each transcript uses a fresh key (no key-dependent concentration)"
+        required_metrics:
+          - chi2_joint_real_vs_uniform
+          - chi2_joint_pool_vs_product
+          - chi2_joint_conditioned_on_key
+          - MI_s7_s11_real
+          - MI_s7_s11_pool
+        implementation_effort: low
+        compute_effort: low
+        wall_clock_estimate_s: 120
+
+      falsification_conditions:
+        - "FALSIFIED if chi2_joint (real) does not reject at alpha=0.001 AND MI < 0.02 AND the pool distribution itself is product-distributed (chi2_pool_vs_product does not reject at alpha=0.05)"
+        - "FALSIFIED if chi2_joint (real) matches chi2_joint (CTRL-POOL) — meaning any non-independence is a pool property, not a KLPT-selection property"
+        - "FALSIFIED if chi2_joint (real) matches chi2_joint (CTRL-SIM) — no signal at all"
+
+      confounders:
+        - >-
+          Pool non-factorization: the 688 elements might have inherent (s_7, s_11)
+          dependence regardless of selection bias. The CTRL-POOL baseline distinguishes
+          this from key-dependent bias.
+        - >-
+          Small cell counts: 2000 transcripts over 77 cells gives ~26 per cell. Valid
+          for chi-squared (>5 per cell) but low statistical power for small effects.
+        - >-
+          Model limitation (DEV-1/DEV-2): Gaussian weighting is smooth; real KLPT may
+          produce sharper ideal-class-specific concentration that amplifies non-factorization.
+
+      interpretation_limits:
+        - "Toy scale only (p=6143). Does not assert anything about crypto-scale SQIsign."
+        - "Tests only the Gaussian-weighted model, not actual KLPT with strong approximation."
+        - "A negative here closes joint-residue mod-(7,11) at this model; does not close other modulus pairs."
+        - "A positive would require replication before any conclusion."
+
+      estimated_cost:
+        implementation: low
+        compute: low
+        wall_clock_budget_s: 300
+
+      recommended_priority: low
+      recommended_as: >-
+        FINAL CHECK before pausing the lane. This is the cheapest test that could
+        detect structure invisible to marginal statistics. If negative (as predicted
+        by algebraic theory), it confirms the lane should be paused pending model upgrade.
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # LANE RECOMMENDATION
+  # ─────────────────────────────────────────────────────────────────────────────
+  lane_recommendation: pause_pending_theory
+  pause_rationale:
+    obstruction: >-
+      The fundamental limitation is the KLPT MODEL (DEV-1 + DEV-2), not the choice
+      of statistic. The model samples from ALL 688 norm-D elements with smooth
+      Gaussian weights. This conflates the full maximal-order pool with the
+      IDEAL-CLASS-SPECIFIC subset that real KLPT operates on.
+    why_new_statistics_are_insufficient: >-
+      The pool distribution (all 688 elements) is near-uniform in every tested
+      projection: mod 7 (chi2=1.07), and algebraic theory predicts the same for
+      mod 11, mod 13, and joint distributions. Smooth Gaussian weighting cannot
+      create non-uniformity from a near-uniform pool. ANY marginal or joint test
+      on the Gaussian-weighted model will give negatives at this parameter.
+    what_would_reopen_the_lane:
+      - condition: "Implement ideal-class-specific KLPT: partition the 688 elements by left-ideal class, test whether per-class distributions are uniform"
+        difficulty: medium
+        prerequisite: "Understand the ideal-class-set structure of the maximal order O at p=6143 (computable via Sage)"
+      - condition: "Implement actual strong-approximation step (not Gaussian model) to capture lattice-reduction-specific bias"
+        difficulty: high
+        prerequisite: "Working KLPT implementation in the quaternion algebra B(-1,-6143)"
+      - condition: "Move to a larger p where more than one ideal class is computationally accessible"
+        difficulty: medium
+        prerequisite: "p where the 2-isogeny graph has multiple connected components or where class-number > 1 type-number structure is visible"
+    forward_guidance: >-
+      The transcript-leakage lane is not CLOSED (we cannot prove the absence of bias).
+      It is PAUSED because the current model architecture cannot produce informative
+      positives or informative negatives beyond what EXP-SSI-S1 already delivered.
+      The minimum to resume is one of the conditions above.
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # PARETO INTEGRITY (inventor protocol §5)
+  # ─────────────────────────────────────────────────────────────────────────────
+  dominated_by: >-
+    n/a (no attack claimed). The CRT test is a measurement/detection proposal.
+    For the PURPOSE of detecting KLPT bias, the CRT test is dominated by
+    implementing actual KLPT on real curves (which gives ground truth) — but that
+    is orders of magnitude more expensive to implement. Among cheap statistics on
+    the current model, no dominating alternative was identified.
+  sota_delta: >-
+    No attack; no complexity improvement. Detection sensitivity: the joint test
+    has df=76 vs marginal df=6, giving higher sensitivity to correlational
+    structure. But the expected effect size (based on mass-formula equidistribution)
+    is O(1/sqrt(688)) ~ 0.038 TV, below the test's detection threshold (~0.05 TV
+    at n=2000). Quantitative delta: 0 (clean negative predicted).
+  checked_frontier_rows:
+    - "chi2 marginal (mod q): tested and closed for q=7; predicted uniform for q=11,13 by same argument"
+    - "joint chi2 (mod q1 x q2): proposed here; algebraic theory predicts uniform"
+    - "sequential correlation: requires model upgrade (each sample is independent in current model)"
+    - "conditional P(s|E1): requires ideal-class partitioning (model upgrade)"
+    - "full KLPT implementation: highest information value, highest cost"

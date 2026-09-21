@@ -1,0 +1,472 @@
+coordinator_decision:
+  id: DEC-20260805-7b3e91
+  context: >-
+    tools/validate_ledger.py was aborting with a TypeError on a mapping-shaped
+    knowledge_promotion entry, so every check after check_knowledge_entries was
+    silently skipped. With the crash fixed, branch pr159-fix (head of PR #159,
+    cursor/ecdlp-batch-047-rc45-proper-controls) reports 290 validation errors
+    across 136 files, none of them suppressed by
+    tools/validate_ledger_baseline.txt. PR #159 cannot honestly be merged in that
+    state, and the baseline may only ever shrink, so absorbing them is forbidden.
+    This decision sets the repair policy and records which error classes were
+    repaired in place, which require a superseding record, and which name a real
+    missing artifact and are reported rather than papered over.
+
+  decision: revise
+
+  target_ids:
+    - GOAL-ECDLP-001
+    - GOAL-SSI-001
+    - GOAL-MLKEM-004
+
+  governing_tension: >-
+    AGENTS.md core rule 4 makes records immutable and requires corrections to
+    supersede rather than overwrite. But a record that fails its own schema was
+    never valid in the first place: an absent required field is not a claim that
+    was made and must be preserved, it is a slot that was never filled. The line
+    this decision draws is therefore about CLAIM CONTENT, not about editing:
+    filling a schema slot with a value the record's own committed text already
+    determines changes nothing anyone could have relied on, while filling a slot
+    with a judgement the record never made is a new assertion and needs a new
+    record under a new id. Where neither applies -- where the error names an
+    artifact that does not exist -- nothing is written at all.
+
+  rulings:
+    - class: a
+      id: RUL-1
+      scope: >-
+        evidence records missing proof_status / proof_refs whose own observations
+        are measurements
+      ruling: repair_in_place
+      value: "proof_status: empirical_only, proof_refs: []"
+      rationale: >-
+        docs/claims-and-verification.md, "Refutation artifacts", makes
+        empirical_only the DECLARED weakest basis, legitimate on its own terms.
+        These records archive no counterexample certificate and no derivation
+        note, so empirical_only with an empty proof_refs is a description of what
+        the record has. It is the weakest value in the vocabulary and therefore
+        cannot overstate. Each repaired record carries a proof_status_basis note
+        saying so.
+      records_repaired: 27
+
+    - class: a
+      id: RUL-2
+      scope: >-
+        evidence records whose proof_status is outside the schema vocabulary
+        (argument_cited, theorem_cited, structural_argument)
+      ruling: repair_in_place
+      value: "proof_status: derivation, with the original token preserved in proof_status_original"
+      rationale: >-
+        Each of these three records is type: theoretical, carries no runs, and
+        argues from cited external theorems (Shoup 1997; Tate 1966 / Silverman AEC
+        V.3.7; the Deuring-correspondence dichotomy). docs/claims-and-verification.md
+        prescribes exactly this word for a written, independently checkable
+        argument: "label it derivation, never 'proved'". Mapping to derivation is
+        therefore a vocabulary normalisation that is if anything more conservative
+        than the record's own token, and downgrading them to empirical_only would
+        be FALSE -- they contain no measurement. The original token is preserved
+        verbatim so nothing is lost.
+      records_repaired: 3
+
+    - class: a
+      id: RUL-3
+      scope: >-
+        evidence records with a deliberate hypothesis_id: null but no sibling note
+      ruling: repair_in_place
+      value: "hypothesis_note quoting the record's own statement of why no hypothesis is named"
+      rationale: >-
+        tools/validate_ledger.py DOCUMENTED_NULL_OK exists for exactly this case
+        and its comment states the reason: "Naming a hypothesis here would invite
+        exactly the inference the run cannot support." The four SSI records are a
+        screening review, a design review, an exploratory-test result whose own
+        frozen contract writes `hypothesis_id: null  # Exploratory test; no
+        specific hypothesis under test`, and a three-lane strategic record. The
+        note records the choice; it does not make one.
+      records_repaired: 4
+
+    - class: a
+      id: RUL-4
+      scope: >-
+        GOAL-MLKEM-004 evidence records missing hypothesis_id, run_ids, direction
+        and strength, EXCEPT EV-MLKEM-4a9cfe
+      ruling: repair_in_place
+      value: >-
+        hypothesis_id: null + hypothesis_note; run_ids: [] + run_ids_note;
+        direction: neutral; strength: inconclusive
+      rationale: >-
+        direction and strength are the two interpretive slots on an evidence
+        record, so filling them is authorised ONLY where the record's own text
+        forces the null-est value in each vocabulary and any stronger value would
+        be a new claim. Each of these four records states `states_a_finding:
+        false`, "No finding stated", "No ML-KEM security claim in either
+        direction", and gives the exact reason its measurement cannot settle the
+        question ("The null control cannot distinguish between them"; "Neither H1
+        nor H2 is ruled out"; "The measurement does not reject H0 and was not
+        designed to do so with adequate power"; "cannot be distinguished from a
+        QEMU emulation artifact without a native x86_64 control run"). neutral and
+        inconclusive are the schema's words for precisely that and are the weakest
+        values available. run_ids: [] asserts that no ledger-registered RUN-*
+        record backs this evidence -- which is true -- and each record carries a
+        run_ids_note saying that the runs were performed under the goal's
+        coordination batch directory and identifying them by the producer,
+        validator and red-team task ids the record itself declares, so the empty
+        list is never read as "no work was done". That gap is separately reported
+        under FINDING-3.
+      records_repaired: 4
+
+    - class: a
+      id: RUL-5
+      scope: coordinator_decision records missing target_ids
+      ruling: repair_in_place
+      value: "target_ids: [<the goal id the record's own goal_id field declares>]"
+      rationale: >-
+        Every one of these is a goal-batch decision that declares its own goal_id
+        and whose decision_scope ends by governing that goal's disposition
+        ("GOAL-ECDLP-001 stays active"). The goal record is therefore the record
+        whose state the decision operates on, and naming it in target_ids makes
+        machine-readable exactly what the prose already says. The rule applied is
+        deliberately uniform and minimal: ONLY the id the record's own structured
+        goal_id field names is added. Ideas, hypotheses and findings discussed in
+        the prose are NOT lifted into target_ids, because selecting among them
+        would be a judgement about what the decision was really about. The single
+        exception is DEC-20260804-9da614, whose own state_changed_fields field
+        names H-YIELD-001 explicitly; that id is added beside the goal because the
+        record itself, not this decision, identified it. Each repaired record
+        carries a target_ids_basis note.
+      records_repaired: 67
+
+    - class: a
+      id: RUL-6
+      scope: "coordinator_decision records whose knowledge_promotion is the bare string not_warranted"
+      ruling: repair_in_place
+      value: "{promoted: [], not_warranted: <statement that no reason was recorded>}"
+      rationale: >-
+        The record asserts "not warranted" and nothing else. promoted: [] is
+        exactly what the token means. The validator requires a nonempty
+        not_warranted, and the honest filling is a statement that the original
+        recorded no reason -- NOT a reason composed now, which would be a
+        fabrication under AGENTS.md rule 9. The repaired text says so in those
+        words, so the gap stays visible rather than being closed by invention.
+      records_repaired: 21
+
+    - class: a
+      id: RUL-7
+      scope: "coordinator_decision records whose knowledge_promotion is a mapping carrying only not_warranted"
+      ruling: repair_in_place
+      value: "promoted: [] added above the existing, untouched not_warranted text"
+      rationale: >-
+        The record already declares that nothing was promoted and why. The missing
+        key is pure shape. No existing text is altered.
+      records_repaired: 21
+
+    - class: a
+      id: RUL-8
+      scope: >-
+        coordinator_decision knowledge_promotion.promoted entries naming a real
+        KN-* id with a parenthetical gloss
+      ruling: repair_in_place
+      value: "{id: KN-FIND-xxxxxx, note: <the gloss, verbatim>}"
+      rationale: >-
+        The promotion really happened and the entry really names it; only the
+        serialisation put the gloss where the id had to be. check_knowledge_entries
+        in tools/validate_ledger.py already accepts a mapping entry carrying id
+        plus a note, so both the id and the gloss survive in slots the schema
+        allows.
+      records_repaired: 3
+
+    - class: a
+      id: RUL-9
+      scope: >-
+        coordinator_decision knowledge_promotion.promoted entries holding
+        pending_kn_find_* placeholders or an EV-* id
+      ruling: repair_in_place
+      value: >-
+        promoted: [] ; not_warranted stating that no KN-* entry was created and
+        that a promotion is owed ; owed_promotions: <every original entry, id and
+        note, verbatim>
+      rationale: >-
+        A pending_kn_find_* token is not a knowledge entry and never was one:
+        `promoted` was being used to hold promotions that were NEVER MADE, which
+        made the record assert the opposite of the truth -- that the corpus had
+        been updated. Converting it makes the record say what is true: nothing was
+        promoted, and an obligation is outstanding. The schema's slot for an unmet
+        obligation is not_warranted, so the obligation is declared there, and every
+        word of the original notes is moved -- not deleted -- into an
+        owed_promotions list beside it. An EV-* id in `promoted` is the same error
+        in a different disguise: an evidence record is not a knowledge entry, and
+        DEC-20260804-9f51a3's own entry says so ("already recorded as evidence").
+      records_repaired: 21
+
+    - class: a
+      id: RUL-10
+      scope: "DEC-20260804-1825ea: invalid YAML (mapping values are not allowed here)"
+      ruling: repair_in_place
+      value: "the sota_delta.note scalar quoted so it parses as the string it plainly is"
+      rationale: >-
+        The value "BKK Speedup Theorem: >=(m+1)/2 provable speedup. 3x at crypto
+        scale." contains a colon-space and was read by PyYAML as a nested mapping.
+        Quoting changes no character of the content. Until this is fixed the record
+        does not parse at all, so its committed promotion of KN-FIND-c7d31e is
+        invisible to every downstream check.
+      records_repaired: 1
+
+    - class: a
+      id: RUL-11
+      scope: >-
+        knowledge/findings/KN-FIND-*.md missing internal_refs, proof_status and
+        proof_refs
+      ruling: repair_in_place
+      value: >-
+        internal_refs drawn from the entry's own source_refs, restricted to ids
+        that resolve as ledger records; proof_status per the rule below; proof_refs
+        [] for empirical entries and the entry's own path for entries carrying a
+        written argument
+      rationale: >-
+        source_refs already names the provenance; internal_refs is the machine
+        checkable projection of it. BATCH-* tokens and KN-* cross-references are
+        dropped from internal_refs because the validator resolves ledger ids only,
+        and abbreviated tokens in flow lists (e.g. "EV-SEMAEV-47d130,473ea1") are
+        expanded to the full ids they abbreviate, each confirmed to exist and to
+        match the entry's subject. proof_status follows the rule: the entry's
+        HEADLINE claim decides it. A headline that is a measurement takes
+        empirical_only with proof_refs []; a headline supported by a written
+        mathematical argument inside the entry takes derivation with proof_refs
+        naming that entry, because the entry IS the derivation note. Per
+        docs/claims-and-verification.md an entry never claims a stronger basis than
+        the word "derivation", so entries self-declaring `confidence: proved` are
+        recorded as derivation and never as certificate. KN-FIND-c7d31e is the one
+        entry whose source_refs names no resolvable ledger record; its
+        internal_refs is DEC-20260804-1825ea, established by that decision's own
+        committed text, which names batch BATCH-119 and `promoted:
+        [KN-FIND-c7d31e]` -- both directions agree, so this is a reading of
+        committed text and not a guess.
+      records_repaired: 14
+
+    - class: a
+      id: RUL-12
+      scope: "experiment contracts missing metrics"
+      ruling: repair_in_place
+      value: "metrics.primary taken from the contract's own preregistered_prediction.quantity"
+      rationale: >-
+        Both contracts name their measured quantity in prose, twice
+        (preregistered_prediction.quantity, and again in the success and
+        falsification criteria where present). The metrics block restates it in the
+        schema slot. Nothing new is measured or claimed. EXP-YIELD-004's
+        success_criterion is set to an explicit null with a
+        success_criterion_note -- the DOCUMENTED_NULL_OK path the validator
+        provides for observation-only contracts -- because the contract records
+        `confirmatory_status: exploratory` and reported a measured ratio, never a
+        pass or fail. Its missing budget is NOT repaired; see FINDING-4.
+      records_repaired: 2
+
+    - class: b
+      id: RUL-13
+      scope: >-
+        evidence direction vocabularies outside the schema (supports_strongly,
+        supports_with_caveat, supports_with_corrected_scaling, corrects_prior,
+        supports_null, complicates, supports_achievability, supports_revised,
+        supports_with_condition, supports_with_interpretation, mixed) and
+        claim_tier values outside the schema (toy_scale, theory, theoretical,
+        toy_or_derivation_only)
+      ruling: superseding_record_required
+      value: null
+      rationale: >-
+        These are not schema failures -- the validator does not check either
+        vocabulary and reports no error for them -- and normalising them WOULD
+        change what the record asserts. "supports_strongly" is not "supports";
+        collapsing it either strengthens or weakens the record's stated direction,
+        and "theoretical" versus "toy" is a claim-tier judgement that
+        docs/claims-and-verification.md ties to the instances actually tested. No
+        edit is made. Recorded here so the divergence is on the record and a later
+        Coordinator can supersede on the merits.
+      records_repaired: 0
+
+    - class: c
+      id: RUL-14
+      scope: errors naming an artifact that does not exist
+      ruling: report_only
+      value: null
+      rationale: >-
+        Filling these would require inventing a record, a run, or a budget. See
+        FINDING-1 through FINDING-5 below. Each is reported with what was searched
+        and what was found, so the gap is actionable rather than hidden.
+      records_repaired: 0
+
+  findings_class_c:
+    - id: FINDING-1
+      subject: EXP-SSI-S1
+      cited_by: [EV-SSI-17c854, EV-SSI-fcda7e, DEC-20260804-a6bb36, DEC-20260804-cfe4d0]
+      searched: "experiments/EXP-SSI-*, ledger/, coordination/**"
+      found: >-
+        The experiment CONTRACT exists and is complete, at
+        coordination/goals/GOAL-SSI-001/batches/BATCH-043/tasks/TASK-20260803-ffda95/experiment_contract.yaml,
+        declaring `id: EXP-SSI-S1`, and it was executed: implementation,
+        preregistration manifest, prime verification, three run directories and a
+        validity report exist under
+        coordination/goals/GOAL-SSI-001/batches/BATCH-044/tasks/TASK-20260804-946415/.
+      verdict: mis_filed_and_non_conforming_id_not_missing_work
+      detail: >-
+        No experiments/EXP-SSI-*/specification.yaml was ever created, so the
+        contract is not a ledger experiment record. Separately, the identifier
+        EXP-SSI-S1 does not match the experiment id format at all (the suffix must
+        be three digits or six hex), so it could not have registered even if
+        filed. The contract also carries `status: specified` and `approved_by:
+        null` while its own evidence records describe it as executed. This is not
+        repairable by editing a citation: AGENTS.md rule 15 forbids remapping an
+        identifier that a completed archive binds, and minting the experiment
+        record is an approval act this decision does not perform.
+      recommended_successor: >-
+        A scoped Coordinator task to file the frozen contract as a canonical
+        experiment record under a conforming EXP-SSI-<6hex> id, with a
+        supersession note binding EXP-SSI-S1 to it, after checking every completed
+        archive that names EXP-SSI-S1 in a binding field.
+
+    - id: FINDING-2
+      subject: >-
+        RUN-YIELD-004/005/006, RUN-OIFP-001/002/003, RUN-ICI-001, RUN-IT-001-rc47
+      cited_by: >-
+        EV-YIELD-e1adbf, EV-YIELD-ca4b02, EV-YIELD-7c3195, EV-OIFP-105ac9,
+        EV-OIFP-97e46d, EV-ICI-0bdaaa, EV-IT-aefd12
+      searched: "experiments/**, coordination/**"
+      found: >-
+        Every one of these runs EXISTS under experiments/<EXP>/runs/<RUN>/, but its
+        manifest is serialised as manifest.json rather than manifest.yaml. The
+        validator's run glob visits manifest.yaml only, and register_legacy_json_runs
+        registers a JSON manifest only when it is listed in
+        tools/legacy_run_inventory.yaml. These runs are dated 2026-08-04 and are not
+        legacy, so they are discovered by nothing and register nowhere. Companion
+        artifacts vary: RUN-ICI-001 has the full set (command.txt,
+        environment.json, stdout.log, stderr.log, raw-result.json);
+        RUN-OIFP-001 has all but raw-result.json; RUN-OIFP-002/003 and
+        RUN-YIELD-004/005/006 have the manifest plus a results table only.
+      verdict: real_evidence_of_work_wrong_serialisation_not_a_missing_run
+      detail: >-
+        These are NOT mis-cited ids and NOT missing evidence of work. The
+        citations are correct; the run packages are real. Adding the paths to
+        tools/legacy_run_inventory.yaml would be laundering -- that file freezes
+        pre-schema records, and growing it to absorb new ones is the same
+        violation as growing the validation baseline.
+      recommended_successor: >-
+        An Executor task to emit conforming manifest.yaml run records (and the
+        missing companion artifacts where the run genuinely produced them) for
+        these eight runs, leaving the existing manifest.json files in place
+        untouched. Runs whose companion artifacts were never produced must be
+        recorded as such, not reconstructed.
+
+    - id: FINDING-3
+      subject: GOAL-MLKEM-004 evidence records cite no RUN-* records at all
+      cited_by: [EV-MLKEM-563ebd, EV-MLKEM-bdbfba, EV-MLKEM-cca527, EV-MLKEM-d8f627, EV-MLKEM-4a9cfe]
+      found: >-
+        Between 50 and 150 sieve runs per record were executed, but under the
+        goal's coordination batch directories rather than as experiment run
+        packages, so no RUN-* record exists for any of them. run_ids: [] was
+        written under RUL-4 with a note naming the producer, validator and
+        red-team tasks, which is the honest statement of the schema slot -- but
+        the underlying gap is an evidence-integrity gap and is recorded here, not
+        closed.
+      verdict: reported_not_closed
+
+    - id: FINDING-4
+      subject: "experiments/EXP-YIELD-004/specification.yaml: missing budget"
+      found: >-
+        The contract contains no budget, cap, or resource statement of any kind,
+        anywhere in the file. There is nothing to lift into the slot and a budget
+        cannot be inferred from a completed result.
+      verdict: genuinely_absent_not_repairable
+      detail: >-
+        This contract was also written after the fact -- it carries `status:
+        completed` and a `result` block, which a pre-execution contract cannot.
+        Its metrics and success_criterion were repairable under RUL-12; its budget
+        is not.
+
+    - id: FINDING-5
+      subject: "experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/manifest.yaml: run.code.command missing"
+      found: >-
+        This error is also present on main and belongs to a different goal's
+        campaign. It is a run manifest, immutable under
+        tools/check_run_immutability.py, and repairing it requires a supersession
+        registry entry that is that campaign's to make.
+      verdict: out_of_scope_left_untouched
+
+  not_repaired_deliberately:
+    - record: EV-MLKEM-4a9cfe
+      errors: [hypothesis_id, run_ids, direction, strength, proof_status, proof_refs]
+      reason: >-
+        Two independent grounds. (1) This is the disputed record. It is the
+        evidence behind the branch's GOAL-MLKEM-004 closure
+        (DEC-20260804-bcdecb), which CORR-20260805-527ffc preserves against
+        main's competing closure (DEC-20260805-0b3e11 / EV-MLKEM-2cd08b), and
+        that conflict is unadjudicated. Filling its interpretive fields while it
+        is the subject of a live adjudication would pre-judge the adjudication.
+        (2) Independently of that, RUL-4 does not reach it: unlike its four
+        siblings this record's own text DOES assert a direction -- "This is
+        evidence against the hypothesis that genuine sieve-vector correlation
+        drives the bgj1 excess" -- against a hypothesis it never names by ledger
+        id, so `direction` cannot be filled without choosing a hypothesis the
+        record does not choose. That makes it class (b), a superseding record,
+        under whichever Coordinator adjudicates item 4.
+
+  limitations:
+    - >-
+      Repairing a schema slot does not validate the record's science. Nothing here
+      reviews a measurement, and no hypothesis status, experiment approval, goal
+      status or knowledge promotion changed.
+    - >-
+      RUL-5 fills target_ids with the goal id alone. That is deliberately less
+      information than a careful per-record reading might produce, and it is not a
+      claim that the goal is the only thing a given decision bore on. It is the
+      one id each record names structurally rather than in prose.
+    - >-
+      RUL-9 converts 21 records from asserting a promotion to declaring one owed.
+      Those 21 obligations are now visible but still unmet; several of them were
+      subsequently satisfied by later decisions that promoted real KN-FIND entries
+      (e.g. DEC-20260804-98a4a4, DEC-20260804-cf55ec, DEC-20260804-139a86), but
+      this decision does not attempt to match owed obligations to later
+      fulfilments, because doing so from prose would be guesswork.
+    - >-
+      tools/validate_ledger_baseline.txt was not touched. No error was absorbed.
+    - >-
+      This decision was made by a single Coordinator with no independent review.
+      It changes no research claim, which is why that is acceptable here; a
+      reviewer disagreeing with any ruling should supersede this record rather
+      than edit it.
+
+  evidence_refs:
+    - tools/validate_ledger.py
+    - templates/research-records.md
+    - docs/claims-and-verification.md
+    - .claude/skills/curate-knowledge/SKILL.md
+    - ledger/corrections/CORR-20260805-527ffc.yaml
+
+  next_actions:
+    - >-
+      Re-run `python3 tools/validate_ledger.py` and confirm the remaining errors
+      are exactly the class (c) set: the EXP-SSI-S1 citations (4), the eight
+      unregistered run citations (12 lines), EV-MLKEM-4a9cfe (6), EXP-YIELD-004
+      budget (1), and the pre-existing EXP-DREG-001 line (1).
+    - >-
+      Open a scoped Coordinator task for FINDING-1 (file EXP-SSI-S1 as a canonical
+      experiment record under a conforming id, after auditing completed archives
+      that bind the old id).
+    - >-
+      Open an Executor task for FINDING-2 (emit conforming manifest.yaml run
+      records for the eight JSON-manifest runs; never reconstruct an artifact the
+      run did not produce).
+    - >-
+      Adjudicate the GOAL-MLKEM-004 double closure recorded in
+      CORR-20260805-527ffc before touching EV-MLKEM-4a9cfe or
+      DEC-20260804-bcdecb. That adjudication is not made here.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      This is a ledger-integrity decision. It reviews no evidence, produces no
+      measurement, and asserts no durable claim about ECDLP, ML-KEM or SQIsign, so
+      there is no finding to promote. The knowledge/findings/ entries it touched
+      were given their missing internal_refs, proof_status and proof_refs under
+      RUL-11; none had its content changed and none was newly promoted.
+
+  official_research_state_changed: false
+  hypothesis_status_transition: none
+  decided_by: coordinator
+  decided_at: '2026-08-05'

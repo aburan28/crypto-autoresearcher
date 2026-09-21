@@ -1,0 +1,305 @@
+correction:
+  id: CORR-20260807-3ee25d
+  recorded_at: '2026-08-07'
+  recorded_by: coordinator (GOAL-ENDO-001, BATCH-cb71b5)
+  type: multiple_material_defects_found_by_red_team
+  supersedes: []
+  corrects:
+  - experiments/EXP-MTGT-321a54/runs/RUN-MTGT-p4001e2/manifest.yaml
+  - experiments/EXP-MTGT-321a54/runs/RUN-MTGT-p2003e3/manifest.yaml
+  - experiments/EXP-MTGT-321a54/runs/RUN-MTGT-p4001e7/manifest.yaml
+  - experiments/EXP-VOLC-9fec05/runs/RUN-VOLC-p2003e3/manifest.yaml
+  - experiments/EXP-VOLC-9fec05/runs/RUN-VOLC-p4001e7/manifest.yaml
+  - experiments/EXP-INSTR-2d32ba/runs/RUN-INSTR-p4001-a/manifest.yaml
+  - experiments/EXP-ICINV-180a0d/runs/RUN-ICINV-p4001-a/manifest.yaml
+  - experiments/EXP-JINV-6c5b8e/runs/RUN-JINV-p1009-a/manifest.yaml
+  - experiments/EXP-EWALK-cc0353/runs/RUN-EWALK-p1009-a/manifest.yaml
+  - coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/SYNTHESIS.md
+  - harness/run_volc_mtgt.py
+  record_type: run
+  record_id: >-
+    RUN-MTGT-p4001e2, RUN-MTGT-p2003e3, RUN-MTGT-p4001e7, RUN-VOLC-p2003e3,
+    RUN-VOLC-p4001e7, and the code.commit field of the six snapshot-1 manifests
+  field: multiple; see per-defect entries below
+  authority:
+    found_by: >-
+      The independent Red Team session dispatched against snapshot 22eb74ba
+      (working notes: coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/
+      reviews/red-team/red_team_notes.md). The session terminated on a provider
+      session limit before writing its structured red_team_report.yaml; the notes
+      file is complete, carries the actual commands and their real output, and is
+      the artifact this correction rests on.
+    independently_verified_by: >-
+      The Coordinator, at source, before this record was written. Defects D1 and D2
+      were re-derived directly rather than accepted on the Red Team's word; D2 did
+      NOT reproduce on the first attempt and required a proper measurement before it
+      was confirmed. See `verification` on each defect.
+  defects:
+  - id: D1
+    severity: material
+    claim: >-
+      RUN-MTGT-p4001e2 measures the IDENTITY MAP, not an isogeny. `velu_odd` loops
+      `range((ell-1)//2)`, which is EMPTY at ell = 2, so it returns (a, b)
+      unchanged; `transport_table` then calls `velu_image` with an empty kernel,
+      which is the identity on every point.
+    consequence: >-
+      That run's `transport_over_rebuild = 0.0575`, `same_isogeny_class: true`,
+      `transport_certificate_verified: true` and `entries_lost_to_kernel: 0` are
+      ALL TRIVIALLY TRUE OF THE IDENTITY. The run is committed `valid: true` and
+      certifies nothing. It is not evidence about transport in either direction.
+    verification: >-
+      CONFIRMED by direct re-derivation. At p=4001, (a,b)=(444,888): the order-2
+      kernel generator is (935, 0); `velu_odd(ell=2)` returns exactly (444, 888);
+      the returned kernel list has length 0; `velu_image` with that kernel is the
+      identity on the generator.
+    disposition: >-
+      RUN-MTGT-p4001e2 is INVALID as a transport measurement. `velu_odd` must
+      refuse even ell rather than silently returning the identity. The ell = 3, 5
+      and 7 transport certificates are UNAFFECTED and remain verified.
+  - id: D2
+    severity: material
+    claim: >-
+      The MTGT rebuild baseline is inflated by roughly log2(N). `build_table` calls
+      `E.mul(s, P)` -- a full double-and-add -- once per entry, for a table of
+      CONSECUTIVE multiples, where [s]P = [s-1]P + P costs one addition.
+    consequence: >-
+      The batch's headline "transport is ~6x cheaper than rebuilding" is REFUTED.
+      Against a correctly implemented rebuild, transport LOSES at every odd ell
+      tested. The Red Team's least-squares fit of the batch's own ratio column,
+      transport/rebuild = 0.06007*ell - 0.02560, crosses 1.0 at ell = 17.1, and the
+      whole column shifts against transport once the baseline is fixed.
+    verification: >-
+      CONFIRMED, but NOT on the first attempt, and the failed attempt is recorded
+      because it is the reason the confirmation is trustworthy. A first measurement
+      at S = 400 with single-shot timing gave a ratio of 0.72, appearing to REFUTE
+      the Red Team. That measurement was noise-dominated (0.3 ms total). Re-measured
+      with `min` over 7 repetitions: ratio 12.23 at S = 400 and 15.18 at S = 2000,
+      with both builders returning byte-identical tables, against log2(N) = 12 and a
+      mean scalar bit-length of 10.0 over s <= 2000. The Red Team's reported
+      10.6-11.8 is reproduced.
+    disposition: >-
+      Every `transport_over_rebuild` figure in EXP-MTGT-321a54 is invalid. The
+      correct statement of what the MTGT runs establish is the CORRECTNESS of
+      transport (per-entry certificates at odd ell), not its cost advantage.
+  - id: D3
+    severity: material
+    claim: >-
+      The six snapshot-1 run manifests record `code.commit:
+      e34afdd0c3137c038042cae7c68495c700977afd` and `dirty: false`, but NONE of the
+      modules they executed existed at that commit.
+    consequence: >-
+      Those six runs are NOT reproducible from their own manifests. The
+      reproduction package is the one thing a run record exists to provide, so this
+      is an evidence-integrity failure and not a cosmetic one.
+    root_cause: >-
+      `harness/runner.py:git_state()` computes dirtiness with
+      `git status --porcelain --untracked-files=no`, deliberately ignoring untracked
+      files so that the run outputs being written do not mark the tree dirty. That
+      is correct for OUTPUTS and wrong for NEW SOURCE: every harness module in this
+      batch was untracked at execution time, so the tree reported clean at a commit
+      that contained none of them.
+    disposition: >-
+      The snapshot-2 runs record this correctly (`commit: 22eb74ba` or `96f0b5ca`,
+      `dirty: true`). `git_state()` needs to distinguish untracked SOURCE from
+      untracked OUTPUT, which it currently cannot; until it does, a run executed
+      before its code is committed carries a manifest that cannot be trusted for
+      provenance. Filed as an open instrument obligation, not repaired here.
+  - id: D4
+    severity: material
+    claim: >-
+      No experiment contract file exists for ANY of the seven executed experiments.
+      `find experiments/<EXP> -maxdepth 1 -type f` returns zero for all of them.
+    consequence: >-
+      The protocol requires a frozen, approved contract BEFORE execution
+      (AGENTS.md: experiments move draft -> review_required -> approved -> running).
+      These seven ran with no frozen specification at all. The 121 machine-derived
+      contracts in this batch cover the PROPOSALS, not the executed experiments.
+    disposition: >-
+      A real procedural violation by the Coordinator, recorded rather than
+      backfilled. Writing a contract now, after the fact, would be worse than the
+      omission: it would present a post-hoc specification as a pre-registration.
+      The seven runs are therefore exploratory measurements without frozen
+      contracts, and their evidence record says so and caps their strength
+      accordingly.
+  - id: D5
+    severity: material
+    claim: >-
+      `RUN-VOLC-p2003e3` and `RUN-VOLC-p4001e7` are committed `valid: true` with
+      `levels_observed: [1]` and `[0]`, but the code that produced them has since
+      been superseded: `run_volc` now returns `{"invalid": True}` for ell != 2, and
+      `ell_subgroup_count` no longer counts rational ell-torsion points.
+    consequence: >-
+      Two committed runs assert level assignments their own successor code refuses
+      to produce, with no correction record binding them.
+    disposition: >-
+      Both runs are superseded and their `levels_observed` values must not be cited.
+      RUN-VOLC-p4001e2 is the only VOLC run whose level variable is defined.
+  - id: D6
+    severity: material
+    claim: >-
+      The batch's VOLC "level" variable is character-for-character
+      `two_torsion_x_count`, and it resolves only 2 of the 5 levels the volcano
+      actually has. At p = 4001, t = 30, D = -15104 = -59 * 16^2, so the 2-volcano
+      has depth 4. The true level distribution is {0:3, 1:9, 2:18, 3:36, 4:72},
+      matching h(D0 f^2) exactly and summing to the enumerated 138. The batch's
+      reported strata are the floor (72) against levels 0-3 POOLED (66).
+    consequence: >-
+      The conclusion "volcano level carries no information" was tested on a binary
+      floor-vs-rest variable, not on level.
+    disposition: >-
+      The Red Team rebuilt the true 2-isogeny graph and re-ran the test on the
+      correct 5-level variable: p = 0.3115, so the CONCLUSION SURVIVES. But it
+      survives on the Red Team's measurement, not the batch's, and the crater has
+      n = 3 where the design detects nothing below a 9.8% excess. Recorded as
+      `attempted_and_inconclusive` at the crater.
+  - id: D7
+    severity: material
+    claim: >-
+      NULL-C, the label-permutation test the batch's headline C1 and C4 rest on, is
+      a BETWEEN-CLASS MEAN detector, and EXP-INSTR-2d32ba never characterised it --
+      both directions of that control carry `"null_kind": "NULL-B binomial"`.
+    consequence: >-
+      Planting a between-class mean shift into the real p = 4001 rate_m3 values and
+      running the committed `permutation_null` gives power 1.00 at a 0.9% shift. So
+      NULL-C is maximally sensitive to exactly the #E confound
+      CORR-20260807-a05e1e identifies, and says nothing about WITHIN-class
+      structure. At a planted delta of 0 the median p is 0.059, not 0.5, indicating
+      the real data still carries a small class effect from #E even after the
+      sampler fix.
+    disposition: >-
+      C1 as written is OVERSTATED. "The class grouping carries no detectable
+      information" is licensed only for between-class MEANS of the tested
+      functionals, at this power, at these two primes -- not for within-class
+      structure, which NULL-C cannot see.
+  - id: D8
+    severity: material
+    claim: >-
+      Under the CORRECTED uniform sampler, relation yield is OVER-DISPERSED within
+      the class at both m and both primes (the target verdicts in
+      RUN-ICINV-p4001-uniform and RUN-ICINV-p6007-uniform read `decomp_rate_m2
+      over-dispersed, decomp_rate_m3 over-dispersed`).
+    consequence: >-
+      DECOMPOSITION.md section 5 prediction 1 predicted ZERO within-class variance
+      in relation yield. That prediction is REFUTED by the campaign's own corrected
+      instrument, and the synthesis did not say so.
+    disposition: >-
+      Recorded as a refuted pre-registration. The Red Team's saturation-decay
+      control shows the over-dispersion falls with factor-base density (variance
+      ratio 0.93 at |3V|/#E = 0.023 rising to 2.04 at 0.53), consistent with a
+      saturation artifact, but it is still 1.27-1.34 at densities 0.11-0.22 which
+      bracket the 1/m! ~ 0.167 regime a real m = 3 decomposition operates in.
+      NEITHER READING IS ESTABLISHED by the batch's data, and the batch ran only
+      the saturated row.
+  - id: D9
+    severity: material
+    claim: >-
+      The EWALK speedup of 1.641 is a single draw. Over 8 seeds the mean is 1.7344
+      with sd 0.2046, min 1.3705, max 2.0333 -- sitting ON the sqrt(3) = 1.7321
+      ceiling, with 3 of 8 seeds ABOVE it. At seed 4 the ratio-to-ceiling is 1.1739,
+      which trips the harness's own `exceeds_incremental_ceiling_by_15pct` and
+      therefore GOAL-ENDO-001 pause condition P3.
+    consequence: >-
+      C3's "94.7% of the ceiling, never above" describes one draw 0.4 sigma below a
+      mean that is indistinguishable from the ceiling. Further, `fruitless_total` is
+      0 in every arm of the reported run, so C3's attribution of the shortfall to
+      fruitless-cycle cost is CONTRADICTED BY THE RUN'S OWN COUNTER.
+    disposition: >-
+      C3 is UNSUPPORTED as written and is withdrawn. The defensible statement is
+      that the measured speedup is consistent with the sqrt(|Aut|/2) ceiling and
+      does not exceed it beyond seed noise. P3 is treated as tripped: this
+      correction records the excess, the independent Red Team session has already
+      examined it and attributes it to seed variance rather than to a mechanism, and
+      NO record in this campaign asserts an excess over the ceiling.
+  - id: D10
+    severity: minor
+    claim: >-
+      C2's "~3%" figure does not correspond to any measured quantity. From
+      RUN-JINV-p1009-a: j=0 gb_seconds ratio 0.9956 (-0.44%), j=1728 0.9933
+      (-0.67%). The only ~3% quantity is `gb_size_mean` for j = 1728 at +3.41% --
+      the special-j basis is LARGER.
+    consequence: >-
+      The synthesis reported a movement roughly 5x the measured one, in a direction
+      it did not check, with no dispersion estimate for any arm (n = 6, 4 and 12
+      curves).
+    disposition: >-
+      C2's cost claim is restated as: no measured Groebner-cost difference exceeds
+      1% in either direction, with no dispersion estimate and therefore no claim
+      that any difference is real. The S_3 monomial-support counts 9 / 10 / 13 are
+      EXACT, symbolic, and were re-derived by hand by the Red Team; they stand.
+  what_survives_unchallenged:
+  - >-
+    The S_3 monomial support counts: 9 for j=0, 10 for j=1728, 13 for generic.
+    Exact symbolic computation, independently re-derived term by term.
+  - >-
+    The liftable-count identity #liftable_x = (#E - 1 + z)/2, verified on every
+    curve of every class at three primes, and its consequence that the full-field
+    within-class variance is Var(z)/4 (agreement 2.9e-14).
+  - >-
+    The Hurwitz-Kronecker enumeration census, which passes on every ordinary trace
+    at four primes and which rejected an earlier wrong implementation.
+  - >-
+    Transport CORRECTNESS at odd ell: per-entry certificates verified, target curves
+    at the same trace. Only the COST claim is refuted.
+  - >-
+    The corrected EWALK walk is sound at |Aut| = 4: the Red Team ran the j = 1728
+    arm at p = 100057 (the batch's p = 100003 refused it, 100003 = 3 mod 4) and got
+    observed 1.3974 against ceiling 1.4142, 48/48 solved.
+  a_caveat_on_the_generic_self_check:
+    claim: >-
+      The generic arm returning exactly 1.000 is weaker than the batch claimed. For
+      `kind == "generic"` the code passes `phi=None, lam=None, aut_order=2` in BOTH
+      modes, so `rho()` receives identical arguments and is deterministic. The
+      `lam != +-1` branch of `canon` -- the exact site of CORR-20260807-df0585 -- is
+      never executed in the generic arm.
+    disposition: >-
+      The generic arm is a determinism check, not a check of the corrected code
+      path. Calling it a "definitional self-check" in the synthesis was right about
+      the value being forced and wrong about what it tests.
+  required_action:
+  - >-
+    No run record is edited or deleted (AGENTS.md rule 4). This record is the
+    correct reading of all of them.
+  - >-
+    Do not cite: RUN-MTGT-p4001e2 at all; any `transport_over_rebuild` figure; the
+    `levels_observed` of RUN-VOLC-p2003e3 or RUN-VOLC-p4001e7; the six snapshot-1
+    manifests as reproduction packages; C3's 94.7%; C2's "~3%".
+  - >-
+    Before any further between-class claim in this campaign, NULL-C must be
+    characterised for within-class sensitivity or replaced. EXP-INSTR-2d32ba
+    characterises NULL-B only and its pass does not license NULL-C.
+  - >-
+    The saturation-decay sweep must be run across factor-base density, not at the
+    saturated row only, before any relation-yield verdict is stated.
+  refs:
+  - GOAL-ENDO-001
+  - BATCH-cb71b5
+  - EXP-MTGT-321a54
+  - EXP-VOLC-9fec05
+  - EXP-ICINV-9b1f7c
+  - EXP-EWALK-4fc679
+  - EXP-JINV-dd60d3
+  - CORR-20260807-a05e1e
+  - CORR-20260807-df0585
+  - CORR-20260807-2c9ae4
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one model the
+      session runs on. The Red Team ran in an independent session but on the same
+      resolved model, which is recorded here and is exactly the correlation the
+      suspended closure quorum was written to prevent. Recorded, never silently
+      substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements:
+    - >-
+      The Red Team session terminated on a provider session limit before writing its
+      structured report; only its working notes exist. The Validator session
+      terminated on the same limit having written NOTHING, so the batch has NO
+      independent run-integrity validation at all.
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session.

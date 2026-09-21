@@ -1,0 +1,275 @@
+red_team_report:
+  id: RT-20260729-003
+  task_id: TASK-20260729-003
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-007
+  verdict: REVISE
+  claim_under_review: >-
+    IDEA-20260729-001 proposes CSIDH-COLLIMATION-FC0 as a typed,
+    zero-curve-compute gate for deciding whether one source-compatible
+    query/memory/circuit resource vector can be instantiated for the final
+    Peikert binary collimation-sieve row without an uncharged uniform-oracle
+    conversion or omitted resource.
+  exact_supported_final_claim: >-
+    At immutable snapshot 61ec69c474ad3aaf695a4ae61e638815558501a0,
+    CSIDH-COLLIMATION-FC0 is a useful control candidate and correctly makes no
+    numeric-security, parameter-sizing, breakthrough, or GOAL-completion claim.
+    Its current full-cost equations are not yet a sound frozen convention:
+    aggregate query/recovery semantics, repeated sieve work, tail resource
+    type, coherent failure semantics, width liveness, and the Equation (4.1)
+    phase-vector bound require revision. IDEA-20260729-001 may proceed only to
+    a revised zero-compute derivation gate, not to a numerical security gate.
+
+  inference:
+    requested_policy: review-xhigh
+    resolved_model: GPT-5.6 Sol
+    reasoning_effort: not_exposed
+    fallback_used: true
+    independent_session_required: true
+    independent_session: true
+    independence_limit: >-
+      This review is independent of the producer session, but the runtime did
+      not expose confirmation of the review-xhigh policy alias or xhigh
+      reasoning setting. The resolved model is GPT-5.6 Sol; policy-level
+      assurance is therefore limited and no completion claim may rely on it.
+
+  snapshot_review:
+    reviewed_commit: 61ec69c474ad3aaf695a4ae61e638815558501a0
+    reachable_from_review_head: true
+    review_head: da9b1ad2debfa0e4200c56a6f84f723389d03b73
+    parent_commit: 86796c20a776349a56657676e9b4d3da3a6da2ef
+    exact_commit_scope:
+      - coordination/goals/GOAL-SSI-001/batches/BATCH-007/archives/TASK-20260729-002/snapshot-receipt.json
+      - coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-001/candidate_report.yaml
+      - coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-001/mechanism_screen.md
+    artifact_hashes_match_receipt: true
+    verified_hashes:
+      mechanism_screen.md: b50b9f42fc9878f188878fad1d277a292ae15313a9d0092ada669ee9843641f0
+      candidate_report.yaml: 18bb0813d8772c66ebfdcd59c3abbbc9e1ea2deeb83f1ddd2700b9b4424d581d
+      snapshot-receipt.json: b3de3367e2ae802a97c72ca8bc0fbb692b459379ed7ce2e1d26eeaa1174936d0
+    receipt_declared_commit_sha: null
+    receipt_verification_status: pending_post_commit
+    receipt_limit: >-
+      Git reachability, parent, exact changed paths, and producer hashes were
+      independently checked, so this review used only committed producer
+      artifacts. The committed receipt nevertheless still says
+      pending_post_commit and has commit_sha null; the Coordinator must obtain
+      dispatcher post-commit acceptance before any official transition.
+
+  objections:
+    - id: O1
+      severity: blocking
+      title: Aggregate query count is redefined and sieve repetitions undercharged
+      detail: >-
+        Peikert Figure 1 names log2 15.7 as Q_tilde_total, the total oracle
+        queries used to recover all but 56 secret bits under an expected-bits
+        recovery schedule. FC0 renames it Q_model "before explicit success
+        amplification" and applies Q_HS = R_success * Q_model. That can
+        double-count source-internal repetitions. Conversely, Equation (4.1)
+        is the non-oracle cost of one full sieve traversal, while FC0 adds only
+        one T_sieve and one T_post even when several sieve invocations or attack
+        repetitions are required. The full equation can therefore overcharge
+        queries and undercharge non-oracle work at the same time.
+      required_revision: >-
+        Preserve Q_tilde_total as the source aggregate until a per-invocation
+        schedule is derived. Write the attack as a sum over recovery and retry
+        invocations, charging Q_i, T_sieve_i, T_post_i, classical work, and
+        failure for every invocation. Introduce R_success only if the cited
+        source semantics leave an external independent repetition.
+    - id: O2
+      severity: blocking
+      title: Classical tail is placed in quantum T and width equations
+      detail: >-
+        FC0 repeatedly calls the remaining 56-bit search classical, but includes
+        T_tail in T_full and W_tail in W_logical while also charging the tail in
+        C_classical. This is a typed-unit inconsistency and permits either
+        double counting or a silently free classical tail.
+      required_revision: >-
+        For the canonical row, remove tail work from T-count and logical width
+        and define C_tail, M_tail, action-evaluation cost, success probability,
+        and stopping rule. A quantum-tail row must be a separately named
+        schedule with its own T-count, depth, width, and oracle calls.
+    - id: O3
+      severity: blocking
+      title: Oracle failure is not yet composition-safe
+      detail: >-
+        The bound epsilon_total <= Q_HS * epsilon_U_HS + ... treats each oracle
+        error as a classical failure event. A distribution-dependent reversible
+        action can instead have input-correlated flagged failure or coherent
+        error. Conditioning or retry may bias the uniform group superposition,
+        break injectivity, or alter the phase-label distribution. A scalar
+        BLMP failure probability does not by itself justify the proposed union
+        bound for the complete labeled-state channel.
+      required_revision: >-
+        Pin an oracle correctness notion and composable error metric. Show how
+        failure flags are handled without distribution bias, and derive the
+        complete-channel error bound under adaptive or repeated calls.
+    - id: O4
+      severity: blocking
+      title: Peak coherent width lacks a live-register schedule
+      detail: >-
+        W_logical = max(W_U_HS, W_coll, W_post, W_tail) is valid only if every
+        module width includes all caller-owned phase states, labels, public
+        inputs, outputs, and scratch registers live during that module. Under
+        sequential oracle scheduling, previously generated phase states may
+        remain live while the next oracle is evaluated. The current max formula
+        does not demonstrate that this coexistence is charged.
+      required_revision: >-
+        Supply a register-liveness table for one leaf, one collimation, final
+        postprocessing, and retry boundaries. Define each W term as total
+        concurrent width, not callee-local ancilla width.
+    - id: O5
+      severity: blocking
+      title: Equation 4.1 phase-vector constant is not pinned
+      detail: >-
+        The QRACM row pins L_tilde_max = 8L, but Peikert Equation (4.1) uses an
+        upper bound on the typical phase-vector length L_tilde. FC0 writes
+        T_sieve = 36 * L_tilde * (2/(1-delta))^d without selecting or deriving
+        L_tilde. Choosing L, an observed typical maximum, or 8L changes the
+        sieve T-count by up to three bits.
+      required_revision: >-
+        Pin a source-derived L_tilde rule for T-count and keep it distinct from
+        the hard QRACM cell bound L_tilde_max. Report sensitivity if the source
+        supports only an interval.
+    - id: O6
+      severity: procedural_blocker
+      title: Snapshot receipt still records pending verification
+      detail: >-
+        The committed receipt has commit_sha null and verification.status
+        pending_post_commit despite the task card calling it verified. Manual
+        Git checks passed, but dispatcher acceptance is not recorded.
+      required_revision: >-
+        Complete the Coordinator-only post-commit verification before using
+        this review for a ledger or research-state transition.
+
+  required_controls:
+    - id: C1
+      control: >-
+        Source-semantics table: enumerate every top-level sieve invocation and
+        retry, with bits recovered, success probability, oracle calls,
+        Equation (4.1) work, postprocessing, and classical work.
+      pass_condition: >-
+        Summed Q_i reconciles exactly with the cited Q_tilde_total row and no
+        generic repetition multiplier is applied twice.
+    - id: C2
+      control: >-
+        Distribution mutation: substitute the BLMP bounded key-distribution
+        action circuit for the uniform-group oracle.
+      pass_condition: >-
+        The worksheet rejects the substitution until a deterministic coherent
+        representative map, its precomputation, cost, width, failure, and
+        uncomputation are cited and charged.
+    - id: C3
+      control: >-
+        Memory-unit mutation: relabel 2^40 QRACM bits as 2^40 ordinary logical
+        qubits or omit the QROM implementation cost.
+      pass_condition: >-
+        The row fails type checking; QRACM cells, coherent qubits, QROM
+        T-count, ancillae, and classical backing storage remain separate.
+    - id: C4
+      control: >-
+        Liveness mutation: retain previously generated phase states while
+        invoking the next U_HS, then compare measured width with the max formula.
+      pass_condition: >-
+        The liveness-derived peak equals the reported W_logical; otherwise the
+        width equation is revised to include concurrent caller state.
+    - id: C5
+      control: >-
+        Failure-bias mutation: make the oracle failure flag depend on one
+        representative-vector region while preserving the same average scalar
+        failure probability.
+      pass_condition: >-
+        The gate detects the changed conditioned distribution and refuses the
+        scalar union-bound row.
+    - id: C6
+      control: >-
+        Amortization mutation: set K > 1 for a quantum preprocessing artifact
+        that is consumed or measured by the first target.
+      pass_condition: >-
+        No division by K is permitted without a reusable-output proof and a
+        declared target population.
+    - id: C7
+      control: >-
+        Numeric-label mutation: convert T-count alone, or query exponent plus
+        QRACM exponent, into security bits or a NIST level.
+      pass_condition: >-
+        The gate rejects the row until a named physical architecture,
+        scheduling metric, comparison rule, and all typed resources are present.
+
+  counterexample_or_mutation: >-
+    Cheapest discriminator: feed Figure 1's log2 Q_tilde_total = 15.7 directly
+    into FC0 and also set a nontrivial R_success. The gate must identify that
+    the source value already aggregates recovery work rather than multiplying
+    it automatically. Then duplicate one top-level sieve invocation: if
+    Q_HS changes but T_sieve and T_post do not, the full-cost equation is
+    falsified as incomplete.
+
+  baseline_comparison:
+    pollard_rho: >-
+      A later CSIDH vectorization row must state the assumptions and charged
+      class-group-action cost for a generic Pollard-rho-style collision
+      comparator, with square-root group-order scaling where that action model
+      applies. It is not an ECDLP solve and does not inherit an uncharged group
+      law on public curves.
+    bsgs: >-
+      The generic BSGS/MITM comparator has square-root group-order action work
+      and square-root storage; for the reported CSIDH-512 N near 2^257.1 this is
+      roughly 2^128.55 entries/evaluations before concrete action and memory
+      costs. FC0 makes no claim to beat this row.
+    closest_specialized: >-
+      The closest specialized baseline is the exact final Peikert binary
+      c-sieve query/QRACM row being transcribed. Final
+      Bonnetain-Schrottenloher 2018/537 is an alternative hidden-shift
+      convention cross-check; BLMP 2018/1059 is an oracle-circuit component,
+      not a complete attack baseline.
+    scope_separation: >-
+      Delfs-Galbraith and KN-TECH-050 are supersingular path-finding baselines,
+      not CSIDH hidden-shift vectorization baselines. FC0 does not revise them
+      and does not reopen IDEA-20260725-001.
+
+  scope_limits:
+    - >-
+      Applies only to the final Peikert binary c-sieve row for the exact cyclic
+      CSIDH instance and parameter/class-group-data revision eventually pinned.
+      A noncyclic class group requires a separate reduction and recovery map.
+    - >-
+      No curve, isogeny, reversible-circuit, or fault-tolerant execution was
+      performed.
+    - >-
+      The reported CSIDH-512 query and QRACM exponents remain literature
+      anchors, not independently reproduced measurements.
+    - >-
+      Failure of FC0 closes only the attempted source composition. It does not
+      establish CSIDH security, refute hidden-shift cryptanalysis, or transfer
+      to SIDH/SIKE, CGL, SQIsign, or ECDLP.
+    - >-
+      No security-bit or NIST-level number is admissible without a named
+      architecture and explicit width/depth/resource comparison.
+
+  narrowest_supported_statement: >-
+    The candidate correctly exposes the uniform-oracle distribution boundary,
+    separates QRACM from coherent qubits, excludes closed lanes, and rejects
+    immediate numeric-security and completion claims. Its admission can be
+    preserved only as REVISE: repair the typed equations, then run one bounded
+    source-reconciliation derivation.
+  breakthrough_claim_detected: false
+  completion_criteria_met: false
+  numeric_security_claim_supported: false
+  closed_lane_reopened: false
+  official_state_changed: false
+  proceed_to_derivation_gate: true
+  derivation_gate_condition: >-
+    Proceed only after O1-O5 are incorporated into CSIDH-COLLIMATION-FC0 and O6
+    is resolved for archival use. Allowed outcomes remain
+    FC0_PIN_COMPLETE_FOR_LATER_NUMERIC_REVIEW,
+    FC0_UNIFORM_ORACLE_BOUNDARY_UNRESOLVED, or
+    FC0_QUERY_MEMORY_SEMANTICS_UNRECONCILED. None is a breakthrough,
+    parameter recommendation, numeric security result, or GOAL completion.
+  next_concrete_action: >-
+    Revise FC0 into a per-invocation resource ledger with typed tail,
+    register-liveness, source-derived L_tilde, and composable oracle-error
+    semantics; then execute the proposed zero-compute two-source-plus-oracle
+    worksheet once.
+  artifact_paths:
+    - coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-003/red_team_report.yaml
+    - coordination/goals/GOAL-SSI-001/batches/BATCH-007/tasks/TASK-20260729-003/falsification_review.md

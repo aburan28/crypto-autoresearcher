@@ -1,0 +1,81 @@
+# TASK-20260810-3e0793 implementation-pin.yaml — MD5 RFC 1321 pin
+
+implementations:
+  IMPL-1:
+    name: hashlib.md5 (Python 3.12.8 pyenv)
+    source: CPython 3.12.8 hashlib._hashlib (linked against OpenSSL 3.6.3)
+    version: hashlib._hashlib cpython-312-darwin.so
+    path: >-
+      /Users/adamburan/.pyenv/versions/3.12.8/lib/python3.12/
+      lib-dynload/_hashlib.cpython-312-darwin.so
+    links: >-
+      openssl 3.6.3 libcrypto via /opt/homebrew/opt/openssl@3/lib/libcrypto.3.dylib
+    empty_string: d41d8cd98f00b204e9800998ecf8427e
+    throughput:
+      command: >-
+        1000 iterations of hashlib.md5(1024*1024 zero bytes), usedforsecurity=False
+      wall_clock_seconds: 1.230
+      input_bytes: 1073741824
+      throughput_gbps: 0.853
+
+  IMPL-2:
+    name: openssl dgst -md5 (OpenSSL 3.6.3)
+    source: Homebrew OpenSSL 3.6.3
+    version: openssl 3.6.3. 3 Jun 2026 (Homebrew)
+    binary: /opt/homebrew/bin/openssl
+    links: /opt/homebrew/Cellar/openssl@3/3.6.3/lib/libcrypto.3.dylib
+    empty_string: d41d8cd98f00b204e9800998ecf8427e
+    throughput:
+      command: "openssl dgst -md5 /tmp/md5_input.bin (100MB zeros, 1 invocation)"
+      wall_clock_seconds: 0.155
+      input_bytes: 104857600
+      throughput_mbps: 647.174
+      note: single 100MB invocation only; no streaming throughput measurement
+
+  IMPL-3:
+    name: CPython _md5 C extension
+    source: CPython 3.12.8 hashlib._md5
+    version: _md5.cpython-312-darwin.so
+    path: >-
+      /Users/adamburan/.pyenv/versions/3.12.8/lib/python3.12/
+      lib-dynload/_md5.cpython-312-darwin.so
+    links: /usr/lib/libSystem.B.dylib only — NOT libcrypto/OpenSSL
+    empty_string: d41d8cd98f00b204e9800998ecf8427e
+    independence: independent of libcrypto (links only libSystem)
+
+independence:
+  hashlib_vs_openssl:
+    verdict: NOT_INDEPENDENT
+    reason: >-
+      Both link the same libcrypto.3.dylib (OpenSSL 3.6.3).
+      They share one MD5 implementation.
+
+  hashlib_vs_cpython_md5:
+    verdict: INDEPENDENT
+    reason: >-
+      hashlib.md5 uses OpenSSL libcrypto via _hashlib.
+      _md5 uses the CPython standalone C MD5 implementation, linked to
+      only libSystem — no crypto library dependency.
+
+recommended_pair: hashlib.md5 + _md5.cpython (IMPL-1 + IMPL-3)
+reason: >-
+  _md5 is CPython's built-in C MD5 (libSystem only), independent of
+  OpenSSL. hashlib.md5 and openssl dgst both use OpenSSL libcrypto and
+  are NOT independent of each other.
+
+test_vectors:
+  - name: RFC_1321_7_1
+    input: ""
+    expected: d41d8cd98f00b204e9800998ecf8427e
+    IMPL-1_hashlib: PASS
+    IMPL-2_openssl: PASS
+    IMPL-3_cpython_md5: PASS
+  
+open_item: >-
+  RFC 1321 primary text (test vector suite) not found in local corpus.
+  Well-known empty-string vector confirmed by all 3 implementations.
+  Remaining RFC 1321 vectors not sourced from primary text.
+  This is a partial verification, not a completed test.
+
+claims_ceiling: "protocol_freeze_implementation_pin_and_literature_acquisition_only"
+security_assertions: []

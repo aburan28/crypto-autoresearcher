@@ -1,0 +1,44 @@
+{
+  "id": "MEAS-GOAL-AES-002-002",
+  "purpose": "Independently measure the depth wall that every full-round AES attempt must cross, using this campaign's own pinned reduced-round harness rather than any recalled figure.",
+  "measured_by": "dispatching session (Bash), coordinator-side corroboration - NOT independent validation",
+  "measured_at": "2026-08-01",
+  "instrument": "coordination/goals/GOAL-AES-001/batches/BATCH-001/tasks/TASK-20260731-602/aes_reduced.py, sha256 2c76f3e5db83ec2500ce1010a392a135869d8b9dd1a534af817e06f15babb447, pinned to FIPS-197 vectors under both pycryptodome and openssl in BATCH-001 and independently re-verified in BATCH-002",
+  "method": "Canonical delta-set integral (SQUARE) property. 256 plaintexts varying in one byte, all other bytes fixed; after r rounds XOR all 256 ciphertexts and count output byte positions that are balanced (XOR == 0). 40 random (key, base) trials per round count, seed 20260801, 16 byte positions each -> 640 observations per r.",
+  "random_expectation_per_byte": 0.00390625,
+  "measurement": {
+    "r1": 1.0,
+    "r2": 1.0,
+    "r3": 1.0,
+    "r4": 0.0078,
+    "r5": 0.0031,
+    "r6": 0.0047
+  },
+  "finding": "The balanced property holds EXACTLY through three rounds and is at the random null from round four onward. This is the raw integral property; the partial-sum technique is what classically extends such a distinguisher by roughly one round, and that extension is not measured here.",
+  "why_this_matters_for_GOAL_AES_002": "AES-128 is 10 rounds, AES-192 is 12, AES-256 is 14. The strongest classical structural property measured here survives 3. That is the depth wall, measured on a pinned instrument rather than recalled: the gap a full-round attack must bridge is not a matter of degree but of six or more rounds beyond where structure demonstrably persists. It is consistent with, and quantifies, this campaign's repeated finding that data-path objects die at 4-6 rounds and its own objects died at 0.5-2.",
+  "not_established": [
+    "This measures ONE property, the raw delta-set balance. It is not a survey of all distinguishers and proves nothing about what other objects might reach.",
+    "No extension technique (partial sums, key guessing on outer rounds) was measured; those are exactly what buy the extra rounds in the literature.",
+    "It asserts nothing about AES security and licenses no cryptanalytic claim.",
+    "It is coordinator-side corroboration from the dispatching session, sharing the campaign's single model under 0137a051, and is not independent validation.",
+    "No comparison against published cryptanalysis is made or implied, in either direction; that comparison is unadjudicable in this environment."
+  ],
+  "measurement_2_full_diagonal_AESNI": {
+    "purpose": "The 1-byte delta-set measures only the 3-round property. The classical 4-round integral needs a FULL DIAGONAL delta-set of 2^32 texts, which pure Python cannot reach but AES-NI can. Measured from scratch, no literature consulted.",
+    "source": "coordination/goals/GOAL-AES-002/integral_depth_probe.c, gcc -O3 -maes -msse4.1, bytes 0/5/10/15 sweeping all 2^32 values, streaming XOR accumulator",
+    "convention": "r-round AES-128 as (r-1) x AESENC then AESENCLAST, i.e. final round drops MixColumns - the convention pinned in GOAL-AES-001 BATCH-001",
+    "results": {
+      "R4_seed11": "balanced_bytes 16/16, accumulator all-zero",
+      "R5_seed11": "balanced_bytes 0/16, accumulator 3bb879880280aa9b5b981eb116a5e5fb",
+      "R5_seed23": "balanced_bytes 0/16, accumulator 8015b16c12a1b4df1c8db693102cdc93"
+    },
+    "runtime": "53 s per 2^32-text sweep, single core",
+    "finding": "The integral property holds EXACTLY through four rounds and is dead at five. 16/16 balanced at R=4; 0/16 at R=5 for two independent keys, with full-entropy accumulators. Measured, not recalled.",
+    "not_established": [
+      "R=5 was measured on two keys, not a distribution; 0/16 twice is decisive against balance but is not a proof of absence.",
+      "A third R=5 key and a second R=4 key were queued but cut by a 120 s shell timeout - infrastructure, not a result, and reported rather than dropped.",
+      "Key-guessing extensions on outer rounds are what classically buy further rounds; those were NOT measured here."
+    ]
+  },
+  "depth_wall_summary": "Measured on this machine with no literature input: raw 1-byte delta-set balance survives 3 rounds; the full-diagonal 2^32 delta-set survives 4; both are dead at the next round. AES-128 is 10 rounds, AES-192 is 12, AES-256 is 14. Even granting the classical 2-3 round key-guessing extension, that reaches roughly 6-7 of 10. The gap a full-round attack must bridge is therefore not marginal - it is several rounds beyond where any structure measured here demonstrably persists. This quantifies WHY the target resists; it is not a proof that it cannot be broken, and no such proof is claimed."
+}

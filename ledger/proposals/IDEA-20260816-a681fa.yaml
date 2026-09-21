@@ -1,0 +1,303 @@
+idea:
+  id: IDEA-20260816-a681fa
+  question_id: RQ-SLHDSA-001
+  added: '2026-08-16'
+  title: Count exhaustively, over the whole chain-position vector space at small Winternitz parameters,
+    how many messages a single WOTS+ signature could be extended to sign under the componentwise dominance
+    order, and report what the checksum block actually removes as an integer rather than as an assurance.
+  class: theory
+  claim: '(A) The one-time layer''s entire structural defence against extension is an order-theoretic
+    fact about integer vectors, and it is countable exactly. A signature reveals chain positions b
+    = (b_1, ..., b_len); iterating hashes forward is free, so the messages an adversary can forge
+    from that signature alone are exactly the valid encodings b'' with b''_i at least b_i in every
+    coordinate. Call that set the up-set U(b). The checksum block exists to force |U(b)| = 1, and
+    whether it does so is a finite question at any (w, len1) small enough to enumerate. (B) At w =
+    4 with len1 up to 8, and w = 16 with len1 up to 4, the entire encoding space is enumerable, so
+    the full distribution of |U(b)| over all valid b can be computed exactly, not estimated. The deliverable
+    is that distribution: its maximum, its support, and the exact count of vectors with |U(b)| greater
+    than one, which under a correct checksum must be zero. (C) The counterfactual arms convert an
+    assurance into a measured quantity. Removing the checksum entirely, and separately replacing it
+    with a random non-monotone function of the message block of the same output length, gives two
+    comparison distributions computed by the identical enumeration. The difference between the real
+    distribution and those two, expressed as median |U(b)| and as the fraction of vectors with |U(b)|
+    greater than one, is what the checksum buys, stated as integers. (D) This is a mechanism audit,
+    not a search. Nothing is being attacked, no signature is being forged, and the enumeration never
+    touches a hash function: it operates on integer vectors and the encoding map alone, so the result
+    is independent of any hash''s strength. (E) WHAT IS NOT CLAIMED: no forgery, no attack, no weakness,
+    no security level, no bit count, no statement about any FIPS 205 parameter set, no statement about
+    SHA-2 or SHAKE, no statement about what the literature contains, and nothing about the fault or
+    memory-corruption class. Finding |U(b)| = 1 everywhere is the expected outcome and a complete
+    deliverable, because it converts a structural assurance this repository has never checked into
+    an exhaustively verified integer.'
+  mechanism: 'STAGE A: implement the encoding map explicitly as a pure function from a message-block
+    integer vector to the full chain-position vector, with the checksum block computed and base-w
+    encoded exactly as the structural description records it, and no hashing anywhere. STAGE B: enumerate
+    every valid message-block vector at the chosen (w, len1), compute its full chain-position vector,
+    and store the resulting set of valid encodings. STAGE C: for each valid encoding b, compute |U(b)|
+    by testing componentwise dominance against every other valid encoding. Naive this is quadratic
+    in the encoding count, which at 65536 encodings is 4.3 billion comparisons -- so instead sort
+    by coordinate sum and exploit the fact that dominance implies a strictly larger sum on the message
+    block and a strictly smaller sum on the checksum block, pruning to a near-linear sweep whose correctness
+    is verified against the naive quadratic route on the smallest parameter set. STAGE D: repeat STAGE
+    B and STAGE C with the checksum block deleted, and again with the checksum block replaced by a
+    fixed random function into the same alphabet, giving the two null distributions. STAGE E: report
+    the three distributions of |U(b)| side by side with their maxima, medians, and the exact counts
+    of vectors exceeding one, plus the pruned-versus-naive agreement check. STAGE F: derive the closed-form
+    count for the no-checksum arm, which is a product of (w - b_i) terms, and verify the enumeration
+    reproduces it exactly, which validates the enumeration itself against arithmetic rather than against
+    another enumeration.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril for WOTS, checksum, Winternitz, chain, dominance over ledger/proposals/, ledger/hypotheses/,
+      knowledge/. Read RQ-SLHDSA-001 in full and the statement block of H-SLHDSA-3a403a, checking
+      its declared scope. Pulled id, question_id and title for every proposal returned by the WOTS
+      grep and read the claim field of IDEA-20260813-945a67. Checked the single ledger proposal returned
+      by the checksum grep, IDEA-20260805-390957, for its question_id.
+    results: The WOTS grep returns seven RQ-SLHDSA-001 proposals -- IDEA-20260813-945a67, IDEA-20260805-fbe36a,
+      IDEA-20260808-02a046, IDEA-20260805-705614, IDEA-20260813-6d331f, IDEA-20260805-88ecef and others
+      -- but in every one of them WOTS appears only as a named layer inside a cost accounting or a
+      FORS-focused derivation; none has the chain-position vector as its object. H-SLHDSA-3a403a states
+      its scope as the FORS layer of SLH-DSA only and says explicitly that nothing in it touches the
+      WOTS+ layer or the hypertree. IDEA-20260813-945a67 is about ADRS aliasing under a single-fault
+      model and produces certificates, not counts. The checksum grep returns exactly one ledger proposal,
+      IDEA-20260805-390957, which is on RQ-FRODO-3260cc and concerns FrodoKEM sampling-distribution
+      identities -- a different scheme and a different object. No record in this repository enumerates
+      an up-set, a dominance order, or the encoding space of a one-time signature.
+    verdict: 'UNVERIFIED. The dominance-order mechanism is the textbook reason a Winternitz checksum
+      exists, this is not a new idea about how the scheme works, and this program cannot read external
+      literature so it asserts nothing about what treatments exist elsewhere. What is claimed new
+      is narrow: this repository has seven records naming the WOTS+ layer and not one that computes
+      anything about it, and the specific deliverable -- the exact full distribution of |U(b)| over
+      the whole encoding space, with a deleted-checksum arm and a random-non-monotone-checksum arm
+      computed by the identical enumeration, and with the no-checksum closed form used to validate
+      the enumeration against arithmetic -- is assembled from elementary parts that nobody here has
+      assembled.'
+  object_first_candidate:
+    tracked_object: The chain-position vector b in {0, ..., w-1}^len, together with its up-set U(b)
+      = the set of valid encodings b' with b'_i at least b_i in every coordinate. The object followed
+      through the computation is b under the covering relation of the componentwise order, one covering
+      step being one hash application along one chain.
+    lossiness: 'The projection discards the secret chain values, the public seed, the ADRS tweak,
+      the hash function entirely, the message bytes, and every actual byte of the signature. What
+      survives is a vector of small integers and an order relation on it. This is genuinely lossy:
+      from b one cannot compute a single chain value, verify a single signature, or say anything about
+      which message produced it. It propagates because advancing a chain by one hash is exactly the
+      covering relation of the order -- the operation acts on the retained integer without reading
+      any discarded value -- and because forging by extension is by definition confined to moves along
+      that order. It fails to propagate, and this is the stated boundary, for any adversary that inverts
+      a chain: inversion moves downward in the order and the projection assigns it no cost, so the
+      object is silent about preimage attacks by construction.'
+    propagation: 'One hash application along chain i is the map b -> b + e_i, valid while b_i is less
+      than w-1. This is the covering relation of the product order restricted to the box. The up-set
+      U(b) is therefore exactly the set of vectors reachable from b by any sequence of such moves,
+      intersected with the set of valid encodings. Composition is trivial and exact: U(b + e_i) is
+      contained in U(b), so the object is monotone decreasing under the operation, and the checksum''s
+      role is precisely to make the intersection with valid encodings a singleton at every b.'
+    survival_score: 'Exact and complete for every (w, len1) with w^len1 at most 2^28, which covers
+      w = 4 with len1 up to 14, w = 16 with len1 up to 7, and w = 256 with len1 up to 3. Within that
+      region nothing dissolves: the count is exact combinatorics with no probabilistic content whatsoever.
+      Beyond it, the enumeration dissolves but the object does not -- the pruned sweep''s structure
+      and the no-checksum closed form both extend, and the contract records the largest parameter
+      set at which the naive and pruned routes were cross-verified as the boundary of what was actually
+      checked rather than argued.'
+  null_object_control: 'Two null objects, both run through the identical enumeration in the same invocation.
+    First, the checksum block deleted entirely, leaving only the message block: a random object of
+    the same shape, in the sense that it is an encoding into the same alphabet with the monotonicity
+    constraint removed. Second, the checksum block replaced by a fixed pseudorandom function of the
+    message block into the same alphabet and same length, which preserves the encoding''s arity and
+    length but destroys the monotone-decreasing relationship. For the signal arm to mean anything,
+    both nulls must show strictly larger |U(b)| than the real checksum: specifically the deleted-checksum
+    null must reproduce its own closed-form product count exactly, and the random-checksum null must
+    show a substantial fraction of vectors with |U(b)| greater than one. If the random-checksum null
+    shows the same distribution as the real checksum, the enumeration is measuring the encoding''s
+    arity rather than the checksum''s monotonicity and no conclusion about the checksum may be drawn.'
+  discriminated_from:
+  - 'IDEA-20260813-945a67: ADRS alias opportunities under a single-fault model, producing node-reuse
+    certificates. This proposal assumes no fault at all and produces counts over an integer lattice;
+    the two share only the word WOTS.'
+  - 'H-SLHDSA-3a403a: scoped by its own text to the FORS layer only and stating explicitly that nothing
+    in it touches the WOTS+ layer. This is the layer that hypothesis excludes.'
+  - 'IDEA-20260805-fbe36a and IDEA-20260808-02a046: occupancy and coverage arguments about the FORS
+    few-time layer, probabilistic throughout. This object is deterministic combinatorics with no probability
+    anywhere, and its result is independent of any hash.'
+  - 'IDEA-20260813-6d331f, minimal collision-witness quotient for forgery extraction: about extracting
+    a collision witness from a forgery inside a reduction. This never considers a forgery, an extraction,
+    or a reduction; it counts an up-set.'
+  - 'IDEA-20260805-390957: the only other ledger proposal in the repository mentioning a checksum,
+    on RQ-FRODO-3260cc, concerning FrodoKEM sampling-distribution identities. Different scheme, different
+    object, no relationship beyond the word.'
+  assumptions:
+  - The encoding map, including the checksum's base-w representation and its length, is as recorded
+    in this repository's structural description, which marks itself UNVERIFIED against primary text;
+    the contract therefore parameterizes the checksum length and reports the count as a function of
+    it rather than fixing one value.
+  - The adversary considered can only iterate chains forward; chain inversion is out of scope and
+    its exclusion is stated, not established.
+  - Dominance on the full vector, with the checksum block's monotonicity accounted for in the correct
+    direction, is the right forgeability criterion for the extension adversary at this layer.
+  - The pruned sweep computes the same up-set counts as the naive quadratic comparison, which is verified
+    on the smallest parameter sets rather than argued.
+  - Behaviour at small (w, len1) is representative of the encoding's order structure at larger ones;
+    this is an assumption about combinatorics, stated in scale_justification, and is the one the closed-form
+    arm partially discharges.
+  predictions:
+  - metric: maximum of |U(b)| over all valid encodings b with the specified checksum, at every tested
+      (w, len1)
+    direction: different
+    minimum_effect: forced value 1. Any b with |U(b)| greater than one at these parameters is either
+      an encoding bug in the instrument or a genuine combinatorial finding, and the contract requires
+      the instrument arm and the closed-form validation to be cleared before either reading is permitted.
+  - metric: median |U(b)| over all valid encodings with the checksum block deleted
+    direction: higher
+    minimum_effect: 2
+  - metric: fraction of valid encodings with |U(b)| greater than one under a random non-monotone checksum
+      of the same length
+    direction: higher
+    minimum_effect: 0.5
+  - metric: agreement between the deleted-checksum enumeration and its closed-form product count,
+      over all tested (w, len1)
+    direction: different
+    minimum_effect: 'forced value: exact equality at every point, since the closed form is arithmetic
+      and the enumeration is a count of the same set; any discrepancy is an instrument failure'
+  - metric: agreement between the pruned sweep and the naive quadratic comparison on the cross-verified
+      parameter sets
+    direction: different
+    minimum_effect: 'forced value: exact equality on every vector'
+  minimal_test:
+    design: 'One parameter set decides everything. Take w = 4 and len1 = 6, so the message block has
+      4096 vectors and the checksum block adds two more base-4 digits, giving a valid-encoding set
+      of exactly 4096 points in a box of 4^8 = 65536. Enumerate all 4096 valid encodings, and for
+      each compute |U(b)| by direct componentwise comparison against all 4095 others -- 16.8 million
+      comparisons, under a second in numpy. Report the full distribution. In the same invocation,
+      repeat twice more: once with the two checksum coordinates deleted, where the up-set count has
+      the closed form product over i of (w - b_i) and can be checked against arithmetic exactly; and
+      once with the checksum coordinates replaced by a fixed pseudorandom function of the message
+      block. The discriminating observable is the triple of maxima and the triple of fractions exceeding
+      one. If the real arm gives maximum exactly 1 while both nulls give substantially more, the mechanism
+      is confirmed as an exact integer statement at a cost of seconds, and the larger parameter sets
+      become a matter of extending a verified routine rather than trusting one.'
+    controls:
+    - Deleted-checksum arm, identical enumeration, same invocation, with its independent closed-form
+      product count as an arithmetic cross-check.
+    - Random non-monotone checksum arm of identical length and alphabet, identical enumeration, same
+      invocation, three fixed pseudorandom instances.
+    - Naive quadratic dominance comparison versus the pruned sweep, cross-verified vector by vector
+      on the smallest two parameter sets.
+    - 'A shuffled-encoding control: permute the coordinate labels of every valid encoding by one fixed
+      permutation and re-enumerate; the up-set distribution must be invariant, which catches coordinate-indexing
+      bugs.'
+    - 'Checksum-length sweep: the checksum block length varied by plus and minus one from the structurally
+      recorded value, since that value is UNVERIFIED and the count''s dependence on it is itself informative.'
+    required_metrics:
+    - full distribution of |U(b)| over all valid encodings, real-checksum arm, per (w, len1, checksum
+      length)
+    - same distribution, deleted-checksum arm
+    - same distribution, random-non-monotone-checksum arm
+    - exact count of encodings with |U(b)| greater than one in each arm
+    - agreement between the deleted-checksum enumeration and its closed-form product count
+    - agreement between the pruned sweep and the naive quadratic route on cross-verified sets
+  falsification_conditions:
+  - 'The deleted-checksum enumeration disagrees with its closed-form product count anywhere: the enumeration
+    is wrong and nothing may be read from any arm.'
+  - 'The pruned sweep disagrees with the naive quadratic route on any vector: the pruning is unsound
+    and the larger parameter sets are void.'
+  - 'The shuffled-encoding control changes the |U(b)| distribution: coordinate indexing is buggy.'
+  - 'The random-non-monotone-checksum null shows the same distribution as the real checksum: the enumeration
+    measures the encoding''s arity, not the checksum''s monotonicity, and no statement about the checksum
+    is admissible.'
+  - 'A valid encoding with |U(b)| greater than one appears in the real-checksum arm after all instrument
+    controls have cleared: the structural assurance does not hold at that (w, len1, checksum length)
+    and the exact vector is recorded as the counterexample, scoped strictly to those parameters.'
+  - 'The count depends on the checksum length in a way that makes the structurally recorded length
+    not the smallest one achieving maximum 1: that dependence is reported as a measured fact about
+    the encoding, scoped to tested parameters, and not as a statement about any standard.'
+  confounders:
+  - The valid-encoding set is a thin subset of the full box, and the fraction it occupies changes
+    sharply with checksum length, so a comparison between arms with different effective set sizes
+    can look like an effect of the checksum when it is an effect of cardinality; every arm must therefore
+    report its valid-encoding count alongside its distribution.
+  - The checksum's coordinates are monotone in the opposite direction to the message coordinates,
+    and getting that direction wrong in the dominance test flips the answer entirely while producing
+    a plausible-looking distribution.
+  - 'A random non-monotone checksum is not a neutral null: some random instances happen to be nearly
+    monotone, so three instances are drawn and the spread across them is reported rather than a single
+    number.'
+  - At the smallest (w, len1) the message block is so short that the checksum dominates the vector
+    length, exaggerating its effect relative to larger parameters.
+  - The closed-form product count for the deleted-checksum arm is exact only if the deleted arm's
+    valid set is the full box, which requires deleting the checksum rather than zeroing it; conflating
+    the two silently breaks the arithmetic cross-check.
+  interpretation_limits:
+  - The result is exact combinatorics at the tested (w, len1, checksum length) and says nothing about
+    any deployed parameter set, whose (w, len) lie far outside the enumerable region.
+  - The count is independent of any hash function by construction, so nothing here is evidence about
+    SHA-2, SHAKE or any concrete primitive, in either direction.
+  - The extension adversary is a restriction; nothing here bounds an adversary that inverts chains,
+    and no number produced is a security level.
+  - A maximum of exactly 1 confirms a structural property at these parameters; it does not confirm
+    that the property is what carries the layer's security, which is a question for the layer-by-property
+    table entry and not for this one.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The enumeration's own cost is O(V log V) for V valid
+      encodings under the pruned sweep and O(V^2) under the naive cross-check, with V at most 2^24
+      in this contract; this is the cost of an audit, not of an attack, and no search is performed.
+    memory_exponent: No attack memory exponent is claimed. The enumeration holds V vectors of len
+      small integers, at most a few gigabytes at the largest tested set and well under a gigabyte
+      at the parameters the minimal test uses.
+    best_known: 'The incumbent inside this repository is the bare structural assurance: seven RQ-SLHDSA-001
+      proposals name the WOTS+ layer and none computes anything about it, and H-SLHDSA-3a403a excludes
+      it explicitly. The count of exhaustive up-set enumerations currently held here is zero. No claim
+      is made about what exists outside this repository.'
+    hidden_overhead: 'The overhead is entirely in getting the encoding right, and it is not visible
+      in the compute budget: the checksum''s direction in the dominance test and the base-w digit
+      ordering are two places where a wrong choice yields a clean-looking distribution with the opposite
+      meaning, and neither is caught by any amount of enumeration. That is why the closed-form arm
+      and the shuffled-encoding control exist. In human cost, writing the naive quadratic comparison
+      as a genuinely independent routine rather than a slower path through the same code is most of
+      the implementation effort and is what makes the cross-check non-circular.'
+  dominated_by: 'n/a (no result claimed). Checked against every frontier row this repository maintains
+    for time, memory and data/queries: an exact distribution of an order-theoretic count has no coordinate
+    on any of those axes because it is not a search and produces no attack cost. Nothing dominates
+    it, it dominates nothing, and it is not entered on any frontier.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Against this repository''s own
+    state the delta is a count: zero exhaustive enumerations of the one-time layer''s encoding order
+    currently exist here, and this would make one, reporting what the checksum removes as three integer
+    distributions rather than as the word prevents.'
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Separable parts. (1) That the enumeration can be built and validated
+    against its closed form and its naive route: about 0.95, this is elementary and the validations
+    are arithmetic. (2) That the real-checksum arm shows maximum |U(b)| exactly 1 at every tested
+    parameter: about 0.9, and I am explicit that the residual 0.1 is dominated by the risk that I
+    have the encoding or the checksum direction wrong rather than by any expectation of a combinatorial
+    surprise -- which is precisely why the controls are arithmetic rather than comparative. (3) That
+    both nulls show substantially larger counts: about 0.95 for the deleted-checksum arm, where the
+    closed form guarantees it, and about 0.8 for the random-non-monotone arm, whose spread across
+    instances I expect to be wide. (4) That the checksum-length sweep produces a nontrivial dependence
+    worth reporting: about 0.6, and this is the part most likely to yield something the rest of the
+    bucket can use, since it converts a fixed structural constant into a measured threshold. (5) That
+    any of this changes a conclusion elsewhere in the program: about 0.2 -- the honest expectation
+    is that this confirms a known mechanism exactly, and its value is that it is the first thing in
+    this repository that does.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-SLHDSA-001
+  - H-SLHDSA-3a403a
+  - GOAL-SLHDSA-001
+  - IDEA-20260813-945a67
+  - IDEA-20260813-6d331f
+  - IDEA-20260805-fbe36a
+  - EXP-SLHDSA-9cbad4
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SLHDSA-942b3d

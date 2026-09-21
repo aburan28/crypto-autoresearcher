@@ -1,0 +1,56 @@
+experiment:
+  id: EXP-TRA-001
+  hypothesis_id: TRA-H-001
+  version: 1
+  status: approved
+  title: "Transfer-operator (Koopman) spectral localization of k on the translation-by-P walk"
+  objective: >
+    Minimal falsifying experiment for candidate C1 (research_directions_20260717.md, lines 413-465).
+    Coarse-grain the +P translation walk on E(F_p) into a finite Markov operator on C x-interval
+    cells, estimate its leading non-stationary eigenpair from S sampled transitions (sub-birthday),
+    and measure the localization factor L(S, C) of the spectral-phase readout on k (Q = kP known
+    to executor, hidden from estimator) against the promotion gate
+    L >= n^0.05 at S <= n^0.3 sustained across three sizes.
+  inputs:
+    curve_family: "ordinary prime-field short-Weierstrass, #E(F_p) = n prime (prime-order subgroup = whole curve)"
+    primes: [211, 1009, 4099]
+    C_grid: [8, 32, 128]
+    S_grid: ["round(n^(1/4))", "round(n^(3/8))"]   # exactly as frozen in candidate section
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]  # "seeds as above" = 20260717..20260722
+    cell_partition: "cell(R) = floor(x(R)*C/p) for R != O; identity O gets its own extra cell index C (Cc = C+1)"
+    target: "k uniform in [1, n-1] per (p, seed), Q = kP; same instance reused across the (C, S) grid (paired design)"
+  estimator_definition:
+    step1: "empirical Cc x Cc transition matrix from S i.i.d. sampled +P transitions (seeded RandomState(seed+1)); rows never visited are set uniform and counted in 'fill'"
+    step2: "leading eigenpair = non-stationary eigenvalue of largest magnitude with Im > 1e-9; ties on magnitude (within 1e-9) broken by smallest positive phase (this tie-break selects the fundamental character j=1 at full resolution)"
+    step3: "gauge fix: left eigenvector l normalized l.v = 1, global phase set so v[c_ref] is real positive (c_ref = 0, fallback argmax|v|)"
+    step4: "Koopman matched-filter readout: A = sum_c conj(l[c]) * (sum_{t=0}^{T-1} 1[c(t)=c] e^{-2 pi i phi t}) / sum_c |l[c]|^2, phi = arg(lambda)/(2 pi), c(t) = cell(Q + tP), T = S"
+    step5: "psi = arg(A) mod 2 pi; k_real = psi/(2 pi phi); w_step = min(n, max(1, round(1/phi))); base = round(k_real) mod w_step"
+    step6: "candidate set = {k' in [0, n) : k' == base mod w_step}; count = |set|; L = n/count; hit = (k in set); L_eff = L if hit else 1"
+  controls:
+    positive: "full resolution C = n (exact cyclic-shift operator, T = n readout): estimator must recover k exactly (L = n, hit = true). Verified analytically for all sizes and by explicit n x n matrix through the same estimator code path for p in {211, 1009}."
+    negative: "random permutation of Z/n (seeded RandomState(seed+2)), same C/S grid, same estimator; must not localize above chance (hit rate ~= sum 1/L). If it localizes, the estimator is artifact-prone and the run is invalid."
+    exact_coarse_diagnostic: "per (p, seed, C): exact coarse matrix M_exact (S -> infinity limit) with full-period T = n readout; separates coarse-graining information loss from sampling noise. Clearly labeled as oracle-cost diagnostic, not a charged result."
+  independent_variables: [p, C, S_exponent, seed]
+  metrics:
+    primary: [localization factor L, hit, L_eff]
+    secondary: [phi (leading eigenphase), lam_abs, top-8 eigenvalue magnitudes, fill (visited rows), readout amplitude |A|, eigen residuals, charged cost ratio (2S + Cc^3)/sqrt(n), candidate-model cost S*C^2, finish-inclusive ratio (2S + Cc^3 + sqrt(n/L_eff))/sqrt(n)]
+  replication:
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]
+    independent_instances: 6
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_wall_clock_seconds: 2400
+    maximum_runs: 8
+  stopping_rules:
+    - "any single sage invocation > 600 s: kill, record as infrastructure timeout (NOT evidence against the hypothesis), reduce seeds to minimum {20260717, 20260718, 20260719} or sizes, record deviation in analysis.md and EV record"
+    - "any numpy eigensolver non-convergence or memory failure: record as failed_infrastructure, not as evidence"
+  invalidation_rules:
+    - "positive control fails (full-resolution estimator does not recover k): implementation bug; validity_status: invalid"
+    - "negative control localizes systematically above chance: estimator artifact; validity_status: invalid"
+    - "non-deterministic output across two identical invocations: validity_status: invalid"
+  success_criterion: "measured L >= n^0.05 at S <= n^0.3 sustained across all three sizes, above the chance floor E[L_eff|chance] = 2 - 1/L (reported alongside; the literal gate and the chance-adjusted view are both reported)"
+  falsification_criterion: "L_eff consistent with chance floor (hit rate ~= sum 1/L) across sizes -> archive as barrier measurement with fitted L(S, C) law"
+  gate_note: "n^(1/4) <= n^0.3 < n^(3/8) for n > 1, so only S = n^(1/4) rows are gate-relevant; S = n^(3/8) rows are diagnostic for the S-dependence of L."
+  required_artifacts: [specification.yaml, tra1_koopman.sage, runs/RUN-TRA-001-a/manifest.yaml, runs/RUN-TRA-001-a/raw.json, runs/RUN-TRA-001-a/stderr.txt, analysis.md]
+  assigned_to: executor
+  approved_by: coordinator

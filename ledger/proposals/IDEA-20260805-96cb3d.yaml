@@ -1,0 +1,533 @@
+idea:
+  id: IDEA-20260805-96cb3d
+  question_id: RQ-RELN-001
+  goal_id: GOAL-RELN-001
+  added: '2026-08-05'
+  title: >-
+    The solve gap is zero by construction at every primary cell of this goal's
+    ladder, and the relation-collection cost is invariant in B: charging the
+    complete fix-(m-1)-and-root-find baseline turns the protocol's p_solve pin
+    into a measurement of the solver rather than of the problem
+  class: control
+
+  claim: >-
+    The frozen GOAL-RELN-001 protocol separates an "oracle" metric p_exist from a
+    "charged algebraic solver" metric p_solve, feeds only p_solve to
+    GOAL-ICEX-001, and treats their difference (H-SOLVE-GAP) as a discriminator.
+    Two derivations decide that discriminator before any run. FIRST: for a
+    decomposition of arity m over a factor base of B x-coordinates, the system is
+    ONE equation S_{m+1}(x_1,...,x_m, x(R)) = 0 in m unknowns each confined to a
+    set of size B. Fixing any m-1 of them from V leaves a univariate polynomial of
+    degree at most 2^{m-1} in the last (KN-TECH-002: deg S_n in each variable is
+    2^{n-2}), whose roots are computable and testable for membership in V. That
+    procedure is COMPLETE, so it has exactly the same success set as exhaustive
+    enumeration: the solve gap is identically 0, and every nonzero value the
+    campaign could report is a TIMEOUT or RESOURCE_EXHAUSTION, which AGENTS.md
+    rule 3 forbids counting as negative mathematical evidence -- yet the
+    protocol's censored_trials rule assigns those trials Y_solve = 0 and keeps
+    them in the denominator, so infrastructure failures flow into
+    declared_p_lower_solve and out to ICEX as a relation-supply probability.
+    At m = 2 the baseline is B modular square roots per target; the protocol's
+    declared per-attempt budget is 120 seconds, roughly seven orders of magnitude
+    above it, so the whole gap is solver overhead. SECOND: costing that complete
+    baseline end to end gives cost per attempt ~ C(B+m-2, m-1) root-findings and
+    success probability ~ C(2B+m-1, m)/N, whose product over the B relations an
+    index-calculus matrix needs is
+        m * N / 2^m  root-findings,  INDEPENDENT OF B.
+    The goal's single independent variable is therefore provably inert for
+    end-to-end relation collection under the complete baseline, and the entire
+    value of the summation-polynomial/Groebner machinery over prime fields is the
+    ratio between that baseline and the solver actually used -- a ratio no record
+    in this corpus charges. The proposal is to charge it, and to replace the
+    p_solve pin with a solver-relative one.
+
+  object_first_candidate:
+    tracked_object: >-
+      One decomposition attempt, followed as a pair (success bit, charged cost),
+      from the target R through whichever procedure decides it. The tracked
+      invariant is the product (cost per attempt) x (1 / success probability),
+      i.e. expected cost per relation, carried across the B-ladder. Everything in
+      the proposal is bookkeeping on that product.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: new summation polynomials or degree
+      reduction; solving-degree / first-fall-degree instrumentation (this is the
+      program's deepest instrument and pointing it here would reproduce
+      EXP-SEMAEV/EXP-DREG rather than audit them); symmetry-reduced Groebner
+      variants; Weil descent; factor-base geometry; and rho/BSGS baselining. The
+      lens used instead is completeness-and-cost bookkeeping: what is the cheapest
+      COMPLETE decider for this system, and what does the protocol's chosen
+      decider cost relative to it.
+    newness_score: >-
+      The fix-(m-1)-and-root-find decider is elementary and is almost certainly
+      known in the literature as the naive baseline -- this record labels it a
+      KNOWN BASELINE and claims no novelty for the algorithm. Three things are not
+      in this corpus, and they are what the proposal supplies: that H-SOLVE-GAP is
+      vacuous at the protocol's own m = 2 primary cells; that the protocol's
+      censoring rule routes infrastructure failure into an ICEX probability; and
+      the B-invariance of end-to-end relation-collection cost, which turns the
+      goal's independent variable into a control variable.
+    testability_score: >-
+      Very high and almost free. The completeness argument is one paragraph. The
+      B-invariance is one line of algebra. The cost comparison at m = 2 is a
+      direct count of modular square roots against whatever the declared solver
+      spends, measurable in seconds in pure Python. The one part that needs
+      infrastructure -- instantiating the declared Groebner arm -- is currently
+      blocked: sympy is NOT INSTALLED in this container (verified this session),
+      Sage is not installed, and src/ic_first_fall_fast.py fails to import for
+      that reason. That is infrastructure signal, reported as such, and it is not
+      evidence about any mathematical question.
+    survival_score: >-
+      The completeness and cost statements survive with high probability because
+      they are arithmetic. What may not survive is the framing: if the protocol's
+      intent is that p_solve should measure a SPECIFIC solver's throughput rather
+      than the problem's decomposition probability, then no defect exists and the
+      finding reduces to "label the metric solver-relative" -- which is still worth
+      recording, and is written into the proposal as an outcome rather than a
+      failure.
+
+  mechanism: >-
+    The system. Decomposing R over V at arity m means finding x_1,...,x_m in V
+    with S_{m+1}(x_1,...,x_m, x(R)) = 0. That is one polynomial equation in m
+    unknowns, each unknown ranging over a finite set of size B. The protocol's
+    declared solver arm adds the vanishing polynomials f_V(x_i) = prod_{v in V}
+    (x_i - v), each of degree B, and runs a grevlex Groebner basis on the
+    resulting ideal.
+
+    The complete baseline. Enumerate the C(B+m-2, m-1) multisets of m-1 elements
+    of V. For each, S_{m+1} with those m-1 slots specialised is a univariate
+    polynomial in the remaining variable of degree at most 2^{m-1}. Compute its
+    roots in F_p (gcd with X^p - X, then equal-degree factorisation) and test each
+    for membership in V. Every solution of the original system is found, because
+    every solution specialises some m-1 of its coordinates to elements of V. So
+    the baseline is a COMPLETE decider.
+      At m = 2 this is: for each of the B elements x_1 of V, S_3(x_1, X, x(R)) is
+      a quadratic in X (the explicit S_3 in KN-TECH-002 is visibly degree 2 in
+      each variable), so one discriminant and one modular square root decide it.
+      Cost: B square roots mod p, i.e. B * O(log^3 p) bit operations. For the
+      protocol's largest m = 2 cell (bits = 16, B = 48) that is 48 square roots
+      modulo a 16-bit prime.
+
+    Consequence 1 -- the solve gap is not a mathematical quantity. Both the
+    enumeration oracle and the complete baseline decide the same predicate, so
+    Y_solve = Y_exist for every trial in which the solver is complete and finishes.
+    A measured solve_gap > 0 therefore decomposes entirely into (a) the declared
+    solver being incomplete, or (b) censoring. Case (a) would be a defect of the
+    solver, reportable as such. Case (b) is an infrastructure outcome that
+    AGENTS.md rule 3 forbids treating as negative mathematical evidence; the
+    protocol's own censored_trials rule nevertheless assigns Y_solve = 0 and keeps
+    the trial in the denominator N, and declared_p_lower_solve is the
+    Clopper-Pearson lower endpoint computed from that denominator, and that
+    endpoint is the quantity fed to GOAL-ICEX-001. So the chain from a timeout to
+    an ICEX relation-supply pin is three steps long and every step is written down
+    in the frozen artifact. The protocol is internally consistent and still routes
+    infrastructure into mathematics; the fix is a labelling and denominator rule,
+    not a new experiment.
+
+    Consequence 2 -- B-invariance of end-to-end relation collection. Under the
+    complete baseline:
+        cost per attempt        ~ C(B+m-2, m-1) ~ B^{m-1}/(m-1)!  root-findings
+        success per attempt     ~ C(2B+m-1, m)/N ~ (2B)^m/(m! N)   (small-mu regime)
+        attempts per relation   ~ m! N / (2^m B^m)
+        cost per relation       ~ m N / (2^m B)
+        relations needed        ~ B
+        TOTAL                   ~ m N / 2^m  root-findings, with no B in it.
+    The B-ladder redistributes a fixed total between "many cheap attempts" and
+    "few expensive attempts" and moves nothing. Two corollaries follow and both
+    are useful. (i) The total is Theta(N), i.e. worse than rho's Theta(sqrt(N)),
+    which is the standing corpus position (KN-TECH-003) now with an explicit
+    constant m/2^m -- and the constant is the only thing arity buys. (ii) Any
+    solver worth charging must beat B^{m-1} root-findings per attempt; the
+    quantity GOAL-ICEX-001 actually needs is not p_solve but the speedup ratio
+    (baseline cost)/(solver cost) at matched success set. That ratio is a
+    well-posed, cheap, solver-relative measurement, and it is what this proposal
+    asks the campaign to report instead.
+
+    Consequence 3 -- what the ladder should hold fixed. Because the total is
+    B-invariant under the baseline, a campaign that varies B while charging a
+    single solver measures the solver's B-scaling, not the problem's. The
+    honest design is to vary B with the DECIDER HELD FIXED at the baseline (which
+    gives a pre-derived flat line, a genuine forced value that can fail) and then
+    to vary the decider with B held fixed. The frozen protocol does the opposite.
+
+  novelty_status: known
+
+  literature_context:
+    - >-
+      KN-TECH-002 (Semaev summation polynomials). READ in this repository.
+      Supplies the degree bound 2^{n-2} in each variable and the explicit S_3,
+      which is what makes the m = 2 baseline a single square root. Also notes that
+      "Symmetry of S_n under coordinate permutation and point negation is
+      exploited to reduce solving cost" -- the baseline uses the same symmetry and
+      charging it is therefore not an unfair comparison.
+    - >-
+      KN-TECH-003 (point-decomposition index calculus). READ. States the standing
+      position: over prime fields "decomposition probability and Groebner cost
+      make it uncompetitive with rho". The B-invariance derivation reproduces that
+      conclusion from a complete baseline with an explicit constant, which is the
+      baseline-reproduction obligation of the proof-search map rather than a new
+      result.
+    - >-
+      KN-LIT-025 (Petit, Kosters, Messeng, PKC 2016). NOT READ -- relayed claim;
+      the corpus entry says the construction is "relayed from the abstract and
+      secondary sources" and that the authors' own framing is hedged to small
+      parameters. The whole point of a PKM-style algebraic or rational map is to
+      beat the naive decider, so the baseline derived here is exactly the thing
+      such a construction must be measured against. This proposal does not
+      evaluate PKM and the protocol's ARM-PKM-PRIME arm remains blocked on its own
+      materialisation gate.
+    - >-
+      KN-LIT-009 (Semaev 2015). NOT READ -- relayed claim. No statement about it
+      is made here.
+    - >-
+      The frozen protocol artifact for this goal
+      (coordination/goals/GOAL-RELN-001/batches/BATCH-001/tasks/TASK-20260725-661/decomp_probability_protocol.yaml).
+      READ in full. All quoted rules -- the Y_solve definition, the
+      censored_trials rule, the 120 s per-attempt budget, the
+      maximum_groebner_degree_cap of 32, the ICEX p_L_source_for_ICEX =
+      declared_p_lower_solve, and the confounder entry
+      "sympy_buchberger_not_optimized_F4" -- are quoted from that file.
+    - >-
+      EV-RELN-001. READ. Records the red team's PASS on the protocol and states
+      "No decomposition-probability measurement was performed". The red-team
+      report returned PASS and, on the record read, did not raise the solve-gap
+      vacuity or the censoring channel. That is stated as a fact about the review,
+      not as a criticism of the reviewer.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      (target R, factor base V, arity m, decider D)  -->  the pair
+      (success bit, charged cost). p_solve is the mean of the first coordinate;
+      C_rel_trial is the mean of the second.
+    what_is_discarded: >-
+      Which decomposition was found, how many exist, and every structural feature
+      of the instance. Only "did this decider succeed within budget, and what did
+      it spend" survives.
+    why_genuinely_lossy: >-
+      Genuinely lossy: the fibre over (1, c) contains every instance with at least
+      one decomposition findable at that cost.
+    why_compatible_with_the_operations: >-
+      Compatible, and that is the trouble. The success bit propagates
+      deterministically through the pipeline into the ICEX budget, and so does the
+      censoring that contaminates it -- the projection cannot tell a mathematical
+      zero from an exhausted budget, because it has discarded exactly the
+      information that would distinguish them.
+    is_it_only_a_change_of_coordinates: >-
+      Checked for both failures. Not a change of coordinates: (success, cost) is
+      strictly less information than the instance. Not the constant/mirror failure
+      either at the level of cost -- charged cost varies over orders of magnitude
+      across deciders. But the SUCCESS coordinate alone IS constant across
+      deciders, because every complete decider has the same success set, and that
+      is the finding: p_solve and p_exist are the same random variable measured
+      twice, so their difference has zero spread by construction and cannot
+      discriminate anything. The mirror failure is present in exactly one of the
+      two coordinates, and separating the two coordinates is the proposal.
+
+  assumptions:
+    - >-
+      That the declared solver is complete on the systems it is given. If the
+      frozen grevlex Groebner arm is complete (it should be: the ideal is
+      zero-dimensional once the f_V vanishing polynomials are included), the solve
+      gap is zero up to censoring. If some symmetry reduction makes it incomplete,
+      the gap is real but is then a property of that reduction and must be labelled
+      one.
+    - >-
+      That root-finding of a degree-2^{m-1} univariate over F_p is available. At
+      m = 2 this is a single modular square root and needs no library. At m = 3 it
+      is a degree-4 polynomial and Cantor-Zassenhaus in pure Python suffices at toy
+      p. No solver dependency is introduced.
+    - >-
+      That the ICEX consumer wants a probability per unit of charged work rather
+      than a probability per attempt. If it genuinely wants the latter with a
+      pinned solver, the finding reduces to a labelling requirement.
+
+  proof_search_map_note: >-
+    The paired hypothesis H-RELN-f697be carries the filled proof_search_map,
+    including the baseline reproduction against KN-TECH-003's standing position.
+
+  predictions:
+    - metric: >-
+        solve_gap = hat_p_exist - hat_p_solve at m = 2, with the complete baseline
+        decider substituted for the declared solver, at every ladder cell
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0, with zero censored trials, at every cell. Forced before any run.
+        A single nonzero value at m = 2 under the baseline falsifies the
+        completeness argument and the proposal is withdrawn.
+    - metric: >-
+        baseline_attempt_cost at m = 2: number of modular square roots per target
+      direction: different
+      minimum_effect: >-
+        EXACTLY B per target (one per element of V), independent of p and of the
+        target. A measured count differing from B means the decider is not the
+        one derived.
+    - metric: >-
+        budget_headroom_ratio: the protocol's declared 120 s per-attempt budget
+        divided by the measured wall clock of the complete baseline at the largest
+        m = 2 cell (bits = 16, B = 48)
+      direction: higher
+      minimum_effect: >-
+        >= 10^6. The point of the number is that ANY censoring observed under the
+        declared solver at these cells is attributable to the solver, by a margin
+        of at least six orders of magnitude, and therefore cannot be reported as
+        evidence about decomposition probability.
+    - metric: >-
+        end_to_end_relation_collection_cost under the complete baseline, measured
+        as total root-findings to obtain B independent relations, across the
+        B-ladder at fixed (p, m)
+      direction: different
+      minimum_effect: >-
+        FLAT IN B to within sampling noise, at the derived value m*N/2^m
+        root-findings (m/4 * N at m = 2, 3N/8 at m = 3). Pre-registered as a flat
+        line: a measured slope significantly different from zero in log(cost) vs
+        log(B) falsifies the invariance. This is the proposal's forced value and
+        it can fail.
+    - metric: >-
+        solver_speedup_ratio: baseline charged cost divided by declared-solver
+        charged cost, at matched success set, per cell
+      direction: different
+      minimum_effect: >-
+        NO PREDICTION IS MADE and none may be inferred. This is the quantity the
+        proposal argues should be measured and reported to ICEX in place of
+        p_solve; pre-registering a value for it would be exactly the error the
+        proposal is auditing. It is recorded as UNKNOWN with its measurement
+        procedure fixed in advance.
+    - metric: >-
+        environment_instantiability of the declared solver arm
+      direction: different
+      minimum_effect: >-
+        Binary, pre-registered as EXPECTED-BLOCKED: sympy and Sage are absent from
+        this container and src/ic_first_fall_fast.py fails to import
+        (ModuleNotFoundError: sage.all). If the declared solver cannot be
+        instantiated, that is INFRASTRUCTURE SIGNAL and an infrastructure request,
+        never negative mathematical evidence, and the baseline arm proceeds
+        unaffected because it needs nothing beyond the standard library.
+
+  minimal_test:
+    design: >-
+      Specified in EXP-RELN-66c1ab. Stages cheapest-first, each able to terminate.
+      STAGE 1 (zero compute): write the completeness argument and the B-invariance
+      derivation; if the derivation and KN-TECH-003's standing position disagree,
+      STOP and resolve. STAGE 2 (zero compute): re-read the frozen protocol's
+      censored_trials, probability_gate and icex_feed rules and trace, quoting them,
+      the exact path from a TIMEOUT to declared_p_lower_solve. STAGE 3 (seconds,
+      standard library only): implement the complete m = 2 baseline, verify solve
+      gap 0 and attempt cost B against enumeration ground truth. STAGE 4 (minutes):
+      measure end-to-end cost across the B-ladder and test the flat-line
+      prediction. STAGE 5 (attempt only): try to instantiate the declared solver
+      arm; record success or the exact infrastructure failure.
+    controls:
+      - >-
+        NULL OBJECT (same shape, forced value derived pre-run, CAN FAIL): run the
+        complete baseline against a target R drawn so that no decomposition exists
+        -- constructed by choosing R outside the sumset, which at toy sizes is
+        checkable exhaustively. Forced value: success 0, and cost EXACTLY the full
+        B square roots (no early exit). This null can fail: an early-exit
+        implementation would spend less than B, revealing that the charged cost is
+        data-dependent and that cost comparisons across arms are not matched.
+      - >-
+        POSITIVE CONTROL (the effect MUST appear): a planted target R = P_i + P_j
+        with P_i, P_j in the factor base. The baseline MUST return success and a
+        verifying certificate at every planted trial, and the enumeration oracle
+        must agree. If the baseline misses a planted decomposition, it is not
+        complete, the whole derivation is void, and NO NEGATIVE RESULT MAY BE
+        REPORTED from any arm.
+      - >-
+        GRADED CONTROL (>= 3 interior points, monotonicity reported): the
+        B-invariance prediction is itself graded. Across B in the ladder at fixed
+        (p, m), attempts-per-relation must scale as B^{-m} and cost-per-attempt as
+        B^{m-1}, with the product flat. Report all three sequences and their
+        fitted slopes: the two component slopes must be non-zero and opposite, and
+        the product slope must be zero. A flat product obtained from two flat
+        components would mean the instrument is not measuring what it claims.
+      - >-
+        SOLVER-SUBSTITUTION CONTROL: run enumeration, the baseline, and (if
+        instantiable) the declared solver on the identical trial set with identical
+        seeds, and check that the success sets are IDENTICAL as sets, not merely
+        equal in rate. Rate equality with different success sets would mean
+        something other than completeness is going on.
+      - >-
+        ORDERING CONTROL: the forced-value table (solve gap 0, attempt cost B,
+        flat product) is committed and hashed before any decider is run.
+    required_metrics:
+      - per-trial success bits from all available deciders, compared as sets
+      - per-trial charged cost in root-findings and in wall clock
+      - fitted slopes of attempts-per-relation, cost-per-attempt, and their product against B
+      - the quoted three-step path from TIMEOUT to declared_p_lower_solve, with line references
+      - the recorded instantiability outcome of the declared solver arm
+
+  falsification_conditions:
+    - >-
+      A nonzero solve gap at m = 2 under the complete baseline with no censoring.
+      Completeness is then wrong and the proposal is withdrawn.
+    - >-
+      The baseline missing a planted decomposition. Same consequence, and no
+      negative may be reported.
+    - >-
+      A measured non-flat product across the B-ladder under the baseline. The
+      B-invariance derivation is then wrong.
+    - >-
+      The protocol's censoring path, on re-reading, turning out to exclude censored
+      trials from the ICEX denominator after all. The rule-3 concern is then void
+      and must be withdrawn in those words.
+    - >-
+      The declared solver proving incomplete in a way that makes the gap a genuine
+      property of the solver. The finding then changes from "the gap is vacuous" to
+      "the gap measures solver incompleteness" and must be relabelled, not
+      suppressed.
+
+  confounders:
+    - >-
+      COMPLETENESS VS BUDGET. The two are easy to conflate and the whole finding
+      turns on separating them. Every trial records which of the two terminated it.
+    - >-
+      COST UNITS. Root-findings, field operations, and wall clock are different
+      currencies and the protocol's OBL-NO-SCALARIZATION forbids summing them. All
+      three are reported separately and no scalar cost is formed.
+    - >-
+      IMPLEMENTATION QUALITY. A slow pure-Python baseline could make the declared
+      solver look competitive. The baseline is therefore charged in root-findings
+      (an implementation-independent count) as the primary unit, with wall clock
+      secondary.
+    - >-
+      SMALL-mu REGIME. The B-invariance derivation uses the small-mu approximation
+      for success probability. At cells where mu approaches 1 the approximation
+      fails and the product is no longer flat -- for the honest reason that
+      coverage saturates. Cells with mu > 0.3 are pre-registered as outside the
+      flat-line test and are reported separately rather than excluded silently.
+    - >-
+      ADVOCACY. Deriving that someone else's discriminator is vacuous is cheap.
+      The positive control and the "no prediction" entry for the speedup ratio are
+      there so that the proposal cannot be satisfied by its own conclusion.
+
+  interpretation_limits:
+    - >-
+      This closes the H-SOLVE-GAP discriminator AS FROZEN at m = 2, and bounds
+      what the B-ladder can show under one specific complete decider. It does not
+      close the goal, does not say the Groebner arm is worthless (the speedup ratio
+      is exactly the open question), does not touch PKM, and does not say anything
+      about extension fields, where the whole point is that the decider is cheap.
+    - >-
+      The B-invariance is derived in the small-mu regime for a fixed arity m and a
+      fixed complete decider. It is not a statement about index calculus in general
+      and specifically not about extension-field constructions.
+    - >-
+      Toy scope. The protocol's prohibited_claims list is inherited verbatim; in
+      particular no crypto-scale relevance and no ECDLP attack improvement is
+      claimed or implied, and the Theta(N) total is a restatement of the corpus's
+      existing position, not a new negative result about ECDLP.
+
+  heuristic_assumptions:
+    - id: HEUR-RELN-C1
+      formal_statement: >-
+        Completeness of the fix-(m-1)-and-root-find decider is UNCONDITIONAL: every
+        solution of S_{m+1}(x_1,...,x_m,x(R)) = 0 with all x_i in V specialises
+        m-1 of its coordinates to elements of V, hence appears as a root of the
+        corresponding univariate. No heuristic content.
+      random_model_justification: not applicable
+      supporting_results:
+        - "KN-TECH-002 (internal, established): deg S_n in each variable = 2^{n-2}."
+      validation_experiment_ids: [EXP-RELN-66c1ab]
+      falsification_condition: The baseline missing any decomposition found by exhaustive enumeration.
+    - id: HEUR-RELN-C2
+      formal_statement: >-
+        Success probability per attempt is approximated by mu = C(2B+m-1,m)/N in
+        the regime mu << 1. This is the only heuristic step in the B-invariance
+        derivation.
+      random_model_justification: >-
+        The mean is exact (KN-FIND-007 conservation); the step from mean to
+        probability is the small-mu Poisson approximation, and its error is bounded
+        above by the exact ceiling coverage <= min(1, mu).
+      supporting_results:
+        - "KN-FIND-007 (internal, established): exact mean and the ceiling coverage <= min(1, mu)."
+      validation_experiment_ids: [EXP-RELN-66c1ab]
+      falsification_condition: >-
+        Measured success rate outside the Clopper-Pearson interval of mu at cells
+        with mu < 0.1.
+    - id: HEUR-RELN-C3
+      formal_statement: >-
+        Relations obtained from distinct successful targets are linearly
+        independent often enough that B relations suffice to fill the matrix, up to
+        a constant factor.
+      random_model_justification: >-
+        Standard index-calculus practice, and it is FLAGGED HERE BECAUSE IT IS
+        UNMEASURED IN THIS CORPUS: DEC-20260724-020's scope, as relayed, explicitly
+        excludes relation rank and independence. If the constant is not O(1) the
+        end-to-end total changes by that factor; the B-invariance itself does not,
+        because the factor multiplies a B-independent quantity.
+      supporting_results:
+        - "RELAYED, not verified: relation rank and independence are named as unmeasured in DEC-20260724-020's scope."
+      validation_experiment_ids: [EXP-RELN-66c1ab]
+      falsification_condition: >-
+        Measured rank deficiency growing with B at toy scale, which would make the
+        relation count B-dependent and break the invariance.
+
+  target_complexity:
+    time_exponent: >-
+      Under the complete baseline, end-to-end relation collection for prime-field
+      point decomposition costs ~ m*N/2^m root-findings, i.e. exponent 1 in N,
+      against rho's 1/2. THIS PROPOSAL MOVES NO EXPONENT and does not claim to; it
+      makes the existing exponent explicit with its constant and shows the constant
+      is the only thing arity m buys (m/2^m is maximised at m = 1 and 2 and decays
+      thereafter). Its exponent relevance is negative and precise: it shows the
+      goal's independent variable B cannot move the exponent under a complete
+      decider, so any exponent movement must come from the decider.
+    memory_exponent: >-
+      Baseline memory is the factor base itself, O(B) points, plus O(1) working
+      space per attempt -- charged here because the corpus's own audit found 82 of
+      229 evidence records never mention memory. The linear-algebra stage, which
+      the protocol names but sets to zero for a calibration campaign, is O(B) rows
+      and is the one stage whose cost grows with B.
+    best_known: >-
+      Pollard rho at O(sqrt(N)) time, negligible memory, over prime fields
+      (KN-TECH-003). Nothing here approaches it and nothing here claims to.
+    hidden_overhead: >-
+      The root-finding cost factor Otilde(2^{m-1} log p) is inside the "root-finding"
+      unit and is reported separately so that unit conversions are auditable.
+    tradeoff_note: >-
+      The B-ladder is a pure redistribution: attempts scale as B^{-m}, per-attempt
+      cost as B^{m-1}, product flat, with the linear-algebra stage growing in B.
+      Charged across time, memory and query axes as required.
+
+  dominated_by: >-
+    Pareto rows checked, on the question "cheapest complete decider for one
+    prime-field Semaev decomposition attempt": (TIME) exhaustive enumeration at
+    C(B+m-1,m) group operations -- DOMINATED BY the baseline, which is
+    C(B+m-2,m-1) root-findings, a factor ~B/m fewer for m >= 2; (TIME, other
+    direction) any Groebner-based decider -- UNKNOWN and unmeasured in this corpus,
+    which is precisely the gap the proposal asks to fill, so this field cannot be
+    null and cannot be resolved here; (MEMORY) the baseline uses O(B) for the
+    factor base and O(1) working space, which no enumeration or Groebner variant
+    improves on; (DATA/QUERIES) all deciders consume the same targets, so no row
+    separates them. On the END-TO-END question the dominating result is Pollard rho
+    at O(sqrt(N)) time and negligible memory, which dominates the entire
+    prime-field point-decomposition family on both time and memory; that is stated
+    explicitly rather than left implied.
+  sota_delta: >-
+    Quantitative, and negative where it should be. (1) Solve gap: forced from an
+    unmeasured quantity to exactly 0 at all sixteen m = 2 ladder cells. (2) Decider
+    cost at m = 2: from unspecified to exactly B modular square roots per target,
+    against a declared per-attempt budget of 120 s -- a headroom of at least 10^6.
+    (3) End-to-end: from an assumed function of B to the constant m*N/2^m
+    root-findings, exponent 1 in N with an explicit constant, flat in B.
+    (4) Replaces the ICEX pin p_solve with the solver speedup ratio, a quantity
+    with a defined denominator.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.88 that the completeness and B-invariance derivations survive as stated.
+    Not higher because the small-mu approximation is load-bearing for the flat-line
+    prediction and several ladder cells sit at mu near or above 1, where the line
+    must bend for an honest reason and could be mistaken for a falsification; and
+    because HEUR-RELN-C3 (relation independence) is unmeasured in this corpus by
+    that corpus's own account. Not lower because the completeness argument is a
+    one-line specialisation argument, because the m = 2 cost of B square roots is
+    directly checkable, and because the resulting Theta(N) total reproduces the
+    corpus's independently recorded standing position (KN-TECH-003) rather than
+    contradicting it -- a baseline-reproduction check that the derivation passes.
+    Separately, 0.60 that the rule-3 censoring concern survives re-reading of the
+    protocol; the protocol is carefully written and it is entirely possible that a
+    rule elsewhere in it excludes censored trials from the ICEX denominator, in
+    which case that half is withdrawn.

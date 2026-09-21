@@ -1,0 +1,366 @@
+# TASK-20260803-fb52f4 / GOAL-MLKEM-003 / BATCH-011
+# Every modelling assumption this package's numbers rest on, numbered, with a
+# statement, a justification, a falsifier, and whether THIS batch validated it.
+#
+# An unnumbered assumption is a defect. Where a heuristic could not be validated
+# here, `validation_status` says so and `cost_to_the_conclusion` says what that
+# costs.
+#
+# NOTHING IN THIS PACKAGE WAS MEASURED. All figures are cost-model estimates from
+# a pinned lattice-estimator plus these choices.
+
+meta:
+  task_id: TASK-20260803-fb52f4
+  goal_id: GOAL-MLKEM-003
+  batch_id: BATCH-011
+  estimator_pin: 3e48ef421ec256afddb3e7d2249a77eab6e9ba12
+  harness: tools/sage_free_estimator (Sage-free shim + known-answer control)
+  results_file: results.json
+  recorded_at: '2026-08-03'
+
+heuristics:
+
+  - id: H1
+    statement: >-
+      The Sage-free harness may be used for a research figure only insofar as it
+      reproduces the archived Sage-computed reference RUN-MLKEM-015-001 exactly
+      (primal_bdd, delta 0.0) and the archived dual reference within 1e-9.
+    justification: >-
+      tools/sage_free_estimator/README.md: a subtly wrong shim produces plausible
+      numbers, and this campaign lost three batches to exactly that. The shim
+      asserts nothing on its own authority.
+    falsifier: known_answer_control.py exits non-zero, or any delta is non-zero.
+    validation_status: validated_this_batch
+    validated_by: >-
+      CTRL-1, run as a subprocess BEFORE any other computation. Exit 0.
+      primal_bdd delta 0.00e+00 on Kyber512/768; dual_hybrid(fft=True) delta
+      3.13e-13 / 2.27e-13. Output recorded verbatim in results.json and
+      run_stdout.log.
+
+  - id: H2
+    statement: >-
+      The object EV-MLKEM-015 compared the published figures against is
+      `estimator.lwe_dual.dual_hybrid(params, red_cost_model=RC.MATZOV, fft=True)`,
+      giving 143.788478 / 203.787863 / 273.817268.
+    justification: >-
+      EV-MLKEM-015 observations name "dual_hybrid+fft ... 143.79 / 203.79 /
+      273.82"; the harness control pins the first two to an archived Sage value.
+    falsifier: >-
+      The reproduced value differs from EV-MLKEM-015's by more than 0.01 bits.
+      The script raises this as an anomaly automatically; none fired.
+    validation_status: validated_this_batch
+    validated_by: CTRL-2 (all three sets reproduced; no anomaly raised).
+
+  - id: H3
+    statement: >-
+      `estimator.lwe_dual.matzov` is the pinned estimator's implementation of
+      MATZOV-2022 Theorem 7.6, and it is what the estimator's public
+      `LWE.dual_hybrid` name resolves to. `estimator.lwe_dual.dual_hybrid` is a
+      DIFFERENT function - the Espitau-Joux-Kharchenko dual hybrid with the
+      Guo-Johansson FFT solver bolted on - and is NOT the estimator's MATZOV
+      attack.
+    justification: >-
+      Checked against the pinned source. estimator/lwe.py:13 reads
+      `from .lwe_dual import matzov as dual_hybrid`. estimator/lwe_dual.py:496
+      defines `class MATZOV` documented "See [AC:GuoJoh21] and [MATZOV22]" whose
+      `cost` docstring is "Theorem 7.6" and which carries k_enum, k_fft, an
+      optimised FFT modulus p, T_fftf/T_tablef from MATZOV Thm 7.6 p.38-39, and
+      Nf from MATZOV p.29. estimator/lwe_dual.py:742 defines the unrelated
+      `dual_hybrid` over `DualHybrid`, whose distinguisher `fft_solver`
+      (lwe_dual.py:191) hardcodes the FFT modulus to 2 and cites the
+      Independence Heuristic of ia.cr/2023/302.
+    falsifier: >-
+      The two functions return the same cost at the same parameters. They do not:
+      the difference is D1 = 4.13 / 7.42 / 11.48 bits.
+    validation_status: checked_against_pinned_source_and_exercised
+
+  - id: H4
+    statement: >-
+      Supplying Sage's `RealNumber.n(prec)` to estimator/lwe_dual.py:607 by
+      rebinding `estimator.lwe_dual.exp` inside this process is faithful to Sage
+      and does not change any value the harness control covers.
+    justification: >-
+      Without it `matzov` raises AttributeError in this harness - the same class
+      of gap BATCH-010 defect D4 found for `dual`/`primal_hybrid`. The patch
+      rounds to `prec` bits via mpmath.workprec, which is what Sage's `.n(prec)`
+      does. It writes nothing; tools/sage_free_estimator is unmodified.
+    falsifier: >-
+      Any controlled value moves under the patch, OR the result depends on the
+      rounding convention.
+    validation_status: validated_this_batch
+    validated_by: >-
+      CTRL-2 (primal_bdd delta 0.0, dual_hybrid delta <= 3.13e-13 under the
+      patch); CTRL-4 (replacing 30-bit rounding with full 200-bit precision moves
+      the matzov optimum by 0.0 / 1.41e-11 / 0.0 bits).
+    cost_to_the_conclusion: >-
+      None detectable. But the patched `matzov` path is NOT covered by the
+      harness's own archived Sage reference; its Sage cover comes from H5.
+
+  - id: H5
+    statement: >-
+      The doctest outputs committed inside estimator/lwe.py at the pin are
+      Sage-computed reference values authored by the lattice-estimator
+      maintainers, and therefore serve as a known-answer control for the
+      `matzov` path that the repository harness does not cover.
+    justification: >-
+      They are committed in the upstream repository at commit 3e48ef4, which
+      predates this repository's Sage-free shim entirely, and lattice-estimator
+      requires Sage. estimator/lwe.py:124 (RC.MATZOV default) and
+      estimator/lwe.py:55 (RC.ADPS16, core-SVP) both give Kyber512 dual_hybrid
+      (= matzov) output including beta, p, zeta, t and beta'.
+    falsifier: >-
+      The patched harness fails to reproduce a committed doctest value.
+    validation_status: validated_this_batch
+    validated_by: >-
+      CTRL-3. RC.MATZOV: got rop 139.6560 red 139.5466 guess 135.8809 beta 387
+      p 5 zeta 0 t 50 beta' 391 against the committed
+      "rop: 2^139.7, red: 2^139.5, guess: 2^135.9, beta: 387, p: 5, zeta: 0,
+      t: 50, beta': 391" - every integer parameter exact, every log2 to the
+      printed precision. RC.ADPS16: 115.5099 / 115.3400 / 112.3397, beta 395,
+      p 5, zeta 0, t 40, beta' 395 against the committed 115.5 / 115.3 / 112.3,
+      395, 5, 0, 40, 395.
+    cost_to_the_conclusion: >-
+      The Sage cover it provides is at Kyber512 only, under two cost models. The
+      Kyber768 and Kyber1024 matzov figures remain an UNCOVERED PATH with no
+      Sage-computed reference, exactly as EV-MLKEM-020 uses that term.
+
+  - id: H6
+    statement: >-
+      Carrier et al. (CRYPTO 2025 / hal-05406481) claim costs 139.5 / 195.1 /
+      259.7 for Kyber-512/768/1024, in a gate-count nearest-neighbour cost model.
+    justification: >-
+      SOURCED TO AN ARCHIVED BYTE.
+      inputs/MLKEM-DUAL-SOURCES-20260802/carrier_hal_front_matter.txt, abstract:
+      "the security levels for Kyber-512/768/1024 are 3.5/11.9/12.3 bits below
+      the NIST requirements (143/207/272 bits) in the same nearest-neighbor cost
+      model as in [SAB+20,MAT22]". 143-3.5 = 139.5, 207-11.9 = 195.1,
+      272-12.3 = 259.7.
+    falsifier: A different archived byte of the same revision gives other figures.
+    validation_status: sourced_to_archived_bytes
+    note: >-
+      The archived Table C.2 (extracts/carrier-hal-05406481/page37_tables_C1_C2.txt)
+      gives CC log2(Tsample) 139.51 / 194.81 / 259.35, which reproduces the
+      Kyber-512 headline to 0.01 bits but sits 0.29 / 0.35 bits below the 768 and
+      1024 headlines. That 0.29/0.35 is an internal difference of the archived
+      source, not something this batch resolves. Table 5.1 itself was not
+      archived; EV-MLKEM-016 records that it matches the authors' optimiser pickle.
+
+  - id: H7
+    statement: >-
+      MATZOV-2022 claims costs 137.5 / 193.5 / 257.8 for Kyber512/768/1024,
+      log2 in the gate-count metric.
+    justification: >-
+      SOURCED TO AN ARCHIVED BYTE.
+      inputs/MLKEM-DUAL-SOURCES-20260802/matzov_v2_loci.txt (and matzov_v1_loci.txt),
+      Table 1: "All of the costs are log2 in the gate-count metric",
+      "This Work" column 137.5 / 193.5 / 257.8.
+    falsifier: A different archived revision gives other figures.
+    validation_status: sourced_to_archived_bytes
+
+  - id: H8
+    statement: >-
+      The NIST classical cutoffs are 143 / 207 / 272 bits.
+    justification: >-
+      SECONDARY SOURCE ONLY. The "Required Security Level By NIST [Nat16]" column
+      of the archived MATZOV Table 1, and the parenthetical "(143/207/272 bits)"
+      in the archived Carrier abstract. NO PRIMARY NIST OR FIPS 203 TEXT IS
+      READABLE under this program's network policy - EV-MLKEM-015 records this as
+      a boundary and EV-MLKEM-020 H11 records it as UNVERIFIABLE.
+    falsifier: Primary NIST text gives different values.
+    validation_status: unverified_and_unverifiable_in_this_environment
+    cost_to_the_conclusion: >-
+      Every "below the cutoff" statement in gap_report.md inherits this. The
+      cutoffs enter only where a margin is quoted; the gap decomposition itself
+      (estimator vs published) does not depend on them at all.
+
+  - id: H9
+    statement: >-
+      Stages 2, 3 and 4 relax OPTIMISER choices inside the estimator's own
+      MATZOV Theorem-7.6 cost function, not the cost model itself; so each stage
+      minimises the same objective over a superset and D2, D3, D4 >= 0 by
+      construction, each being a LOWER bound on what that axis is worth.
+    justification: >-
+      Checked against the pinned source. estimator/lwe_dual.py:657-658 searches
+      k_enum and k_fft on a STEP-10 grid via early_abort_range(..., 10);
+      lwe_dual.py:583-584 fixes the sample count to m = params.n and never
+      optimises it; lwe_dual.py:576 exposes beta_sieve but matzov.__call__ never
+      passes it. All four stages call the identical MATZOV.cost.
+    falsifier: >-
+      A stage returns a value ABOVE its predecessor, or the refinement machinery
+      fails to reproduce the estimator's own optimum when restricted to the
+      estimator's own grid point.
+    validation_status: validated_this_batch
+    validated_by: >-
+      CTRL-7, per parameter set: the refiner restricted to the coarse optimum
+      reproduces stage 1 to < 1e-9 on all three sets. This control CAN fail and
+      is not an identity. All D2/D3/D4 came out >= 0.
+    cost_to_the_conclusion: >-
+      The boxes are LOCAL (p in [2,8], k_enum +-8, k_fft +-8, beta +-8; m over
+      [0.6n, n] step 2; beta_sieve over auto +-60 step 2). A global re-optimum
+      could be lower still, so D2+D3+D4 UNDERSTATES the estimator-side slack and
+      the unattributed residual reported against MATZOV-2022 is an UPPER bound.
+
+  - id: H10
+    statement: >-
+      The decomposition is additive in log2 and STAGE-ORDERED: D1 then D2 then D3
+      then D4. The split of bits between D2, D3 and D4 depends on that order.
+    justification: >-
+      The axes are not independent - the optimal beta moves when m moves - so
+      only the TOTAL attributed (S0 - S4) and the first term D1 (which is
+      order-independent, being a change of function at each function's own
+      optimum) are order-free.
+    falsifier: Running the stages in a different order changes D2/D3/D4.
+    validation_status: unvalidated_this_batch
+    cost_to_the_conclusion: >-
+      D2, D3 and D4 individually must be read as "what this axis is worth GIVEN
+      the preceding relaxations", not as canonical shares. D1 and the total are
+      not affected.
+
+  - id: H11
+    statement: >-
+      RC.GJ21 minus RC.MATZOV isolates the MATZOV sieve gate-count re-costing,
+      because estimator/reduction.py:963 defines `class MATZOV(GJ21)` overriding
+      NOTHING except the NN_AGPS coefficient table.
+    justification: >-
+      Checked against the pinned source: the class body contains only __name__
+      and NN_AGPS; short_vectors, d4f, __call__ and delta are all inherited.
+      For list_decoding-classical the coefficients move (a, b) from
+      (0.2988026130564745, 26.011121212891872) to
+      (0.29613500308205365, 20.387885985467914).
+    falsifier: >-
+      The measured difference disagrees with MATZOV's own claim. MATZOV's
+      archived text (matzov_v2_loci.txt, contribution 2) says "the cost of
+      sieving is reduced by ~ 6 bits in rank 400". This batch computes 5.5551 /
+      6.5465 / 6.2462 bits at sieve dimensions 391 / 583 / 804. Consistent.
+    validation_status: validated_this_batch_against_the_primary_claim
+
+  - id: H12
+    statement: >-
+      Dimensions-for-free is applied by BOTH sides and is therefore not a
+      candidate explanation of the gap; it is nonetheless sized so a reader can
+      see what it would have been worth.
+    justification: >-
+      Estimator side: RC.MATZOV inherits Kyber.d4f (reduction.py:753) through
+      GJ21 and applies it at reduction.py:903. Published side: MATZOV's archived
+      contribution 3 says the BKZ phase "enjoys the so-called dimensions-for-free
+      trick [Duc18]" and the final sieve runs "this time without using
+      dimensions-for-free ... we use a different block size for this task" -
+      which is exactly the estimator's beta / beta_sieve split. Carrier's
+      archived Table C.1 prints beta_bkz and beta_sieve as separate columns with
+      beta_sieve near beta_bkz, the same structure.
+    falsifier: >-
+      Turning d4f off changes the estimator's cost by an amount comparable to the
+      gap AND the published analyses can be shown not to use it.
+    validation_status: validated_this_batch
+    validated_by: >-
+      AXIS B. Disabling d4f raises the matzov cost by 7.9984 / 10.3055 / 12.9912
+      bits (d4f(beta*) = 35.68 / 47.86 / 61.10). Large, and applied on both
+      sides, so it cancels.
+
+  - id: H13
+    statement: >-
+      The published figures are gate counts, NOT core-SVP counts; a units
+      mismatch of that kind is not the explanation.
+    justification: >-
+      Both primary sources declare their units (H6, H7). And the size is wrong by
+      a factor: AXIS C shows the same estimator attack costs 115.510 / 174.324 /
+      241.756 under the core-SVP RC.ADPS16 against 139.656 / 196.366 / 262.336
+      under the gate-count RC.MATZOV - a units difference of 24.15 / 22.04 /
+      20.58 bits, against a gap of 4.29 / 8.69 / 14.12.
+    falsifier: >-
+      The published figures land within a bit of the core-SVP column. They do
+      not: Carrier's 139.5 is 23.99 bits above the Kyber512 core-SVP figure.
+    validation_status: validated_this_batch_and_rejected_as_an_explanation
+
+  - id: H14
+    statement: >-
+      The archived Carrier Table C.1 columns are read as
+      (m, beta_bkz, beta_sieve, n_enu, n_fft, k_fft, n_lat, ...) in the printed
+      order, and n_enu + n_fft + n_lat = n identifies the secret-coordinate split.
+    justification: >-
+      The identity holds on all nine archived rows (3 variants x 3 parameter
+      sets), which is an arithmetic check the transcription could have failed.
+    falsifier: Any row's split fails to sum to n.
+    validation_status: validated_this_batch
+    validated_by: CTRL-5, 9 of 9 rows.
+    explicitly_unsourced: >-
+      The MEANING of Carrier's `k_fft` column is NOT sourced. The offsets
+      log2(TFFT) - k_fft*log2(q) = 18.6921 / 19.3378 / 19.7734 across the three sets are
+      consistent with an FFT over Z_q^{k_fft}, but this is inference from the
+      archived numbers, not a quotation, and it is marked unsourced. Nothing in
+      the decomposition depends on it.
+
+  - id: H15
+    statement: >-
+      The residual against MATZOV-2022 is NOT attributable in this instrument to
+      Carrier's polar-code decoder, to Carrier's replacement of enumeration by
+      "assume the secret is zero on the enumerated part and iterate", or to
+      MATZOV's own optimiser exploring a parameter space the estimator does not.
+    justification: >-
+      None of these is implemented in lattice-estimator at the pin. Carrier's
+      archived abstract states the polar-code substitution and the zero-secret
+      iteration as its two departures from MATZOV; the estimator implements
+      neither, and `estimator.lwe_dual.MATZOV.Nf` carries the comment
+      "p.29, we're ignoring O()".
+    falsifier: >-
+      An independent implementation of either ingredient reproduces the residual.
+    validation_status: UNSIZED_WITH_REASON
+    reason_unsized: >-
+      The instrument does not implement them and this task authorises no new
+      solver. Sizing them requires code that does not exist in this harness.
+
+  - id: H16
+    statement: >-
+      Carrier's headline is dominated by its sampling term, so comparing the
+      estimator's TOTAL rop against Carrier's headline is comparing quantities
+      whose dominant terms are the same object (the sieve sampling cost).
+    justification: >-
+      Archived Table C.2, CC rows: log2(Tsample) 139.51 / 194.81 / 259.35 against
+      log2(TFFT) 124.00 / 183.15 / 242.09 and log2(N*Tdec) 117.71 / 157.74 /
+      204.17. Summing the three powers of two moves the total by 3.131e-5 /
+      4.458e-4 / 9.192e-6 bits, to 139.510031 / 194.810446 / 259.350009 - which
+      reproduces the H6 headline 139.5 to 0.0100 bits but sits 0.2896 / 0.3500
+      bits below the 195.1 / 259.7 headlines. The estimator's matzov splits the
+      same way: at Kyber512,
+      red = 139.5466 against guess = 135.8809.
+    falsifier: A non-dominant term becomes comparable at some parameter set.
+    validation_status: checked_from_archived_bytes_arithmetically
+
+  - id: H17
+    statement: >-
+      The success-probability and repetition bookkeeping differs between the two
+      sides and is NOT sized here.
+    justification: >-
+      The estimator's MATZOV.Nf hardcodes mu = 0.5 (lwe_dual.py:539) and
+      matzov.__call__ applies no outer repetition factor; `repetitions` is not
+      even a field of its cost dictionary. `dual_hybrid(fft=True)` reports
+      repetitions = 1 on all three sets. Carrier's archived Table C.2 carries
+      log2(R) = 9.39 / 9.49 / 15.15 for the CC variant, which is an outer
+      iteration count with no counterpart in the estimator's MATZOV path.
+    falsifier: >-
+      Exposing mu and the repetition count and sweeping them moves the estimator
+      cost by an amount comparable to the residual.
+    validation_status: UNSIZED_WITH_REASON
+    reason_unsized: >-
+      mu is a hardcoded literal inside Nf and R has no estimator counterpart;
+      sizing either means changing the cost model, which the frozen-model rule
+      forbids without an amendment. Recorded as an unsized named difference, as
+      the task card requires, rather than absorbed into the residual silently.
+
+  - id: H18
+    statement: >-
+      The served attack set is narrower than "the dual attack". `arora_gb`,
+      `dual` and `primal_hybrid` do not execute in this harness, and `matzov`
+      executes only under the H4 patch and only under reduction cost models whose
+      `short_vectors` accepts a `sieve_dim` keyword.
+    justification: >-
+      The harness control prints the first three by name after running them.
+      RC.Kyber additionally fails for `matzov` with
+      "Kyber.short_vectors() got an unexpected keyword argument 'sieve_dim'",
+      recorded in results.json AXIS A rather than dropped.
+    falsifier: One of them runs and returns a finite cost.
+    validation_status: validated_this_batch
+    cost_to_the_conclusion: >-
+      No statement in this package may say "best attack". Every comparison is
+      scoped to primal_bdd, dual_hybrid(fft=True) and matzov under the named
+      reduction cost models.

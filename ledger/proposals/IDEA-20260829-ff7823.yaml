@@ -1,0 +1,861 @@
+idea:
+  id: IDEA-20260829-ff7823
+  question_id: RQ-SCURVE-6a4cd3
+  goal_id: GOAL-SCURVE-cef9f7
+  added: '2026-08-29'
+  status: proposed
+  proposed_by: idea-generator
+  title: >-
+    THE SEED CHAIN IS NOT A SEQUENCE OF INDEPENDENT DRAWS - at l = 384 the NIST
+    procedure has v = 2, so consecutive seeds share two of their three hash
+    blocks. Track the BLOCK DECOMPOSITION of c rather than its integer value,
+    derive the exact shift identity c(s) mod 2^160 = floor(c(s+1)/2^160) mod 2^160
+    with no hashing at all, and settle whether the sharing makes the acceptance
+    events along a seed scan dependent - which is the assumption every
+    manipulation cost model in this family silently makes.
+  class: mechanism
+
+  claim: >-
+    NIST P-384 is the only one of this program's three NIST rows with
+    v = floor((l-1)/160) = 2, so its hash chain has THREE blocks where P-224 and
+    P-256 have two. That is not a size detail; it changes the structure of the
+    seed-to-curve map along the seed-increment direction, which is exactly the
+    direction the SafeCurves manipulation model searches in. Four separable
+    claims.
+
+    (C1) AN EXACT IDENTITY, PROVED, NO HEURISTIC, NO HASHING NEEDED TO STATE IT.
+    Write c(s) in blocks as specified by SP 800-186 C.3.1 with l = 384, hdigest =
+    160, v = 2, w = 384 - 320 - 1 = 63:
+      c(s) = h0(s) * 2^320 + H(s+1) * 2^160 + H(s+2),
+    where H is SHA-1 as an integer, h0(s) is the 63 rightmost bits of H(s), and
+    the seed increment is mod 2^160. Then for EVERY seed s,
+      c(s) mod 2^160 = H(s+2) = floor(c(s+1) / 2^160) mod 2^160,
+    and additionally
+      floor(c(s+1) / 2^320) = h0(s+1) = H(s+1) mod 2^63
+                            = (floor(c(s) / 2^160) mod 2^160) mod 2^63.
+    THE SECOND RELATION IS THE INTERESTING ONE: the 63-bit top block of c(s+1) is
+    the low 63 bits of the MIDDLE block of c(s). So consecutive c values agree in
+    160 + 63 = 223 of their 383 bits, at shifted positions. This is a theorem about
+    the standard's own text, it costs zero compute to check, and it is checkable
+    against the published P-384 c by computing c(s+1) once.
+
+    (C2) A RIGOROUS COST CONSEQUENCE, AND IT IS ONLY A CONSTANT FACTOR - SAID
+    PLAINLY. A generator scanning consecutive seeds recomputes only ONE new SHA-1
+    per candidate, not v + 1 = 3, because H(s+1) and H(s+2) are already in hand
+    from the previous step. The hash stage of a P-384 seed scan therefore costs a
+    factor of 3 less than the naive count. THIS IS A CONSTANT FACTOR AND IT DOES
+    NOT MOVE ANY EXPONENT. It is also, per IDEA-20260829-0656b1, not the dominant
+    cost - the point count is - so its practical significance is small. It is
+    reported because it is exactly true and because a cost model that gets it wrong
+    by 3x on the wrong term is a cost model nobody checked.
+
+    (C3) THE FALSIFIABLE STRUCTURAL HYPOTHESIS, WHICH IS THE ACTUAL EXPERIMENT.
+    Two theories of what the block sharing does to a seed scan, and they predict
+    different measurements.
+    THEORY A, COSMETIC SHARING. The map from c to b (via b^2 congruent -27/c) and
+    thence to #E destroys the block alignment completely, so the acceptance events
+    I(s), I(s+1), I(s+2), ... along a consecutive-seed scan are statistically
+    independent Bernoulli(rho) draws. PREDICTED OBSERVABLE: the number of
+    acceptances in a window of W consecutive seeds is Binomial(W, rho); the
+    variance-to-mean ratio of window counts is 1 - rho, indistinguishable from the
+    independent-seed control.
+    THEORY B, PROPAGATING SHARING. The 223 shared bits induce measurable dependence
+    in the acceptance events - most plausibly through I_qr, since the Legendre
+    symbol of -27/c(s) and of -27/c(s+1) are symbols of two integers agreeing in
+    223 of 383 bits. PREDICTED OBSERVABLE: overdispersion or underdispersion of
+    window counts relative to Binomial(W, rho), detectable at W = 1000 and
+    10^4 windows.
+    THE MEASUREMENT SEPARATES THEM DIRECTLY AND EITHER OUTCOME IS A NUMBER THIS
+    PROGRAM DOES NOT HAVE. Theory B, if true, means every manipulation cost model
+    that treats a seed scan as independent draws - including the one implicit in
+    the SafeCurves rigid page and the one in IDEA-20260829-0656b1 - is using the
+    wrong variance, and the correction is measurable.
+
+    (C4) A SHARPER AND CHEAPER PROBE OF THE SAME QUESTION, RUN FIRST. Before any
+    curve is built, measure the correlation of the LEGENDRE SYMBOL alone:
+    chi(-27/c(s)) versus chi(-27/c(s+1)) over 10^6 consecutive seeds, against the
+    same over 10^6 independent seed pairs. PREDICTED correlation indistinguishable
+    from zero in both, with the consecutive case bounded by Weil-type
+    equidistribution. A nonzero correlation in the consecutive case ONLY would
+    localise the dependence to the residuosity stage, which is the cheapest
+    possible localisation and needs no point counting whatever.
+
+  mechanism: >-
+    THE TRACKED OBJECT is the BLOCK DECOMPOSITION VECTOR of c, that is the tuple
+    B(s) = (h0(s), H(s+1), H(s+2)) of block contents together with their bit
+    widths (63, 160, 160), rather than the integer c(s) they assemble to.
+
+    LOSSY-PROJECTION TEST, applied BEFORE any experiment, and it is the reason
+    this object is worth tracking rather than the integer.
+    WHAT IS DISCARDED. The integer c is DISCARDED as an integer: its arithmetic
+    meaning, its residue class, its size relative to p, and everything the
+    subsequent b^2 congruent -27/c step does with it. Also discarded are 97 of the
+    160 bits of H(s), since only the low 63 survive into h0. So a 480-bit hash
+    triple plus a 384-bit assembly collapses to a labelled 383-bit string that
+    remembers WHERE its blocks came from and forgets what they mean.
+    IS IT A CHANGE OF COORDINATES? No, and the argument is exact rather than
+    heuristic. From B(s) one cannot recover s: h0(s) is a 63-bit truncation of a
+    160-bit digest, so at least 2^97 seeds share any given h0 by counting alone,
+    and inverting SHA-1 on the other blocks is not available. From B(s) one also
+    cannot recover the curve, since b requires a square root that may not exist.
+    The fibre is enormous and the projection is genuinely one-way.
+    IS THE DISCARD COMPATIBLE WITH THE OPERATIONS? THIS IS THE WHOLE POINT AND IT
+    IS WHY THE BLOCK OBJECT IS THE RIGHT ONE. Under the operation that matters -
+    SEED INCREMENT s -> s+1 - the block vector propagates by a SHIFT-AND-REPLACE
+    that is deterministic and costs one hash:
+      B(s+1) = (H(s+1) mod 2^63, H(s+2), H(s+3)),
+    where the first two entries are computable from B(s) alone once H(s+1) is
+    retained at full width, and only H(s+3) is new. The INTEGER c has no such
+    one-step propagation - c(s+1) is not a function of c(s) - so the integer view
+    literally cannot see this structure, and that asymmetry is the concrete sense
+    in which the block object is new rather than a renaming. Under the second
+    operation, ASSEMBLY to an integer, the projection is deterministic but
+    IRREVERSIBLE at the block boundaries once w is not a multiple of 4, which at
+    l = 384 it is not (w = 63). PASSES on both operations.
+    WHERE IT DISSOLVES. At the square root. Once b is extracted from c the block
+    boundaries are destroyed - b's bits are not a function of c's blocks in any
+    aligned way - and the object stops propagating. THAT DISSOLUTION POINT IS
+    EXACTLY THEORY A, AND THE EXPERIMENT MEASURES WHETHER IT IS TOTAL OR PARTIAL.
+    The object's survival distance is therefore not a guess: it is the measured
+    quantity.
+
+    WHY 384 AND NOT 224 OR 256. At l = 224 and l = 256 we have v = 1, so
+    c(s) = h0(s) * 2^160 + H(s+1) and c(s+1) = h0(s+1) * 2^160 + H(s+2). The
+    sharing between consecutive c values is then only the 63 or 95 bits of
+    h0(s+1) = H(s+1) mod 2^w, which are already inside c(s)'s low block - one
+    relation, not two, and only w bits, not 160 + w. AT l = 384 THE SHARING IS
+    223 BITS ACROSS TWO RELATIONS AND INCLUDES A FULL 160-BIT BLOCK. P-384 is
+    therefore the only row in this program's NIST set where the phenomenon is
+    large enough to be worth measuring, and the record's title claim that this is
+    a P-384-specific structure is a claim about v, checkable in one line.
+
+    WHY THIS IS NOT IDEA-20260829-bba3a8 OR IDEA-20260829-0656b1. bba3a8 verifies a
+    single seed against a single coefficient and counts what the predicate binds; it
+    never looks at two seeds. 0656b1 measures a MARGINAL acceptance rate from
+    INDEPENDENT seeds and explicitly assumes independence when it reports binomial
+    intervals. THIS RECORD ATTACKS THAT ASSUMPTION, and if Theory B holds then
+    0656b1's confidence intervals are wrong and must be widened. The three records
+    are a chain, not a repetition, and this one is the only one that can falsify a
+    premise of another.
+
+    EXECUTION. Step 1, prove C1 symbolically from the C.3.1 text and freeze it as a
+    unit test on synthetic hash outputs, with NO real seed involved - the identity is
+    about the assembly rule, not about SHA-1. Step 2, verify C1 on the real P-384
+    seed by computing c(s) and c(s+1) and checking both relations exactly. Step 3,
+    run C4's Legendre-correlation probe, which needs no curves. Step 4, run C3's
+    window-dispersion measurement at reduced sizes chosen so that v = 2 is preserved
+    (see the assumptions - this requires scaling hdigest, and the choice is
+    load-bearing). Step 5, the independent-seed control and the synthetic-hash null.
+
+  novelty_status: unverified
+  novelty_rationale: >-
+    The identity C1 is an immediate consequence of the published assembly rule and
+    is almost certainly `known` to anyone who has implemented the procedure; the
+    analogous overlap in the Brainpool curves is publicly documented (see
+    IDEA-20260829-b70376 and IDEA-20260829-494a63, and the BADA55 mirror page read
+    this session). What I could not check is whether the DEPENDENCE QUESTION of C3
+    has been asked or answered for the NIST chain. The label is `unverified` because
+    NO WEB SEARCH WAS PERFORMED THIS SESSION and the BADA55 paper itself was not
+    opened; per agents/idea-generator.md that is the honest label. A reviewer with
+    retrieval should check BADA55 Section 5 and the ANSI X9.62 rationale first.
+  novelty_screen:
+    method: >-
+      Run 2026-08-29. Same corpus screen as IDEA-20260829-bba3a8. Additional
+      targeted reads: SP 800-186 C.3.1 and C.3.2 in full;
+      inputs/SAFECURVES-20260825/specs/bada55-brainpool.html lines 60-134, which
+      documents the analogous Brainpool overlap; inputs/SAFECURVES-20260825/
+      pages/rigid.txt in full.
+    results: >-
+      No record in ledger/ or knowledge/ contains any block-decomposition analysis,
+      any seed-chain correlation measurement, or any dispersion statistic for a
+      curve-generation pipeline. The four prior SafeCurves proposals do not
+      consider two seeds at once. The Brainpool overlap is documented publicly and
+      is the nearest known analogue; whether the same has been written down for the
+      NIST chain, where v = 2 only at 384 and 521 bits, I do not know and did not
+      check.
+
+  citations:
+    - ref: inputs/SAFECURVES-20260825/specs/sp800-186.txt
+      provenance: internal
+      claim: >-
+        Section C.3.1 defines v = floor((l-1)/hdigest), w = l - hdigest*v - 1,
+        h = HASH(s), h0 the w rightmost bits of h, s_i the binary expansion of
+        (z + i) mod 2^hdigest for i = 1..v, h = h0 || h1 || ... || hv, and c the
+        integer with that binary expansion; hdigest = 160 with SHA-1 for the
+        Section 3.2.1 curves. Section 3.2.1.4 publishes for P-384:
+        p = 2^384 - 2^128 - 2^96 + 2^32 - 1, cofactor h = 1 with n prime, b =
+        27580193559959705877849011840389048093056905856361568521428707301988689241
+        309860865136260764883745107765439761230575, Seed 0xa335926a a319a27a
+        1d00896a 6773a482 7acdac73, and c = 0x79d1e655 f868f02f ff48dcde e14151dd
+        b80643c1 406d0ca1 0dfe6fc5 2009540a 495e8042 ea5f744f 6e184667 cc722483.
+      verified_by: >-
+        Read tool, 2026-08-29. TARGETED reads only: lines 6355-6474 and 6594-6713
+        (C.3.1 and C.3.2 in full), plus the grep context covering the Section
+        3.2.1.2-3.2.1.4 parameter blocks. Section 3 was NOT read. The extraction is
+        a lossy PDF rendering with mangled mathematical symbols; the block-assembly
+        rule and the v/w formulas came through legibly and the congruence signs did
+        not, and that difference is why this record's central identity is about the
+        assembly rule rather than about the verification predicate.
+    - ref: inputs/SAFECURVES-20260825/specs/bada55-brainpool.html
+      provenance: internal
+      claim: >-
+        A SafeCurves-hosted page reporting that "there is a highly nonrandom overlap
+        of digits between the pseudo-random coefficients A and B in most of the
+        Brainpool curves", attributed to Bernstein and Lange 2013, and displaying
+        brainpoolP256r1's A ending in 26DC5C6CE94A4B44F330B5D9 and B beginning with
+        the same 24 hex digits. It attributes both this and a separate finding to
+        "a rather complicated mechanism by which Brainpool decided which SHA-1
+        inputs to use for various portions of A and B", and points to BADA55 paper
+        Section 5. IT DOES NOT DISCUSS THE NIST CHAIN AT ALL.
+      verified_by: >-
+        Read tool, 2026-08-29, lines 60-134 of the HTML file plus a grep pass over
+        the whole file for quantitative markers. This is an HTML MIRROR PAGE OF THE
+        BADA55 WEB SITE, not the BADA55 paper. Read as the nearest documented
+        analogue of the mechanism proposed here, in a DIFFERENT standard; it is
+        cited to establish that the phenomenon class is real and documented
+        elsewhere, NOT as evidence about NIST P-384.
+    - ref: ledger/questions/RQ-SCURVE-6a4cd3.yaml
+      provenance: internal
+      claim: >-
+        The P-384 intake tuple with modulus 2^384 - 2^128 - 2^96 + 2^32 - 1, b
+        matching the SP 800-186 value character for character on my visual
+        comparison, expected_criteria with rigid = false and twist = true, and the
+        additional diagnostic "deterministic parameter-generation transcript audit".
+      verified_by: >-
+        Read tool, 2026-08-29, lines 1-46 (header, question and full intake block).
+        The b comparison against SP 800-186 was made BY EYE on two decimal strings
+        of 115 digits and is NOT machine-checked; the executor must redo it.
+    - ref: 'ledger/proposals/IDEA-20260829-bba3a8.yaml and IDEA-20260829-0656b1.yaml'
+      provenance: internal
+      claim: >-
+        The validated c(s, l) routine and its perturbed-seed null; and the marginal
+        acceptance-rate measurement whose binomial confidence intervals assume
+        independence of seeds - the assumption this record tests.
+      verified_by: >-
+        Authored in this same session, 2026-08-29, and written to
+        ledger/proposals/. Neither has been executed or reviewed.
+    - ref: 'ledger/proposals/IDEA-20260829-d052e6.yaml and IDEA-20260829-f89a3a.yaml'
+      provenance: internal
+      claim: >-
+        The exhaustive-census and blocking-control discipline reused here, and the
+        ECDLP frontier row list used in dominated_by below.
+      verified_by: >-
+        FULL reads of both files (789 and 785 lines), Read tool, 2026-08-29.
+    - ref: KN-LIT-4290
+      provenance: internal
+      claim: >-
+        BADA55, "How to manipulate curve standards", the nearest prior work on
+        curve-generation search cost, whose Section 5 the SafeCurves mirror page
+        names as containing the detailed analysis of the Brainpool SHA-1 input
+        mechanism.
+      verified_by: >-
+        FULL read of knowledge/literature/KN-LIT-4290.md, all 39 lines, Read tool,
+        2026-08-29. THE PAPER ITSELF WAS NOT OPENED AND ITS PDF IS NOT IN THIS
+        REPOSITORY. The BADA55 material that IS in this repository is TWO HTML
+        MIRROR PAGES OF THE BADA55 WEB SITE, NOT THE PAPER -
+        inputs/SAFECURVES-20260825/specs/bada55.html and
+        inputs/SAFECURVES-20260825/specs/bada55-brainpool.html. Of those,
+        bada55-brainpool.html was read in this session (lines 60-134 plus a grep
+        pass over the whole file) and is cited separately above; bada55.html was NOT
+        opened at all. Section 5 - which is in the paper, not on the mirror pages -
+        is exactly where a reviewer should look before crediting this record with
+        novelty, and it is absent from this repository.
+    - ref: >-
+        Weil's bound on character sums, in the form giving equidistribution of the
+        Legendre symbol along a sparse or structured sequence
+      provenance: recalled
+      claim: >-
+        Bounds character sums over algebraic sequences by O(sqrt(p)), which is what
+        would be needed to turn C4's predicted zero correlation into a theorem
+        rather than a measurement. NOT RETRIEVED. NAMED BECAUSE THE HONEST POSITION
+        IS THAT IT DOES NOT DIRECTLY APPLY: the sequence c(s), c(s+1), ... is
+        defined by SHA-1, not by a polynomial, so no character-sum bound is
+        available for it and the correlation genuinely must be measured rather than
+        proved. That gap is the reason C4 is an experiment.
+      verified_by: null
+
+  assumptions:
+    - >-
+      Executor has a shell, Python 3 with hashlib and arbitrary-precision integers,
+      and 14 cores. C1, C2 and C4 need no curves at all and run in minutes; only C3
+      needs point counting.
+    - >-
+      No point-counting backend at 384 bits and none is used. C3's dispersion
+      measurement runs at reduced size.
+    - >-
+      THE REDUCED-SIZE DESIGN FOR C3 IS LOAD-BEARING AND MUST PRESERVE v = 2. With
+      hdigest fixed at 160, every l below 321 gives v <= 1 and the phenomenon under
+      test does not exist. The executor must therefore SCALE hdigest DOWN - for
+      example hdigest = 16 using SHA-1 truncated to 16 bits, with l = 34 giving
+      v = floor(33/16) = 2 and w = 34 - 32 - 1 = 1 - so that the block structure is
+      the same shape as at 384. THE TRUNCATION IS A DEVIATION FROM THE STANDARD AND
+      MUST BE DECLARED IN EVERY LINE OF THE OUTPUT. A reduced-size run with v = 1
+      is measuring a different object and must not be reported as bearing on P-384.
+    - >-
+      IDEA-20260829-bba3a8 has passed its Stage 1. A wrong block order in the c
+      routine would make C1 trivially true or trivially false for the wrong reason.
+    - >-
+      Parameters enter only from the frozen package with paths recorded. No live
+      keys; all instances are public parameters or generated in-session.
+
+  proof_search_map:
+    bottleneck: >-
+      That every cost model in this family - SafeCurves' own "search through many
+      choices of s", 1999 Scott's "generate a million random seeds", and
+      IDEA-20260829-0656b1's binomial intervals - treats a seed scan as a sequence
+      of INDEPENDENT draws, and nobody has checked whether it is. At v = 2 the
+      procedure demonstrably reuses two thirds of its randomness between consecutive
+      steps, so the independence assumption is not obviously true. Removing this
+      bottleneck does not change any exponent; it changes whether the variance in
+      every downstream cost statement is right.
+    baseline_embedding:
+      parameter_slice: >-
+        At v = 0 the identity C1 degenerates to the empty statement, since c(s) is a
+        single truncated block and shares nothing with c(s+1). At v = 1 it
+        degenerates to the single relation floor(c(s+1)/2^160) = c(s) mod 2^{160}
+        restricted to w bits, which is exactly the l = 224 and l = 256 case. The
+        general statement must reproduce both degenerate cases exactly, and the
+        implementation must be checked at v = 0, 1, 2 and 3 rather than only at the
+        value it was written for.
+      reproduction_check: >-
+        A frozen fixture over SYNTHETIC block contents - replace SHA-1 by a stub
+        returning a known distinct constant per input - and assert the block
+        identities symbolically at v = 0, 1, 2, 3. This is a symbolic reproduction,
+        not a plot that looks similar to a baseline, and it isolates the assembly
+        rule from the hash entirely. Then, separately, the real-seed check on P-384.
+    observation_collision:
+      observable: >-
+        For C1, the pair of block-identity Booleans. For C3, the dispersion
+        statistic of window acceptance counts. The conclusion rests on these, so
+        their identifiability must be attacked first.
+      distinct_preimage_search: >-
+        REQUIRED, AND FOR C1 THE ANSWER IS THAT COLLISIONS ARE TOTAL AND HARMLESS -
+        the identity holds for EVERY seed and every hash function, so the observable
+        carries no information about SHA-1 or about P-384 specifically. It is a
+        statement about the assembly rule and the record must never present it as a
+        discovery about the curve. FOR C3 THE COLLISION IS THE SERIOUS ONE: a
+        dispersion statistic equal to the binomial value is consistent with (i)
+        genuine independence, (ii) dependence too weak to detect at the sample size
+        used, and (iii) a bug in the window construction that shuffles seeds. THE
+        SEPARATING CONDITIONS, which the design must supply: (i) versus (ii) is
+        separated by a pre-registered POWER CALCULATION stating the smallest
+        dependence the sample can detect, so that a null result is reported as
+        "dependence below delta" rather than as "independent"; (ii) versus (iii) is
+        separated by a planted-dependence positive control in which an artificial
+        correlation of known strength is injected and must be recovered.
+    constructive_transforms:
+      - transform: stronger_invariant
+        proposed_object: >-
+          Preserve the BLOCK DECOMPOSITION of c rather than the integer c, because
+          the block structure is what survives the seed-increment recursion and the
+          integer is not. This is the section-8 "preserve more state than the final
+          goal requires" transform applied literally: the goal needs only c, but
+          only the block vector propagates in one step.
+        predicted_gain: >-
+          A one-step propagation rule that makes the seed chain analysable at all,
+          and an exact 223-bit agreement statement at l = 384 where the integer view
+          sees nothing. Without the block object there is no question to ask.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the acceptance bit I(s) fixed and vary the forgotten structure - the
+          block contents - to determine whether the fibre is the same for
+          consecutive and independent seeds. That comparison IS the dispersion
+          measurement.
+        predicted_gain: >-
+          Either a correction factor for every downstream variance in this family,
+          or a measured upper bound on the dependence with a stated detection
+          threshold. Both are numbers this program lacks.
+    quantifier_order: >-
+      C1 IS CLAIMED UNIFORMLY AND UNCONDITIONALLY. FOR ALL hash functions H, FOR ALL
+      hdigest, FOR ALL l with v = floor((l-1)/hdigest) >= 1, and FOR ALL seeds s,
+      the block identities hold. No witness depends on the instance and no
+      cryptographic property of SHA-1 is used - this is deliberately the weakest
+      possible hypothesis and the strongest possible quantifier.
+      C2 IS CLAIMED UNIFORMLY over consecutive-seed scans and is an amortised
+      statement: the factor v + 1 to 1 holds in the limit of long scans and NOT for
+      a single evaluation, which is stated because a per-evaluation reading would be
+      wrong.
+      C3 AND C4 ARE CLAIMED EXISTENTIALLY AND AT REDUCED SIZE ONLY. FOR THE
+      SPECIFIC reduced parameters tested THERE EXISTS a measured dispersion statistic
+      with a stated detection threshold. NOT CLAIMED - that the same holds at
+      l = 384 with hdigest = 160. That transfer is heuristic H2 and it is the
+      record's principal exposure.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "For the NIST pseudorandom-curve assembly rule at v >= 1, consecutive seeds
+        produce c values agreeing in 160(v-1) + w bits at determined positions -
+        proved and verified on the published P-384 seed - and, at reduced parameters
+        preserving v = 2, the acceptance events along a consecutive-seed scan are
+        independent to within a measured threshold delta." IT CANNOT CERTIFY
+        independence at l = 384, only bound the dependence at reduced size. IT
+        CERTIFIES NOTHING about whether P-384 was generated by a scan, nothing about
+        intent, and nothing about P-384's security.
+      nearby_object_control: >-
+        THE NEAREST OBJECT ON WHICH THE STRUCTURE FAILS IS THE SAME PROCEDURE WITH
+        A NON-INCREMENTING SEED SCHEDULE. Replace s_i = (z + i) mod 2^hdigest by
+        s_i = HASH(s || i), which is a one-line change producing a procedure of
+        identical cost and identical output distribution but with NO block sharing
+        between consecutive seeds. The C1 identity must FAIL on it and the C3
+        dispersion must equal the independent-seed control. A method that cannot
+        distinguish the incrementing schedule from the re-hashing schedule has not
+        identified the load-bearing structure, which is the increment and not the
+        hash. THIS CONTROL IS BLOCKING. SECOND NEARBY OBJECT - the same procedure at
+        v = 1, that is P-224 or P-256, where the sharing is w bits instead of
+        160 + w; the measured dependence must be correspondingly weaker, giving a
+        dose-response check rather than a single comparison.
+    proof_obligations:
+      - claim: >-
+          c(s) mod 2^160 = H(s+2) = floor(c(s+1)/2^160) mod 2^160 for l = 384,
+          hdigest = 160.
+        responsibility: correctness
+      - claim: >-
+          floor(c(s+1)/2^320) = (floor(c(s)/2^160) mod 2^160) mod 2^63 for the same
+          parameters.
+        responsibility: correctness
+      - claim: >-
+          The general block identity holds for all v >= 1 and reduces correctly at
+          v = 0 and v = 1.
+        responsibility: baseline
+      - claim: >-
+          A consecutive-seed scan costs one hash per candidate amortised, versus
+          v + 1 for independent seeds.
+        responsibility: runtime
+      - claim: >-
+          The dispersion statistic's detection threshold delta is computed BEFORE the
+          measurement and reported alongside any null result.
+        responsibility: success_probability
+      - claim: >-
+          The planted-dependence positive control recovers an injected correlation of
+          known strength.
+        responsibility: baseline
+      - claim: >-
+          The re-hashing-schedule nearby control shows no block sharing and no excess
+          dispersion.
+        responsibility: strictness
+      - claim: >-
+          The reduced-size design preserves v = 2, and every reported number states
+          the hdigest used.
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        the two block identities of C1, evaluated on the published P-384 seed and on
+        10^4 random seeds
+      direction: different
+      minimum_effect: >-
+        PREDICTED TRUE IN ALL 10001 CASES, exactly, with zero exceptions. This is a
+        theorem about the assembly rule and any exception means the c routine
+        implements a different rule than SP 800-186 C.3.1 states - which would
+        immediately invalidate IDEA-20260829-bba3a8's certificate as well. A single
+        failure halts both records.
+    - metric: >-
+        number of bits in which c(s) and c(s+1) agree at determined positions, for
+        l = 384
+      direction: different
+      minimum_effect: >-
+        PREDICTED EXACTLY 223 of 383, that is 58.2 percent, derived from
+        160(v-1) + w = 160 + 63 before any computation. For l = 256 the same formula
+        predicts 95 of 255, that is 37.3 percent, and for l = 224 it predicts 63 of
+        223, that is 28.3 percent. The three-value pattern is the dose-response
+        prediction and getting one of the three wrong falsifies my reading of the
+        assembly rule.
+    - metric: >-
+        amortised SHA-1 calls per candidate in a consecutive-seed scan at l = 384,
+        measured by instrumenting the hash function
+      direction: lower
+      minimum_effect: >-
+        PREDICTED 1.00 plus or minus 0.01 for scans of length at least 10^4, against
+        3.00 for independent seeds. A measured value near 3 means the implementation
+        is not caching and the constant-factor claim, while still true of the
+        procedure, is not true of THIS implementation - which must then be said
+        plainly rather than reported as if the theory were the measurement.
+    - metric: >-
+        correlation between chi(-27/c(s)) and chi(-27/c(s+1)) over 10^6 consecutive
+        seeds, versus the same over 10^6 independent pairs
+      direction: different
+      minimum_effect: >-
+        PREDICTED both indistinguishable from zero, with 95 percent intervals of
+        half-width about 2 * 10^{-3} at 10^6 samples. THE TWO OUTCOMES ARE DIFFERENT
+        THEORIES - zero in both means the residuosity stage destroys the block
+        sharing completely and Theory A is supported at the cheapest possible stage;
+        a nonzero consecutive correlation with a zero independent one LOCALISES the
+        dependence to the residuosity stage, is measurable with no curves at all, and
+        would be the most surprising and most reportable outcome in this record.
+    - metric: >-
+        variance-to-mean ratio of acceptance counts in windows of W = 1000
+        consecutive seeds, over 10^4 windows, at reduced parameters with v = 2,
+        compared against the same for independent seeds
+      direction: different
+      minimum_effect: >-
+        PREDICTED both equal to 1 - rho within 3 standard errors of the dispersion
+        statistic, that is Theory A. MINIMUM DETECTABLE EFFECT MUST BE COMPUTED AND
+        PUBLISHED BEFORE THE RUN; a pre-registered power calculation at these sample
+        sizes is expected to detect a pairwise correlation of about 0.01 or larger,
+        so a null result licenses "pairwise dependence below 0.01" and NOTHING
+        STRONGER. Reporting a null as "independent" without the threshold is the
+        specific dishonesty this record pre-commits against.
+    - metric: >-
+        the same dispersion statistic under the re-hashing seed schedule
+        s_i = HASH(s || i)
+      direction: different
+      minimum_effect: >-
+        PREDICTED equal to the independent-seed value, with the C1 identity FAILING.
+        This is the blocking nearby-object control. If the re-hashing schedule shows
+        the same dispersion as the incrementing one AND the identity fails, the
+        experiment has correctly isolated the increment; if the identity fails but
+        the dispersion still differs, something other than block sharing is driving
+        the effect and the mechanism is misidentified.
+    - metric: >-
+        recovery of a planted correlation of known strength in the positive control
+      direction: higher
+      minimum_effect: >-
+        PREDICTED recovery of an injected pairwise correlation of 0.05 with at least
+        99 percent power. A dispersion instrument that has never detected a
+        dependence cannot certify an absence of dependence, which is
+        IDEA-20260807-98a970's rule applied here, and this control is BLOCKING.
+
+  minimal_test:
+    design: >-
+      STAGE 0, ZERO COMPUTE, MINUTES, AND IT IS THE CHEAPEST FALSIFIER. Derive the
+      block identity symbolically from the C.3.1 text for general v and specialise to
+      v = 0, 1, 2, 3. Predict the three agreement-bit counts (63 at l = 224, 95 at
+      l = 256, 223 at l = 384) and record them BEFORE running anything.
+      STAGE 1, THE CHEAPEST VALID DISCRIMINATOR, SECONDS. Implement the identity
+      check with a STUB hash returning distinct constants, and assert both relations
+      symbolically at v = 0, 1, 2, 3. Then run it with real SHA-1 on the published
+      P-384 seed and on 10^4 random seeds. This settles C1 completely, requires no
+      curves, no primes and no point counting, and its failure would simultaneously
+      invalidate IDEA-20260829-bba3a8 - which is precisely why it is the first thing
+      to run in this whole six-record batch after bba3a8's own Stage 1.
+      STAGE 2, MINUTES. C4's Legendre-correlation probe at l = 384 with the real
+      prime - 10^6 consecutive seeds and 10^6 independent pairs, no curves.
+      STAGE 3, ZERO COMPUTE. The power calculation for Stage 4, published before
+      Stage 4 runs.
+      STAGE 4, HOURS. C3's dispersion measurement at reduced parameters preserving
+      v = 2, with the independent-seed control, the re-hashing-schedule control and
+      the planted-dependence positive control, all at the same sample size.
+      STAGE 5, MINUTES. The dose-response check - the same dispersion measurement at
+      v = 1 and v = 3, predicted monotone in the number of shared bits.
+    controls:
+      - >-
+        BLOCKING POSITIVE, PLANTED DEPENDENCE - inject a pairwise correlation of
+        known strength 0.05 into the acceptance sequence and require the dispersion
+        statistic to recover it with at least 99 percent power. An instrument never
+        shown to detect dependence cannot certify independence.
+      - >-
+        BLOCKING NEARBY-OBJECT NEGATIVE - the re-hashing seed schedule
+        s_i = HASH(s || i), identical cost and output distribution, no block sharing.
+        The C1 identity must fail and the dispersion must match the independent
+        control.
+      - >-
+        NULL, SAME SHAPE - the identical dispersion measurement on independent
+        uniformly drawn seeds, same sample size, same code path.
+      - >-
+        SYMBOLIC NULL - the identity check with a stub hash, which isolates the
+        assembly rule from SHA-1 entirely and catches the block-order and endianness
+        defects that are the likeliest implementation errors here.
+      - >-
+        DOSE-RESPONSE - v = 1 and v = 3 in addition to v = 2, with 63/95, 223 and
+        383 shared bits respectively; any measured dependence must be monotone in the
+        shared-bit count or the mechanism is misidentified.
+      - >-
+        DEGENERATE-INPUT CONTROL - seeds near the wraparound 2^160 - 1, where
+        (z + i) mod 2^160 rolls over. The identity must still hold, and an
+        implementation that ignores the modulus fails here and nowhere else, which
+        makes this the single most valuable one-line control in the record.
+    required_metrics:
+      - 'per v in {0,1,2,3}, the symbolic identity check result on stub hashes'
+      - 'the two block identities on the real P-384 seed, as exact integer comparisons'
+      - 'the predicted and observed agreement-bit counts at l = 224, 256, 384'
+      - 'the instrumented amortised hash count per candidate, scan versus independent'
+      - 'the Legendre correlation with its exact confidence interval, consecutive and independent'
+      - 'the pre-registered minimum detectable correlation for the dispersion test'
+      - 'the dispersion statistic for consecutive, independent, re-hashed and planted sequences'
+      - 'the dose-response table across v'
+      - 'the hdigest used at reduced size, on every single output line'
+      - 'wall clock, core-hours and all RNG seeds'
+
+  falsification_conditions:
+    - >-
+      The C1 identity fails on the stub-hash symbolic check at any v. My reading of
+      the assembly rule is wrong; HALT, and note that this also invalidates
+      IDEA-20260829-bba3a8's c routine, so both records stop until it is reconciled.
+    - >-
+      The C1 identity holds symbolically but fails on the real P-384 seed. The
+      implementation differs from the specification it was checked against - almost
+      certainly a wraparound or endianness defect - and the degenerate-input control
+      is the place to look first.
+    - >-
+      The observed agreement-bit count differs from 160(v-1) + w at any tested l.
+      The formula is wrong and every derived statement is withdrawn.
+    - >-
+      The planted-dependence positive control does not recover the injected
+      correlation. The dispersion instrument has no power; NO null result may be
+      reported from it, and the C3 experiment is void rather than negative.
+    - >-
+      The re-hashing-schedule control shows the same C1 identity. The identity is not
+      caused by the increment and the mechanism is misidentified.
+    - >-
+      Excess dispersion is observed in the consecutive-seed sequence AND in the
+      independent-seed control. The effect is an artifact of the window construction
+      or the RNG, not of the seed schedule; nothing is reported.
+    - >-
+      The reduced-size design is found to have v = 1 rather than 2 after the fact.
+      The experiment measured a different object and its results do not bear on
+      P-384 at all.
+
+  confounders:
+    - >-
+      THE IDENTITY IS ABOUT THE RULE, NOT ABOUT P-384. C1 holds for every seed and
+      every hash function. A write-up that presents it as a property discovered in
+      the NIST P-384 parameters has committed the central available dishonesty here,
+      and the record pre-commits against it: the real-seed check is a CONSISTENCY
+      test of the implementation, not a finding about the curve.
+    - >-
+      THE REDUCED-SIZE TRUNCATION IS A DEVIATION FROM THE STANDARD. Running with
+      hdigest = 16 is not running SP 800-186. It preserves the block SHAPE and
+      changes the hash, and any dependence measured there transfers to hdigest = 160
+      only under heuristic H2. A 16-bit truncated SHA-1 has far more structure than
+      full SHA-1 and could manufacture a dependence that does not exist at 160 bits -
+      which is the single most likely way to get a FALSE POSITIVE in this record.
+    - >-
+      A NULL DISPERSION RESULT IS AN UPPER BOUND, NOT INDEPENDENCE. Without the
+      pre-registered power calculation the null is uninterpretable, and with it the
+      claim is "dependence below delta". Every downstream citation must carry delta.
+    - >-
+      THE CONSTANT FACTOR OF 3 IS ON THE WRONG TERM. Per IDEA-20260829-0656b1 the
+      dominant cost of a seed scan is the point count, not the hash, so a threefold
+      saving on hashing changes the total by a factor no reader should care about.
+      Reporting C2 without that context would overstate it by orders of magnitude and
+      the record says so here rather than in a footnote.
+    - >-
+      SHA-1 IS NOT A RANDOM ORACLE AND NOTHING HERE ASSUMES IT IS FOR C1 OR C2. C3
+      and C4 are measurements precisely because no theorem is available; invoking
+      SHA-1's collision weakness would be a category error and is not done anywhere
+      in this record.
+
+  interpretation_limits:
+    - >-
+      RIGIDITY'S COUNTERFACTUAL IS NOT A COMPUTABLE OBJECT AND THIS RECORD DOES NOT
+      TOUCH IT. Nothing here bears on whether P-384's seed was chosen before or after
+      its coefficient, on whether any scan was performed, or on anyone's intent. The
+      archived audit plan's closure stands verbatim. This record analyses the
+      STRUCTURE OF A PUBLISHED PROCEDURE, which is a different object from the history
+      of its use.
+    - >-
+      NO NUMBER HERE IS A SECURITY STATEMENT ABOUT P-384. The block identity, the
+      hash-count factor and the dispersion statistic say nothing about the ECDLP, the
+      group order or the twist.
+    - >-
+      C1 AND C2 ARE PROVED; C3 AND C4 ARE MEASUREMENTS AT REDUCED PARAMETERS. The
+      transfer of C3 to l = 384 with hdigest = 160 is heuristic H2 and has no rigorous
+      support. Cost does not transfer and no cost claim is made at full size.
+    - >-
+      TRANSFER TO THE OTHER 19 CURVES, STATED EXACTLY. (a) THE IDENTITY TRANSFERS TO
+      EVERY HASH-DERIVED CURVE WITH v >= 1, with the shared-bit count 160(v-1) + w
+      changing per size - 63 bits for NIST P-224, 95 for NIST P-256, 223 for P-384.
+      The two sibling NIST goals may cite the formula and should measure the
+      dose-response rather than re-derive it. (b) IT TRANSFERS IN MODIFIED FORM to
+      the Brainpool rows, whose procedure uses the SAME increment-and-concatenate
+      structure with w = l - 160v - 1 in find_integer_2, but applies it TWICE with an
+      offset between the A seed and the B seed, producing a cross-coefficient overlap
+      rather than a cross-seed one. That is a genuinely different and publicly
+      documented phenomenon and it is the subject of IDEA-20260829-494a63, not of
+      this record. (c) NO TRANSFER - ANSSI FRP256v1 has no published procedure.
+      (d) NO TRANSFER AT ALL to the thirteen fully rigid rows, which have no hash
+      chain; the instrument must refuse them.
+    - >-
+      A REFUSAL AND AN UNDERPOWERED NULL ARE DIFFERENT OUTPUTS and must be recorded
+      differently. Refusal means the object is undefined; an underpowered null means
+      it is defined and the measurement could not see it.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The acceptance events along a consecutive-seed scan are exchangeable and
+        their pairwise dependence is captured by a single correlation parameter;
+        formally, for the acceptance indicators I(s), I(s+1), ..., I(s+W-1) the count
+        sum_j I(s+j) has mean W*rho and variance W*rho*(1-rho)*(1 + (W-1)*kappa) for a
+        single intra-scan correlation kappa, so that a measured
+        variance-to-mean ratio identifies kappa.
+      rigorous_support: >-
+        The RIGOROUS half is the block identity C1, which is a theorem and which
+        establishes that the seeds are NOT independent inputs - 223 of 383 bits are
+        shared at determined positions. So the question "is there dependence in the
+        inputs" is answered rigorously and affirmatively; only the question "does it
+        survive to the outputs" is heuristic. The single-parameter exchangeable model
+        imitates the standard intraclass-correlation model used for clustered
+        Bernoulli data, and it is an IDEALISATION: real dependence induced by a shift
+        structure would plausibly decay with lag rather than being constant, so a
+        single kappa may fit badly. THE PLAN THEREFORE ALSO REPORTS THE LAG-1 THROUGH
+        LAG-5 AUTOCORRELATIONS SEPARATELY, so that a bad single-parameter fit is
+        visible rather than absorbed.
+      validation_plan: >-
+        SAMPLING - 10^4 windows of W = 1000 consecutive seeds at reduced parameters
+        preserving v = 2, plus 10^4 matched windows of independent seeds, plus 10^6
+        consecutive and 10^6 independent seed pairs for the Legendre probe at the REAL
+        384-bit prime, which is the one part of this that runs at full size. All RNG
+        seeds, the hdigest, and the reduced l recorded. COMPARISON DISTRIBUTION - the
+        window-count distribution against the exact Binomial(W, rho-hat), by an exact
+        dispersion test with the null rho-hat taken from the independent control
+        rather than from theory, so a mis-specified rho cannot masquerade as
+        dependence. TAIL CHECK - the observed maximum window count against the
+        binomial upper tail; under-dispersion is as informative as over-dispersion and
+        both tails are checked, since a shift structure could plausibly produce
+        either. LAG STRUCTURE - autocorrelations at lags 1 to 5, predicted all zero
+        under Theory A and predicted to decay under any shift-driven mechanism, which
+        distinguishes the two proposed mechanisms rather than merely detecting one.
+        TRANSFER - the Legendre probe transfers nothing because it runs at full size;
+        the dispersion measurement transfers under H2 and that is stated wherever its
+        number appears.
+    - id: H2
+      statement: >-
+        A dependence measurement made at reduced parameters (hdigest = 16, l = 34,
+        v = 2) transfers to the standard parameters (hdigest = 160, l = 384, v = 2);
+        formally, the intra-scan correlation kappa is a function of the block
+        SHAPE (v, w/l) and not of the digest width, so kappa(16, 34) equals
+        kappa(160, 384) up to o(1).
+      rigorous_support: >-
+        NONE, AND IT IS THE WEAKEST ITEM IN THIS RECORD. It is materially weaker than
+        the analogous size-transfer assumptions elsewhere in this batch, because it
+        transfers across a change in the HASH FUNCTION and not merely across a change
+        in integer size: a 16-bit truncation of SHA-1 has a 2^16 output space in which
+        collisions are common, and collisions between H(s+2) computed in two different
+        windows would manufacture dependence that does not exist at 160 bits. The
+        direction of the bias is therefore KNOWN AND ADVERSE - the reduced-size
+        experiment is biased TOWARD detecting dependence - which is stated because a
+        biased experiment whose bias direction is known is far more interpretable
+        than one whose bias is unexamined.
+      validation_plan: >-
+        THREE PARTIAL CHECKS, NONE DISCHARGING IT. (i) DIGEST-WIDTH LADDER - run the
+        dispersion measurement at hdigest = 16, 20, 24 and 28 with l scaled to keep
+        v = 2, and report kappa-hat as a function of digest width. PREDICTED
+        approximately constant under H2 and DECREASING toward zero if the effect is
+        collision-driven; that is a genuine discriminator between the two
+        explanations of any positive result, and it is the check that makes a positive
+        result interpretable at all. (ii) COLLISION ACCOUNTING - count the actual
+        digest collisions in each run and report kappa-hat before and after removing
+        colliding windows. (iii) FULL-SIZE PARTIAL - the Legendre correlation probe of
+        C4 runs at the REAL 384-bit prime with full SHA-1 and needs no point counting,
+        so it gives one full-size dependence measurement on one stage of the pipeline.
+        A null there does not settle the acceptance-level question but it does place a
+        full-size upper bound on the residuosity-stage contribution, which is the stage
+        the block sharing would most plausibly reach.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED AND THIS RECORD MOVES NO EXPONENT. Under
+      docs/target-result-profile.md it would rank low as research direction and is
+      dispatched measurement work under a declared goal; C2's factor of 3 is a
+      CONSTANT and the record says so in its own claim text rather than dressing it
+      up. AUDIT COST: C1 is one integer comparison per seed after v + 1 hashes, so
+      O(l^2) bit operations; C2 is an instrumentation count; C4 is 10^6 Legendre
+      symbols at 384 bits, that is 10^6 modular exponentiations of 384-bit numbers,
+      about a minute in Python on one core and seconds on 14; C3 at reduced size is
+      10^7 pipeline evaluations with point counting at l = 34, which is trivial. The
+      whole record is under a core-hour.
+    memory_exponent: >-
+      O(l) working memory throughout, that is bytes per seed; O(number of windows)
+      for the dispersion statistics, that is kilobytes. The 48 GB envelope is not a
+      constraint anywhere and the 14 cores buy a clean factor of 14 on C3 and C4,
+      both of which are embarrassingly parallel across seed blocks.
+    best_known: >-
+      For C1 and C2 the best known statement IS the standard's own text, from which
+      both follow immediately; this record derives rather than improves and claims no
+      advance. For C3 and C4 no incumbent measurement was identified inside this
+      program or, so far as I checked, outside it - but I did NOT check outside it, so
+      that absence is a statement about my search and not about the literature.
+      KN-LIT-4290 is the most likely place for an incumbent. Against the ECDLP attack
+      frontier (KN-TECH-001, KN-TECH-006, KN-TECH-018, KN-TECH-031, KN-TECH-032,
+      KN-TECH-035) this record is dominated by every row because it is not an attack.
+    hidden_overhead: >-
+      No o(1) in the audit cost and nothing superpolynomial. FOUR honest hidden
+      costs. (i) H2 transfers across a change of hash function and is biased toward
+      false positives in a known direction. (ii) The C3 null is an upper bound whose
+      threshold must be published or it is uninterpretable. (iii) C2's factor of 3
+      applies to a term that is not dominant. (iv) The reduced-size design requires a
+      truncated hash, which is a deviation from the standard that must be restated on
+      every output line and which a hurried write-up will drop.
+    tradeoff_note: >-
+      The governing tradeoff is DIGEST WIDTH VERSUS COLLISION CONTAMINATION and it is
+      unusual in that both ends are bad: a narrow digest makes the reduced-size
+      experiment affordable and manufactures spurious dependence through collisions,
+      while a wide digest removes the contamination and makes v = 2 require
+      l >= 321, at which point the point counting is infeasible. The digest-width
+      ladder in H2's validation plan exists precisely to measure the contamination
+      rather than to choose a point on the curve blind. No time-memory tradeoff
+      exists; parallelisation is perfect and the 14 cores are genuinely useful here.
+
+  dominated_by: >-
+    CHECKED AGAINST EVERY FRONTIER ROW BEFORE WRITING THIS FIELD; `null` IS NOT
+    ASSERTED. AS AN ATTACK it is dominated by every row simultaneously on time,
+    memory and data - rho (KN-TECH-001, KN-TECH-006), automorphism-discounted rho
+    (KN-TECH-018), BSGS (KN-TECH-031, KN-TECH-035), MOV and Frey-Ruck
+    (KN-TECH-032) - because it is not an attack and produces no discrete logarithm.
+    AS A STATEMENT ABOUT THE ASSEMBLY RULE (C1, C2) it is EXACTLY TIED with the
+    standard's own text, from which both follow in one line; no improvement is
+    claimed and the tie is stated as a tie. Anyone who has implemented SP 800-186
+    C.3.1 has this identity implicitly.
+    AS A DEPENDENCE MEASUREMENT (C3, C4) I could not identify a dominating incumbent
+    inside this repository, and I DID NOT SEARCH OUTSIDE IT. KN-LIT-4290's Section 5
+    is named by the SafeCurves mirror as containing a detailed analysis of the
+    Brainpool SHA-1 input mechanism and is the most likely dominating work; I did not
+    open it. The honest reading of this field is therefore "not dominated within the
+    checked scope, and the checked scope is this repository only."
+    AS A CONTRIBUTION TO COST MODELLING it is dominated in importance by
+    IDEA-20260829-0656b1, whose acceptance rate is worth about 7.5 bits, against this
+    record's constant factor of 3 on a non-dominant term - roughly 1.6 bits on the
+    wrong axis. That ordering is stated because a reader deciding what to run first
+    deserves it.
+  sota_delta: >-
+    ZERO speedup against any attack baseline on every axis, and zero algorithmic
+    improvement over the published assembly rule. THE NONZERO DELTAS ARE THREE AND
+    TWO OF THEM ARE SMALL.
+    AS DATA - this repository holds no block-structure analysis, no seed-chain
+    correlation and no dispersion statistic for any generation procedure. This would
+    produce one proved identity verified at four values of v, one measured
+    shared-bit count at three field sizes (63, 95, 223), one instrumented amortised
+    hash count, one full-size Legendre correlation with a confidence interval, and
+    one dispersion statistic with a pre-registered detection threshold - where there
+    are currently none.
+    AS PRECISION - the manipulation cost model in SafeCurves' own text and in
+    IDEA-20260829-0656b1 treats a seed scan as independent draws, with no stated
+    variance correction. This record proposes to replace an unexamined assumption
+    with either a measured correction factor or a published upper bound on the
+    dependence. QUANTITATIVELY: if kappa is bounded below 0.01 as predicted, the
+    variance correction for a scan of W = 10^6 is a factor of about 1 + 10^4, that
+    is a factor of 100 in standard deviation - which sounds large and matters little
+    for a cost estimate but matters a great deal for any confidence interval built on
+    a scan. THAT IS THE SPECIFIC PLACE THE NUMBER IS USED and it is stated rather
+    than left implied.
+    AS COST - C2 gives a rigorous factor of 3 on the hash stage of a consecutive-seed
+    scan, which is 1.58 bits on a term that IDEA-20260829-0656b1 predicts is not
+    dominant. Stated at that size and no larger.
+  estimated_cost:
+    implementation: low
+    compute: low
+    basis: >-
+      Implementation reuses IDEA-20260829-bba3a8's c routine plus a stub-hash
+      harness, a dispersion statistic and a reduced-parameter driver - well under 300
+      lines. Compute is under one core-hour total: C1 and C2 are seconds, C4 is
+      minutes at full size, and C3 at l = 34 is minutes across 14 cores. The binding
+      cost is the pre-registered power calculation and the digest-width ladder, which
+      are design attention rather than machine time.
+  recommended_priority: medium
+
+  source_refs:
+    - RQ-SCURVE-6a4cd3
+    - GOAL-SCURVE-cef9f7
+    - IDEA-20260829-bba3a8
+    - IDEA-20260829-0656b1
+    - IDEA-20260829-b70376
+    - IDEA-20260829-494a63
+    - IDEA-20260829-85768f
+    - IDEA-20260829-d052e6
+    - IDEA-20260829-f89a3a
+    - IDEA-20260807-98a970
+    - KN-LIT-4290
+    - KN-TECH-056
+    - KN-TECH-080
+    - KN-OPEN-019

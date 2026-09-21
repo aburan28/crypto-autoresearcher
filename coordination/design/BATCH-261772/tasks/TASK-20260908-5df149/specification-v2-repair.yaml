@@ -1,0 +1,130 @@
+draft_protocol_amendment:
+  id: EXP-ECDLP-df24c3-draft-v2-definition-repair
+  supersedes_draft: coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification.yaml
+  triggering_review: TASK-20260909-e2247a
+  disposition: >-
+    Additive zero-run definition repair. It freezes the selector grammar,
+    field encodings, semantic-generalization handling, and non-duplication
+    evidence that the v1 draft left under-specified. It creates no canonical
+    hypothesis, experiment, implementation, fixture, corpus audit, or result.
+  selector_v2:
+    document_root: a YAML mapping parsed once from one repository-relative path
+    statement_grammar:
+      allowed_paths:
+        - $.conclusions[index] where conclusions is a root-level sequence of mappings
+        - $.findings[index] where findings is a root-level sequence of mappings
+        - $.claims[index] where claims is a root-level sequence of mappings
+        - $.conclusion where conclusion is a root-level mapping
+        - $.findings where findings is a root-level mapping
+        - $.claims where claims is a root-level mapping
+      boundary: >-
+        Each allowed mapping is exactly one statement. Nested mappings, nested
+        sequences, wrappers, aliases, and record-level fallbacks are never
+        silently promoted to a statement.
+      token_rule: >-
+        A statement is negative only when one of its own direct scalar fields
+        status, verdict, outcome, conclusion_kind, or result normalizes to one
+        of negative, not-supported, unsupported, no-effect, no-improvement,
+        failed-scope, or closed-scope. Normalization is NFC, Unicode casefold,
+        trim, then runs of space, underscore, and hyphen become one hyphen.
+      citation_colocation: >-
+        A negative statement is eligible only when the same statement mapping
+        has one direct citation field among run_id, run_ids, manifest,
+        manifest_path, manifest_paths, artifact_paths, evidence_paths, or
+        citations. Citation values are normalized to a deduplicated sorted list
+        of nonempty NFC strings. Record-level citations never satisfy this rule.
+      unsupported_shape_accounting: >-
+        Recursively inspect every mapping for a direct normalized negative token.
+        A token outside allowed_paths, a nonmapping allowed item, a negative
+        statement without a colocated citation, or an unparseable YAML file
+        emits exactly one selector-exclusion row with reason respectively
+        negative_outside_grammar, nonmapping_statement, missing_colocated_citation,
+        or parse_error. It never vanishes from accounting and receives no verdict.
+      traversal:
+        roots: [ledger/decisions, ledger/evidence]
+        file_globs: ['**/*.yaml', '**/*.yml']
+        ordering: UTF-8 bytewise repository-relative path order
+  scope_vector_v2:
+    source_path: $.scope.fields.<field>
+    coverage_path: $.coverage.fields.<field>
+    required_fields:
+      target_object_or_curve_family: set_string
+      concrete_curve_or_instance: set_string
+      field_and_parameter_set: interval_set
+      subgroup_or_order_scope: set_string
+      solver_or_method: set_string
+      solver_version_or_configuration: set_string
+      input_or_sampling_distribution: canonical_json
+      budget_and_stopping_boundary: interval_set
+      measured_metric_and_negative_threshold: canonical_json
+      randomness_seed_or_reproducibility_boundary: set_string
+    normalization:
+      set_string: NFC strings, deduplicated and UTF-8-bytewise sorted JSON array
+      interval_set: >-
+        Canonical JSON array of disjoint closed objects {lower: decimal-string,
+        upper: decimal-string}; lower <= upper; sort by numeric lower then upper.
+      canonical_json: RFC 8785 canonical JSON value with every string NFC; objects
+        have no duplicate keys and arrays retain order.
+    relation:
+      set_string: equal when arrays equal; conclusion_subset_of_coverage when set inclusion is proper or equal; conclusion_strict_superset_of_coverage when coverage is a proper subset; otherwise noncomparable
+      interval_set: equal when arrays equal; conclusion_subset_of_coverage when every conclusion interval is contained in a coverage interval; conclusion_strict_superset_of_coverage when the reverse holds but not equality; otherwise noncomparable
+      canonical_json: equal only when canonical encodings are byte-equal; otherwise noncomparable
+    absent_or_invalid: >-
+      Any missing source path, invalid encoding, unresolved cited artifact, or
+      absent coverage field is unauditable. No such row may receive overbroad.
+  semantic_generalization_v2:
+    marker_path: $.scope.semantic_generalization
+    marker_schema: >-
+      Closed mapping {kind, rationale}; kind must equal theorem_or_prose_generalization
+      and rationale is a nonempty NFC string. A valid marker forces inconclusive
+      before field relations are aggregated.
+    untyped_prose_path: $.scope.prose
+    rule: >-
+      A nonempty scope.prose with no valid marker forces inconclusive with
+      reason untyped_scope_prose. An invalid marker forces inconclusive with
+      reason malformed_semantic_generalization_marker. Neither condition may
+      emit clean or overbroad automatically.
+  controls_v2:
+    clean: >-
+      A root-level conclusions[0] negative whose colocated manifest has identical
+      target_object_or_curve_family set ['toy-prime-field'] and all remaining
+      required fields canonical-equal; expected clean.
+    widened: >-
+      The same shape but conclusion target_object_or_curve_family set
+      ['toy-prime-field','binary-field'] against coverage ['toy-prime-field'];
+      expected overbroad via set_string strict superset only.
+    missing_binding: >-
+      The same statement shape with manifest_path 'missing.yaml'; expected
+      unauditable, never overbroad.
+    prose_generalization: >-
+      The same shape with scope.prose nonempty and no marker; expected
+      inconclusive with reason untyped_scope_prose.
+  non_duplication_v2:
+    row_fields:
+      - linkage_resolution in [resolved, absent, ambiguous, unreadable]
+      - resolved_goal_ids as normalized set_string
+      - resolved_idea_ids as normalized set_string
+      - resolved_experiment_ids as normalized set_string
+      - l3_curve_family_table_membership in [true, false, unknown]
+      - vector_comparison_present as boolean
+      - non_duplication_eligible as boolean
+    linkage_rule: >-
+      Resolve references only from direct statement linkage fields goal_id,
+      goal_ids, idea_id, idea_ids, experiment_id, and experiment_ids. Absence,
+      ambiguity, or unreadability is recorded and makes non_duplication_eligible
+      false. No missing linkage field is evidence of non-L3 provenance.
+    l3_rule: >-
+      l3_curve_family_table_membership is true when any resolved linkage equals
+      GOAL-ENDO-001, IDEA-20260807-51675e, or EXP-JINV-606dce; false only when
+      linkage_resolution is resolved and none match; otherwise unknown.
+    gate: >-
+      The draft may be called mechanically distinct only if at least one selected
+      row has linkage_resolution resolved, membership false,
+      vector_comparison_present true, and non_duplication_eligible true. An L3
+      row, unknown membership, or missing vector comparison fails the gate and
+      is reported separately rather than treated as proof of distinction.
+  custody_delta:
+    required_rows_additions: [selector-exclusions.jsonl, linkage-resolution.jsonl, non-duplication-gate.yaml]
+    row_identity_additions: [statement_path, statement_boundary_version, scope_vector_version, linkage_resolution]
+  does_not: [authorize_corpus_traversal, authorize_implementation, authorize_execution,
+    create_canonical_records, create_scientific_evidence]

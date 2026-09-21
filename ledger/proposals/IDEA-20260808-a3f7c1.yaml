@@ -1,0 +1,355 @@
+idea:
+  id: IDEA-20260808-a3f7c1
+  question_id: RQ-ECDLP-002
+  added: '2026-08-08'
+  title: >-
+    Y-COORDINATE ORACLE FOR GUIDED DECOMPOSITION: the x-oracle MITM obstruction
+    shows that x-coordinate membership filtering yields no yield advantage over
+    exhaustive search because Y_A = Y_B exactly; a y-coordinate oracle accesses
+    a DIFFERENT algebraic quantity (the sign of the point, not just its
+    x-projection) and enables a guided decomposition strategy that is NOT MITM
+    filtering but rather a directed search over the fibre {P : x(P) = x_0},
+    with predictions that are falsifiable at toy scale and structurally distinct
+    from the rejected hypothesis
+  class: algorithm
+
+  claim: >-
+    (A) THE OBSTRUCTION THIS AVOIDS. H-XOR-d1a480 (rejected_scoped per
+    DEC-20260808-6a7ac4) showed that an x-oracle used for MITM candidate
+    filtering yields Y_A = Y_B exactly: the oracle-guided arm finds the same
+    relations as exhaustive search, and the only measured "advantage" is against
+    a random-predictor null, not against exhaustive search itself. The
+    obstruction is that x-coordinate membership is a COARSE filter: it reduces
+    candidates_verified by a constant factor but does not change the set of
+    relations found. THE MECHANISM IS COST REDUCTION, NOT YIELD IMPROVEMENT.
+
+    (B) THE PROPOSED MECHANISM, STRUCTURALLY DISTINCT. A y-coordinate oracle
+    O_y(x_0) returns the y-coordinate of a point P with x(P) = x_0, or bottom
+    if no such point exists on E(F_p). This is NOT a membership oracle; it is a
+    FUNCTION oracle that returns a specific value. The proposed algorithm uses it
+    as follows:
+      STEP 1. Draw a random target R = [a]P + [b]Q.
+      STEP 2. For each x_0 in a factor-base set V, query O_y(x_0) to obtain
+              y_0. If y_0 != bottom, form P_0 = (x_0, y_0).
+      STEP 3. Check whether R - P_0 decomposes over V at arity m-1 (recursively
+              or by exhaustive search at toy scale).
+      STEP 4. If yes, record the relation R = P_0 + (decomposition of R - P_0).
+    THE KEY DIFFERENCE FROM MITM: this is not filtering candidates and checking
+    them; it is CONSTRUCTING candidates from oracle outputs and checking whether
+    they complete a relation. The oracle is used GENERATIVELY, not as a filter.
+
+    (C) THE PREDICTION, PRE-REGISTERED AND FALSIFIABLE. Let Y_guided be the
+    yield (relations found per unit of search space) of the y-oracle guided
+    algorithm, and Y_exhaust be the yield of exhaustive search at the same arity
+    m and factor-base size B. Then:
+      PREDICTION 1: Y_guided > Y_exhaust by a factor that GROWS with B, because
+                    the oracle converts a random search into a directed one.
+                    Specifically, Y_guided / Y_exhaust ~ B^{1/2} at arity m = 3,
+                    because the oracle eliminates one degree of freedom.
+      PREDICTION 2: The advantage is MAXIMIZED when the factor base is SMALL
+                    relative to p, because the oracle's information content is
+                    log2(B) bits per query, and the search space is B^m.
+      PREDICTION 3: The advantage VANISHES when B ~ p, because the oracle
+                    provides no information beyond what exhaustive search already
+                    has.
+    These predictions are MUTUALLY EXCLUSIVE with the MITM obstruction: if
+    Y_guided = Y_exhaust at every B, the mechanism is wrong and the record is
+    superseded.
+
+    (D) WHY THIS IS NOT A RENAMED MITM. The MITM obstruction applies to
+    algorithms that FILTER candidates: they enumerate a space, use the oracle to
+    reject some candidates, and verify the rest. The y-oracle algorithm does not
+    filter; it CONSTRUCTS. It draws x_0 from V, queries the oracle for y_0, and
+    forms a specific point. The search space is V (size B), not V^m (size B^m).
+    The oracle is queried B times, not B^m times. The algorithm's cost is
+    O(B * C_decomp) where C_decomp is the cost of checking whether R - P_0
+    decomposes, not O(B^m * C_verify) as in MITM.
+
+    (E) THE SCOPE LIMIT, STATED BEFORE ANY MEASUREMENT. This is a TOY-SCALE
+    proposal. At p ~ 2^8 to 2^12, with B ~ 2^4 to 2^6 and m = 3, the algorithm
+    is feasible and the predictions are testable. No claim about cryptographic
+    parameters is made or implied. The honest ceiling is: "at toy scale, does a
+    y-oracle used generatively yield more relations than exhaustive search at the
+    same arity?" If yes, the next question is whether the advantage scales; if
+    no, the mechanism is closed with a named obstruction.
+
+  mechanism: >-
+    STEP 1 (zero compute) -- STATE THE ALGORITHM PRECISELY. The y-oracle
+    O_y : F_p -> F_p union {bottom} is defined by O_y(x_0) = y_0 if (x_0, y_0)
+    is on E, and bottom otherwise. The algorithm draws R = [a]P + [b]Q, iterates
+    over x_0 in V (a factor-base set of size B), queries y_0 = O_y(x_0), forms
+    P_0 = (x_0, y_0), and checks whether R - P_0 decomposes over V at arity m-1.
+    The check is recursive (for m > 3) or exhaustive (for m = 3, where it is a
+    2-sum problem solvable in O(B) by sorting or O(B log B) by hash table).
+
+    STEP 2 (zero compute) -- DERIVE THE PREDICTION. A random target R decomposes
+    over V at arity m with probability ~ B^m / (m! N). The y-oracle algorithm
+    constructs B candidate points P_0, each of which has probability ~ B^{m-1} /
+    ((m-1)! N) of completing a relation (since R - P_0 must decompose at arity
+    m-1). The expected number of relations per target is therefore
+      E[relations] = B * B^{m-1} / ((m-1)! N) = B^m / ((m-1)! N).
+    Exhaustive search at arity m finds relations with probability ~ B^m / (m! N)
+    per target. The ratio is
+      Y_guided / Y_exhaust = (B^m / ((m-1)! N)) / (B^m / (m! N)) = m.
+    So the prediction is a FACTOR OF m, not B^{1/2} as stated in (C). The record
+    corrects itself: the prediction is Y_guided / Y_exhaust = m, a CONSTANT
+    independent of B. This is a weaker prediction than (C) claimed, and (C) is
+    superseded by this derivation. The prediction is now: Y_guided / Y_exhaust =
+    m exactly, at every B and every p.
+
+    STEP 3 (toy compute, <= 30 minutes) -- TEST THE PREDICTION. At p in
+    {101, 103, 107, 211}, B in {10, 20, 50}, m = 3, with 100 random targets per
+    cell, measure Y_guided and Y_exhaust and compute the ratio. The prediction is
+    that the ratio is 3.0 +/- 0.5 (allowing for statistical noise and small-p
+    effects). If the ratio is 1.0 +/- 0.2, the mechanism is wrong and the record
+    is superseded. If the ratio is between 1.5 and 2.5, the mechanism is partial
+    and the prediction needs refinement.
+
+    STEP 4 (zero compute) -- STATE THE OBSTRUCTION IF THE PREDICTION FAILS. If
+    Y_guided = Y_exhaust, the obstruction is: "the y-oracle, used generatively,
+    constructs points that are no more likely to complete a relation than random
+    points, because the decomposition probability depends only on the SIZE of the
+    factor base, not on how its elements were chosen." This is the same
+    obstruction as the MITM case, applied to a different algorithm. The record
+    would then be closed with a named obstruction and forward guidance: "no
+    oracle used generatively or as a filter improves yield over exhaustive search
+    at toy scale; the only surviving lever is the algebraic cost of the
+    decomposition test."
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      grep -ril over ledger/proposals, ledger/hypotheses, knowledge/ for
+      "y-coordinate oracle", "y-oracle", "guided decomposition", "generative
+      oracle", performed 2026-08-08.
+    results: >-
+      Zero occurrences of "y-coordinate oracle" or "y-oracle" as a technical
+      term. IDEA-20260807-7270d1 discusses x-oracle MITM and the verify/search
+      form distinction, but does not propose a y-oracle or a generative use.
+      IDEA-20260807-070d03 discusses the factor-base membership oracle and its
+      arity split, but does not propose a y-coordinate variant. The generative
+      use of an oracle (constructing candidates from oracle outputs rather than
+      filtering) is not named in any record.
+    verdict: >-
+      ADAPTATION. The y-coordinate oracle is a standard object in elliptic curve
+      arithmetic; what is proposed as new is its use in a generative algorithm
+      rather than as a filter, and the specific prediction that this yields a
+      factor-m advantage. External novelty is not claimed and was not checked
+      beyond the corpus.
+
+  null_object_control: >-
+    MANDATORY AND BLOCKING.
+    NULL OBJECT 1: a RANDOM oracle O_rand : F_p -> F_p union {bottom} that
+    returns a uniformly random y_0 (or bottom with probability 1 - B/p). This
+    oracle has the same signature as O_y but carries zero information about E.
+    The algorithm run with O_rand must yield Y_rand = Y_exhaust, because the
+    constructed points are random and no better than exhaustive search. An
+    instrument that reports Y_rand > Y_exhaust is measuring an artifact, not the
+    oracle's information content.
+    NULL OBJECT 2: the x-oracle MITM algorithm (H-XOR-d1a480's arm B) run on the
+    same instances. This is the rejected mechanism, and it must yield Y_MITM =
+    Y_exhaust exactly, per the committed data. If Y_MITM != Y_exhaust, the
+    committed data is wrong and the obstruction is not settled.
+    DECAY PARAMETER: B / p over the ladder {2^-6, 2^-4, 2^-2, 2^-1}. The ratio
+    Y_guided / Y_exhaust must be CONSTANT (equal to m) across this ladder. A
+    ratio that grows with B/p indicates the oracle is providing information
+    beyond the factor-m prediction; a ratio that decays indicates the oracle's
+    information is being diluted by the factor base size.
+
+  assumptions:
+    - >-
+      The curve E is a prime-field short-Weierstrass curve y^2 = x^3 + a x + b
+      with prime order subgroup G = <P> of order N ~ p.
+    - >-
+      The factor base V is a random subset of F_p of size B, chosen independently
+      of the target R.
+    - >-
+      The y-oracle O_y is exact and returns the correct y-coordinate or bottom.
+      No noise or error is assumed.
+    - >-
+      The decomposition check at arity m-1 is exact and exhaustive. No heuristic
+      or probabilistic test is used.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Purely empirical/measurement hypothesis at toy scale; not a proof,
+      asymptotic bound, or closure argument.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a random target R and a random factor base V of size B, the
+        probability that R decomposes over V at arity m is ~ B^m / (m! N),
+        assuming the subset sums of V behave like independent uniform elements
+        of Z/N.
+      rigorous_support: >-
+        The classical balls-in-bins / occupancy model for uniform independent
+        placements. The union bound gives an upper bound of B^m / (m! N) with no
+        independence assumption; the heuristic is that the bound is tight.
+      validation_plan: >-
+        Sample directly: at p in {101, 103, 107, 211}, B in {10, 20, 50}, m = 3,
+        measure the fraction of 100 random targets that decompose over V and
+        compare against B^3 / (6 N). Tail check: the largest B, where the
+        predicted probability is about 50/107 ~ 0.47 and a systematic deviation
+        would reveal dependence. Toy scale only and labelled as such.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS CLAIMED. The proposal is a toy-scale measurement of a
+      constant-factor ratio. The honest ceiling is: "at toy scale, the y-oracle
+      used generatively yields a factor-m advantage over exhaustive search." No
+      claim about asymptotic complexity or cryptographic parameters is made.
+    memory_exponent: >-
+      O(B) to store the factor base and O(B) working memory for the
+      decomposition check. Not a cost-relevant quantity at toy scale.
+    best_known: >-
+      Pollard rho at p^{1/2} with O(1) memory (KN-TECH-001, KN-TECH-006); BSGS
+      at p^{1/2} time and memory (KN-TECH-031). Unmoved by this record.
+    hidden_overhead: >-
+      The factor-m prediction hides the cost of the y-oracle itself. If the
+      oracle is simulated by exhaustive search (trying all y for each x), the
+      cost is O(B * p^{1/2}) per target, which dominates the decomposition
+      check. The proposal assumes the oracle is FREE; if it is not, the advantage
+      vanishes.
+    tradeoff_note: >-
+      Not applicable. The proposal is a constant-factor measurement, not a
+      tradeoff.
+
+  predictions:
+    - metric: Y_guided / Y_exhaust (ratio of yields)
+      direction: higher
+      minimum_effect: >-
+        Predicted 3.0 at m = 3, with a 95% CI of [2.5, 3.5] allowing for
+        statistical noise and small-p effects. A ratio of 1.0 +/- 0.2 falsifies
+        the mechanism; a ratio of 1.5-2.5 indicates a partial effect requiring
+        refinement.
+    - metric: Y_guided / Y_exhaust as a function of B/p
+      direction: different
+      minimum_effect: >-
+        Predicted CONSTANT across B/p in {2^-6, 2^-4, 2^-2, 2^-1}. A ratio that
+        grows with B/p indicates the oracle provides information beyond the
+        factor-m prediction; a ratio that decays indicates dilution.
+
+  minimal_test:
+    design: >-
+      STAGE 1 (toy compute, <= 30 minutes): at p in {101, 103, 107, 211},
+      B in {10, 20, 50}, m = 3, with 100 random targets per cell, measure
+      Y_guided and Y_exhaust and compute the ratio. Compare against the
+      predicted 3.0.
+      STAGE 2 (toy compute, <= 30 minutes): run the null objects. O_rand must
+      yield Y_rand = Y_exhaust; O_MITM must yield Y_MITM = Y_exhaust exactly.
+      STAGE 3 (toy compute, <= 30 minutes): sweep B/p over {2^-6, 2^-4, 2^-2,
+      2^-1} and check that the ratio is constant.
+    controls:
+      - >-
+        O_rand (random oracle): Y_rand must equal Y_exhaust
+      - >-
+        O_MITM (x-oracle MITM): Y_MITM must equal Y_exhaust exactly
+      - >-
+        B/p ladder: ratio must be constant
+      - >-
+        Factored group order, largest prime factor, and #E != p per curve
+        (KN-TECH-030, KN-TECH-033 hygiene)
+      - >-
+        Matched rho and BSGS on identical instances, in the same operation unit
+    required_metrics:
+      - Y_guided and Y_exhaust per (p, B, m) cell
+      - Ratio Y_guided / Y_exhaust with 95% CI
+      - Y_rand and Y_MITM for the null objects
+      - Ratio as a function of B/p
+
+  falsification_conditions:
+    - >-
+      Y_guided / Y_exhaust = 1.0 +/- 0.2 at every (p, B) cell. The mechanism is
+      wrong; the y-oracle used generatively provides no advantage. The record is
+      superseded with a named obstruction: "generative oracle use yields no
+      advantage over exhaustive search."
+    - >-
+      Y_rand > Y_exhaust. The instrument is broken; the null object fails.
+      Nothing is reported.
+    - >-
+      Y_MITM != Y_exhaust. The committed data for H-XOR-d1a480 is wrong; the
+      obstruction is not settled and requires re-investigation.
+    - >-
+      The ratio Y_guided / Y_exhaust varies systematically with B/p. The
+      factor-m prediction is wrong; the mechanism needs refinement or is closed.
+
+  confounders:
+    - >-
+      ORACLE COST. The proposal assumes the y-oracle is free. If it is simulated
+      by exhaustive search, the cost is O(B * p^{1/2}) per target, which
+      dominates. The advantage is a COST advantage only if the oracle is cheap;
+      if it is expensive, the advantage vanishes.
+    - >-
+      SMALL-p EFFECTS. At p ~ 100, the factor base B ~ 50 is a large fraction of
+      p, and finite-size effects may distort the ratio. Report the achieved B/p,
+      not the target.
+    - >-
+      DECOMPOSITION CHECK COST. The proposal assumes the decomposition check is
+      exact and exhaustive. If it is heuristic or probabilistic, the yield may be
+      inflated or deflated.
+
+  interpretation_limits:
+    - >-
+      Toy-scale only (7-8 bit prime fields); no claim about cryptographic-scale
+      parameters (AGENTS.md rule 7).
+    - >-
+      The proposal assumes a FREE y-oracle. If the oracle must be simulated, the
+      cost dominates and the advantage vanishes. The proposal is about the
+      INFORMATION CONTENT of the oracle, not its implementation cost.
+    - >-
+      No asymptotic complexity claim is made. The honest ceiling is a
+      constant-factor measurement at toy scale.
+    - >-
+      The proposal is structurally distinct from H-XOR-d1a480 (MITM filtering)
+      but may be subject to the same obstruction: "the oracle provides no
+      information beyond what exhaustive search already has." If the prediction
+      fails, the obstruction applies to both.
+
+  dominated_by: >-
+    Dominated by every row of the prime-field frontier: rho at p^{1/2} with O(1)
+    memory (KN-TECH-001, KN-TECH-006), BSGS at p^{1/2} time and memory
+    (KN-TECH-031). This proposal occupies no point on the frontier and `null`
+    would be a fabrication. It is a toy-scale measurement of a constant-factor
+    ratio, not an attack.
+  sota_delta: >-
+    Zero speedup against any attack baseline. The proposal is a measurement of
+    whether a y-oracle used generatively yields a factor-m advantage over
+    exhaustive search at toy scale. If yes, the delta is a factor of m = 3 at
+    arity 3; if no, the delta is zero and the mechanism is closed.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.40 that the prediction Y_guided / Y_exhaust = m survives the toy-scale
+    test. The derivation in STEP 2 is elementary, but it assumes the oracle is
+    free and the decomposition check is exact; if either assumption fails, the
+    prediction fails. 0.50 that the mechanism is closed with a named obstruction
+    (the same obstruction as H-XOR-d1a480: "the oracle provides no information
+    beyond what exhaustive search already has"). 0.10 that the ratio varies with
+    B/p, indicating a richer mechanism requiring refinement. Priority is MEDIUM
+    because the proposal is a cheap, falsifiable test of a structurally distinct
+    mechanism, and both outcomes (confirmation or refutation) are informative.
+
+  id_allocation_provenance: >-
+    python3 tools/allocate_id.py --next idea --date 20260808 (random token, no
+    state scanned), then --check IDEA-20260808-a3f7c1 returned
+    "well-formed and free across the union" before this file was written.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-08'
+  source_refs:
+    - RQ-ECDLP-002
+    - H-XOR-d1a480
+    - DEC-20260808-6a7ac4
+    - IDEA-20260807-7270d1
+    - IDEA-20260807-070d03
+    - KN-TECH-001
+    - KN-TECH-006
+    - KN-TECH-030
+    - KN-TECH-031
+    - KN-TECH-033

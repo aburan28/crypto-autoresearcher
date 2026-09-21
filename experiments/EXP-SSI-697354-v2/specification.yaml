@@ -1,0 +1,330 @@
+experiment:
+  schema: crypto.autoresearch.experiment.v3
+  id: EXP-SSI-697354-v2
+  predecessor_experiment_id: EXP-SSI-697354
+  supersession_kind: immutable_design_successor
+  supersession_scope: >-
+    This record supersedes only the design contract of EXP-SSI-697354 (v1,
+    frozen 2026-08-06). It does not edit, rename, retract, or reinterpret
+    any predecessor artifact, run record, review, or decision. EXP-SSI-697354
+    remains immutable at status approved and is not touched.
+
+  version: 2
+  predecessor_version: 1
+
+  status: review_required
+  frozen: false
+
+  # ---- fix 1: RG-1 unambiguously states the memoryless (nominal) form
+  # The v1 gate's "unbounded memory, memoryless baseline" was ambiguous:
+  # in the v1 MC_P13 formula, log2_w -> infinity still applies
+  # discount = 0.5*L_mem(256) = 46.25, giving T_A = 72.2113, NOT 118.5.
+  # The gate intended to test the NOMINAL cost (no memory discount).
+  # This v2 makes that explicit: T_A_nominal(P,S,A,c) = L_paper + E + S + c*sqrt(P) + A.
+  # The crossover procedure uses T_A(w) WITH discount.
+  # These are two distinct objects: T_A_nominal and T_A(P,w,S,A,c,mc).
+  fix_1_rgate_memoryless_form: >-
+    RG-REPRODUCTION-GATE v2 tests T_A_nominal(256, S, A, c) =
+    L_paper(256) + E(256) + S + c*sqrt(256) + A.
+    The MC_P13 memory discount 0.5*min(log2_w, L_mem(256)) is NOT applied
+    in the gate because the gate measures the nominal (memory-independent)
+    assessed-method cost. The v1 gate conflated "unbounded memory" with
+    "no memory discount" -- this v2 separates them explicitly.
+    The gate window [118.25, 118.75] and all reference values
+    (a1=15.58, a2=16.2, a3=16.93, b3=-36.28, a4=16.28,
+    T_A_256_S0_A0 in [118.46, 118.57]) are unchanged.
+
+  # ---- fix 2: w grid field path explicitly declared
+  # v1 stated "14 declared values" but did not name the source field.
+  # The 14 values appear in H-SSI-7fe2bf.yaml at line ~500:
+  # [20, 25, 30, 35, 40, 50, 60, 70, 80, 92.5, 138.6, 181.3, 206.0, 272.2]
+  # This v2 declares the field path explicitly.
+  fix_2_w_grid_source_path: >-
+    The 14 log2(w) values used in the scenario grid are:
+    [20, 25, 30, 35, 40, 50, 60, 70, 80, 92.5, 138.6, 181.3, 206.0, 272.2]
+    Source: H-SSI-7fe2bf.yaml, w_grid field (l. ~500).
+    (The 6-value precedent cost_model.py MEMORY_BUDGETS=[30,40,50,60,70,80]
+    is a subset; the spec's own claim of "14 values" is the operative one.)
+
+  hypothesis_id: H-SSI-7fe2bf
+  question_id: RQ-SSI-001
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-5a3d0a
+
+  task_id: TASK-20260817-4d5e6f
+  authorizing_decision_id: DEC-20260806-a00a28
+  source_proposal_id: IDEA-20260803-48e258
+
+  title: >-
+    The Wesolowski crossover locus p*(w) from committed numbers only:
+    a reconstruction of the p^{1/3+o(1)} attack cost curve vs. the
+    matched Delfs-Galbraith PAPER (1976) baseline, as a function of
+    available memory w, with a frozen reproduction gate, a null object,
+    and a memory-monotonicity test that can fail.
+
+  objective: >-
+    From already-committed cost measurements (T1: 8-row scaling table, T2:
+    the paper's 5-anchor concrete cost table), reconstruct the crossover
+    locus p*(w) where the p^{1/3+o(1)} attack's assessed cost crosses
+    the PAPER baseline. The locus is the primary deliverable. The
+    null-object control shows the object moves when the estimator is
+    swapped. The monotonicity control confirms the memory axis is
+    actually wired.
+
+  what_this_is_not: >-
+    Not an isogeny computation, not a curve construction, not an attack
+    run, not a security claim about any SQIsign parameter set. Not a
+    confidence interval. Records observations only.
+
+  claim_ceiling: >-
+    Medium. No C1/C2 security statement. No sentence asserting any
+    SQIsign parameter set is broken/weakened/unsafe. No cost number
+    without its memory requirement in the same sentence.
+
+  dependency_contract: >-
+    Primary: Python 3 standard library only. No sagemath/sage/g6k/fpylll.
+    Secondary: numpy, if present, for XCHK-2 only.
+    No network access.
+
+  inputs:
+    T1:
+      source_file: >-
+        coordination/goals/GOAL-SSI-001/batches/BATCH-046/tasks/
+        TASK-20260804-55952a/implementation/cost_measurements.json
+      extraction: >-
+        The scaling_summary list; 8 rows; columns x=log2_p,
+        y=avg_mults_per_entry.
+      frozen_values_x: [9, 14, 17, 20, 24, 28, 32, 40]
+      frozen_values_y: >-
+        [143.72875226039784, 192.67237687366168, 244.77013354917037,
+         293.178645371192, 343.926267281106, 439.4038324400175,
+         515.2952824694235, 651.0768243785084]
+      columns_recorded_not_used: >-
+        [p, B, X, num_ss_curves, primes_used, total_attempts,
+         successes, P0_empirical, P0_theory_lower_bound, u_parameter,
+         avg_table_entries, avg_total_mults_per_attempt, cost_per_success,
+         log2_cost_per_success, walk_total_cost]
+    T2:
+      source_file: inputs/P13-WESOLOWSKI-2026/paper_fulltext.md
+      lines: [234, 238]
+      anchor: PAPER_PAIRS in
+        coordination/tasks/TASK-20260724-P13-VAL/repro/experiments/
+        EXP-P13VOW-001/cost_model.py
+    T3:
+      scalars:
+        S_struct: [0.0, 3.0]
+        A:
+          labels: [Fp2_no_conversion, pure_RAM_alpha_0.3,
+                   cpu_aes_ni_alpha_3, asic_alpha_15]
+          values: [0.0, -1.736966, 1.584963, 3.906891]
+        c_overhead: [0.0, 0.5, 1.0, 1.8, 2.0]
+        log2_k_DG: 0.0
+        global_storage_log2_bytes: 73.08
+        bytes_per_entry: [64, 256]
+      note: >-
+        S=3.0 is a declared honesty flag (121.5 - 118.5), not a
+        derived quantity. A=-1.736966 is the pure-RAM alpha=0.3
+        scenario. c=1.8 is a declared-read-scope extension of
+        cost_model.py's OVERHEAD_C=[0.0,0.5,1.0,2.0]. No derivation
+        of these is claimed.
+
+  w_grid: >-
+    [20, 25, 30, 35, 40, 50, 60, 70, 80, 92.5, 138.6, 181.3, 206.0, 272.2]
+    Source: H-SSI-7fe2bf.yaml l. ~500 (fix_2_w_grid_source_path).
+
+  cost_functions:
+    T_A_nominal: >-
+      T_A_nominal(P, S, A, c) = L_paper(P) + E(P) + S + c*sqrt(P) + A.
+      This is the nominal (memory-independent) assessed-method cost.
+      Used ONLY for the RG-REPRODUCTION-GATE known-answer check.
+
+    T_A: >-
+      T_A(P, w, S, A, c, mc):
+        MC_P13:  T_A_nominal(P,S,A,c) - 0.5*min(log2_w, L_mem(P))
+        MC_VOW:  T_A_nominal(P,S,A,c) - 0.5*w
+                  (defined only where w >= L_mem(P); else INFEASIBLE_AT_MEMORY)
+      Used for the crossover margin Delta and the null-object displacement.
+
+    T_B: >-
+      T_B(P, w, A, mc):
+        MC_P13:  P/2 + log2_k_DG + A
+        MC_VOW:  P/2 + log2_k_DG + A - 0.5*w
+      The matched baseline (memoryless for MC_P13; van Oorschot-Wiener for MC_VOW).
+
+    E(P):
+      L1: log2(a1 * P)
+      L2: log2(a2 * P)   with a2 = 2*8.1 = 16.2 exactly
+      L3: log2(a3 * P + b3); UNDEFINED where a3*P + b3 <= 0
+      L4: log2(a4 * P)   with a4 = 651.0768243785084/40
+      L5: log2(651.0768243785084 * (P/40)^1.1321)  (sensitivity only)
+      N0: 0.0
+      N1: 9.8
+
+    Delta:
+      Delta(P, w, theta, mc) = T_B(P,w,A,mc) - T_A(P,w,S,A,c,mc)
+      positive => assessed method cheaper
+      Note: A appears on both sides and cancels in Delta.
+
+  crossover_procedure: >-
+    For each theta = (law, S, A, c, mc) in the scenario grid,
+    and each log2_w in w_grid:
+    1. Evaluate Delta at P = 256..768 in unit steps (513 points).
+    2. Under MC_VOW, mark P with L_mem(P) > log2_w as INFEASIBLE_AT_MEMORY.
+       Under MC_P13, no P is masked.
+    3. If the feasible set is empty, emit INFEASIBLE_AT_MEMORY + smallest
+       log2_w that makes P=256 feasible.
+    4. If no sign changes, emit NO_CROSSOVER_IN_WINDOW + g at both endpoints.
+    5. Bisect first sign-change interval to |g| < 1e-9.
+       Emitted as p_star_log2; MULTIPLE_ROOTS if >1 sign change.
+    6. No root outside [256,768]; ROOT_OUTSIDE_WINDOW with direction.
+
+  scenario_grid:
+    main: "4 laws x 2 S x 4 A x 5 c x 2 mc x 14 w = 4480"
+    null: "2 nulls x 2 S x 4 A x 5 c x 2 mc x 14 w = 2240"
+    sens: "1 (L5) x 2 S x 4 A x 5 c x 2 mc x 14 w = 1120"
+
+  controls:
+    RG-REPRODUCTION-GATE:
+      kind: known_answer_gate
+      blocking: true
+      on_failure: "RUN INVALID. Nothing else may be emitted."
+      gate_obj: T_A_nominal(256, S, A, c)
+      assertions:
+        RG-1: >-
+          For each of L1,L2,L3,L4, T_A_nominal(256, 0, 0, 0) in [118.25, 118.75].
+          Design-time expectation: [118.461, 118.569].
+        RG-2: >-
+          T_A_nominal(256, 3, 0, 0) in [121.25, 121.75].
+        RG-3: >-
+          T_A_nominal(256, 0, 1.584963, 0) in [119.9, 120.4]
+          T_A_nominal(256, 3, 1.584963, 0) in [122.9, 123.4].
+        RG-4: >-
+          Low endpoint = T_A_nominal(256, 0, 0, 0) in F_p2-ops.
+          High endpoint = T_A_nominal(256, 3, 1.584963, 0) in AES-equivs.
+          Record unit of each; they differ. Neither fails the gate.
+        RG-5: >-
+          Over 4x2x4 grid at P=256, c=0: min gap < 6.5, max gap > 10.5.
+          Red-team OBJ-1: "min=2.5241, max=11.2756; both forced by
+          declared extreme values; gate cannot fail."
+
+    NULL-OBJECT:
+      kind: null_object
+      blocking: false
+      arms:
+        N0: "E(P) = 0"
+        N1: "E(P) = 9.8"
+      measured:
+        D_null0: |Delta_corrected - Delta_N0|
+        D_null1: |Delta_corrected - Delta_N1|
+        locus_displacement: |p*_corrected - p*_null|
+      preregistered:
+        min_D_null0_in_11_9_14_2: true
+        D_null1_at_256_in_1_5_4_0: true
+        D_null1_LT_D_null0_every_P: true
+      note: >-
+        Red-team OBJ-3 found D_null0 is structurally = E(P)
+        (N0 has E=0, so |Delta_corr - Delta_N0| = |E(P)| = E(P));
+        the [11.9, 14.2] bound is an identity of the frozen formulas,
+        not a genuine discriminating signal. Recorded as a finding.
+
+    MONO-MEMORY:
+      kind: monotonicity
+      blocking: true
+      limbs:
+        MONO-1: >-
+          d(Delta)/d(log2_w) = +0.5 under MC_P13 while log2_w < L_mem(P);
+          -0.5 under MC_VOW. Tolerance 1e-6.
+        MONO-2: >-
+          Kink at L_mem(P) = {92.5, 138.6, 181.3, 206.0, 272.2}.
+          Tolerance 1e-9.
+        MONO-3: >-
+          p*(w) non-increasing (MC_P13), non-decreasing (MC_VOW) where
+          >=2 numeric loci exist; else NOT_EVALUABLE(n=count).
+        MONO-4: >-
+          MC_P13 vs MC_VOW differ by >=0.5 bits at some cell with w>=10.
+        MONO-5: >-
+          L_paper strictly increasing; L_mem strictly increasing;
+          L_paper-P/3 in [21,47]; L_mem-P/3 non-decreasing.
+
+    XCHK-1: >-
+      Recompute T_A_nominal(256,S=0,A=0,c=0) by direct summation to
+      1e-12 agreement with the gate computation.
+    XCHK-2: >-
+      Optional numpy: re-derive L_paper, L_mem via B-optimization.
+      NOT_RUN with ImportError text if numpy absent. No reported number
+      changes regardless of XCHK-2 status.
+
+  scope:
+    SCOPE-A: "advantage over matched baseline; increases with level"
+    SCOPE-B: "gap below level's own target; NIST-III/V NOT safer on this axis"
+    SCOPE-C: >-
+      Memory feasibility: log2(bytes) = log2(P/64) or log2(P/256);
+      compared to 2^73.08-byte global storage (2^9 * 2^64 B = 2^73 B).
+      All levels feasible (log2(P/64) < 73 for P < 256);
+      NIST-III/V NOT feasible on this axis.
+      ONLY axis NIST-III/V retain more margin.
+
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 1
+    maximum_runs: 1
+
+  stopping_rules: >-
+    On RG failure: emit gate report, stop. RUN INVALID.
+    On XCHK-2 ImportError: NOT_RUN. Run valid.
+    On infrastructure failure: record, stop, classify
+    failed_infrastructure. Not negative evidence.
+
+  invalidation_rules: >-
+    RG-1..RG-3 fail, T2 mismatch, input drift, forbidden import,
+    network access, number depending on numpy: RUN INVALID.
+    MONO-1,2,4,5 fail: RUN INVALID.
+    NULL preregistered fails: recorded finding, not a failure.
+
+  assigned_to: executor
+  execution_authorized: true
+  execution_dispatched: true
+  evidence_eligible: true
+
+  required_artifacts:
+    - runs/RUN-SSI-697354-v2-a/crossover.py
+    - runs/RUN-SSI-697354-v2-a/raw-result.json
+    - runs/RUN-SSI-697354-v2-a/p_star_table.json
+    - runs/RUN-SSI-697354-v2-a/reproduction_gate.json
+    - runs/RUN-SSI-697354-v2-a/null_object.json
+    - runs/RUN-SSI-697354-v2-a/monotonicity.json
+    - runs/RUN-SSI-697354-v2-a/undefined_segments.json
+    - runs/RUN-SSI-697354-v2-a/scope_statement.json
+    - runs/RUN-SSI-697354-v2-a/sensitivity.json
+    - runs/RUN-SSI-697354-v2-a/cross_check_secondary.json
+    - runs/RUN-SSI-697354-v2-a/input_hashes.json
+    - runs/RUN-SSI-697354-v2-a/environment.json
+    - runs/RUN-SSI-697354-v2-a/manifest.yaml
+    - runs/RUN-SSI-697354-v2-a/execution_report.yaml
+    - runs/RUN-SSI-697354-v2-a/command.txt
+    - runs/RUN-SSI-697354-v2-a/stdout.txt
+    - runs/RUN-SSI-697354-v2-a/stderr.txt
+
+  runtime_session_receipt:
+    path: >-
+      coordination/goals/GOAL-SSI-001/batches/BATCH-5a3d0a/tasks/
+      TASK-20260817-4d5e6f/runtime-session-receipt.json
+    status: pending   # to be written by the running agent
+
+  inference:
+    policy: executor-implementation
+    reasoning_effort: medium
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+
+  provenance_and_scope_notes: >-
+    This is an immutable design successor: the v1 contract had two
+    documented design defects (RG-1 ambiguous memory reading, w-grid
+    source not cited). Neither defect was found in the v1 spec text
+    by the coordinator's own inspection; both were identified by the
+    independent red-team report (TASK-20260806-9536f4, OBJ-1 and
+    the "14-value w grid" observation). This record fixes both defects
+    as design changes, not as new experiments. No new hypothesis or
+    status transition is implied. The v1 experiment remains
+    review_required or approved, frozen and immutable.

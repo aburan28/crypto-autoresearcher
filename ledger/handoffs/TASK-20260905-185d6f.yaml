@@ -1,0 +1,121 @@
+handoff:
+  id: TASK-20260905-185d6f
+  from: coordinator
+  to: executor
+  objective: >-
+    Implement and execute EXP-MONO-7c653b: machine-verify (never assume)
+    H-MONO-10ca08's hand-derived quadratic-twist cost identity for the
+    j=m-1 (all-non-residue) Semaev summation locus. Stage 1 reproduces the
+    m=4/p=211/j=0 fixture as a hard gate; Stage 3 checks exact set
+    equality between a twist-arithmetic route (E_delta group additions,
+    F_p only) and the direct polynomial-root route at j=m-1, m in {4,5},
+    p in {211,1009}; Stage 4a is the deliberately-wrong-rescaling-constant
+    proves-too-much control. This experiment is NOT approved for
+    execution yet -- do not begin implementation work that assumes
+    execution_authorized will be set before the Coordinator separately
+    reviews and freezes the contract. This handoff exists so the
+    Coordinator's review and freeze decision has a concrete, budgeted
+    implementation plan to approve or send back, per this program's
+    lifecycle (docs/task-lifecycle.md).
+  uncertainty_reduced: >-
+    Whether the hand-derived twist-arithmetic representation reduction
+    (E' -> E_delta, reproducing the direct polynomial root x(Q) at cost
+    m-1 additions plus one multiplication) actually holds, by exact
+    computation rather than by algebra alone -- the one part of
+    IDEA-20260830-d84f6a confirmed, by the Coordinator's own re-reading of
+    EXP-MONO-12ce1c/EV-MONO-efbd1c/DEC-20260830-0f8def, to be genuinely
+    untested anywhere in this program.
+  inputs:
+    - ledger/hypotheses/H-MONO-10ca08.yaml
+    - experiments/EXP-MONO-7c653b/specification.yaml
+    - harness/semaev.py
+    - harness/toycurve.py
+    - experiments/EXP-MONO-805a02/implementation.md
+    - experiments/EXP-MONO-805a02/execution_report.yaml
+  constraints:
+    - >-
+      DO NOT EXECUTE until the Coordinator has separately reviewed, frozen
+      (`frozen: true`), and authorized (`execution_authorized: true`,
+      `approved_by: coordinator`) EXP-MONO-7c653b/specification.yaml. This
+      handoff authorizes implementation and dry-run preparation only.
+    - >-
+      Reuse `harness/semaev.py`'s `s3_expr`/`s4_expr` and
+      `harness/toycurve.py`'s `EllipticCurve`/`Point` directly; do not
+      reimplement curve arithmetic or the existing summation polynomials.
+    - >-
+      A new `s5_expr` function is required, built by exactly one further
+      resultant elimination in the identical pattern `s4_expr` already
+      uses (S_5 = Res_U(S_4(x1,x2,x3,U), S_3(x4,T,U))), evaluated
+      numerically (coordinates substituted before the resultant is taken)
+      per EXP-MONO-805a02's own Stage-2 precedent. If added to
+      `harness/semaev.py` itself (a shared file), record this as a
+      protocol/implementation note and disclose it explicitly in
+      `implementation.md`; do not silently duplicate the existing
+      resultant pattern in a private copy if extending the shared module
+      is equally viable, and disclose whichever choice is made and why.
+    - >-
+      No modification to `EllipticCurve` is needed for the twisted curve
+      E_delta -- instantiate it directly as
+      `EllipticCurve(p, a*d*d % p, b*d**3 % p)` per the contract's own
+      construction.
+    - >-
+      Follow EXP-MONO-7c653b/specification.yaml's `battery`, `controls`,
+      `stopping_rules`, and `invalidation_rules` exactly; any deviation is
+      a disclosed protocol deviation in `execution_report.yaml`, never a
+      silent substitution (matching EXP-MONO-805a02's own house
+      convention for disclosing its Stage-1 reconstruction caveat and
+      Stage-2 seeding defect).
+    - >-
+      Report split_with_multiplicity AND split_distinct separately at
+      every Stage-3 cell; never pool them (per the contract's own
+      MULTIPLICITY-AND-DISTINCT-BOTH-REPORTED control, closing the exact
+      gap EXP-MONO-805a02's own Red Team named as O-2 for this lane's
+      earlier contract).
+    - >-
+      Stage 4a's 50-tuple comparison sample MUST be independently drawn
+      from Stage 3's own m=4/p=211 sample (per INDEPENDENT-CONTROL-SAMPLE
+      / invalidation_rules).
+    - >-
+      A Stage-3 mismatch (twist route disagreeing with the direct route)
+      or a Stage-4a control failure (the mutant reproducing x(Q)) is a
+      VALID, REPORTABLE run outcome, not an implementation failure to be
+      "fixed" until it goes away. Report either exactly as observed, with
+      the specific tuple and both computed x-sets, and flag it as the
+      record's headline finding if it occurs. Only a timeout, crash, or
+      genuine construction failure (e.g. the s5_expr resultant not
+      terminating) is `failed_infrastructure` (AGENTS.md rule 3).
+    - >-
+      Never change a preregistered value, tolerance, or decision rule
+      after observing any Stage-3 or Stage-4a number; any such change
+      requires a versioned protocol_amendment marked exploratory_only.
+  deliverables:
+    - experiments/EXP-MONO-7c653b/implementation.md
+    - experiments/EXP-MONO-7c653b/implementation/
+    - experiments/EXP-MONO-7c653b/runs/RUN-MONO-7c653b-1/
+    - experiments/EXP-MONO-7c653b/runs/RUN-MONO-7c653b-2/
+    - experiments/EXP-MONO-7c653b/execution_report.yaml
+  artifact_paths:
+    - experiments/EXP-MONO-7c653b/
+  archived_by: null
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 2
+    maximum_runs: 2
+  completion_gate:
+    - EXP-MONO-7c653b/specification.yaml separately reviewed, frozen, and execution_authorized by the Coordinator.
+    - Stage 1 hard gate passes exactly in both runs before Stage 3/4a are interpreted.
+    - Stage 3 exact-match rate and complete-splitting rate (both multiplicity-aware and distinct) reported for every (m,p) cell in both runs.
+    - Stage 4a mutant agreement rate reported, drawn from an independently-sampled comparison set.
+    - Operation-count reconciliation for the twist route reported beside (never folded into) H-MONO-40aca5's own j=0 count.
+    - All required_artifacts present and internally consistent (raw data agrees with execution_report.yaml's summary tables).
+  return_format: >-
+    execution_report.yaml with observations-only language (no verdict on
+    H-MONO-10ca08; that is the Coordinator's and independent reviewers'
+    to render), plus implementation.md disclosing any protocol deviation.
+  review_plan: null

@@ -1,0 +1,221 @@
+idea:
+  id: IDEA-20260815-a104bc
+  question_id: RQ-EDDSA-9b8473
+  added: '2026-08-15'
+  title: >-
+    BATCH VERIFICATION IS A DIFFERENT PREDICATE FROM SINGLE VERIFICATION AND
+    DEPLOYMENTS TREAT THEM AS INTERCHANGEABLE: construct signature sets
+    accepted in batch and rejected individually
+  class: control
+
+  claim: >-
+    Ed25519 batch verification checks a random linear combination, which is
+    a strictly weaker predicate than verifying each signature. Whether a set
+    exists that passes batch and fails individually -- and whether any
+    deployed batch API exposes that gap -- is checkable by construction
+    rather than by argument.
+
+  mechanism: >-
+    Construct candidate sets exploiting the batch equation's linear
+    structure, including small-order components that cancel in combination.
+    Verify each set in batch and individually across implementations and
+    record any divergence.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Read of GOAL-EDDSA-001; grep 'batch verification' (16), 'batch
+      equation'.
+    results: >-
+      Batch verification appears in the corpus; no record constructs sets
+      probing the batch-versus-single gap as certificates.
+    verdict: >-
+      ADAPTATION. The batch-versus-single gap is known in the Ed25519
+      literature; the contribution is constructed certificates against
+      pinned implementations.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE DIVERGENCE between batch and individual verification verdicts on
+      one signature set.
+    lossiness: >-
+      A per-set divergence bit discards which signature caused it, so the
+      responsible element is identified per divergent set.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while batch APIs are available; implementations without a
+      batch API are simply out of scope and listed.
+
+  null_object_control: >-
+    NULL 1 -- all-valid sets, which must pass both. NULL 2 -- a set with one
+    plainly invalid signature, which must fail both; a batch API accepting
+    it is broken outright.
+
+  discriminated_from:
+    - >-
+        The Ed25519 verification-divergence record in this series, which
+        concerns single-verification semantics; this one concerns the
+        batch predicate.
+    - >-
+        Published batch-verification analyses, which describe the weaker
+        predicate; this produces concrete sets against pinned
+        implementations.
+
+  assumptions:
+    - >-
+        Batch APIs are exposed and version-pinnable.
+    - >-
+        Constructed sets are genuinely in their intended class, verified
+        independently of the implementations under test.
+
+  predictions:
+    - metric: >-
+        all-valid null
+      direction: different
+      minimum_effect: >-
+        FORCED: both verifications pass.
+    - metric: >-
+        one-plainly-invalid null
+      direction: different
+      minimum_effect: >-
+        FORCED: both fail; a batch pass here is a critical
+        implementation bug.
+    - metric: >-
+        constructed gap-exploiting sets
+      direction: different
+      minimum_effect: >-
+        Predicted to diverge on at least one implementation; no
+        divergence anywhere means the deployed batch APIs close the gap,
+        which is reassuring and worth recording.
+
+  minimal_test:
+    design: >-
+      Three implementations with batch APIs, both nulls, and the
+      constructed sets.
+    controls:
+      - >-
+          All-valid and one-invalid nulls.
+      - >-
+          Version pinning per implementation.
+      - >-
+          Independent confirmation that each constructed set is in its
+          intended class.
+    required_metrics:
+      - >-
+          Batch and individual verdicts per set per implementation.
+      - >-
+          Responsible element identified per divergent set.
+      - >-
+          Both null outcomes.
+
+  falsification_conditions:
+    - >-
+        A null misbehaves. That implementation's column is void.
+    - >-
+        A set passes batch and fails individually. A concrete divergence
+        certificate, requiring review before it is characterised as a
+        vulnerability.
+    - >-
+        No divergence anywhere. Deployed batch APIs close the gap in the
+        tested versions, which is a useful positive.
+    - >-
+        Constructed sets are not in their intended class. Construction
+        wrong; rebuild before testing.
+
+  confounders:
+    - >-
+        VERSION BINDING: batch implementations change and a divergence is
+        a version fact.
+    - >-
+        API SEMANTICS: some batch APIs promise only that a passing batch
+        implies all-valid with high probability, so a divergence may be
+        within the documented contract and must be checked against it
+        before being called a bug.
+
+  interpretation_limits:
+    - >-
+        Documents behaviour against pinned versions; makes no security
+        claim.
+    - >-
+        A divergence within a documented probabilistic contract is not a
+        defect and must be reported as such.
+
+  heuristic_assumptions:
+    - id: HEUR-EDDSA-BATCH-1
+      statement: >-
+        A signature set passing batch verification but failing
+        individual verification exists whenever the batch equation
+        admits cancelling small-order components.
+      rigorous_support: >-
+        Rigorous ingredient: the batch equation is a random linear
+        combination, and small-order points contribute terms that can
+        cancel depending on the cofactor handling in the batch path. THE
+        GAP: the random scalars are chosen by the verifier, so a
+        construction must succeed against random choices rather than a
+        chosen one, which is a substantially stronger requirement.
+      falsification_condition: >-
+        Constructed sets failing to diverge across many random scalar
+        draws.
+      validation_plan: >-
+        SAMPLE: >= 100 random scalar draws per constructed set per
+        implementation. COMPARISON: divergence rate against the
+        implementation's documented probabilistic contract. TAIL CHECK:
+        sets diverging only rarely, reported with their rate. TRANSFER:
+        none beyond tested versions.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is one batch and n individual verifications
+      per set.
+    memory_exponent: >-
+      Negligible.
+    best_known: >-
+      Incumbents are the published Ed25519 batch-verification analyses,
+      which describe the predicate gap without pinned certificates.
+    hidden_overhead: >-
+      Succeeding against verifier-chosen random scalars rather than chosen
+      ones is the real difficulty and may make the construction
+      impossible.
+    tradeoff_note: >-
+      Certificates are precise and version-bound; the analysis is general
+      and unfalsifiable. This record takes the first.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As analysis: dominated by the published
+    batch-verification literature. As certificates: none exist here. Not
+    null on any axis.
+  sota_delta: >-
+    No attack, no exponent. Content delivered: constructed signature sets
+    probing the batch-versus-single predicate gap, run against pinned
+    implementations, with divergence rates checked against each
+    implementation's documented probabilistic contract.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.85 that three batch APIs are available and pinnable. 0.9 that the
+    nulls behave. 0.3 that a construction diverges against verifier-chosen
+    random scalars, which is the hard requirement and where I expect most
+    attempts to fail.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-EDDSA-9b8473
+    - GOAL-EDDSA-001
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

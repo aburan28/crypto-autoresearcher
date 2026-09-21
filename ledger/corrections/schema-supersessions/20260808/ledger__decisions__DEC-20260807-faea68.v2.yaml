@@ -1,0 +1,66 @@
+coordinator_decision:
+  id: DEC-20260807-faea68
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-ef31ab
+  recorded_by_task: TASK-20260807-ef31ab-decide
+  archived_by: null
+  decided_by: coordinator
+  decided_at: '2026-08-07'
+  context: "BATCH-ef31ab was opened to resolve the metric inconsistency identified\
+    \ in the BATCH-c3a501 review: H-XOR-YIELD used mixed denominators for arms A/C\
+    \ versus B in EXP-SEMAEV-f48dd1. The implementation reported yield on `tuples_enumerated`\
+    \ for MITM arms (candidate tuples after filtering), while Arm A reported the theoretical\
+    \ tuple-count. This produced a misleading \u0394 and risked overstating oracle\
+    \ advantage."
+  decision: revise
+  decision_scope: The metric baseline is fixed to use `|F|^m` as a common denominator
+    across all arms for yield computation. Arms B/C continue to report `candidates_verified`
+    separately for transparency, but those values are no longer used as the primary
+    numerator denominator pair for yield.
+  target_ids:
+  - GOAL-ECDLP-001
+  - H-XOR-YIELD
+  - EXP-SEMAEV-f48dd1
+  - KN-FIND-194294
+  - KN-FIND-ac28ed
+  rationale:
+  - The hypothesis to test is whether the oracle changes the probability of finding
+    relations per enumeration-space unit (`|F|^m`), not per post-filtered candidate.
+    Treating MITM as a filtering strategy means `candidates_verified` should be logged
+    for cost accounting, while yield remains a numerator over the full enumeration
+    budget.
+  - "The smoke test was rerun after restoring the corrected KN-FIND artifacts and\
+    \ specification and applying the denominator fix in the implementation. In the\
+    \ corrected record, B and A both report yield `26/1728 \u2248 0.015`, C reports\
+    \ `0/1728`, and control checks remain green."
+  - "The corrected result eliminates the apparent \u0394\u22480.5 artifact from mixed\
+    \ denominator definitions, and therefore no longer supports oracle \"advantage\"\
+    \ claims from smoke data alone. This is logged as a structural interpretation\
+    \ change, not a breakthrough."
+  evidence_refs:
+  - experiments/EXP-SEMAEV-f48dd1/specification.yaml
+  - experiments/EXP-SEMAEV-f48dd1/runs/RUN-SEMAEV-f48dd1-smoke/raw-result.json
+  - experiments/EXP-SEMAEV-f48dd1/implementation/smoke_test.py
+  - knowledge/findings/KN-FIND-194294.md
+  - knowledge/findings/KN-FIND-ac28ed.md
+  limitations:
+  - Smoke scope remains toy-scale (`m=3, p=101, one cell, single seed`).
+  - The full-grid `80` config/run design for EXP-SEMAEV-f48dd1 and any cryptographic-scale
+    extension are still pending execution; this decision concerns only metric consistency.
+  - Implementation is deterministic simulation in this branch; no large-scale oracle
+    advantage claim is supported.
+  next_actions:
+  - 'Re-run the full cell-grid executor under the corrected metric contract (as planned
+    in BATCH-a67152 successor work). The executor should report: `tuples_attempted
+    = |F|^m`, `tuples_enumerated = candidates_verified` for MITM arms, and yield computed
+    from `tuples_attempted`.'
+  - Keep `candidates_verified` in primary result payloads as a distinct precision/cost
+    measure.
+  - Update any downstream analyses (`H-XOR-YIELD`) and evidence reports that were
+    computed using the mixed denominator interpretation.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: No new asymptotic or security-relevant knowledge promotion is warranted
+      from this corrected bookkeeping pass.
+  claim_ceiling: toy
+  official_research_state_changed: false

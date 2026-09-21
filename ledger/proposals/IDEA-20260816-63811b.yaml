@@ -1,0 +1,269 @@
+idea:
+  id: IDEA-20260816-63811b
+  question_id: RQ-FNDSA-001
+  added: '2026-08-16'
+  title: Treat the recursion's accumulated rounding error as a random walk and measure whether it
+    grows like the square root of the tree depth or linearly in it, because an interval-arithmetic
+    certificate charges the linear rate and the ratio between the two rates is exactly how loose every
+    composed precision budget in this goal currently is.
+  class: measurement
+  claim: '(A) A tree-structured sampler composes L levels of rounded arithmetic, and any interval-arithmetic
+    or worst-case certificate over that composition charges each level its maximum error and adds
+    them, giving a bound that grows like L. The ACTUAL accumulated error is a sum of L per-level errors
+    whose signs are determined by rounding directions that are, in the generic case, close to symmetric
+    and close to independent; such a sum grows like the square root of L in standard deviation. (B)
+    The claim is therefore that the ratio between certified and realized accumulated error at depth
+    L is close to sqrt(L), so a certificate at L = 10 levels is loose by roughly a factor of 3 and
+    at L = 11 levels, which is what a dimension of 1024 would give, loose by roughly a factor of 3.3,
+    and that this LOOSENESS FACTOR IS ITSELF MEASURABLE at accessible depths by comparing the two
+    directly. (C) The measurement is the per-level accumulated error profile: at each level of the
+    recursion, the distribution of the accumulated relative error across many independent replays,
+    from which both the growth exponent in L and the per-level correlation can be read. (D) WHAT IS
+    NOT CLAIMED: no claim that any certificate in this corpus or elsewhere is wrong, since a bound
+    that is loose is still a valid bound; no claim that the realized rate is the one that matters
+    for security, because a security argument may legitimately need the worst case; no attack; and
+    no statement about deployed parameters or any specification. (E) The negative outcome is the more
+    interesting one and is fully usable: if the accumulated error grows LINEARLY rather than as a
+    square root, that means the per-level rounding errors are correlated, which would identify a structural
+    coupling in the recursion, name where it lives by level, and would say that worst-case certificates
+    are near-tight rather than loose. Either answer is a measured number that the composed-budget
+    entries in this corpus can use directly.'
+  mechanism: 'STAGE ONE instruments the toy sampler so that after each level of the recursion the
+    harness records both the p-bit value and the exact rational value of the same intermediate quantity,
+    giving the accumulated relative error at that level as an exact number. STAGE TWO replays the
+    recursion over many independent randomness tapes and forms, for each level l from 1 to L, the
+    empirical distribution of the accumulated relative error, from which the standard deviation s(l)
+    is estimated. STAGE THREE fits log s(l) against log l and reports the growth exponent beta, with
+    beta = 0.5 the independent-increment prediction and beta = 1.0 the fully correlated prediction.
+    STAGE FOUR computes, on the same runs, the interval-arithmetic certificate for the same quantity
+    at each level, and reports the looseness ratio certificate over realized standard deviation as
+    a function of l; this is the deliverable that a composed-budget record can consume. STAGE FIVE
+    runs the discriminating control: replace the rounding rule with a deliberately BIASED rounding,
+    always toward zero, which forces correlated increments and must produce beta near 1.0, and separately
+    with stochastic rounding, which forces independent increments and must produce beta near 0.5.
+    Those two arms bracket the instrument. Refutation: if the two rounding-rule arms do not separate,
+    the level-resolved error profile is not reading increment correlation and no signal value means
+    anything.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read RQ-FNDSA-001 in full, noting the opening that names the tree-based sampler's recursion
+      as a counted object whose per-level error accumulates. Read H-FNDSA-6a9cbb's mechanism block.
+      Extracted all twelve RQ-FNDSA-001 proposal titles. Read the title and framing of IDEA-20260813-aaf02e
+      in full, since it is the composed-budget record. Ran grep -ril for interval arithmetic, accumulate,
+      recursion, level, depth and certificate over ledger/proposals/.
+    results: IDEA-20260813-aaf02e is titled affine-interval sampler certificate and composes nodewise
+      rounding and rejection uncertainty through the ffLDL tree into an end-to-end distribution-distance
+      budget. That record OWNS the certificate construction. It produces a bound; it does not measure
+      the realized error against that bound, and nothing in its framing measures a growth exponent
+      or a looseness ratio. IDEA-20260813-d50a10 localizes the first disagreement by depth, which
+      is a level-resolved measurement but of a different quantity, a discrete divergence event rather
+      than a continuous accumulated error. No record in the twelve fits a growth exponent in tree
+      depth or reports a certificate-to-realized ratio.
+    verdict: 'UNVERIFIED. No claim about outside literature; random-walk versus worst-case error growth
+      is standard numerical analysis and affine arithmetic exists precisely to recover cancellation.
+      What is claimed new HERE is the pairing: computing the certificate and the realized error on
+      the SAME runs at the same levels and reporting their ratio as the deliverable, with biased and
+      stochastic rounding as bracketing arms that force beta to 1.0 and 0.5. The certificate is assembled
+      from IDEA-20260813-aaf02e; the level-resolved instrumentation is assembled from IDEA-20260813-d50a10''s
+      depth localization; the looseness ratio with bracketing arms is the part no record contains.'
+  object_first_candidate:
+    tracked_object: 'The ACCUMULATED RELATIVE ERROR of a single designated intermediate quantity,
+      as a real number carried down the recursion level by level, paired at each level with the interval-arithmetic
+      bound on itself. Not the output, not a distribution over outputs, not a divergence: one scalar
+      error and its certificate, followed as a function of depth.'
+    lossiness: 'The projection discards every intermediate quantity except the designated one, and
+      discards the sign structure of individual rounding events, keeping only their running sum. Two
+      runs with completely different per-level rounding patterns that happen to accumulate to the
+      same value are identified, and the fibers of that identification are large. The retained part
+      propagates because the composition operation acts on the accumulated error additively: level
+      l plus one adds its own increment to the running sum and multiplies by a factor near one, so
+      the running sum is a self-contained Markov quantity and does not require the discarded per-event
+      detail. The certificate propagates alongside it by the same additive rule with maxima instead
+      of realized values, which is precisely why the two rates can diverge.'
+    propagation: One step is one level of the recursion. Acting on the tracked object, a level adds
+      an increment whose magnitude is bounded by a per-level constant times 2^-p and whose sign is
+      set by the rounding directions taken at that level, and multiplies the existing accumulated
+      error by a growth factor determined by the level's arithmetic. The certificate, acting on the
+      same object, adds the per-level maximum with a fixed sign. Over L levels the realized quantity
+      is a sum of L signed increments and the certificate is a sum of L unsigned ones, so the two
+      differ by exactly the amount of cancellation, which is what the growth exponent measures.
+    survival_score: 'The object survives for as many levels as the recursion has, which is log2 of
+      the dimension plus one: 3 levels at d = 4, up to 7 levels at d = 64 and 8 at d = 128. That is
+      the honest constraint and it is severe: fitting a growth exponent from 3 to 7 points spanning
+      a factor of only 2.3 in L gives a wide confidence interval, and the record does not pretend
+      otherwise. The object can be extended artificially by running deeper trees on synthetic bases
+      at dimensions up to 1024 without any claim that those bases resemble keys, which buys L up to
+      11, and that synthetic extension is the only way the exponent becomes well determined.'
+  null_object_control: The null arm runs the identical level-resolved instrumentation on a recursion
+    executed entirely in exact rational arithmetic, where the accumulated relative error must be identically
+    zero at every level over every replay. Any nonzero reading proves the instrumentation, not the
+    arithmetic, is generating error. A second null runs the p-bit arm and compares its level-zero
+    reading against zero, since no rounding has yet occurred at the root. The two bracketing positive
+    controls are the biased-rounding arm, which must give beta near 1.0, and the stochastic-rounding
+    arm, which must give beta near 0.5; without both separating, an intermediate measured beta is
+    uninterpretable.
+  discriminated_from:
+  - IDEA-20260813-aaf02e constructs the composed certificate. This measures how loose that certificate
+    is, which its own framing does not do and cannot do, since a bound cannot evaluate itself.
+  - IDEA-20260813-d50a10 records the depth of the FIRST DISAGREEMENT between two samplers, a discrete
+    event. This records a continuous accumulated magnitude at every depth on every replay, including
+    replays where no disagreement ever occurs.
+  - The three-role ablation entry in this batch fits a growth exponent in the number of SIGNATURES.
+    This fits one in tree DEPTH. Different operations, different exponents, and neither implies the
+    other.
+  - The dimension-sweep entry in this batch fits an exponent in dimension, which is confounded with
+    depth by construction. This entry attacks depth directly by instrumenting levels within a single
+    tree, which is the only way to separate the two.
+  - H-FNDSA-6a9cbb works in exact arithmetic and has no rounding content at all; this entry has no
+    content in exact arithmetic except as its null.
+  assumptions:
+  - A single designated intermediate quantity is representative enough that its accumulated error
+    profile is informative; the record acknowledges this is a choice and requires the choice to be
+    frozen and its rationale recorded.
+  - The interval-arithmetic certificate can be evaluated on the same runs at the same levels, which
+    requires the certificate implementation to be level-resolved rather than end-to-end only.
+  - Synthetic deep bases at dimensions up to 1024 can be constructed to extend L to 11 without being
+    claimed to resemble FN-DSA keys in any way.
+  - Rounding increments at different levels are identically distributed enough that a single power
+    law in L is a meaningful fit; this is tested through residuals rather than assumed.
+  - Stochastic rounding can be implemented correctly enough to serve as the independent-increment
+    bracketing arm, which requires an unbiased randomized rounding rule and is checked by measuring
+    its per-increment mean.
+  predictions:
+  - metric: growth exponent beta of accumulated error standard deviation in tree depth, biased-rounding
+      control arm
+    direction: higher
+    minimum_effect: 1.0, forced by fully correlated increments, tolerance plus or minus 0.2
+  - metric: growth exponent beta, stochastic-rounding control arm
+    direction: lower
+    minimum_effect: 0.5, forced by independent zero-mean increments, tolerance plus or minus 0.2
+  - metric: growth exponent beta, signal arm with round-to-nearest-even
+    direction: different
+    minimum_effect: 'no pre-committed value. Refusal reason: whether round-to-nearest-even in this
+      recursion produces correlated or independent increments is precisely what is unknown, and the
+      two bracketing arms exist so that any value between 0.5 and 1.0 is interpretable without a guess.'
+  - metric: looseness ratio, interval certificate divided by realized standard deviation, at the deepest
+      tested level
+    direction: higher
+    minimum_effect: at least 2.0 at L = 11 if beta is near 0.5, since sqrt(11) is about 3.3 and the
+      certificate carries additional per-level slack; a ratio below 2.0 would mean the certificate
+      is near-tight and the claim of substantial looseness fails
+  - metric: accumulated error in the exact-arithmetic null at every level
+    direction: different
+    minimum_effect: 0
+  minimal_test:
+    design: 'The cheapest discriminating measurement runs only the two bracketing rounding-rule arms
+      plus the exact null, at a single synthetic depth of L = 11, with 10^4 replays. Instrument one
+      designated intermediate quantity, record its accumulated relative error at each of the 11 levels,
+      and fit log standard deviation against log level for each arm. This is minutes of compute and
+      it discriminates the entire design: if biased rounding gives beta near 1.0 and stochastic rounding
+      gives beta near 0.5, the instrument reads increment correlation and the signal arm is worth
+      running; if the two arms coincide, the level-resolved profile is not reading what the design
+      claims and no further compute is justified; if the exact null is nonzero, the instrumentation
+      is broken. Only after that does the full sweep over depths, precisions and bases earn its cost,
+      and even then the deliverable is the looseness ratio rather than beta alone.'
+    controls:
+    - 'Exact-arithmetic null: identical instrumentation over exact rational arithmetic, accumulated
+      error must be identically zero at every level and every replay.'
+    - 'Root-level control: accumulated error at level zero must be exactly zero before any rounding
+      occurs.'
+    - Biased-rounding bracketing arm, round toward zero, must give beta near 1.0.
+    - Stochastic-rounding bracketing arm, unbiased randomized rounding, must give beta near 0.5, with
+      its per-increment mean verified consistent with zero.
+    - 'Certificate-validity control: on every replay, verify the realized accumulated error lies inside
+      the interval certificate at every level; a single violation invalidates the certificate implementation,
+      not the measurement.'
+    required_metrics:
+    - standard deviation of accumulated relative error at each level, with confidence interval
+    - fitted growth exponent beta in tree depth with confidence interval, per arm
+    - looseness ratio, certificate over realized standard deviation, at each level
+    - fraction of replays where the realized error fell outside the certificate, which must be zero
+    - lag-one correlation of per-level increments, estimated directly
+    - per-increment mean in the stochastic-rounding arm
+  falsification_conditions:
+  - The exact-arithmetic null returns nonzero accumulated error at any level.
+  - The two bracketing rounding arms fail to separate by at least 0.3 in fitted beta.
+  - Any replay's realized error falls outside the interval certificate, which falsifies the certificate
+    implementation.
+  - The looseness ratio at the deepest tested level is below 2.0 while beta is near 0.5, which is
+    internally inconsistent and indicates a measurement error in one of the two quantities.
+  - Fitted beta is outside the interval from 0.4 to 1.1 in the signal arm, which lies outside both
+    bracketing arms and indicates the growth is not described by either mechanism.
+  - Residuals of the log-log fit show systematic curvature, meaning no single growth exponent describes
+    the depth range.
+  confounders:
+  - The designated intermediate quantity being atypical, so that its error profile is not representative
+    of the recursion; addressed only partially by running a second designated quantity as a robustness
+    check.
+  - Depth and dimension varying together in non-synthetic bases, which is why the synthetic deep-basis
+    arm is required.
+  - A growth factor per level that differs from one, which mixes multiplicative amplification into
+    what the model treats as additive accumulation.
+  - Catastrophic cancellation at a single level dominating the accumulated error and flattening the
+    apparent exponent.
+  - Stochastic rounding implemented with a biased randomizer, which would silently move the lower
+    bracketing arm away from 0.5.
+  interpretation_limits:
+  - A looseness ratio measured on one designated quantity in one toy implementation describes that
+    quantity and that implementation, not any certificate in general and not any released code.
+  - A loose bound is still a valid bound; nothing here says any certificate is wrong, and a security
+    argument may legitimately require the worst case rather than the realized rate.
+  - The depth range accessible in non-synthetic bases is 3 to 7 levels, and results at L = 11 come
+    from synthetic bases that are not claimed to resemble keys.
+  - The exponent describes error accumulation, not output divergence; converting one into the other
+    requires the sensitivity of the output law to the intermediate quantity, which this contract does
+    not measure.
+  target_complexity:
+    time_exponent: 'No attack exponent is claimed. Instrument cost only: linear in replays and linear
+      in depth, with the exact-arithmetic null carrying a large constant factor from rational arithmetic.'
+    memory_exponent: No attack memory exponent is claimed. Instrument memory is O(L) per replay for
+      the level-resolved record, with streaming accumulation of the per-level statistics.
+    best_known: Inside this repository the incumbent is IDEA-20260813-aaf02e's affine-interval certificate,
+      which supplies the bound this entry measures against. No claim is made about anything outside
+      this repository.
+    hidden_overhead: 'Running exact rational arithmetic in lockstep with p-bit arithmetic at every
+      level, on every replay, is far more expensive than either alone, and the rational denominators
+      grow with depth, so the null arm and the signal arm have wildly different costs per replay.
+      The human cost is the level-resolved certificate: making an end-to-end interval bound report
+      itself at every level is a rewrite, not an instrumentation, and that is the work item most likely
+      to be underestimated.'
+  dominated_by: 'n/a (no attack result claimed). Pareto check on instrument axes: against IDEA-20260813-aaf02e''s
+    certificate alone, this is strictly more expensive in compute and strictly more informative, since
+    it returns the bound plus its looseness; against the flip-counting entry in this batch, it is
+    more expensive per replay because of the exact shadow computation and returns a continuous magnitude
+    rather than a discrete rate; against the enumeration entry, it is cheaper and reaches greater
+    depth but returns an intermediate-quantity error rather than an output distance. No attack frontier
+    is engaged.'
+  sota_delta: 'No attack; measurement contribution only. The quantitative delta is the looseness ratio
+    itself: if beta is near 0.5, a worst-case composed budget at 11 levels overstates realized error
+    by a factor of at least 3.3 from cancellation alone, and the measured ratio makes that factor
+    a number rather than an intuition. If beta is near 1.0 the delta is zero and the certificates
+    are near-tight, which is an equally reportable outcome.'
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'Separate parts. That the exact null reads zero and the instrumentation
+    is sound: about 0.8. That the two rounding-rule bracketing arms separate cleanly: about 0.75,
+    since the mechanism forcing them is simple. That the signal arm''s beta is near 0.5 rather than
+    1.0: about 0.55, genuinely uncertain because the recursion shares operands across levels and that
+    sharing could correlate increments. That the looseness ratio is above 2.0 at L = 11: about 0.5,
+    conditional on beta being near 0.5. That the depth range accessible without synthetic bases suffices
+    for a usable fit: low, about 0.25, which is why the synthetic arm is not optional.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FNDSA-001
+  - H-FNDSA-6a9cbb
+  - IDEA-20260813-aaf02e
+  - IDEA-20260813-d50a10
+  - docs/inventor-protocol.md
+  - docs/evidence-and-reproducibility.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FALCON-04436a

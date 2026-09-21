@@ -1,0 +1,461 @@
+validation_report:
+  id: VAL-20260907-612101
+  task_id: >-
+    not_dispatched -- this review was assigned directly by the orchestrating
+    session (main), not through a Coordinator research_dispatch.py TASK-*
+    handoff. No TASK-* record in ledger/handoffs/ names this validation; the
+    only handoffs naming EXP-HZM-001 are TASK-20260727-009.yaml (original
+    executor dispatch) and TASK-20260907-d2164a.yaml (the producer task for
+    the run under review). Disclosed rather than fabricated, per AGENTS.md
+    core rules 5 and 9, matching the prior validator report's own precedent
+    (VAL-20260907-5c869f).
+  hypothesis_id: H-HZM-001
+  experiment_id: EXP-HZM-001
+  run_ids: [RUN-HZM-001-c-primary-gate-only]
+  review_role: validator
+  reviewed_snapshot_commit: 3794391b647d1558da97a6eebd3a97bda72ef3ec
+  reviewed_snapshot_note: >-
+    Confirmed 3794391b6 is a real, HEAD-reachable commit
+    (`git merge-base --is-ancestor 3794391b6 HEAD` succeeds) that adds
+    exactly the seven run artifact files under
+    experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/ (`git show
+    3794391b6 --stat`). This is a genuine Coordinator-committed snapshot, not
+    a working-tree-only receipt.
+
+  chain_of_authority_checks:
+    - id: AUTH-1-AMENDMENT
+      finding: >-
+        experiments/EXP-HZM-001/amendments/v2_primary_gate_cost_check.yaml
+        (base_version 1, resulting_version 2, status: proposed) exists and
+        adds exactly one narrow carve-out (V2-CHG-1) to stopping_rules[0],
+        restricted to (L,d) in {(12,1),(16,1)}, calling ONLY
+        model_charged_cost, and explicitly leaves the general
+        d-in-{1,2,3} block, RUN-HZM-001-b, and general-scope RUN-HZM-001-c
+        untouched. Its authority_boundary section correctly declares
+        execution_authorized_by_this_amendment: false and
+        hypothesis_status_transition: none.
+      verdict: consistent
+    - id: AUTH-2-DECISION
+      finding: >-
+        ledger/decisions/DEC-20260907-5b500d.yaml adopts the amendment
+        verbatim (amendment_adoption_note: "adopted exactly as drafted"),
+        sets execution_authorized: true scoped to exactly the two
+        model_charged_cost calls, and independently re-derives (by the
+        Coordinator's own hand and by actually running the code) the same
+        315.5387244911908 / 3855.5294333064226 figures this review
+        reproduces below.
+      verdict: consistent
+    - id: AUTH-3-TASK
+      finding: >-
+        ledger/handoffs/TASK-20260907-d2164a.yaml cites authorized_by:
+        DEC-20260907-5b500d as its sole approval basis, restates the same
+        two-point frozen scope, and routes to executor-mechanical (a
+        judgment-free re-run of an already-tested function), which matches
+        this task's actual shape.
+      verdict: consistent
+    - id: AUTH-4-RUN
+      finding: >-
+        The run's manifest.yaml cites task_id: TASK-20260907-d2164a and
+        authorized_by: DEC-20260907-5b500d, and its recorded points_computed
+        match the task's frozen scope exactly. No evidence record in
+        ledger/ yet cites RUN-HZM-001-c-primary-gate-only (grepped), which
+        is correct: DEC-20260907-5b500d's review_requirement says an
+        evidence-review decision may not cite these figures before
+        independent review, and none has yet.
+      verdict: consistent
+
+  artifact_checks:
+    - path: experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/{manifest.yaml,command.txt,environment.json,raw-result.json,stdout.log,stderr.log,summary.json}
+      status: present_and_committed
+      note: >-
+        All seven deliverables listed in TASK-20260907-d2164a exist at the
+        reviewed commit (git show --stat). stderr.log is empty (0 bytes),
+        consistent with exit_code 0 and no crash.
+    - path: experiments/EXP-HZM-001/implementation/cost_ledger.py
+      status: present_and_committed_unmodified
+      note: >-
+        `git diff 2c5d2dc2..3794391b6 -- .../cost_ledger.py` is empty, and
+        the file at commit 2c5d2dc2 is byte-identical to the current working
+        tree. The manifest's dirty: false and environment.json's
+        implementation_module_edited: false are independently confirmed
+        true, not merely asserted.
+    - path: run.code.commit = 2c5d2dc20072f83256096d9f47ba2cf2017f76aa
+      status: real_and_reachable
+      note: >-
+        `git cat-file -e` succeeds; the commit is an ancestor of both HEAD
+        and the run's own archive commit 3794391b6 (consistent -- the code
+        was at this commit when the run executed, before the later archive
+        commit added the run directory).
+    - path: manifest schema (status/code/inputs/timing/result, inline environment block)
+      status: complete_and_schema_valid
+      note: >-
+        All named top-level blocks are present in manifest.yaml. Ran
+        `python3 tools/validate_ledger.py`: 53 new (non-baseline) errors
+        reported repo-wide, ZERO of which mention "HZM" (grepped the full
+        output). The pre-existing prior-round validator report already
+        confirmed RUN-HZM-001-a/-d pass this same check; this run extends
+        that clean record.
+    - path: ledger/hypotheses/H-HZM-001.yaml
+      status: present_and_unchanged
+      note: >-
+        test_boundary.parameters.primary_gate_sizes: [[12, 1], [16, 1]] is
+        confirmed to literally match the two points this run computed
+        (not a value the amendment or this run invented). status remains
+        approved; no status transition made by this run or its artifacts.
+
+  metric_recomputations:
+    - id: RECOMP-1-FRESH-PROCESS
+      method: >-
+        In a brand-new Python process, independently imported
+        experiments/EXP-HZM-001/implementation/cost_ledger.py (not via the
+        producer's own command.txt) and called
+        model_charged_cost(4096, 12, 1) and model_charged_cost(65536, 16, 1)
+        directly.
+      result: >-
+        Point 1: M=13, H=1, q=0.003169183122016195,
+        charged_expected_signatures=315.5387244911908, rho_bound=64,
+        survives_rho_gate=False. Point 2: M=17, H=1,
+        q=0.00025936775151069735, charged_expected_signatures=
+        3855.5294333064226, rho_bound=256, survives_rho_gate=False.
+      matches_reported: true
+      note: Bit-for-bit identical (full float repr) to raw-result.json and stdout.log.
+    - id: RECOMP-2-LITERAL-COMMAND-EXECUTION
+      method: >-
+        Executed the archived command.txt verbatim as a subprocess
+        (`bash command.txt`) rather than reconstructing an equivalent
+        script, to check the command artifact itself, not just the function.
+      result: >-
+        exit code 0; the point_1/point_2 JSON payload is byte-identical to
+        stdout.log's point_1/point_2 payload. See COMMAND-ARTIFACT-DISCREPANCY
+        below for the one structural difference found (a missing top-level
+        timing key), which does not affect either point's substantive
+        ChargedCostModel fields.
+      matches_reported: true
+    - id: RECOMP-3-ALGEBRA-SANITY
+      method: >-
+        Independently re-derived, not merely re-read, the two identities the
+        amendment's rationale rests on: (a) sympy.binomial(n, 0) == 1 for
+        n in {0,1,5,12,13,16,17,1000000}; (b) sympy.binomial(L+1, 1) == L+1
+        for L in {12, 16}; (c) rho_bound = ceil(sqrt(N)) via
+        math.isqrt(N-1)+1 for N=4096 (63+1=64) and N=65536 (255+1=256),
+        both perfect squares so ceil(sqrt(N))=sqrt(N) exactly.
+      result: All three identities hold exactly as claimed; no edge case found.
+      matches_reported: true
+
+  control_checks:
+    - id: SCOPE-BOUNDARY-FORBIDDEN-MODULES
+      method: >-
+        Grepped command.txt and every artifact under
+        runs/RUN-HZM-001-c-primary-gate-only/ for
+        "signature_enumeration|brute_force_control|toycurve".
+      result: >-
+        One match total, in manifest.yaml's own disclosure sentence stating
+        these modules were NOT imported or executed (the negative
+        assertion, not a call). command.txt's literal script imports only
+        cost_ledger.py. No forbidden module, curve instance, or seed appears
+        anywhere.
+      verdict: pass
+    - id: FUNCTION-SIGNATURE-CHECK
+      method: Read cost_ledger.py's model_charged_cost signature directly.
+      result: >-
+        `def model_charged_cost(N: int, L: int, d: int) -> ChargedCostModel`
+        -- exactly three parameters, no manuscript base symbol (l or l'), no
+        curve object, no k. Confirms the amendment's claim that this
+        function cannot itself be handed a resolved-or-unresolved base
+        choice; it only ever sees the caller-supplied L.
+      verdict: pass
+    - id: H-FORMULA-BASE-INVARIANCE
+      method: >-
+        Read the H computation directly:
+        `H = binom(L + d, d - 1)`. At d=1 this is binom(L+1, 0), and
+        binom(n, 0) = 1 for every nonnegative integer n regardless of what
+        n is (RECOMP-3 above). Cross-checked against the prior round's
+        independently-verified manuscript finding (VAL-20260907-5c869f,
+        MANUSCRIPT-ANCHOR-2): the CTRL-HZM-MANUSCRIPT-ALIGNMENT FAIL was
+        specifically that the manuscript's OWN H formula uses a different
+        base (l=2*l') than its OWN M/q formula (base l') -- i.e. the
+        ambiguity is confined to H's base symbol, not M/q's. Since
+        H collapses to 1 regardless of which base is substituted at d=1,
+        and M/q's base was never in question, the amendment's claim that
+        this specific base ambiguity cannot affect this narrow computation
+        holds under the prior round's own independently-confirmed finding,
+        not merely under the amendment's assertion of it.
+      verdict: pass
+    - id: HQ-BOTTLENECK-ONLY-NOT-9-STAGE-SUM
+      method: >-
+        Read model_charged_cost's full body line by line. It computes only
+        M, H, q, and charged_expected_signatures = H / q (with an inf
+        fallback if q<=0), then compares to rho_bound. No other variable is
+        computed or added; none of the other eight frozen_cost_ledger stage
+        names (sampled_point_generation, evaluation_matrix_construction,
+        left_kernel_and_reductions, defect_loop, signature_construction,
+        duplicate_storage_or_streaming, failed_outer_restrictions,
+        zero_minor_reconstruction, final_group_equality_verification --
+        specification.yaml inputs.frozen_cost_ledger.charged_stages) is
+        referenced anywhere in cost_ledger.py. The required_disclosure_
+        hq_bottleneck_term sentence in manifest.yaml is verified true
+        against the source, not merely trusted from the docstring or the
+        amendment's own restated claim.
+      verdict: pass
+    - id: CTRL-HZM-WORKED-EXAMPLE_CTRL-HZM-BRUTE-FORCE_CTRL-HZM-CERTIFICATE
+      applicability: >-
+        Not invoked by this run, correctly. These three frozen controls
+        exist to catch implementation bugs in an EXECUTED enumeration
+        (signature_enumeration.py / brute_force_control.py); this run calls
+        neither module and performs no enumeration, curve generation, or
+        certificate reconstruction. The amendment's scope_boundary
+        explicitly and correctly excludes them. This review substitutes an
+        equivalent check appropriate to a closed-form arithmetic function:
+        independent triple reproduction (RECOMP-1/2/3 above) from a
+        from-scratch script, from the literal archived command, and from
+        first-principles algebra -- the closed-form analogue of a
+        worked-example/brute-force cross-check.
+      verdict: not_applicable_correctly_scoped
+    - id: COMMAND-ARTIFACT-DISCREPANCY
+      method: >-
+        Executed the archived command.txt verbatim (RECOMP-2) and diffed
+        its stdout against the committed stdout.log.
+      finding: >-
+        command.txt's script (which imports `time` but never calls it)
+        prints a JSON object with exactly two top-level keys, "point_1" and
+        "point_2". The committed stdout.log (and raw-result.json) carry a
+        THIRD top-level key -- "wall_clock_seconds" in stdout.log,
+        renamed to "wall_clock_seconds_of_the_two_calls_only" in
+        raw-result.json (same value, 0.0006182193756103516, different key
+        name between the two files) -- that command.txt's literal script
+        cannot produce. This means the archived command.txt is not a
+        byte-verbatim transcript of whatever script actually generated
+        stdout.log; it is a simplified reconstruction that dropped timing
+        instrumentation (while leaving the unused `import time`) and the
+        two archival files independently renamed the same timing field
+        rather than transcribing it identically.
+      severity_assessment: >-
+        Reported as a limitation, not a substantive defect. The
+        discrepancy is confined to self-timing metadata, not to any
+        ChargedCostModel field: all nine result fields at both points are
+        bit-for-bit identical across three independent reproduction
+        methods (RECOMP-1 fresh process, RECOMP-2 literal command
+        execution's point_1/point_2 payload, and the committed
+        raw-result.json/stdout.log). A hand-fabricated
+        315.5387244911908-style 16-significant-digit float is not a
+        plausible alternative explanation once independently regenerated
+        by deterministic code three separate ways. This is an
+        archival-fidelity gap in the "exact command" artifact, not a
+        run-integrity failure under specification.yaml's invalidation_rules
+        (which requires the command to be present and the result
+        reproducible, both of which hold); it should be corrected in a
+        future archival hygiene pass so that command.txt is a literal
+        transcript rather than a reconstruction.
+      verdict: flagged_limitation_not_disqualifying
+
+  heuristic_validation_checks:
+    pre_registered_prediction: >-
+      specification.yaml's preregistered_prediction block (q/M/H formulas,
+      the falsification bound N*d/(L+1)=N^(1-o(1))) was approved 2026-07-27
+      and re-approved 2026-09-06, strictly before this run's authorizing
+      amendment (2026-09-07) and execution. No post-hoc fitting: the H/q
+      lower-bound comparison this run performs was specified in
+      specification.yaml's success_criterion/falsification_criterion(b)
+      long before RT-20260907-e9f097 noticed the two primary gate sizes are
+      base-invariant.
+    sample_integrity: >-
+      not_applicable -- closed-form, deterministic, seed-free computation
+      (sympy.binomial and float exponentiation only). environment.json and
+      manifest.yaml both correctly record seed: null with an explanatory
+      seed_note, not a silently-omitted field.
+    correspondence_validity: not_applicable -- no substitute-sampling correspondence is used or claimed.
+    scale_binding: >-
+      N in {4096, 65536} (toy scale, matching specification.yaml's
+      scale_relevance.tier: toy and toy_instances.subgroup_order_bits: [8,
+      12, 16]). The run's scope_note and no_conclusion_note both correctly
+      disclose that this narrow result says nothing about the general
+      d-in-{1,2,3} manuscript-alignment question or about any scale beyond
+      the two named points -- confirmed by this review's own grep (see
+      NO-CONCLUSION-CHECK below): no transfer or asymptotic claim is made
+      anywhere in this run's artifacts.
+    statistical_signal_null_control: >-
+      not_applicable. This run performs no sampling and reports no
+      correlation, bias, or excess against a null object; it is a
+      deterministic closed-form evaluation of a pinned formula pair at two
+      fixed points. AGENTS.md/inventor-protocol.md's null-object-control
+      requirement governs a statistical signal, which nothing here is.
+
+  cost_model_checks:
+    unit_declaration: >-
+      charged_expected_signatures is in units of "expected number of
+      signature constructions" (H/q), explicitly NOT group-operation-
+      equivalents directly; optimistic_assumptions[1] discloses the
+      poly(log N) bit-cost-per-operation assumption under which this unit
+      is compared to rho_bound's group-operation-equivalents without
+      changing the N-exponent comparison. The unit is declared, not left
+      implicit.
+    optimistic_assumptions_flagged: >-
+      Present verbatim, three items, in raw-result.json and reproduced
+      exactly by this review's own fresh execution (RECOMP-1): (1) H/q is
+      the signature-count bottleneck term only, omitting eight other named
+      stages, so the true charged cost can only be larger; (2) poly(log N)
+      bit-cost assumption; (3) H uses the SPEC's pinned formula, which
+      RUN-HZM-001-a found does not match the manuscript's own displayed H
+      equation's base symbol (moot at d=1 per H-FORMULA-BASE-INVARIANCE
+      above, but disclosed regardless).
+    memory_alongside_time: >-
+      Not reported by this run, correctly -- this narrow computation is
+      pure scalar arithmetic authorized specifically to exclude matrix
+      construction, storage, and enumeration (the stages that would carry a
+      memory cost); reporting no memory figure here is consistent with the
+      authorized scope, not an omission of a required field.
+    cost_bookkeeping: >-
+      Confirmed structurally from the source, not merely from the label:
+      charged_expected_signatures = H / q is exactly "per-attempt cost (H
+      signature constructions per outer trial) x inverse success
+      probability (1/q)", matching the required total-expected-cost
+      bookkeeping rule with the probability taken from the stated
+      heuristic's own q formula, not recomputed as if success were
+      certain.
+
+  no_conclusion_check:
+    method: >-
+      Grepped every file under runs/RUN-HZM-001-c-primary-gate-only/ for
+      language asserting H-HZM-001's or the general d-in-{1,2,3} question's
+      resolution ("H-HZM-001 is", "hypothesis is supported/refuted/
+      confirmed", "falsified", "proves", "demonstrates", "alignment ...
+      resolved").
+    result: >-
+      Exactly one match, in manifest.yaml's own required no_conclusion_note
+      sentence ("...it does NOT conclude that H-HZM-001 is [supported or
+      refuted]...") -- the disclaimer itself, not an asserted conclusion.
+      No other match anywhere. Confirms completion_gate item 4 and the
+      task's constraint are honored.
+    verdict: pass
+
+  limitations:
+    - >-
+      COMMAND-ARTIFACT-DISCREPANCY (control_checks above): the archived
+      command.txt does not byte-reproduce the committed stdout.log (a
+      timing-metadata field present in stdout.log/raw-result.json cannot be
+      produced by literally executing command.txt, and the same field is
+      named differently between stdout.log and raw-result.json). This is an
+      archival-fidelity gap, independently assessed as not affecting any
+      substantive ChargedCostModel field, all of which this review
+      independently reproduced bit-for-bit by three separate methods. Flagged
+      for correction, not treated as disqualifying.
+    - >-
+      This review is a whole-artifact check, not a joint-scoped review under
+      a Coordinator-authored review_plan (none exists for this task); no
+      review_plan or blindness block was found to apply.
+    - >-
+      CTRL-HZM-WORKED-EXAMPLE, CTRL-HZM-BRUTE-FORCE, and CTRL-HZM-CERTIFICATE
+      are not invoked by this run (correctly, per the amendment's
+      scope_boundary, since no enumeration or curve instance is generated).
+      This review's own triple-reproduction (RECOMP-1/2/3) is the substitute
+      check appropriate to a closed-form function, not a re-run of those
+      three named controls, which remain scoped to the still-blocked general
+      enumeration grid.
+    - >-
+      This run and this review say nothing about H-HZM-001's status, HEUR-001,
+      or the general d-in-{1,2,3} CTRL-HZM-MANUSCRIPT-ALIGNMENT question,
+      which remain exactly as RUN-HZM-001-a/-d and their own independent
+      review left them (inconclusive_misalignment, unresolved for d in
+      {2,3}). A passed verdict here certifies RUN-HZM-001-c-primary-gate-only
+      as an admissible receipt for the narrow falsification_criterion(b)
+      comparison at the two named base-invariant points; it does not itself
+      support or refute H-HZM-001, demonstrate a speedup, authorize
+      promotion, or resolve the general alignment question. Any Coordinator
+      evidence-review decision that goes further than this narrow scope
+      would itself be the overclaim, not this run.
+    - >-
+      Did not independently re-verify the red-team review RT-20260907-e9f097
+      or the prior validator report VAL-20260907-5c869f in full; both were
+      read as cited background/provenance for the H-FORMULA-BASE-INVARIANCE
+      cross-check above, and RT-20260907-e9f097's commit (fa79a2158) was
+      confirmed real and reachable, but this review's independent
+      recomputation authority rests on this review's own fresh derivations
+      (RECOMP-1/2/3), not on trusting either prior document's arithmetic.
+
+  verdict: passed
+  verdict_rationale: >-
+    Every load-bearing element of the claim under review was independently
+    reproduced from a fresh Python process and from first-principles
+    algebra, not merely re-read from the producer's own artifacts: (1)
+    model_charged_cost(4096,12,1) and model_charged_cost(65536,16,1) were
+    called directly in a new process and returned
+    charged_expected_signatures = 315.5387244911908 and 3855.5294333064226
+    respectively, survives_rho_gate=False at both, bit-for-bit identical to
+    raw-result.json; (2) reading the function's source directly (not the
+    docstring) confirms it takes only (N, L, d), computes H=binom(L+d,d-1)
+    which collapses to 1 at d=1 for any base by the general identity
+    binom(n,0)=1, and computes charged_expected_signatures as H/q only --
+    no summation over the other eight named charged_stages exists anywhere
+    in the module, matching the run's required_disclosure_hq_bottleneck_term
+    sentence exactly; (3) no forbidden module (signature_enumeration.py,
+    brute_force_control.py, toycurve) or curve instance appears anywhere in
+    command.txt or the run's artifacts; (4) the manifest's status/code/
+    inputs/timing/result fields and inline environment block are complete
+    and tools/validate_ledger.py reports zero errors attributable to this
+    experiment; (5) run.code.commit is a real, HEAD-reachable commit, and
+    cost_ledger.py is confirmed byte-identical (unedited) between that
+    commit, the run's archive commit, and the current working tree; (6) no
+    conclusion about H-HZM-001's status or the general d-in-{1,2,3}
+    alignment question is written anywhere in this run's artifacts (one
+    grep match, the disclaimer itself); (7) the amendment's own math
+    re-checks out independently: binom(n,0)=1 for every tested nonnegative
+    n, and M=binom(L+1,1)=L+1 for both L=12 and L=16, matching the run's
+    M_candidate_completions exactly. One archival-fidelity gap was found and
+    is disclosed prominently (COMMAND-ARTIFACT-DISCREPANCY): the literal
+    command.txt does not byte-reproduce stdout.log's timing field. This does
+    not touch any substantive result and does not change the verdict, given
+    triple-independent reproduction of every ChargedCostModel field. This
+    verdict certifies RUN-HZM-001-c-primary-gate-only as an admissible
+    research receipt for its narrowly authorized scope only; it does not
+    itself support or refute H-HZM-001, demonstrate a speedup, authorize
+    promotion, or resolve the general d-in-{1,2,3} manuscript-alignment
+    question, which remain exactly as the prior round left them.
+
+  review_attestation:
+    task_id: not_dispatched (direct main-session validation instruction; see task_id field above)
+    joints_owned: [whole_artifact -- no review_plan with enumerated joints exists for this task]
+    independent_session: true
+    verdict: passed
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    fallback_used: false
+    blindness:
+      read_sibling_reports: true
+      note: >-
+        Read experiments/EXP-HZM-001/reviews/validator/validation-report.yaml
+        (prior round, RUN-HZM-001-a/-d) for provenance/cross-check purposes
+        only (H-FORMULA-BASE-INVARIANCE control above cites its independently
+        confirmed manuscript-anchor finding to corroborate, not substitute
+        for, this review's own derivation). This is disclosed per
+        agents/validator.md's instruction to say so rather than proceed
+        quietly, since no review_plan with a blindness.lifted_for block
+        exists for this task to authorize or forbid it either way; the prior
+        report concerns a different run (RUN-HZM-001-a/-d) than the one
+        under review here (RUN-HZM-001-c-primary-gate-only), so it is
+        background provenance, not a sibling report on the same run. No
+        red-team report on RUN-HZM-001-c-primary-gate-only exists yet at
+        review time (this review round has not yet run red-team).
+    sources_read:
+      - AGENTS.md
+      - agents/validator.md
+      - templates/research-records.md
+      - experiments/EXP-HZM-001/specification.yaml
+      - experiments/EXP-HZM-001/amendments/v2_primary_gate_cost_check.yaml
+      - ledger/decisions/DEC-20260907-5b500d.yaml
+      - ledger/handoffs/TASK-20260907-d2164a.yaml
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/manifest.yaml
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/command.txt
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/raw-result.json
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/environment.json
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/summary.json
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/stdout.log
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-c-primary-gate-only/stderr.log
+      - experiments/EXP-HZM-001/implementation/cost_ledger.py
+      - ledger/hypotheses/H-HZM-001.yaml
+      - experiments/EXP-HZM-001/reviews/validator/validation-report.yaml (prior round, provenance only)
+      - tools/validate_ledger.py (executed)
+      - "git log/show/status/diff/cat-file/merge-base on the current worktree"
+
+  artifact_paths:
+    - experiments/EXP-HZM-001/reviews/validator-primary-gate/report.yaml

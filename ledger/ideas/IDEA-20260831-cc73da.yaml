@@ -1,0 +1,281 @@
+idea:
+  id: IDEA-20260831-cc73da
+  question_id: RQ-AUXIN-f8d8c0
+  goal_id: GOAL-AUXIN-a93442
+  title: >-
+    Turn this program's own open gate into a theorem target: is producing
+    [x^d]P from (P, [x]P) provably rho-hard, or is the gate merely unproved?
+  class: theory
+
+  claim: >-
+    DEC-20260802-204 closed the ordinary-ECDLP route on the statement that
+    acquisition of A = [x^d]P from ordinary input (P, Q = [x]P) "remains
+    unestablished below rho-scale work". That sentence is a statement about the
+    absence of a known method, not a lower bound, and this program has been
+    citing it as a gate ever since. The claim of this idea is that the gate is
+    either provable in the generic group model -- in which case the
+    auxiliary-input lane is permanently and rigorously severed from ordinary
+    ECDLP and the program can say so -- or it is not, in which case the program
+    is resting a repeatedly-cited boundary on an unproved assertion and should
+    know that explicitly.
+
+    Either outcome is worth having, and the second is worth more, because a gate
+    everyone cites and nobody has proved is exactly the kind of load-bearing
+    assumption the discipline suite exists to find.
+
+  mechanism: >-
+    The natural formalization: in the generic group model over a group of prime
+    order r, an algorithm receives encodings of P and [x]P and makes q group
+    operation queries. The question is whether it can output the encoding of
+    [x^d]P for a specified d > 1 with non-negligible probability in o(sqrt(r))
+    queries.
+
+    The reason this is a real question rather than a triviality: generic
+    operations produce LINEAR combinations of the inputs, so the reachable set
+    from (P, [x]P) is {[a + bx]P}. The point [x^d]P for d >= 2 is not of that
+    form as a formal polynomial in the indeterminate x, which suggests a
+    Schwartz-Zippel style argument bounding the success probability. The
+    obligation is to do that argument properly, including what "output the
+    encoding" means when the algorithm may guess, and to check whether the
+    standard generic-group machinery applies to an output that is an encoding
+    rather than a decision.
+
+    Two honest failure modes are anticipated and are the point of the
+    method-ceiling analysis below: the argument may prove only the generic
+    statement, which is silent about any specific curve; or the formalization
+    may turn out to be a known corollary of published nonlinear-target generic
+    hardness -- which DEC-20260802-208 already lists as
+    `known_prior_art_area`, so the literature check comes FIRST.
+
+  tracked_object: >-
+    The formal polynomial x^d in the indeterminate x, versus the linear span
+    {a + bx} reachable by generic operations from the given inputs.
+
+  lossy_projection_test: >-
+    PASSES. The projection (generic algorithm run) -> (formal polynomial in x
+    labelling each computed encoding) discards the group, the encoding function,
+    the concrete scalars and the adversary's internal state, retaining a
+    polynomial. It is compatible with the operations performed -- group addition
+    maps to polynomial addition, scalar multiplication to scalar multiplication
+    -- which is precisely the property that makes generic-group arguments work.
+    Non-injective: many runs share a polynomial label, and the argument's
+    soundness depends on handling the collision case (two distinct polynomials
+    agreeing at the actual secret), which is where Schwartz-Zippel enters and is
+    listed as a proof obligation rather than waved through.
+
+  novelty_status: unverified
+  novelty_note: >-
+    DEC-20260802-208 already records "generalized nonlinear-target generic
+    hardness" as a `known_prior_art_area` with primary sources listed. It is
+    entirely possible this exact statement is a corollary of that literature. If
+    so the outcome is a KN-LIT record plus a correction upgrading
+    DEC-20260802-204's gate from "unestablished" to "proved in the generic
+    model, citing X" -- which is a genuinely valuable ledger repair and is a
+    SUCCESS for this idea, not a failure of it.
+
+  citations:
+    - ref: ledger/decisions/DEC-20260802-204.yaml
+      provenance: internal
+      claim: >-
+        The gate, verbatim: "Reject any ordinary-ECDLP improvement claim because
+        acquisition of the auxiliary point A=[x^d]P from ordinary input
+        P,Q=[x]P remains unestablished below rho-scale work." Relied on as the
+        exact statement this idea attempts to prove or to expose as unproved.
+      verified_by: >-
+        session for RQ-AUXIN-f8d8c0, 2026-08-31 -- record read directly in the
+        working tree (no TASK id issued)
+    - ref: ledger/decisions/DEC-20260802-208.yaml
+      provenance: internal
+      claim: >-
+        `prior_art.generalized_nonlinear_target_generic_hardness` with status
+        `known_prior_art_area` and primary sources including
+        https://www.iacr.org/archive/asiacrypt2008/53500495/53500495.pdf.
+        Relied on for the literature-first sequencing: this may already be
+        proved.
+      verified_by: >-
+        session for RQ-AUXIN-f8d8c0, 2026-08-31 -- record read directly in the
+        working tree (no TASK id issued)
+
+  proof_search_map:
+    bottleneck: >-
+      The step whose removal would change the theorem is the passage from "no
+      known method produces [x^d]P from (P, [x]P) cheaply" to "no generic
+      algorithm does". Everything this program has built on the gate depends on
+      that passage, and it has never been attempted.
+    baseline_embedding:
+      parameter_slice: >-
+        d = 1. There the target IS in the reachable linear span -- [x^1]P is an
+        input -- and any correct argument must return "achievable in zero
+        queries" at d = 1. That is the exact boundary of the old method and the
+        argument must reproduce it.
+      reproduction_check: >-
+        Symbolic: instantiate the proof at d = 1 and confirm the success bound
+        becomes trivial (probability 1). An argument that also "proves" d = 1
+        hard is unsound and is rejected before anything else is read.
+    observation_collision:
+      observable: >-
+        The formal polynomial in x labelling each encoding the adversary holds.
+      distinct_preimage_search: >-
+        The collision case is two distinct formal polynomials f != g that agree
+        at the actual secret x, letting the adversary distinguish where the
+        formal argument says it cannot. This is expected, is bounded by
+        Schwartz-Zippel over the degree, and MUST be carried explicitly: the
+        degree here is d, which is large (near sqrt(r) in the interesting case),
+        so the bound is NOT automatically negligible and waving it through would
+        void the proof. If the degree-d union bound does not close, that is the
+        real finding.
+    constructive_transforms:
+      - transform: stronger_invariant
+        proposed_object: >-
+          The reachable set as a formal linear span, refined to track the degree
+          of every polynomial the adversary can hold, so the argument bounds
+          degree growth per query rather than arguing membership once.
+        predicted_gain: >-
+          Converts a membership question into a per-query degree bound, which is
+          the form generic lower bounds are usually provable in.
+    quantifier_order: >-
+      FOR ALL generic algorithms A making at most q queries, FOR ALL d in the
+      admissible range, the probability over the choice of x and the encoding
+      that A outputs the encoding of [x^d]P is bounded by a function of q and d
+      that is negligible for q in o(sqrt(r)). The order matters: swapping to
+      EXISTS d would prove nothing useful, since the adversary chooses no d --
+      the protocol setting fixes it.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A statement about GENERIC algorithms only. It would certify nothing
+        about any specific curve, since real curves are not generic groups and
+        every transfer attack this program has gated is precisely a non-generic
+        method. The gate would become "proved generically, open concretely" --
+        stronger than today's "unestablished", and still not a theorem about
+        P-256.
+      nearby_object_control: >-
+        Apply the identical argument to a target that IS known to be generically
+        easy from the same inputs -- [2x]P, or [ax + b]P for known a, b. The
+        argument MUST fail to prove those hard. If the machinery "proves"
+        hardness for a linear target, it proves too much and is void.
+    proof_obligations:
+      - claim: >-
+          The reachable set from (P, [x]P) under q generic operations is
+          contained in the formal linear span {a + bx}
+        responsibility: correctness
+      - claim: >-
+          The Schwartz-Zippel union bound over degree d closes for d as large as
+          the interesting range permits
+        responsibility: strictness
+      - claim: >-
+          "Outputting an encoding" is correctly modelled, including an adversary
+          that guesses an encoding it never computed
+        responsibility: interface
+      - claim: >-
+          The argument reproduces achievability at d = 1
+        responsibility: baseline
+      - claim: >-
+          The literature does not already contain this statement
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        outcome of the literature check on nonlinear-target generic hardness
+      direction: different
+      minimum_effect: >-
+        Binary and both informative: either the statement is a corollary of
+        filed prior art (file KN-LIT, correct the gate's wording, close), or it
+        is not (proceed to the proof attempt).
+    - metric: >-
+        whether the degree-d Schwartz-Zippel union bound closes for d ~ sqrt(r)
+      direction: different
+      minimum_effect: >-
+        If it does not close, that is the result: the natural argument fails at
+        exactly the divisor size that makes the attack interesting, and the gate
+        stays unproved for a stated and specific reason -- which is far more
+        useful than the current silence.
+
+  minimal_test:
+    design: >-
+      (1) Literature check FIRST against the sources already filed in
+      DEC-20260802-208's `generalized_nonlinear_target_generic_hardness` block.
+      If the statement is a corollary, stop and file.
+      (2) If not, write the generic-group argument with the degree tracking made
+      explicit, and carry the Schwartz-Zippel bound at degree d symbolically
+      rather than asymptotically.
+      (3) Run the d = 1 baseline check and the linear-target nearby-object
+      control against the finished argument.
+      (4) Report the argument, or report exactly where it fails and at what d.
+    controls:
+      - >-
+        BASELINE: at d = 1 the argument must yield achievability, not hardness.
+      - >-
+        NEARBY OBJECT: applied to [ax + b]P the argument must NOT prove
+        hardness. A method that proves too much is void.
+      - >-
+        NULL: applied to a target of the same shape in a group where the
+        adversary is given [x^d]P as an input, the argument must yield
+        achievability.
+    required_metrics:
+      - literature check outcome, with filed KN-LIT ids or an explicit "none found"
+      - whether the degree-d union bound closes, and the largest d for which it does
+      - baseline and nearby-object control outcomes
+
+  falsification_conditions:
+    - >-
+      The argument proves hardness for a linear target. Void.
+    - >-
+      The argument proves hardness at d = 1. Void.
+    - >-
+      A published result already establishes the statement. Then this is not a
+      research idea but a citation, and the correct output is the KN-LIT record
+      and a correction to DEC-20260802-204's wording.
+
+  confounders:
+    - >-
+      Generic-model hardness is not concrete hardness, and the distinction is
+      the single most likely thing to be lost when this result is cited later.
+      Any artifact must carry it in the statement, not in a limitation section.
+    - >-
+      A failed proof attempt is NOT evidence that acquisition is easy. It leaves
+      the gate exactly where DEC-20260802-204 left it, with the failure reason
+      added.
+
+  interpretation_limits:
+    - >-
+      No experiment, no measurement, no curve. This is a proof attempt whose
+      most likely outcome is a citation.
+    - >-
+      Success would STRENGTHEN the existing closure of the ordinary-ECDLP route,
+      not open anything. Nobody should read this idea as an attempt to revive
+      the route DEC-20260802-204 closed; it is an attempt to close it properly.
+
+  heuristic_assumptions: []
+  heuristic_assumptions_note: >-
+    None. A generic-group argument either goes through or does not, and the
+    honest report of "does not, at degree d beyond this point" is the
+    anticipated outcome.
+
+  target_complexity:
+    time_exponent: not applicable -- proof attempt, no computation
+    memory_exponent: not applicable
+    best_known: >-
+      Possibly already published as nonlinear-target generic hardness; the
+      literature check decides.
+    hidden_overhead: >-
+      The Schwartz-Zippel bound at degree d ~ sqrt(r) is where the work is and
+      where the argument most plausibly dies.
+    tradeoff_note: not applicable
+
+  null_object_control: >-
+    The linear target [ax + b]P, which the argument must fail to prove hard, and
+    the d = 1 case, which it must prove achievable.
+
+  dominated_by: >-
+    n/a. No algorithm and no cost claimed.
+  sota_delta: >-
+    No attack. Contribution is to this program's own epistemic hygiene: a gate
+    cited in at least three committed decisions is either upgraded to a proved
+    generic statement with a citation, or explicitly labelled as unproved with
+    the reason the natural argument fails.
+
+  estimated_cost:
+    implementation: low
+    compute: none
+  recommended_priority: medium

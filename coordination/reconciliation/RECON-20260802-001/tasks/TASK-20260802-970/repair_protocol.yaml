@@ -1,0 +1,93 @@
+schema: crypto.autoresearch.codex_runtime_probe_repair_protocol.v1
+task_id: TASK-20260802-970
+reconciliation_id: RECON-20260802-001
+coordinator_determination: ACCEPT_VALIDATOR_REJECT_AND_REPAIR
+authoritative_research_evidence: false
+inference_amendment: false
+research_state_changes: []
+live_probe_authorized: false
+r3_r4_dispatch_authorized: false
+
+review_binding:
+  implementation_snapshot_commit: 8f08701baf105eee9385f210d13b53f81c9a138b
+  validator_report_id: VAL-20260802-968
+  validator_report_snapshot_commit: fad704040c8fa1d99d7f7daabdc34846567b5ca9
+  validator_verdict: REJECT
+  accepted_blocking_findings:
+    - F-968-001
+    - F-968-002
+    - F-968-003
+  disposition: >-
+    The findings are technically supported and block live use. No gate is
+    waived. Implement exactly the bounded repair below, snapshot it, and obtain
+    a new independent Validator verdict before any live probe or R3/R4 review.
+
+repair_scope:
+  allowed_paths:
+    - orchestration/adapter/codex_runtime.py
+    - tests/test_codex_runtime_probe.py
+    - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-972/repair_report.yaml
+  prohibited:
+    - orchestration/model-bindings.yaml
+    - orchestration/model-policies.yaml
+    - orchestration/providers.yaml
+    - Any live Codex probe or real Codex state access.
+    - Any research ledger, goal, hypothesis, experiment, evidence, run, or status change.
+    - Any change beyond the three accepted findings and their regression fixtures.
+
+requirements:
+  - id: R-970-001
+    finding: F-968-001
+    requirement: >-
+      Count every JSON object whose type is thread.started, independently of
+      whether its thread_id is valid. Require exactly one such event and
+      exactly one valid UUID thread ID from that event. A stream with an
+      invalid plus a valid thread.started event must fail as ambiguous; a
+      single malformed thread ID must fail and never reach state lookup.
+    regression_fixtures:
+      - invalid-plus-valid thread.started events produce an immutable failed receipt and no state lookup.
+      - one thread.started event with an invalid ID produces an immutable failed receipt.
+      - two valid thread.started events remain rejected.
+  - id: R-970-002
+    finding: F-968-002
+    requirement: >-
+      The timestamp_order_valid bit must describe the exact recorded_at value
+      persisted in the final receipt. After the runtime-binding subprocess,
+      capture the final recorded_at once, validate launch_start <= launch_end
+      <= binding_start <= binding_end <= final recorded_at, retain the existing
+      row/session/turn/thread-window checks, and only then set verified. Never
+      overwrite recorded_at after validation.
+    regression_fixtures:
+      - a final clock reading before launch fails timestamp_invalid and writes an immutable failed receipt.
+      - a reversed binding interval fails timestamp_invalid.
+      - the happy path records one final timestamp that satisfies the checked order.
+  - id: R-970-003
+    finding: F-968-003
+    requirement: >-
+      Map config policy-resolution rejection, including an unknown policy, to
+      the frozen invalid_argument failure code inside the receipt-writing
+      failure path. If the target is safely creatable, write one immutable
+      failed receipt before returning nonzero. Launch no subprocess.
+    regression_fixtures:
+      - unknown policy yields CodexRuntimeProbeError with invalid_argument, writes a failed receipt, and launches no subprocess.
+      - the failed receipt is immutable on retry.
+
+preserved_contract:
+  - Receipt schema and verification_scope remain unchanged.
+  - No new failure code is introduced; policy rejection maps to invalid_argument.
+  - SQLite query text and exact-ID locality remain unchanged.
+  - Receipt privacy and path containment remain unchanged.
+  - A session receipt never becomes backend-wide verification and never mutates model bindings.
+
+acceptance_gates:
+  - New regression fixtures cover every stated adversarial case and pass.
+  - Existing 43 focused fixtures continue to pass, with the total increasing by the new cases.
+  - Combined inference-adapter and probe suites pass.
+  - tools/check_runtime_bindings.py, tools/validate_ledger.py, tools/check_merge_hygiene.py, and git diff --check pass.
+  - Executor writes only the three declared paths and runs no live probe.
+  - Repair package is snapshot-committed with exact hashes before independent revalidation.
+  - Independent Validator explicitly closes or reaffirms F-968-001 through F-968-003 and searches for adjacent fail-open paths.
+
+downstream_gate: >-
+  No live probe, R3/R4 dispatch, merge, ECDLP experiment, or research-state
+  transition is authorized by this protocol or a passing Executor test suite.

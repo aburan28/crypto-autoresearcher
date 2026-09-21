@@ -1,0 +1,344 @@
+idea:
+  id: IDEA-20260828-c31f18
+  question_id: RQ-AES-003
+  goal_id: GOAL-AES-003
+  added: '2026-08-28'
+  proposed_by: idea-generator
+  status: proposed
+  title: >-
+    The key size this campaign has never touched: deriving REF-B's h* at
+    k=192 and k=256, and testing whether AES-192/256's different
+    key-schedule overlap structure lets a hinted construction cross the
+    domination frontier where the AES-128 analogue (attack6n, h=96) cannot
+  class: algorithm
+
+  claim: >-
+    Every executed construction and every REF-B derivation in this campaign
+    is at k=128 (IDEA-20260805-72ec9a's h* formula is evaluated only at
+    k=128; attack6n/attack7n, sq_null.c, and BATCH-001's r=5 recovery are
+    all AES-128). RQ-AES-003's own scope names key_sizes: [128, 192, 256],
+    and no record checked this session (IDEA-20260805-72ec9a, f2fc33,
+    c8c0d4, 86e431; IDEA-20260828-0155e5, 6cf68c, da36ef, c65b10) touches
+    k=192 or k=256 at all. THIS PROPOSAL HAS TWO PARTS, ONE ZERO-COST AND
+    ONE EXECUTED. PART 1 (ZERO COST): extend 72ec9a's own formula
+    h* = k - 1 - log2(1600*T) to k=192 and k=256 at the two committed T
+    values, giving h*(192) in [152.0, 154.2] and h*(256) in [216.0, 218.2]
+    -- numbers that do not exist anywhere in this campaign's record and
+    that every future AES-192/256 construction needs before it is
+    dispatched, exactly as h*(128) already gates AES-128 work. PART 2
+    (EXECUTED): AES-192's key schedule expands 6 32-bit words per
+    "generation" rather than AES-128's 4, so consecutive 128-bit round keys
+    SHARE WORDS drawn from the SAME immediately-preceding word in a pattern
+    that does not exist in AES-128's schedule (recalled, unverified,
+    eprint 2010/537's own stated motivation for extending DS-MITM key
+    bridging to 8-round AES-192 specifically because of this schedule
+    property). THE DISCRIMINATING TEST: build a hinted partial-sums-style
+    construction against r-round AES-192 analogous to attack6n's r=6
+    AES-128 mode, but derive its guessed-byte set's INDEPENDENT count using
+    the AES-192 schedule's own bridging relations (exactly the audit
+    IDEA-20260828-6cf68c performs for AES-128's attack6n, applied here to a
+    construction built from scratch for k=192). TWO MUTUALLY EXCLUSIVE
+    OUTCOMES: (i) the AES-192 schedule's larger overlap yields an
+    independent hint-byte count h_192 for a comparably-sized distinguisher
+    core that is SMALLER, relative to h*(192), than attack6n's h=96 is
+    relative to h*(128) -- i.e., the schedule structure genuinely buys back
+    some of the domination margin at this key size, a real and specific
+    positive finding about where key-schedule structure matters; or (ii)
+    h_192 scales with the naive byte count in the same proportion as
+    AES-128's does (no schedule-specific advantage materializes for THIS
+    construction shape), extending attack6n's domination finding to a key
+    size never previously tested and closing off one candidate route for
+    k=192/256 rather than leaving it an open guess.
+
+  mechanism: >-
+    STEP 1 (zero compute): h*(k) = k - 1 - log2(1600*T) for T in
+    {7.555e7, 3.35e8} (both committed in RQ-AES-003/EV-AES-005 and
+    reconciled or left unreconciled per IDEA-20260805-72ec9a's own audit,
+    whose outcome this proposal inherits rather than re-derives): h*(192) =
+    154.19 or 152.04; h*(256) = 218.19 or 216.04. STEP 2 (specification
+    pinning, mandatory before any k=192/256 measurement is charged): confirm
+    the pinned harness (aes_reduced.py) produces FIPS-197 known-answer
+    vectors for AES-192 and AES-256 under both pycryptodome and the openssl
+    CLI -- RQ-AES-003's specification-pinning gate has, per every record
+    read this session, only ever been exercised at k=128, and pinning at
+    k=192/256 is a DISTINCT, UNVERIFIED artifact. STEP 3 (schedule bridging
+    derivation, zero compute): for a distinguisher core of the SAME shape
+    as attack6n's r=6 mode (a delta-set integral filter appending 1-2
+    rounds of key-recovery extension), trace the AES-192 key schedule's
+    word recurrence byte-by-byte for the analogous guessed-byte set,
+    exactly as IDEA-20260828-6cf68c's audit procedure does for AES-128, to
+    determine the count of XOR-linear dependencies among the guessed bytes
+    under AES-192's schedule specifically. STEP 4 (execution, gated on
+    Steps 2 and 3): implement and run the resulting construction, measure
+    its cost, and price it against REF-B's h*(192) exactly as attack6n was
+    priced against h*(128).
+
+  why_not_a_renamed_known_approach: >-
+    Partial-sums/integral key recovery and key-schedule bridging are both
+    named, established techniques and both are already used elsewhere in
+    this campaign's baseline/implementation arm (attack6n/attack7n;
+    IDEA-20260828-6cf68c). No novelty is claimed for either technique. What
+    is checked against every record read this session and is absent from
+    all of them is: (a) any h* derivation at k=192 or k=256, and (b) any
+    executed construction, hinted or otherwise, at any key size other than
+    128. The genuinely new content is applying the campaign's OWN existing
+    h* framework and key-bridging audit methodology to a KEY SIZE it has
+    never touched, where the key schedule's actual structure differs in a
+    way the literature (recalled) attributes cryptanalytic significance to.
+
+  object_first_candidate:
+    tracked_object: >-
+      The independent hint-byte count h_k for a fixed-shape distinguisher
+      core, tracked as a function of the KEY SIZE k and its schedule's
+      bridging structure -- generalizing IDEA-20260805-72ec9a's tracked
+      object (the hint budget h) along a dimension (k) the campaign has
+      held constant at 128 throughout.
+    established_families_off_limits: >-
+      Partial-sums, integral, and key-bridging/MITM are all named on
+      RQ-AES-003's off-limits list; used here strictly under the
+      baseline/implementation-arm exemption, with no novelty claimed for
+      any of them.
+    lossy_projection_identifiability_audit:
+      projection: >-
+        (the full AES-192/256 key schedule's word recurrence) --> (the
+        independent hint-byte count h_k for one fixed construction shape).
+      what_is_discarded: >-
+        Every detail of the schedule except how many of the construction's
+        guessed bytes are XOR-linearly redundant given the others.
+      is_it_only_a_change_of_coordinates: >-
+        NO -- the schedule is a much richer object (dozens of words,
+        multiple SubWord applications) than the single integer h_k it is
+        projected to, and the projection is compatible with the one
+        operation that matters for the REF-B comparison (residual key-space
+        size). This is the exact same projection IDEA-20260805-72ec9a
+        already uses at k=128; what is new is applying it where the
+        schedule's own algebra differs.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: "FIPS-197 (AES specification, key schedules for AES-192/256)"
+      provenance: internal
+      claim: >-
+        AES-192 expands round keys from 6 32-bit words per generation cycle
+        (vs AES-128's 4), and AES-256 uses 8 words with an extra SubWord
+        application; already operationally pinned for k=128 per RQ-AES-003
+        scope, NOT yet separately confirmed for k=192/256.
+      verified_by: "already pinned and validated in this goal at k=128; k=192/256 pinning is this record's own Step 2, not yet performed"
+    - ref: "eprint 2010/537 (Demirci, Selcuk; DS-MITM key bridging extended to 8-round AES-192 via the key schedule's cross-round word overlap)"
+      provenance: recalled
+      claim: AES-192's key-schedule word-overlap structure enables more aggressive key bridging than AES-128's, motivating an 8-round rather than 7-round DS-MITM attack.
+      verified_by: null
+    - ref: IDEA-20260805-72ec9a
+      provenance: internal
+      claim: "h*(h, r, k) = k - 1 - log2(1600*T), evaluated at k=128 giving h* in [88.0, 90.2]."
+      verified_by: "idea-generator subagent, read this record in full this session"
+    - ref: IDEA-20260828-6cf68c
+      provenance: internal
+      claim: A byte-by-byte XOR-linear dependency trace of the AES-128 key schedule can reduce attack6n's guessed-byte count below its naive 12-byte figure.
+      verified_by: "idea-generator subagent, read this record in full this session"
+
+  assumptions:
+    - "The pinned harness supports AES-192/256 parameterization without code changes to the cipher core; NOT assumed to be pinned against FIPS-197 KAT vectors at these key sizes and checked at Step 2 before anything else."
+    - "A distinguisher core \"of the same shape\" as attack6n's r=6 mode transfers meaningfully to AES-192/256 without modification beyond the key-schedule-dependent guessed-byte set; if the core itself needs redesign for these key sizes, that redesign is Step 3's own finding, not assumed away."
+
+  proof_search_map:
+    bottleneck: >-
+      The independent hint-byte count h_k under AES-192/256's schedule;
+      every downstream comparison to h*(k) is scaled by it, exactly as P is
+      the bottleneck of DS-MITM's table size in IDEA-20260828-0155e5.
+    baseline_embedding:
+      parameter_slice: >-
+        The naive (no bridging) guessed-byte count for the analogous
+        construction shape reproduces attack6n's own naive count scaled by
+        the number of active diagonals for the larger key; a symbolic,
+        zero-compute upper bound.
+      reproduction_check: >-
+        h*(128) must reproduce IDEA-20260805-72ec9a's committed 88.0-90.2
+        bracket exactly when k=128 is substituted into the generalized
+        formula, as the zero-cost sanity check on the generalization itself.
+    observation_collision:
+      observable: "h_k, the independent hint-byte count."
+      distinct_preimage_search: >-
+        A wrong bridging relation (one that does not actually hold for
+        AES-192/256's specific schedule) would silently under-count h_k and
+        predict a construction that does not actually filter correctly
+        online -- guarded, exactly as in IDEA-20260828-0155e5 and 6cf68c, by
+        a true-key control run that must survive with probability 1 before
+        any wrong-key measurement is trusted.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          the guessed-byte set for a k=192/256 construction, re-expressed
+          via the schedule's own XOR-linear dependencies as a smaller
+          independent set, exactly as 6cf68c does for k=128.
+        predicted_gain: >-
+          h_192/h_256 reduced below the naive byte count by (number of
+          found dependencies) x 8 bits, if the schedule's larger overlap
+          actually produces more dependencies than AES-128's schedule does
+          for a comparably-sized guessed-byte set -- unknown in advance and
+          the entire content of outcome (i) vs (ii).
+    quantifier_order: >-
+      FOR the pinned AES-192/256 key schedule and a fixed
+      distinguisher-core shape, THERE EXISTS a count of XOR-linear
+      dependencies among the construction's guessed bytes; the claim is
+      about THIS construction shape at THESE key sizes only, never about
+      AES-192/256's key schedule in general or about every possible
+      construction shape.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: "for this fixed construction shape at k=192 (or 256), the
+        schedule yields h_k = <value>, priced at <measured cost> against
+        h*(k) = <value>." It certifies nothing about the best possible
+        construction at these key sizes and nothing about the published
+        frontier.
+      nearby_object_control: >-
+        Re-running IDEA-20260828-6cf68c's own AES-128 audit as a control
+        (its already-established byte-set and dependency count, if any)
+        alongside the new k=192/256 derivation, on the same
+        construction-shape template, isolates whether any measured
+        difference is due to the SCHEDULE or to an accidental difference in
+        how the two constructions were built.
+    proof_obligations:
+      - claim: "h*(k) generalizes correctly and reproduces the committed k=128 bracket."
+        responsibility: baseline
+      - claim: "k=192/256 pinning against FIPS-197 KAT vectors under both pycryptodome and openssl, before any measurement is charged."
+        responsibility: correctness
+      - claim: "a true-key control instance survives the online match with probability 1 at k=192/256."
+        responsibility: baseline
+      - claim: "any reported margin is against REF-A/REF-B at the tested k, never against the published frontier."
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: "h*(192) and h*(256) under both committed T values"
+      direction: different
+      minimum_effect: >-
+        h*(192) in [152.0, 154.2] and h*(256) in [216.0, 218.2], forced by
+        substituting k into the existing formula; a value outside these
+        brackets means the formula was mis-applied.
+    - metric: "k=192/256 pinning receipt against FIPS-197 KAT vectors under pycryptodome and openssl"
+      direction: higher
+      minimum_effect: "exact agreement required before any other stage runs; a mismatch is a P3-class infrastructure signal, never negative evidence"
+    - metric: "independent hint-byte count h_192 for the analogous r=6-shaped construction, relative to the naive (no-bridging) byte count"
+      direction: lower
+      minimum_effect: >-
+        No minimum is assumed in advance; a reduction of 0 bytes (outcome
+        ii) and a reduction of several bytes (outcome i) are both
+        pre-registered as informative outcomes.
+    - metric: "measured cost of the executed k=192 construction vs REF-B's B(h_192) at h*(192)"
+      direction: lower
+      minimum_effect: "any measurable margin in either direction, reported honestly"
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute): generalize and sanity-check h*(k) at k=192,
+      256. STAGE 1 (pinning, cheap): confirm the harness's AES-192/256
+      output against FIPS-197 KAT vectors under pycryptodome and openssl;
+      if this fails, stop and record it as an infrastructure gate, not a
+      research result. STAGE 2 (zero compute): trace the AES-192 (then
+      AES-256) key schedule for a construction shape analogous to
+      attack6n's r=6 mode, counting XOR-linear dependencies among the
+      guessed bytes exactly as 6cf68c's procedure does for AES-128.
+      STAGE 3 (execution, gated on Stages 1-2): implement and run the
+      resulting construction at r in {5,6,7} for AES-192, with a true-key
+      control run first, then measure cost, peak RSS, and success
+      probability over >=3 seeds, and price against REF-B's B(h_192) at
+      h*(192).
+    controls:
+      - "FIPS-197 KAT reproduction for AES-192/256 under both pycryptodome and openssl (must pass before Stage 3)"
+      - "True-key control (must survive with probability 1 before any wrong-key measurement is trusted)"
+      - "AES-128 re-run of the identical construction-shape template as a same-session comparison point, isolating schedule effects from construction-design effects"
+    required_metrics:
+      - "h*(192), h*(256) under both committed T values"
+      - "AES-192/256 pinning receipt"
+      - "independent hint-byte count h_192 (and its AES-128 same-shape comparison point)"
+      - "measured wall clock, peak RSS, success probability over >=3 seeds"
+      - "margin against REF-A and against REF-B's B(h_192) at h*(192)"
+
+  falsification_conditions:
+    - "AES-192/256 fails FIPS-197 KAT reproduction -- infrastructure signal, stop, never a negative mathematical result."
+    - "The true-key control does not survive with probability 1 -- the construction's derivation is wrong."
+    - "h_192 shows no reduction below the naive byte count relative to AES-128's own naive-vs-bridged ratio -- outcome (ii), a real and useful negative result extending domination to k=192."
+
+  confounders:
+    - "The AES-192/256 harness path may be entirely unexercised code in aes_reduced.py; Stage 1 is designed to surface this before any research claim depends on it."
+    - "A distinguisher core \"of the same shape\" as attack6n's may not transfer cleanly to a 192/256-bit state's key-schedule geometry; Stage 2's dependency trace is itself the check for this."
+    - "Four-core scaling and AES-NI pinning are, per RQ-AES-003 constraints, unmeasured/unpinned in general and doubly so at untested key sizes; this construction is charged single-core on the pure-Python path unless a measured receipt exists."
+
+  interpretation_limits:
+    - "Toy tier, reduced-round only, no statement about full-round or deployed AES at any key size."
+    - "No comparison to the published frontier in either direction (R3)."
+    - "A result at k=192 says nothing about k=256 without a separate execution; the two are reported and priced independently."
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        FOR the pinned AES-192 key schedule, the ordered multiset/candidate
+        filter analogous to attack6n's, viewed as a function of a uniformly
+        random WRONG guess of the appended-round key bytes, behaves as
+        wrong-key-randomized (uniform over its codomain, independent across
+        guesses) -- the same U1-class assumption IDEA-20260828-da36ef and
+        IDEA-20260805-f2fc33 test for the AES-128 case, untested here for
+        AES-192/256's different schedule.
+      rigorous_support: >-
+        None proved for k=192/256 specifically; this is the standard
+        wrong-key-randomization heuristic every partial-sums/integral
+        attack in this campaign makes, inherited without modification and
+        flagged as untested at this key size.
+      validation_plan: >-
+        Apply IDEA-20260828-da36ef's XOR-distance bucketing procedure to
+        the k=192/256 construction's own wrong-key candidate population
+        once built, at the same scale (>=2^16 wrong-key samples), comparing
+        against uniform by the same chi-square-style test restricted to
+        observed support.
+
+  target_complexity:
+    time_exponent: >-
+      No exponent moved against AES generically. Target is a measured cost
+      at the executed r, k=192 (or 256), compared to REF-A (2^(k-1)
+      evaluations, trivially beaten) and, as the actual research question,
+      to REF-B's B(h_192) at h*(192) -- an open empirical question at a key
+      size this campaign has never tested.
+    memory_exponent: >-
+      Unchanged in kind from attack6n's own memory footprint, scaled by the
+      larger key-schedule table if any; to be measured, not modelled.
+    best_known: "REF-A and REF-B, both generalized to k=192/256 for the first time in this campaign by this proposal's Part 1."
+    hidden_overhead: >-
+      The published DS-MITM/key-bridging AES-192 frontier (recalled,
+      eprint 2010/537, 8-round) is named as context only and is
+      UNADJUDICABLE here in either direction (R3); this campaign's r and
+      cost are not compared to it.
+    tradeoff_note: >-
+      Identical in structure to REF-B's existing time-memory tradeoff
+      (IDEA-20260805-72ec9a), now evaluated at a new k.
+
+  dominated_by: >-
+    For k=128: unaffected, no change to any existing verdict. For
+    k=192/256: REF-B's generalized B(h_192)/B(h_256), once this proposal's
+    Part 1 is committed, is the row to beat and is explicitly the
+    comparison target, not assumed beaten. Checked: every record read in
+    full this session (72ec9a, f2fc33, c8c0d4, 86e431, 0155e5, 6cf68c,
+    da36ef, c65b10); none evaluates any key size other than 128.
+  sota_delta: >-
+    Against REF-A at k=192/256: any executed recovery beats it
+    astronomically and uninformatively (R3). Against REF-B: UNKNOWN UNTIL
+    EXECUTED -- the record's value is that the delta becomes a measured
+    number at a key size never previously tested in this campaign. Against
+    the published DS-MITM/key-bridging AES-192 frontier: unadjudicable in
+    this environment (R3).
+
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+
+  source_refs:
+    - RQ-AES-003
+    - GOAL-AES-003
+    - IDEA-20260805-72ec9a
+    - IDEA-20260828-6cf68c
+    - IDEA-20260828-0155e5
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.

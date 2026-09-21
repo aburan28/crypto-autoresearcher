@@ -1,0 +1,596 @@
+experiment:
+  id: EXP-ARGON-2608c2
+  hypothesis_id: H-ARGON-ef2f0b
+  version: 1
+  title: >-
+    Per-lane depth-robustness ratio (rho) of the Argon2 reference-index DAG
+    vs. a window-matched uniform-reference null, at RFC-9106-recommended
+    pass counts and RFC-adjacent toy-scale lane lengths, gated by a REQUIRED
+    independent-known-family calibration of the measurement pipeline
+  status: approved
+  pattern: cost_model_measurement
+  pattern_note: >-
+    Uses the design-experiment skill's "Cost-model measurement experiment"
+    pattern (.claude/skills/design-experiment/SKILL.md): the deliverable is
+    a rho table plus a calibration error table, not a binary heuristic test.
+    Measured-vs-modeled separation, optimistic-assumption disclosure, memory
+    accounting, and standardized-parameter-set reporting are addressed
+    explicitly below. This is a DIRECT DAG MEASUREMENT (every reported
+    number is either an exact combinatorial count or a declared-algorithm
+    upper bound on a graph the Executor builds and holds in memory), not a
+    probabilistic-heuristic test in the sense of the "Heuristic-validation
+    experiment" pattern -- HEUR-001/HEUR-002 (H-ARGON-ef2f0b) remain
+    separately unvalidated (see hypothesis record); this contract does not
+    claim to discharge them.
+
+  objective: >-
+    Compute rho = |S*_real| / |S*_unif| per (variant, t, q) required cell,
+    where S* is the node-removal set a declared greedy eps-depth-reducing-set
+    heuristic returns to bring longest-path depth to <=50% of native depth
+    (t*q-1). Before any Argon2-derived rho number is reported as
+    interpretable, run IDEA-20260809-bcf891's independent-known-family
+    calibration (REQUIRED precondition, per DEC-20260812-03fa10's
+    calibration_design_ruling) to bound the greedy heuristic's own
+    systematic error in both directions, independent of G_real/G_unif
+    themselves. No attack is implemented; no password, credential, leaked
+    corpus, or third-party dataset enters this experiment at any stage
+    (GOAL-ARGON-001 binding constraint, inherited unconditionally). Claim
+    tier throughout: measured/bounded topological quantities at declared
+    toy-scale parameters only -- never a safety verdict, never a
+    recommendation, never a parameter-set deprecation.
+
+  inputs:
+    argon2_recommended_parameter_sets:
+      primary_citation: >-
+        KN-LIT-7f3c21 (RFC 9106, confidence: established, citation_verified:
+        true, fetched via raw HTTP and read in full). C1-C7 (proposal.md
+        Sec.3 / H-ARGON-ef2f0b `assumptions`) are READ, not RECALLED, as of
+        this contract.
+      first_recommended_tuple: >-
+        Argon2id, t=1, p=4, m=2^21 KiB (2 GiB), q=524288 blocks/lane
+        (KN-LIT-7f3c21 Sec. 4). t=1 is used in this contract's parameter
+        sweep; the literal q=524288 is OUT OF SCOPE for this contract
+        (naive greedy DP is O(q^2) worst case, ~2.7e11 operations at this
+        q -- infeasible within the declared budget; named as future work).
+      second_recommended_tuple: >-
+        Argon2id, t=3, p=4, m=2^16 KiB (64 MiB), q=16384 blocks/lane
+        (KN-LIT-7f3c21 Sec. 4). t=3 is used in this contract's parameter
+        sweep; q=16384 is included as an OPTIONAL STRETCH instance (see
+        independent_variables.q below), run only if budget remains after
+        the required sweep and REQUIRED calibration complete.
+    variants:
+      argon2i: >-
+        Data-independent indexing (RFC 9106 Sec. 3.4.1.2, KN-LIT-7f3c21): J1
+        derived from applying G twice to a counter built from
+        (pass, lane, slice, m', t, salt-derived metadata) and a running
+        counter -- access pattern does not depend on runtime block content
+        or on password/salt content beyond H_0's role in seeding the
+        counter stream.
+      argon2d: >-
+        Data-dependent indexing (RFC 9106 Sec. 3.4.1.1): J1/J2 taken
+        directly from the first 64 bits of the CONTENT of the immediately
+        preceding block B[i][j-1].
+      argon2id: >-
+        Hybrid (RFC 9106 Sec. 3.4.1.3): Argon2i-style indexing when pass=0
+        and slice in {0,1}; Argon2d-style otherwise.
+      reference_index_mapping_common_to_all_three: >-
+        RFC 9106 Sec. 3.4.2: given J1 (from whichever source above), zz =
+        |W|-1 - floor(|W| * floor(J1^2/2^32) / 2^32); the zz-th eligible
+        index in the candidate window W is the reference target. This
+        transform is IDENTICAL across all three variants once J1 is
+        obtained -- the mechanism under test (H-ARGON-ef2f0b) applies to all
+        three, which is why all three are in scope here (contributing
+        toward GOAL-ARGON-001's three-variant-comparison completion
+        criterion without expanding this hypothesis's own single-lane,
+        toy-scale claim).
+    seed_material: >-
+      Synthetic, arbitrary, non-secret password/salt/associated-data bytes
+      generated fresh in-run (e.g. from a declared PRNG seeded per-run, NOT
+      from any real credential source). No real password, credential,
+      leaked corpus, or third-party dataset is used at any stage.
+    single_lane_construction: >-
+      p=1 configuration is constructed DIRECTLY (not extracted as an induced
+      subgraph of a real p=4 run) -- see H-ARGON-ef2f0b `assumptions`,
+      single_lane_construction note, for the named transfer assumption this
+      implies relative to a literal p=4 run's intra-lane subgraph.
+
+  controls:
+    - id: G_unif_null_object_control
+      description: >-
+        For every required (variant, t, q) cell, build G_unif: identical
+        chain edges and identical per-position candidate-window size W(j) to
+        G_real, but with each reference edge's target drawn i.i.d.
+        UNIFORMLY from [0, W(j)) instead of via RFC 9106's zz-transform.
+        Isolates the within-window selection rule as the source of any
+        measured rho deviation from 1 (proposal.md Sec.7 -- neutralizes the
+        trivial window-size-shrinkage confound near the start of a lane,
+        since G_unif uses the SAME W(j) at every position as G_real).
+      seeds: 3 independent draws of G_unif per required (variant, t, q)
+        cell; report rho's mean and variance across the 3 draws
+        (proposal.md Sec.7 "Null-model sampling variance" confound).
+      pipeline_identity: >-
+        G_unif is processed by the EXACT SAME greedy eps-depth-reducing-set
+        code path as G_real (bcf891's PIPELINE IDENTITY control, applied
+        here to the primary comparison as well as to the calibration
+        families below).
+    - id: bcf891_independent_known_family_calibration
+      status: REQUIRED PRECONDITION CONTROL (not optional)
+      per: >-
+        DEC-20260812-03fa10 calibration_design_ruling -- ADOPTS
+        IDEA-20260809-bcf891's independent-known-family calibration IN
+        PLACE OF the self-referential small-q exact/ILP cross-check
+        proposal.md Sec.6 step 6 originally sketched (which compared greedy
+        against exact ONLY on G_real/G_unif themselves, bounding only "how
+        much do THESE two graphs differ between greedy and exact," not
+        whether the greedy heuristic is systematically biased in a
+        direction that corrupts every reported rho). This calibration runs
+        BEFORE any G_real/G_unif construction (cheaper: no G-evaluations,
+        no synthetic seed material needed), per the Red Team's convergent
+        recommendation cited in DEC-20260812-03fa10.
+      reference_families:
+        - id: family_A_doubling_graph
+          construction: >-
+            "Power-of-two doubling" graph on q nodes: node j (1-indexed)
+            has a chain edge to j-1 (for j>1) AND a reference edge to
+            j - 2^k for every k such that 1 <= 2^k < j (i.e. reference
+            edges to every power-of-two back-distance still within range).
+            Degree O(log q) per node, O(q log q) total edges -- deliberately
+            SPARSE (unlike a complete DAG, whose O(q^2) edges would both
+            trivialize the greedy heuristic's behavior by symmetry and blow
+            past this contract's memory budget). Chosen because every
+            adversarial removal set must remove nodes at every scale to
+            break every doubling-distance bridge, giving qualitative
+            intuition (not a claimed proof) that this construction should
+            require a comparatively LARGE removal set to substantially
+            reduce depth -- i.e. it is the "depth-robust reference family"
+            bcf891 calls for, WITHOUT citing an unverified external
+            construction (KN-LIT-3385's content is unverified past its
+            title, per IDEA-20260812-318db8 dominated_by).
+          role: proven/known-in-the-record depth-robust-leaning reference family
+        - id: family_B_pure_chain
+          construction: >-
+            The trivial chain: node j has ONLY the chain edge to j-1, no
+            reference edges at all (C1-style structure with C2 entirely
+            omitted). Deliberately the maximally shallow construction
+            admissible under this measurement's own graph model (a
+            chain-plus-references DAG with zero reference edges).
+          role: deliberately shallow reference family
+      known_value_provenance: >-
+        "Known" |S*| values for BOTH families are obtained by an
+        INDEPENDENT EXACT/EXHAUSTIVE computation (brute-force / ILP search
+        over node-removal subsets, per proposal.md Sec.6 step 6's already-
+        sketched exact-computation method) run ONLY against these two
+        calibration families at a small exact-tractable scale -- NOT against
+        G_real/G_unif. This is explicitly the permitted use of the exact-
+        computation method DEC-20260812-03fa10 anticipates ("known values
+        are derived in the record," bcf891's own KNOWN-VALUE PROVENANCE
+        control): the DEC ruling supersedes running exact/ILP AS THE ONLY
+        CALIBRATION against G_real/G_unif themselves, not the use of
+        exact/ILP methods generally.
+      exact_tier_sizes: [16, 32, 64]
+      exact_tier_procedure: >-
+        For each family at each exact-tier size: (1) compute the exact
+        minimum |S*| via exhaustive/ILP search (independent of the greedy
+        heuristic); (2) run the SAME greedy heuristic used on G_real/G_unif
+        against the same graph; (3) report the ratio
+        greedy_|S*| / exact_|S*| per family per size.
+      greedy_tier_sizes: [512, 2048, 8192]
+      greedy_tier_procedure: >-
+        For each family at each greedy-tier size (matching the required
+        Argon2 q-sweep exactly, per bcf891's own minimal_test: "sizes
+        matching the Argon2 graphs"): run ONLY the greedy heuristic (exact
+        computation is intractable at this scale); report |S*| and its
+        trend relative to the exact-tier ratios, as an informational
+        stability check bridging small-scale exact calibration up to the
+        scale actually used for the reported Argon2 rho values. This tier
+        does NOT produce a new "known" value; it checks whether the
+        exact-tier error ratio plausibly still holds at the scale the
+        primary rho comparison uses.
+      calibration_gate: >-
+        Argon2 G_real/G_unif construction and rho computation (below) does
+        NOT START until the exact-tier calibration for BOTH families
+        completes and passes the calibration_gate stopping rule (see
+        stopping_rules).
+
+  independent_variables:
+    - name: variant
+      values: [argon2i, argon2d, argon2id]
+    - name: t
+      values: [1, 3]
+    - name: q
+      values_required: [512, 2048, 8192]
+      values_optional: [16384]
+      note: >-
+        16384 equals the SECOND RECOMMENDED tuple's literal q exactly
+        (single-lane construction, see H-ARGON-ef2f0b test_boundary note).
+    - name: graph_type
+      values: [G_real, G_unif]
+
+  metrics:
+    primary:
+      - name: rho
+        definition: '|S*_real| / |S*_unif| per (variant, t, q) cell'
+        reporting: >-
+          Exact fraction if S* values are exactly known (they are not, for
+          G_real/G_unif at the required q -- greedy is an upper bound), so
+          rho is reported as a ratio of two upper bounds, explicitly labeled
+          as such (never presented as an exact ratio).
+      - name: calibration_error_ratio
+        definition: >-
+          greedy_|S*| / exact_|S*| per calibration family per exact-tier
+          size (family_A_doubling_graph, family_B_pure_chain).
+    secondary:
+      - name: ks_statistic_and_p_value
+        definition: >-
+          Kolmogorov-Smirnov test of the empirical distribution of z_j/W(j)
+          (window-relative reference offset, pooled over all blocks in a
+          built G_real graph) against Uniform[0, 1), per (variant, t, q)
+          required cell (proposal.md Sec.4 precondition check).
+      - name: greedy_tier_stability_trend
+        definition: >-
+          Qualitative/quantitative comparison of greedy-only |S*| at the
+          greedy_tier_sizes against the exact-tier calibration ratios, per
+          calibration family (informational, not a pass/fail gate on its
+          own -- see stopping_rules for the actual gate, which is the
+          exact-tier ratio only).
+      - name: argon2i_seed_consistency_check
+        definition: >-
+          For Argon2i only: compare G_real's edge set (topology) across 2
+          independently drawn synthetic seed materials at the smallest
+          required q (512). RFC 9106 Sec. 3.4.1.2 (KN-LIT-7f3c21) states
+          Argon2i's access pattern does not depend on runtime block content;
+          this checks that empirically as a sanity/implementation-
+          correctness control, not as a test of H-ARGON-ef2f0b itself.
+      - name: rho_vs_q_scaling_trend
+        definition: >-
+          rho at each required q, per (variant, t), checked for the
+          proposal.md Sec.4 secondary/structural-tell control: rho trending
+          flat or toward 1 as q grows is expected either way; rho trending
+          sharply TOWARD 0 as q grows is flagged as grounds to suspect the
+          measurement pipeline (per interpretation_limits below) rather than
+          reported as a scaling finding without qualification.
+
+  heuristic_under_test: null
+  heuristic_under_test_note: >-
+    This experiment's primary target is H-ARGON-ef2f0b's main claim (rho),
+    not a dedicated validation of HEUR-001 or HEUR-002. The ks_statistic_and_
+    p_value metric above tests the DOWNSTREAM COMPOSITE premise "RFC 9106's
+    transform, as specified, produces a non-uniform z/W distribution" -- it
+    does NOT isolate HEUR-001 (uniformity of G's raw 32-bit output in
+    isolation) or HEUR-002 (marginal-distribution sufficiency / config-model
+    approximation), both of which remain unvalidated per H-ARGON-ef2f0b's
+    heuristic_assumptions block. Per DEC-20260812-03fa10's calibration_design
+    _ruling, the REQUIRED bcf891 calibration above satisfies CLAUDE.md's
+    dispatch-bias pairing requirement ("dispatch a conditional result only
+    paired with a heuristic-validation experiment") for THIS batch by
+    validating the MEASUREMENT PIPELINE's mechanical correctness (the greedy
+    heuristic); it does not validate H1/H2's own interpretive premises,
+    which are separately flagged as future work.
+
+  preregistered_prediction:
+    quantity: rho per (variant, t, q) required cell
+    formula: >-
+      rho <= 0.5 confirms (material effect); rho >= 0.8 falsifies; rho in
+      [0.5, 0.8) is a genuine partial effect, reported as such. Precondition:
+      KS test on z_j/W(j) must reject Uniform[0,1) (p<=0.05, practically
+      meaningful effect size) for the corresponding rho reading to be
+      interpreted as informative for that variant.
+    source: proposal.md Sec.4 (TASK-20260809-4e04eb), formalized in
+      H-ARGON-ef2f0b `predictions`. Fixed before any run under this
+      contract; never adjusted after execution without a versioned
+      protocol_amendment.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Required q in {512, 2048, 8192}; optional stretch q=16384 (literal
+      SECOND RECOMMENDED tuple, under the single-lane simplification named
+      in H-ARGON-ef2f0b). Literal FIRST RECOMMENDED tuple's q=524288 is out
+      of scope (infeasible under naive O(q^2) greedy DP within this budget).
+      This is explicitly a toy/RFC-adjacent-scale contract, ONE experiment
+      among several remaining GOAL-ARGON-001 batches
+      (campaign_budget.total_wall_clock_seconds=14400,
+      max_concurrent=3 across the whole goal, 2 of 5 batches used before
+      this one). Transfer from toy/RFC-adjacent q to literal recommended q
+      is an explicit extrapolation (rho_vs_q_scaling_trend metric), not a
+      direct observation, except for the q=16384 stretch cell.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      Smallest and largest observed rho values across all required cells
+      for a given variant are checked against that variant's own
+      rho_vs_q_scaling_trend for internal consistency (an isolated
+      near-zero or near-infinite rho at one cell with no supporting trend
+      across neighboring q values is flagged for re-examination before
+      being reported as a genuine extreme, per AGENTS.md rule 8: unexpected
+      observations are recorded, not silently discarded).
+
+  replication:
+    seeds: >-
+      G_unif: 3 independent seeds per required (variant, t, q) cell.
+      G_real (Argon2d, Argon2id): 3 independent synthetic seed materials per
+      required cell (content-dependent indexing means topology can vary by
+      seed). G_real (Argon2i): 2 independent synthetic seed materials at
+      q=512 only, for the argon2i_seed_consistency_check secondary metric
+      (topology is predicted invariant to seed by C3/RFC 9106 Sec. 3.4.1.2;
+      1 seed suffices for all other required cells once this check passes at
+      q=512, since re-running an invariant construction under further seeds
+      adds no information).
+    independent_instances: >-
+      ~150 planned graph-build-plus-greedy-heuristic runs across required
+      cells, calibration (exact and greedy tiers), and KS checks; see
+      budget.maximum_runs for the declared ceiling with slack.
+
+  budget:
+    wall_clock_seconds_per_run: 600
+    wall_clock_seconds_per_run_note: >-
+      Meets the 600 s floor (templates/research-records.md budget-floor
+      note); no individual run in this contract is expected to approach it
+      (largest single graph-build-plus-greedy-DP at q=16384 is on the order
+      of seconds to low tens of seconds under a reasonably efficient
+      implementation, per proposal.md Sec.9's O(q)-construction / O(q^2)-
+      worst-case-greedy cost model), but this is a floor, not a target.
+    total_cpu_hours: 2.0
+    total_cpu_hours_note: >-
+      Stage-by-stage estimate below sums to ~1.6 CPU-hours; 2.0 leaves
+      headroom without inviting scope creep.
+    maximum_memory_gb: 2
+    maximum_memory_gb_floor_deviation_justification: >-
+      Below the templates/research-records.md 8 GB floor, stated explicitly
+      per that template's requirement. The dominant data structure at the
+      largest tested scale (q=16384, family_A_doubling_graph at O(q log q)
+      edges, or the Argon2 G_real/G_unif graphs at O(q) reference edges plus
+      O(q) chain edges) is on the order of low tens of MB of integer arrays;
+      no O(q^2)-edge structure is built anywhere in this contract (the
+      calibration family choice in `controls.bcf891_independent_known_
+      family_calibration` deliberately avoids an O(q^2) complete-DAG
+      construction for exactly this reason). 2 GB leaves >10x headroom over
+      the analytically sized dominant structure.
+    maximum_runs: 200
+    maximum_runs_note: >-
+      Planned run count ~150 (replication.independent_instances); ceiling
+      set with slack for the optional q=16384 stretch cells and any
+      necessary re-runs flagged by tail_checks or invalidation_rules.
+    maximum_workers: null
+    maximum_workers_note: >-
+      Omitted (== 1, sequential) -- this work has not passed
+      parallel.verify_determinism, so no maximum_workers > 1 is declared
+      per templates/research-records.md's explicit caution.
+
+  stage_estimates:
+    dominant_stage_id: greedy_rho_compute
+    stages:
+      - id: calibration_exact_tier
+        purpose: >-
+          Build family_A_doubling_graph and family_B_pure_chain at
+          exact_tier_sizes {16, 32, 64}; compute exact |S*| via exhaustive/
+          ILP search; run greedy on the same graphs; compute calibration_
+          error_ratio per family per size.
+        wall_clock_seconds: 300
+        cpu_hours: 0.05
+        maximum_memory_gb: 0.5
+        parallel_shards: 1
+        dominant_operation: exhaustive/ILP search over small node-removal subsets
+        stop_rule: >-
+          Halt and report calibration failure if calibration_error_ratio
+          falls outside [1.0, 1.5] for either family at any exact-tier size
+          (see stopping_rules).
+      - id: calibration_greedy_tier
+        purpose: >-
+          Run greedy only (no exact computation) on both calibration
+          families at greedy_tier_sizes {512, 2048, 8192}; check trend
+          stability against exact-tier ratios.
+        wall_clock_seconds: 300
+        cpu_hours: 0.05
+        maximum_memory_gb: 0.5
+        parallel_shards: 1
+        dominant_operation: greedy longest-path DP with iterative node removal
+        stop_rule: none (informational; the binding gate is the exact-tier stop_rule above)
+      - id: argon2i_construction_and_ks
+        purpose: >-
+          Build G_real for Argon2i across all required (t, q) cells
+          (deterministic given seed metadata; 1 build per cell plus 1 extra
+          seed at q=512 for argon2i_seed_consistency_check); run KS
+          precondition check per cell.
+        wall_clock_seconds: 600
+        cpu_hours: 0.1
+        maximum_memory_gb: 1
+        parallel_shards: 1
+        dominant_operation: counter-driven G-evaluations plus KS test
+        stop_rule: >-
+          If the KS check fails to reject uniformity at the smallest
+          required q (512) for argon2i, still complete construction at
+          larger required q for argon2i (structural-tell control needs the
+          full sweep regardless), but flag the precondition falsification
+          for argon2i explicitly and do not proceed to interpret argon2i's
+          rho values as informative (report them anyway, labeled
+          uninterpretable-per-precondition).
+      - id: argon2d_id_construction_and_ks
+        purpose: >-
+          Build G_real for Argon2d and Argon2id across all required (t, q)
+          cells, 3 independent synthetic seeds each (content-dependent
+          indexing); run KS precondition check per cell per seed.
+        wall_clock_seconds: 1800
+        cpu_hours: 0.3
+        maximum_memory_gb: 1
+        parallel_shards: 1
+        dominant_operation: content-dependent G-evaluations plus KS test
+        stop_rule: same precondition-flagging rule as argon2i_construction_and_ks, applied per variant independently
+      - id: g_unif_null_construction
+        purpose: >-
+          Build G_unif (3 independent seeds) for every required (variant,
+          t, q) cell, matching each cell's W(j) sequence exactly.
+        wall_clock_seconds: 600
+        cpu_hours: 0.1
+        maximum_memory_gb: 1
+        parallel_shards: 1
+        dominant_operation: uniform RNG draws over declared candidate windows
+        stop_rule: none
+      - id: greedy_rho_compute
+        purpose: >-
+          Run the greedy eps-depth-reducing-set heuristic on every required
+          G_real and G_unif graph (plus optional q=16384 stretch cells if
+          budget remains after all prior stages and the calibration gate
+          passed); compute rho per cell, mean/variance across G_unif seeds.
+        wall_clock_seconds: 1800
+        cpu_hours: 0.5
+        maximum_memory_gb: 2
+        parallel_shards: 1
+        dominant_operation: >-
+          topological longest-path DP with iterative midpoint-node removal,
+          O(q) per removal round, up to O(q) rounds worst case (O(q^2) total
+          per graph, proposal.md Sec.9)
+        stop_rule: >-
+          Skip the optional q=16384 stretch cells if cumulative wall-clock
+          across prior stages plus this stage's required-cell work exceeds
+          80% of total_cpu_hours; report the required-cell results as
+          complete regardless (stretch cells are never required for
+          success/falsification determination).
+      - id: reporting
+        purpose: >-
+          Assemble the rho table, KS results, calibration tables, seed
+          variance, tail checks, and all required_artifacts below into the
+          final run package.
+        wall_clock_seconds: 300
+        cpu_hours: 0.02
+        maximum_memory_gb: 0.5
+        parallel_shards: 1
+        dominant_operation: aggregation and report writing
+        stop_rule: none
+
+  stopping_rules:
+    - >-
+      CALIBRATION GATE (binding): if calibration_error_ratio (greedy_|S*| /
+      exact_|S*|) falls outside [1.0, 1.5] for family_A_doubling_graph OR
+      family_B_pure_chain at ANY exact_tier_size, HALT before constructing
+      any G_real/G_unif graph and report calibration failure as the
+      terminal result -- the measurement pipeline is not yet trustworthy
+      enough to interpret any Argon2-derived rho number (per
+      DEC-20260812-03fa10's calibration_design_ruling: this is a
+      precondition, not optional polish).
+    - >-
+      Per-variant precondition flag: if the KS check fails to reject
+      uniformity (p > 0.05) at the smallest required q (512) for a given
+      variant, that variant's rho values are still computed and reported
+      (the structural-tell scaling control needs the full sweep), but are
+      explicitly labeled uninterpretable-per-precondition rather than
+      scored against the rho<=0.5/>=0.8 thresholds as if informative.
+    - >-
+      Budget stop: if cumulative wall-clock or CPU-hour usage reaches the
+      declared budget ceiling before the required sweep completes, halt and
+      report a partial result set with an explicit accounting of which
+      required cells were and were not completed -- this is a budget
+      outcome, never evidence against the hypothesis (AGENTS.md rule 5 / 3).
+
+  invalidation_rules:
+    - >-
+      A run is INVALID if the greedy heuristic's implementation deviates
+      from the frozen declared algorithm (topological longest-path DP;
+      remove the node nearest the current longest path's midpoint; repeat
+      until target depth reached) without a versioned protocol_amendment.
+    - >-
+      A run is INVALID if RNG seeds are not logged per AGENTS.md's artifact
+      policy (exact command, seeds, environment, git commit/dirty state).
+    - >-
+      A run is INVALID if the graph-builder's indexing-function
+      implementation is not independently checked against RFC 9106's
+      pseudocode (KN-LIT-7f3c21, Secs. 3.4.1-3.4.2) before any reported
+      construction is trusted -- required as part of required_artifacts
+      (implementation_snapshot), not asserted by mere self-report.
+    - >-
+      A run set claiming a completed rho reading for a given cell is
+      INVALID if the REQUIRED calibration gate (stopping_rules, first
+      entry) was not run and passed before that cell's G_real/G_unif
+      construction began -- procedural ordering is binding, not
+      retroactively satisfiable.
+    - >-
+      A run set is INVALID (not a negative result) if it is truncated by a
+      tool timeout, infrastructure failure, or crash before reaching a
+      declared stopping point -- report as failed_infrastructure per
+      AGENTS.md rule 5, never as a negative rho or KS reading.
+
+  success_criterion: >-
+    Per variant, the hypothesis's material-effect claim is CONFIRMED for
+    that variant if: (a) the calibration gate passes (both families, all
+    exact-tier sizes, ratio in [1.0, 1.5]); (b) the KS precondition check
+    for that variant rejects uniformity (p<=0.05, practically meaningful
+    effect size) at the required toy-scale q values; AND (c) rho <= 0.5 at
+    every required (t, q) pair for that variant. PARTIAL if (a) and (b) hold
+    but rho falls in [0.5, 0.8) at any required pair and rho does not reach
+    >=0.8 anywhere for that variant. Determination is per-variant, not
+    goal-wide or experiment-wide -- one variant confirming and another
+    falsifying is a fully decidable, reportable, and expected-possible
+    outcome, not a contradiction requiring resolution before reporting.
+
+  falsification_criterion: >-
+    Per variant, FALSIFIED if: (a) the calibration gate passes (ruling out
+    a corrupted pipeline as the explanation) AND EITHER (b) rho >= 0.8 at
+    any required (t, q) pair for that variant (material-effect
+    falsification), OR (c) the KS precondition check fails to reject
+    uniformity at the required toy-scale q values for that variant
+    (precondition falsification -- the mechanism's supporting premise is
+    refuted for that variant regardless of any numeric rho reading). If the
+    calibration gate itself fails, the experiment reports CALIBRATION
+    FAILURE, not a falsification of H-ARGON-ef2f0b -- an untrustworthy
+    pipeline is an infrastructure/measurement-validity finding, not
+    evidence against the hypothesis (AGENTS.md rule 5).
+
+  required_artifacts:
+    - >-
+      Run manifests per graph-build-plus-compute run: exact command, git
+      commit and dirty-tree state, environment/dependency versions, input
+      parameters and RNG seeds, requested model policy/backend/resolved
+      model identifier, stdout/stderr, raw machine-readable results,
+      validity status and reason, timestamps and resource measurements
+      (AGENTS.md "Artifact policy").
+    - >-
+      calibration_derivation.md: formal definitions of
+      family_A_doubling_graph and family_B_pure_chain; the exhaustive/ILP
+      exact-computation method and code; the exact |S*| values obtained at
+      exact_tier_sizes {16, 32, 64} for both families; the
+      calibration_error_ratio table; and the calibration_gate pass/fail
+      determination.
+    - >-
+      calibration_greedy_tier_table: greedy-only |S*| for both families at
+      greedy_tier_sizes {512, 2048, 8192}, with the stability-trend
+      comparison against exact-tier ratios.
+    - >-
+      Per required (variant, t, q) cell: raw z_j/W(j) samples, KS test
+      statistic and p-value, rho (per-seed G_unif values plus mean/
+      variance), and the precondition-interpretability label.
+    - >-
+      argon2i_seed_consistency_report: edge-set diff between the 2
+      independently-seeded Argon2i G_real builds at q=512, with a pass/fail
+      determination against RFC 9106 Sec. 3.4.1.2's data-independence claim.
+    - >-
+      implementation_snapshot: graph-builder source (indexing functions per
+      variant, checked against KN-LIT-7f3c21's pseudocode), greedy
+      eps-depth-reducing-set heuristic source, exhaustive/ILP exact-solver
+      source used for calibration.
+    - >-
+      certificate: {kind: none} per docs/claims-and-verification.md -- this
+      is a pure measurement; no solve or relation is claimed anywhere in
+      this contract.
+    - >-
+      Final summary report assembling the rho table (labeled per-cell as
+      interpretable or uninterpretable-per-precondition), the calibration
+      tables, the tail_checks results, and the rho_vs_q_scaling_trend per
+      variant, exactly as measured -- never blurred with any extrapolation
+      to literal RFC-recommended scale beyond the optional q=16384 cell if
+      it was run.
+
+  assigned_to: executor
+  approved_by: coordinator
+  approved_at: '2026-08-14'
+  approval_note: >-
+    Approved on explicit user confirmation of the frozen protocol as
+    presented (the full contract summarized: objective, scope, the required
+    bcf891 calibration gate, controls, budget, and decidable success/
+    falsification criteria per variant), given via chat, 2026-08-14. This
+    edit changes ONLY `status` (review_required -> approved) and adds
+    `approved_by`/`approved_at`/this note; no other field of the frozen
+    contract is touched by this approval. Per docs/task-lifecycle.md step 5,
+    the protocol is now frozen: any later change requires a versioned
+    protocol_amendment under experiments/EXP-ARGON-2608c2/amendments/, never
+    a direct edit of the fields above.

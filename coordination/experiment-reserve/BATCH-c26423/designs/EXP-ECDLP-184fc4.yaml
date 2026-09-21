@@ -1,0 +1,47 @@
+design:
+  experiment_id: EXP-ECDLP-184fc4
+  status: prospective_complete_pending_approval
+  approved_by: null
+  source_binding:
+    path: experiments/EXP-ECDLP-184fc4/specification.yaml
+    sha256: a805989f1ae1880afef401ab98a764067e41eefec87afbc2c5804a4844bdf82a
+  preserves_mechanism: DL spectra of the frozen cheap-coordinate library against matched random permutations, with a synthetic Fourier control and an order-2q descent-symbol control.
+  scope: {claim_tier: toy, field_bits: [12,14,16,18,20,22,24], families: [A,B], family_note: "Two independent seed strata of the same deterministic generator, not distinct mathematical curve families.", family_replicates: [20260905,20260906,20260907], cofactor: 1}
+  frozen_inputs:
+    library: "The version-1 source library has exactly 567 members: 525 x-residue indicators, 14 y-residue indicators, 9 Legendre members, 16 interval members, and 3 mixed members. Stage 0 emits their ordered machine-readable list and SHA-256; no addition or removal is permitted thereafter."
+    curve_selection: "For each (field_bits,family,replicate), set outer_seed=int(SHA256('EXP-ECDLP-184fc4|'+family+'|'+replicate+'|'+field_bits),16). For attempt u=0,...,99 call generate_instance(outer_seed+u,field_bits). Reconstruct E and compute E.order() (the exact naive counter), never accepting order_bsgs as an order certificate. Accept only if E.order()=inst.n is prime, inst.P is non-infinity, [inst.n]inst.P=O, and inst.Q=[inst.k]inst.P; otherwise record rejection. Failure after 100 attempts is an infrastructure/coverage outcome, never a substituted subgroup cell."
+    primary_O_convention: "O has no affine x/y; every raw coordinate-library member has g(O)=0 before exact centering, identically in observed and null arrays."
+    log_order: enumerate W_i=[i]P for i=0,...,N-1 with generator certificate; independently recompute 1,000 indices sampled without replacement by seed SHA256(experiment_id|field_bits|seed|certificate).
+  definitions:
+    transform: For a real member g let h_i=g(W_i)-N^-1 sum_j g(W_j), H_a=sum_i h_i exp(2*pi*i*a*i/N), and E_a=abs(H_a)^2.
+    test_domain: "A={1,...,N-1}; H_0 is recorded and must have abs(H_0)<=1e-9*max(1,sum_i abs(g(W_i)))."
+    spike: "M=max_{a in A}|H_a|; Z=M/sqrt(N*Var(g)*ln(N/2)) only when Var(g)>0."
+    half_energy: "K_1_2 is the least cardinality of S subset A with sum_{a in S}E_a >= 0.5*sum_{a in A}E_a, ties ordered by increasing a; report K_1_2/(N-1). A zero-energy member is recorded as degenerate and is excluded from beta/Z/half-energy inference, never treated as white."
+    synthetic_control: "Set a0=1+floor(N/3); if gcd(a0,N)!=1 or 2*a0 mod N=0, increment deterministically to least valid a. For g0(W_i)=cos(2*pi*a0*i/N), require sum outside {a0,N-a0} E_a<=1e-18*N^2, max outside |H_a|<=1e-10*N, abs(E_a0-E_(N-a0))<=1e-10*N^2, and abs(|H_a0|-N/2)<=1e-10*N. This is a two-peak control."
+    descent_control: "For each (bits,stratum,replicate), use the same 100 outer-seed attempts as primary selection, reconstruct E, exact-count it, and accept only #E=2q with odd prime q. Enumerate x in increasing order to find e with e^3+ae+b=0 and T=(e,0); enumerate lifted points in increasing x order until finding P with [q]P=T, proving cyclic order 2q. Define delta(O)=1, delta(T)=Legendre((3e^2+a) mod p), and delta(W)=Legendre(x(W)-e) otherwise; require delta(T)=-1 before homomorphism/spectrum tests."
+    beta: "For each member and each seed stratum separately, beta is the ordinary least-squares slope of log(M) on log(N) over its six observations at the two largest field-bit sizes (three replicates at each size), with intercept. Report the six inputs, residuals, and undefined status if any M=0; no two-point or pooled-across-stratum slope is substituted."
+  cells:
+    unit: one curve bundle contains all frozen library members, 64 matched permutations per nondegenerate member, and the synthetic control.
+    count: {primary_curve_bundles: 42, spectra: 23814, permutation_null_spectra: 1524096, order_2q_control_bundles: 42, total_run_artifacts: 42}
+    run_definition: "One artifact is one (bits,family,replicate) primary bundle plus paired control, preserving maximum_runs=48."
+    seed_derivation: "For null replicate r=0..63, draw one Fisher-Yates index permutation pi_cell,r from SHA256('EXP-ECDLP-184fc4|null|'+bits+'|'+family+'|'+replicate+'|'+r), and apply the same pi to every member vector of that curve."
+  controls_and_inference:
+    blocking: [accepted-curve and generator certificates, 1000-entry log certificate, centering, synthetic two-peak control, matched-permutation null]
+    familywise_test: "For each r form T_r=max over all valid members and all 42 primary cells of M(member,cell,pi_cell,r)/sqrt(N*Var*ln(N/2)); form T_obs identically. This joint max controls the entire family. Report p_FWER=(1+#r:T_r>=T_obs)/65 and use pre-registered alpha=1/65; no per-member p value is significant."
+    positive_decision: "A candidate requires beta>=0.60 in each family-specific fit at both largest sizes using three replicates, matched-null slopes in [0.45,0.55], and global p_FWER<=1/65; it is only an observation requiring new review."
+    negative_decision: "If all valid members meet the stated toy windows, report only the frozen-library toy observation and its limits."
+    inconclusive_decision: "Any failed blocking control or degenerate member yields attempted_and_inconclusive for the affected cell; timeout/crash is infrastructure."
+  costs: {arithmetic: "O(N*library_size) storage/time for tabulation plus FFTs; permutation FFT count is 64 per nondegenerate member", memory_measurement: "record RSS peak and array bytes separately after each curve bundle", memory_cap_gb: 8, workers: 1}
+  proof_search_map:
+    applicability: empirical diagnostic; no asymptotic proof claim.
+    baseline_embedding: matched permutation and synthetic Fourier control.
+    observation_collision: "large Z from a near-constant member is separated by Var(g)=0/near-zero reporting; structure requires slope, replication, and familywise calibration."
+    quantifier_order: "for every frozen member and declared curve cell; existence of a concentration candidate is a separately preregistered alternative."
+    method_ceiling: "only this frozen library on toy curves; no conclusion about other functions, an attack, or an exponent."
+    nearby_object_control: order-2q descent symbol.
+  citations:
+    - {ref: H-ECDLP-0bc396, provenance: internal, claim: source hypothesis and toy inference boundary, verified_by: TASK-20260907-9c3566}
+    - {ref: "Bombieri/Kohel-Shparlinski bound named in source", provenance: recalled, claim: retrieval target only; not used to support a decision, verified_by: null}
+  frontier: {dominated_by: unknown, sota_delta: "Unknown: no retrieved frontier row was supplied to this design task; this diagnostic has no claimed time, memory, or query improvement.", novelty_status: unverified}
+  required_artifacts: [frozen-library.json, curve-selection.json, stage0-definitions.md, raw-result.json, null-calibration.json, control-order-2q.json, manifest.yaml]
+  implementation_prerequisite: "Before approval, executor must bind the exact toycurve/rho/runner revisions and demonstrate that the declared FFT backend records numerical tolerance and RSS; no scientific run is authorized by this design."

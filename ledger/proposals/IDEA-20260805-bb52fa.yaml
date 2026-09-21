@@ -1,0 +1,619 @@
+idea:
+  id: IDEA-20260805-bb52fa
+  question_id: RQ-MLDSA-ffa0f5
+  added: '2026-08-05'
+  title: >-
+    The reachability envelope of FIPS 204 Algorithm 7 Line 28: a two-line
+    integer sup-norm bound shows the ||<<c t0>>||_inf >= gamma2 disjunct can
+    never fire at ML-DSA-65 or ML-DSA-87, and sizes the ML-DSA-44 sampling
+    campaign at 1.4 x 10^8 signatures before any of it is bought
+  class: control
+
+  claim: >-
+    For every ML-DSA private key that skDecode accepts, and for every challenge
+    c in B_tau, the integer sup-norm of <<c t0>> satisfies
+    ||<<c t0>>||_inf <= tau * 2^(d-1) EXACTLY, with no heuristic and no
+    reduction wrap-around. Evaluated on FIPS 204 Table 1 this gives
+    39*4096 = 159744 against gamma2 = 95232 at ML-DSA-44 (REACHABLE),
+    49*4096 = 200704 against gamma2 = 261888 at ML-DSA-65 (UNREACHABLE, slack
+    61184), and 60*4096 = 245760 against gamma2 = 261888 at ML-DSA-87
+    (UNREACHABLE, slack 16128). Consequently the first disjunct of Line 28 of
+    Algorithm 7 is DEAD CODE at two of the three approved parameter sets: the
+    measured rate there is exactly 0 as a theorem, not as a zero count with a
+    sample size, and GOAL-MLDSA-002's first completion criterion is satisfiable
+    at those two sets at zero compute. At ML-DSA-44 the same object converts
+    into an exact tail computation which sizes the campaign the criterion asks
+    for: under one named heuristic on t0 the per-signature rate is
+    7.34 x 10^-9, i.e. one signature in 1.36 x 10^8. THIS IS NOT A BREAK AND
+    NOT A WEAKNESS. A rejection condition that cannot fire removes an abort
+    branch and removes nothing else; the security of ML-DSA rests on MLWE,
+    MSIS and SelfTargetMSIS, about which this proposal says nothing in any
+    direction.
+
+  object_first_candidate:
+    tracked_object: >-
+      The exact integer sup-norm ENVELOPE of the intermediate quantity
+      <<c t0>>, followed through Algorithm 7 as an interval rather than as a
+      value: t0 coefficients live in the skEncode-guaranteed range
+      [-2^(d-1)+1, 2^(d-1)]; c lives in B_tau (exactly tau coefficients in
+      {-1,1}); the negacyclic product sends the pair to a coefficient that is a
+      signed sum of exactly tau of the t0 coefficients; the envelope
+      tau * 2^(d-1) is then compared with the constant gamma2 at Line 28. The
+      object is the envelope, not the distribution, and the whole content of
+      the proposal is that the envelope alone decides two of the three
+      parameter sets.
+    established_families_off_limits: >-
+      OFF-LIMITS AS THE PRIMARY LENS FOR THIS PROPOSAL: lattice reduction and
+      any estimator differencing (primal, dual, hybrid, BKZ cost models);
+      fault injection and any glitching of a device (that is GOAL-MLDSA-001's
+      scope and RQ-MLDSA-ffa0f5's constraints make the separation binding);
+      power, timing, EM and any physical side channel; nonce/randomness misuse
+      and the HNP family; decryption/verification-failure boosting; forgery
+      search of any kind. None of these is used, and no statement here may be
+      restated in their vocabulary. The families deliberately NOT off-limits
+      are interval arithmetic and exact integer counting, which are the whole
+      method, and which are not attack families at all.
+    newness_score: >-
+      The inequality is elementary and an implementer may well have noticed it;
+      what this corpus can honestly say is that it holds NO record of the
+      comparison, that KN-LIT-056 (its only Dilithium/FIPS 204 entry) carries
+      no parameter table at all, and that the ANGLE-BRIEF's own novelty caveat
+      (7,420 of 7,809 literature entries carry a bulk-seed caveat, 5,582 have
+      all four identifier fields null) makes any negative literature screen
+      here nearly worthless. Treat as NOT ESTABLISHED NOVEL. What is new with
+      confidence is the USE: replacing a budgeted sampling campaign with a
+      bound, before the campaign is bought.
+    testability_score: >-
+      Maximal. Stage 1 is six integer multiplications and three comparisons and
+      can be checked by a reader without a machine. Stage 2 is an exact
+      rational tail computed by inclusion-exclusion in closed form; it runs in
+      milliseconds and needs no solver, no numpy and no network.
+    survival_score: >-
+      The envelope survives the entire signing loop by construction, because
+      every operation between skDecode and Line 28 is either an NTT-domain
+      product with a fixed-weight ternary polynomial or a componentwise
+      comparison. It dissolves at exactly one place, and the proposal names it:
+      it says nothing about the DISTRIBUTION inside the envelope, which is why
+      ML-DSA-44 needs Stage 2 and Stage 3 and cannot be settled by Stage 1.
+
+  mechanism: >-
+    ALL FIPS 204 FIGURES BELOW ARE READ FROM THE PRIMARY TEXT. The generating
+    session fetched https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.204.pdf on
+    2026-08-06 (HTTP 200, 3,291,746 bytes, sha256
+    57239b9f84c03227eda3ca0991204dc7764c79af9ce2e6824eda774918d46b6b) and
+    extracted its text; the quotations below are verbatim from that extraction
+    and are re-verification targets, not authorities, until an executor repeats
+    the fetch and the extraction under a run record.
+
+    (1) THE PREDICATE. FIPS 204 Algorithm 7 (ML-DSA.Sign_internal), Line 28:
+      "if ||<<c t0>>||_inf >= gamma2 or the number of 1's in h is greater than
+       omega, then (z, h) <- perp"
+    and Line 23:
+      "if ||z||_inf >= gamma1 - beta or ||r0||_inf >= gamma2 - beta then
+       (z, h) <- perp".
+    Section 3.3 of the same document calls Line 28 "a second stage of rejection
+    sampling ... to ensure correctness". THIS RESOLVES THE TRANSCRIPTION
+    QUESTION RQ-MLDSA-ffa0f5 LEFT OPEN: the condition quoted in the ledger
+    against "line 19 of the paper's own Algorithm 1" corresponds to FIPS 204
+    Algorithm 7 LINE 28, and the sibling first-stage check is LINE 23. The
+    mapping is now read from the standard rather than assumed, which is what
+    the goal's next_action required before anything is designed.
+
+    (2) THE RANGE OF t0 IS GUARANTEED, NOT ASSUMED. FIPS 204 Algorithm 24
+    (skEncode) declares "t0 in R^k with coefficients in
+    [-2^(d-1) + 1, 2^(d-1)]", and Algorithm 25 (skDecode) annotates the t0
+    unpacking with "this is always in the correct range" -- explicitly in
+    contrast with s1 and s2, whose annotations read "this may lie outside
+    [-eta, eta] if input is malformed". So for EVERY byte string sk that
+    skDecode accepts, including adversarially crafted ones, every coefficient
+    of t0 satisfies |t0_j| <= 2^(d-1) = 4096 with d = 13 (Table 1, all three
+    parameter sets).
+
+    (3) THE CHALLENGE IS FIXED-WEIGHT TERNARY. FIPS 204 Section 2.3 defines
+    B_tau as the set of p in R_q with exactly tau coefficients drawn from
+    {-1, 1} and all others zero; SampleInBall (Algorithm 29) outputs into it.
+
+    (4) THE ENVELOPE. In R_q = Z_q[X]/(X^256 + 1) the coefficient j of c*t0 is
+      (c t0)_j = sum_{i=0}^{255} c_i * t0_{(j-i) mod 256} * (-1)^{[i > j]},
+    a sum of exactly tau nonzero terms (one per nonzero c_i), each of absolute
+    value at most 2^(d-1). Hence, as an INTEGER before any reduction,
+      |(c t0)_j| <= tau * 2^(d-1).
+    Since tau * 2^(d-1) <= 60 * 4096 = 245760 < q/2 = 4190208.5, the centred
+    representative mod q equals that integer, so the bound transfers verbatim
+    to the sup-norm FIPS 204 uses:
+      ||<<c t0>>||_inf <= tau * 2^(d-1),  UNCONDITIONALLY.
+    No heuristic, no distributional assumption, no scale limitation. The bound
+    is tight: it is attained when the tau selected t0 coefficients all equal
+    2^(d-1) with signs matching c.
+
+    (5) EVALUATION AT FIPS 204 TABLE 1. d = 13 at all three sets.
+      ML-DSA-44: tau = 39, gamma2 = (q-1)/88 = 95232.
+                 envelope 159744 >= 95232  -> REACHABLE (ratio 1.6774)
+      ML-DSA-65: tau = 49, gamma2 = (q-1)/32 = 261888.
+                 envelope 200704 <  261888 -> UNREACHABLE (slack 61184, 23.4%)
+      ML-DSA-87: tau = 60, gamma2 = (q-1)/32 = 261888.
+                 envelope 245760 <  261888 -> UNREACHABLE (slack 16128, 6.2%)
+    The ML-DSA-87 margin is 6.2 per cent. That is the reason the whole
+    proposal is stated as a check to be re-run rather than as a fact: a single
+    misread digit in tau, d or gamma2 flips it, which is exactly why Stage 0
+    re-reads all nine numbers from the standard before Stage 1 evaluates them.
+
+    (6) WHAT UNREACHABILITY DOES AND DOES NOT MEAN. It means: at ML-DSA-65 and
+    ML-DSA-87 a signer that omits the first disjunct of Line 28 is
+    BIT-FOR-BIT identical to a conforming signer on every input, so it leaks
+    nothing, loses nothing in the security argument, and cannot be detected --
+    because there is nothing to detect. It does NOT mean the check is a defect,
+    a redundancy worth removing, or evidence about the scheme's hardness. The
+    second disjunct of Line 28 (hint weight > omega) is a DIFFERENT object and
+    is NOT unreachable; see (8).
+
+    (7) ML-DSA-44 IS THE ONLY LIVE CELL, AND THE ENVELOPE SIZES IT. Inside the
+    envelope a distribution is needed, and exactly one heuristic (H1 below)
+    supplies it: t0 coefficients behave as independent uniforms on the 8192
+    integers [-4095, 4096]. The deviation from uniform is EXACTLY computable
+    rather than assumed: q - 1 = 8380416 = 1023 * 8192, so over t uniform in
+    Z_q the residue class 0 occurs 1024 times and every other class 1023 times,
+    a relative bias of 1/1023 concentrated at a single value -- which moves
+    mass toward the centre and therefore can only THIN the tail. Under H1 each
+    coefficient of <<c t0>> is a signed sum of tau distinct uniform
+    coefficients (the tau indices (j - i) mod 256 are distinct because the tau
+    positions of c are), so its law is an exact 39-fold discrete convolution.
+    Writing v = t0 + 4095 in {0, ..., 8191}, the count of tuples with sum <= s
+    is the closed form
+      C(s) = sum_{j >= 0} (-1)^j * binom(39, j) * binom(s - 8192 j + 39, 39),
+    so the two-sided per-coefficient exceedance probability at gamma2 = 95232
+    is an exact rational. GENERATOR-COMPUTED, OUTSIDE THE HARNESS, NO RUN
+    RECORD, RE-DERIVATION REQUIRED: p_1 = 7.1656 x 10^-12 (log2 = -37.02).
+    Over the 256k = 1024 coefficients of the vector, the union bound and the
+    independence approximation agree to six figures at
+      R_44 = 7.3376 x 10^-9 per Line-28 evaluation, i.e. 1 in 1.36 x 10^8.
+    Because Line 28 is reached only on attempts that already passed Line 23,
+    it is evaluated approximately once per emitted signature, so R_44 is also
+    the per-SIGNATURE rate to within the Line-28 rejection rate itself.
+
+    (8) THE COST BOOKKEEPING THIS FORCES, WHICH IS THE PRACTICAL PAYLOAD.
+    GOAL-MLDSA-002 asks for a measured rate with a confidence interval at each
+    parameter set and for an exhibited violating-but-verifying signature.
+    Per-attempt cost times inverse success probability: observing ONE Line-28
+    ct0 rejection at ML-DSA-44 in expectation costs 1.36 x 10^8 signing
+    attempts; a 95 per cent two-sided interval on the rate needs of order
+    10^9. At a generous 10^4 signatures per second that is ~3.8 hours for one
+    event and days for an interval -- against a declared campaign budget of
+    10,800 wall-clock seconds. THE CAMPAIGN AS WRITTEN CANNOT BUY THE
+    MEASUREMENT, and the honest response is the one AGENTS.md rule 5 demands:
+    say so before spending, report the derived rate with its heuristic
+    attached, and reserve the sampling budget for the quantity that IS
+    reachable. The second disjunct of Line 28 costs nothing by comparison:
+    under the same heuristic the expected hint weight is 63.4 of 1024 at
+    ML-DSA-44 against omega = 80 (2.16 sd), 38.7 of 1536 against omega = 55 at
+    ML-DSA-65 (2.65 sd) and 57.1 of 2048 against omega = 75 at ML-DSA-87 (2.40
+    sd), so hint-weight rejections occur at per cent rates and are observable
+    in seconds. THAT is where the sampling budget belongs.
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      FIPS 204, Module-Lattice-Based Digital Signature Standard, NIST,
+      2024-08-13. READ (primary text obtained and extracted by the generating
+      session on 2026-08-06; see mechanism (1) for the fetch receipt and hash).
+      Quoted here: Table 1 (all nine parameter values used), Algorithm 7 Lines
+      23 and 28, Algorithm 8 Line 13, Algorithm 24 and Algorithm 25 range
+      annotations, Algorithm 20/21 hint encoding, Section 2.3 definition of
+      B_tau, Section 3.3 on the second rejection stage. THE FETCH ITSELF IS A
+      FINDING: GOAL-MLDSA-002's second pause_condition anticipates that NIST
+      domains are blocked by the harness proxy. They were not, for this
+      session, over this path. What WAS blocked is text extraction: pdftotext
+      is absent and both pypdf and pdfminer.six abort on importing the system
+      `cryptography` package with pyo3_runtime.PanicException, exactly as the
+      ANGLE-BRIEF reports; the working route was to pip-install a fresh
+      `cryptography` into a local --target directory and put it first on
+      PYTHONPATH. An executor must reproduce that or record the failure as
+      infrastructure signal.
+    - >-
+      "Apples, Oranges, and Signatures" (eprint 2026/1333), whose Pitfall 12 is
+      the origin of the rejection-condition framing and of the
+      "over one billion signatures without observation" figure. NOT READ --
+      RELAYED CLAIM, reaching this ledger through a search-tool excerpt on
+      2026-08-04. This proposal makes that figure CHECKABLE rather than
+      citing it: at ML-DSA-65 and ML-DSA-87 zero observations in any number of
+      signatures is forced by (5) and carries no information; at ML-DSA-44 the
+      derivation in (7) predicts about 7 events per 10^9 signatures, so
+      "unobserved in more than 10^9" is in tension with the derivation at that
+      set and consistent with it at the other two. The reconciliation -- which
+      parameter set the count was taken at -- is a stated deliverable, and the
+      possibility that the derivation rather than the report is wrong is left
+      open and is the proposal's main falsifier.
+    - >-
+      "Uncompressing Dilithium's public key" (eprint 2024/1373), for the t0
+      recovery and the 200,000-500,000 signature range. NOT READ -- RELAYED
+      CLAIM. Not load-bearing here; it is the object of the sibling proposal
+      IDEA-20260805-630606.
+    - >-
+      KN-LIT-056 is this corpus's only Dilithium/FIPS 204 entry. It carries
+      confidence "reported", states "Papers/standard not read", and contains no
+      parameter table, no algorithm numbering and no rejection conditions. So
+      the corpus supplied none of the numbers above and cannot corroborate
+      them; the standard did. No status change to KN-LIT-056 is proposed here.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      (sk, M, rnd, kappa) -- the entire signing state -- mapped to the single
+      pair (tau * 2^(d-1), gamma2), i.e. to the reachability envelope and the
+      threshold it is compared against.
+    what_is_discarded: >-
+      Everything except tau, d and gamma2: the key, the message, the
+      randomness, the challenge, the commitment, and the actual value of
+      <<c t0>>.
+    why_genuinely_lossy: >-
+      Maximally lossy. The fibre over an observed value is the entire input
+      space of the algorithm at that parameter set.
+    why_compatible_with_the_operations: >-
+      The envelope propagates deterministically through every operation between
+      skDecode and Line 28 because each is either (i) a product with a
+      fixed-weight ternary polynomial, under which sup-norms compose by
+      |c*x|_inf <= (weight of c) * |x|_inf, or (ii) a componentwise comparison.
+      No step in that path can enlarge the envelope, and the mod-q reduction
+      cannot wrap it because the envelope is below q/2 by a factor of 17.
+    is_it_only_a_change_of_coordinates: >-
+      No -- and the failure mode actually risked here is the MIRROR one, which
+      is checked explicitly. The KN-LIT-7595 failure ((Delta, Pi) = (x xor y,
+      x*y) in characteristic 2, where nothing is discarded so nothing is
+      gained) cannot occur: the projection is not invertible in any sense. The
+      real risk is the IDEA-20260805-e805b6 failure -- a projection so lossy it
+      is CONSTANT across instances and therefore says nothing. CHECK RUN, AND
+      THE ANSWER IS THE POINT OF THE PROPOSAL: the projection IS constant
+      across instances at fixed parameter set, and its constant value is what
+      decides the question. The comparator spread is not zero because the
+      projection is evaluated at three parameter sets and returns two different
+      verdicts (unreachable at 65 and 87, reachable at 44); a projection that
+      returned the same verdict everywhere would indeed be worthless, and that
+      is the pre-registered tell.
+
+  assumptions:
+    - >-
+      That the extracted FIPS 204 text faithfully reproduces the published PDF.
+      The extraction route is unusual (a local re-install of `cryptography`
+      shadowing a broken system package) and could in principle corrupt digits.
+      Stage 0 re-reads all nine Table 1 values and the two algorithm lines
+      independently, and records the extraction command and hash.
+    - >-
+      That ||.||_inf in Line 28 is the centred sup-norm on R_q, as FIPS 204
+      Section 2.3 defines it, and not a norm on the standard representatives
+      {0, ..., q-1}. Under the latter reading the bound in (4) would be wrong
+      and the whole proposal fails; Stage 0 checks the definition verbatim.
+    - >-
+      NOT ASSUMED, DELIBERATELY: nothing about the distribution of t0 is used
+      for the ML-DSA-65 and ML-DSA-87 conclusions. H1 is used only at
+      ML-DSA-44.
+
+  predictions:
+    - metric: >-
+        reachability_verdict at each of ML-DSA-44 / -65 / -87: the boolean
+        tau * 2^(d-1) >= gamma2, computed from values re-read from FIPS 204
+        Table 1
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE, DERIVED BEFORE ANY RUN: (True, False, False), with the
+        three envelope integers exactly 159744, 200704, 245760 and the three
+        thresholds exactly 95232, 261888, 261888. Any other triple falsifies
+        the proposal outright and means a parameter was misread.
+    - metric: >-
+        p_1, the exact two-sided per-coefficient exceedance probability of a
+        39-fold convolution of the uniform law on [-4095, 4096] at 95232,
+        computed by the inclusion-exclusion closed form in mechanism (7)
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE: 7.1656 x 10^-12 to five significant figures
+        (log2 = -37.022). An independent re-derivation differing in the first
+        two significant figures falsifies the arithmetic and halts Stage 3.
+    - metric: >-
+        R_44, per-Line-28-evaluation rate at ML-DSA-44 = 1 - (1 - p_1)^1024
+      direction: different
+      minimum_effect: >-
+        FORCED VALUE: 7.3376 x 10^-9, i.e. one in 1.3628 x 10^8. Stated as a
+        DERIVED rate conditional on H1, never as a measurement.
+    - metric: >-
+        empirical maximum of |<<c t0>>| over N = 10^6 independent (c, t0)
+        draws at ML-DSA-44, compared with the exact convolution quantile at
+        1 - 1/(1024 N)
+      direction: different
+      minimum_effect: >-
+        The observed maximum must fall inside the exact two-sided 99 per cent
+        band around the predicted extreme-value quantile. This is the arm that
+        can actually fail: it tests H1 where H1 is used, at a quantile 10^6
+        times more accessible than the event itself.
+    - metric: >-
+        empirical hint weight distribution (mean and standard deviation of the
+        number of 1's in h) at each parameter set over 10^4 signatures
+      direction: different
+      minimum_effect: >-
+        Predicted means 63.4 / 38.7 / 57.1 with standard deviations
+        7.71 / 6.14 / 7.45, derived before the run from
+        E|<<c t0>>| / (2 gamma2) under H1. A deviation beyond 3 standard errors
+        indicates H1 is wrong in the bulk, which invalidates the ML-DSA-44 tail
+        derivation as well and must be reported before any tail statement.
+    - metric: >-
+        Repetitions column of FIPS 204 Table 1, recomputed as the reciprocal of
+        ((2(gamma1-beta)-1)/(2 gamma1))^(256 l) *
+        ((2(gamma2-beta)-1)/(2 gamma2))^(256 k)
+      direction: different
+      minimum_effect: >-
+        GENERATOR-COMPUTED: 4.297 / 5.118 / 3.875 against Table 1's
+        4.25 / 5.1 / 3.85, i.e. +1.1 / +0.35 / +0.65 per cent. The residual is
+        SMALL and is reported as small; what is worth recording is that it has
+        the SAME SIGN at all three sets and points in the direction that adding
+        the omitted Line-28 rejections cannot explain (more rejection causes
+        raise repetitions, they do not lower them). Deliverable: either
+        identify the convention that closes the gap or record it as an
+        unexplained 1 per cent residual in a standard's own table. Neither
+        outcome is a security statement.
+
+  minimal_test:
+    design: >-
+      Five stages, strictly cheapest-first, each able to terminate the line.
+      STAGE 0 (reading, zero compute, TERMINATING): re-obtain FIPS 204, record
+      the fetch receipt and sha256, re-read the nine Table 1 values, the
+      Section 2.3 norm definition, Algorithm 7 Lines 23 and 28, Algorithm 8
+      Line 13, and the Algorithm 24/25 t0 range annotations. If any value
+      differs from mechanism (5), STOP and re-derive.
+      STAGE 1 (six multiplications, zero compute, TERMINATING): evaluate
+      tau * 2^(d-1) vs gamma2 at all three sets. If the verdict triple is not
+      (True, False, False) the proposal is dead and the batch reports that.
+      STAGE 2 (closed form, milliseconds): compute p_1 and R_44 exactly by
+      inclusion-exclusion in Python integers; no numpy, no solver, no network.
+      STAGE 3 (sampling, minutes): draw 10^6 independent (c, t0) pairs at
+      ML-DSA-44 with c from SampleInBall and t0 from a real keypair, compute
+      <<c t0>>, and compare the empirical upper quantiles against the exact
+      convolution. This validates H1 where it is used.
+      STAGE 4 (conformance exhibition, seconds, ML-DSA-44/65/87): exhibit a
+      signature violating a signing-only predicate that still verifies. Use the
+      LINE 23 r0 predicate, not the Line 28 ct0 predicate: it fires on the
+      majority of attempts (see IDEA-20260805-031ce2), so exhibition is
+      immediate, whereas the ct0 exhibition is priced at 1.36 x 10^8 attempts
+      and is DECLARED OUT OF BUDGET IN ADVANCE rather than attempted and
+      abandoned.
+    controls:
+      - >-
+        NULL OBJECT, SAME SHAPE, FORCED VALUE DERIVED PRE-RUN, CAN ACTUALLY
+        FAIL: run Stage 3 with t0 replaced by a vector drawn uniformly from
+        [-4095, 4096] independently of any key. Forced value: the empirical
+        upper quantiles of |<<c t0>>| must be statistically indistinguishable
+        from the real-key arm, because H1 asserts exactly that the real t0 is
+        already uniform. THIS NULL CAN FAIL, and its failing is the single most
+        informative outcome available: a real-key arm whose tail is heavier
+        than the uniform null means t0 is not uniform, H1 is wrong, R_44 is
+        wrong, and the ML-DSA-44 cell must be rederived.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR: run the
+        identical instrument at a DELIBERATELY REACHABLE synthetic cell -- the
+        ML-DSA-87 parameters with gamma2 replaced by 200000 (below the 245760
+        envelope). The Line-28 first disjunct must then fire at an observable
+        rate. If the instrument reports zero firings there, the instrument
+        cannot see the event at all and NO negative result from any other arm
+        may be reported.
+      - >-
+        GRADED CONTROL, FOUR INTERIOR POINTS, MONOTONICITY REPORTED: hold
+        ML-DSA-87's tau = 60 and d = 13 fixed and sweep the threshold
+        gamma2' in {150000, 190000, 220000, 240000, 261888}. The measured
+        firing rate must be strictly decreasing and must reach exactly 0 at the
+        last point. A rate that fails to decay as the threshold rises is the
+        canonical artifact tell named in docs/inventor-protocol.md section 3,
+        and localises the failure to the instrument rather than leaving "it did
+        not fire".
+      - >-
+        VERDICT-ON-THE-NULL-FIRST. The Stage 3 decision rule is executed and
+        recorded on the uniform-t0 null arm before the real-key arm is
+        examined. If it emits the same label on both when they should differ,
+        the rule discriminates nothing and is rewritten before the real arm is
+        read.
+      - >-
+        ARCHIVE CHECK, ZERO COMPUTE: list every prior measurement of this
+        observable in the corpus. NONE EXISTS -- area MLDSA has no experiments,
+        no evidence and no runs. That absence is recorded here as an absence,
+        not claimed as a passed check, and it is not evidence that no one
+        outside this corpus has made the comparison.
+    required_metrics:
+      - the nine re-read Table 1 values with the page and the extraction command
+      - verbatim Line 23, Line 28 and Algorithm 8 Line 13 text with the fetch receipt and sha256
+      - the three envelope integers, the three thresholds, the three verdicts
+      - p_1 as an exact rational and as a float, with the closed form used
+      - empirical quantiles of |<<c t0>>| per arm with seeds, against the exact prediction
+      - hint weight mean and standard deviation per parameter set against the derived values
+      - the recomputed Repetitions column beside Table 1's
+
+  falsification_conditions:
+    - >-
+      Any of tau, d or gamma2 re-reads differently from FIPS 204 Table 1. The
+      ML-DSA-87 slack is only 6.2 per cent, so a single wrong digit flips the
+      headline; this is the likeliest single failure of the proposal.
+    - >-
+      ||.||_inf in Line 28 turns out not to be the centred norm. The bound in
+      mechanism (4) is then invalid and the proposal is withdrawn.
+    - >-
+      A single instance is exhibited at ML-DSA-65 or ML-DSA-87 in which
+      ||<<c t0>>||_inf >= gamma2, from a key that skDecode accepts. The theorem
+      is then false, which would be far more interesting than the theorem, and
+      the proposal must be withdrawn by a superseding record.
+    - >-
+      The Stage 3 real-key tail is materially heavier than the uniform null.
+      H1 fails and R_44 is withdrawn; the reachability verdict at 65/87 is
+      UNAFFECTED, because it uses no distribution at all. Stating which half
+      survives which failure is part of the deliverable.
+    - >-
+      The positive control does not fire at the synthetic reachable cell.
+      Nothing negative may be reported from any arm.
+
+  confounders:
+    - >-
+      EXTRACTION FIDELITY. Every number here passed through an unusual PDF text
+      extraction. Digits are exactly what such a pipeline corrupts, and the
+      6.2 per cent ML-DSA-87 margin is where it would matter. Stage 0 exists
+      solely to remove this confounder.
+    - >-
+      SELF-CONSISTENCY IS NOT INDEPENDENCE. Three internal checks corroborate
+      the parameter table -- the recomputed repetitions match Table 1 to
+      1.1 per cent, the derived hint weights sit below omega at all three sets
+      by 2.2 to 2.7 standard deviations, and 1023 * 8192 = q - 1 exactly. These
+      are consistency checks on ONE reading of ONE document and are reported as
+      such; they are not three independent confirmations.
+    - >-
+      OFF-BY-ONE IN THE RANGE CONVENTION. The t0 range is
+      [-2^(d-1)+1, 2^(d-1)], of width exactly 2^d; the envelope uses the
+      positive endpoint 2^(d-1). A reader who takes the range as
+      [-2^(d-1), 2^(d-1)-1] gets the same envelope, but a reader who takes it
+      as [-2^d, 2^d] gets double and the conclusion inverts. The convention is
+      quoted verbatim from Algorithm 24 for exactly this reason.
+    - >-
+      NEGATIVE RESULTS ARE CHEAP TO PRODUCE AND READ AS RIGOUR. "The check
+      cannot fire" is a comfortable thing to conclude. The positive control and
+      the graded control exist to make that conclusion cost something.
+
+  interpretation_limits:
+    - >-
+      NOT A BREAK, NOT A WEAKNESS, NOT A DEFECT REPORT. A rejection branch that
+      cannot fire at a given parameter set is a fact about arithmetic, not a
+      finding about security. Nothing here bears on MLWE, MSIS or
+      SelfTargetMSIS in any direction, and any sentence in a downstream record
+      that can be read as bearing on them is defective under
+      RQ-MLDSA-ffa0f5's claim_tier_ceiling regardless of what it measured.
+    - >-
+      The unreachability result covers the FIRST disjunct of Line 28 only. The
+      second disjunct (hint weight > omega) is reachable at all three sets and
+      is a different object; conflating them would misstate the result.
+    - >-
+      The unreachability result covers Line 28 only. Line 23's r0 predicate is
+      reachable, frequent, and is the one with a security role; see
+      IDEA-20260805-031ce2.
+    - >-
+      R_44 is CONDITIONAL ON H1 and stays conditional however much sampling is
+      done: docs/claims-and-verification.md is explicit that experimental
+      validation at any scale does not discharge a heuristic. The
+      unreachability half is unconditional; the rate half is not; the two must
+      never be reported at the same strength.
+    - >-
+      NO STATUS CHANGE to KN-LIT-056 or to any goal record is proposed or
+      implied. Filing FIPS 204 as a KN-LIT entry is the Coordinator's call and
+      is the goal's own declared next_action.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a keypair generated by ML-DSA.KeyGen_internal on a uniformly random
+        seed, the 256k coefficients of t0 = Power2Round(A s1 + s2).low behave as
+        independent random variables uniform on the 8192 integers
+        [-2^(d-1)+1, 2^(d-1)], for the purpose of computing upper quantiles and
+        two-sided exceedance probabilities of the coefficients of <<c t0>> at
+        thresholds up to gamma2, uniformly over c in B_tau drawn independently
+        of the key.
+      rigorous_support: >-
+        Two halves, one proved and one not. PROVED: for t uniform on Z_q, the
+        law of t mod+- 2^d is exactly uniform except that the class 0 carries
+        1024/q instead of 1023/q, because q - 1 = 1023 * 8192 exactly; the
+        total variation distance from uniform is therefore 1/(2*1023*1024) per
+        coefficient and the excess mass sits at the CENTRE, so it can only thin
+        the tail. NOT PROVED: that t = A s1 + s2 is close enough to uniform on
+        Z_q^k for that computation to apply. The usual argument is MLWE
+        indistinguishability, which is exactly the assumption this goal is
+        forbidden from touching, so it is NOT invoked; H1 is carried as an
+        unproved distributional heuristic, and the independence across the
+        256k coefficients of t0 and across the tau summands is a second,
+        separate unproved part. LOAD-BEARING ONLY AT ML-DSA-44.
+      validation_plan: >-
+        Stage 3 measures the upper quantiles of |<<c t0>>| from real keypairs
+        against the exact convolution and against a uniform-t0 null of the same
+        shape, and Stage 3's hint-weight arm tests the bulk of the same law at
+        all three parameter sets where the derived means 63.4 / 38.7 / 57.1
+        are pre-registered. Neither validates the tail at 10^-12; that is
+        stated as an unclosed gap rather than papered over, and it is why R_44
+        is reported as derived-under-H1 and never as measured.
+    - id: H2
+      statement: >-
+        NONE LOAD-BEARING for the headline. The unreachability of the Line-28
+        first disjunct at ML-DSA-65 and ML-DSA-87 follows from the triangle
+        inequality, the skEncode range for t0, the definition of B_tau, and
+        tau * 2^(d-1) < q/2. This entry exists to record that the proposal is
+        UNCONDITIONAL where it matters most, and that the only assumptions
+        remaining there are evidentiary (is the standard transcribed
+        correctly), not mathematical.
+      rigorous_support: >-
+        |sum of tau terms each bounded by B| <= tau B; centred representatives
+        coincide with integers below q/2. Both elementary.
+      validation_plan: >-
+        Symbolic re-derivation plus a direct exhaustive check that
+        max_j |(c t0)_j| = tau * 2^(d-1) is attained on a constructed extremal
+        pair, confirming the bound is tight and not merely valid.
+
+  target_complexity:
+    time_exponent: >-
+      n/a for this audit -- no algorithm is proposed and NO EXPONENT IS MOVED.
+      Stated plainly as docs/target-result-profile.md requires rather than
+      dressed up: this proposal is a measurement and conformance audit of a
+      fielded standard, and its value is decisiveness per unit cost, not
+      asymptotics. The exponent this goal's lane must never claim to move is
+      the MLWE/MSIS/SelfTargetMSIS one.
+    memory_exponent: >-
+      Negligible. Stage 2 holds forty integers; Stage 3 holds 10^6 draws of
+      256k int32 coefficients and can stream them, so the peak working set is
+      under 1 GB by construction and is budgeted at 4 GB.
+    best_known: >-
+      No prior art in this corpus: area MLDSA has zero experiments, zero runs
+      and zero evidence records. Outside the corpus, unknown and NOT SCREENED
+      to any standard worth citing -- see object_first_candidate.newness_score.
+    hidden_overhead: >-
+      The one hidden cost is Stage 0's extraction, which is where the whole
+      chain can silently fail and which consumed a materially larger share of
+      the generating session's effort than every computation combined.
+    tradeoff_note: >-
+      The real trade this proposal makes is BUDGET, not time-memory: it spends
+      about an hour of reading and arithmetic to avoid spending a campaign on a
+      sampling run that provably cannot reach its target at two parameter sets
+      and cannot afford it at the third.
+
+  dominated_by: >-
+    n/a (no attack, no cost claim, no Pareto point). Rows actually checked
+    before writing this: (i) the corpus -- ledger/proposals, ledger/hypotheses,
+    ledger/experiments and ledger/evidence contain nothing in area MLDSA, and
+    knowledge/literature's only Dilithium entry KN-LIT-056 carries no
+    parameter table, no algorithm numbering and no rejection conditions;
+    (ii) the sibling goal GOAL-MLDSA-001, whose scope is assumptions and fault
+    injection and which by its own non_duplication block owns neither object
+    here; (iii) the three cost axes on which a competing method could dominate
+    -- TIME (a bound beats a 1.4 x 10^8-signature campaign by any measure),
+    MEMORY (both are negligible; no competitor to compare), DATA/QUERIES (this
+    proposal needs zero signatures at ML-DSA-65 and -87 and 10^6 cheap
+    synthetic draws at ML-DSA-44, against 10^9 signatures for the sampling
+    route it replaces). NOT CHECKED, AND SAID SO: the external literature, for
+    the reason given in newness_score. Absence of a search result is never
+    evidence that something was not done (AGENTS.md retrieval policy).
+  sota_delta: >-
+    Quantitative, on data/queries: the completion criterion's stated route
+    needs of order 10^9 signatures per parameter set to bound a rate that is
+    zero at two of three sets; this route needs 0 signatures at those two sets
+    and 10^6 synthetic (c, t0) draws at the third, a reduction of at least
+    10^3 in queries at ML-DSA-44 and of everything at ML-DSA-65 and -87. On
+    the conformance side it replaces an unquantified "the rate is too low to
+    observe" with the number 1 in 1.36 x 10^8 at ML-DSA-44 and with a theorem
+    at the other two. No attack, no exponent, no speedup over any published
+    algorithm, because none is attempted.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.85 that the reachability verdict triple (True, False, False) survives
+    independent re-derivation. NOT HIGHER because every number passed through
+    one unusual PDF extraction performed by the generating session, because the
+    ML-DSA-87 margin is only 6.2 per cent so one wrong digit inverts the
+    headline, and because a claim this cheap about a heavily implemented
+    standard is the kind of thing that is either well known or wrong. NOT LOWER
+    because the argument is three lines of triangle inequality over ranges the
+    standard states explicitly and annotates as always-in-range, because three
+    independent internal consistency checks all land (Table 1's Repetitions
+    column reproduces to 1.1 per cent from the same nine numbers, the derived
+    hint weights sit 2.2-2.7 standard deviations below omega at all three sets,
+    and q - 1 = 1023 * 8192 exactly), and because the conclusion needs no
+    distributional assumption at all. Separately: 0.45 that R_44 survives as a
+    number rather than as a bound, because H1's tail behaviour at 10^-12 is not
+    validated by anything in the design and cannot be within budget.

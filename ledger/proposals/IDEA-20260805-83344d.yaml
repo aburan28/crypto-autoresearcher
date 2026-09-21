@@ -1,0 +1,591 @@
+idea:
+  id: IDEA-20260805-83344d
+  question_id: RQ-SDEG-001
+  goal_id: GOAL-SDEG-001
+  added: '2026-08-05'
+  title: >-
+    The HEUR-DS-1 comparator is a discretization residue, not the Dickman
+    function: rho(u*) as the tracked object, four independent defects in the
+    forced value, and the forced prediction that extending the ladder to 28 and
+    32 bits converts a 3/3 FAIL into a spurious PASS
+  class: control
+
+  claim: >-
+    HEUR-DS-1's decision rule RATE-DS-1 compares a measured smoothness rate
+    p_hat against a pre-registered forced value p0 = rho(u*), where rho is the
+    Dickman-de Bruijn function. The value actually used at every completed cell
+    is not rho(u*). It is the output of a first-order forward-Euler table
+    (experiments/EXP-DS-001/implementation/ds001_driver.py, function
+    dickman_rho, grid step 0.01, READ) whose ABSOLUTE error floor is
+    approximately 0.1445 * h and therefore SWAMPS rho(u) for every u above
+    about 5. The three committed cells in
+    experiments/EXP-DS-001/results/HEUR_DS_1_report.json read
+    rho_u_star = 2.5165067046856934e-03 / 1.7957280493462733e-03 /
+    1.4431270058181517e-03 at u* = 16/3, 20/3, 8. These three long decimals were
+    REPRODUCED BIT-FOR-BIT by re-running the driver's own scheme, and they exceed
+    the true rho(u*) by factors of about 18, 712 and 44,650 respectively. They
+    barely decay (ratio 1.40 then 1.24 per four bits) where rho itself falls by
+    55x then 78x. A quantity that must decay and does not is the canonical
+    artifact tell of docs/inventor-protocol.md section 3, and here it is not a
+    statistic but the COMPARATOR.
+    THE CONSEQUENCE IS NOT THAT THE VERDICT FLIPS TODAY. Under all three
+    candidate comparators the recorded verdict at 16/20/24 bits stays FAIL. The
+    consequence is (a) that the discrepancy the record reports as SHRINKING
+    (p_hat/rho = 58.6, 26.9, 11.1) is in truth EXPLODING (1.06e3, 1.92e4,
+    4.95e5), so the standing reading of the trend is inverted; and (b) that at
+    24 bits the recorded FAIL clears the band by only a factor of 1.39, so ONE
+    MORE STEP OF THE LADDER TURNS IT INTO A PASS. Extending HEUR-DS-1 to 28 and
+    32 bits with the present code is the single queued action most likely to
+    produce a false promotion in this lane, and it is the action the current
+    scouting recommends.
+
+  object_first_candidate:
+    tracked_object: >-
+      The COMPARATOR itself: the number p0 that RATE-DS-1 puts on the other side
+      of the inequality, followed from its definition (Dickman rho at u*) through
+      its implementation (a forward-Euler DDE table at grid 0.01), into the
+      decision rule (p0/8 <= p_hat <= 8 p0), into the bit-size pass flag, into
+      the F3 trigger, into HEUR_DS_1_anti_promotion, into the twelve evidence
+      records that cite HEUR-DS-1. Not the smoothness statistic, not the claw,
+      not the curve. The instrument's yardstick.
+    established_families_off_limits: >-
+      OFF-LIMITS as the primary lens for this proposal: index calculus and
+      factor-base design; Semaev summation polynomials as an attack; Groebner /
+      solving-degree instrumentation; meet-in-the-middle and claw search;
+      Pollard rho / BSGS baselines; lattice, isogeny and code-based transfer;
+      any smoothness-based subexponential architecture. This proposal proposes
+      NO attack and touches no attack family. Its lens is numerical analysis of
+      a delay differential equation and exact integer counting, which is why it
+      cannot regress into a repackaged variant of anything in this goal's prior
+      art.
+    newness_score: >-
+      The Dickman function and its numerical solution are entirely standard, and
+      no novelty is claimed for either. What is new to this corpus is the
+      OBSERVATION, which nothing in the 273 files mentioning HEUR-DS-1 records:
+      the number that twelve evidence records and one anti-promotion gate are
+      measured against was never the Dickman function at the cells where it was
+      used, and its error grows monotonically with the very parameter the ladder
+      is being extended along. Prior art in this lane audits the sampled
+      population (DEC-20260803-ab50fb line 125 already notes "FB-census object
+      != HEUR-DS-1 uniform-random-target statement"); nothing audits the
+      comparator.
+    testability_score: >-
+      Maximal. Stage 1 is arithmetic on a laptop with no dependencies: re-run the
+      driver's own function, solve the DDE properly, and compare. It costs
+      seconds and it can terminate the whole proposal if the driver's table turns
+      out to be right (it is not, but the contract must be able to say so).
+    survival_score: >-
+      The tracked object survives the entire pipeline trivially, because it is a
+      constant of the apparatus at each cell. That is exactly the property that
+      makes the finding decisive rather than statistical: no amount of sampling
+      changes p0, so no sampling budget can rescue a wrong p0.
+
+  mechanism: >-
+    DERIVED AND COMPUTED HERE. Every numeric below is GENERATOR-COMPUTED on this
+    machine, in pure Python, OUTSIDE the harness, and must be re-derived
+    in-harness before any record cites it. Nothing here is a literature claim.
+
+    1. WHAT THE DRIVER COMPUTES. ds001_driver.py lines 130-156 (READ) build a
+    table on grid h = 0.01 by
+      rho[i] = max(0, rho[i-1] - h * rho[i-100] / u_i),   u_i = i h,
+    with rho == 1 on [0, 1]. This is explicit forward Euler for the Dickman DDE
+    u rho'(u) = -rho(u-1). Forward Euler on this equation has a GLOBAL ABSOLUTE
+    error of order h with an O(1) coefficient. That is unremarkable for u <= 3,
+    where rho itself is of order 10^-2. It is fatal for u >= 5, where rho falls
+    below the error floor and the returned value is pure discretization residue.
+
+    2. THE FORCED VALUE OF THE ARTIFACT. If the returned number is the error
+    floor rather than the solution, it must be LINEAR IN h and NEARLY INDEPENDENT
+    OF u. Both are checkable before any run. GENERATOR-COMPUTED, by re-running
+    the driver's exact recurrence at four grid steps:
+      h = 0.01  -> rho_drv(8) = 1.443127e-03,  rho_drv(8)/h = 0.14431
+      h = 0.005 -> rho_drv(8) = 7.221541e-04,  rho_drv(8)/h = 0.14443
+      h = 0.002 -> rho_drv(8) = 2.890191e-04,  rho_drv(8)/h = 0.14451
+      h = 0.001 -> rho_drv(8) = 1.445487e-04,  rho_drv(8)/h = 0.14455
+    Linear in h to four significant figures, converging to about 0.1446. And
+    across u at fixed h = 0.01:
+      rho_drv(8.0000) = 1.443127e-03
+      rho_drv(9.3333) = 1.208577e-03
+      rho_drv(10.6667) = 1.039035e-03
+      rho_drv(12.0000) = 9.122717e-04
+    a total decay of 1.58x across four units of u, where rho itself falls by
+    about 1.4e7. THE COMPARATOR IS ESSENTIALLY A CONSTANT OF THE GRID.
+
+    3. THE TRUE VALUE. rho was re-solved here from the same DDE in integral form,
+    rho(u) = (1/u) * integral_{u-1}^{u} rho(t) dt, on a grid h = 5e-5 with the
+    implicit trapezoid endpoint, which is second order and stable. Agreement with
+    the standard reference values (RECALLED-UNVERIFIED, used only as
+    corroboration and never as the basis of any claim) is +6.9e-9 at u = 3,
+    +5.3e-9 at u = 5, +1.5e-5 at u = 8, -3.3e-5 at u = 10. The experiment
+    re-derives with two independent schemes and a Richardson check so that no
+    recalled number is load-bearing.
+
+    4. THE THIRD CANDIDATE COMPARATOR, AND WHY THERE ARE THREE. Dickman's
+    theorem, Psi(x, y) ~ x rho(u), is asymptotic in y. HEUR-DS-1 does the
+    opposite: it FIXES B in {64, 128, 256} and grows D = 2^(bits * d_half[m]).
+    For fixed y the count of y-smooth integers below x is polylogarithmic in x,
+    and the ratio Psi(x,y) / (x rho(u)) does not tend to 1. For B = 64 the count
+    is an EXACT finite computation over the 18 primes below 64, done here by the
+    standard recursion Psi(N,k) = Psi(N,k-1) + Psi(N/p_k, k) in exact integer
+    arithmetic with no floating point:
+      Psi(2^32, 64) = 2,320,213         Psi/D = 5.402167e-04
+      Psi(2^40, 64) = 20,097,408        Psi/D = 1.827849e-05
+      Psi(2^48, 64) = 135,168,022       Psi/D = 4.802133e-07
+      Psi(2^56, 64) = 747,101,831       Psi/D = 1.036812e-08
+      Psi(2^64, 64) = 3,527,728,593     Psi/D = 1.912386e-10
+    Dickman UNDERSTATES the true density by 3.89x, 7.25x, 14.86x, 33.4x, 81.97x
+    at bits = 16, 20, 24, 28, 32 -- monotonically growing, as the fixed-y regime
+    requires.
+
+    5. THE FULL TABLE (B = 64, m = 4, d_half = 2, D = 2^(2 bits), u* = bits/3,
+    p_hat read from HEUR_DS_1_report.json):
+      bits  u*        rho_true      rho_driver    drv/true    Psi/D         p_hat     p_hat/rho_true  p_hat/(Psi/D)
+      16    5.33333   1.38910e-04   2.51651e-03   1.81e+01    5.40217e-04   0.14746   1.06e+03        2.73e+02
+      20    6.66667   2.52288e-06   1.79573e-03   7.12e+02    1.82785e-05   0.04836   1.92e+04        2.65e+03
+      24    8.00000   3.23207e-08   1.44313e-03   4.47e+04    4.80213e-07   0.01600   4.95e+05        3.33e+04
+      28    9.33333   3.10469e-10   1.20858e-03   3.89e+06    1.03681e-08   -         -               -
+      32   10.66667   2.33295e-12   1.03904e-03   4.45e+08    1.91239e-10   -         -               -
+    Decay per four bits: rho_true 55.1x, 78.1x, 104x, 133x; Psi/D 29.6x, 38.1x,
+    46.3x, 54.2x; rho_driver 1.40x, 1.24x, 1.19x, 1.16x; p_hat 3.05x, 3.02x.
+
+    6. WHAT THE TABLE SAYS ABOUT THE STANDING READING. The report's own ratio
+    p_hat/rho_u_star is 58.6, 26.9, 11.1 -- halving per four bits, which reads as
+    a finite-size effect converging to the model. That reading is an artifact of
+    a comparator that is nearly constant while p_hat falls by 3x per step. With
+    either correct comparator the ratio DIVERGES: 1.06e3 -> 1.92e4 -> 4.95e5
+    against rho, and 273 -> 2646 -> 3.33e4 against the exact density. The
+    direction of the trend is inverted, and with it every inference about whether
+    the heuristic validates asymptotically.
+
+    7. THE FORCED PREDICTION THAT MATTERS. RATE-DS-1 passes iff
+    p0/8 <= p_hat <= 8 p0. At 24 bits the driver's band top is 8 * 1.44313e-03 =
+    1.15450e-02 against p_hat = 0.016: the FAIL clears by a factor of 1.386, the
+    smallest margin in the table. Continuing p_hat's own measured decay of about
+    3.02x per four bits gives p_hat(28) about 5.3e-03 against a driver band top
+    of 9.67e-03, and p_hat(32) about 1.75e-03 against 8.31e-03. BOTH INSIDE THE
+    BAND. The instrument is therefore forecast to report HEUR-DS-1 PASS at 28 and
+    32 bits, at cells where the true rho is 3.10e-10 and 2.33e-12 -- six and nine
+    orders of magnitude below the number used. The pass would be produced by the
+    grid step and by nothing else.
+
+    8. TWO FURTHER DEFECTS, INDEPENDENT OF THE FIRST TWO, BOTH ZERO COMPUTE.
+    (D3, POPULATION) The spec fixes D(bits,m) = 2^(bits * d_half[m]) as a frozen
+    BOUND and encodes N_j "truncated to bitlength floor(log2 D)+1 WHEN LARGER".
+    u* is then computed from the bound, not from the realised sizes. If the N_j
+    are typically much smaller than D the comparator is centred on the wrong u
+    and the sign of the discrepancy is determined before any sampling. The report
+    records no distribution of log2(N_j); the honest comparator is per-sample.
+    (D4, POWER) At 24 bits the exact density is 4.80e-07, so a PERFECT uniform
+    population of n = 100,000 (the spec's min_samples_per_bit_size) yields an
+    expected 0.048 smooth samples and returns p_hat = 0 with probability
+    exp(-0.048) = 0.953. Under the rule's own p0 >= 1e-15 branch, p_hat = 0
+    FAILS. The 24-bit gate is therefore unsatisfiable at n = 1e5 even by the
+    exact population it is testing for; satisfiability needs n of order 1.7e7
+    against the exact density and 2.5e8 against Dickman. This is a control that
+    cannot pass, the mirror of the control-that-cannot-fail catalogued as
+    KN-TECH-1a5b7e (id RELAYED from the angle brief, NOT READ).
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      Dickman (1930) and de Bruijn on the density of smooth integers, and the
+      Canfield-Erdos-Pomerance theorem, are the standard sources for rho and for
+      Psi(x,y) ~ x rho(u). NOT READ. No claim here rests on them: rho is
+      re-solved from the defining delay differential equation, and Psi(D,64) is
+      counted exactly. The reference values rho(3), rho(5), rho(8), rho(10) used
+      as a sanity check are RECALLED-UNVERIFIED and are explicitly not
+      load-bearing.
+    - >-
+      Ennola's and de Bruijn's refinements for FIXED y (the regime HEUR-DS-1
+      actually occupies) are RECALLED-UNVERIFIED as existing; nothing about their
+      content is asserted. The exact count replaces them here, which is why the
+      proposal needs no literature at all.
+    - >-
+      experiments/EXP-DS-001/specification.v2.yaml, heur_ds_1_decision_rule
+      (READ, in this repository): D_formula, u_star_formula, constant_factor_c =
+      8, min_samples_per_bit_size = 100000, rate_band RATE-DS-1, ks_rule KS-DS-1,
+      tail_rule TAIL-DS-1, bit_size_pass, F3_trigger.
+    - >-
+      experiments/EXP-DS-001/results/HEUR_DS_1_report.json (READ): three
+      completed cells, all HEUR_DS_1_bit_size_pass false, F3_trigger_observation
+      true, TAIL_DS_1_ok true with p_ext = 1.0 at all three cells.
+    - >-
+      experiments/EXP-DS-001/implementation/ds001_driver.py lines 130-156 (READ):
+      the dickman_rho implementation whose output is audited here.
+    - >-
+      Twelve evidence records in ledger/evidence/ mention HEUR-DS-1 or
+      HEUR_DS_1 (EV-DS-001, -002, -003, -004, -006, EV-DS-84d006, EV-DS-1e5e91,
+      EV-DS-8da1cf, EV-DS-8ddf9e, EV-EQD-001, EV-LPF-001, EV-DEP-001) --
+      MEASURED by grep at HEAD, not relayed. Their contents were not all read;
+      no claim is made here about what any of them concludes beyond the fact of
+      the reference.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      The declared projection under audit is
+      (the population of intermediate integers N_j)  -->  (p_hat, u*)  -->
+      the single bit RATE-DS-1 pass/fail.
+      The tracked object of THIS proposal is the second coordinate of the middle
+      term, p0 = rho(u*), together with its implementation.
+    what_is_discarded: >-
+      The projection to u* discards the entire realised size distribution of the
+      N_j, retaining only a declared upper bound D and a fixed B. The further
+      projection to p0 = rho(u*) discards everything except that one real number.
+    why_genuinely_lossy: >-
+      Genuinely and heavily lossy -- p0 is a function of (bits, B, m) alone.
+    why_compatible_with_the_operations: >-
+      It is compatible in the only sense that matters here: p0 propagates
+      deterministically into the decision rule. That is precisely the danger. A
+      deterministic, instance-independent comparator cannot be corrected by any
+      amount of sampling on the other side of the inequality.
+    is_it_only_a_change_of_coordinates: >-
+      NEITHER FAILURE MODE, AND A THIRD ONE. It is not the (Delta, Pi) = (x XOR
+      y, x y) failure -- nothing is recoverable from p0, so it is not a change of
+      coordinates. It is close to the MIRROR failure (a projection so lossy it is
+      constant across instances): p0 varies only with the cell label, not with
+      the data. WHICH FAILURE WAS CHECKED FOR, AND WHAT THE CHECK RETURNED: the
+      mirror failure was checked, by asking whether the comparator decays as the
+      parameter meant to destroy smoothness (u) increases. It does not -- 1.58x
+      across four units of u where the modelled quantity falls by 1.4e7. The
+      check RETURNED THE ARTIFACT TELL. The third mode, specific to a comparator
+      rather than a statistic, is that the constant is not even the constant it
+      claims to be: it is the numerical scheme's error floor.
+
+  assumptions:
+    - >-
+      That ds001_driver.py as committed at HEAD is the code that produced
+      HEUR_DS_1_report.json. Supported but NOT PROVEN: re-running the function's
+      exact recurrence reproduces all three committed rho_u_star values
+      bit-for-bit to 17 significant figures, which is strong evidence and is
+      recorded as such, not as a provenance receipt. Stage 1 of the paired
+      experiment checks the run manifest.
+    - >-
+      That p_hat as reported is the mean of the B-smoothness indicator over the
+      sampled N_j, as heur_ds_1_decision_rule.sampled_quantity states. Not
+      independently verified; a mis-specified p_hat would change the size of the
+      divergence but not the comparator defect, which is the subject here.
+    - >-
+      No assumption is made about whether the N_j are or are not uniform. That is
+      exactly what the audit refuses to assume and what defect D3 is about.
+
+  predictions:
+    - metric: >-
+        FV-1 grid-linearity of the driver comparator: rho_driver(8, h) / h for
+        h in {0.01, 0.005, 0.002, 0.001}, re-derived in-harness
+      direction: different
+      minimum_effect: >-
+        FORCED VALUES, STATED BEFORE ANY IN-HARNESS RUN: 0.14431, 0.14443,
+        0.14451, 0.14455, monotone increasing, spread below 0.2 per cent. If the
+        ratios are NOT constant to within 1 per cent, the error-floor diagnosis
+        is wrong and this proposal's mechanism is falsified at stage 1.
+    - metric: >-
+        FV-2 true rho(u*) at u* = 16/3, 20/3, 8, 28/3, 32/3, re-derived by two
+        independent schemes with a Richardson convergence check
+      direction: different
+      minimum_effect: >-
+        FORCED VALUES: 1.38910e-04, 2.52288e-06, 3.23207e-08, 3.10469e-10,
+        2.33295e-12, each to be reproduced within 1 per cent by both schemes. Any
+        disagreement above 1 per cent between the two schemes invalidates the
+        table and the audit reports that instead of a finding.
+    - metric: >-
+        FV-3 exact Psi(2^(2 bits), 64) for bits in {16, 20, 24, 28, 32}, exact
+        integer arithmetic
+      direction: different
+      minimum_effect: >-
+        FORCED VALUES, EXACT INTEGERS: 2320213, 20097408, 135168022, 747101831,
+        3527728593. These are counts, not estimates; a single differing digit
+        means one of the two computations is wrong and must be found before
+        anything else is reported.
+    - metric: >-
+        FV-4 RATE-DS-1 verdict at bits = 16, 20, 24 recomputed against each of
+        the three comparators (driver, true rho, exact Psi/D)
+      direction: different
+      minimum_effect: >-
+        FORCED: FAIL at all nine combinations. THIS PROPOSAL PREDICTS THAT THE
+        AUDIT DOES NOT FLIP ANY RECORDED VERDICT, and says so before running so
+        that a flipped verdict cannot later be presented as the finding. What
+        changes is the margin: 1.386x outside the band at 24 bits against the
+        driver, versus 4.95e5 against rho.
+    - metric: >-
+        FV-5 forecast RATE-DS-1 verdict at bits = 28 and 32 under the CURRENT
+        instrument, assuming p_hat continues its measured 3.02x decay per four
+        bits
+      direction: different
+      minimum_effect: >-
+        FORCED: PASS at both, with predicted p_hat(28) in [3.5e-3, 8.0e-3]
+        against band [1.51e-04, 9.67e-03] and p_hat(32) in [1.0e-3, 3.0e-3]
+        against band [1.30e-04, 8.31e-03]. IF THE EXTENSION IS RUN AND REPORTS
+        PASS, THAT PASS IS THIS PREDICTION COMING TRUE AND IS NOT EVIDENCE FOR
+        HEUR-DS-1. If the extension reports FAIL, this prediction is wrong and
+        the urgency of the audit drops sharply -- which is a real way for the
+        proposal to lose.
+    - metric: >-
+        FV-6 minimum sample size for RATE-DS-1 to be satisfiable at bits = 24 by
+        a population that is exactly uniform on (1, D]
+      direction: higher
+      minimum_effect: >-
+        FORCED: n >= 1.67e7 against the exact density and n >= 2.48e8 against
+        Dickman, versus the spec's min_samples_per_bit_size = 100000. Equivalently
+        P(p_hat = 0 | perfect population, n = 1e5) = exp(-0.048) = 0.953.
+    - metric: >-
+        FV-7 realised size distribution: the empirical median and 5th/95th
+        percentiles of log2(N_j) at each cell, against the frozen bound
+        log2(D) = 2 * bits
+      direction: different
+      minimum_effect: >-
+        NO FORCED VALUE IS AVAILABLE AND THAT IS THE POINT: the report contains
+        none, so D3 cannot be settled from committed data. The prediction is only
+        that the median is STRICTLY BELOW log2(D); if it is at the bound, D3 is
+        void and the audit says so.
+
+  minimal_test:
+    design: >-
+      Four stages, strictly cheapest first, each able to terminate. STAGE 0
+      (minutes, zero compute beyond file reads): confirm that the committed
+      HEUR_DS_1_report.json rho_u_star values are reproduced by the committed
+      dickman_rho, and record the run manifest that produced them. If they are
+      not reproduced, the provenance assumption fails and the audit stops and
+      reports that. STAGE 1 (seconds): FV-1, FV-2, FV-3 -- the three forced-value
+      tables, two independent rho schemes, exact integer Psi. STAGE 1 ALONE CAN
+      END THE PROPOSAL: if the driver table is accurate, there is no finding.
+      STAGE 2 (seconds): FV-4, FV-5, FV-6 -- recompute the decision rule under
+      each comparator, forecast 28/32, and compute the satisfiability floor.
+      STAGE 3 (minutes, only if authorized): FV-7 -- re-instrument the sampler to
+      emit the log2(N_j) histogram, which is the only stage that touches the
+      experiment's own code path.
+    controls:
+      - >-
+        NULL OBJECT OF THE SAME SHAPE, WITH A FORCED VALUE THAT CAN FAIL:
+        evaluate the driver's dickman_rho at u = 2 and u = 3, where rho is large
+        compared with the error floor. FORCED VALUES DERIVED BEFORE THE RUN:
+        driver returns 3.093466e-01 at u = 2 against a true 3.068528e-01 (+0.81
+        per cent) and 5.249470e-02 at u = 3 against 4.860839e-02 (+8.0 per cent).
+        THIS NULL CAN FAIL: if the driver were uniformly broken it would miss
+        here too, and the "error floor" diagnosis would be replaced by "the
+        implementation is simply wrong everywhere", which is a different and
+        weaker finding. The prediction is that it passes at small u and fails at
+        large u, which is the signature of a discretization floor rather than a
+        coding error.
+      - >-
+        POSITIVE CONTROL / NEARBY OBJECT WHERE THE EFFECT MUST APPEAR: draw
+        n = 200,000 uniform integers in (1, 2^32] and test 64-smoothness exactly
+        by trial division over the 18 primes below 64. FORCED VALUE BEFORE THE
+        RUN: rate = 5.402167e-04, i.e. 108.0 expected hits, Poisson sd 10.4;
+        pass band [80, 140]. IF THIS CONTROL MISSES ITS BAND, THE EXACT COUNT OR
+        THE SAMPLER IS WRONG AND NO NEGATIVE MAY BE REPORTED FROM ANY OTHER
+        STAGE. This is the sensitivity demonstration for the whole audit and it
+        is the reason the exact Psi table can be trusted as a comparator.
+      - >-
+        GRADED CONTROL, FOUR INTERIOR POINTS, MONOTONICITY REPORTED: run the
+        driver's own recurrence at h in {0.01, 0.005, 0.002, 0.001} and report
+        rho_driver(8, h)/h. Monotone convergence to a constant near 0.1446
+        localises the defect to the discretization; a non-monotone or
+        h-independent result localises it somewhere else. A graded control is
+        used here precisely so that a failure names WHICH part of the comparator
+        is broken instead of leaving "the number is wrong".
+      - >-
+        SECOND GRADED CONTROL, FIVE POINTS: rho_driver(u, 0.01) at u = 5.333,
+        6.667, 8, 9.333, 10.667 against rho_true at the same u. The ratio must
+        be MONOTONE INCREASING (18.1, 712, 4.47e4, 3.89e6, 4.45e8). A ratio that
+        is flat or decreasing refutes the mechanism.
+      - >-
+        ARCHIVE CHECK, ZERO COMPUTE: enumerate every committed artifact in the
+        corpus that reports a rho(u) value at u > 4 and record whether it came
+        from this implementation. NOT YET PERFORMED and recorded here as not
+        performed rather than claimed as a passed check; it is stage 2 of the
+        paired proposal IDEA-20260805-decb14.
+      - >-
+        VERDICT-ON-THE-NULL-FIRST: the RATE-DS-1 recomputation is executed and
+        committed for the null comparator (the driver) BEFORE the corrected
+        comparators are looked at, so the audit cannot choose its comparator
+        after seeing which one changes a verdict.
+
+    required_metrics:
+      - the three committed rho_u_star values with the exact recurrence that reproduces them, and the run manifest id
+      - rho_driver(8, h)/h at four grid steps
+      - rho_true at five u values from two independent schemes, with the Richardson estimate
+      - exact integer Psi(2^(2 bits), 64) at five bit sizes with the recursion used
+      - RATE-DS-1 verdict and band margin under each of three comparators at each completed cell
+      - forecast band and verdict at 28 and 32 bits with the assumed p_hat decay stated as an assumption
+      - satisfiability floor n_min at each cell under each comparator
+      - the small-u null result and the 200,000-sample positive-control count
+
+  falsification_conditions:
+    - >-
+      rho_driver(8, h)/h is not constant across the four grid steps. The
+      error-floor mechanism is wrong; the proposal is withdrawn as written and
+      re-derived against whatever the implementation is actually doing.
+    - >-
+      The two independent rho schemes disagree by more than 1 per cent at any
+      u <= 32/3. The corrected comparator is not established and NOTHING may be
+      concluded about the recorded verdicts.
+    - >-
+      The exact Psi counts are not reproduced digit-for-digit by an independent
+      implementation. The third comparator is withdrawn.
+    - >-
+      The positive control (108 expected hits in 200,000 draws) misses its band.
+      No negative result from any stage may be reported at all.
+    - >-
+      The committed rho_u_star values are NOT reproduced by the committed
+      dickman_rho. The provenance chain is broken and the audit's subject is
+      unidentified; report that and stop.
+    - >-
+      The small-u null fails, i.e. the driver is also wrong at u = 2, 3. The
+      finding becomes "the implementation is wrong" rather than "the scheme's
+      error floor swamps the solution", which is weaker and must be reported as
+      the weaker statement.
+
+  confounders:
+    - >-
+      PROVENANCE. Reproducing three long decimals bit-for-bit is very strong but
+      is not a receipt. If HEUR_DS_1_report.json was produced by an earlier
+      version of the file, the audit is about today's code and not about the
+      recorded run. Stage 0 exists for this.
+    - >-
+      WHICH COMPARATOR IS CORRECT DEPENDS ON THE POPULATION. Neither rho(u*) nor
+      Psi(D,B)/D is the right forced value if the N_j are not uniform on (1, D].
+      Defect D3 is exactly this, and the audit must not present the exact density
+      as THE truth -- it presents it as the truth FOR THE DECLARED POPULATION,
+      which is what the contract froze.
+    - >-
+      CHERRY-PICKED CELL. Only B = 64, m = 4 cells completed. The B = 128 and
+      B = 256 exact counts were attempted here and exceeded memory; they are
+      MISSING, are reported missing, and are not extrapolated.
+    - >-
+      DIRECTION OF INTEREST. Refuting an instrument is cheap to produce and reads
+      as rigour. The proposal therefore pre-registers FV-4 (no verdict flips) and
+      a positive control that can void the whole audit, so that a negative costs
+      something to reach.
+    - >-
+      THE FINDING MAY BE GOOD NEWS FOR THE ATTACK LANE, NOT BAD. p_hat exceeds
+      every correct comparator by 3 to 5 orders of magnitude and the excess
+      GROWS. If that survives D3, the intermediate integers are far smoother than
+      uniform integers of the declared size, which STRENGTHENS the early-abort
+      justification the degree-split claw needs. Twelve records may have absorbed
+      a comparator defect as a negative about the algorithm. Reading the audit as
+      purely destructive would itself be the premature-closure failure mode.
+
+  interpretation_limits:
+    - >-
+      NO ATTACK, NO EXPONENT, NO CLAIM TIER ABOVE toy. This is an instrument
+      audit. It makes no system easier to solve and moves nothing on any Pareto
+      axis.
+    - >-
+      NO STATUS CHANGE is proposed or implied for EXP-DS-001, H-DS-001,
+      H-SMTH-001, HEUR-DS-1, or any of the twelve evidence records. Those are
+      Coordinator decisions. The audit produces numbers and a scope statement;
+      what to do about them is not its call.
+    - >-
+      A confirmed comparator defect does NOT establish that HEUR-DS-1 is true. It
+      establishes that the recorded 3/3 FAIL does not measure what it was read as
+      measuring. Deciding HEUR-DS-1 needs the corrected comparator AND the
+      realised size distribution AND an adequate sample size -- three things the
+      committed data does not contain.
+    - >-
+      The audit closes exactly this comparator at exactly these cells. It says
+      nothing about KS-DS-1 beyond noting that KS-DS-1 compares against "the
+      classical Dickman LPF CDF", which is a second consumer of the same
+      function and is therefore exposed to the same defect; whether it is
+      affected is OUT OF SCOPE HERE and is named as forward guidance.
+    - >-
+      FORWARD GUIDANCE, MANDATORY UNDER inventor-protocol section 4. What remains
+      open regardless of outcome: (a) the realised size distribution of the N_j,
+      never reported; (b) whether KS-DS-1 and TAIL-DS-1 inherit the same defect
+      -- TAIL-DS-1 returns p_ext = 1.0 at all three cells, which is the
+      signature of a check that cannot fail and deserves its own audit;
+      (c) whether any other corpus consumer of a rho value at u > 4 shares the
+      implementation (IDEA-20260805-decb14); (d) if p_hat's excess survives, the
+      mechanism producing structurally smooth intermediate integers, which is a
+      research question and not a bug.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE OF THE HEADLINE IS HEURISTIC. FV-1 through FV-4 and FV-6 are
+        arithmetic: a fixed recurrence evaluated at four grid steps, a numerical
+        solution of a DDE with a convergence check, an exact integer count, and
+        an inequality. This entry exists to record that the proposal is
+        unconditional where its subject is conditional.
+      rigorous_support: >-
+        Forward Euler on u rho' = -rho(u-1) has global error O(h) with an O(1)
+        coefficient; the coefficient is MEASURED here (0.1446) rather than
+        bounded, and measuring it is the test. Psi(N,k) = Psi(N,k-1) +
+        Psi(floor(N/p_k), k) is an exact partition of the y-smooth integers below
+        N by whether p_k divides them, and is proved by that partition.
+      validation_plan: >-
+        Two independent rho schemes with Richardson extrapolation; an independent
+        reimplementation of the Psi recursion; and the 200,000-draw sampling
+        positive control that ties the exact count to a measurement.
+    - id: H2
+      statement: >-
+        FV-5 (the forecast PASS at 28 and 32 bits) is CONDITIONAL on p_hat
+        continuing to decay at about 3.0x per four bits, which is an
+        extrapolation from two ratios (3.049, 3.022).
+      rigorous_support: >-
+        None beyond the two observed ratios and their striking consistency. This
+        is the ONLY load-bearing heuristic in the proposal and it is flagged as
+        such. It is stated as a band, not a point.
+      validation_plan: >-
+        The forecast is falsifiable by the very ladder extension it warns about;
+        it must be committed BEFORE that extension is run, which is the reason
+        this proposal is time-sensitive.
+
+  target_complexity:
+    time_exponent: >-
+      n/a for this audit. It proposes no algorithm and moves no exponent. Stated
+      plainly rather than dressed up: the exponent under discussion in this goal
+      is the index-calculus alpha versus Pollard rho's 1/2, and NOTHING in this
+      proposal bears on it directly. What it bears on is whether a measurement
+      feeding that comparison means what it says.
+    memory_exponent: n/a -- no algorithm proposed.
+    best_known: >-
+      Pollard rho at N^{1/2} group operations with negligible memory remains the
+      ECDLP baseline for every scope this goal touches. Unchanged by this
+      proposal in either direction.
+    hidden_overhead: n/a.
+    tradeoff_note: n/a.
+
+  dominated_by: >-
+    n/a (no result claimed, no Pareto point offered). ROWS ACTUALLY CHECKED
+    before writing null: (time) Pollard rho N^{1/2}, parallel van Oorschot-Wiener
+    N^{1/2}/w, BSGS N^{1/2} -- none is an instrument audit and none dominates a
+    non-algorithm; (memory) rho O(1) versus BSGS N^{1/2} -- irrelevant, no memory
+    is claimed; (data/queries) not applicable, no oracle. WITHIN THE CORPUS, the
+    check that matters is whether this audit is already done: grep at HEAD over
+    ledger/, experiments/, knowledge/, coordination/ returns 273 files mentioning
+    HEUR-DS-1 and none that mentions the dickman_rho implementation, its grid
+    step, or an exact Psi count. Absence of a search result is not evidence that
+    nothing was tried (AGENTS.md retrieval policy) and this is recorded as a
+    measured absence, not a proof of novelty.
+  sota_delta: >-
+    Zero on every attack axis -- time, memory, data, queries, advice. Quantitative
+    delta on the MEASUREMENT axis, which is what is claimed: the comparator used
+    at the three committed cells is wrong by factors 18.1, 712 and 4.47e4, and
+    would be wrong by 3.89e6 and 4.45e8 at the two queued cells; the reported
+    trend statistic changes from 58.6 -> 26.9 -> 11.1 (converging) to 1.06e3 ->
+    1.92e4 -> 4.95e5 (diverging); and the forecast verdict at the queued cells
+    changes from PASS (artifact) to FAIL (corrected). Cost of obtaining all of
+    that: under one CPU-minute.
+
+  estimated_cost:
+    implementation: low
+    compute: negligible
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.93 that the comparator defect is confirmed as stated. It is that high, and
+    not higher, because the three committed decimals were reproduced bit-for-bit
+    from the committed source and the error floor was measured to scale linearly
+    in h across four grid steps -- these are checks, not inferences -- while the
+    residual 0.07 is provenance risk (that the committed report came from a
+    different code version) plus the possibility that some wrapper not read here
+    post-processes the value. It is NOT 1.00 because the reproduction was done
+    outside the harness by the proposing agent, which is exactly the situation
+    AGENTS.md rule 9 tells us to distrust until re-derived independently.
+    SEPARATELY: 0.55 that FV-5 (the forecast PASS at 28 and 32 bits) verifies,
+    because it rests on a two-point extrapolation of p_hat and the decay could
+    steepen; 0.97 that FV-4 verifies (no recorded verdict flips), because it is
+    an inequality on numbers already in hand. And 0.20 that the residual excess
+    of p_hat over the corrected comparator survives defect D3 -- if it does, the
+    finding is a positive structural fact about Semaev intermediate integers and
+    is far more valuable than the bug.

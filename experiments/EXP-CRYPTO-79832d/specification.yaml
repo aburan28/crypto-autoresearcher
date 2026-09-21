@@ -1,0 +1,527 @@
+experiment:
+  id: EXP-CRYPTO-79832d
+  hypothesis_id: H-CRYPTO-7dd003
+  source_proposal: IDEA-20260807-fa706a
+  derived_from_idea: IDEA-20260807-fa706a
+  question_id: RQ-CRYPTO-001
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+
+  title: >-
+    Known-answer recall of this program's own novelty screens -- replay each
+    proposal's recorded grep terms against a hidden, corpus-resident prior-art
+    entry, calibrate against a random-entry chance baseline with forced-hit and
+    forced-miss controls, and measure the recall delta from a ranked retrieval
+    step on the identical labelled set
+
+  objective: >-
+    The one uncertainty a run reduces is whether the novelty screens on which 117
+    committed proposals rest can retrieve prior art the corpus DEMONSTRABLY
+    CONTAINS, and whether they do so better than chance. A run establishes (i)
+    the size of a labelled set of (proposal, corpus-resident prior-art entry)
+    pairs constructible from existing source_refs; (ii) the recall of each
+    proposal's own recorded screen terms against its hidden labelled entry; (iii)
+    the random-entry chance baseline under the identical terms, which is what
+    makes (ii) interpretable at all; and (iv) the recall of a BM25 or embedding
+    retrieval step on the IDENTICAL labelled set, reported as a delta.
+    NO MATHEMATICAL OR SECURITY CLAIM IS MADE OR WOULD FOLLOW FROM A RUN, and NO
+    novelty_status anywhere in the corpus is validated by any outcome.
+    BUDGET FLOOR NOTE. wall_clock_seconds_per_run is 3600 and maximum_memory_gb is
+    8, both at or above the template floors. Compute is a few seconds of corpus
+    scanning; the budget is sized to labelled-set construction and per-pair
+    relevance adjudication, which is careful reading.
+
+  what_this_is_not:
+    - >-
+      Not research about the ECDLP or any cryptosystem, and not toy, medium or
+      crypto evidence about anything.
+    - >-
+      Not a validation of any novelty_status. It measures retrieval over the
+      corpus the program HAS and says nothing about literature the corpus lacks,
+      which is the other and harder half of novelty.
+    - >-
+      Not a write to the retrieval index. No agent may write to that index
+      (AGENTS.md, Knowledge retrieval policy); the BM25 arm is an offline
+      evaluation over a corpus snapshot, not an ingestion.
+    - >-
+      Not a re-reading or a correction of any committed novelty_screen block, and
+      not a change to any proposal's novelty_status. Those are separate acts and
+      the Coordinator's alone.
+    - >-
+      Not a claim about the provenance failure recorded in KN-OPEN-3f7a21, which
+      is an entry claiming to have been read. This measures an entry that exists,
+      is correct, and is never surfaced.
+    - >-
+      Not approval, freezing, execution authorization, a run, an observed output,
+      or evidence. No run has been executed under this contract.
+
+  claim_ceiling:
+    tier: null
+    exact_scope_a_run_could_support: >-
+      Maximal supportable scope -- at a stated corpus commit, over a stated
+      labelled set of N pairs built by a stated construction rule, the recorded
+      novelty-screen terms retrieved the hidden corpus-resident entry at a stated
+      rate; a uniformly random corpus entry was retrieved under the same terms at
+      a stated rate; the forced-hit and forced-miss controls took stated values;
+      and a stated BM25 configuration achieved a stated rate on the identical set.
+      WHAT DOES NOT FOLLOW -- no statement about prior art outside the corpus; no
+      validation of any novelty_status; no statement that any specific proposal is
+      or is not novel; no statement about real-world recall beyond the UPPER BOUND
+      that HEUR-RETR-1 makes the measured value; and nothing whatever about the
+      ECDLP.
+
+  inputs:
+    procedure: >-
+      STAGE 0 (reading; can terminate the remedy half). Fix and record the corpus
+      commit. Re-derive by direct count, and record beside the parent proposal's
+      relayed figures: the number of KN-LIT entries, the number referenced by no
+      record under ledger/ or experiments/, and the number of proposals carrying a
+      novelty_screen block. Read KN-OPEN-3f7a21 and record what it establishes and
+      what it does not. CHECK WHETHER THE PROGRAM'S EXISTING DERIVED RETRIEVAL
+      INDEX UNDER kb/ ALREADY PROVIDES THE RANKED RETRIEVAL STEP THIS CONTRACT
+      PROPOSES TO EVALUATE, and whether any recall figure for it exists. If it
+      does, the remedy half is superseded: report and cite it rather than
+      re-deriving it, and continue with the measurement of the RECORDED TERMS,
+      which is a separate and unmeasured quantity.
+      STAGE 1 (labelled-set construction, before any retrieval is run). For every
+      committed proposal whose source_refs names at least one KN-LIT entry, form a
+      candidate pair. Adjudicate each candidate as GENUINELY RELEVANT PRIOR ART or
+      INCIDENTAL under a rule written down before the first adjudication, and drop
+      the incidental ones, recording the drop rate. Record, per surviving pair, the
+      metadata completeness of the labelled entry and the FIDELITY of the recorded
+      screen terms -- exact query versus summary. If fewer than 50 pairs survive,
+      STOP and report BLOCKED.
+      STAGE 2 (controls, FIRST). Construct and run the forced-hit pairs (labelled
+      entry title containing the proposal's own primary keyword verbatim) and the
+      forced-miss pairs (a manifestly off-topic entry such as the hep-th
+      Seiberg-Witten sample). Record and WRITE both verdicts before any recall is
+      computed. Then run the random-entry null: for each proposal, at least 20
+      uniformly random corpus entries under the identical terms, under the declared
+      seed. Record and write the null rate before the treatment arm is read.
+      STAGE 3 (treatment arm). Hide each pair's source_refs reference and replay
+      the proposal's own recorded screen terms against the corpus. Record per pair
+      whether the labelled entry is retrieved, and record the terms that failed.
+      Compute recall pooled and split by metadata completeness and by term
+      fidelity.
+      STAGE 4 (remedy arm). Evaluate a BM25 or embedding retrieval step over titles
+      and abstracts on the IDENTICAL labelled set with the identical hiding
+      procedure, and report the recall delta with its sign.
+      STAGE 5 (write-up). Report every recall figure WITH the upper-bound
+      qualification HEUR-RETR-1 requires, and report the list of failed terms,
+      which is the actionable output regardless of which way the headline goes.
+    instrument: >-
+      Python 3 standard library for the corpus pass and the term replay. The BM25
+      arm uses either a standard-library-plus-numpy implementation or a single
+      dependency declared and fixed before approval; whichever is used, its
+      version and parameters (k1, b, tokenizer, stopword list) are recorded, since
+      an unrecorded ranking configuration makes a delta unreproducible. NO NETWORK
+      ACCESS is required and none may be used. The corpus is read at a fixed
+      commit so the denominator is reproducible. Runs recorded through
+      harness/runner.py.
+    parameters: >-
+      Minimum labelled pairs 50. Random-entry null draws at least 20 per proposal
+      under a declared seed. Null margin, fixed before measurement: recall must
+      exceed the null rate by at least a factor of 3 AND by at least 0.20
+      absolute. Recall direction threshold 0.5, whose provenance is the parent
+      proposal's own stated prior and not a Coordinator invention. Corpus commit
+      fixed at run time and recorded. Two retrieval arms in a fixed order: recorded
+      terms first, then BM25.
+
+  controls:
+    - >-
+      FORCED HIT, MUST FIRE. A labelled pair whose entry title contains the
+      proposal's own primary keyword VERBATIM must be retrieved. A screen replay
+      that misses a verbatim title-keyword match is broken and NO recall number in
+      the package is reportable.
+    - >-
+      FORCED MISS, MUST NOT FIRE. A manifestly off-topic entry -- the hep-th
+      Seiberg-Witten sample or an equivalent -- must NOT be retrieved under the
+      proposal's terms. A replay that retrieves it is a rubber stamp in the
+      opposite direction and the recall number means nothing. Note that these two
+      controls fail in DIFFERENT directions, so a replay that fails both for the
+      same reason is not responding to the terms it names.
+    - >-
+      RANDOM-ENTRY NULL, THE GATING CONTROL, CAN FAIL. For each proposal, the
+      retrieval rate for at least 20 uniformly random corpus entries under the
+      same terms. Recall must exceed this by a factor of 3 and by 0.20 absolute,
+      both fixed before measurement. If it does not, the screens are retrieving by
+      CHANCE, every novelty_screen block in the corpus needs re-reading, and no
+      recall number in the package is interpretable.
+    - >-
+      ORDERING RULE. The forced-value controls and the random-entry null are run,
+      recorded and their verdicts WRITTEN before the treatment arm is read, so
+      that no null rate can be selected after seeing a recall.
+    - >-
+      IDENTICAL-SET RULE. The BM25 arm is evaluated on the IDENTICAL labelled set
+      with the IDENTICAL hiding procedure. A delta measured on a different set, or
+      on a set expanded after seeing the first arm's recall, is not a delta.
+    - >-
+      SPLIT-REPORTING CONTROL. Recall is reported pooled AND split by the labelled
+      entry's metadata completeness and by the recorded terms' fidelity (exact
+      query versus summary). Bulk-seeded entries with poor metadata suppress
+      retrieval for reasons unrelated to the screen, and pooling would attribute
+      that suppression to the screen.
+    - >-
+      RELEVANCE-ADJUDICATION CONTROL. The rule separating genuinely relevant prior
+      art from an incidental source_ref is written down BEFORE the first
+      adjudication and is applied unchanged, with the drop rate reported. A
+      labelled set built from incidental references measures something else.
+    - >-
+      CORPUS RECOUNT CONTROL. Every count relayed from the parent proposal is
+      re-derived in Stage 0 and the run's own number is reported beside the relayed
+      one with the difference stated. A relayed number is never carried forward as
+      a measurement.
+    - >-
+      INCUMBENT-INSTRUMENT CHECK, ZERO COMPUTE, CAN TERMINATE THE REMEDY HALF.
+      Stage 0 checks whether the existing derived retrieval index under kb/ already
+      provides the ranked step being evaluated. Absence of a search result is not
+      evidence that no prior work exists, and the check is executed rather than
+      asserted.
+
+  independent_variables:
+    - retrieval arm -- recorded novelty_screen terms versus BM25 over titles and abstracts
+    - target entry -- the hidden labelled prior-art entry, a random corpus entry, a forced-hit entry, a forced-miss entry
+    - labelled entry metadata completeness
+    - recorded term fidelity -- exact query versus summary
+
+  metrics:
+    primary:
+      - >-
+        labelled_pair_count -- the number of surviving (proposal, prior-art entry)
+        pairs after relevance adjudication, integer, with the candidate count and
+        the drop rate reported beside it.
+      - >-
+        recall_recorded_terms -- the fraction of labelled pairs whose hidden entry
+        is retrieved by the proposal's own recorded screen terms. Dimensionless,
+        reported with a binomial 95 percent interval, pooled and split by metadata
+        completeness and by term fidelity.
+      - >-
+        random_entry_null_rate -- the fraction of uniformly random corpus entries
+        retrieved under the same terms, dimensionless, with its own interval, over
+        at least 20 draws per proposal under the declared seed.
+      - >-
+        null_margin_satisfied -- boolean, whether recall_recorded_terms exceeds
+        random_entry_null_rate by a factor of at least 3 AND by at least 0.20
+        absolute. Both thresholds fixed before measurement.
+      - >-
+        forced_hit_retrieved -- boolean per forced-hit pair. Forced value true.
+      - >-
+        forced_miss_retrieved -- boolean per forced-miss pair. Forced value false.
+      - >-
+        recall_bm25 -- the same recall statistic for the BM25 or embedding arm on
+        the identical labelled set, with the ranking configuration recorded.
+      - >-
+        recall_delta -- recall_bm25 minus recall_recorded_terms, dimensionless,
+        with its sign and its interval.
+    secondary:
+      - >-
+        failed_terms -- the list of screen terms that failed to retrieve their
+        labelled entry, per pair. This is the actionable output regardless of
+        which way the headline goes and is required even when recall is high.
+      - >-
+        corpus_recount -- the run's own counts of KN-LIT entries, unreferenced
+        entries, and proposals carrying a novelty_screen block, reported beside the
+        parent proposal's relayed figures of 7,819, 7,573 and 117 of 278, with the
+        difference stated.
+      - >-
+        adjudication_rule -- the verbatim rule separating genuinely relevant prior
+        art from incidental source_refs, plus the per-candidate verdict.
+      - >-
+        term_fidelity_distribution -- how many recorded screen blocks carry an
+        exact query versus a summary, since a summary replay measures a
+        reconstruction rather than the screen.
+      - >-
+        incumbent_index_finding -- what Stage 0 found about the existing kb/ index
+        and any recall figure already recorded for it.
+      - >-
+        optimism_probe -- recall on the subset of pairs whose labelled entry can be
+        shown from git history to postdate the proposal's authoring, compared with
+        recall on the rest. This is the converting Coordinator's addition and is
+        labelled as such; it is the only available direct measurement of the
+        upper-bound optimism HEUR-RETR-1 asserts.
+
+  heuristic_under_test: HEUR-RETR-1
+
+  preregistered_prediction:
+    quantity: >-
+      forced_hit_retrieved, forced_miss_retrieved, null_margin_satisfied,
+      recall_recorded_terms, recall_delta, and labelled_pair_count.
+    formula: >-
+      Forced values, fixed before any retrieval: forced_hit_retrieved is true at
+      every such pair; forced_miss_retrieved is false at every such pair;
+      null_margin_satisfied is true; labelled_pair_count is at least 50; recall_delta
+      is strictly positive; and recall_recorded_terms is below 0.5. Under the null
+      that the screens retrieve by chance, recall_recorded_terms is
+      indistinguishable from random_entry_null_rate and null_margin_satisfied is
+      false, in which case no recall number in the package is interpretable.
+    source: >-
+      The parent proposal IDEA-20260807-fa706a, whose predictions and
+      null_object_control fix the forced-hit, forced-miss and random-entry-null
+      requirements, and whose honest_prior_of_survival states 0.9 that at least 50
+      pairs are constructible, 0.55 that recall is below 0.5, 0.75 that a BM25
+      index improves it measurably, and 0.0 that any of this validates a
+      novelty_status. THE 0.5 THRESHOLD IS THE PROPOSAL'S OWN STATED PRIOR AND IS
+      PRE-REGISTERED AS A DIRECTION, NOT AS A REQUIREMENT -- the proposal's
+      predictions block deliberately declines to name a required value, and that
+      declination is preserved: no success or falsification condition in this
+      contract turns on recall being below 0.5, only the direction does. The
+      factor-3 and 0.20-absolute null margins are the converting Coordinator's,
+      declared here rather than attributed to the proposal, and are fixed before
+      any measurement so they cannot be tuned to a result.
+
+  scale_relevance:
+    tier: null
+    justification: >-
+      TIER IS NULL AND THE NULL IS THE HONEST ENTRY. This contract instantiates no
+      curve, no group and no cryptographic computation at any size; it produces no
+      toy, medium or cryptographic evidence about the ECDLP, and labelling it
+      `toy` would falsely imply toy-scale ECDLP evidence exists. What it measures
+      is the recall of a text-retrieval procedure over a fixed document corpus,
+      which has no cryptographic scale coordinate at all. Transfer assumption,
+      stated explicitly: the measured recall transfers to nothing outside the
+      corpus snapshot at the recorded commit, and by HEUR-RETR-1 it is an UPPER
+      BOUND even within it.
+    correspondence: null
+
+  tail_checks:
+    - >-
+      Report recall on the pairs whose labelled entry has the WORST metadata
+      completeness separately from the rest. A pooled recall dominated by
+      well-formed entries hides the bulk-seeded tail, which is most of the corpus.
+    - >-
+      Report the per-proposal recall distribution rather than only the pooled
+      rate, so that a pooled figure carried by a handful of proposals with many
+      pairs is visible.
+    - >-
+      Report the rank at which BM25 placed the labelled entry, not only whether it
+      appeared in the top-k. A remedy that moves an entry from rank 900 to rank 60
+      without crossing the cutoff has done something the boolean cannot see.
+    - >-
+      Report the failed_terms list in full even when recall is high, since the
+      identity of the terms that failed is the transferable content of the
+      measurement and a high headline would otherwise discard it.
+
+  replication:
+    seeds:
+      - 20260904
+      - 20260905
+      - 20260906
+    seeds_note: >-
+      Three declared seeds, used ONLY for the random-entry null draws and for any
+      sampling within labelled-set construction. The treatment arm is exhaustive
+      over the labelled set and consumes no randomness. Seeds are declared here so
+      the null rate is reproducible and so no null draw can be redrawn after seeing
+      a recall.
+    independent_instances: 3
+    independent_instances_note: >-
+      Three independent null-draw instances under the three declared seeds. The
+      null rate is reported as the mean across them with its spread, because a
+      chance baseline estimated from one draw set is exactly the kind of single
+      estimate this contract exists to distrust. The treatment and BM25 arms are
+      deterministic given the corpus commit and must reproduce byte-identically
+      across instances.
+
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 2.0
+    maximum_memory_gb: 8
+    maximum_runs: 8
+    maximum_workers: 1
+
+  stopping_rules:
+    - >-
+      Stop and report BLOCKED if fewer than 50 labelled pairs survive relevance
+      adjudication. The measurement is never run underpowered and the shortfall is
+      a coverage disposition, not a result.
+    - >-
+      Stop and report if Stage 0 finds an existing recall measurement for the kb/
+      index on a comparable set. The remedy half is superseded; the recorded-terms
+      measurement continues.
+    - >-
+      Abort the package if the forced-hit control does not fire or the forced-miss
+      control does fire, and report the instrument failure rather than any recall.
+    - >-
+      Stop at the declared labelled set. No pair is added after a recall is seen,
+      and no pair is dropped after a recall is seen except under the adjudication
+      rule frozen in Stage 1.
+    - >-
+      Stop at the declared BM25 configuration. No ranking parameter is retuned
+      after seeing a delta; a retuned configuration is a different experiment.
+    - >-
+      Stop at maximum_runs or total_cpu_hours, whichever binds first. Budget
+      exhaustion is a stop, never a negative result (AGENTS.md rule 5).
+
+  invalidation_rules:
+    - >-
+      A timeout, crash, memory exhaustion or dependency failure makes the run
+      failed_infrastructure and is NEVER negative evidence about the screens
+      (AGENTS.md rule 5).
+    - >-
+      A run whose forced-value controls and random-entry null were not executed in
+      the same invocation as the treatment arm is invalid_measurement -- the
+      comparison this contract exists to make was not made.
+    - >-
+      A run quoting recall_recorded_terms without the upper-bound qualification
+      HEUR-RETR-1 requires is completed_invalid. The bound is the heuristic's own
+      operative consequence and quoting the number bare misstates it.
+    - >-
+      A run evaluating the BM25 arm on a different labelled set, or on a set
+      changed after the first arm was read, is completed_invalid.
+    - >-
+      A run reporting a corpus statistic relayed from the parent proposal rather
+      than re-derived by its own count is completed_invalid.
+    - >-
+      A run that writes to the retrieval index, edits any novelty_screen block, or
+      changes any proposal's novelty_status is completed_invalid; those are outside
+      this contract's write scope and the index write path is closed to every agent
+      by AGENTS.md.
+    - >-
+      A run that presents any outcome as validating a novelty_status is
+      completed_invalid, since the contract's own claim ceiling forbids it in both
+      directions.
+    - >-
+      A run whose parameters differ from the frozen contract is a DIFFERENT
+      experiment and requires a new contract; it is never a repair of this one.
+
+  success_criterion: >-
+    All five of the following hold, each decidable from the primary metrics --
+    (1) labelled_pair_count is at least 50, with the candidate count and drop rate
+    reported;
+    (2) forced_hit_retrieved is true at every forced-hit pair AND
+    forced_miss_retrieved is false at every forced-miss pair;
+    (3) null_margin_satisfied is true, i.e. recall_recorded_terms exceeds
+    random_entry_null_rate by at least a factor of 3 and by at least 0.20 absolute;
+    (4) recall_recorded_terms is reported with its binomial interval, pooled and
+    split by metadata completeness and term fidelity, together with the complete
+    failed_terms list;
+    (5) recall_delta is reported with its sign and interval from the BM25 arm
+    evaluated on the identical labelled set with its ranking configuration
+    recorded.
+    NOTE, AND IT IS DELIBERATE: success does NOT require recall to fall below 0.5.
+    The 0.5 threshold is a pre-registered DIRECTION taken from the parent
+    proposal's own prior, and a measured recall at or above it is a clean negative
+    for the hypothesis's C3 rather than a failed run.
+
+  falsification_criterion:
+    - >-
+      null_margin_satisfied is false -- recall does not exceed the random-entry
+      null by the declared margin. The screens are retrieving by CHANCE, every
+      novelty_screen block in the corpus needs re-reading, and no recall number in
+      the package is interpretable. C2 is rejected at the tested scope and this is
+      the strongest finding the contract can produce.
+    - >-
+      recall_recorded_terms is at or above 0.5 while every control fires. C3 is
+      REJECTED at the tested scope: the screens work on prior art the corpus
+      contains, the binding constraint is corpus COVERAGE rather than retrieval,
+      and effort is redirected to acquisition. A clean negative and a genuine
+      deliverable.
+    - >-
+      recall_delta is zero or negative. C4 is REJECTED at the tested scope: the
+      proposed cheap remedy does not fix the measured problem. Reported plainly
+      rather than as a tuning issue, with the BM25 configuration recorded so the
+      negative is scoped to that configuration.
+    - >-
+      forced_hit_retrieved is false at any forced-hit pair. The replay is broken;
+      the package is void and returns to the Executor. Instrument failure, not a
+      negative result about the screens.
+    - >-
+      forced_miss_retrieved is true at any forced-miss pair. The replay retrieves
+      indiscriminately; the package is void.
+    - >-
+      labelled_pair_count is below 50. BLOCKED, not negative. The measurement
+      cannot be built at this corpus commit; reported as a coverage disposition and
+      never as evidence about the screens.
+    - >-
+      Stage 0 finds an existing recall measurement for the kb/ index on a
+      comparable set. C4 is superseded; the run cites that measurement rather than
+      re-deriving it.
+
+  required_artifacts:
+    - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block and environment
+    - raw-result.json carrying the per-pair retrieval outcome for every arm, never pooled rates alone
+    - the recorded corpus commit, and the run's own recount of KN-LIT entries, unreferenced entries and novelty_screen blocks beside the parent proposal's relayed figures
+    - the verbatim relevance-adjudication rule, written before the first adjudication, with the per-candidate verdict and the drop rate
+    - the forced-hit and forced-miss verdicts and the random-entry null rate, written and timestamped before the treatment arm in the same file
+    - the complete failed_terms list, required even when recall is high
+    - the BM25 or embedding configuration in full -- implementation, version, k1, b, tokenizer, stopword list, cutoff -- and the rank at which each labelled entry was placed
+    - the per-pair metadata-completeness and term-fidelity labels supporting the split reporting
+    - the Stage 0 incumbent-index finding, with the search performed recorded verbatim
+    - the pre-registration text, written before the first run and hashed
+
+  assigned_to: executor
+  approved_by: null
+
+  approval_gate:
+    - >-
+      Coordinator drafting does not confer approval. This contract is
+      review_required and is NOT approved; approved_by is null and
+      execution_authorized is false. Approval is a separate human-reviewed act
+      because it authorizes execution and spends compute.
+    - >-
+      The RELEVANCE-ADJUDICATION RULE must be fixed in writing before approval. It
+      decides which candidate pairs enter the labelled set and therefore decides
+      the recall denominator; a rule written after seeing the pairs is not a rule.
+    - >-
+      The BM25 or embedding implementation, its version and every ranking
+      parameter must be named before approval. A delta whose configuration was
+      chosen after seeing the first arm's recall is not a delta.
+    - >-
+      Whether the second arm should instead evaluate the program's existing kb/
+      index, rather than a fresh BM25 build, is a decision for the approver.
+      Evaluating an index the program already runs is more useful than evaluating
+      one it does not, and Stage 0 supplies the finding either way.
+
+  derivation_provenance:
+    tool: coordinator-authored contract under the backlog-conversion task
+    source_record: IDEA-20260807-fa706a
+    authored_under_task: TASK-20260904-e1420d
+    authored_at: '2026-09-04'
+    note: >-
+      Metrics, controls, forced values and falsifiers are taken from the parent
+      proposal's predictions, minimal_test, null_object_control and
+      falsification_conditions and restated as measurable quantities with units.
+      Boilerplate identical across contracts by program rule -- invalidation
+      rules, required artifacts, approval gate -- comes from the fixed table.
+      Budgets are set from the parent's declared estimated_cost of medium
+      implementation and low compute, and raised to the template floors. No field
+      is invented; a value the proposal did not supply is null or is recorded as a
+      derivation gap below.
+
+  derivation_gaps:
+    - >-
+      The parent proposal's `assumptions` list is EMPTY. The assumptions carried in
+      H-CRYPTO-7dd003 were derived by the converting Coordinator from the
+      proposal's confounders and interpretation limits and are flagged so a
+      reviewer does not read them as the proposer's own.
+    - >-
+      The parent proposal's predictions deliberately name NO required value for
+      recall, stating that both a high and a low value change how novelty_status
+      should be read. That declination is preserved: the 0.5 threshold enters this
+      contract only as a pre-registered DIRECTION sourced to the proposal's
+      honest_prior, and no success or falsification condition turns on it.
+    - >-
+      The null margin (factor 3 and 0.20 absolute) is the CONVERTING COORDINATOR'S
+      addition. The parent proposal requires only that recall exceed the null
+      SUBSTANTIALLY, which is not decidable as written. The thresholds are declared
+      here, before any measurement, precisely so that `substantially` cannot be
+      settled after seeing the numbers -- but they are the Coordinator's judgement
+      and a reviewer may set them differently before approval.
+    - >-
+      The `optimism_probe` secondary metric is the converting Coordinator's
+      addition and is not in the parent proposal. It is the only available direct
+      measurement of the optimism HEUR-RETR-1 asserts, and it may be impossible to
+      construct if git history does not resolve the authoring order; in that case
+      it is reported as unavailable rather than estimated.
+    - >-
+      Whether the existing kb/ derived index already provides the ranked retrieval
+      step is UNKNOWN to this contract. It is checked in Stage 0 as a terminator
+      for the remedy half, and this addition is the Coordinator's -- the parent
+      proposal does not mention the index at all, which is itself notable given
+      that the proposal's remedy is to build one.
+    - >-
+      The parent proposal's corpus statistics were RELAYED and never audited entry
+      by entry. Until Stage 0 re-derives them they support nothing, and the
+      contract carries them only as figures to be reported beside the run's own.

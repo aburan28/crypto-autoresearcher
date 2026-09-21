@@ -1,0 +1,553 @@
+idea:
+  id: IDEA-20260805-cdc87d
+  question_id: RQ-MLKEM-001
+  goal_id: GOAL-MLKEM-005
+  added: '2026-08-05'
+  title: >-
+    The crossover exponent is forced: charging memory to a lattice SVP oracle
+    moves the enumeration/sieving crossover by a factor that depends ONLY on the
+    ratio of the two sieve exponents, and at every ML-KEM block size the
+    memory charge is CAPPED by the enumeration fallback -- a closed form,
+    derived before any run, that re-ranks every dual-versus-primal comparison
+    this program has made
+
+  class: cost_model_audit
+
+  claim: >-
+    Let an SVP oracle in block size beta be summarised by its exponent pair
+    (c_T, c_M): time 2^{c_T beta + o(beta)}, memory 2^{c_M beta + o(beta)}.
+    Charge memory with a single exponent alpha: Cost_alpha = T * M^alpha,
+    alpha = 0 being the step count used inside core-SVP and alpha = 1 being
+    area-time with area proportional to stored vectors. Then for sieving
+    (c_T, c_M) against enumeration (time 2^{c_E beta log2 beta}, memory
+    poly(beta)) the crossover block size satisfies
+    log2 beta*(alpha) = (c_T + alpha c_M) / c_E, hence
+        beta*(alpha) = beta*(0) ^ (1 + (c_M/c_T) alpha).
+    THE SHIFT EXPONENT 1 + (c_M/c_T) alpha CONTAINS NO MEASURED QUANTITY. It is
+    fixed by the two published sieve exponents alone; the measured crossover
+    beta*(0) enters only as the base. With the corpus's relayed values
+    c_T = 0.292, c_M = 0.2075 and beta*(0) = 70 this gives
+    beta*(1) = 70^{1.71062} = 1433, which is ABOVE every ML-KEM block size. The
+    second forced quantity follows immediately and is the decision-relevant one:
+    because an attacker may always choose the cheaper oracle, the full cost of
+    the best SVP oracle at block size beta is at most 2^{c_E beta log2 beta},
+    a bound INDEPENDENT OF alpha. Charging the sieve's memory therefore cannot
+    raise the attack exponent past the enumeration ceiling, and the gap between
+    the naive "charge the sieve" figure and that ceiling is a number: 35.1 bits
+    at beta = 400, 35.9 at beta = 600, 29.7 at beta = 875 under the relayed
+    constants. NO ATTACK IS PROPOSED AND NO ML-KEM PARAMETER SET IS CLAIMED
+    AFFECTED. What is claimed is that a ranking used throughout this program's
+    ML-KEM work is computed in a model whose winning algorithm is not the
+    winning algorithm.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE ORDERED EXPONENT PAIR (c_T, c_M) OF AN SVP ORACLE, followed through
+      the pipeline: oracle -> BKZ block size -> lattice-estimator ranking ->
+      quoted ML-KEM security level. Not the lattice, not a vector, not a score:
+      the pair of cost exponents, treated as the state that propagates. Its
+      one-step propagation rule is explicit and deterministic -- composing an
+      oracle into BKZ multiplies time by poly and leaves both exponents fixed;
+      taking the cheaper of two oracles is a min in the alpha-weighted sum;
+      charging memory is the affine map (c_T, c_M) -> c_T + alpha c_M.
+    established_families_off_limits: >-
+      OFF LIMITS AS THE PRIMARY LENS FOR THIS PROPOSAL: dual attacks and the
+      dual/FFT distinguisher family (GOAL-MLKEM-003/004 spent eighteen batches
+      there); primal/uSVP embedding as an object of study rather than as a
+      consumer of the oracle; hybrid MITM; coefficient-isometry amortisation
+      (IDEA-20260722-001); estimator differencing (H-MLKEM-014); decryption
+      failures; implementation side channels; the class-group / PIP family
+      (IDEA-20260805-e805b6 owns that audit). This proposal deliberately does
+      not look at ML-KEM's algebra at all, which is also why the goal record's
+      inherited "the algebra is closed at about 17 bits" constraint does not
+      bind it.
+    newness_score: >-
+      The transform T*M^alpha is not new mathematics and is not claimed to be;
+      Wiener-style full cost is KN-TECH-035 and its lattice statement is
+      KN-TECH-044. What is new, and what KN-OPEN-017 says in its own words is
+      absent -- "No source in this corpus computes the crossover under full
+      cost. The question is stated here because KN-TECH-044 needed the answer
+      and did not have it" -- is the closed form for how the crossover MOVES,
+      and the observation that the move is calibration-free. Novelty is claimed
+      only against this corpus, and the screen that could see it is stated in
+      novelty_status.
+    testability_score: >-
+      Maximal for its class. The headline is one line of algebra with no free
+      parameters; the whole evaluation is arithmetic on seven constants and
+      runs in milliseconds in the pure-Python/numpy environment this container
+      actually has (numpy 2.4.6 present; sympy, scipy, fpylll, Sage ABSENT,
+      verified by import on 2026-08-05). No lattice reduction is required and
+      none is possible here.
+    survival_score: >-
+      The exponent pair survives the whole pipeline, because the pipeline is
+      built out of exponent arithmetic. It dissolves exactly where the o(beta)
+      terms stop being negligible, which at beta = 70 is everywhere -- and that
+      is the proposal's principal weakness, carried explicitly as HEUR-XC-2
+      rather than buried.
+
+  mechanism: >-
+    DERIVED HERE; every imported constant is labelled with its provenance and
+    every one is a stage of the experiment rather than an authority.
+
+    STEP 1 -- THE COST FAMILY. Define a one-parameter family of accounting
+    models Cost_alpha(A) = T(A) * M(A)^alpha for alpha >= 0. alpha = 0 is the
+    step count. alpha = 1 is area-time under the identification area ~ stored
+    vectors. The family is chosen because it is the smallest one containing
+    both the model the lattice literature quotes and the model KN-TECH-035
+    imposes on the ECDLP side of this same program, so a disagreement between
+    the two halves becomes a single number rather than a methodological
+    dispute. NOT ASSERTED: that any particular alpha is the physically correct
+    charge. The deliverable is the alpha-indexed curve plus the named points.
+
+    STEP 2 -- THE TWO ORACLE FAMILIES. Sieving:
+    T_S = 2^{c_T beta + o(beta)}, M_S = 2^{c_M beta + o(beta)}. Enumeration:
+    T_E = 2^{c_E beta log2 beta + o(beta log beta)}, M_E = poly(beta), so
+    alpha log2 M_E = O(alpha log beta) and is subleading against beta log beta.
+    Hence
+      log2 Cost_alpha(S) = (c_T + alpha c_M) beta,
+      log2 Cost_alpha(E) = c_E beta log2 beta + O(alpha log beta).
+
+    STEP 3 -- THE CROSSOVER, AND WHY IT IS CALIBRATION-FREE. Equating,
+      (c_T + alpha c_M) beta = c_E beta log2 beta
+      => log2 beta*(alpha) = (c_T + alpha c_M) / c_E.
+    Dividing by the same identity at alpha = 0,
+      log2 beta*(alpha) / log2 beta*(0) = 1 + (c_M / c_T) alpha,
+    i.e. beta*(alpha) = beta*(0)^{1 + (c_M/c_T) alpha}. c_E CANCELS. This is
+    the FORCED VALUE of the proposal: the shape of the shift is determined by
+    the ratio c_M/c_T = 0.7106 and by nothing that was measured. Only the base
+    beta*(0) carries the measurement, and it enters as a base, not an exponent,
+    so a 30 per cent error in the reported crossover dimension perturbs
+    beta*(1) by 30 per cent^{1.71}, not by an exponent.
+
+    STEP 4 -- CALIBRATING c_E WITHOUT CITING A PRUNING CONSTANT. Rather than
+    importing a value for the enumeration exponent (the commonly quoted
+    0.125 beta log2 beta is RECALLED, UNVERIFIED, and is not used), set
+    c_E := c_T / log2 beta*(0). With c_T = 0.292 and beta*(0) = 70 this gives
+    c_E = 0.047640. This is a deliberate design choice with a stated cost: it
+    makes the model reproduce the measured crossover by construction, so the
+    crossover is NOT evidence for the model, and no statement in the deliverable
+    may treat it as such. What it buys is that the two constants that do all the
+    work (c_T, c_M) are the two that the sieving literature actually states.
+
+    STEP 5 -- THE NUMBERS (arithmetic, reproduced in the record so a reviewer
+    can check them without running anything). With c_T = 0.292, c_M = 0.2075,
+    beta*(0) = 70, c_E = 0.047640:
+      alpha = 0     -> beta* =   70.0
+      alpha = 1/6   -> beta* =  115.8
+      alpha = 1/3   -> beta* =  191.5
+      alpha = 1/2   -> beta* =  316.7
+      alpha = 2/3   -> beta* =  523.8
+      alpha = 5/6   -> beta* =  866.4
+      alpha = 1     -> beta* = 1433.0
+    Monotone by construction, and the monotonicity is a REQUIRED reported
+    output, not a finding.
+
+    STEP 6 -- THE CAP, WHICH IS THE PART THAT BEARS ON ML-KEM. An adversary
+    runs whichever oracle is cheaper, so the honest full cost of an SVP call is
+    min(Cost_alpha(S), Cost_alpha(E)) <= Cost_alpha(E) = 2^{c_E beta log2 beta},
+    a bound with NO alpha in it. Evaluating at illustrative block sizes (the
+    beta values are RECALLED-UNVERIFIED and are used ONLY as illustrations;
+    deriving the FIPS 203 values is stage 2 of the experiment):
+      beta = 400: enumeration 164.7 bits; sieve at alpha=0 116.8; sieve at
+                  alpha=1 199.8; min at alpha=1 = 164.7; the naive
+                  charge-the-sieve figure overstates by 35.1 bits.
+      beta = 600: 263.8 / 175.2 / 299.7 / 263.8; overstatement 35.9 bits.
+      beta = 875: 407.4 / 255.5 / 437.1 / 407.4; overstatement 29.7 bits.
+      beta = 1433: the two coincide, overstatement 0, by construction.
+    Two consequences, in opposite directions, and BOTH must be reported:
+    (a) FOR ML-KEM the full-cost margin is LARGER than core-SVP says, because
+        core-SVP charges no memory at all: 164.7 against 116.8 at beta = 400.
+        A result that makes a standardised scheme look stronger is still a
+        result, and this program has an explicit precedent for saying so.
+    (b) FOR THIS PROGRAM'S OWN COMPARISONS the ranking is wrong at the model
+        level: at alpha = 1 the cheaper oracle at every ML-KEM block size is
+        ENUMERATION, so a dual-versus-primal comparison computed from sieve
+        step counts is comparing two attacks under a model in which neither
+        uses the winning subroutine. That is the sentence GOAL-MLKEM-003 and
+        -004 needed and did not have.
+
+    STEP 7 -- WHAT THE MECHANISM DOES NOT DO. It does not compute an
+    ML-KEM security level, does not choose alpha, does not price a wiring
+    model, and does not claim the o() terms are negligible at beta = 70. It
+    converts a methodological disagreement into an alpha-indexed number and
+    identifies the one place a measurement could change the answer.
+
+  novelty_status: unverified
+  novelty_screen_limits: >-
+    STATED BECAUSE AN UNQUALIFIED NOVELTY CLAIM IS WORTHLESS HERE. The screen
+    run was: read KN-OPEN-017 and KN-TECH-044 in full (both state the
+    calculation is absent from this corpus); grep the ledger and experiments
+    trees for full-cost / area-time / Wiener terms in the MLKEM area. The
+    screen CANNOT see: the external literature, which certainly contains
+    memory-charged sieving cost models (the "min-space" variants named in
+    KN-TECH-044 are exactly that), and cannot see whether someone has already
+    published the crossover shift. KN-OPEN-3f7a21 and the literature sweep
+    measure this corpus's 7,809 literature entries as carrying
+    `citation_verified: read` while their own bodies say claims are relayed
+    unverified, so a corpus-only novelty screen is weak by a measured amount.
+    The claim of novelty is therefore: NOT COMPUTED IN THIS CORPUS. Nothing
+    stronger.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Algorithm (a full description of a sieve or an enumeration tree, its
+      data structures and its constants) --> the ordered pair (c_T, c_M) of
+      leading cost exponents.
+    what_is_discarded: >-
+      Everything except two real numbers: the algorithm, all constants, all
+      o() terms, the access pattern, the parallelisation, the arithmetic.
+    why_genuinely_lossy: >-
+      The fibre over a given (c_T, c_M) is an infinite family of algorithms.
+      The pair cannot be inverted even approximately -- two implementations
+      with the same pair can differ by any constant factor. This is a genuine
+      loss, not a re-encoding.
+    why_compatible_with_the_operations: >-
+      The operations that matter propagate the pair deterministically.
+      Composition into BKZ multiplies time by a polynomial number of oracle
+      calls, which is o(beta) in the exponent, so both exponents are unchanged.
+      Charging memory is the affine map c_T + alpha c_M. Choosing the cheaper
+      of two oracles is a min over the alpha-weighted sums. Each is a rule on
+      the retained part alone, with no reference to what was discarded, which
+      is precisely the propagation requirement.
+    is_it_only_a_change_of_coordinates: >-
+      NO -- CHECKED IN BOTH DIRECTIONS, AND BOTH FAILURES ARE ABSENT.
+      (i) NOT the KN-LIT-7595 failure (nothing discarded): the map is
+      massively non-injective, as above. (ii) NOT the mirror failure (constant
+      across instances, zero comparator spread), which is the failure
+      IDEA-20260805-e805b6 documents for a determinant ideal. The comparator
+      spread here is large and is exhibited: sieving is (0.292, 0.2075),
+      enumeration is (superlinear in beta, 0), and the "min-space" sieve
+      variants named in KN-TECH-044 sit at a third point with a worse time
+      exponent bought against a smaller memory exponent. Three distinct values
+      of the tracked object are already on record before any run, so the
+      statistic is not a constant of the apparatus.
+    residual_risk: >-
+      The projection is lossy in a way that can bite: c_T and c_M are ASYMPTOTIC
+      and the calibration point beta = 70 is where constants dominate. The
+      projection may be perfectly valid and still be the wrong instrument at the
+      only dimension where anyone has measured anything. That is HEUR-XC-2 and
+      the graded control is designed to expose it.
+
+  assumptions:
+    - >-
+      That c_T = 0.292 and c_M = 0.2075 are the right pair for the sieve family
+      whose crossover with FPLLL enumeration was measured at dimension 70.
+      RELAYED FROM THIS CORPUS (KN-TECH-044, citing KN-LIT-104 for the
+      kissing-number floor and KN-TECH-040 for the 0.292 figure). NEITHER
+      SOURCE WAS READ BY THE AUTHOR OF THIS RECORD. If the measured crossover
+      was against a sieve with a different exponent pair than the one whose
+      exponents are quoted, the calibration is incoherent -- and detecting that
+      incoherence is stage 1 of the experiment.
+    - >-
+      That the enumeration side genuinely has memory poly(beta). Enumeration
+      with extreme pruning uses many independent restarts and a modest stack;
+      the standard claim is polynomial space. RECALLED, UNVERIFIED.
+    - >-
+      That "crossover at dimension 70" refers to exact-SVP wall-clock or step
+      counts of G6K against FPLLL, and not to a different quantity.
+      RELAYED FROM KN-OPEN-017; the underlying measurement was not read.
+
+  proof_search_map_note: >-
+    The paired hypothesis H-MLKEM-b1300f carries the filled proof_search_map;
+    this proposal is proof-oriented (it asserts an asymptotic identity) and the
+    map is not omitted.
+
+  predictions:
+    - metric: >-
+        XC-1 SHIFT EXPONENT: the fitted exponent e in
+        beta*(alpha) = beta*(0)^e, recovered numerically by the implemented
+        crossover solver at each alpha in the grid
+      direction: different
+      minimum_effect: >-
+        EXACTLY e(alpha) = 1 + (c_M/c_T) alpha = 1 + 0.7106 alpha, to within
+        1e-9 relative. FORCED VALUE, DERIVED BEFORE ANY RUN. Any deviation
+        beyond floating-point noise means the implemented solver does not
+        implement the stated model, and the run is invalid rather than
+        informative.
+    - metric: >-
+        XC-2 CROSSOVER AT alpha = 1, in block size
+      direction: higher
+      minimum_effect: >-
+        1433 +/- 1 under (c_T, c_M, beta*(0)) = (0.292, 0.2075, 70). FORCED.
+        The scientific content is not the number but the comparison: it must
+        exceed the largest ML-KEM block size by a stated margin, or the whole
+        "enumeration wins under full cost" reading collapses.
+    - metric: >-
+        XC-3 OVERSTATEMENT OF THE NAIVE MEMORY CHARGE, in bits, at each
+        illustrative beta: (c_T + c_M) beta - min(enum, sieve at alpha = 1)
+      direction: higher
+      minimum_effect: >-
+        35.1 at beta = 400, 35.9 at beta = 600, 29.7 at beta = 875, each
+        +/- 0.2 bits. FORCED by the same constants. If any is measured
+        NEGATIVE, the enumeration ceiling does not bind and the entire
+        decision-relevant half of the proposal is falsified.
+    - metric: >-
+        XC-4 NULL-PAIR INVARIANCE: the alpha-derivative of the log crossover
+        between two oracle families with IDENTICAL memory exponents
+      direction: different
+      minimum_effect: >-
+        EXACTLY 0 for all alpha. FORCED, and this null CAN FAIL: any nonzero
+        derivative proves the solver is responding to something other than the
+        memory-exponent difference, and no other output of the run may be
+        reported.
+    - metric: >-
+        XC-5 SYNTHETIC POSITIVE CONTROL: for a declared synthetic pair whose
+        memory exponents differ by Delta, the fitted shift exponent
+      direction: different
+      minimum_effect: >-
+        EXACTLY 1 + (Delta / c_T) alpha, over at least three declared values of
+        Delta. The instrument must move by the derived amount. If it does not,
+        NO negative result may be reported from this contract at all.
+    - metric: >-
+        XC-6 MONOTONICITY over the graded alpha ladder {0, 1/6, 1/3, 1/2, 2/3,
+        5/6, 1}
+      direction: higher
+      minimum_effect: >-
+        Strictly increasing in alpha at all seven points, with the five
+        interior values matching 115.8 / 191.5 / 316.7 / 523.8 / 866.4 to
+        within 0.1. A failure at an interior point localises the defect to a
+        specific alpha regime rather than leaving "it did not work".
+
+  minimal_test:
+    design: >-
+      Four stages, cheapest first, each able to end the line. STAGE 0 (zero
+      compute, ~1 hour): re-derive log2 beta*(alpha) = (c_T + alpha c_M)/c_E on
+      paper and have the cancellation of c_E checked by a second reader. If the
+      cancellation is wrong, STOP -- the proposal has no content. STAGE 1
+      (minutes, pure Python + numpy, both available): implement the crossover
+      solver, run the NULL PAIR (XC-4) and the SYNTHETIC POSITIVE CONTROL
+      (XC-5) BEFORE any real pair is evaluated, and freeze their outputs. STAGE
+      2 (hours, reading, zero compute): attempt to obtain the sources behind
+      c_T, c_M and the dimension-70 crossover, and record verbatim what each
+      actually says, including whether the sieve whose exponents are quoted is
+      the sieve whose crossover was measured. Record failure to obtain as
+      failure to obtain. STAGE 3 (minutes): evaluate the real pairs, the alpha
+      ladder, and the ML-KEM block-size table, with beta values taken from
+      whatever source stage 2 actually secured, and with the illustrative
+      values retained and labelled if it secured none.
+    controls:
+      - >-
+        NULL PAIR (same shape, forced value derived pre-run, CAN FAIL). Two
+        oracle families with different time exponents and IDENTICAL memory
+        exponents -- e.g. (0.292, 0.2075) against (0.349, 0.2075). Forced
+        value: the crossover between them is INDEPENDENT of alpha, so the
+        fitted shift exponent is exactly 1 and its alpha-derivative is exactly
+        0. It can fail: any implementation that charges memory to the wrong
+        side, or that mixes the alpha into the base, produces a nonzero
+        derivative here.
+      - >-
+        SYNTHETIC POSITIVE CONTROL (the effect MUST appear; instrument-
+        adequacy gate). Declare synthetic pairs whose memory exponents differ
+        by Delta in {0.05, 0.10, 0.2075} and require the fitted shift exponent
+        to equal 1 + (Delta/c_T) alpha at every alpha. IF THIS FAILS THE
+        INSTRUMENT IS BROKEN AND NO NEGATIVE RESULT MAY BE REPORTED. This is
+        the sensitivity demonstration KN-TECH-1a5b7e obligation 3 requires:
+        the removed object is the memory-exponent GAP, the statistic is the
+        fitted shift exponent, and the statistic's response to the gap is
+        declared before the run.
+      - >-
+        GRADED CONTROL, seven points with five interior (alpha ladder above),
+        reporting monotonicity and each interior value against its forced
+        value. Localises any failure to an alpha regime.
+      - >-
+        CALIBRATION-CIRCULARITY CONTROL (zero compute, and it is a control on
+        the ARGUMENT, not on the code). Re-run the whole evaluation with c_E
+        set independently -- from any enumeration exponent stage 2 manages to
+        source -- and report how far beta*(0) then lands from 70. The gap is
+        the honest measure of how much the calibration choice is doing. If no
+        source is obtained, record NOT AVAILABLE; do not substitute a recalled
+        constant and call it a check.
+      - >-
+        ARCHIVE CHECK (zero compute). Enumerate every prior measurement of this
+        observable in the corpus. EXPECTED: NONE -- KN-OPEN-017 says so in its
+        own words. The absence is recorded as an absence, not claimed as a
+        passed check.
+    required_metrics:
+      - fitted shift exponent per alpha per oracle pair, with the solver's residual
+      - null-pair derivative, reported before any real pair is read
+      - synthetic-control shift exponents against their forced values
+      - verbatim quotations for c_T, c_M and the crossover dimension, or a recorded statement that the source could not be obtained
+      - the full-cost table at every evaluated beta with the source of each beta named
+
+  falsification_conditions:
+    - >-
+      The c_E cancellation in step 3 is wrong. The proposal has no content and
+      is withdrawn as a superseding record. Zero compute to find out.
+    - >-
+      XC-4 returns a nonzero alpha-derivative for the null pair. The
+      implementation does not implement the model; nothing else in the run is
+      reportable.
+    - >-
+      XC-5 fails at any Delta. The instrument is broken; no negative may be
+      reported.
+    - >-
+      Stage 2 finds that the quoted exponent pair and the measured crossover
+      belong to different algorithm families. The calibration is incoherent and
+      the numeric table must be withdrawn, leaving only the calibration-free
+      shift exponent standing.
+    - >-
+      XC-3 comes out negative at any ML-KEM-relevant beta -- i.e. the sieve
+      remains cheaper than enumeration under alpha = 1 there. The
+      decision-relevant half of the claim is refuted, and the honest deliverable
+      becomes "charging memory raises the ML-KEM attack exponent by
+      alpha * 0.2075 * beta with no fallback", which is a different and also
+      publishable statement.
+
+  confounders:
+    - >-
+      THE o() TERMS, AND THIS IS THE BIGGEST ONE. Both exponents are asymptotic
+      and beta = 70 is where constants dominate. Fitting an asymptotic identity
+      through a small-dimension implementation crossover is exactly the error
+      KN-TECH-044 warns of when it says full cost "identifies which side of a
+      trade-off is undercharged, and cannot settle a claimed constant-factor
+      advantage". The forced shift exponent is immune (it never touches
+      beta*(0)); every absolute number in the table is not.
+    - >-
+      IMPLEMENTATION VERSUS ALGORITHM. The dimension-70 figure compares two
+      CODEBASES. G6K's engineering and FPLLL's are not the same maturity, and a
+      crossover between implementations is not a crossover between algorithms.
+    - >-
+      ALPHA IS NOT PHYSICS. T*M^alpha is a family of accounting conventions, not
+      a hardware model. Wiener's actual model charges wiring in three
+      dimensions and adds a latency term per access, which is not exactly any
+      member of this family. The mapping from Wiener to an alpha is an
+      additional derivation and is NOT performed here.
+    - >-
+      THE ENUMERATION EXPONENT'S FORM. 2^{c_E beta log2 beta} is the standard
+      shape, but pruned enumeration's true asymptotics are contested in the
+      literature (RECALLED, UNVERIFIED). If the true form is different the
+      crossover algebra changes shape, not just constants.
+
+  interpretation_limits:
+    - >-
+      NO ML-KEM PARAMETER SET IS AFFECTED OR CLEARED BY THIS PROPOSAL. It moves
+      no attack, implements nothing, and computes no security level. Rule 4
+      applies in full.
+    - >-
+      A positive outcome establishes a statement about COST MODELS, not about
+      lattices. It would say that a ranking is model-dependent in a specified
+      way. It would NOT say that enumeration is a better attack in practice at
+      beta = 400; nobody has ever run enumeration at beta = 400 and the o()
+      terms there are unmeasured.
+    - >-
+      The direction of the ML-KEM consequence is DEFENSIVE (the full-cost
+      margin exceeds the core-SVP margin). Reporting that honestly is part of
+      the deliverable, and the temptation to present the ranking flip as an
+      attack finding is named here so a reviewer can check for it.
+    - >-
+      claim_tier for any evidence arising: `estimate`, and the evidence record
+      must state that no lattice was reduced and no measurement was taken. This
+      is a derivation with a numerical evaluation, and the goal record's C2
+      explicitly does not accept a screen as a measurement.
+
+  heuristic_assumptions:
+    - id: HEUR-XC-1
+      statement: >-
+        FORALL alpha >= 0, the cost of the cheaper SVP oracle at block size
+        beta is min over the two families of T * M^alpha, with both exponents
+        equal to their asymptotic values at that beta, and with all o() terms
+        set to zero.
+      rigorous_support: >-
+        Rigorous ONLY as an asymptotic statement: it is the definition of the
+        exponents. As a statement about a specific finite beta it is
+        UNSUPPORTED and this record does not pretend otherwise.
+      validation_plan: >-
+        Cannot be validated in this container (no fpylll, no G6K, verified by
+        import on 2026-08-05). The honest plan is a sensitivity analysis:
+        report how large an o(beta) correction on each side would be required
+        to move beta*(1) below the largest ML-KEM block size, and state that
+        number. If the required correction is small, the conclusion is fragile
+        and must be reported as fragile.
+    - id: HEUR-XC-2
+      statement: >-
+        The calibration c_E := c_T / log2 beta*(0) transfers a
+        finite-dimension implementation crossover into an asymptotic constant.
+      rigorous_support: >-
+        NONE. This is the weakest link in the record and is stated as such. It
+        is adopted because the alternative -- importing a recalled enumeration
+        constant -- is worse, and because the headline forced value does not
+        depend on it.
+      validation_plan: >-
+        The CALIBRATION-CIRCULARITY CONTROL above: recompute with an
+        independently sourced c_E and report the discrepancy in beta*(0). If no
+        source is obtained, report NOT AVAILABLE.
+    - id: HEUR-XC-3
+      statement: >-
+        Enumeration's space is polynomial in beta, so alpha * log2 M_E is
+        subleading against c_E beta log2 beta for every alpha in the grid.
+      rigorous_support: >-
+        Elementary GIVEN the antecedent; the antecedent is RECALLED, UNVERIFIED.
+      validation_plan: >-
+        Stage 2 reading. If enumeration's space turns out to be
+        2^{Omega(beta)} for the pruned variants actually used, the whole cap
+        argument weakens and must be restated.
+
+  target_complexity:
+    time_exponent: >-
+      This proposal MOVES NO ATTACK EXPONENT and claims none. It changes the
+      exponent AT WHICH AN ATTACK IS COSTED: from c_T beta (core-SVP, alpha = 0)
+      to min(c_T + alpha c_M, c_E log2 beta) * beta. Under alpha = 1 and the
+      relayed constants that is a change from 0.292 beta to 0.0476 beta log2
+      beta at every ML-KEM block size -- an INCREASE in the attacker's cost, so
+      the exponent moves in the defender's favour and the honest headline says
+      so.
+    memory_exponent: >-
+      The memory exponent is the object of study, not an output: c_M = 0.2075
+      for the sieve family (relayed), 0 for enumeration up to polynomial
+      factors (recalled).
+    best_known: >-
+      For ranking ML-KEM attacks, the incumbent is core-SVP 2^{0.292 beta} with
+      memory uncharged, as used by lattice-estimator cost models including the
+      RC.MATZOV model pinned by EXP-MLKEM-015.
+    hidden_overhead: >-
+      All of it, and named: both exponents hide o(beta); the enumeration form
+      hides o(beta log beta); the alpha family hides the entire wiring and
+      latency model; the calibration hides the constant-factor difference
+      between two codebases.
+    tradeoff_note: >-
+      The proposal IS a time-memory tradeoff statement. Its whole content is
+      that the frontier of SVP oracles has at least two Pareto-incomparable
+      points and that which one wins is a function of alpha.
+
+  dominated_by: >-
+    n/a (no attack claimed) -- and the check behind that null is listed rather
+    than asserted. Rows checked, across TIME, MEMORY and DATA/QUERIES: (i)
+    core-SVP 2^{0.292 beta}, time-only, memory 2^{0.2075 beta} uncharged, data
+    = one public key -- this proposal produces no attack and cannot dominate
+    it; (ii) the min-space sieve variants named in KN-TECH-044 (worse time
+    exponent, smaller memory exponent) -- Pareto-incomparable with (i) and
+    again not competed with here; (iii) enumeration, polynomial memory,
+    superlinear-exponent time -- the same; (iv) this program's own ML-KEM cost
+    records EV-MLKEM-015 and EV-MLKEM-020 (estimator comparisons at fixed cost
+    model, no memory charged) -- this proposal is upstream of them, not in
+    competition; (v) data/query axis: every row above uses exactly the samples
+    in one ML-KEM public key, so the data axis does not separate them and this
+    proposal does not change it. NO ROW IS DOMINATED AND NONE DOMINATES,
+    BECAUSE NO ATTACK IS PROPOSED.
+  sota_delta: >-
+    Quantitative, and it is a delta in the COST MODEL, not in an attack:
+    35.1 bits at beta = 400, 35.9 at beta = 600, 29.7 at beta = 875 between the
+    naive charge-the-sieve figure and the enumeration-capped figure, under the
+    relayed constants; and a crossover shift from block size 70 to 1433 as
+    alpha runs 0 to 1. Against the incumbent core-SVP figure the full-cost
+    number is +47.9 bits at beta = 400 (164.7 against 116.8). No attack is
+    faster, no memory is saved, no query is avoided.
+
+  estimated_cost:
+    implementation: low
+    compute: negligible
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.75 that the forced shift exponent survives stage 0 and stages 1 exactly
+    as derived -- it is one line of algebra with an explicit cancellation, and
+    the 0.25 is almost entirely the risk that a reviewer finds the cost family
+    T*M^alpha is the wrong linearisation of the accounting the literature
+    actually uses. 0.40 that the decision-relevant cap statement survives
+    stage 2 intact, because it rests on three relayed constants none of which
+    this author read, and because the exponent-pair-versus-measured-crossover
+    coherence check has a real chance of failing. It is not higher because
+    KN-TECH-044 itself flags that full cost "cannot settle a claimed
+    constant-factor advantage" and beta = 70 is a constant-factor regime; it is
+    not lower because the headline quantity is calibration-free by
+    construction, which is unusual and is the reason to run this rather than
+    something else.

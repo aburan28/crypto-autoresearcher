@@ -1,0 +1,168 @@
+task_id: TASK-20260802-314
+red_team_id: RT-20260802-314
+amendment_id: PA-IT-001-v3-rc43-repair-3
+experiment_id: EXP-IT-001
+hypothesis_id: H-IT-001
+goal_id: GOAL-ECDLP-001
+batch_id: BATCH-043
+review_cycle_id: RC-43
+snapshot_commit: 9f3b2a7ad534a261f0d258f00486dbef4bc197b6
+control_snapshot: 25e59812e2df93cedb9a14aebd105883ef6afe63
+supersedes_review: RT-20260802-244
+verdict: REVISE
+stance: adversarial_falsification
+independent_session: true
+independence_debt: paid
+claim_ceiling: design_review_only
+
+closure_assessment:
+  RT-244-B1: not_closed        # RT-314-B1
+  RT-244-B2: closed_at_wording
+  RT-244-B3: closed_command_surface_only  # cost-surface discretion remains, RT-314-B2 / RT-314-D2
+  RT-244-M1: closed
+  RT-244-M2: closed_path_declared
+  RT-244-M3: closed
+
+blocking_findings:
+  - id: RT-314-B1
+    title: anomalous_pass_threshold_still_inverts_R_xfer_reopens_RT146_O1_RT130_O4
+    severity: critical
+    closes_defect_claimed: RT-244-B1
+    closes_defect_actual: not_closed
+    frozen_clauses:
+      - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc43-repair-3.yaml#cost_model.C_special_smart
+      - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc43-repair-3.yaml#predictions[0]
+      - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc43-repair-3.yaml#test_boundary
+      - experiments/EXP-IT-001/specification.v3.yaml#experiment.inputs.cost_ledger.matched_rho
+    detail: >-
+      For a trace-1 plant the frozen detector #E(F_p)==p forces N=p, h=1,
+      log2(p)=bits. With matched_rho=0.886*2^(bits/2) and the overlay's own
+      frozen C_special_smart=ceil(64*bits), the special charge alone gives
+      C_special_smart/matched_rho = 4.51/2.54/1.41/0.78/0.42 at bits
+      16/18/20/22/24. Only bits=24 falls below the 0.7 transfer-win threshold,
+      and only before adding strictly positive C_path and C_pullback. The
+      anomalous positive control (predicted R_xfer<0.7) is therefore
+      structurally unsatisfiable at 4 of 5 frozen cells - the same
+      model-inversion class B1 was created to eliminate. c_smart=64 is asserted,
+      not justified by a Smart-attack operation count.
+    falsification_route: >-
+      No run needed. At the spec-designated plant cell bits=20:
+      C_special_smart=64*20=1280 > 0.7*matched_rho=0.7*0.886*2^10=635, so
+      R_xfer>=1.41>=0.7 on the constant alone; anomalous control FAILS.
+  - id: RT-314-B2
+    title: dual_frozen_anomalous_formulas_and_unpinned_plant_bits_leave_pass_fail_to_executor
+    severity: critical
+    closes_defect_claimed: RT-244-B3
+    closes_defect_actual: cost_surface_discretion_remains
+    frozen_clauses:
+      - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc43-repair-3.yaml#cost_model.C_special_smart
+      - experiments/EXP-IT-001/specification.v3.yaml#experiment.inputs.cost_ledger.C_special.anomalous_trace_eq_1
+      - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc43-repair-3.yaml#cost_model.anomalous_curve_requirement
+    detail: >-
+      The overlay introduces a linear anomalous charge (64*log2 p) that
+      silently conflicts with spec v3's frozen quadratic charge
+      (20*(log2 N)^2) with no supersession clause; the overlay's forbidden_formulas
+      ban only the field-DLP/MOV forms, not the spec's quadratic form. The
+      overlay also never restates matched_rho/C_rho (defined only in spec) and
+      does not pin the anomalous plant bit size. Two contradictory frozen
+      numbers for one charge plus an unpinned bit cell = Executor discretion
+      over pass/fail, so B3's no-discretion guarantee holds only for the command
+      surface.
+    falsification_route: >-
+      No run needed. Diff spec C_special.anomalous_trace_eq_1 (20*(log2 N)^2)
+      against overlay C_special_smart (64*log2 p); at bits=20 they are 8000 vs
+      1280 group-op equivalents with no clause resolving which governs.
+  - id: RT-314-B3
+    title: overlay_silently_changes_frozen_density_abscissa
+    severity: major_blocking
+    closes_defect_claimed: BATCH-036_capsule_item_5_preserve
+    closes_defect_actual: abscissa_changed_not_preserved
+    frozen_clauses:
+      - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc43-repair-3.yaml#test_boundary
+      - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc43-repair-3.yaml#repairs[R3-FIX-PRESERVE-DENSITY]
+      - experiments/EXP-IT-001/specification.v3.yaml#experiment.inputs.density_universe.bits
+      - experiments/EXP-IT-001/specification.v3.yaml#experiment.heur_iso_1_decision_rule.density_freeze
+    detail: >-
+      Overlay bit set {16,18,20,22,24} adds 16,18,22 and drops 28 vs the frozen
+      spec-v3 density_universe [20,24,28] and claim ceiling "20/24/28-bit", with
+      no supersession clause and no re-frozen rho_special/F_hit at the new
+      cells. R3-FIX-PRESERVE-DENSITY claims to preserve the CI protocol while
+      shifting its abscissa; spec lists editing preregistered density as a
+      protocol violation. Added low-bit cells are where RT-314-B1 inversion is
+      worst; dropped 28 is where the linear charge is most favorable.
+    falsification_route: >-
+      No run needed. Spec requires F_hit table at frozen rho_special(bits) for
+      {20,24,28} before path search; overlay density scan at {16,18,22} has no
+      frozen rho_special, so HEUR_ISO_1_report is undefined or silently
+      redefines a preregistered quantity at those cells.
+
+non_blocking_findings:
+  - id: RT-314-D1
+    title: density_scan_missing_decay_direction_and_null_object_control
+    severity: major
+    frozen_clauses:
+      - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc43-repair-3.yaml#predictions[4]
+      - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc43-repair-3.yaml#repairs[R3-FIX-PRESERVE-DENSITY]
+    cheapest_control: >-
+      Compute the identical special-density statistic on the frozen NULL-IT
+      random-graph object at each bit; require real-graph density to decay with
+      bits and the null to stay flat at the null rate. A density that does not
+      decay with bits is the artifact tell (inventor-protocol section 3).
+  - id: RT-314-D2
+    title: single_command_string_is_entrypoint_plus_two_strings_not_one_string
+    severity: minor
+    frozen_clauses:
+      - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc43-repair-3.yaml#future_executor_commands.note
+    note: >-
+      Flag discretion is removed and one entrypoint is bound (B3 wording met),
+      but two command strings are frozen and the parenthetical "(or the
+      smoke/measure pair as written)" is redundant; tighten so "these strings"
+      unambiguously means the frozen pair only.
+  - id: RT-314-D3
+    title: c_smart_constant_and_unit_conversion_unjustified_vs_profile
+    severity: major
+    frozen_clauses:
+      - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc43-repair-3.yaml#cost_model.C_special_smart
+    note: >-
+      c_smart=64 has no operation-count justification and the field-op to
+      group-op conversion is unstated; the target-result-profile requires
+      per-entry constants and unit conversions explicit and justified. Fix at
+      RT-314-B1; do not merely swap 64 for another unjustified constant.
+
+cheapest_falsification_route: RT-314-B1
+baseline_comparison:
+  generic_tightest: Pollard rho at exponent 1/2 (matched negation); dominates matched BSGS on memory
+  bsgs_recorded_in_spec: true   # spec v3 cost_ledger matched_BSGS = 2*ceil(sqrt(N))
+  closest_specialized: Smart linear-time anomalous solve (the charge mis-modeled in RT-314-B1)
+  pareto_fields_honest_for_design_overlay: true  # sota_delta all not_applicable with non_solver_scope
+  sota_delta_fabricated: false
+
+recommendation_for_coordinator: >-
+  Do not admit an Executor / implementation run against
+  PA-IT-001-v3-rc43-repair-3. Author a superseding repair overlay
+  (PA-IT-001-v3-rc44-repair-4) that (1) recalibrates the anomalous charge with a
+  justified c_smart so C_special_smart + min(C_path+C_pullback) < 0.7*0.886*
+  2^(bits/2) at every evaluated cell, (2) adds an explicit supersession clause
+  vs spec C_special.anomalous_trace_eq_1, restates matched_rho, and pins the
+  anomalous plant bit size, and (3) restores or justifies+re-freezes the density
+  abscissa. Then obtain a fresh independent review-adversarial pass before any
+  run. H-IT-001 stays specified; GOAL-ECDLP-001 stays active.
+
+dominated_by: not_applicable
+sota_delta:
+  time_exponent_delta: not_applicable
+  memory_exponent_delta: not_applicable
+  data_or_query_exponent_delta: not_applicable
+  non_solver_scope: >-
+    Adversarial design review of a frozen amendment text; no algorithm,
+    implementation, or experiment executed. No ECDLP time, memory, or
+    data/query cost delta is produced or claimed by this task.
+
+official_research_state_changed: false
+experiments_performed: false
+implementation_performed: false
+novelty_claimed: false
+sota_claimed: false
+support_claimed: false
+closure_claimed: false
+breakthrough_claimed: false

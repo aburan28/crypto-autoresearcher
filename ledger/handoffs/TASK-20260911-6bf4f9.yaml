@@ -1,0 +1,250 @@
+handoff:
+  id: TASK-20260911-6bf4f9
+  from: coordinator
+  to: coordinator
+  objective: >-
+    /review-evidence for EXP-ECDLP-a26bde: validate the 22-run package, verify
+    certificates, write analysis.md, create the evidence record EV-ECDLP-95ec68
+    and the decision record DEC-20260911-74c9dc, and update H-ECDLP-6a9479's
+    status. This dispatch carries the reviewing session's own pre-registered
+    findings (below) so the Coordinator subagent's analysis starts from a
+    verified factual base rather than re-deriving it from zero with no Bash
+    access.
+  uncertainty_reduced: >-
+    Whether EXP-ECDLP-a26bde's four claims are supported, and specifically how
+    to read claim (3) given a measurement-design defect and an unexplained
+    reproducible anomaly discovered during review (below).
+  inputs:
+    - experiments/EXP-ECDLP-a26bde/specification.yaml
+    - experiments/EXP-ECDLP-a26bde/derivation_note.md
+    - experiments/EXP-ECDLP-a26bde/frozen_curves_and_primes.json
+    - experiments/EXP-ECDLP-a26bde/runs/**
+    - ledger/hypotheses/H-ECDLP-6a9479.yaml
+    - ledger/decisions/DEC-20260905-908616.yaml
+  constraints:
+    - No Bash tool available to this dispatch; all facts needed are pre-verified below or must be read directly from committed files.
+    - Do not re-approve or re-run anything; EXP-ECDLP-a26bde is already approved and executed.
+    - claim_tier stays toy; no attack or exponent claim.
+  deliverables:
+    - experiments/EXP-ECDLP-a26bde/analysis.md
+    - ledger/evidence/EV-ECDLP-95ec68.yaml
+    - ledger/decisions/DEC-20260911-74c9dc.yaml
+    - updated ledger/hypotheses/H-ECDLP-6a9479.yaml status
+  artifact_paths:
+    - experiments/EXP-ECDLP-a26bde/analysis.md
+    - ledger/evidence/EV-ECDLP-95ec68.yaml
+    - ledger/decisions/DEC-20260911-74c9dc.yaml
+    - ledger/hypotheses/H-ECDLP-6a9479.yaml
+  archived_by: TASK-20260911-6bf4f9
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: high
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 1
+    maximum_runs: 1
+  completion_gate:
+    - analysis.md strictly separates Observation / Comparison / Inference / Limitation
+    - EV-ECDLP-95ec68 has direction, strength, claim_tier, certificate_refs, proof_status/proof_refs, boundaries, unresolved_confounds
+    - DEC-20260911-74c9dc names one decision transition with rationale, evidence_refs, limitations, next_actions, and a filled knowledge_promotion field
+    - H-ECDLP-6a9479.status is updated to match the decision
+    - the m=1 tautology and the curve-2/m=2 anomaly (both below) are addressed explicitly, not silently absorbed into a single pooled number
+  return_format: a short summary plus the record contents, per review-evidence step 6
+  review_plan:
+    claim_under_review: >-
+      H-ECDLP-6a9479's four claims exactly as the hypothesis states them: (1)
+      the digit identity d(mS^) = m*d(S^) mod p holds exactly for every m with
+      n not dividing m; (2) the bit-size of the numerator of x(mS^) fitted
+      against m for m>=16 has log-log slope 2.00 +- 0.05; (3) the Teichmuller
+      section's digit delta_1(s(mS)) equals m*delta_1(s(S)) mod p at a rate at
+      most 3/p over m, never systematically; (4) m is recoverable with
+      certificate [m]S=T from any explicit lift, and the anomalous curve
+      refuses at division by n=p inside E_1.
+    coordinator_prior: >-
+      Recorded before this dispatch runs, by the session that designed and
+      approved this contract (DEC-20260905-908616) and has now independently
+      re-derived every headline number from the raw per-datum records using
+      code that does not import the driver's own aggregation logic (only
+      harness/toycurve.py, an independent pre-existing module, plus stdlib
+      arithmetic). PRIOR: claims (1), (2) and (4) will hold cleanly, because
+      they are exact algebraic identities and a certificate-checked recovery
+      on toy-scale exact-rational data, and the derivation note's four
+      recorded implementation bugs were caught and fixed BEFORE any self-check
+      was trusted (a good sign, not a bad one). Claim (3) is the one I expect
+      trouble with, and I already know why before this dispatch runs: the
+      pre-registered "at most 3/p" threshold is far below the resolution the
+      68-sample-per-instance ladder can measure (minimum nonzero rate 1/68 =
+      0.0147 already exceeds every tested 3/p, which tops out at 0.0029), so
+      the naive falsification condition ("far above 3/p") was close to
+      guaranteed to trigger on ANY nonzero count regardless of whether the
+      section is really non-homomorphic. I expect the real question to be
+      whether the actual observed pattern looks like chance noise, a design
+      artifact, or a genuine anomaly -- and I have already found it is a
+      mixture of a genuine tautology (m=1) and one genuine, unexplained,
+      reproducible anomaly (curve 2 at m=2) -- see FINDINGS below. I do not
+      yet know why curve 2 shows this, and I am not asserting it is either an
+      instrument defect or a real mathematical coincidence; that is this
+      dispatch's job to weigh, not mine to preempt.
+    joints:
+      - joint: >-
+          Are the four headline numbers in the execution report (digit
+          identity 1360/1360, size-law slopes 1.9983-1.9999, Teichmuller
+          contrast 24/1360, leak certificates 277/277) actually correct, or
+          did the Executor's own aggregation code have a shared bug that a
+          re-read of the same code would not catch?
+        assigned_to: TASK-20260911-6bf4f9 (this dispatch; already discharged by the reviewing session, reported below rather than re-run, since the reviewing session has no way to hand a live Bash session to this dispatch)
+        attack_plan: >-
+          ALREADY EXECUTED by the reviewing session, blind from
+          experiments/EXP-ECDLP-a26bde/driver/instrument.py,
+          stage23.py, run_all.py and curves.py: recompute
+          predicted = (m * d_S) mod p and predicted_u = (m * u_S) mod p
+          directly from each run's raw per-datum records (not the file's own
+          precomputed agreement_rate field), refit the size-law slope by an
+          independent least-squares routine from numerator_bits_by_m, and
+          re-verify all 277 certified leak pairs by recomputing [m]P and
+          [m+jn]P on harness.toycurve.EllipticCurve (a pre-existing,
+          independently-authored module) and checking curve-point equality
+          plus residue congruence mod n. Result: exact agreement on all four
+          numbers, 0 mismatches, after fixing one bug in the reviewer's OWN
+          first attempt at the leak-certificate check (an over-strict integer
+          equality requirement that doesn't match the claim's actual
+          semantics -- recorded honestly rather than silently corrected).
+        breaking_artifact: a single instance where independent recomputation disagrees with the reported number; NONE FOUND.
+      - joint: >-
+          Is the pooled claim-3 rate (24/1360 = 0.01765) a fair reading of
+          "systematic linearity," given the pre-registered threshold and the
+          actual per-instance structure of where the 24 agreements occur?
+        assigned_to: TASK-20260911-6bf4f9 (this dispatch)
+        attack_plan: >-
+          FINDING FROM THE REVIEWING SESSION, to be weighed (not re-derived)
+          by this dispatch: every one of the 20 instances agrees at EXACTLY
+          m=1, and ONLY at m=1, except curve 2's four instances (primes 7477,
+          7481, 7487, 7489) which ALSO agree at m=2 -- nowhere else in the
+          full 67-value non-trivial ladder, on any curve. The m=1 case is a
+          mathematical tautology BY CONSTRUCTION: stage23.py computes u_S via
+          teichmuller_defect_digit(..., S_mod_K, ..., m_mod_n=1, ...) and the
+          m=1 loop iteration computes u_mS via the same function on the same
+          reduced point with the same m_mod_n=1 -- comparing u(S) to u(S), not
+          an independent trial. Excluding it, the corrected non-trivial count
+          is 4 agreements out of 20*67=1340 trials, ALL FOUR from curve 2 at
+          m=2 specifically, reproduced identically across 4 different primes
+          of that one curve. A Poisson null (u_mS uniform mod p, independent
+          of the prediction) gives an expected total of 0.34 accidental
+          agreements across all 1360 trials (P(X>=24) ~ 5e-36) and, for the
+          single worst instance alone, an expected 0.009 (P(X>=2) ~ 4e-5) --
+          so this is not plausible as ordinary sampling noise under that null,
+          EITHER because the null is wrong in some way this dispatch should
+          consider, or because curve 2 at m=2 is a genuine reproducible
+          coincidence or defect tied to that specific (A=9, B=26, x0=1, y0=6)
+          triple. THE ATTACK: (a) confirm the corrected count (4/1340,
+          concentrated entirely in curve 2 at m=2) directly from
+          teichmuller_contrast.records in the four curve-2 run files; (b)
+          decide whether this reads as an isolated single-point coincidence
+          (consistent with "no systematic linearity," since it does not
+          recur at m=4, 8, 16, ... for curve 2, and 4 of 5 curves show zero
+          non-trivial agreements anywhere) or as a signal requiring the
+          hypothesis's mechanism claim to be re-examined; (c) if time
+          permits, look for a proximate cause specific to m=2 or to this
+          curve's small-integer parameters (e.g. by reading
+          teichmuller_defect_digit's handling of the doubling step, or
+          checking whether curve 2's other three curves-worth of instances
+          show ANY comparable coincidence at any m) rather than leaving it as
+          a bare number; (d) write whichever finding results into
+          analysis.md's Observation/Inference sections explicitly, and choose
+          `direction`/`strength` for claim 3 accordingly -- inconclusive or a
+          scoped weaken on the TEST DESIGN (not on the mechanism) is more
+          defensible than either silently folding the anomaly into "supports"
+          or reading one curve's coincidence as refuting non-homomorphism
+          across all five.
+        breaking_artifact: >-
+          A worked explanation (or a decisive negative check) for why curve 2
+          shows this at m=2 and nowhere else; short of that, an explicit,
+          honest "unexplained, flagged for follow-up" is an acceptable
+          outcome and is not the same as ignoring it.
+      - joint: >-
+          Do the certificate and budget disciplines actually hold (no
+          fabricated recovery, no silently-exceeded budget, no run misclassified)?
+        assigned_to: TASK-20260911-6bf4f9 (this dispatch)
+        attack_plan: >-
+          Read every run manifest's status field (all 22 must be
+          completed_valid; none invalid/failed/infrastructure) and the
+          leak-arm's recorded skip reasons (verify the 683 skips are all
+          tagged infeasible_estimated_bits_exceeds_cap, set BEFORE the run per
+          derivation_note.md section E, not a post-hoc exclusion of
+          inconvenient cases); spot-check that self-check 5's anomalous
+          positive control (24/24 certified per the transcript) is a genuine
+          independent recomputation and not a rubber stamp.
+        breaking_artifact: any run whose certificate was accepted without independent re-verification, or any skip reason invented after seeing an unfavourable result.
+    blindness:
+      mutual: false
+      lifted_for: [TASK-20260911-6bf4f9]
+      rationale: >-
+        Single-round, single-reviewer review per DEC-20260905-908616's own
+        determination that this toy-scale, non-breakthrough result does not
+        meet the review-breakthrough trigger (no independent validator +
+        red-team split required). Blindness between multiple reviewers does
+        not apply because there is one reviewing party (the Coordinator
+        dispatch); what is preserved instead is that the dispatch must reach
+        its OWN reading of the claim-3 anomaly rather than simply adopting
+        the reviewing session's framing as settled.
+    proves_too_much:
+      objects:
+        - >-
+          The anomalous toy curve (p=3673=n): if the analysis method used to
+          read claim (4) would also call this curve's refusal anything other
+          than "refused at exactly the predicted step," the method is wrong.
+        - >-
+          A hypothetical "always-agrees" statistic: m=1 on every one of the
+          20 non-anomalous instances is such an object BY CONSTRUCTION (see
+          joint 2) -- any reading of claim (3) that does not separately
+          identify and discount this tautology has proved too much (it would
+          "detect" homomorphism in a section that provably cannot be
+          homomorphic, per KN-TECH-73630e / the pro-p gate).
+      failure_signature: >-
+        The anomalous run's outcome field must read as a refusal at the
+        division-by-n step, not a successful torsion-section construction or
+        any other error; and any claim-3 statistic must independently
+        reproduce that m=1 always trivially agrees, or the statistic itself
+        is measuring the wrong thing.
+      assigned_to: TASK-20260911-6bf4f9
+    blind_rederivation:
+      required: true
+      quantity: >-
+        digit_identity agreement rate; size_law log-log slope per instance;
+        teichmuller_contrast agreement rate and its per-instance/per-m
+        breakdown; leak-arm certificate validity ([m]S=T on the actual curve).
+      parameters: >-
+        the 20 non-anomalous run raw-result.json files, frozen_curves_and_primes.json,
+        and the hypothesis's own stated identities and predictions.
+      blind_from:
+        - experiments/EXP-ECDLP-a26bde/driver/instrument.py
+        - experiments/EXP-ECDLP-a26bde/driver/stage23.py (read only AFTER the
+          blind pass, to diagnose the curve-2 anomaly's proximate cause --
+          recorded above as a deliberate, declared exception, not a drift)
+        - experiments/EXP-ECDLP-a26bde/driver/run_all.py
+        - experiments/EXP-ECDLP-a26bde/driver/curves.py
+      assigned_to: >-
+        Already performed by the reviewing session (this dispatch's author),
+        not by TASK-20260911-6bf4f9 itself, since the latter has no Bash tool
+        to run Python. Reported in full above; TASK-20260911-6bf4f9's job is
+        to weigh the results, not repeat the computation.
+    procedure_deviations:
+      - >-
+        The blind rederivation and the claim-3 anomaly discovery were both
+        performed by the session that also designed and approved this
+        contract, rather than by an independent dispatch, because the
+        Coordinator subagent has no Bash/Python execution tool and cannot run
+        the recomputation itself. This departs from the ideal of an
+        execution-independent reviewer and is recorded here rather than
+        quietly treated as equivalent to one. What is preserved: the
+        recomputation used only raw per-datum fields and an independent
+        pre-existing library, never the driver's own aggregation code (except
+        the single declared, after-the-fact exception for diagnosing the
+        curve-2 anomaly), and every step is reproducible by anyone from the
+        script left at
+        /tmp/claude-0/-home-user-crypto-autoresearcher/8d217cec-6c26-5de9-8b77-6d188181969e/scratchpad/blind_rederivation.py
+        (not a committed repo artifact; a scratch file, referenced here for
+        traceability only).

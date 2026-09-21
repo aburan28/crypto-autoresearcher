@@ -1,0 +1,150 @@
+idea:
+  id: IDEA-20260808-aa551f
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-MQOM-001
+  goal_id: GOAL-MQOM-001
+  title: If MQOM's vector commitment uses ONE GGM tree of tau*N leaves with tau openings rather
+    than tau independent trees, the challenge space has size binom(tau*N, tau) and not N^tau,
+    so the published soundness accounting is off by log2(binom(tau N, tau) / N^tau) bits --
+    a number computable from four integers, in the defender's favour, and never claimed
+  class: control
+  claim: 'Two vector-commitment layouts are common in MPC-in-the-head signatures: tau independent
+    N-leaf trees (challenge space N^tau) and a single tree of tau*N leaves from which tau
+    leaves are hidden (challenge space binom(tau*N, tau), the "one tree" optimisation). CLAIM:
+    (i) which layout MQOM uses is a decidable fact readable from the specification in one
+    paragraph; (ii) the two layouts give different soundness denominators, and the difference
+    is exactly log2(binom(tau N, tau)) - tau*log2(N) bits, which is strictly positive by a
+    factor that grows like tau*log2(e) - O(log tau) for large tau; (iii) if MQOM uses the
+    one-tree layout but its security analysis quotes N^{-tau}, the analysis understates its
+    own soundness by that many bits -- and, symmetrically, if it quotes the binomial but the
+    implementation uses independent trees, it OVERSTATES it, which is the dangerous direction.
+    This record''s value is that it names a specific, checkable arithmetic discrepancy with
+    a sign, rather than a general concern.'
+  mechanism: In the one-tree layout the adversary's grinding target is a tau-subset of tau*N
+    leaves, not a tuple of tau independent indices, because the tree structure forbids opening
+    two leaves from the same block only if the protocol says so -- and whether it does is
+    exactly what the specification paragraph settles. The counting difference is elementary
+    and its consequence for the Fiat-Shamir/grinding optimisation is a shift in the exponent
+    that every subsequent parameter choice inherits.
+  why_not_a_renamed_known_approach: 'Nearest known method: standard soundness accounting for
+    MPCitH with parallel repetitions. The difference is that this record does not accept the
+    layout as given: it makes the layout a measured input and computes the arithmetic consequence
+    of each answer in advance, so the result is determined by a spec read rather than by an
+    argument. Nearest internal record: IDEA-20260805-cec9b6 raises a correlated-GGM-tree concern
+    from an independent 2026 preprint and asks what the unmodified scheme pays; that record
+    is about the EUF-CMA proof''s applicability, this one is about a counting term in the
+    soundness denominator, and the two can disagree.'
+  predictions:
+  - observable: MQOM's vector-commitment layout as stated in the specification
+    metric: categorical -- independent trees, one tree, or other
+    predicted: One tree, on efficiency grounds (RECALLED as the prevailing design trend);
+      but the record commits to reporting whatever is read, and the "independent trees" outcome
+      makes the arithmetic delta zero, which is a complete answer.
+  - observable: log2(binom(tau N, tau)) - tau log2 N at each published (N, tau)
+    metric: bits
+    predicted: Strictly positive at every parameter set, of order tau*log2(e) - O(log tau)
+      bits, i.e. tens of bits at published tau. Exact values computed, not estimated.
+  - observable: whether the specification's stated soundness uses N^{-tau} or the binomial
+    metric: categorical, read verbatim
+    predicted: If layout is one-tree and the quoted denominator is N^tau, the delta is unclaimed
+      margin (defender's favour). The opposite pairing is the dangerous case and its probability
+      is low but it is exactly what the check is for.
+  - observable: the re-optimised (tau, N, w) triple under the correct denominator, at fixed
+      target level lambda and fixed signature size
+    metric: signature bytes at equal claimed security
+    predicted: A strictly smaller tau (hence smaller signature) achieves the same level under
+      the binomial denominator. The size saving in bytes is computed exactly.
+  minimal_test: Zero compute. (1) Read MQOM's specification section on the vector commitment
+    / GGM tree and record verbatim whether it is one tree of tau*N leaves or tau trees of
+    N leaves, and what denominator the soundness statement uses. (2) Compute, exactly, log2(binom(tau
+    N, tau)) and tau log2(N) for every published (N, tau) pair, and their difference. (3)
+    Re-solve the design inequality (the one IDEA-20260805-7abf04 shows is met with equality)
+    with the corrected denominator and report the resulting (tau, N, w) and signature size.
+    Three tables.
+  controls:
+  - 'SELF-CONSISTENCY CONTROL: reproduce the specification''s own claimed soundness number
+    from its own stated denominator before proposing a correction. A correction to a number
+    that cannot be reproduced is not a correction.'
+  - 'SIGN CONTROL: verify by direct computation that binom(tau N, tau) > N^tau for all tau,
+    N >= 2 (it is, since binom(tau N, tau) >= (tau N / tau)^tau = N^tau with strict inequality
+    for tau >= 2). A pipeline that reports a negative delta is broken.'
+  - 'DEGENERATE CONTROL: at tau = 1 the two counts coincide exactly (binom(N,1) = N). The
+    pipeline must return a delta of exactly 0 there.'
+  confounders:
+  - The one-tree layout may impose a constraint the naive binomial ignores (e.g. at most one
+    opened leaf per block), in which case the count is N^tau after all. Reading the constraint,
+    not assuming it, is the whole test.
+  - Grinding interacts with the challenge count non-linearly; a larger challenge space does
+    not translate one-for-one into forgery cost once w bits of grinding are available. The
+    re-optimisation in step 3 must use the full design inequality, not the denominator alone.
+  - A Round-3 specification due 2026-08-14 may change the layout; the record must name the
+    document it read.
+  falsification_conditions:
+  - The specification uses independent trees, making the delta exactly zero (a complete answer).
+  - The specification already uses the binomial denominator (no unclaimed margin; also complete).
+  - The self-consistency control fails, blocking any correction until the spec's own numbers
+    reproduce.
+  interpretation_limits: This is an accounting check on a counting term, not a security analysis.
+    A positive delta in the defender's favour does not raise MQOM's security -- it shows the
+    claimed level is conservative by a computable amount, which matters for parameter selection
+    and signature size, not for safety. The dangerous pairing (binomial quoted, independent
+    trees implemented) is the only one that would be a security finding, and it is the least
+    likely.
+  assumptions:
+  - The specification states the vector-commitment layout explicitly enough to classify.
+  - The design inequality is the one IDEA-20260805-7abf04 identifies (to be re-derived, not
+    quoted).
+  heuristic_assumptions:
+  - id: HA-1
+    statement: The forgery cost scales inversely with the size of the effective challenge
+      space, up to the grinding term, uniformly over the published (N, tau, w).
+    rigorous_ingredient: The number of challenge values an adversary must search is exactly
+      the challenge-space size; the inverse-scaling of expected work is exact for uniform
+      challenges and a rejection-free search. The heuristic part is only the interaction with
+      grinding, which is why step 3 re-solves the full inequality rather than rescaling.
+    distribution_imitated: Uniformity of the Fiat-Shamir challenge under the random oracle
+      model.
+    validation_route: 'Cross-check against M1-09''s DP at toy (N, tau): the DP''s optimum
+      must scale as predicted when the challenge space is changed from N^tau to binom(tau
+      N, tau) by construction. This links the two MQOM records into one instrument.'
+    tail_checks: At large w the scaling must saturate; a DP optimum that keeps scaling linearly
+      in the challenge space at large w indicates the grinding term is mis-modelled.
+  target_complexity:
+    time_exponent: No attack. The quantity is a counting correction of log2(binom(tau N, tau))
+      - tau log2 N bits in the soundness exponent.
+    memory_exponent: Not applicable.
+    best_known_baseline: MQOM's own claimed forgery security at each parameter set, and its
+      stated soundness denominator.
+    hidden_overhead_disclosure: None; the computation is exact integer arithmetic on binomial
+      coefficients.
+    time_memory_tradeoff: Not applicable.
+  sota_delta: 'No attack. A signed, exactly computed correction in bits to a published soundness
+    exponent, plus the signature-size saving it would permit at equal claimed security. Expected
+    direction: defender''s favour, i.e. MQOM''s signatures could be smaller, not its security
+    lower.'
+  dominated_by: 'n/a (no result claimed). Frontier rows checked: IDEA-20260805-7abf04 (slack
+    functional, which would inherit this correction), IDEA-20260805-cec9b6 (proof applicability),
+    M1-09 (optimal strategy DP), and MQOM''s own bound. None computes the challenge-space
+    counting term.'
+  estimated_cost: 'Implementation trivial: exact binomial arithmetic. Compute negligible.
+    The cost is one careful specification read.'
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the layout is decidable from the spec: ~0.9. That it is
+    one-tree: ~0.6. That the quoted denominator does not already account for it: ~0.35. That
+    the record produces a correct, signed, exact number either way: ~0.9. This is a low-ceiling,
+    high-certainty record and is priced as such.'
+  novelty_status: unverified
+  novelty_screen: Same corpus screen as M1-09. No corpus record addresses the vector-commitment
+    layout or its counting consequence. WEB NOT CHECKED -- in particular the "one tree to
+    rule them all" line of work is RECALLED and not cited as a result anywhere in this record.
+  discriminated_from: 'IDEA-20260805-7abf04: computes a slack functional from the published
+    denominator; this record asks whether that denominator is the right one. IDEA-20260805-cec9b6:
+    EUF-CMA proof existence and correlated trees; a different failure mode. M1-09: measures
+    the optimum given a challenge structure; this record fixes what the structure is.'
+  source_refs:
+  - MQOM specification -- REQUIRED READ, NOT YET READ.
+  - The one-tree / all-but-tau vector commitment optimisation -- RECALLED from the MPCitH
+    literature, not located in this corpus, and deliberately not cited as a source for any
+    claim.

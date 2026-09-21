@@ -1,0 +1,239 @@
+idea:
+  id: IDEA-20260815-80e5e3
+  question_id: RQ-TECDSA-8d340d
+  added: '2026-08-15'
+  title: >-
+    REBUILD EVERY PUBLISHED THRESHOLD-ECDSA KEY-EXTRACTION CLASS AS A
+    LITERAL CERTIFICATE AGAINST A SWITCHABLE-COUNTERMEASURE HARNESS, SO EACH
+    CLASS'S MITIGATION IS TESTED RATHER THAN ASSERTED
+  class: control
+
+  claim: >-
+    Threshold ECDSA has several published key-extraction classes, each with
+    a claimed countermeasure. The claims are almost never tested by re-
+    running the original attack against the mitigated protocol. A harness
+    with individually switchable countermeasures, plus a literal extraction
+    certificate per class, converts a table of claims into a table of
+    results.
+
+  mechanism: >-
+    Implement the protocol with each countermeasure independently
+    switchable. For each published extraction class, produce a working
+    extraction certificate with all countermeasures off, then re-run with
+    only its claimed mitigation on, then with all on. Record the outcome per
+    cell.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Read of GOAL-TECDSA-001 objective; grep 'identifiable abort' (8),
+      'presignature' (4), 'switchable countermeasure'.
+    results: >-
+      The goal names the switchable-countermeasure harness as its
+      deliverable and it is not built; extraction classes are catalogued
+      in the literature but not re-run against mitigations here.
+    verdict: >-
+      ADAPTATION. The attack classes are published; the contribution is
+      executable certificates and the mitigation cross-product, which is
+      what makes a countermeasure claim falsifiable.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE EXTRACTION OUTCOME per (attack class, countermeasure setting)
+      cell.
+    lossiness: >-
+      A cell reduces an attack to success or failure, discarding partial-
+      information outcomes, which the record captures separately as a
+      third state rather than folding into failure.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while the protocol and its countermeasures are
+      implementable; classes whose preconditions the harness cannot
+      reproduce are listed unreachable rather than marked mitigated.
+
+  null_object_control: >-
+    NULL 1 -- all countermeasures off, where every class must extract; a
+    class that fails here is not implemented correctly and its mitigated
+    cells are meaningless. NULL 2 -- an honest execution with no attack,
+    which must never extract. NULL 3 -- a countermeasure claimed irrelevant
+    to a class, which must NOT block it; if it does, the class is
+    misattributed.
+
+  discriminated_from:
+    - >-
+        Published threshold-ECDSA attack papers, which describe the
+        classes; this record makes them executable and tests the
+        mitigations against them.
+    - >-
+        Identifiable-abort work in this corpus, which concerns detecting
+        misbehaviour rather than extracting keys.
+
+  assumptions:
+    - >-
+        Every published class can be reproduced in the harness;
+        unreproducible ones are listed rather than assumed mitigated.
+    - >-
+        Countermeasures are genuinely independent and switchable;
+        interacting countermeasures make the cross-product ill-defined and
+        must be reported as such.
+
+  predictions:
+    - metric: >-
+        all-countermeasures-off row
+      direction: different
+      minimum_effect: >-
+        FORCED: every class extracts, else it is not correctly
+        implemented.
+    - metric: >-
+        honest-execution null
+      direction: different
+      minimum_effect: >-
+        FORCED: never extracts.
+    - metric: >-
+        class blocked by its own claimed mitigation
+      direction: different
+      minimum_effect: >-
+        Predicted blocked; a class that survives its claimed mitigation
+        is the record's headline finding.
+    - metric: >-
+        class blocked by an unrelated countermeasure
+      direction: different
+      minimum_effect: >-
+        Would mean the class is misattributed in the literature and is a
+        genuine finding.
+
+  minimal_test:
+    design: >-
+      Two attack classes, two countermeasures, full cross-product plus all
+      three nulls. Small, and it tests the one thing the literature
+      asserts without checking.
+    controls:
+      - >-
+          All-off row where every class must succeed.
+      - >-
+          Honest-execution null.
+      - >-
+          Irrelevant-countermeasure cell that must not block.
+      - >-
+          Unreproducible classes listed, never defaulted to mitigated.
+    required_metrics:
+      - >-
+          Extraction outcome per cell, as a literal certificate.
+      - >-
+          Partial-information outcomes recorded as a distinct third
+          state.
+      - >-
+          List of unreproducible classes.
+      - >-
+          Artifact manifest with hashes and rebuild receipt.
+
+  falsification_conditions:
+    - >-
+        A class fails in the all-off row. Implementation wrong; its
+        mitigated cells are void.
+    - >-
+        The honest null extracts. Harness broken; all results void.
+    - >-
+        A class survives its claimed mitigation. The countermeasure claim
+        is wrong -- the highest-value outcome, requiring independent
+        review before any disclosure.
+    - >-
+        Countermeasures interact so the cross-product is ill-defined.
+        Report rather than force independence.
+
+  confounders:
+    - >-
+        IMPLEMENTATION FIDELITY: a countermeasure implemented more
+        strongly than the protocol specifies would block attacks the real
+        protocol permits, manufacturing false assurance.
+    - >-
+        CLASS DRIFT: published classes are described at varying precision,
+        and a reimplementation may not be the same attack.
+
+  interpretation_limits:
+    - >-
+        Tests published claims in one harness; makes no general security
+        claim about threshold ECDSA.
+    - >-
+        Scoped to the implemented protocol variant, classes and
+        countermeasures.
+    - >-
+        A surviving class is a finding about a countermeasure claim and
+        requires review before it is treated as a vulnerability.
+
+  heuristic_assumptions:
+    - id: HEUR-TECDSA-IND-1
+      statement: >-
+        The countermeasures are mutually independent, so the cross-
+        product of settings is well defined and each cell is
+        interpretable.
+      rigorous_support: >-
+        Rigorous ingredient: each countermeasure targets a distinct
+        protocol message or check, per its own publication. THE GAP:
+        independence is asserted by the separate publications and never
+        jointly verified, and interacting countermeasures would make
+        individual cells uninterpretable.
+      falsification_condition: >-
+        A cell whose outcome depends on a countermeasure the class is
+        not supposed to touch.
+      validation_plan: >-
+        SAMPLE: full cross-product for two classes and two
+        countermeasures, every cell run. TAIL CHECK: cells whose outcome
+        differs from the single-countermeasure prediction, reported
+        individually. TRANSFER: none beyond the implemented variant.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is one protocol execution per cell.
+    memory_exponent: >-
+      Negligible per execution.
+    best_known: >-
+      Incumbents are the published attacks and their claimed
+      countermeasures, reimplemented here and not improved.
+    hidden_overhead: >-
+      Reimplementing published attacks faithfully is the dominant effort
+      and the dominant fidelity risk.
+    tradeoff_note: >-
+      A switchable harness costs implementation effort and buys
+      falsifiable countermeasure claims; asserting mitigations is free and
+      unfalsifiable.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As attacks: dominated by the original
+    publications. As a mitigation test: none exists here. Not null on any
+    axis.
+  sota_delta: >-
+    No attack novelty, no exponent. Content delivered: executable extraction
+    certificates per class, a tested cross-product against individually
+    switchable countermeasures, and an explicit list of classes this harness
+    cannot reproduce.
+
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.6 that two classes are faithfully reproducible, which is the dominant
+    risk. 0.9 that the nulls behave. 0.15 that a class survives its claimed
+    mitigation, which would be the finding and would need review before
+    disclosure.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-TECDSA-8d340d
+    - GOAL-TECDSA-001
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

@@ -1,0 +1,432 @@
+red_team_report:
+  id: RT-20260822-16c3d0
+  task_id: TASK-20260822-16c3d0
+  role: red-team
+  report_type: adversarial_code_review
+  status: completed
+  verdict: BREAKS
+  recorded_at: '2026-08-22T09:30:53Z'
+  claim_under_review: >-
+    Frozen narrow claim that whole-ledger validation at immutable snapshot
+    0fbccff386c2e5e47da21ba4024137fa8a9b4500 does not traverse protected
+    ledger or ledger/goals worktree contents when HEAD, candidate-index, and
+    filesystem states disagree or either Git state identifies an exact alias,
+    and therefore does not access or register objects available only through
+    such an alias.
+
+  authority_boundary:
+    infrastructure_review_only: true
+    merge_approval: not_authorized
+    goal_status_approval: not_authorized
+    scientific_approval: not_authorized
+    research_state_changed: false
+    implementation_or_test_edits: false
+    commit_push_merge: false
+    rank_or_erank_experiment: false
+
+  review_metadata:
+    independent_session: true
+    requested_policy: review-adversarial
+    resolved_policy: review-adversarial
+    reasoning_effort: xhigh
+    resolved_model_id: null
+    model_visibility: not_exposed_by_native_codex_session
+    runtime: codex_native_subagent
+    fallback_used: false
+    degraded_requirements: []
+    bedrock_used: false
+    validator_report_read: false
+    read_sibling_reports: false
+    bounded_review_invocations_used: 1
+
+  binding:
+    snapshot_commit: 0fbccff386c2e5e47da21ba4024137fa8a9b4500
+    snapshot_parent: 6f3c34d520eac5c9204afce9e02bfe460e67cf99
+    snapshot_tree: 9d8faecd22617eaa95d2204bdd33a1f071185922
+    current_head_observed_but_not_substituted: fe7d997889028444e2b7e9e406cb3353d226371c
+    required_subject: 'snapshot(TASK-20260822-2d1642): archive TASK-20260822-f532a1 candidate-state repair'
+    subject_verified: true
+    reachable_from_current_head: true
+    archive_receipt_snapshot_review_eligible: true
+    archive_receipt_producer_outcome: completed_valid
+
+  evidence_integrity:
+    result: PASS
+    parent_verified: true
+    tree_verified: true
+    exact_changed_path_set_verified: true
+    path_set_method: >-
+      Each of the six declared paths was required to differ with a
+      pathspec-scoped git diff --quiet check; a second output-free diff --quiet
+      check excluded all six exact paths and returned zero, proving that no
+      undeclared path changed without enumerating sibling task artifacts.
+    undeclared_change_check_exit_code: 0
+    paths:
+      tools/validate_ledger.py:
+        sha256: 9dbef986cbba683bd8e35db813e482ee29a54b5c1cb47a2d952de2aacc3f6959
+        receipt_match: true
+        handoff_match: true
+      tools/test_goal_id_random_suffix.py:
+        sha256: d481d28424fc1d924a6c8613452af4f4cabbb08951cef7a7716ae61dd146b64c
+        receipt_match: true
+        handoff_match: true
+      coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-f532a1/repair-report.yaml:
+        sha256: ff04ed130497f0ef380ec7957d1d8ec42419abd5c2b35d59881ba6a2c9d7cffa
+        receipt_match: true
+        handoff_match: true
+      coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-f532a1/test-results.yaml:
+        sha256: a87a46682f6247032118e631e18c37c03ad457fe44f78007198010d0882f7bf3
+        receipt_match: true
+        handoff_match: true
+      coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-f532a1/task-report.yaml:
+        sha256: 02ef2fb1e9157ab833981ec85883fcb21fec760df32183f48f7d7b60c9fb7c51
+        receipt_match: true
+        handoff_match: true
+      coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-2d1642/archive-receipt.yaml:
+        sha256: e4298ab08b8828e49b42bdc28072f8d37a4f4db6c547be90cb0daa5626a5fde6
+        receipt_match: true
+        handoff_match: true
+
+  inspection_scope:
+    immutable_inputs_read:
+      - ledger/handoffs/TASK-20260822-16c3d0.yaml
+      - tools/validate_ledger.py at snapshot 0fbccff386c2e5e47da21ba4024137fa8a9b4500
+      - tools/test_goal_id_random_suffix.py at snapshot 0fbccff386c2e5e47da21ba4024137fa8a9b4500
+      - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-f532a1/repair-report.yaml at the snapshot
+      - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-f532a1/test-results.yaml at the snapshot
+      - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-f532a1/task-report.yaml at the snapshot
+      - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-2d1642/archive-receipt.yaml at the snapshot
+    validator_task_artifacts_read: false
+    sibling_task_directory_enumerated: false
+    unscoped_git_status_run: false
+    unscoped_git_diff_name_enumeration_run: false
+
+  blocking_objections:
+    - id: B2-REPLACE-OBJECT-LAUNDERING
+      severity: blocking
+      status: reproduced
+      claim_joint: >-
+        Bound Git metadata must describe the raw committed HEAD tree rather
+        than a caller- or repository-selected replacement object.
+      mechanism: >-
+        _explicit_git_environment removes six repository/index redirects but
+        leaves GIT_REPLACE_REF_BASE, and bound_git invokes ordinary git without
+        --no-replace-objects or a validator-owned GIT_NO_REPLACE_OBJECTS=1.
+        Consequently Git replacement refs can replace the HEAD commit during
+        ls-tree object resolution even though --git-dir, --work-tree, and the
+        actual index are correctly rebound. This is object-identity laundering,
+        not repository-root redirection.
+      immutable_snapshot_evidence:
+        - provenance: internal
+          path: tools/validate_ledger.py
+          snapshot: 0fbccff386c2e5e47da21ba4024137fa8a9b4500
+          lines: 1446-1455
+          observation: >-
+            The scrub set omits GIT_REPLACE_REF_BASE and passes every other
+            caller variable through.
+        - provenance: internal
+          path: tools/validate_ledger.py
+          snapshot: 0fbccff386c2e5e47da21ba4024137fa8a9b4500
+          lines: 1515-1527
+          observation: >-
+            bound_git fixes the actual index, Git directory, and worktree but
+            does not disable replacement-object semantics before ls-tree HEAD.
+        - provenance: internal
+          path: tools/validate_ledger.py
+          snapshot: 0fbccff386c2e5e47da21ba4024137fa8a9b4500
+          lines: 1556-1562
+          observation: >-
+            An effective 040000 HEAD entry and ordinary index descendants are
+            accepted, so a replaced HEAD tree reaches filesystem traversal.
+      worked_fixture:
+        setup:
+          - Initialize a local repository with ordinary tracked ledger/goals descendants and commit it as the benign base.
+          - Replace the exact ledger/goals index entry with mode 160000 pointing at the base commit and commit that raw malicious HEAD.
+          - Restore the actual candidate index from the benign base so it exposes ordinary descendants while retaining the initialized ledger/goals working-tree directory.
+          - Add hidden GOAL-999, hidden GOAL-a1b2c3, and malformed-YAML sentinels only in that initialized working-tree target.
+          - Point a custom refs/red-team-replace namespace from the raw malicious HEAD commit to the benign base and set caller GIT_REPLACE_REF_BASE to that namespace.
+        expected: >-
+          Raw HEAD mode 160000 must be detected; validation must stop before
+          scanning ledger/goals, register neither sentinel, and not parse the
+          malformed target-only YAML.
+        actual:
+          raw_head_entry: '160000 commit 9f4ebec9be28cb552d9f3ebab1d04b00f6ab82f5 ledger/goals'
+          replacement_head_entry: '040000 tree e7159bd6840f2c0c23a826e02052479b2b1c94ce ledger/goals'
+          protected_prefix_git_errors: []
+          hidden_legacy_goal_registered: true
+          hidden_random_goal_registered: true
+          target_only_malformed_yaml_read: true
+          malformed_error: 'ledger/goals/GOAL-MALFORMED-deadbe.yaml: invalid YAML: while parsing a flow sequence'
+        result: BREAKS
+      default_namespace_variant:
+        setup: >-
+          The same raw HEAD/index/worktree fixture used ordinary git replace,
+          with no GIT_REPLACE_REF_BASE environment variable.
+        actual:
+          raw_head_entry: '160000 commit 0284476c04bb28397c449f8c87dc070c10274508 ledger/goals'
+          effective_head_entry: '040000 tree e7159bd6840f2c0c23a826e02052479b2b1c94ce ledger/goals'
+          protected_prefix_git_errors: []
+          hidden_random_goal_registered: true
+        implication: >-
+          Merely adding GIT_REPLACE_REF_BASE to the scrub list is insufficient;
+          repository-local refs/replace state produces the same bypass.
+      cheapest_falsification_control:
+        implementation: >-
+          Force GIT_NO_REPLACE_OBJECTS=1 in the validator-owned clean/bound
+          environment after caller variables are removed, or place
+          --no-replace-objects on every Git metadata command. Do not accept a
+          caller value as the binding.
+        regression: >-
+          Add one deterministic fixture with raw HEAD mode 160000, ordinary
+          actual-index descendants, an initialized target containing both GOAL
+          sentinels and malformed YAML, and (a) default refs/replace and (b) a
+          caller-selected GIT_REPLACE_REF_BASE. Assert exact gitlink rejection,
+          no registration, and no malformed-YAML read for ledger/goals; replay
+          the same loop for ledger.
+        control_observation: >-
+          On the default replacement fixture, setting
+          GIT_NO_REPLACE_OBJECTS=1 changed protected_prefix_git_errors from []
+          to the exact HEAD-tree mode-160000 rejection and changed hidden GOAL
+          registration from true to false.
+
+  objections:
+    - B2-REPLACE-OBJECT-LAUNDERING
+
+  nonblocking_objections:
+    - id: RISK-TOCTOU-PREFIX-SWAP
+      status: unresolved_residual
+      rationale: >-
+        The prefix check and later inventories/goal scans are separate path-based
+        operations. Snapshot lines 1793-1804 correctly put the check first, but
+        no directory descriptor or other atomic binding prevents a concurrent
+        process from replacing an ordinary directory after the check. The
+        deterministic static-state handoff does not establish concurrent safety.
+      claim_effect: >-
+        Not needed to break this snapshot because replacement refs already do;
+        any successor claim should explicitly exclude concurrent mutation or
+        add an atomic traversal design.
+      cheapest_falsification_control: >-
+        Insert a test-only barrier immediately after check_trusted_goal_prefixes,
+        swap ledger/goals to a target-bearing symlink or initialized gitlink,
+        resume main, and assert no target marker is opened. If concurrency is
+        out of scope, state that assumption in the narrow claim.
+    - id: RISK-ARBITRARY-DESCENDANT-GITLINK
+      status: accepted_scope_boundary
+      rationale: >-
+        The exact-prefix parser intentionally counts any ordinary descendant
+        entry and does not reject a mode-160000 entry deeper than ledger/goals.
+        A worked descendant gitlink at
+        ledger/goals/GOAL-BASE-001/vendor produced no protected-prefix error.
+      claim_effect: >-
+        This is not a contradiction because the producer explicitly excludes
+        arbitrary descendant gitlink protection beyond existing rules. It must
+        remain explicit in every successor claim.
+      cheapest_falsification_control: >-
+        Retain a negative-scope test proving the exact-prefix guard accepts the
+        descendant case, alongside a separate test for whichever downstream
+        traversal rule is intended to govern initialized descendant gitlinks.
+    - id: RISK-NONUTF8-GIT-PATH-DECODE
+      status: untested_robustness_risk
+      rationale: >-
+        bound_git uses text=True and then parses NUL-delimited Git output. A
+        non-UTF-8 tracked descendant could raise UnicodeDecodeError rather than
+        produce the structured indeterminate-metadata error. Such a crash is
+        still before target traversal but is not the documented fail-closed
+        diagnostic path.
+      cheapest_falsification_control: >-
+        Add a byte-oriented index entry with an invalid UTF-8 descendant name
+        under ledger/goals and require a controlled rejection with no target
+        access; alternatively parse stdout as bytes.
+
+  worked_attacks:
+    - id: RT-A1-HEAD-GITLINK-GOALS
+      setup: raw HEAD exact ledger/goals mode 160000; actual index restored to one ordinary descendant; initialized target contains both GOAL sentinels and malformed YAML.
+      expected: reject raw HEAD and do not read target.
+      actual: exact Git HEAD tree gitlink mode 160000 rejected; neither ID registered; malformed YAML not read.
+      disposition: holds_absent_replace_objects
+    - id: RT-A2-HEAD-GITLINK-LEDGER
+      setup: raw HEAD exact ledger mode 160000; actual index restored to one ordinary descendant; initialized target contains both sentinels and malformed YAML.
+      expected: reject raw HEAD and do not read target.
+      actual: exact Git HEAD tree gitlink mode 160000 rejected; neither ID registered; malformed YAML not read.
+      disposition: holds_absent_replace_objects
+    - id: RT-A3-RENAME-DESTINATION
+      setup: retain initialized HEAD gitlink at ledger/goals; restore ordinary index and replace the original descendant with GOAL-RENAMED-a1b2c3.yaml via update-index cacheinfo.
+      expected: rename destination must not authorize the raw HEAD gitlink.
+      actual: raw HEAD mode 160000 rejected; no sentinel registration or malformed-YAML read.
+      disposition: holds_absent_replace_objects
+    - id: RT-A4-ALTERNATE-INDEX
+      setup: caller supplies benign alternate GIT_INDEX_FILE while the explicit root has a committed protected gitlink.
+      expected: bind the explicit root actual index and reject.
+      actual: exact HEAD gitlink rejected; target not read.
+      disposition: holds
+    - id: RT-A5-MISLEADING-GIT-DIR
+      setup: caller supplies only GIT_DIR for a benign repository while explicit root HEAD has exact ledger gitlink.
+      expected: ignore caller GIT_DIR and reject explicit-root alias.
+      actual: exact explicit-root HEAD gitlink rejected; target not read.
+      disposition: holds
+    - id: RT-A6-MISLEADING-GIT-WORK-TREE
+      setup: caller supplies only GIT_WORK_TREE for a benign repository while explicit root HEAD has exact ledger gitlink.
+      expected: ignore caller GIT_WORK_TREE and reject explicit-root alias.
+      actual: exact explicit-root HEAD gitlink rejected; target not read.
+      disposition: holds
+    - id: RT-A7-COMBINED-GIT-ENVIRONMENT
+      setup: caller supplies benign GIT_DIR, GIT_WORK_TREE, and GIT_INDEX_FILE together while explicit root HEAD has exact ledger/goals gitlink.
+      expected: sanitize all three and reject explicit-root alias.
+      actual: exact explicit-root HEAD gitlink rejected; target not read.
+      disposition: holds
+    - id: RT-A8-INDEX-GITLINK-DISAGREEMENT
+      setup: ordinary HEAD mode 040000 and ordinary initialized filesystem, but actual index exact ledger/goals mode 160000.
+      expected: index state must block filesystem traversal.
+      actual: exact Git index gitlink rejected; target not read.
+      disposition: holds
+    - id: RT-A9-COHERENT-ORDINARY
+      setup: coherent ordinary HEAD tree, actual-index descendants, and ordinary filesystem directories.
+      expected: protected-prefix gate accepts and base goal remains discoverable.
+      actual: no prefix error; GOAL-BASE-001 registered.
+      disposition: holds
+    - id: RT-A10-DIRECT-EXACT-MODES
+      setup: replay exact mode 160000 and exact mode 120000 separately at ledger/goals and ledger, with initialized target sentinels.
+      expected: reject before target access.
+      actual: all four cases rejected with the correct gitlink/symlink mode; no sentinel registered and malformed YAML not read.
+      disposition: holds_absent_replace_objects
+    - id: RT-A11-B1-CHILD-SYMLINK
+      setup: ordinary protected prefixes plus a staged child goal-record symlink to an external marker-bearing goal.
+      expected: child symlink rejected without target registration.
+      actual: prefix metadata accepted, child-symlink error emitted, target ID not registered, marker absent from errors.
+      disposition: holds
+    - id: RT-A12-MISSING-METADATA
+      setup: remove the actual index from an otherwise coherent temporary Git worktree.
+      expected: fail closed before goal registration.
+      actual: actual Git directory or index unavailable; target was not read; GOAL-BASE-001 not registered.
+      disposition: holds
+    - id: RT-A13-EXACT-VERSUS-DESCENDANT
+      setup: compare ordinary protected-prefix descendants with an exact mode entry; separately stage a deeper vendor mode-160000 entry.
+      expected: accept only the ordinary exact-prefix representation and do not misclassify arbitrary descendants as exact aliases.
+      actual: ordinary descendant state passed; exact 160000/120000 states rejected; deeper vendor gitlink was outside the exact-prefix guard and accepted as declared.
+      disposition: holds_with_explicit_scope_boundary
+    - id: RT-A14-PROVES-TOO-MUCH
+      setup: non-Git validation root with ordinary ledger/goals directories, a valid sharded goal, and additional ordinary nested directories.
+      expected: filesystem-only boundary accepts ordinary directories rather than requiring Git metadata.
+      actual: in_git false; no prefix error; sharded goal registered; no symlink or gitlink error.
+      disposition: holds
+    - id: RT-A15-N1-N2-N4
+      setup: >-
+        Review immutable N1 tests for staged flat and committed sharded legacy
+        GOAL rejection, random-suffix acceptance, and noncanonical rejection;
+        review the immutable producer result binding N1/N2/N4 and the affected
+        171-test command.
+      expected: B2 repair does not regress identifier allocation or prospective merge hygiene.
+      actual: >-
+        Snapshot test lines 287-319 preserve the N1/random-suffix matrix. The
+        receipt-bound producer result records dedicated 53/53 and affected
+        171/171 passes and explicitly records N1_N2_N4 pass. N2/N4 source files
+        were outside this review's permitted immutable input set and were not
+        independently opened or re-executed.
+      disposition: reviewed_no_regression_observed
+      cheapest_falsification_control: >-
+        After repairing replacement-object binding, rerun the same receipt-bound
+        dedicated and affected suites and preserve per-test N2/N4 output in the
+        successor producer result.
+
+  required_controls:
+    - Force replacement objects off and add default/custom replacement-ref regressions at both exact protected prefixes.
+    - Replay the retained B1/B2/N1/N2/N4 and ordinary-state matrices after the repair.
+    - Either exclude concurrent mutation explicitly or add an atomic post-guard prefix-swap control.
+    - Preserve the explicit arbitrary-descendant-gitlink non-claim.
+
+  counterexample_or_mutation: >-
+    A raw HEAD commit whose ledger/goals entry is mode 160000, combined with an
+    ordinary actual index, initialized target-bearing worktree directory, and a
+    Git replacement ref mapping that HEAD commit to an ordinary-tree commit.
+
+  baseline_comparison:
+    applicability: infrastructure_only
+    result: >-
+      Pollard-rho, BSGS, specialized ECDLP baselines, rank costs, and scientific
+      performance claims are not implicated. The relevant baseline is raw
+      git --no-replace-objects ls-tree HEAD, which reports mode 160000 where the
+      snapshot's effective Git invocation reports replacement mode 040000.
+
+  heuristic_challenges: []
+  cost_model_challenges: []
+  reduction_and_scope_challenges:
+    - Replacement-object semantics are outside the producer's environment-variable model but inside Git object resolution, so explicit root/index binding alone does not imply raw-HEAD binding.
+    - Arbitrary descendant gitlink protection is not claimed beyond existing rules and was not promoted into the narrow statement.
+    - No global filesystem non-access claim is supported or made.
+  proof_architecture_challenges:
+    - attack: proves_too_much
+      result: holds
+      evidence: Ordinary nested non-Git directories remained accepted.
+    - attack: observation_collision
+      result: breaks
+      evidence: >-
+        Raw HEAD gitlink and benign raw HEAD states collide at the validator's
+        observed effective 040000 metadata when Git replacement refs are active.
+      missing_separator: replacement objects must be disabled for metadata queries.
+
+  narrowest_supported_statement: >-
+    At snapshot 0fbccff386c2e5e47da21ba4024137fa8a9b4500, when Git replacement
+    objects are absent or externally disabled and no concurrent prefix swap
+    occurs, the tested static fixtures bind the explicit validation root's raw
+    ordinary HEAD/index/filesystem states against direct exact-prefix modes
+    160000 and 120000, caller GIT_INDEX_FILE/GIT_DIR/GIT_WORK_TREE redirection,
+    index/worktree disagreement, and missing metadata without reading protected
+    alias targets. The committed claim without the replacement-object condition
+    is false. No protection is established for arbitrary descendant gitlinks or
+    global filesystem access.
+
+  residual_risks:
+    - Git replacement-object binding is a confirmed bypass, not merely residual risk.
+    - Static check-to-traversal TOCTOU remains unbounded.
+    - Arbitrary descendant initialized gitlinks remain outside the claim.
+    - Non-UTF-8 Git path decoding has not been exercised.
+
+  next_concrete_action: >-
+    Coordinator should preserve this snapshot and finding, commission a fresh
+    scoped repair that forces replacement objects off in every Git probe/query,
+    add default and custom replacement-ref sentinels at ledger and ledger/goals,
+    archive a new immutable successor snapshot, and request fresh independent
+    review. This report does not authorize merge or status transition.
+
+  procedure_deviations:
+    - id: DEV-DIAGNOSTIC-SETUP-1
+      classification: non_evidentiary_fixture_setup_failure
+      detail: >-
+        The first comprehensive control program attempted to use a tracked
+        nested .git directory for the ordinary nested non-Git control. Git
+        correctly refused to commit that reserved path, so the program exited 1
+        before emitting its aggregate result. The control was rerun as a true
+        non-Git validation-root fixture and passed. No repository source,
+        report, handoff, or research artifact was changed by either temporary
+        fixture.
+      scientific_or_claim_effect: none
+    - id: DEV-SIBLING-EXPOSURE
+      classification: none
+      unexpected_sibling_path_exposure: false
+      sibling_artifact_access: false
+
+  review_attestation:
+    task_id: TASK-20260822-16c3d0
+    role: red-team
+    independent_session: true
+    joints_owned:
+      - raw HEAD versus effective HEAD metadata binding
+      - actual candidate-index provenance
+      - caller Git environment isolation
+      - protected-prefix non-read and goal-registration boundary
+      - retained direct-mode, symlink, ordinary-state, and identifier matrices
+    paths_actually_read:
+      - ledger/handoffs/TASK-20260822-16c3d0.yaml
+      - tools/validate_ledger.py at snapshot 0fbccff386c2e5e47da21ba4024137fa8a9b4500
+      - tools/test_goal_id_random_suffix.py at snapshot 0fbccff386c2e5e47da21ba4024137fa8a9b4500
+      - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-f532a1/repair-report.yaml at the snapshot
+      - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-f532a1/test-results.yaml at the snapshot
+      - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-f532a1/task-report.yaml at the snapshot
+      - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-2d1642/archive-receipt.yaml at the snapshot
+    read_sibling_reports: false
+    validator_report_read: false
+    verdict: breaks
+
+  artifact_paths:
+    - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-16c3d0/adversarial-code-review.yaml
+    - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260822-16c3d0/task-report.yaml

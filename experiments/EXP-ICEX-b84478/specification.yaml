@@ -1,0 +1,161 @@
+experiment:
+  id: EXP-ICEX-b84478
+  hypothesis_id: H-ICEX-fe2944
+  version: 1
+  title: >-
+    Stage cost-share vector of the index-calculus pipeline, with a
+    matrix-dominated planted control and a curve-free displacement-rank null
+  status: draft
+  objective: >-
+    Measure, in FIELD OPERATIONS, the normalised per-stage cost share vector of
+    the index-calculus pipeline as implemented in this program, over arity m in
+    {2, 3} and a fourfold range of factor-base size at toy prime-field scale, and
+    report the Amdahl ceiling 1/(1 - s) implied by the linear-algebra share s.
+    Separately, measure the shift-based displacement rank of the resulting
+    UNSTRUCTURED relation matrices against a curve-free random sparse null and a
+    block-circulant planted positive. This contract constructs no equivariant or
+    phi-stable factor base and measures no structured arm, so nothing it produces
+    bears on H-STR-002 in either direction.
+  inputs:
+    pipeline: campaign index-calculus pipeline with per-stage counters added
+    arity_m: [2, 3]
+    factor_base_sizes: [64, 128, 192, 256]
+    curves: toy prime-field short-Weierstrass, harness default ladder
+    seeds_per_cell: 10
+    host_load_threshold_one_minute_average: 4.0
+  controls:
+  - >-
+    NAMED NULL N1, MATRIX-DOMINATED PIPELINE, PLANTED DEFECT OF KNOWN SIZE. The
+    identical pipeline with the sparse solve replaced by dense Gaussian
+    elimination on the same matrix. Predicted magnitude, computed before the run
+    and binding - dense elimination costs about |V|^3 / 3 field operations
+    against the sparse solve's Otilde(|V|^2), so at the declared |V| the planted
+    linear-algebra operation count rises by a factor of about |V| / 3, i.e. about
+    21x at |V| = 64 and about 85x at |V| = 256. The instrument must report the
+    planted share s_planted satisfying s_planted / (1 - s_planted) within a
+    factor 2 of (|V| / 3) * s / (1 - s), where s is the measured sparse-solve
+    share at the same cell. A control that merely returns a number is not
+    accepted; the predicted magnitude is the acceptance test.
+  - >-
+    NAMED NULL N2, CURVE-FREE RANDOM SPARSE MATRIX. A random 0/1 matrix of
+    identical dimensions and identical row density, containing no curve, no
+    factor base and no relation. Displacement rank measured by the same code
+    path. CONSEQUENCE PRE-STATED - if this curve-free object reproduces the
+    displacement rank measured on the harness relation matrices, the
+    displacement-rank arm establishes nothing about elliptic curves or the ECDLP
+    and may not be quoted as doing so.
+  - >-
+    NAMED CONTROL N3, BLOCK-CIRCULANT PLANTED POSITIVE, DEFECT OF KNOWN SIZE. A
+    genuinely block-circulant 0/1 matrix of the same dimensions built from b
+    blocks, b in {2, 4, 8}. Predicted magnitude - shift-based displacement rank
+    at most 2b, i.e. at most 4, 8 and 16 against a null of min(rows, cols) in the
+    hundreds. The instrument must report each planted rank at or below 2b + 2.
+    The graded b ladder is the demonstrated dynamic range of this control.
+  - >-
+    NAMED CONTROL N4, INSTRUMENTATION NEUTRALITY. Total pipeline wall clock with
+    and without counters, same seeds, must agree within 5 percent.
+  - >-
+    NAMED CONTROL N5, HOST-LOAD GUARD. One-minute load average recorded at the
+    start and end of every run. A run whose load exceeds the declared threshold
+    is discarded as failed_infrastructure and never reported as a cost share.
+  independent_variables: [arity_m, factor_base_size, seed]
+  metrics:
+    primary:
+    - linear_algebra_cost_share_s_field_operations_dimensionless
+    - amdahl_ceiling_one_over_one_minus_s_dimensionless
+    - displacement_rank_of_relation_matrix_integer
+    secondary:
+    - per_stage_field_operation_counts_relation_search_solve_verify_assemble_sparse_solve_log_recovery
+    - per_stage_wall_clock_seconds_cross_check_only
+    - relation_matrix_rows_columns_and_row_density
+    - null_and_planted_displacement_ranks
+    - host_load_one_minute_average_at_each_run
+    - instrumented_versus_uninstrumented_total_wall_clock_seconds
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: >-
+      The linear-algebra cost share s, defined as the number of field operations
+      charged to matrix assembly plus sparse solve, divided by the total field
+      operations charged to all six pipeline stages. Both numerator and
+      denominator are counts of field operations; no wall-clock quantity appears
+      in this ratio.
+    formula: >-
+      s < 1e-3 at every cell, hence 1 / (1 - s) < 1.001 at every cell; and s is
+      strictly decreasing in |V| at fixed m across the declared fourfold range.
+    source: >-
+      H-ICEX-fe2944 HEUR-001, from the per-relation cost comparison between a
+      zero-dimensional system solve at arity m and an amortised sparse solve.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Factor-base sizes 64 to 256 and toy primes. The asymptotic regime in which
+      index-calculus linear algebra dominates is NOT reachable here and is NOT
+      tested. No transfer to that regime is claimed; the obstruction reported is
+      explicitly regime-bound to the tested cells.
+    correspondence: null
+  tail_checks:
+  - >-
+    The cell with the LARGEST |V| and the SMALLEST arity is where the matrix is
+    relatively most expensive and where HEUR-001 would fail first. It is reported
+    individually with its own seed distribution, never pooled into a mean.
+  - >-
+    The single seed with the largest observed s at every cell is reported beside
+    the cell median, so a heavy right tail in s cannot be averaged away.
+  replication:
+    seeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    independent_instances: 80
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 24
+    maximum_memory_gb: 16
+    maximum_runs: 200
+  stopping_rules:
+  - >-
+    Stop a run at 3600 s wall clock and record it as resource_exhaustion. A
+    stopped run is an infrastructure event and contributes no cost share.
+  - >-
+    Stop the whole cell if 3 of its 10 seeds exceed the host-load threshold;
+    reschedule the cell rather than reporting a partial distribution.
+  - >-
+    Stop the arity-3 arm at the largest |V| if a single cell consumes more than
+    8 CPU-hours, and report the remaining cells as unreached rather than
+    extrapolated.
+  invalidation_rules:
+  - >-
+    Instrumented and uninstrumented total wall clock differing by more than 5
+    percent invalidates every share in the affected configuration.
+  - >-
+    Any cost share computed from a ratio whose numerator and denominator are not
+    both field-operation counts is invalid_measurement. Wall clock divided by an
+    operation count is not a cost share.
+  - >-
+    A run whose recorded host load exceeds the declared threshold is
+    failed_infrastructure, not evidence.
+  - >-
+    A displacement-rank number produced without its matching null and planted
+    readings in the same run is invalid_measurement.
+  success_criterion: >-
+    At every tested cell, s < 1e-3 and 1 / (1 - s) < 1.001; s strictly decreasing
+    in |V| at each arity by more than the seed interquartile range; the
+    matrix-dominated planted control reported within a factor 2 of its predicted
+    magnitude; unstructured displacement rank within 2 of min(rows, cols) and
+    matching the curve-free random sparse null; every block-circulant plant
+    reported at or below 2b + 2.
+  falsification_criterion: >-
+    Any of the following falsifies H-ICEX-fe2944 within the tested scope - s at
+    or above 0.1 at any cell; s increasing in |V| at either arity; the
+    matrix-dominated planted control not detected at its predicted magnitude,
+    which additionally voids every share in the run; unstructured displacement
+    rank more than 2 below min(rows, cols), reproduced at a second seed; a
+    block-circulant plant reported above 2b + 2, which voids the
+    displacement-rank arm.
+  required_artifacts:
+  - per-run manifest, exact command, git commit and dirty-tree state, environment
+  - per-stage field-operation counters and per-stage wall clock, raw and summary
+  - the exact relation matrix of every run, serialised, with its dimensions and density
+  - null and planted matrices with the seeds that generated them
+  - host load at start and end of every run
+  - instrumented and uninstrumented timing pair for the neutrality check
+  - stdout, stderr, validity status and reason
+  assigned_to: executor
+  approved_by: null

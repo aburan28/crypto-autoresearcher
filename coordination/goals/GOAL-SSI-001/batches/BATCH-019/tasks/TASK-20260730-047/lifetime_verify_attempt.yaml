@@ -1,0 +1,200 @@
+lifetime_verify_attempt:
+  task_id: TASK-20260730-047
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-019
+  idea_id: IDEA-20260729-001
+  decision_ref: DEC-20260730-016
+  evidence_ref: EV-SSI-018
+  spike_kind: bounded_fc0_lifetime_verify_implementation_spike
+  maximum_runs: 1
+  run_index: 1
+  curve_isogeny_quantum_circuit_compute: false
+  pinned_host:
+    name: CollimationSieve
+    commit: 6f9188e4eb5611bcfdf29a3e1ec3cd69a29a50e9
+    repository_url: https://github.com/cpeikert/CollimationSieve
+    pin_record: coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-013/artifact_pin.yaml
+    process_extraction: coordination/goals/GOAL-SSI-001/batches/BATCH-012/tasks/TASK-20260730-013/process_extraction.md
+    recovery_spec: coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-017/recovery_spec.md
+    source_tree_at_pin:
+      - src/Main.hs
+      - src/Phase.hs
+      - src/Random.hs
+      - test/Spec.hs
+      - README.md
+      - package.yaml
+      - Setup.hs
+      - stack.yaml
+      - LICENSE
+      - ChangeLog.md
+      - .gitignore
+    integrity:
+      method: git_hash_object_against_pinned_blob_sha1
+      Main.hs: 2854fc0ab55a5db7c2bcc63833e12dd036cdadf3
+      Random.hs: f55685abb18b36aa25187f054ccb0889f250b3a4
+      Phase.hs: 16c2ff3968aef72ab78848061d0635b1066df60f
+      README.md: 966bba99d9ee7684631ca6c6be5699b3bc7bea15
+      Spec.hs: cd4753fc9c10722ad5c3ec4fd34de99972243b6c
+      match_artifact_pin: true
+  method: >-
+    Read-only inspection of pinned CollimationSieve@6f9188e4 sources via
+    immutable raw URLs / GitHub tree API; case-insensitive symbol search;
+    export and control-flow review of Main.hs; stub-feasibility assessment
+    against recovery_spec obligations. Zero simulator/curve/isogeny/circuit
+    execution. No invented Verify or FC0 lifetime APIs written into the host
+    or into undeclared archive helpers.
+  attempts:
+    - id: A1_repo_tree_inventory
+      target: pinned_source_tree
+      check: >-
+        Recursive git tree at 6f9188e4 lists only src/{Main,Phase,Random}.hs
+        plus packaging/docs; no recovery/, verify/, quantum/, or lifetime
+        modules.
+      outcome: present
+      detail: >-
+        Host source surface is three Haskell modules under src/; test/Spec.hs
+        is an empty placeholder ("Test suite not yet implemented").
+      evidence:
+        - github_api_tree_6f9188e4_recursive
+        - package.yaml_executables_collimation-sieve-exe
+
+    - id: A2_symbol_search_verify
+      target: Verify(x,k')
+      check: >-
+        Case-insensitive search for verify|Verify across Main.hs, Phase.hs,
+        Random.hs, Spec.hs, README.md, package.yaml.
+      outcome: absent
+      detail: >-
+        No Verify symbol, predicate, or key-check function. README mentions
+        "key agreement" only as CSIDH application context, not a verification
+        API. module Main exports only main.
+      evidence:
+        - src/Main.hs:7_module_Main_exports_main_only
+        - src/Main.hs:250-348_main_ends_in_statistics_printf
+        - process_extraction.md_verification_absent
+
+    - id: A3_symbol_search_recovery_postprocess
+      target: recovery_or_key_reconstruction
+      check: >-
+        Search for recover|candidate|secret|key-recovery|postprocess APIs
+        and inspect Main.hs post-sieve control flow.
+      outcome: absent
+      detail: >-
+        After sieve returns PhaseVector v, main computes histogram /
+        punctured-state probability summaries (histogram, puncture,
+        probTheta, probClosest) and prints a LaTeX table row. That is
+        classical probability reporting, not candidate reconstruction or
+        residual-tail enumeration. No B_post / B_recovery / B_candidate.
+      evidence:
+        - src/Main.hs:192-248_histogram_puncture_probClosest
+        - src/Main.hs:303-347_report_only_exit
+        - process_extraction.md_no_key_recovery_decision
+        - recovery_spec.md_explicitly_unimplemented_by_host
+
+    - id: A4_W_lifetime_api
+      target: W_label_W_sieve
+      check: Coherent-workspace birth/last-use/cleanup / uncompute hooks.
+      outcome: absent
+      detail: >-
+        Classical simulator only; no coherent W object, width/unit, or
+        uncompute/verify-cleanup API. Closest analogue remains lexical
+        PhaseVector temporaries in sieve'/collimate (BATCH-012/017).
+      evidence:
+        - process_extraction.md_W_not_represented
+        - lifetime_trace.yaml_W_label_W_sieve_unimplemented_spec_only
+
+    - id: A5_R_lifetime_api
+      target: R_label_R_sieve
+      check: QRACM allocation / address / destroy-after-last-query API.
+      outcome: absent
+      detail: Ordinary Massiv/Vector arrays only; no QRACM lifetime API.
+      evidence:
+        - process_extraction.md_R_ordinary_arrays_only
+        - lifetime_trace.yaml_R_label_R_sieve_unimplemented_spec_only
+
+    - id: A6_B_lifetime_api
+      target: B_input_B_attempt_B_sieve_B_post_B_recovery
+      check: Declared classical backing objects with cleanup preconditions.
+      outcome: partial
+      detail: >-
+        CLI args and SieveState counters (numQueries/numNodes/numDiscarded/
+        maxLength) exist, and PhaseVector arrays allocate heap, but there is
+        no FC0-declared B schedule, width/unit, retry-release contract, or
+        death-after-Verify cleanup. Partial only as ambient Haskell memory;
+        not an FC0 B lifetime API.
+      evidence:
+        - src/Main.hs:133-150_SieveState_counters
+        - src/Main.hs:251-274_CLI_and_sieve_invocation
+        - README.md_vector_length_and_RAM_warning
+        - lifetime_trace.yaml_B_classes_unimplemented_spec_only
+
+    - id: A7_M_tail_api
+      target: M_tail
+      check: Residual classical enumeration memory with width/order/stop rule.
+      outcome: absent
+      detail: Terminal classical search absent; no M_tail birth after recovery.
+      evidence:
+        - process_extraction.md_M_tail_absent
+        - artifact_pin.yaml_residual_classical_tail_absent
+        - lifetime_trace.yaml_M_tail_unimplemented_spec_only
+
+    - id: A8_cleanup_hooks
+      target: explicit_cleanup_uncompute
+      check: Explicit destroy/reset/uncompute hooks for retry or handoff.
+      outcome: absent
+      detail: >-
+        Discard/retry in sieve' drops lexical references to failed v before
+        recursing; that is source unreachability, not an FC0 cleanup hook
+        mapped into F_cleanup. No uncompute/verify-cleanup of W_*.
+      evidence:
+        - src/Main.hs:188-190_discard_retry_branch
+        - process_extraction.md_lexical_trace_not_fc0_cleanup
+        - component_to_F_map.yaml_F_cleanup_specified_not_instantiated
+
+    - id: A9_final_key_recovery_decision
+      target: success_exit_via_Verify
+      check: Final end-to-end success/failure decision relative to Verify.
+      outcome: absent
+      detail: >-
+        Sole normal exit is statistics report production (F_sim^c under
+        BATCH-012). recovery_spec treats report-only completion as failure
+        relative to F, not success. No success exit exists in the host.
+      evidence:
+        - src/Main.hs:276-347_print_results_only
+        - process_extraction.md_no_F_sim_to_F_map
+        - component_to_F_map.yaml_verify_implemented_false
+
+    - id: A10_narrowest_in_repo_stub_feasibility
+      target: in_repo_hook_or_stub_advancing_QM_MEMORY_MAP_or_QM_ERROR
+      check: >-
+        Assess whether a write-scope-only stub/hook can advance MEMORY/ERROR
+        without inventing host APIs or running curve/isogeny/circuit compute.
+      outcome: blocked_host_gap
+      detail: >-
+        The pinned host has no extension points, exported library API for
+        recovery/Verify, or FC0 object schedule to hook. module Main exports
+        only main; Phase/Random expose only types and DRBG. A stub Verify or
+        invented W/R/B/M_tail wrapper written under this task's write_scope
+        would not be hosted by CollimationSieve@6f9188e4 and would fabricate
+        lifetimes/predicates absent from the pin — prohibited by handoff
+        constraints. Therefore the narrowest honest advance is an explicit
+        host-gap certificate, not a pretend implementation.
+      evidence:
+        - src/Main.hs:7_module_Main_main_only
+        - package.yaml_library_source_dirs_src_no_recovery_module
+        - recovery_spec.md_not_claimed_implemented_by_host
+        - DEC-20260730-016_spike_or_host_gap_certificate
+
+  summary:
+    verify_outcome: absent
+    W_api_outcome: absent
+    R_api_outcome: absent
+    B_api_outcome: partial_ambient_haskell_not_fc0
+    M_tail_api_outcome: absent
+    cleanup_hooks_outcome: absent
+    final_key_recovery_decision_outcome: absent
+    stub_feasibility_outcome: blocked_host_gap
+    any_fc0_lifetime_implemented: false
+    any_verify_implemented: false
+    host_structurally_report_only: true
+    recommended_status: host_gap_certified

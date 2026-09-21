@@ -1,0 +1,182 @@
+# =============================================================================
+# TASK-20260918-c93f0a -- Coordinator-only LEDGER ARCHIVE of DEC-20260918-4b7e21
+# and the records it writes.
+#
+# This is the task that makes DEC-20260918-4b7e21 official. Until its commit is
+# written and verified, every transition that decision records is PENDING, the
+# review round it opens may not be dispatched, and no downstream act may treat
+# any of it as durable evidence.
+#
+# IT CARRIES THE REPAIR OF A DISCLOSED DEFECT. The authoring session had no
+# shell (DEC-20260918-4b7e21, PD-1), so `tools/allocate_id.py --check` and
+# `tools/validate_ledger.py` were never run. Both are hard gates here, BEFORE
+# the commit. If either fails, the commit does not happen and the failure is
+# reported -- it is not worked around.
+# =============================================================================
+handoff:
+  id: TASK-20260918-c93f0a
+  from: coordinator
+  to: coordinator
+  archive_kind: ledger
+  opened_by_decision: DEC-20260918-4b7e21
+  goal_id: GOAL-SEMBIN-cbf422
+  batch_id: null
+
+  objective: >-
+    Commit the exact ledger records of DEC-20260918-4b7e21 -- the decision, the
+    review card it opens, the two archival cards, and the GOAL-SEMBIN-cbf422
+    head checkpoint -- as one isolated ledger archive, and record a post-commit
+    receipt the dispatcher can verify content-first.
+
+  uncertainty_reduced: >-
+    Whether this engagement's rulings are durable. A decision that exists only
+    in a working tree is unpublished, not official, and cannot carry the
+    propagation block it asserts. The block on EV-ICPERF-a8080e's ladder finding
+    is the load-bearing thing that needs to be real rather than notional.
+
+  inputs:
+    - the five declared artifact paths below
+    - origin/main
+
+  constraints:
+    - id: SC-1
+      text: >-
+        STAGE ONLY THE DECLARED PATHS. Nothing else, and in particular nothing
+        under `experiments/`, `coordination/` or `tools/`. This archive adds
+        records; it repairs nothing and touches no immutable artifact.
+    - id: SC-2
+      text: >-
+        MERGE origin/main INTO THE BRANCH, NEVER REBASE. Record the base commit
+        checked and the merge outcome in the receipt. If the merge conflicts
+        inside any ledger record, STOP: the resolution is a new superseding
+        record under a new id, never an edit that picks a side.
+    - id: SC-3
+      text: >-
+        DO NOT EDIT ANY RECORD TO MAKE THE VALIDATOR PASS if the failure is
+        substantive. A schema failure on a record written without a validator is
+        expected and is repaired by fixing the record; a failure that reports a
+        real contradiction is reported, not silenced.
+    - id: SC-4
+      text: >-
+        An archive receipt is not evidence and asserts nothing mathematical. It
+        asserts only that these bytes were committed.
+    - id: SC-5
+      text: >-
+        DO NOT bind `tools/run_supersession_registry.yaml` or any other shared
+        append-only registry in this receipt's `path_sha256`. That is the exact
+        defect DEC-20260918-4b7e21 diagnoses on TASK-20260913-525e13, and
+        repeating it here would be inexcusable.
+
+  deliverables:
+    - one commit naming TASK-20260918-c93f0a and its record ids
+    - a post-commit ledger receipt at the declared receipt path
+    - the `allocate_id.py --check` output for all four tokens, in the receipt
+    - the `validate_ledger.py` exit status and error delta, in the receipt
+
+  artifact_paths:
+    - ledger/decisions/DEC-20260918-4b7e21.yaml
+    - ledger/corrections/CORR-20260918-3e91d7.yaml
+    - ledger/handoffs/TASK-20260918-7d15e6.yaml
+    - ledger/handoffs/TASK-20260918-c93f0a.yaml
+    - ledger/handoffs/TASK-20260918-a2f84c.yaml
+    - ledger/goals/GOAL-SEMBIN-cbf422.yaml
+    - coordination/archives/TASK-20260918-c93f0a/ledger-receipt.json
+  write_scope:
+    - ledger/decisions/DEC-20260918-4b7e21.yaml
+    - ledger/corrections/CORR-20260918-3e91d7.yaml
+    - ledger/handoffs/TASK-20260918-7d15e6.yaml
+    - ledger/handoffs/TASK-20260918-c93f0a.yaml
+    - ledger/handoffs/TASK-20260918-a2f84c.yaml
+    - ledger/goals/GOAL-SEMBIN-cbf422.yaml
+    - coordination/archives/TASK-20260918-c93f0a
+  not_in_scope_note: >-
+    knowledge/findings/KN-FIND-9cba50.md is NOT in scope and is NOT staged. The
+    quarantine is carried by CORR-20260918-3e91d7; the corpus entry itself is
+    immutable and is not edited, which is the whole mechanism. Nor is
+    knowledge/INDEX.md, which is gitignored and rebuilt on demand.
+  archived_by: TASK-20260918-c93f0a
+  archived_by_note: >-
+    Self-owning, which is the ordinary shape for an archival task: it archives
+    its own receipt along with the records it commits. There is no second
+    archival task behind it and there must not be.
+
+  record_ids:
+    - DEC-20260918-4b7e21
+    - CORR-20260918-3e91d7
+    - TASK-20260918-7d15e6
+    - TASK-20260918-c93f0a
+    - TASK-20260918-a2f84c
+    - GOAL-SEMBIN-cbf422
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 2
+    maximum_runs: 0
+
+  completion_gate:
+    - id: CG-1
+      text: >-
+        `python3 tools/allocate_id.py --check DEC-20260918-4b7e21
+        CORR-20260918-3e91d7 TASK-20260918-7d15e6 TASK-20260918-c93f0a
+        TASK-20260918-a2f84c` reports all FIVE free. Note the known
+        self-reference trap: `--check` scans the working tree, which now
+        contains these files, so it will report them taken; the meaningful check
+        is against COMMITTED state (`git grep` at HEAD), which must return zero
+        occurrences for each. THIS IS THE GATE THAT WAS SKIPPED AT AUTHORING
+        TIME. If
+        any token collides, the colliding record is REMINTED and rewritten
+        before the commit -- never after, because after the commit it is
+        immutable and an identifier remap is a last resort, not a repair
+        (AGENTS.md rule 15).
+    - id: CG-2
+      text: >-
+        `python3 tools/validate_ledger.py` runs to completion (background it;
+        it takes several minutes) and introduces NO NEW ERROR relative to the
+        pre-merge base. Pre-existing errors on `main` are not this branch's to
+        fix and are recorded as the baseline.
+    - id: CG-3
+      text: >-
+        Complete the sweep DEC-20260918-4b7e21 declares incomplete: search
+        `experiments/` for `crossover_cofactor_absorbed` and
+        `shift_upward_from_charging`. Ripgrep timed out there twice; use a
+        narrower path or a slower tool. If any citation outside
+        CORR-20260917-02cfe6 and RUN-SEMBIN-a7a2f3's own C-FLOOR detail is
+        found, DO NOT COMMIT -- report it, because the decision's
+        "no propagation is owed" ruling would then be wrong and needs a
+        superseding record rather than a quiet fix.
+    - id: CG-4
+      text: >-
+        The commit changes exactly the declared paths, is reachable from HEAD,
+        has the expected parent, and preserves the recorded hashes.
+    - id: CG-5
+      text: >-
+        The receipt records the `origin/main` base commit checked and the merge
+        outcome.
+
+  post_archive_duties:
+    - >-
+      PUSH THE BRANCH AND OPEN OR REFRESH A PR AGAINST `main` naming
+      DEC-20260918-4b7e21, TASK-20260918-7d15e6, TASK-20260918-c93f0a and
+      TASK-20260918-a2f84c. This archive adds new `DEC-*` and `TASK-*` records,
+      so the PR duty fires. NOTE: the session driving this Coordinator has
+      stated it will perform the push and the PR itself; this duty is recorded
+      so it is not lost, not to claim it was done.
+    - >-
+      Only after the receipt verifies may TASK-20260918-7d15e6 be dispatched,
+      and only after its DP-3 lane claim is taken.
+
+  return_format: >-
+    The receipt, plus a plain statement of which completion gates passed and
+    which did not. A gate that did not pass is reported as not passed; an
+    archive that half-happened is an evidence-integrity failure and is never
+    described as a success.
+
+  handoff_record: ledger/handoffs/TASK-20260918-c93f0a.yaml
+  state: written_not_executed

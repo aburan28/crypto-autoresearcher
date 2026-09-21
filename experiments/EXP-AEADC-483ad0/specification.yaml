@@ -1,0 +1,226 @@
+experiment:
+  id: EXP-AEADC-483ad0
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-52e00e; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-52e00e
+  question_id: RQ-AEADC-8db132
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure derived-initial-state collision rates of a two-path AEAD nonce derivation as a function
+    of the permitted nonce-length mix, decomposed by collision class, against a branchless random-map
+    null
+  objective: 'The one uncertainty a run reduces is whether the branch that a mode takes for a non-default-length
+    nonce measurably changes how often the mode derives the same initial state from distinct nonces,
+    as a function of how much a policy mixes lengths. Concretely: (i) does the total derived-state
+    collision rate at fixed population depend on f, the fraction of non-default-length nonces, with
+    a dependence exceeding sampling noise at any of the tested state widths; (ii) is that dependence
+    attributable to the cross-path collision class -- pairs where one state came from direct injection
+    and the other from compression -- which by construction is exactly zero at f = 0 and f = 1 and
+    can only be nonzero when a policy mixes, and which no single-path analysis produces; (iii) is
+    the effect a property of the branch rather than of the compressing primitive, established by running
+    the compression path as a seeded ideal function throughout, by requiring the branchless null over
+    identical nonce populations to be flat in f, and by confining a real compressing function to a
+    single arm whose divergence is reported and explicitly handed to the polynomial-MAC question rather
+    than claimed here.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: for the declared two-path
+      derivation model at state widths 16, 20 and 24 bits, over the declared nonce policies and population
+      sizes, the measured collision rates and their class decomposition were as reported, while the
+      branchless null remained flat in f and the endpoint controls reproduced their closed-form single-path
+      rates. What does NOT follow: nothing about AES-GCM, AES-GCM-SIV, ChaCha20-Poly1305 or any named
+      mode, since the derivation is a declared model; no forgery, attack, break or security consequence,
+      since a derived-state collision is a statement about a map; nothing about whether any deployment
+      permits non-default nonce lengths; nothing about full-width states, which are not tested and
+      are not projected to; and no statement about the compressing function used in the single real-function
+      arm, whose behaviour belongs to RQ-POLYMAC-7c89e4.'
+  inputs:
+    procedure: 'STAGE 0, zero compute: specify the two-path derivation including the direct-injection
+      padding rule, define the policy family in f, derive closed-form rates for all three collision
+      classes, and hash the file. STAGE 1, minutes: implement the derivation at three state widths
+      with a seeded ideal function on the compression path; validate that path labels are carried
+      correctly on a fixture set. STAGE 2, minutes: implement the policy sampler and verify its measured
+      length distribution against declared f at every policy. STAGE 3, tens of minutes: sweep f over
+      seven values, population over three sizes and state width over three values at 100 populations
+      per cell, counting collisions exactly and tagging every collision by class. STAGE 4, same invocation:
+      run the branchless null over the identical populations with a disjoint seed schedule. STAGE
+      5, minutes: run f = 0.5 at width 20 with a pinned real compressing function. STAGE 6, zero compute:
+      emit the rate surface, the class decomposition, the closed-form deviations, the null flatness
+      check and the endpoint controls into an immutable run record via harness/runner.py.'
+    instrument: 'Python 3, standard library only: a derivation module with a declared direct-injection
+      padding rule and a seeded lazily-sampled ideal function on the compression path, a policy sampler,
+      an exact collision counter using a dict keyed by derived state with path labels, and a branchless
+      null module exposing the identical interface. The real-function arm uses a pinned pure-Python
+      compressing function validated against published test vectors, truncated to the state width
+      by a declared reduction that is recorded. Manifest emission and seeding through harness/runner.py,
+      following harness/run_blocknull.py. No Sage, no network.'
+    parameters: 'State widths 16, 20 and 24 bits. Non-default-length fraction f in {0, 0.1, 0.25,
+      0.5, 0.75, 0.9, 1.0}. Population sizes 2^8, 2^10 and 2^12, extended to 2^13 at width 24 for
+      the survival metric. 100 independent populations per cell. Default nonce length fixed at 12
+      bytes; non-default lengths drawn uniformly from {8, 10, 16, 20} bytes. Direct-injection padding
+      rule declared in stage 0. Three arms: branch, branchless null, real-compression at f = 0.5 and
+      width 20 only.'
+  controls:
+  - Branchless null arm over the identical nonce populations in the same invocation, whose rate must
+    be flat in f.
+  - Endpoint controls at f = 0 and f = 1, each of which must reproduce its single-path closed-form
+    rate and must show zero cross-path collisions by construction.
+  - Stage-1 closed-form predictions for all three collision classes, hashed before the sweep.
+  - Real-function arm on the compression path at one f, with any divergence reported as a compressing-function
+    property and handed to RQ-POLYMAC-7c89e4.
+  - 'Nonce sampler audit: measured length distribution per policy compared against its declared f.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): A branchless null, executed in the same invocation over the identical
+    nonce populations: the derivation is replaced by a single seeded random map applied to every nonce
+    regardless of length, so there is exactly one path and no cross-path class exists. For the branch
+    arm to mean anything, the null must show a collision rate equal to the closed-form birthday rate
+    for the state width and population, and crucially it must show NO dependence on f, since the branchless
+    map cannot see nonce length. If the null''s rate varies with f, the sampler is correlating nonce
+    length with something else and the whole sweep is confounded. A second control is the single-length
+    policy at f equal to zero and at f equal to one, each of which must reproduce the corresponding
+    single-path closed-form rate.'
+  independent_variables:
+  - non-default-length fraction f
+  - population size
+  - derived-state width
+  - 'arm: two-path branch versus branchless null'
+  - 'compression-path occupant: ideal function versus pinned real function'
+  metrics:
+    primary:
+    - total derived-state collision rate per cell with confidence interval
+    - 'collision count by class: direct-direct, compressed-compressed, cross-path'
+    - branchless null collision rate per matched cell and its fitted slope in f
+    - relative deviation of each class rate from its closed-form prediction
+    - largest population at which cross-path collisions remain below one tenth of total
+    secondary:
+    - measured versus declared nonce-length distribution per policy
+    - collision rate difference between the ideal and real compression arms at the matched cell
+    - wall-clock and population count per cell
+    - count of derived states carrying an ambiguous path label, which must be zero
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The collision rate of the branchless null and the cross-path collision count at the
+      policy endpoints.
+    formula: 'Branchless null: for population n and state width w, the expected number of colliding
+      pairs is n(n-1)/2 divided by 2^w, with no dependence on f whatsoever, and the fitted slope of
+      rate against f must be zero to within its confidence interval. Endpoints: the cross-path collision
+      count is exactly zero at f = 0 and at f = 1, since a cross-path collision requires one state
+      from each path and each endpoint policy produces states on one path only. Direct-direct class
+      at f: expected colliding pairs equal m(m-1)/2 divided by the size of the direct-injection image,
+      with m the number of default-length nonces in the population; compressed-compressed likewise
+      with the compressed image size; cross-path equal m times (n minus m) divided by the size of
+      the intersection of the two images, all evaluated exactly in stage 0 once the padding rule is
+      fixed.'
+    source: Pre-registered in the parent proposal IDEA-20260816-52e00e before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'State widths of 16 to 24 bits and populations to 2^13 are chosen so that collisions
+      occur at countable rates and every class can be tagged and enumerated exactly, rather than estimated.
+      The transfer assumption is stated and not exercised: the class decomposition into direct, compressed
+      and cross-path is combinatorial and would read identically at full state width, but the RATES
+      are properties of these widths and populations and are not projected. The width sweep across
+      three values exists precisely so that a reader can see whether the class structure is stable
+      in width or is an artifact of the smallest one, and the survival metric names the population
+      beyond which generic birthday behaviour swamps the branch.'
+    correspondence: null
+  tail_checks:
+  - Cells at f = 0 and f = 1 are checked for any cross-path collision, which must be exactly zero
+    and whose presence is a labelling bug.
+  - The largest populations at width 16 are checked for saturation, where nearly every state collides
+    and the rate is uninformative.
+  - Policies at f = 0.1 are checked for populations containing zero non-default nonces by chance,
+    which must be excluded from the cross-path rate.
+  - The measured length distribution is checked at the extreme policies where sampling variance in
+    f is largest.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt and report the sweep confounded if the branchless null shows a fitted slope in f whose interval
+    excludes zero.
+  - Halt if any cross-path collision is recorded at f = 0 or f = 1.
+  - Cap total wall clock at three core-hours and report completed cells by name, listing incomplete
+    cells as missing rather than as zero.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A completed sweep in which the branchless null is flat in f, the endpoint cross-path
+    counts are exactly zero, the measured length distributions match their declared f, and every class
+    rate is reported against its closed-form prediction with a stated relative deviation.
+  falsification_criterion:
+  - Total collision rate is independent of f at every width and population, retiring the graded framing
+    at these parameters.
+  - The branchless null shows dependence on f, confounding the sweep.
+  - Cross-path collisions appear at a policy endpoint.
+  - A class rate deviates from its closed form by more than the declared relative tolerance.
+  - The measured nonce-length distribution disagrees with the declared f.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-52e00e
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The direct-injection padding rule is named but not fixed, and it alone decides whether the two
+    images can intersect; the Coordinator must set it, and the first prediction is explicitly refused
+    until then.
+  - The size of the compressed image under the ideal function is treated as the full state space,
+    which is an approximation that should be stated exactly before the closed forms are used.
+  - The reduction that truncates a real compressing function to the state width is asserted and must
+    be specified, since a poor truncation would manufacture the divergence that arm is meant to detect.
+  - The relative tolerance of 0.2 for closed-form agreement is asserted rather than derived from the
+    sampling variance at 100 populations per cell.

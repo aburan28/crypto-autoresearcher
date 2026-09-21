@@ -1,0 +1,249 @@
+idea:
+  id: IDEA-20260816-70b60d
+  question_id: RQ-SHAONE-081e3a
+  added: '2026-08-16'
+  title: 'Treat the deployed counter-cryptanalysis collision detector as a measuring instrument rather
+    than a safety property: re-implement its predicate from primary specification and measure its
+    false-positive rate on benign corpora and its true-positive rate on MD5-scale near-collision objects
+    the harness can actually build.'
+  class: control
+  claim: '(A) A collision detector is a binary predicate over messages, and every binary predicate
+    has two error rates. The deployed counter-cryptanalysis check is universally discussed in terms
+    of what it catches and never in terms of what it flags wrongly, yet a false-positive rate is exactly
+    what determines whether a detector can be deployed on a hot path over arbitrary data. (B) Both
+    rates are measurable within this harness''s budget, and they are measurable independently of any
+    SHA-1 collision. The false-positive rate is measured by running the re-implemented predicate over
+    large benign corpora -- random bytes, real file corpora already present in this repository, compressed
+    data, and adversarially structured but non-colliding inputs -- and counting flags. The true-positive
+    rate is measured by running the same predicate over near-collision-bearing objects at MD5 scale,
+    which GOAL-MD5-001 can produce and verify end to end. (C) The claim is that a detector''s operating
+    point can be reported as a pair of measured rates with confidence intervals scoped to the corpora
+    tested, and that this pair is a more useful and more falsifiable object than the qualitative statement
+    that a detector works. Further, that the false-positive rate is not uniform over input distributions,
+    and that its variation across input distributions is itself the reportable quantity. (D) WHAT
+    IS NOT CLAIMED: not that the detector is unsound, not that it is sound, not that any deployed
+    system is at risk or is safe, not what any published specification says, and not any collision
+    of any kind. A measured false-positive rate on a corpus is a statement about that corpus and that
+    re-implementation. (E) A measured rate of exactly zero across all corpora is a fully successful
+    and informative outcome, and would be reported as an upper bound with its confidence interval
+    rather than as a zero.'
+  mechanism: 'STAGE 1: the predicate must come from primary text. Per the RQ-SHAONE-081e3a constraint,
+    the counter-cryptanalysis specification is filed as a KN-LIT entry at a stated provenance level
+    before anything is implemented; a remembered description is inadmissible and the experiment does
+    not start without the filing. STAGE 2: re-implement the predicate against declared test vectors,
+    and validate the re-implementation by requiring it to agree with any reference implementation
+    available offline on those vectors. Disagreement is reported and halts the run. STAGE 3: assemble
+    benign corpora with declared composition -- uniform random bytes, the repository''s own text and
+    YAML corpus, high-entropy compressed data, structured binary, and non-colliding but adversarially
+    shaped inputs constructed to sit near the predicate''s decision boundary. STAGE 4: run the predicate
+    over every corpus, counting flags per byte and per message, and report the false-positive rate
+    per corpus with a Clopper-Pearson interval, including the case of zero flags. STAGE 5: run the
+    identical predicate over MD5-scale near-collision objects obtained from the MD5 pipeline, measuring
+    the true-positive rate on objects whose colliding structure is independently certified. STAGE
+    6: the null object control -- run the identical predicate over messages that are byte-length-matched
+    and entropy-matched to the near-collision objects but carry no near-collision structure, so that
+    a flag on the signal arm can be attributed to the structure rather than to the shape of the input.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Read RQ-SHAONE-081e3a and GOAL-SHA1-001 in full, both of which name detector completeness
+      as the highest-value target. Ran: grep -ril ''counter-cryptanalysis'' across ledger and knowledge
+      (no proposal hits); grep -ril ''false.positive rate'' ledger/proposals (27 hits, sampled); grep
+      -l ''RQ-SHAONE'' ledger/proposals/*.yaml (zero); grep -ril ''collision detect'' ledger knowledge
+      experiments. Read knowledge/techniques/KN-TECH-066.md and knowledge/literature/KN-LIT-91b680.md.'
+    results: No proposal in ledger/proposals mentions counter-cryptanalysis at all. The 27 false-positive-rate
+      proposals are program-self-audit records under RQ-INSTR-f8faa0 and the August 2026 self-audit
+      wave (the blacklist names IDEA-20260815-bc26a3 and siblings as owning the program's own false-positive
+      rate) -- they measure this research program's own error rate, not a cryptographic detector's.
+      KN-LIT-91b680 records the chosen-prefix framework but says nothing about detection. GOAL-SHA1-001's
+      next_action explicitly directs that the detector audit run first and that the adversarial control
+      be built before coverage is reported, so this proposal instantiates a directive the goal already
+      carries but no proposal has yet expressed.
+    verdict: 'UNVERIFIED. No assertion is made about whether anyone has published false-positive measurements
+      for a collision detector; it would be unsurprising if a deployment report contains some. What
+      is claimed new here is internal and specific: this repository holds zero proposals against the
+      detector, and the framing of a cryptographic countermeasure as an instrument with two measured
+      error rates and a shape-matched null arm is assembled from the program''s own instrument-validity
+      discipline (RQ-INSTR-f8faa0) applied to an external artefact rather than to itself.'
+  object_first_candidate:
+    tracked_object: 'The detector''s flag decision on a message, together with the internal recomputation
+      state that produces it: the set of candidate disturbance-vector positions the predicate tests,
+      and which of them fire. What is followed is not the message but the FIRING PATTERN -- which
+      tested positions raise a candidate -- across a whole corpus.'
+    lossiness: Genuinely lossy. The firing pattern discards the message content entirely and retains
+      only a bit-vector over tested positions. It is compatible with the detector's operation because
+      the final flag is a function of the firing pattern alone, so the retained part determines the
+      output and propagates deterministically. What is discarded -- the message bytes -- is what would
+      let a reader reconstruct why a given input fired, so the projection must be paired with retention
+      of the flagging inputs themselves for any flag that occurs. That retention requirement is the
+      honest cost of the lossiness and is written into the procedure.
+    propagation: One step of the target operation is processing one message block. It acts on the
+      tracked object by updating the recomputation states for each tested position and possibly setting
+      bits in the firing pattern; bits once set are not cleared within a message, so the pattern is
+      monotone within a message and resets between messages. This makes per-corpus firing-pattern
+      statistics accumulable in one streaming pass, which is what makes very large corpora affordable.
+    survival_score: The firing pattern survives across an entire corpus and dissolves only in the
+      sense that it becomes uninformative once the flag rate saturates -- concretely, if more than
+      a declared fraction of tested positions fire on typical benign inputs, the pattern no longer
+      distinguishes anything and the detector's operating point is degenerate. That saturation fraction
+      is one of the reported quantities and its measurement is itself the point of the false-positive
+      arm.
+  null_object_control: 'Shape-matched non-colliding messages: for every MD5-scale near-collision object
+    in the true-positive arm, construct a message of identical byte length, identical block alignment
+    and matched byte-entropy that contains no near-collision structure, and run the IDENTICAL predicate
+    in the same invocation. The null must show a flag rate consistent with the benign-corpus false-positive
+    rate. If the shape-matched null flags at a materially elevated rate, then flags in the signal
+    arm are attributable to message shape rather than to colliding structure and the true-positive
+    measurement means nothing.'
+  discriminated_from:
+  - 'IDEA-20260815-bc26a3 and the August 2026 self-audit wave measuring this program''s own false-positive
+    rate: those audit the research process; this measures an external cryptographic predicate''s error
+    rates over declared input corpora, and shares only the word.'
+  - 'KN-LIT-91b680 (chosen-prefix survey note): describes the attack framework at confidence reported
+    and contains no detection instrument; this proposal asserts nothing about its content.'
+  - 'A source-level reading of the detector''s criterion: that is a separate and complementary audit
+    (and is proposed separately in this batch as a symbolic coverage count); this one is purely empirical
+    and produces rates, not coverage statements.'
+  - 'Any proposal to construct an evading object: constructing an evader is a different and harder
+    deliverable; this contract measures rates on objects that already exist or that the MD5 pipeline
+    can build, and deliberately does not attempt evasion.'
+  - 'RQ-INSTR-f8faa0''s machine-variance work: that isolates timing noise; this measures a deterministic
+    predicate whose output does not depend on machine speed at all, so its error bars are binomial
+    rather than timing-derived.'
+  assumptions:
+  - The counter-cryptanalysis specification can be obtained in primary text and filed as KN-LIT; if
+    it cannot, the experiment does not run, per the RQ constraint.
+  - The re-implementation is faithful, evidenced by agreement with declared test vectors; any disagreement
+    halts the run rather than being absorbed.
+  - 'MD5-scale near-collision objects are an admissible true-positive substrate for a predicate whose
+    declared domain is a different hash function. THIS IS THE WEAKEST ASSUMPTION IN THE PROPOSAL and
+    is stated as a limit, not glossed: if the predicate is hash-specific its true-positive arm may
+    be inapplicable and only the false-positive arm survives.'
+  - Corpus composition is declared in advance and not adjusted after seeing flag counts.
+  - Flag events are independent enough across messages for a binomial interval; clustered flags are
+    reported as clusters instead.
+  predictions:
+  - metric: false-positive rate on uniform random byte corpus
+    direction: lower
+    minimum_effect: predicted below 1e-6 per message; reported as a Clopper-Pearson upper bound if
+      zero flags occur
+  - metric: variation in false-positive rate across the five declared corpora
+    direction: different
+    minimum_effect: 'explicit refusal to pre-commit a numeric threshold: the corpora differ in entropy,
+      alignment and structure by design, and pre-committing a spread would presuppose the very distribution-dependence
+      being measured. Reported as the ratio of highest to lowest corpus rate with intervals.'
+  - metric: true-positive rate on certified MD5-scale near-collision objects, conditional on the predicate
+      being applicable to that hash
+    direction: higher
+    minimum_effect: 0.9
+  - metric: flag rate on shape-matched null messages relative to benign-corpus rate
+    direction: different
+    minimum_effect: predicted indistinguishable; a ratio above 10 voids the true-positive arm
+  minimal_test:
+    design: 'The cheapest discriminating measurement is the false-positive arm alone, and it needs
+      no collision of any kind. Once the predicate is re-implemented and validated against test vectors,
+      stream it over the five declared corpora totalling a declared byte budget, counting flags and
+      firing patterns in one pass. This costs CPU-hours and no GPU, requires no MD5 pipeline, and
+      answers whether the detector''s operating point is even measurable at this budget: if zero flags
+      occur across all corpora, the deliverable is a set of Clopper-Pearson upper bounds, one per
+      corpus, which is a real and citable instrument characterisation. If flags occur, the flagging
+      inputs are retained and the firing patterns immediately localise which tested positions are
+      responsible, which is the more interesting outcome and the one that would justify the far more
+      expensive true-positive arm.'
+    controls:
+    - Shape-matched, entropy-matched, non-colliding messages run in the same invocation as the true-positive
+      arm.
+    - Uniform random byte corpus as the distributional floor.
+    - Bit-flipped variants of the near-collision objects, which destroy the structure while preserving
+      shape almost exactly.
+    - Re-implementation agreement check against declared test vectors, run before and after the corpora
+      sweep to detect state corruption.
+    - A deliberately non-detecting stub predicate run over the same corpora to confirm the harness
+      reports zero when it should.
+    required_metrics:
+    - false-positive count and rate per corpus, with Clopper-Pearson interval including the zero-flag
+      case
+    - firing-pattern histogram over tested positions, per corpus
+    - true-positive count and rate on certified near-collision objects
+    - flag rate on shape-matched nulls
+    - bytes and messages processed per corpus
+    - test-vector agreement fraction before and after the sweep
+  falsification_conditions:
+  - The re-implementation disagrees with declared test vectors, which halts the run and yields no
+    rate at all.
+  - Shape-matched nulls flag at a rate more than 10x the benign rate, voiding the true-positive arm.
+  - Flag events cluster so heavily that a binomial interval is inapplicable and no stable rate exists.
+  - The predicate proves inapplicable to MD5-scale objects, in which case the true-positive arm is
+    dropped and reported as not measured -- explicitly not as a negative result about the detector.
+  - More than the declared saturation fraction of tested positions fires on benign inputs, showing
+    the operating point is degenerate at this re-implementation.
+  confounders:
+  - Corpus composition dominates the false-positive rate, so a rate is only ever a statement about
+    the corpus and a favourable corpus could manufacture any answer.
+  - A faithful-looking re-implementation can differ subtly from the specification in ways test vectors
+    do not cover, and that difference would be silently attributed to the detector.
+  - MD5-scale objects may exercise a different code path than the predicate's intended domain, confounding
+    true positives with domain mismatch.
+  - Streaming implementations can reset state at buffer boundaries, creating artificial flags or artificially
+    suppressing them at message edges.
+  interpretation_limits:
+  - A measured false-positive rate characterises THIS re-implementation on THESE corpora and is not
+    a property of any deployed detector binary.
+  - Zero flags is an upper bound with a confidence interval, never a proof of zero.
+  - Nothing measured here says anything about whether the detector's criterion covers the attack class
+    -- that is a separate symbolic question and this contract deliberately does not answer it.
+  - No statement about any deployed repository, certificate, or system follows from any outcome.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The deliverable is a pair of error rates for a predicate.
+    memory_exponent: No attack memory exponent is claimed. The detector's own working memory is reported
+      as a measured instrument cost in bytes.
+    best_known: The incumbent is the qualitative claim, recorded nowhere in this repository as a measurement,
+      that the deployed counter-cryptanalysis check makes continued SHA-1 use safe. This proposal
+      does not beat any algorithm; it replaces an unquantified claim with two rates and their intervals.
+    hidden_overhead: Obtaining the specification in primary text is the true gate and may consume
+      the entire budget without producing a single measurement -- and per the RQ constraint, that
+      outcome is a stop, not a workaround. Corpus curation is more work than it looks and every corpus
+      choice is arguable. Retaining flagging inputs for later inspection can grow storage unexpectedly
+      if the rate is higher than predicted.
+  dominated_by: 'n/a (no result claimed). Checked across time, memory and data/query axes: this proposal
+    produces no point on any attack frontier because it measures a detector''s error rates rather
+    than attacking anything, so every frontier row -- the single UNVERIFIED chosen-prefix cost figure
+    in RQ-SHAONE-081e3a being the only one this repository holds for the domain -- is simply on a
+    different axis set. Not null; inapplicable, and stated so.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: the state of the
+    art in this repository for the detector is no number at all, and the deliverable is a per-corpus
+    false-positive rate with Clopper-Pearson intervals plus, conditionally, a true-positive rate on
+    certified objects. The comparison is between an unquantified claim and an interval, not between
+    two speeds.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Separable parts, and they diverge sharply. (1) That the specification
+    is obtainable in primary text and filable as KN-LIT under the network policy: about 0.5, and this
+    gates everything -- it is the single most likely reason the whole line stops. (2) Conditional
+    on (1), that a faithful re-implementation passes declared test vectors: about 0.8. (3) Conditional
+    on (2), that the false-positive arm yields usable per-corpus rates or upper bounds: about 0.9,
+    since it is a streaming count and hard to get wrong once the predicate exists. (4) That the true-positive
+    arm is applicable to MD5-scale objects at all: about 0.35, because the predicate is likely hash-specific
+    and this is the assumption I would bet against. Composite for the full deliverable is roughly
+    0.13; for the false-positive characterisation alone, about 0.36.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-SHAONE-081e3a
+  - GOAL-SHA1-001
+  - GOAL-MD5-001
+  - RQ-MDFIVE-6870c1
+  - RQ-INSTR-f8faa0
+  - KN-LIT-91b680
+  - KN-TECH-066
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SHAONE-febbd6

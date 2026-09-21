@@ -1,0 +1,148 @@
+schema: crypto.autoresearch.protocol_amendment.v1
+amendment:
+  experiment_id: EXP-WESOVOW-001
+  version_from: 1
+  version_to: 2
+  successor_run_id: RUN-WESOVOW-201692-001
+  recorded_at: '2026-08-09'
+  recorded_by_task: TASK-20260809-ef3e58
+  archived_by_task: TASK-20260809-a31a80
+  status: prospective_and_frozen
+  purpose: >-
+    Repair the source-level normalization of the van Oorschot-Wiener
+    time-memory tradeoff, then permit exactly one isolated successor run whose
+    raw output is independently validated. This amendment does not revise the
+    original specification or reinterpret the original run retroactively.
+
+  defect:
+    source_path: experiments/EXP-WESOVOW-001/cost_model.py
+    affected_source_locations:
+      - metadata formula field T_w_vOW near the existing source declaration
+      - log2Tw computation in the van Oorschot-Wiener budget loop
+      - analytic log2w_star crossover computation
+      - raw-result output path
+    prior_behavior: >-
+      The source named T_full as though it were the w=M endpoint, while
+      computing log2T(w) as log2Tfull - 0.5*min(log2w, log2M) plus overhead.
+      That uses T_full as the w=1 endpoint and therefore fails the approved
+      specification's cap condition at w=M by approximately 0.5*log2M bits.
+      The source also hard-coded the old run's raw-result.json path, which
+      could overwrite an immutable receipt if a successor were executed
+      without an explicit output path.
+    authority_and_prior_record:
+      correction_id: CORR-20260806-3ac71e
+      decision_id: DEC-20260806-e2a6fa
+      primary_source: inputs/P13-WESOLOWSKI-2026/paper_fulltext.md
+      primary_source_scope: Section 4.1 van Oorschot-Wiener tradeoff
+    immutable_exclusions:
+      - experiments/EXP-WESOVOW-001/specification.yaml
+      - experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-001/
+      - ledger/corrections/CORR-20260806-3ac71e.yaml
+      - ledger/decisions/DEC-20260806-e2a6fa.yaml
+      - all prior evidence, decision, manifest, raw-result, stdout, stderr, and report artifacts
+
+  corrected_model:
+    definitions:
+      T_full: >-
+        The high-memory endpoint time at w=M, where M is the high-memory
+        endpoint table size. T_full is not the w=1 endpoint.
+      w: table entries allocated to the vOW walk, represented in source output
+        by log2w for the tested budgets.
+      M: high-memory endpoint table entries, represented by log2M in source output.
+      overhead_bits: c*sqrt(log2p), added to log2 time as a declared model scenario.
+    linear_law: 'T(w) = T_full * sqrt(M / min(w, M))'
+    log2_law: >-
+      log2(T(w)) = log2(T_full) + 0.5*max(0, log2(M) - log2(w))
+      + overhead_bits
+    endpoint_behavior:
+      w_equals_1: 'T(1) = T_full*sqrt(M) before overhead'
+      w_equals_M: 'T(M) = T_full before overhead'
+      w_above_M: 'T(w) = T_full before overhead; the high-memory cap is flat'
+    crossover:
+      baseline: 'log2(T_DG)'
+      equation: >-
+        log2(w_star) = log2(M) + 2*(log2(T_full) + overhead_bits - log2(T_DG))
+      feasible_condition: 'log2(w_star) <= log2(M)'
+      interpretation: >-
+        When feasible, the corrected attack is at or below the baseline for
+        log2w at or above the reported crossover and at or below the cap. A
+        negative crossover is reported as an observation of the model, not as
+        a claim about an implemented cryptanalytic attack.
+
+  execution_contract:
+    task_id: TASK-20260809-dc0d5a
+    run_budget:
+      maximum_invocations: 1
+      wall_clock_seconds: 600
+      memory_gb: 2
+      deterministic_seed: 0
+    output_path_environment_variable: WESOVOW_RAW_PATH
+    output_path: experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-201692-001/raw-result.json
+    required_receipts:
+      - exact command
+      - exit code and timestamps
+      - git commit and dirty-tree state
+      - Python, NumPy, platform, and dependency availability
+      - stdout and stderr
+      - raw machine-readable result
+      - execution report with validity and controls
+      - runtime-session-receipt.json with requested policy, runtime, resolved model identifier if exposed, fallback/degradation status, and model-verification status
+    observation_boundary: >-
+      The Executor records model outputs only. It may report formula and
+      control observations, but may not promote, weaken, reject, or complete a
+      hypothesis or goal and may not describe this run as a cryptanalytic
+      breakthrough.
+
+  required_controls:
+    C1_paper_pair_sanity: >-
+      Recompute the existing five paper pairs and retain the prestated
+      tolerance and any partial-failure deviations without tuning the model.
+    C2_baseline_consistency: >-
+      Verify that the Delfs-Galbraith baseline remains log2(p)/2 at all five
+      field sizes.
+    C3_monotonicity: >-
+      Verify non-increasing corrected vOW time as w increases for every field
+      size and overhead scenario through and beyond the cap.
+    C4_cap_and_normalization: >-
+      Evaluate the corrected law directly at log2w=0 (w=1), log2w=log2M
+      (w=M), log2w=log2M+1 (w>M), and at the declared budgets. Record that
+      the cap branch is actually exercised. The phrase w=0 in the handoff is
+      resolved here as log2w=0; a literal zero-entry table is invalid input
+      and must not be silently substituted.
+    required_boundary_assertions:
+      - 'At log2w=log2M, log2T(w) - overhead_bits equals log2T_full within numeric tolerance.'
+      - 'At log2w=log2M+1, the same capped value is retained.'
+      - 'At log2w=0, the half-memory-shortfall penalty is 0.5*log2M.'
+      - 'For every tested budget below M, the penalty is 0.5*(log2M-log2w).'
+
+  review_and_decision:
+    snapshot_before_execution: TASK-20260809-a31a80
+    executor_snapshot_after_run: TASK-20260809-981821
+    independent_validator: TASK-20260809-038c84
+    ledger_archive: TASK-20260809-0d74a7
+    validator_scope:
+      - recompute C1 through C4 from successor raw output
+      - recompute all four boundary assertions independently
+      - byte/hash compare the old RUN-WESOVOW-001 bundle before and after review
+      - distinguish source/model repair from any cryptanalytic conclusion
+    decision_ceiling: >-
+      The subsequent Coordinator decision may accept, qualify, or reject the
+      source repair and its control package. It may not promote an SSI
+      hypothesis, close GOAL-SSI-001, or claim an attack from this batch alone.
+
+  provenance:
+    inference:
+      requested_policy: coordinator-orchestration-code
+      runtime: codex
+      resolved_model_id: null
+      resolved_model_id_status: not_exposed_by_current_runtime
+      model_verified: false
+      fallback_used: false
+      degraded_requirements: []
+    source_artifacts:
+      - experiments/EXP-WESOVOW-001/specification.yaml
+      - experiments/EXP-WESOVOW-001/cost_model.py
+      - experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-001/manifest.yaml
+      - experiments/EXP-WESOVOW-001/runs/RUN-WESOVOW-001/execution_report.yaml
+      - ledger/corrections/CORR-20260806-3ac71e.yaml
+      - ledger/decisions/DEC-20260806-e2a6fa.yaml

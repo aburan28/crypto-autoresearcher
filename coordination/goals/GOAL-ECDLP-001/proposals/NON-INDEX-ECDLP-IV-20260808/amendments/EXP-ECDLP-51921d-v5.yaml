@@ -1,0 +1,122 @@
+protocol_amendment:
+  experiment_id: EXP-ECDLP-51921d
+  version_from: 4
+  version_to: 5
+  kind: deterministic_family_prime_selection_superseding_amendment
+  filed_at: '2026-08-09'
+  filed_by: coordinator
+  status: draft_pending_independent_review
+  approved_by: null
+  approved_by_decision: null
+  affected_runs: []
+  confirmatory_status: preserved
+  supersedes:
+    path: amendments/EXP-ECDLP-51921d-v4.yaml
+    snapshot_commit: 702fd40cb
+    treatment: immutable_prior_amendment_remains_unchanged
+  scope_statement: >-
+    This amendment repairs the prime-selection stage of the Arm-A family
+    schedule. The v4 successor labeled special rows and checked the field
+    predicate only after an unconstrained prime was generated; it could still
+    refuse every special row without testing the intended field family. The v5
+    successor uses deterministic congruence-constrained prime streams for j=0
+    and j=1728, and a bounded non-special rejection stream for ordinary rows.
+    Every rejected candidate is serialized and charged. This changes no rho
+    cost, normalization, hypothesis, or claim tier and authorizes no run.
+  defect: >-
+    A post-generation predicate check is not a coverage guarantee. Without a
+    predeclared prime candidate stream, a refusal may reflect arbitrary prime
+    selection rather than the intended special family; ordinary rows may also
+    accidentally carry j=0 or j=1728 while labeled ordinary.
+  successor_input_binding:
+    canonical_path: protocol_inputs/automorphism_census/instance_manifest_v4.yaml
+    superseded_path: protocol_inputs/automorphism_census/instance_manifest_v3.yaml
+    required_fields:
+      - deterministic_prime_candidate_seed
+      - ascending_candidate_order
+      - rejection_cap
+      - every_rejected_candidate_receipt
+      - j0_congruence_before_coefficients
+      - j1728_congruence_before_coefficients
+      - ordinary_special_j_rejection
+      - no_fallback_between_families
+      - family_unavailable_refusal
+    invocation_boundary: >-
+      A future Executor must pass the v5 successor manifest and record its
+      SHA-256 digest before any prime, curve coefficient, subgroup, or walk is
+      generated. Passing the v4 path alone is a pre-walk refusal.
+  prime_selection_contract:
+    candidate_stream: sha256(seed || field_bits || curve_family || "prime_candidate")
+    order: ascending_candidate_rank
+    rejection_cap: 64
+    special_rows: >-
+      Candidate primes must satisfy p>3 and the declared congruence before
+      coefficient generation: p mod 3=1 for j0_unit and p mod 4=1 for
+      j1728_unit.
+    ordinary_rows: >-
+      Candidate coefficients must be nonsingular and have j not in {0,1728};
+      a special-j candidate is rejected and the next candidate is tried within
+      the same fixed cap, never relabeled as ordinary.
+    exhaustion: >-
+      Cap exhaustion emits family_unavailable_refusal with every rejected
+      candidate and no walk. It is not negative evidence against the family.
+  verifier_contract:
+    independent_entrypoint: harness/run_ecdlp_endo_census_v2.py
+    required_checks:
+      - successor_manifest_path_and_hash_bound
+      - prime_candidate_stream_recomputed
+      - all_rejected_prime_candidates_serialized
+      - special_prime_predicate_checked_before_coefficients
+      - ordinary_special_j_candidates_rejected
+      - no_family_fallback_after_cap_exhaustion
+      - family_and_partition_binding_preserved
+      - action_certificate_or_refusal_before_full_walk
+  controls_added:
+    - id: C-PRIME-STREAM
+      kind: deterministic-prime-selection-conformance
+      construction: >-
+        Recompute the candidate prime stream twice for every family row and
+        compare the complete rejected/accepted transcript before constructing
+        any curve coefficient.
+      expected: >-
+        Transcripts are byte-identical; special rows accept only their declared
+        congruence and ordinary rows never accept a special-j candidate.
+    - id: C-FAMILY-FALLBACK
+      kind: family-fallback-mutation
+      construction: >-
+        Force the special-row rejection cap to exhaust and offer an ordinary
+        candidate as a fallback.
+      expected: >-
+        The row remains family_unavailable_refusal; cross-family fallback is
+        rejected and no walk starts.
+  falsification_conditions_added:
+    - >-
+      A special row constructs coefficients before its prime satisfies the
+      declared congruence; the row is invalid.
+    - >-
+      A rejected prime candidate is omitted, reordered, or uncharged; the
+      source manifest and family-coverage receipt are invalid.
+    - >-
+      An ordinary row accepts j=0 or j=1728, or a special row falls back to an
+      ordinary candidate after cap exhaustion; the schedule is invalid.
+    - >-
+      Family-unavailable refusal is interpreted as evidence against an
+      automorphism or ECDLP; the interpretation is invalid.
+  interpretation_gate:
+    input_only: >-
+      The v5 successor makes field-family coverage and refusal costs
+      deterministic. It does not establish an automorphism speedup, a rho
+      exponent change, or a cryptographic-scale result.
+    scope: >-
+      Future observations remain limited to the declared fields, seeds,
+      families, partitions, prime candidate caps, policies, controls, and
+      subgroup certificates.
+  dispatch_gate:
+    not_dispatchable: true
+    required_before_approval:
+      - independent review of v4 and this v5 amendment together
+      - source-hash-bound prime-selection implementation and successor manifest
+      - prime-stream and family-fallback conformance fixtures
+      - backend preflight passes without prohibited fallback
+      - Coordinator decision explicitly admits or rejects the correction
+

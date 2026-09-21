@@ -1,0 +1,354 @@
+idea:
+  id: IDEA-20260815-f9e978
+  question_id: RQ-RELN-001
+  added: '2026-08-15'
+  title: >-
+    P(decomp) IS REPORTED AS A SCALAR AND IS ALMOST CERTAINLY A
+    DISTRIBUTION: measure decomposition probability CONDITIONED ON THE
+    TARGET POINT, because an index calculus whose relation supply is heavy-
+    tailed in the target has a different exponent from one whose supply is
+    uniform, and the lane currently cannot tell them apart
+  class: measurement
+
+  claim: >-
+    GOAL-RELN-001 audits P(decomp) versus factor-base size. Every
+    formulation in the lane treats P(decomp) as a single number per (curve,
+    base size, arity). BUT DECOMPOSITION IS A PROPERTY OF A TARGET POINT,
+    and the quantity that actually drives an index-calculus exponent is not
+    the mean but the distribution over targets -- specifically whether a
+    constant fraction of targets are effectively undecomposable at a given
+    base size. A heavy left tail means the descent stage stalls on a fixed
+    fraction of targets no matter how long relation collection runs, which
+    is an exponent-level effect that a mean cannot see and that no amount of
+    averaging will reveal. This record measures the full conditional
+    distribution P(decomp | target) rather than its mean, and reports the
+    tail explicitly.
+
+  mechanism: >-
+    STAGE 1: fix curve, arity and factor base under the lane's existing
+    certificate contract. STAGE 2: for EACH of many targets sampled
+    uniformly from the subgroup, estimate P(decomp | target) by repeated
+    independent decomposition attempts with fresh randomness, recording
+    successes and the exact trial count. STAGE 3: report the empirical
+    distribution over targets -- not the mean -- with the 1st, 5th, 25th,
+    50th percentiles and the fraction of targets with zero successes in the
+    trial budget. STAGE 4: repeat across base sizes to see whether the tail
+    thins as the base grows, which is the behaviour a benign supply model
+    predicts. STAGE 5: recompute the lane's relation-supply input under a
+    tail-aware model and report how much it moves.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Grep for 'decomposition rate' (20), 'heavy tail' (21), 'conditioned
+      on the target' (0), 'P(decomp)', 'target-dependent'; plus a read of
+      GOAL-RELN-001's objective and IDEA-20260726-003 (target-dependent
+      decomposition difficulty predictor).
+    results: >-
+      IDEA-20260726-003 proposes a target-dependent difficulty PREDICTOR
+      from Semaev fiber geometry, which is the closest neighbour and is
+      about predicting difficulty from structure. No record MEASURES the
+      distribution of P(decomp) over targets as such, and 'conditioned on
+      the target' returns zero. Heavy-tail language appears 21 times, none
+      in the relation-supply context.
+    verdict: >-
+      UNVERIFIED, with a real overlap risk against IDEA-20260726-003 that
+      discriminated_from addresses. That record predicts; this one
+      measures the distribution whose existence would make prediction
+      worth doing, so they are complementary and should be read together.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE CONDITIONAL DECOMPOSITION PROBABILITY P(decomp | target) as a
+      random variable over targets, rather than its expectation. The lane
+      has been tracking the first moment of an object whose tail is the
+      decision-relevant part.
+    lossiness: >-
+      Taking the mean is itself the lossy projection under audit, and the
+      record's claim is that this particular projection discards exactly
+      the feature that matters.
+    propagation: >-
+      Not applicable; this is a distributional measurement inside an
+      existing lane.
+    survival_score: >-
+      Survives as far as targets can be sampled uniformly and
+      decomposition attempted independently. It dissolves if the trial
+      budget per target is too small to estimate a small probability,
+      which bounds the measurable tail depth and must be reported as the
+      instrument's floor.
+
+  null_object_control: >-
+    NULL 1 -- A RANDOM SET of the same size as the factor base, in place of
+    the algebraic factor base, giving the birthday-only supply baseline; the
+    distribution over targets there is the reference shape. NULL 2 --
+    SHUFFLED TARGET LABELS, to confirm that any apparent target dependence
+    is not an artifact of the sampling order or of shared randomness across
+    attempts. NULL 3 -- A PLANTED EASY TARGET (a known sum of factor-base
+    elements) which must show P = 1, and A PLANTED HARD TARGET if
+    constructible; the pipeline must separate them. STRUCTURAL TELL: the
+    tail must THIN as the factor base grows. A tail that stays constant as
+    the base grows is the signature of an artifact in the attempt procedure,
+    not of a supply property.
+
+  discriminated_from:
+    - >-
+        IDEA-20260726-003 (target-dependent decomposition difficulty
+        predictor from Semaev fiber geometry). COMPLEMENTARY, NOT
+        DUPLICATE: that record proposes a PREDICTOR of per-target
+        difficulty from geometry; this one measures whether per-target
+        difficulty VARIES ENOUGH TO BE WORTH PREDICTING. If this record
+        finds a uniform distribution, that record's predictor has nothing
+        to predict; if it finds a heavy tail, that record becomes
+        considerably more valuable. They should be sequenced this-then-
+        that.
+    - >-
+        KN-OPEN-020 and the factor-base no-go lane. DIFFERENT QUANTITY:
+        that lane bounds what any factor base can achieve on average via
+        counting; this measures the spread across targets for a fixed
+        base. A counting bound on the mean says nothing about the tail.
+    - >-
+        The multi-target amortization lane. OPPOSITE DIRECTION: that lane
+        exploits many targets to reduce per-target cost; this one asks
+        whether some individual targets are intrinsically bad. A heavy
+        tail is bad news for that lane and the interaction must be
+        reported.
+
+  assumptions:
+    - >-
+        Targets can be sampled uniformly from the subgroup without solving
+        a DLP. Standard -- take a random scalar multiple of the generator
+        -- but the scalar must be discarded and never used, and the record
+        must enforce that mechanically.
+    - >-
+        Decomposition attempts on the same target with fresh randomness
+        are independent. IF THE ATTEMPT PROCEDURE IS DETERMINISTIC GIVEN
+        THE TARGET, then P(decomp | target) is 0 or 1 and the whole
+        framing changes -- the distribution becomes a partition, which is
+        a stronger and more interesting result but requires a different
+        estimator. Stage 1 must determine which regime the lane's
+        procedure is in before any estimation.
+    - >-
+        The trial budget per target is large enough to resolve the tail
+        depth being claimed. This bounds the measurable percentile and is
+        reported as the instrument floor.
+
+  predictions:
+    - metric: >-
+        planted easy and hard targets
+      direction: different
+      minimum_effect: >-
+        FORCED SEPARATION: the easy target must show P = 1. Failure
+        means the attempt procedure is broken and no distribution from
+        it is admissible.
+    - metric: >-
+        spread of P(decomp | target) across targets at fixed base size
+      direction: different
+      minimum_effect: >-
+        No direction pre-committed; the spread IS the measurement. Pre-
+        committed is that it is compared against the random-set null's
+        spread at matched size, never against zero.
+    - metric: >-
+        fraction of targets with zero successes in budget, as base size
+        grows
+      direction: lower
+      minimum_effect: >-
+        PREDICTED TO FALL. A fraction that stays flat as the base grows
+        is either a genuine hard-target stratum -- the exponent-relevant
+        finding -- or an artifact, and the structural tell cannot
+        distinguish them without the planted controls.
+    - metric: >-
+        movement in the lane's relation-supply input under a tail-aware
+        model
+      direction: different
+      minimum_effect: >-
+        Quantified as a ratio against the mean-based input. If it moves
+        less than the input's own confidence interval, the mean was
+        adequate and the lane may continue using it.
+
+  minimal_test:
+    design: >-
+      One curve, one arity, two base sizes, >= 200 targets with >= 50
+      independent attempts each, plus the random-set null and both planted
+      targets. This is enough to see a spread if one exists and to
+      establish the instrument floor, and it is far cheaper than the
+      lane's full audit.
+    controls:
+      - >-
+          Random-set factor base at matched size, for the birthday-only
+          reference spread.
+      - >-
+          Shuffled target labels, to exclude ordering artifacts.
+      - >-
+          Planted easy target, which must succeed; planted hard target
+          where constructible.
+      - >-
+          Determinism check on the attempt procedure before estimation
+          begins.
+      - >-
+          Discarded-scalar enforcement so no target's discrete log is
+          ever available.
+    required_metrics:
+      - >-
+          Full empirical distribution of P(decomp | target), with
+          percentiles, not just the mean.
+      - >-
+          Fraction of zero-success targets per base size, with the trial
+          budget stated.
+      - >-
+          Instrument floor: smallest probability resolvable at the
+          chosen budget.
+      - >-
+          Null spreads at matched size.
+      - >-
+          Artifact manifest with hashes and rebuild receipt.
+
+  falsification_conditions:
+    - >-
+        The planted easy target does not decompose. Attempt procedure
+        broken; halt.
+    - >-
+        The attempt procedure is deterministic given the target. The
+        estimator is wrong for this regime; redesign before any
+        estimation.
+    - >-
+        The observed spread matches the random-set null. No target
+        dependence beyond birthday behaviour; a clean negative that also
+        retires IDEA-20260726-003's motivation.
+    - >-
+        The zero-success fraction is flat in base size AND the planted
+        controls pass. A genuine hard-target stratum -- the exponent-
+        relevant positive outcome, routing to its own proposal.
+
+  confounders:
+    - >-
+        BUDGET-INDUCED FAKE TAIL, WHICH IS THE DOMINANT RISK. A target
+        with true P = 0.01 shows zero successes in 50 trials with
+        probability 0.6, so a naive zero-success count manufactures a tail
+        out of a uniform distribution. The instrument floor must be
+        computed and reported, and the zero-success fraction interpreted
+        only above it.
+    - >-
+        SHARED RANDOMNESS across attempts, which would correlate trials
+        and understate the spread.
+    - >-
+        CURVE SPECIFICITY: one curve cannot distinguish a target-
+        distribution property from a curve property. Multi-curve extension
+        is required before any general statement.
+    - >-
+        SMALL-BASE DEGENERACY: at very small base sizes almost nothing
+        decomposes and the distribution is uninformative floor noise.
+
+  interpretation_limits:
+    - >-
+        Measures a distribution; produces no cost model and no exponent.
+    - >-
+        Scoped to the tested curve, arity, base sizes and attempt
+        procedure.
+    - >-
+        A heavy tail would be a supply observation, not an attack and not
+        an exponent claim; converting it into either needs a separate
+        proposal with its own cost table.
+    - >-
+        A null result closes the tested range only and says nothing about
+        larger bases where the lane actually wants to operate.
+
+  heuristic_assumptions:
+    - id: HEUR-RELN-TAIL-1
+      statement: >-
+        For a fixed algebraic factor base of size B on a fixed curve,
+        P(decomp | target) is concentrated -- its spread across
+        uniformly sampled targets does not exceed the spread of a random
+        set of the same size by more than the estimator's own noise.
+      rigorous_support: >-
+        The rigorous ingredient is the tuple-image counting bound used
+        in KN-OPEN-020, which caps the reachable target set by B^m and
+        applies uniformly over targets. The distributional ingredient is
+        the heuristic that decomposition behaves like a balls-into-bins
+        allocation over targets. THE COMPOSITION IS THE ASSUMPTION:
+        counting bounds the mean and says nothing about concentration,
+        so concentration is genuinely assumed and is what the
+        measurement tests.
+      falsification_condition: >-
+        A measured spread exceeding the random-set null's spread by more
+        than estimator noise, reproducibly across >= 3 curves.
+      validation_plan: >-
+        SAMPLE: >= 3 curves x >= 200 targets x >= 50 attempts x >= 2
+        base sizes. COMPARISON: paired spread against the matched
+        random-set null. TAIL CHECK: the 10 lowest-P targets, reported
+        with any structural invariant available, and explicitly checked
+        against the instrument floor before being called a tail.
+        TRANSFER ASSUMPTION, STATED AND UNJUSTIFIED: that toy-scale
+        concentration behaviour persists at cryptographic base sizes. It
+        is recorded as an open extrapolation.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED. Cost is (targets x attempts)
+      decomposition attempts, which is the lane's existing per-attempt
+      cost multiplied by the sampling plan -- roughly 10^4 attempts for
+      the minimal test.
+    memory_exponent: >-
+      Negligible beyond one decomposition attempt's working set.
+    best_known: >-
+      The incumbent is the lane's own mean-based P(decomp) formulation,
+      which this record does not replace but conditions. No distributional
+      measurement exists in this program.
+    hidden_overhead: >-
+      The instrument floor is the hidden cost: resolving a 1% tail needs
+      hundreds of attempts per target, and the sampling plan grows
+      linearly in the tail depth claimed. A record that claims a deep tail
+      on a shallow budget is fabricating.
+    tradeoff_note: >-
+      More targets buys distributional resolution; more attempts per
+      target buys tail depth. At fixed budget these trade directly, and
+      the plan fixes the split in advance so it cannot be tuned after
+      seeing the data.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed). As a
+    supply model: this record refines rather than replaces the lane's mean-
+    based input and is dominated by nothing because no distributional
+    measurement exists here. As a counting bound: strictly weaker than KN-
+    OPEN-020's tuple-image bound, which is rigorous and uniform where this
+    is empirical and scoped. Not null on any axis.
+  sota_delta: >-
+    No attack, no exponent. Content delivered: the first measurement in this
+    program of P(decomp) as a distribution over targets rather than a
+    scalar; an explicit instrument floor so a budget-induced tail cannot be
+    mistaken for a real one; a quantified statement of how much the lane's
+    relation-supply input moves under a tail-aware model; and a sequencing
+    result for IDEA-20260726-003, whose predictor is worth building only if
+    this record finds a spread.
+
+  estimated_cost:
+    implementation: low
+    compute: medium
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.9 that the measurement runs and the planted controls separate. 0.4
+    that a spread beyond the random-set null exists at toy scale -- I expect
+    concentration, because counting arguments usually dominate at small
+    parameters. 0.25 that any observed tail survives the instrument-floor
+    correction, which is where I expect most apparent tails to die. 0.15
+    that a genuine hard-target stratum is found, which would be the
+    exponent-relevant outcome and is the reason to run this rather than
+    assume concentration.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-RELN-001
+    - KN-OPEN-001
+    - KN-OPEN-020
+    - GOAL-RELN-001
+    - IDEA-20260726-003
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

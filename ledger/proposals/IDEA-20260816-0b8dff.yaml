@@ -1,0 +1,263 @@
+idea:
+  id: IDEA-20260816-0b8dff
+  question_id: RQ-MCE-b38a8b
+  added: '2026-08-16'
+  title: 'Map the toy Goppa code''s decoding region past its designed radius: for every error weight
+    w = 0..2t measure the decoder''s three outcomes -- correct, detected failure, silent miscorrection
+    -- and compare the resulting profile against a coset-leader decoder on a matched random code,
+    since the SHAPE of the failure cliff is a mathematical observable, not an implementation property.'
+  class: measurement
+  claim: '(A) A bounded-distance decoder for a binary Goppa code with squarefree g of degree t is
+    designed to correct up to t errors, and what it does at weights t+1 through 2t is not specified
+    by that design. The outcome profile P(w) = (fraction correct, fraction detected failure, fraction
+    silent miscorrection) as a function of w is a well-defined mathematical object attached to the
+    pair (code, decoder), computable exactly at toy scale by enumeration, and it is the geometry of
+    the decoding region rather than a property of any implementation choice made downstream. (B) The
+    comparison that gives it meaning is a matched random binary [n, k] code equipped with an exhaustive
+    coset-leader decoder. A coset-leader decoder degrades smoothly: it corrects every coset whose
+    leader is unique and errs where leaders tie, with no cliff. A bounded-distance decoder on an algebraically
+    structured code should exhibit a sharp transition at w = t. The DIFFERENCE between the two profiles
+    -- cliff versus slope -- is the measurable object, and the width of the transition region is a
+    single number that summarises it. (C) NOT CLAIMED: no security consequence of any kind. This measures
+    a mathematical profile of a toy code and its decoder. It says nothing about any implementation,
+    any decryption-failure oracle, any deployed KEM, any side channel, or any FO-style transform,
+    all of which are entirely out of scope; RQ-MCE-b38a8b''s defensive-and-toy ceiling is binding
+    and no reading toward an attack is permitted or intended. (D) The profile at w in (t, 2t] is also
+    a cheap independent check on the fixture: a decoder that silently miscorrects at w <= t is broken,
+    and a decoder that never fails at any w up to 2t is not a bounded-distance decoder at all.'
+  mechanism: 'STAGE 1: consume the certified fixture and its decoder from proposal 1 of this set.
+    STAGE 2: for each cell, enumerate error patterns by weight. At m=4, t=2, n=16 the full sphere
+    up to 2t = 4 has 1 + 16 + 120 + 560 + 1820 = 2517 patterns, trivially exhaustive; at larger cells
+    the counts at w = 2t exceed the budget, so exhaustive enumeration runs while C(n,w) <= 10^6 and
+    uniform sampling of 10^6 patterns runs above that, with the switch recorded per (cell, w). STAGE
+    3: for each pattern e, compute the syndrome, run the decoder, and classify the outcome into exactly
+    three buckets: CORRECT if the returned vector equals e; DETECTED FAILURE if the decoder returns
+    no candidate or returns a candidate failing the weight or syndrome check; SILENT MISCORRECTION
+    if it returns a valid-looking candidate e'' with the same syndrome, weight <= t, and e'' != e.
+    The three buckets are exhaustive and disjoint by construction, and every classification is verified
+    rather than reported by the decoder itself. STAGE 4: build the matched random null with an exhaustive
+    coset-leader table -- feasible while n - k <= 24 -- and run the identical classification. Its
+    ''silent miscorrection'' bucket is the case where the returned coset leader is not the planted
+    error. STAGE 5: compute the transition width for each arm, defined as the number of consecutive
+    weights over which the correct-fraction falls from 0.95 to 0.05. STAGE 6: report both profiles
+    per cell, per weight, with no pooling.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Ran grep -ril 'syndrome' and grep -ril 'decoder|decoding' over ledger/proposals/. Read
+      the titles and classes of all twelve MCE-area proposals. Read the what_this_is_not blocks of
+      EXP-MCE-3ffdf9 and EXP-MCE-350abf, both of which explicitly disclaim any decoding computation.
+      Read RQ-MCE-b38a8b's targets, claim_tier_ceiling and constraints in full, including the lawful-defensive-toy-objects-only
+      clause and the prohibition on any live key, ciphertext, traffic, device or deployed implementation.
+      Read docs/inventor-protocol.md section 3.
+    results: No proposal or contract in the repository runs a decoder on anything. EXP-MCE-350abf
+      states in what_this_is_not that it is 'not a decoding computation, a syndrome-decoding solve,
+      a key recovery, or a distinguisher'. EXP-MCE-3ffdf9 is exact linear algebra with no decoder
+      arm. RQ-MCE-b38a8b's targets name 'functional correctness of the ordinary and master-derived
+      decoding routes on only locally generated toy errors, with independent certificates and exhaustive
+      error enumeration where the frozen budget permits it' -- which is the w <= t part of this proposal
+      and is exactly proposal 1's certificate; it does not name the region above t or the profile
+      shape, and it names no comparison to a coset-leader decoder on a random code. The side-channel
+      and fault line is recorded in RQ-MCE-e65b3c as a SEPARATE claim class that says nothing about
+      the mathematics, and this proposal stays strictly on the mathematics side of that separation.
+    verdict: 'UNVERIFIED. Decoding beyond the designed radius is an old subject and this record asserts
+      nothing about what is published on it, in either direction, since no agent here can read external
+      literature. What is claimed new is local and narrow: nothing in this repository has ever run
+      a decoder, RQ-MCE-b38a8b names exhaustive error enumeration only up to weight t, and the specific
+      comparison proposed -- a bounded-distance profile against an exhaustive coset-leader profile
+      on a matched random code, summarised by a transition width -- is an assembly of standard parts
+      whose only design content is insisting the two arms be classified by the same three exhaustive
+      disjoint buckets with every classification independently verified.'
+  object_first_candidate:
+    tracked_object: The outcome profile P(w) = (correct, detected failure, silent miscorrection) as
+      a function of error weight w, per code and per decoder, held as a 3-by-(2t+1) table of counts
+      with denominators. The object followed is that table and the transition width derived from it;
+      the underlying coset partition of F_2^n induced by the decoder is what the table projects.
+    lossiness: Lossy. The full coset structure -- 2^(n-k) cosets, each with its leader set -- is projected
+      onto 2t+1 triples of counts. Which patterns fail, and which wrong codeword they decode to, is
+      discarded entirely; only the weight-indexed counts survive. That discard is compatible with
+      the operation because the operation of interest is 'planting an error of weight w and decoding',
+      which is uniform over the sphere of weight w by construction, so the weight index is exactly
+      the parameter the operation is indexed by and nothing the operation distinguishes is lost. A
+      non-lossy version would record the full coset-leader table, which for n - k = 24 is 16 million
+      entries and is precisely the object the projection exists to avoid.
+    propagation: 'One step of the target operation -- incrementing the error weight from w to w+1
+      -- acts on the tracked object by moving mass between the three buckets. For a bounded-distance
+      decoder the movement is expected to be abrupt at w = t: essentially all mass in ''correct''
+      at w <= t, essentially none at w = t+1, with the residue distributed between detected failure
+      and silent miscorrection according to how many weight-(t+1) patterns lie in cosets whose leader
+      has weight <= t. For a coset-leader decoder the movement is gradual, governed by the covering
+      radius and the leader multiplicity distribution. The propagation rule is therefore the profile''s
+      derivative in w, and the transition width is a one-number summary of it.'
+    survival_score: 'The object survives while enumeration or adequate sampling is affordable and
+      while 2t <= the covering radius region of interest. Concretely: exhaustive at every w where
+      C(n,w) <= 10^6, which at n = 32 holds through w = 5 and at n = 64 holds through w = 4; above
+      that a 10^6-sample estimate has a standard error below 0.0005 on any bucket fraction, which
+      is ample. The object dissolves when 2t exceeds the point where almost every pattern is a detected
+      failure and the profile is constant at (0, 1, 0) -- measured, and reported as the weight at
+      which that happens, which is the useful number for a later reader.'
+  null_object_control: 'The null object is a matched random binary [n, k] code, same n and same measured
+    k, drawn in the same invocation from a domain-separated seed and equipped with an EXHAUSTIVE coset-leader
+    decoder built by breadth-first enumeration of syndromes, which is feasible while n - k <= 24.
+    The identical classification into correct / detected failure / silent miscorrection is applied.
+    For the Goppa profile to mean anything the null must show a GRADUAL profile: a transition width
+    strictly greater than the Goppa arm''s, and a nonzero silent-miscorrection fraction already at
+    low weights where the Goppa arm has none. If the random null shows the same sharp cliff at the
+    same weight, then the profile is measuring the enumeration geometry of small codes rather than
+    any algebraic structure, and the honest report is that the toy scale cannot separate the two decoding
+    regimes. A second control is the Goppa code decoded by its OWN coset-leader table where n - k
+    <= 24, which isolates how much of the profile comes from the code and how much from the bounded-distance
+    decoder.'
+  discriminated_from:
+  - 'Proposal 1 of this set: its enumeration stops at w <= t and exists to certify the fixture. This
+    proposal starts where that one stops, adds two further buckets, and its object is the profile
+    shape rather than a pass/fail certificate.'
+  - 'EXP-MCE-3ffdf9: exact GF(2) linear algebra on Gamma(L,g) versus Gamma(L,g^2) with no decoder
+    of any kind; a dimension observable is not a decoding-region observable.'
+  - 'EXP-MCE-350abf: explicitly disclaims being a decoding computation; it is arithmetic on published
+    exponents.'
+  - 'IDEA-20260808-3d3be9: a linear-algebra distinguisher statistic on public matrices. This measures
+    decoder behaviour, which is a different map on a different domain, and it makes no distinguishing
+    claim at all.'
+  - 'The side-channel and decryption-failure literature line recorded in RQ-MCE-e65b3c as a separate
+    claim class: this proposal stays strictly on the mathematics side of that separation, touches
+    no implementation, and asserts nothing about what that line contains.'
+  assumptions:
+  - The certified fixture and a verified decoder from proposal 1 exist; without them there is no Goppa
+    arm.
+  - n - k <= 24 in the cells where an exhaustive coset-leader table is required, capping the null
+    arm's reach and hence the set of comparable cells.
+  - Uniform sampling over weight-w vectors is the right operation to index the profile by; a non-uniform
+    planted-error model would give a different and equally well-defined profile, and the choice is
+    frozen and stated.
+  - The three outcome buckets are exhaustive and disjoint under independent verification, so that
+    no outcome is classified by the decoder's own self-report.
+  predictions:
+  - metric: silent-miscorrection fraction on the Goppa arm at w <= t
+    direction: lower
+    minimum_effect: 'forced value: exactly 0. A bounded-distance decoder within its radius cannot
+      miscorrect; any nonzero value falsifies the decoder and, transitively, proposal 1''s certificate.'
+  - metric: correct fraction on the Goppa arm at w = t+1
+    direction: lower
+    minimum_effect: 0.05
+  - metric: transition width of the Goppa arm (weights over which correct-fraction falls from 0.95
+      to 0.05) minus that of the matched random coset-leader arm
+    direction: lower
+    minimum_effect: 1
+  - metric: silent-miscorrection fraction on the Goppa arm at w = t+1
+    direction: higher
+    minimum_effect: 'explicit refusal to pre-commit: this is the quantity the proposal exists to measure.
+      It depends on how many weight-(t+1) patterns share a syndrome with a weight-<=t pattern, which
+      is a counting fact about the specific code and is not known in advance at these parameters.'
+  minimal_test:
+    design: 'One cell settles whether the two profiles are distinguishable at toy scale: m = 4, t
+      = 2, n = 16, k = 8. Enumerate all 2517 error patterns of weight 0 through 4. For each, compute
+      the syndrome, run the Goppa decoder, and classify the outcome into the three verified buckets.
+      Build a matched random [16,8] code, construct its full coset-leader table over all 256 syndromes
+      by breadth-first enumeration, and classify the identical 2517 patterns against it. Report both
+      3-by-5 count tables with denominators, and both transition widths. Also decode the Goppa code
+      with its own coset-leader table as the second control. Cost is seconds on one core with no dependency,
+      and the entire cell is exact -- no sampling, no estimate, no interval needed. The discrimination:
+      if the two arms'' profiles are indistinguishable at the most favourable and fully exact cell
+      available, the toy scale cannot separate bounded-distance from coset-leader decoding geometry
+      and this lane closes with an exact number rather than an opinion.'
+    controls:
+    - Matched random binary [n,k] code with an exhaustive coset-leader decoder, same invocation.
+    - Goppa code decoded by its OWN coset-leader table where n-k <= 24, isolating code structure from
+      decoder design.
+    - Independent verification of every outcome classification by recomputing weight and syndrome,
+      so no bucket relies on the decoder's self-report.
+    - 'Column-permutation invariance: the profile must be unchanged under a random coordinate permutation
+      applied to code and errors together.'
+    - Five independent (L, g, seed) draws per cell, so a profile is a family of five and not a single
+      reading.
+    required_metrics:
+    - 3-by-(2t+1) outcome count table with denominators, per arm per cell
+    - transition width per arm
+    - silent-miscorrection fraction at each w
+    - weight at which the profile becomes constant
+    - sampling-versus-exhaustive flag per (cell, w)
+    - count of classification-verification failures, required zero
+  falsification_conditions:
+  - Any silent miscorrection at w <= t on the Goppa arm falsifies the decoder and invalidates proposal
+    1's certificate.
+  - A Goppa correct-fraction of 1.0 at w = 2t falsifies the claim that the decoder is bounded-distance
+    at radius t.
+  - Identical profiles for the two arms at the exact cell closes the lane at toy scale with an exact
+    measurement.
+  - Any profile change under coordinate permutation falsifies the implementation.
+  - Any classification failing independent verification falsifies the bucketing.
+  - A random-code coset-leader arm exhibiting a sharper transition than the Goppa arm would invert
+    the expected relationship and must be replicated across all five draws before being reported at
+    all.
+  confounders:
+  - At n = 16 the covering radius of a random [16,8] code is small, so the coset-leader arm may itself
+    look cliff-like for counting reasons unrelated to structure.
+  - The choice of bounded-distance decoder route (Patterson versus alternant key equation) can change
+    the behaviour above t while leaving w <= t identical, so the route must be frozen and reported
+    with the profile.
+  - Uniform sampling over weight-w vectors at large w has small variance but the buckets are highly
+    imbalanced, so a rare bucket needs its own count reported rather than a fraction alone.
+  - 'Dependence on proposal 1''s fixture: a construction error would show up here as an exotic and
+    entirely spurious profile.'
+  - Cells with n = 2^m use full-field support and may have atypical coset structure.
+  interpretation_limits:
+  - This measures a mathematical profile of a toy code and its decoder and carries NO implication
+    for any implementation, oracle, side channel or deployed system; RQ-MCE-b38a8b's defensive-and-toy
+    ceiling is binding.
+  - Profiles at n <= 64 do not extrapolate; the transition width depends on the coset geometry of
+    the specific small code.
+  - A sharp cliff is a property of the code-decoder pair, not of binary Goppa codes in general, until
+    it is measured across all five draws and reported as a family.
+  - 'Nothing here is a distinguisher: the two arms are compared with full knowledge of which is which,
+    which is the opposite of a distinguishing experiment.'
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Enumeration cost is C(n,w) per weight, capped at
+      10^6, and decoding cost is polynomial per pattern; the coset-leader table for the null is 2^(n-k)
+      and is what caps the comparable cells.
+    memory_exponent: No attack memory exponent is claimed. Peak memory is the null arm's coset-leader
+      table, 2^(n-k) entries with n-k <= 24, an explicit and enforced cap.
+    best_known: 'There is no incumbent within this repository: no decoder has ever been run here.
+      Outside it, decoding-region analysis is an established subject about which this record asserts
+      nothing, since it cannot be read from this environment.'
+    hidden_overhead: 'Hidden in the classification: distinguishing a detected failure from a silent
+      miscorrection requires independent verification of every returned candidate, which doubles the
+      per-pattern cost and is the step an implementation would naturally skip, at the price of making
+      the two most interesting buckets unreliable. Hidden in the human cost: the temptation to read
+      the miscorrection fraction as an attack surface, which the claim ceiling forbids explicitly.'
+  dominated_by: 'n/a (no result claimed). The Pareto check applies vacuously: no adversary is constructed
+    and no cost figure for any attack is produced, so there is no frontier row to occupy. The profile
+    is a descriptive measurement of a toy object.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitative delta: zero decoder
+    executions in this repository before; after, an exact three-bucket outcome profile across weights
+    0..2t for up to five cells with matched coset-leader nulls, plus a transition-width number per
+    arm that a later reader can compare against.'
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: P(the Goppa arm shows exactly zero silent miscorrections at w <= t) =
+    0.85, conditional on proposal 1 delivering a working decoder; this is close to forced by the mathematics
+    and its failure would indicate a bug rather than a discovery. P(the Goppa transition width is
+    at least 1 weight narrower than the random coset-leader arm's) = 0.6; the direction is expected
+    but at n = 16 the random arm may also look cliff-like. P(a nonzero silent-miscorrection fraction
+    is observed at w = t+1 on the Goppa arm) = 0.7; some weight-(t+1) patterns should share syndromes
+    with weight-<=t patterns, but the count is a property of the specific code. P(the profiles are
+    indistinguishable at the exact cell, closing the lane) = 0.25, and that outcome is a fully usable
+    measured obstruction rather than a wasted run.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-MCE-b38a8b
+  - RQ-MCE-e65b3c
+  - EXP-MCE-3ffdf9
+  - EXP-MCE-350abf
+  - IDEA-20260808-3d3be9
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-MCEGOP-1bbd00

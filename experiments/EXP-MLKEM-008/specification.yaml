@@ -1,0 +1,377 @@
+experiment:
+  id: EXP-MLKEM-008
+  hypothesis_id: H-MLKEM-008
+  goal_id: GOAL-MLKEM-001
+  version: 1
+  title: >-
+    End-to-end soft-oracle leakage budget: calibrated soft-model trace-cost
+    prediction on protected Cortex-M4 ML-KEM with a stage-0 availability
+    preflight
+  status: paused
+  status_enactment_note: >-
+    Enacted 2026-08-08 by the Coordinator: DEC-20260807-5adc24 (2026-08-07)
+    paused this experiment for a fabricated/misattributed approval citation,
+    but this status field was never updated to reflect that decision until
+    now. Found during a survey for approved-but-unrun experiments to
+    dispatch; this experiment was correctly excluded from that dispatch as a
+    result of finding this gap, not despite it. Prior value: approved.
+  frozen: true
+  approved_by: coordinator
+  approved_at: '2026-07-27'
+  claim_tier: laboratory_implementation_conformance
+  objective: >-
+    Measure, on one laboratory protected ML-KEM implementation on a
+    Cortex-M4 target, whether calibrated soft-information models (soft-PC
+    and adaptive-LDPC backend classes consuming frozen calibrated
+    likelihoods) predict held-out median traces-to-key-recovery within a
+    multiplicative factor of 2 across three predeclared noise or masking
+    configurations, while a hard oracle-accuracy-only model misses by more
+    than a factor of 2 in at least one configuration, and whether charging
+    profiling traces, retries, and wall-clock changes at least one
+    (backend, configuration) pairwise ranking. Key recovery occurs only as
+    the frozen laboratory measurement on experiment-generated held-out
+    keys. This is a defensive measurement contract: it produces no exploit,
+    no vulnerability claim, and no conclusion about any device, build, or
+    protection not measured.
+
+  source_refs:
+    proposal: ledger/proposals/IDEA-20260722-003.yaml
+    oracle_surface_report: coordination/goals/GOAL-MLKEM-001/batches/BATCH-002/tasks/TASK-20260722-208/oracle_surface_report.yaml
+    oracle_landscape: coordination/goals/GOAL-MLKEM-001/batches/BATCH-002/tasks/TASK-20260722-208/oracle_landscape.md
+    backend_anchors:
+      soft_pc: ePrint 2025/1496 as recorded in oracle_surface_report.yaml ORS-007
+      adaptive_ldpc: ePrint 2026/070 as recorded in oracle_surface_report.yaml ORS-004
+      sequential_replay: ePrint 2025/2045 as recorded in oracle_surface_report.yaml ORS-008
+      sasca_soft_posterior: ePrint 2026/981, knowledge record KN-LIT-1815, oracle_surface_report.yaml ORS-019
+    cost_accounting: oracle_landscape.md cost accounting rules (no query-equals-trace, no accuracy-equals-IID-bit-error conversions)
+
+  stage0_availability_preflight:
+    purpose: >-
+      Establish, before any measurement, that a protected-device trace
+      source actually exists for this run. This environment is not assumed
+      to have a laboratory rig.
+    checks:
+      - id: P0-DEVICE
+        requirement: >-
+          A Cortex-M4 target running a pinned protected ML-KEM
+          implementation is physically present, attested by device
+          identifier, build hash, and source lock.
+      - id: P0-ACQUISITION
+        requirement: >-
+          A working power/EM acquisition chain (oscilloscope or equivalent,
+          trigger, probe) is reachable and attested by a recorded
+          acquisition-sanity capture on a known test pattern.
+      - id: P0-CONFIGURATIONS
+        requirement: >-
+          The pinned implementation exposes the three frozen configurations
+          (nominal protected build, higher-noise acquisition variant, and
+          an alternate protection configuration or a second noise level).
+    stop_rule: >-
+      If any check fails, the run terminates as failed_infrastructure, the
+      outcome is classified trace_source_unavailable with zero evidence
+      value (AGENTS.md rule 5 — not evidence against H-MLKEM-008), all
+      remaining planned runs are recorded failed_infrastructure with reason
+      preflight_blocked, and no fallback data is substituted.
+    fallback_data_path:
+      fallback: none
+      corpus_check:
+        date: '2026-07-27'
+        scope: knowledge/ (INDEX.md, literature/, techniques/, findings/)
+        result: >-
+          No pinnable public trace corpus for ML-KEM on Cortex-M4 exists in
+          the local knowledge corpus. The only pinned public SCA corpora
+          recorded there (ASCAD, ASCADv2, CHESCTF-2023; see KN-LIT-927 and
+          KN-LIT-1105) are AES datasets on non-Cortex-M4 targets and cannot
+          stand in for a protected ML-KEM Cortex-M4 measurement.
+          KN-LIT-1815 (ePrint 2026/981) is a paper record of physical
+          experiments, not an archived pinnable dataset. Accordingly the
+          physical laboratory rig is mandatory and no fallback is
+          pre-registered.
+      substitution_rule: >-
+        No synthetic-leakage-only run may be relabeled as a physical
+        measurement; synthetic controls are controls, never substitutes.
+
+  inputs:
+    target:
+      class: one laboratory protected ML-KEM implementation on Cortex-M4
+      source_lock: pinned at execution (repository, commit, build options, protection flags) in experiments/EXP-MLKEM-008/source-lock.yaml
+    configurations:
+      selection_rule: >-
+        Three configurations frozen at preflight: C1 = nominal protected
+        build at nominal clock/acquisition settings; C2 = the same build at
+        a frozen higher-noise acquisition setting; C3 = an alternate
+        protection configuration of the same implementation if exposed,
+        otherwise a second frozen noise level of the same build. The
+        selection and its rationale are recorded in configuration_lock.yaml
+        before any attack measurement.
+    key_schedule:
+      profiling_keys_per_configuration: 8
+      attack_keys_per_configuration: 4
+      rule: >-
+        All keys are generated inside the experiment with recorded seeds.
+        Profiling and attack key sets are disjoint within and across
+        configurations; no key or trace is shared between calibration and
+        attack measurement.
+    trace_budget:
+      profiling_traces_cap_per_configuration: 20000
+      attack_traces_cap_per_key: 2000
+      failed_acquisition_accounting: every failed or repeated acquisition is counted and reported.
+    models:
+      calibration: >-
+        Per-configuration likelihood calibration on the 8 profiling keys,
+        frozen before attack measurement; calibration error reported on
+        held-out attack keys.
+      soft_model: >-
+        Calibrated likelihoods feeding the frozen soft-PC and adaptive-LDPC
+        backend classes; median traces-to-key-recovery predicted by the
+        frozen simulation of each backend under the calibrated likelihoods,
+        charging profiling traces, attack traces, retries, and wall-clock.
+      hard_baseline: >-
+        Oracle-accuracy-only model: marginal hard-decision accuracy mapped
+        to predicted median traces under the IID bit-error assumption the
+        cost-accounting rules flag; no confidence, correlation, or burst
+        terms.
+      burst_aware_replay: >-
+        Time-ordered replay of recorded acquisitions preserving burst
+        errors, used only to distinguish the nonstationary competing
+        explanation.
+    measurement_procedure: >-
+      For each configuration and each of the 4 held-out attack keys, run
+      the frozen backend measurement until key recovery or the attack trace
+      cap; the measured median traces-to-key-recovery per configuration is
+      compared with each model's frozen prediction inside the
+      multiplicative factor-2 decision band.
+
+  controls:
+    - id: CTRL-SHUFFLED-LABELS
+      method: Leakage labels are shuffled and the full calibration/prediction pipeline is re-run.
+      pass_condition: No shuffled-label model shows held-out predictiveness; any predictiveness invalidates the run.
+    - id: CTRL-IID-SYNTHETIC-ORACLE
+      method: An IID synthetic bit-flip oracle at matched marginal accuracy replaces device leakage.
+      pass_condition: The hard baseline predicts the synthetic oracle's recovery cost within band, demonstrating the baseline is not structurally incapable; divergence between synthetic and physical results is reported, not smoothed over.
+    - id: CTRL-BURST-REPLAY
+      method: Time-ordered replay preserves burst errors; results are compared against order-randomized replay.
+      pass_condition: Any material IID-versus-burst divergence is recorded and routed to the nonstationary outcome class.
+    - id: CTRL-KEY-HOLDOUT
+      method: Same-key versus held-out-key calibration is measured and compared.
+      pass_condition: All reported predictions use held-out attack keys only; any same-key dependence invalidates the affected result.
+    - id: CTRL-ACQUISITION-SANITY
+      method: A fixed-versus-random acquisition on a known test pattern attests the measurement chain before attack measurement.
+      pass_condition: The sanity capture distinguishes the known pattern at the frozen threshold; otherwise the run is invalid_acquisition_or_calibration.
+    - id: CTRL-CALIBRATION-FREEZE
+      method: Calibration and backend parameters are hashed and frozen at preflight close.
+      pass_condition: No calibration or backend parameter changes after the freeze; any change invalidates the run.
+
+  independent_variables:
+    - configuration: [C1, C2, C3]
+    - model_class: [soft_pc, adaptive_ldpc, hard_accuracy_baseline]
+    - held_out_attack_key: 4 per configuration
+
+  metrics:
+    primary:
+      - id: soft_model_trace_prediction_multiplicative_error
+        definition: Per configuration, max(predicted/measured, measured/predicted) on median traces-to-key-recovery over the 4 held-out attack keys, for each soft backend class.
+        decision_use: >-
+          Hypothesis conjunct A — at most 2 in every configuration.
+      - id: hard_accuracy_trace_prediction_multiplicative_error
+        definition: Same construction for the hard oracle-accuracy-only model.
+        decision_use: >-
+          Hypothesis conjunct B — greater than 2 in at least one configuration.
+      - id: total_cost_pairwise_ranking_change
+        definition: Whether charging profiling traces, retries, and wall-clock changes the ranking of at least one (backend, configuration) pair relative to trace-count-only ranking.
+        decision_use: >-
+          Hypothesis conjunct C — boolean.
+    secondary:
+      - calibration_error_on_held_out_keys
+      - mutual_information_per_execution
+      - oracle_queries
+      - physical_traces
+      - profiling_traces
+      - retries
+      - wall_clock_seconds
+      - key_recovery_success_interval_wilson_95
+      - failed_acquisition_count
+      - per_stage_wall_clock_seconds
+      - peak_memory_gb
+
+  replication:
+    seeds: [1, 2, 3, 4]
+    seed_policy: >-
+      Deterministic recorded seeds drive key generation, ciphertext
+      generation, and any randomized acquisition ordering; every derivation
+      path is recorded in the run manifests.
+    independent_instances: 12
+    planned_runs:
+      - id: RUN-MLKEM-029
+        purpose: >-
+          Stage-0 availability preflight (device, acquisition chain,
+          configurations), source and configuration lock, acquisition-sanity
+          control, profiling acquisition on disjoint profiling keys,
+          calibration, and freeze of all model parameters.
+      - id: RUN-MLKEM-030
+        purpose: Configuration C1 attack measurement on held-out keys; frozen predictions computed from locked calibration.
+      - id: RUN-MLKEM-031
+        purpose: Configurations C2 and C3 attack measurement on held-out keys; burst-aware replay control.
+      - id: RUN-MLKEM-032
+        purpose: Analysis — multiplicative errors per model and configuration, ranking comparison, shuffled-label and IID-oracle control accounting, outcome classification under frozen precedence, packaging.
+    expected_run_count: 4
+    preflight_rule: >-
+      If stage-0 preflight fails, RUN-MLKEM-030..032 are recorded with
+      terminal status failed_infrastructure and reason preflight_blocked;
+      every planned run still reaches a terminal status.
+
+  outcome_classification:
+    precedence:
+      - trace_source_unavailable
+      - invalid_acquisition_or_calibration
+      - soft_model_falsified
+      - hard_model_equally_predictive
+      - nonstationary_or_correlated_dominates
+      - backend_mismatch
+      - soft_oracle_budget_predictive
+    trace_source_unavailable: >-
+      Stage-0 cannot attest a protected-device trace source and the
+      pre-registered fallback is none. Infrastructure outcome with zero
+      evidence value; never reported as evidence against H-MLKEM-008.
+    invalid_acquisition_or_calibration: >-
+      Acquisition sanity fails, shuffled labels are predictive, the
+      calibration freeze is violated, or a required artifact is missing.
+    soft_model_falsified: >-
+      The soft model misses the held-out median by more than a factor of 2
+      in two or more of the three configurations under valid runs.
+    hard_model_equally_predictive: >-
+      The hard accuracy baseline is within a factor of 2 in all three
+      configurations; the comparative soft-advantage claim fails.
+    nonstationary_or_correlated_dominates: >-
+      IID soft scores fail but burst-aware time-ordered replay predicts
+      held-out recovery within band.
+    backend_mismatch: >-
+      No calibrated model (soft or burst-aware) predicts held-out recovery
+      within a factor of 2 in any configuration.
+    soft_oracle_budget_predictive: >-
+      All controls pass; soft model within factor 2 in all three
+      configurations; hard baseline misses by more than 2 in at least one;
+      total-cost accounting changes at least one pairwise ranking.
+      Supports H-MLKEM-008 scoped to the tested device, code, protections,
+      configurations, and budgets only.
+
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_wall_clock_seconds: 14400
+    total_cpu_hours: 8.0
+    maximum_memory_gb: 8
+    maximum_runs: 4
+    maximum_processes: 4
+    network_operations: none
+    deployed_system_queries: 0
+    stages:
+      - id: stage0_preflight_calibration
+        wall_clock_seconds: 3600
+        stop_rule: >-
+          If no protected-device trace source is attested, terminate as
+          failed_infrastructure classified trace_source_unavailable with
+          zero evidence value; if acquisition sanity fails, classify
+          invalid_acquisition_or_calibration; no fallback substitution.
+      - id: config_C1_measurement
+        wall_clock_seconds: 3600
+        stop_rule: Stop at the frozen trace caps; partial tables are recorded as partial, never extrapolated.
+      - id: config_C2_C3_measurement
+        wall_clock_seconds: 3600
+        stop_rule: Stop at the frozen trace caps; partial tables are recorded as partial, never extrapolated.
+      - id: analysis_and_packaging
+        wall_clock_seconds: 3600
+        stop_rule: Stop without interpretation if any required artifact or control accounting is incomplete.
+
+  stopping_rules:
+    - Stop at stage-0 and terminate as failed_infrastructure with zero evidence value if no protected-device trace source is attested; the fallback is none.
+    - Stop and escalate on any unexpected reproducible severe observation (for example single-trace full-key recovery on the protected build): record exact target/build/configuration, stop, construct no exploitation path, characterize no further.
+    - Stop after the four planned runs; no exploratory fifth run.
+    - Stop before any key recovery outside the frozen measurement grid (keys, configurations, caps); the frozen median-traces-to-recovery measurement on laboratory-held-out keys is the only permitted recovery procedure.
+    - Stop before any oracle construction, query chaining, backend adaptation, or attack-cost estimation beyond the frozen backends, configurations, and budget accounting; no extrapolation to other devices, protections, or parameter sets is presented as measured.
+    - Stop before touching any system, network endpoint, device, or key not created inside this experiment's laboratory setup.
+    - Never describe any result as an exploit, an attack on deployed systems, or a disclosure-ready vulnerability claim; laboratory scope only.
+    - Stop at 14400 total wall-clock seconds, 8.0 CPU-hours, or 8 GB resident memory; exhaustion is resource_exhaustion, an infrastructure outcome with zero evidence value.
+
+  invalidation_rules:
+    - Any run lacks its exact command (exact argv), commit and dirty state, environment, dependency versions, timestamps, resource use, stdout, stderr, raw result, summary, or inference metadata.
+    - Expected run count is not exactly four, or a planned run has no terminal status (failed_infrastructure with preflight_blocked counts as terminal).
+    - Any reported predictiveness depends on training and attacking the same keys or the same device traces.
+    - Calibration or backend parameters changed after the preflight freeze.
+    - Trace caps are exceeded silently, or failed/repeated acquisitions are dropped from the accounting.
+    - The shuffled-label control shows held-out predictiveness.
+    - Predictions are computed from post-hoc tuned (non-frozen) models.
+    - A synthetic-leakage control result is relabeled as a physical measurement.
+    - Any result is described as an exploit, an attack, a vulnerability claim, or evidence about a device, build, protection, or configuration not measured.
+    - An infrastructure outcome (no rig, acquisition failure, timeout, crash) is interpreted as evidence for or against H-MLKEM-008.
+
+  success_criterion: >-
+    Stage-0 preflight attests a pinned protected-device trace source; all
+    four runs reach terminal status; acquisition-sanity, shuffled-label,
+    IID-oracle, burst-replay, key-holdout, and calibration-freeze controls
+    pass; the soft model's trace prediction multiplicative error is at most
+    2 in all three configurations on held-out attack keys; the hard
+    accuracy baseline misses by more than a factor of 2 in at least one
+    configuration; total-cost accounting changes at least one (backend,
+    configuration) pairwise ranking; and the outcome is uniquely classified
+    as soft_oracle_budget_predictive under frozen precedence.
+    H-MLKEM-008 is then supported strictly within the tested device, code,
+    protections, configurations, and budgets, as a defensive evaluation
+    result only.
+  falsification_criterion: >-
+    H-MLKEM-008 is falsified if the soft model misses by more than a
+    factor of 2 in two or more of the three configurations (outcome
+    soft_model_falsified), or if the hard accuracy-only model is within a
+    factor of 2 in all three configurations (outcome
+    hard_model_equally_predictive). A burst-dominated or backend-mismatch
+    outcome routes to its own class and does not count as support.
+    Infrastructure unavailability or invalidity falsifies nothing
+    (AGENTS.md rule 5).
+
+  required_artifacts:
+    - experiments/EXP-MLKEM-008/preflight/trace_source_attestation.yaml
+    - experiments/EXP-MLKEM-008/source-lock.yaml
+    - experiments/EXP-MLKEM-008/configuration_lock.yaml
+    - experiments/EXP-MLKEM-008/implementation.md
+    - experiments/EXP-MLKEM-008/implementation/calibration.py
+    - experiments/EXP-MLKEM-008/implementation/soft_backends.py
+    - experiments/EXP-MLKEM-008/implementation/measurement_plan.py
+    - experiments/EXP-MLKEM-008/implementation/run_experiment.py
+    - experiments/EXP-MLKEM-008/analysis/calibration_report.json
+    - experiments/EXP-MLKEM-008/analysis/prediction_error_table.json
+    - experiments/EXP-MLKEM-008/analysis/ranking_comparison.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-029/manifest.yaml
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-029/command.txt
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-029/environment.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-029/raw.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-029/summary.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-029/stdout.txt
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-029/stderr.txt
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-030/manifest.yaml
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-030/command.txt
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-030/environment.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-030/raw.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-030/summary.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-030/stdout.txt
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-030/stderr.txt
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-031/manifest.yaml
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-031/command.txt
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-031/environment.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-031/raw.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-031/summary.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-031/stdout.txt
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-031/stderr.txt
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-032/manifest.yaml
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-032/command.txt
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-032/environment.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-032/raw.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-032/summary.json
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-032/stdout.txt
+    - experiments/EXP-MLKEM-008/runs/RUN-MLKEM-032/stderr.txt
+    - experiments/EXP-MLKEM-008/execution-report.yaml
+
+  assigned_to: executor
+  inference_receipt:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: null
+    fallback_used: false
+    authorization_ref: null

@@ -1,0 +1,243 @@
+idea:
+  id: IDEA-20260815-78fbba
+  question_id: RQ-EDDSA-9b8473
+  added: '2026-08-15'
+  title: >-
+    Ed25519 KEY GENERATION CLAMPS THE SCALAR AND THE CLAMPING IS DEFENDED ON
+    GROUNDS THAT ARE RARELY STATED PRECISELY: measure what each clamping bit
+    actually buys against small-subgroup and lattice attacks
+  class: measurement
+
+  claim: >-
+    Ed25519 clears the low three bits and sets the high bit of the secret
+    scalar. The low bits are said to defend against small-subgroup attacks
+    and the high bit against timing variation in ladders. Each claim is
+    testable separately, and the bits also reduce the key space and impose
+    structure a lattice attack could use. Measuring both sides is bounded
+    and concrete.
+
+  mechanism: >-
+    For each clamped bit, construct the attack it is said to prevent and
+    check the attack succeeds without the clamping and fails with it.
+    Separately, measure whether the imposed structure improves any lattice
+    attack against a leakage instance.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Grep 'clamping', 'clamp', 'cofactor' (121), 'scalar structure'; read
+      of GOAL-EDDSA-001.
+    results: >-
+      Cofactor handling is well represented; no record tests each clamping
+      bit against the specific attack it is said to prevent, or measures
+      the structure's cost on the lattice side.
+    verdict: >-
+      UNVERIFIED here; clamping rationale is discussed in the Ed25519
+      literature and the low-bit rationale is well known, so the stage-one
+      literature check is blocking for the defensive half.
+
+  object_first_candidate:
+    tracked_object: >-
+      EACH CLAMPING BIT, treated as a separate defence with its own attack
+      and its own cost.
+    lossiness: >-
+      Treating clamping as one design decision projects away the per-bit
+      rationale, which is what makes the defences individually testable.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while the attacks are constructible; the lattice half
+      depends on a leakage instance and is scoped to that setting.
+
+  null_object_control: >-
+    NULL 1 -- unclamped keys, where the small-subgroup attack must succeed;
+    if it does not, the attack is not implemented correctly and the
+    defence's value cannot be measured. NULL 2 -- fully random scalars in
+    the lattice half, giving the attack cost without the imposed structure.
+
+  discriminated_from:
+    - >-
+        The Ed25519 verification-divergence and batch-verification records
+        in this series, which concern verification rather than key
+        generation.
+    - >-
+        The HNP embedding records in this series, which concern nonce
+        leakage; this concerns long-term key structure, which is a
+        different lattice instance.
+
+  assumptions:
+    - >-
+        The small-subgroup attack is constructible against unclamped keys
+        in the tested implementation.
+    - >-
+        The lattice half has a meaningful leakage instance to attack;
+        without one the structure's cost is not measurable and the record
+        covers only the defensive half.
+
+  predictions:
+    - metric: >-
+        unclamped small-subgroup attack
+      direction: different
+      minimum_effect: >-
+        FORCED to succeed; otherwise the defence's value cannot be
+        measured.
+    - metric: >-
+        clamped small-subgroup attack
+      direction: different
+      minimum_effect: >-
+        FORCED to fail; the defence's claimed purpose.
+    - metric: >-
+        lattice attack cost with clamped versus random scalars
+      direction: different
+      minimum_effect: >-
+        The cost side; a material improvement from the imposed structure
+        would be a genuine tradeoff nobody has quantified.
+    - metric: >-
+        high-bit defence against the timing claim
+      direction: different
+      minimum_effect: >-
+        Tested separately, since it is a different claim from the low-
+        bit one and is about ladder behaviour rather than group
+        structure.
+
+  minimal_test:
+    design: >-
+      All three low bits and the high bit, with the unclamped attack null
+      and the random-scalar lattice null.
+    controls:
+      - >-
+          Unclamped attack-succeeds null.
+      - >-
+          Random-scalar lattice baseline.
+      - >-
+          Each bit tested separately rather than clamping as a whole.
+      - >-
+          The high-bit claim tested against ladder behaviour, not
+          against group structure.
+    required_metrics:
+      - >-
+          Attack outcome with and without each clamping bit.
+      - >-
+          Lattice attack cost, clamped versus random scalars.
+      - >-
+          Key-space reduction from clamping, stated exactly.
+
+  falsification_conditions:
+    - >-
+        The unclamped attack fails. Not implemented correctly; the
+        defensive half cannot be measured.
+    - >-
+        A clamping bit does not prevent its claimed attack. The rationale
+        for that bit is wrong, which would be a notable finding about a
+        widely deployed design.
+    - >-
+        Clamped scalars materially improve a lattice attack. Clamping
+        carries a cost nobody has quantified, which is the record's most
+        interesting possible outcome.
+    - >-
+        No lattice improvement and all defences hold. Clamping does what
+        it claims at no measurable cost, which is worth establishing with
+        measurements.
+
+  confounders:
+    - >-
+        IMPLEMENTATION-SPECIFIC DEFENCES: some implementations clear the
+        cofactor elsewhere, so a clamping bit may be redundant there and
+        its removal would not enable the attack.
+    - >-
+        LATTICE INSTANCE CHOICE: the structure's effect depends heavily on
+        which leakage instance is attacked, so a single instance could
+        show or hide an effect.
+
+  interpretation_limits:
+    - >-
+        Measures a key-generation design decision; makes no security claim
+        about Ed25519.
+    - >-
+        Scoped to the tested implementation and the chosen lattice
+        instance.
+    - >-
+        A defensive result binds the tested attack, not all attacks the
+        bit might prevent.
+
+  heuristic_assumptions:
+    - id: HEUR-EDDSA-CLAMP-1
+      statement: >-
+        The structure clamping imposes on the secret scalar does not
+        measurably assist any lattice attack against Ed25519 key
+        material.
+      rigorous_support: >-
+        Rigorous ingredient: clamping fixes four bits, reducing the key
+        space by a factor of sixteen, which is a negligible brute-force
+        gain and is exactly computable. THE GAP: lattice attacks exploit
+        structure rather than key-space size, and fixed high and low
+        bits change the target vector's shape in a way that a well-
+        chosen embedding might use -- so the negligible brute-force gain
+        says nothing about the lattice side.
+      falsification_condition: >-
+        A lattice attack succeeding at lower leakage against clamped
+        scalars than against random ones.
+      validation_plan: >-
+        SAMPLE: >= 50 instances per condition at matched leakage.
+        COMPARISON: paired success rate, clamped versus random. TAIL
+        CHECK: the lowest-leakage successes, reported per condition.
+        TRANSFER: none beyond the tested embedding and instance.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is attack runs with and without each clamping
+      bit.
+    memory_exponent: >-
+      Lattice-reduction dominated on the cost half.
+    best_known: >-
+      Incumbents are the Ed25519 design rationale and the published
+      lattice attacks, tested against each other here rather than
+      improved.
+    hidden_overhead: >-
+      The lattice half's outcome depends on the embedding chosen, and a
+      negative there binds that embedding only.
+    tradeoff_note: >-
+      Clamping buys a defence and imposes structure; the record measures
+      both sides where the design literature usually argues only one.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As attacks: dominated by the published
+    small-subgroup and lattice literature. As a per-bit measurement of
+    clamping's benefit and cost: none exists here. Not null on any axis.
+  sota_delta: >-
+    No attack novelty, no exponent. Content delivered: per-bit measurement
+    of what Ed25519 clamping defends against, tested with an unclamped
+    control that must succeed, plus a measurement of whether the imposed
+    scalar structure assists a lattice attack, which the design rationale
+    does not address.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.85 that the small-subgroup attack is constructible unclamped. 0.9 that
+    clamping prevents it, confirming the stated rationale. 0.12 that clamped
+    structure measurably assists a lattice attack, which would be the
+    finding worth having and is why the cost half is included.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-EDDSA-9b8473
+    - GOAL-EDDSA-001
+    - KN-OPEN-011
+    - KN-OPEN-018
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

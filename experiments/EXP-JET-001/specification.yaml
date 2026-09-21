@@ -1,0 +1,118 @@
+experiment:
+  id: EXP-JET-001
+  hypothesis_id: H-JET-001
+  version: 1
+  status: approved
+  title: "Tangent-split summation (first-jet / dual-number decomposition of the addition relation) vs serial-S3 harvester"
+  objective: >
+    Measure whether the first-jet (dual-number F_p[eps]/eps^2) split of the m=3 summation
+    relation buys a cost/survival trade: per candidate (m-1)-tuple, run the exactly-linear
+    tangent screen (cost C_lin, survival rate sigma) before the exact zeroth-order S3-chain
+    test (cost C_nonlin), at hit probability p_m, vs the standard serial-S3 harvester at an
+    identical factor base. Win requires C_lin < (1-sigma)*C_nonlin at equal p_m.
+  mechanism_under_test: >
+    Over F_p[eps]/eps^2 the eps-block of the addition law is F_p-linear in the jet
+    coordinates (formal-group linearization). Candidate A1 claims this lets relation
+    generation be split into a cheap linear screen plus a nonlinear residual with a
+    measured survival rate sigma strictly below 1 and C_lin + sigma*C_nonlin < C_nonlin.
+    Anticipated fatal obstruction (from the candidate section): the eps-system is implied
+    by the zeroth-order solution set (sigma ~ 1, zero gain) or eps-consistency is
+    generically stronger (sigma collapses, probability dies). Both regimes are measured.
+  inputs:
+    primes: [101, 211, 431]
+    stress_prime: 1009
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]
+    m: 3
+    factor_base: "standard x-interval FB (x = 0,1,2,...; first B liftable points, one point per x)"
+    factor_base_size: {101: 14, 211: 20, 431: 28, 1009: 40}
+    factor_base_size_rationale: >
+      Not fixed by the candidate section; executor-chosen so that expected relations per
+      (curve, seed) are in the tens (statistics) while B << n/2 (n = curve order).
+      Documented here as an implementation decision.
+    curve_generation: >
+      Seeded random short-Weierstrass curves y^2 = x^3 + a*x + b over F_p, 4a^3+27b^2 != 0,
+      requiring #E(F_p) = n PRIME (prime-order group, cofactor 1), n != p (anomalous
+      excluded), n != p+1 (supersingular excluded). p >= 101 excludes char 2/3.
+      Instance RNG stream: set_random_seed(seed + p) before generation (deterministic).
+    target: "R = k*G for seeded k in [1, n-1], R nonzero, x(R) not in FB_x (avoid trivial self-decomposition)."
+  controls:
+    - id: POS-1
+      kind: positive
+      statement: >
+        The standard S3 harvester must reproduce ledger relation counts. Operationalized:
+        (a) the chained-S3 resultant test and the sign-symmetric EC-arithmetic membership
+        test must yield IDENTICAL relation sets on every candidate pair (implementation
+        agreement, mismatches counted, expected 0); (b) measured relation counts must
+        agree with the combinatorial counting law (cost-model p_m ~ B^(m-1)/((m-1)!*n)
+        family) to order unity (ratio in [0.5, 2]).
+    - id: NEG-1
+      kind: negative
+      statement: >
+        Random non-relation tuples must be rejected by the tangent screen at the measured
+        sigma (no leakage). Operationalized: 200 seeded random point pairs per instance,
+        EC-verified non-relations, are passed through the tangent screen; measured survival
+        must equal sigma within counting error, the full tangent-split pipeline must claim
+        0 relations among them, and every true relation must survive the screen
+        (no false negatives).
+  independent_variables: ["p in {101, 211, 431} (+1009 stress)", "seed in 20260717..20260722"]
+  metrics:
+    primary:
+      - sigma            # tangent-screen survival rate over all candidate pairs
+      - C_lin            # measured F_p-ops per candidate for the exact linear eps-block solve
+      - C_nonlin         # measured F_p-ops per candidate for the exact zeroth-order S3-chain test
+      - p_m              # measured per-pair relation hit probability
+      - per_relation_cost_ratio  # (ops_c/rel) / (ops_t/rel) at equal hit rate; gate needs >= 4
+      - charged_cost_exponent    # log-log slope of charged total cost vs n across the three sizes, 95% CI
+    secondary:
+      - sigma_w          # fraction of relations whose solution is jet-degenerate (witness regime)
+      - relation_yield_per_op    # relations / total F_p-ops, both routes
+      - ec_route_op_equiv        # EC-arithmetic membership route cost context
+      - wall_seconds per stage
+  cost_model:
+    classical_total: "(B/p_m)*C_nonlin + LA(B) + descent"
+    tangent_total:   "(B/p_m)*(C_lin + sigma*C_nonlin) + LA(B) + descent"
+    charged_cost_definition: >
+      candidates_needed = B / p_m_measured; charged = candidates_needed * per_candidate_cost
+      + LA(B) + descent. Toy proxies, stated: LA(B) = B^2 F_p-ops (dense elimination at
+      B <= 40, degenerate toy scale), descent = 0 (factor base complete at toy scale).
+      These proxies are identical for both routes and do not favor either.
+    op_counting_convention: >
+      F_p multiplications and additions counted individually by instrumented schoolbook
+      arithmetic (poly mul of degrees d1,d2: (d1+1)*(d2+1) muls and same-order adds;
+      Horner eval of degree d: d muls + d adds; multiplication by the zero polynomial is
+      structural and not counted). Field inversion counted separately and merged as
+      1 inv = 10 mul-equivalents where a single F_p-op number is required.
+      EC point add counted as 1 inv + 3 mul + 6 add (~19 op-equiv), point negation as 1 op.
+  replication:
+    seeds: [20260717, 20260718, 20260719, 20260720, 20260721, 20260722]
+    independent_instances: 24   # 4 primes x 6 seeds (18 in the gate fit; 1009 is stress)
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_wall_clock_seconds: 2400
+    maximum_runs: 8
+  stopping_rules:
+    - "Any single sage invocation > 600 s: kill, record as infrastructure timeout (NOT evidence against the hypothesis), reduce seeds to minimum 3 (20260717..20260719) or sizes, and record the deviation in analysis.md and the EV record."
+  invalidation_rules:
+    - "POS-1 mismatch (S3-chain vs EC relation sets differ) -> validity_status invalid, reason recorded."
+    - "POS-1 count law off by more than 2x -> validity_status invalid, reason recorded."
+    - "NEG-1 leakage (relations claimed on verified non-relation tuples, or true relations killed by the screen) -> validity_status invalid, reason recorded."
+  success_criterion: >
+    Measured charged-cost exponent <= 0.49 across the three sizes with the 1/2 crossing
+    excluded at 95% confidence; OR >= 4x per-relation cost ratio at equal hit rate
+    sustained across all sizes.
+  falsification_criterion: >
+    C_lin + sigma*C_nonlin >= C_nonlin across all sizes (screen is pure overhead,
+    sigma ~ 1), or relation probability collapses (sigma_w ~ 0 in the genuine-witness
+    regime) - either extreme kills the trade as a scoped negative.
+  required_artifacts:
+    - experiments/EXP-JET-001/specification.yaml
+    - experiments/EXP-JET-001/jet1_tangent_split.sage
+    - experiments/EXP-JET-001/runs/RUN-JET-001-a/manifest.yaml
+    - experiments/EXP-JET-001/runs/RUN-JET-001-a/raw.json
+    - experiments/EXP-JET-001/runs/RUN-JET-001-a/stderr.txt
+    - experiments/EXP-JET-001/analysis.md
+    - ledger/RQ-JET-001.yaml
+    - ledger/H-JET-001.yaml
+    - ledger/EV-JET-001.yaml
+  assigned_to: executor
+  approved_by: coordinator

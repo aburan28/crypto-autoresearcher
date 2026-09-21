@@ -1,0 +1,368 @@
+idea:
+  id: IDEA-20260813-a46301
+  title: >-
+    Quantum-DOOM: amplitude-amplified cyclic-shift-orbit folding layered on
+    quantum-walk ISD for quasi-cyclic syndrome decoding
+  class: composition
+  claim: >-
+    For an HQC instance with quasi-cyclic parity-check structure over
+    R = F_2[X]/(X^n - 1) (n prime), a quantum search that runs
+    Kachigar-Tillich's quantum-walk-accelerated MMT/BJMM decoder as the inner
+    marked-item test, but replaces its single-target amplitude amplification
+    with amplitude amplification over the n-element cyclic-shift orbit of the
+    syndrome (the quantum analogue of Sendrier's classical DOOM multi-target
+    folding), reduces the number of quantum-walk iterations by a factor
+    asymptotically no better than Theta(1/sqrt(n)) relative to running the
+    unmodified walk once, WITHOUT changing the leading exponential-in-n term
+    of the walk's cost. This proposal discriminates between two outcomes: (a)
+    the quantum construction reproduces at most DOOM's own classical sqrt(n)
+    gain, multiplicatively on top of Kachigar-Tillich's existing speedup, or
+    (b) a naive register design silently overclaims a further Grover-type
+    quadratic gain ON TOP of sqrt(n) by treating the n shifted targets as
+    independent marked items when they are not.
+  mechanism: >-
+    Sendrier's classical DOOM construction folds an ISD search against N
+    target syndromes into one search whose cost is (single-target cost)
+    divided by sqrt(N), by sharing one list-construction phase across all N
+    targets. HQC's quasi-cyclic structure supplies exactly such a family for
+    free: the n cyclic shifts of a decodable syndrome-error pair for one
+    instance are n distinct syndromes of the SAME code. The mechanism
+    proposed here is to replace DOOM's classical sort-and-merge across n
+    targets with a two-register quantum state |L>|j>, L a candidate
+    information set and j in Z_n a shift label, whose marked predicate asks
+    "does shift j of L hit any of the n cyclically shifted targets" instead
+    of Kachigar-Tillich's single-register |L> with a fixed single target. The
+    question under test is whether amplitude amplification over the joint
+    register compounds DOOM's classical sqrt(n) gain with a further quantum
+    quadratic gain over n, or whether the n branches are too correlated
+    (they are outcomes of walking the SAME trial L, not n independent draws)
+    for that compounding to be real.
+  novelty_status: unverified
+  assumptions:
+    - >-
+      HQC's ring is R = F_2[X]/(X^n - 1) with n prime, as used throughout
+      this batch's five proposals; this specific proposal does not further
+      require 2 to be a primitive root mod n (that CRT-specific assumption
+      belongs to IDEA-20260813-5a2aaa).
+    - >-
+      Kachigar-Tillich's algorithm (KN-LIT-80202e) is the RQ's own declared
+      best-known-quantum-attack baseline and is treated as a black-box inner
+      subroutine here; its internal exponent formula is not reproduced or
+      re-derived by this proposal.
+  proof_search_map:
+    bottleneck: >-
+      The single step where Kachigar-Tillich's algorithm commits to ONE
+      fixed target syndrome s before building its quantum-walk search
+      structure. DOOM's classical construction removes exactly this
+      commitment. The exact step is the choice of marked-vertex predicate:
+      "does subset L give a codeword matching syndrome s" versus "does
+      subset L give a codeword matching ANY of s, shift_1(s), ...,
+      shift_{n-1}(s)".
+    baseline_embedding:
+      parameter_slice: >-
+        The n=1 (trivial-shift, or a code with no cyclic automorphism)
+        degenerate case must reproduce Kachigar-Tillich's original algorithm
+        exactly with the shift register removed, and must reproduce DOOM's
+        classical sqrt(n) gain at the oracle-count level when the quantum
+        walk is turned off and only the multi-target folding is kept.
+      reproduction_check: >-
+        Symbolic only: both limits (walk-on/DOOM-off and walk-off/DOOM-on)
+        are written as reductions of the general two-register marked-state
+        formalism and checked to collapse to their known formulas. Not yet
+        performed to completion in this task; recorded as an open step.
+    observation_collision:
+      observable: >-
+        Number of quantum-walk steps (or oracle queries) to first hit a
+        marked state, as a function of (n, marked-fraction epsilon).
+      distinct_preimage_search: >-
+        AUDIT PERFORMED, COLLISION FOUND. In DOOM's classical construction
+        exactly one of the n shifts is the "real" target with success
+        probability epsilon per trial subset L; the other n-1 shifts are NOT
+        independently marked at rate epsilon each, because they are cyclic
+        shifts of the SAME error pattern evaluated against the SAME fixed
+        trial L -- a single correlated event, not n independent Bernoulli
+        trials. A naive two-register amplitude-amplification design that
+        treats the n branches as n independently preparable marked items
+        would silently claim a further Grover-type quadratic gain over n on
+        top of DOOM's own sqrt(n), which the correlation structure does not
+        support. This is a genuine, direct falsifier of the "compounded
+        quadratic gain" reading, though it does not falsify the weaker
+        "reproduces DOOM's own sqrt(n)" reading.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          A joint state |L>|j> with a SINGLE marked predicate evaluated once
+          per L (not once per (L,j) pair), reducing the register to the
+          object DOOM actually tracks: a size-w subset L plus the
+          observation of which, if any, cyclic shift of L happens to hit.
+        predicted_gain: >-
+          At most the same Theta(1/sqrt(n)) DOOM gives classically, applied
+          multiplicatively to Kachigar-Tillich's existing quantum-walk
+          speedup over classical MMT/BJMM -- explicitly NOT a further
+          Grover-type gain over n.
+    quantifier_order: >-
+      FOR a fixed quasi-cyclic code family with cyclic automorphism group
+      Z_n (n prime), THERE EXISTS a two-register quantum-walk construction
+      whose marked-fraction accounting matches DOOM's classical sqrt(n)
+      gain without overclaiming a compounded quadratic gain over n; the
+      witness construction (the exact register layout and marked-predicate
+      circuit) must be exhibited for EVERY n in the certified family, and
+      does not currently exist even as a pseudocode sketch -- it is asserted
+      as plausible, not constructed, by this proposal.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A quantum-walk decoder reproducing DOOM's classical sqrt(n) factor
+        multiplicatively on top of Kachigar-Tillich's existing speedup over
+        classical MMT/BJMM: total_time proportional to
+        (classical_MMT_BJMM_time)^{quantum_walk_exponent_fraction} divided
+        by sqrt(n), for n the code length (~17669 at HQC-128) -- a
+        constant/polynomial-in-n prefactor, NOT a change to the exponential
+        base of the search.
+      nearby_object_control: >-
+        The n=1 case (a code artificially stripped of cyclic structure, of
+        the same (n,k,w)) must show NO gain from this construction, and the
+        construction must degrade continuously to plain Kachigar-Tillich as
+        n approaches 1. This has not been checked because no circuit-level
+        construction currently exists to check it against.
+    proof_obligations:
+      - claim: >-
+          The two-register marked predicate can be evaluated with the same
+          per-query circuit cost as Kachigar-Tillich's single-target
+          predicate, up to a factor polynomial in n.
+        responsibility: interface
+      - claim: >-
+          The correlated-shift observation collision does not silently
+          grant a super-sqrt(n) gain.
+        responsibility: correctness
+      - claim: >-
+          Even under the most optimistic accounting, the gain is bounded by
+          a fixed polynomial in n and cannot change the algorithm's
+          exponential-in-n leading term.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: >-
+        Ratio of (predicted quantum-walk query count with DOOM-folding) to
+        (Kachigar-Tillich single-target quantum-walk query count), evaluated
+        symbolically as a function of n at fixed (k/n, w/n)
+      direction: lower
+      minimum_effect: >-
+        A genuine ratio strictly below 1 and asymptotically no better than
+        Theta(1/sqrt(n)); a ratio that improves the EXPONENTIAL base of the
+        cost formula (not just a polynomial-in-n prefactor) would falsify
+        the "cofactor only" classification and must never be presented as
+        an exponent-moving result per docs/target-result-profile.md A1/C1-C2.
+  minimal_test:
+    design: >-
+      A symbolic (paper-and-pencil / CAS-assisted) derivation of the
+      marked-fraction and query-count formulas for the two-register
+      construction, evaluated at the n=1 degenerate limit and at a small toy
+      n=7 (the smallest prime with 2 a primitive root, matching R =
+      F_2[X]/(X^7-1) isomorphic to F_2 x F_8) where the full state space
+      (all size-w subsets of a 7-coordinate quasi-cyclic ring) is small
+      enough to enumerate exactly by brute force and cross-check the
+      derived formula's marked-fraction prediction against ground truth.
+    controls:
+      - >-
+        Null object: run the identical symbolic/enumerative marked-fraction
+        count against a RANDOM (non-quasi-cyclic) code of the same (n,k,w)
+        with no automorphism, where the shift-orbit register is meaningless;
+        the DOOM-style gain must vanish (ratio approaches 1) on this null.
+      - >-
+        n=1 degeneracy check as stated in method_ceiling.
+    required_metrics:
+      - marked_fraction(n, L)
+      - predicted_query_count_ratio(n)
+      - toy-n=7 exact-enumeration marked_fraction vs formula prediction
+  falsification_conditions:
+    - >-
+      The toy n=7 exact enumeration shows the two-register marked-fraction
+      is NOT well-approximated (within a small constant factor) by the
+      DOOM-derived sqrt(n) formula -- indicating the correlated-shift
+      collision breaks the construction more severely than a sqrt(n) floor,
+      i.e. the naive folding gives LESS than DOOM's own classical gain once
+      quantum-walk overhead is added.
+    - >-
+      The null-object control (random code, no automorphism) shows a
+      nonzero gain -- indicating the measured effect is a construction
+      artifact of the toy-n counting method, not the claimed cyclic-structure
+      mechanism.
+    - >-
+      No circuit-level construction can be exhibited that evaluates the
+      two-register marked predicate at the same asymptotic per-query cost as
+      Kachigar-Tillich's single-target predicate -- the "interface" proof
+      obligation fails and the idea reduces to an unconstructed sketch.
+  confounders:
+    - >-
+      HQC's actual weight regime w = Theta(sqrt(n)) (very sparse) may make
+      the marked-fraction so small that DOOM's classical sqrt(n) gain
+      interacts nonlinearly with Kachigar-Tillich's already-tuned optimal
+      list-size parameters, in a way the toy n=7 case (which necessarily
+      uses a much denser relative weight to keep w >= 1) cannot represent.
+    - >-
+      The n=7 toy case has 2 as a primitive root and Phi_7 irreducible of
+      degree 6 -- the smallest example satisfying the CRT-factorization
+      assumption used elsewhere in this batch (IDEA-20260813-5a2aaa) -- so a
+      formula validated only at this one small n could be an artifact of the
+      specific small-field structure of F_8 rather than a general
+      phenomenon.
+  interpretation_limits:
+    - >-
+      Even in the best case this proposal predicts a constant-in-n-exponent,
+      polynomial-in-n prefactor gain (at most Theta(sqrt(n)) which is about
+      133 at HQC-128's n=17669), stacked multiplicatively on
+      Kachigar-Tillich's existing sub-square-root gain over classical
+      MMT/BJMM. This is explicitly NOT an exponent-moving result under
+      docs/target-result-profile.md A1/C1-C2, and must never be presented as
+      one. It is filed as a possible BUILDING BLOCK only.
+    - >-
+      No claim is made about HQC's decoding-failure-rate model, IND-CCA2
+      security, or GOAL-HQC-001's classical ISD baseline.
+    - >-
+      The construction is not exhibited even at pseudocode/circuit level;
+      this proposal is a screened candidate object, not a working algorithm.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a fixed size-w subset L of the n quasi-cyclic coordinates, the
+        events "shift j of L, evaluated against the actual (unknown) error
+        support, yields a decodable configuration" for j = 0..n-1 are NOT
+        independent (they are n views of one trial), but their joint
+        marked-fraction over random L behaves, in expectation over L, like
+        DOOM's classical amortization: the expected number of hitting shifts
+        scales with n times the single-target success probability for small
+        single-target probability, i.e. the FIRST MOMENT of the multi-shift
+        indicator matches n independent trials even though the trials are
+        not independent.
+      rigorous_support: >-
+        Sendrier's DOOM construction (classical, cited generically -- not
+        independently reproduced by this program) rigorously establishes the
+        first-moment / list-amortization gain of sqrt(N) for N target
+        syndromes sharing one list-construction phase; this heuristic
+        borrows only the first-moment claim, not any independence claim,
+        imitating the classical coupon-collector-style argument that a
+        random list intersects a random target set with expected size
+        proportional to N even when the N draws are correlated through a
+        shared random object.
+      validation_plan: >-
+        Direct enumeration at the n=7 toy scale (2^7 = 128 total coordinate
+        patterns, C(7,w) subsets for small w) computes the EXACT joint
+        distribution of the n-shift indicator vector for every subset L,
+        giving both the true first moment and true variance without any
+        independence assumption; compare against the DOOM first-moment
+        prediction. No larger-scale correspondence trick (e.g. a
+        Deuring-style sampling oracle) is available for this object, so this
+        validation is capped at toy scale (n up to about 13, the next prime
+        with 2 primitive) and any transfer to HQC's actual n around 17669 is
+        an explicit, flagged extrapolation.
+  target_complexity:
+    time_exponent: >-
+      Conjectured: the Kachigar-Tillich quantum-walk exponent for MMT/BJMM
+      at the given (k/n, w/n), unchanged in its leading exponential term;
+      multiplied by a claimed Theta(1/sqrt(n)) polynomial prefactor if the
+      construction survives its own audits.
+    memory_exponent: >-
+      Conjectured unchanged from Kachigar-Tillich's own memory exponent; the
+      shift-label register adds only O(log n) qubits/classical bits of
+      bookkeeping, not a new memory-scaling term.
+    best_known: >-
+      Kachigar-Tillich (2017, KN-LIT-80202e) quantum-walk-accelerated
+      MMT/BJMM -- exact exponent NOT reproduced in this corpus entry or by
+      this proposal; reproducing it is itself an unmet baseline_embedding
+      obligation.
+    hidden_overhead: >-
+      The claimed prefactor Theta(1/sqrt(n)) is disclosed as the ENTIRE
+      claimed gain -- there is no larger hidden exponential improvement
+      being obscured. If anything the risk runs the other way: the
+      observation-collision audit above shows a naive design could WRONGLY
+      claim more than sqrt(n).
+    tradeoff_note: >-
+      Not evaluated; inherited unchanged from whichever time-memory
+      tradeoff point Kachigar-Tillich's own construction sits at.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: low
+
+object_first_screen:
+  established_families_forbidden_as_primary_lens:
+    - >-
+      Grover-only exhaustive search over information sets (Bernstein 2010,
+      "Grover vs. McEliece", KN-LIT-4144).
+    - >-
+      Quantum-walk-accelerated MMT/BJMM representation-technique ISD
+      (Kachigar-Tillich 2017, KN-LIT-80202e) -- this RQ's own stated
+      best-known-quantum-attack baseline.
+    - >-
+      Circuit/qubit/memory-resource-axis refinements of the above (Perriello
+      et al. 2021/2023/2024, KN-LIT-aa3372/37562e/224f2c; Chevignard-Fouque-
+      Schrottenloher 2024, KN-LIT-072f64; Kimura-Takayasu-Takagi 2023,
+      KN-LIT-b8a8be; Esser et al. 2021/2022, KN-LIT-27f923/4388b3) -- these
+      improve implementability, not the exponent, and are explicitly not the
+      lens used here.
+  tracked_object: >-
+    The cyclic-shift-orbit label j in Z_n attached to a candidate size-w
+    information-set subset L, jointly tracked with L itself, as a single
+    two-register quantum state |L>|j> whose marked predicate asks "does
+    shift j of L hit" rather than the single-register |L> tracked by
+    Kachigar-Tillich.
+  novelty_axis: >-
+    Plausibly new AS A QUANTUM CONSTRUCTION (no corpus or web hit combining
+    DOOM-style multi-target folding with a quantum walk); the underlying
+    classical folding idea (DOOM) is well-known, so the genuinely new part
+    is narrow: whether the folding composes with, rather than being
+    subsumed by, the quantum walk's own quadratic gain.
+  testability_axis: >-
+    Concretely testable at toy scale (n=7 exact enumeration) as specified in
+    minimal_test; the one-step propagation (marked-predicate evaluation per
+    L) is well-defined.
+  survival_axis: >-
+    Expected to survive only as far as reproducing DOOM's OWN classical
+    sqrt(n) gain, per the observation-collision audit; the audit's own
+    finding is that a naive design likely CANNOT do better than that, i.e.
+    the structure dissolves into "DOOM composed with quantum-walk-ISD", a
+    known combination of two known things, rather than a genuinely new one.
+  lossy_projection_test: >-
+    The two-register state |L>|j> is a genuinely lossy projection relative
+    to tracking the full error vector e (it discards everything about e
+    except whether shift j of L happens to intersect it), and this
+    discarding is compatible with quasi-cyclic structure's own operations
+    (the ring's shift automorphism acts on j by translation and leaves the
+    marked-predicate evaluable per-shift) -- so this passes the algebraic
+    lossy-projection test at the representation level. What the audit found
+    is NOT a lossy-projection failure but a probabilistic-independence
+    failure: the n values of j are not independently drawn, so the
+    amplitude-amplification register does not behave like n independent
+    marked items. That is a distinct, and for this proposal more binding,
+    failure mode than KN-TECH-056's canonical (Delta, Pi) example, and is
+    recorded as such rather than forced into the wrong failure category.
+
+dominated_by: >-
+  Kachigar-Tillich (2017, KN-LIT-80202e) dominates on the exponent axis
+  outright (this proposal claims no exponent change); classical DOOM
+  (Sendrier, cited generically, not independently verified in this corpus)
+  already delivers the SAME sqrt(n) prefactor gain with zero quantum
+  overhead and no circuit-construction risk, so on a time x memory x
+  implementation-cost Pareto comparison this proposal is currently dominated
+  by classical DOOM composed with Kachigar-Tillich's existing quantum walk
+  unless the two-register quantum construction can be shown to give MORE
+  than DOOM's own classical sqrt(n) -- which the observation-collision audit
+  above suggests it likely cannot. Checked against every corpus row surfaced
+  in this task's retrieval-screen.yaml (KN-LIT-4144, 80202e, aa3372, 37562e,
+  224f2c, 072f64, b8a8be, 4388b3, 27f923, 5677ae): none reports a
+  quasi-cyclic-specific quantum-DOOM construction to compare against
+  directly, so this dominated_by statement rests on a first-principles
+  composition argument, not a located paper beating it.
+sota_delta: >-
+  No verified numeric delta. Best-case conjectured prefactor sqrt(n), about
+  133 at HQC-128 (n=17669), stacked on Kachigar-Tillich's already-modest
+  sub-square-root gain over classical MMT/BJMM -- explicitly a cofactor-class
+  result per its own interpretation_limits, not an exponent_delta.
+
+novelty_check:
+  corpus_status: >-
+    No corpus entry combining DOOM-style multi-target folding with a
+    quantum walk was found (see retrieval-screen.yaml).
+  web_status: >-
+    WebSearch tool failed on all three queries attempted in this task
+    (infrastructure error, not a null result); not independently checked.

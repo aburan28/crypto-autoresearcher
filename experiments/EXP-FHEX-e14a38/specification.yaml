@@ -1,0 +1,216 @@
+experiment:
+  id: EXP-FHEX-e14a38
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-ec9a47; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-ec9a47
+  question_id: RQ-FHE-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Measure the eigenvalue spectrum of the FHE noise coefficient covariance in the fixed negacyclic-diagonalising
+    basis at three circuit states, against a white null with matched variance and matched sample count.
+  objective: The one uncertainty a run reduces is whether the whiteness presumed by the variance-to-infinity-norm
+    step in a noise analysis is measurably violated by homomorphic operations at degrees where the
+    covariance can be estimated exhaustively. (i) It calibrates the instrument by measuring the flatness
+    index at fresh encryption, where the noise is i.i.d. by construction, and requiring it to reproduce
+    the white null; without that check every downstream number is uninterpretable, because finite-sample
+    covariance estimation is never flat. (ii) It produces the full eigenvalue spectrum at three circuit
+    states (fresh, post-multiplication, post-relinearization) over an exhaustive secret enumeration,
+    so the flatness index and effective rank are measured rather than sampled. (iii) It attributes
+    any change to a specific operation by running three circuits that differ in exactly one operation
+    each, so the answer is not merely that flatness changed but which operation changed it. A run
+    also settles, at these degrees, whether the effect is a ring-structure effect at all, via a coefficient-permutation
+    control that preserves marginals and destroys ring structure.
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable scope is: at N in {8,16,32} with a single
+      prime modulus admitting the diagonalising transform, ternary secrets enumerated in full at N=8,
+      and this circuit, the empirical noise covariance in the fixed basis has the measured spectrum,
+      whose flatness index does or does not exceed a white null of matched variance and matched sample
+      count by the measured margin, attributable to the named operation. What does NOT follow: nothing
+      about whether any tail bound in use is valid or invalid, nothing about the actual infinity norm
+      being larger than any bound assumes (a concentrated spectrum can reduce it), nothing about any
+      parameter set, and nothing about security. The run measures a second moment and is blind to
+      higher-order structure.'
+  inputs:
+    procedure: 'STAGE 0 (hours implementation, seconds compute): verify q = 1 mod 2N and construct
+      the diagonalising transform; assert the transform diagonalises a randomly chosen multiplication
+      operator to machine tolerance. STAGE 1 (minutes): fresh-encryption calibration at every N, comparing
+      measured flatness to the white null; abort as instrument failure on disagreement. STAGE 2 (under
+      one core-hour at N=8): exhaustive enumeration of all 6561 ternary secrets crossed with 64 randomness
+      seeds, depth-2 circuit, exact noise vectors recorded at three states. STAGE 3 (minutes): covariance,
+      rotation, full eigendecomposition, flatness index and effective rank per state; the eigendecomposition
+      computed twice by independent routes and compared. STAGE 4 (minutes): white null and coefficient-permutation
+      control through the identical code path in the same invocation. STAGE 5 (hours): sampled repetitions
+      at N=16 and N=32, flagged non-exhaustive. STAGE 6 (minutes): three single-operation-difference
+      circuits for attribution, plus manifest emission.'
+    instrument: Python 3 with arbitrary-precision integers for ring arithmetic and exact noise recovery;
+      numpy for the covariance, the rotation and the symmetric eigendecomposition, with a second eigenvalue
+      computation via the characteristic-polynomial-free route of a Jacobi rotation implementation
+      so the spectral step is not single-sourced. Deterministic seeding, run manifests and the inference
+      block through harness/runner.py conventions; new self-contained modules alongside harness/run.py.
+      No Sage, no external FHE or lattice library.
+    parameters: 'Ring degree N in {8, 16, 32}. Modulus q: one 20-bit prime with q = 1 mod 2N. Plaintext
+      modulus t = 2. Secret: full ternary enumeration at N=8 (6561); 20000 sampled ternary secrets
+      at N=16 and N=32, flagged sampled. Randomness: 64 seeds per secret at N=8, 16 at larger N. Error
+      sigma = 3.2. Circuit: depth 2, states recorded at fresh encryption, after one multiplication,
+      and after relinearization; three variant circuits each omitting or adding exactly one of multiplication,
+      relinearization, modulus switching. White null sample count matched exactly to the corresponding
+      signal arm.'
+  controls:
+  - White null with matched total variance and matched sample count, same invocation.
+  - Fresh-encryption baseline state, where the noise is i.i.d. by construction and the measured flatness
+    must reproduce the white null; this is an instrument check.
+  - Three single-operation-difference circuits to attribute flatness change to multiplication, relinearization
+    and modulus switching separately.
+  - 'Permutation control: randomly permute the coefficient indices before estimating covariance, which
+    destroys ring structure while preserving marginals.'
+  - Two independent enumeration seedings, with the spectra compared before pooling.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): White null: vectors with i.i.d. coefficients of matched total variance,
+    of the same length and the same sample count, pushed through the identical covariance estimation,
+    rotation and eigenvalue extraction in the same invocation. Because an empirical covariance from
+    a finite sample is never exactly flat, the white null defines the flatness index that mere sampling
+    produces at this dimension and sample size. For the signal arm to mean anything the measured flatness
+    index must exceed the white null''s by the pre-committed margin; if the two coincide at every
+    level the recorded outcome is a controlled null and the variance-to-infinity-norm step is unstressed
+    by this construction at these degrees.'
+  independent_variables:
+  - circuit state (fresh, post-multiplication, post-relinearization)
+  - ring degree N
+  - arm (signal, white null, coefficient-permutation control)
+  - operation variant (multiplication only, plus relinearization, plus modulus switching)
+  metrics:
+    primary:
+    - full eigenvalue spectrum of the noise covariance in the fixed basis, per state
+    - flatness index, defined as largest eigenvalue over mean eigenvalue, per state
+    - effective rank, defined as the exponential of the spectral entropy, per state
+    - flatness index of the white null at matched sample count
+    secondary:
+    - flatness index of the coefficient-permutation control
+    - total noise variance per state, confirming the null matched it
+    - agreement between the two independent eigenvalue computations
+    - spectral entropy
+    - sample count and exhaustiveness flag per arm
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The ratio of the signal arm's flatness index to the white null's flatness index, at
+      each circuit state and ring degree.
+    formula: F = lambda_max / mean(lambda), computed on Sigma expressed in the basis diagonalising
+      negacyclic multiplication, where Sigma is the empirical covariance of the exact noise coefficient
+      vector over the enumeration. Predicted F_post-multiplication / F_white >= 1.5; predicted F_fresh
+      / F_white within sampling spread of 1 (instrument calibration); predicted effective rank post-multiplication
+      <= 0.8*N.
+    source: Pre-registered in the parent proposal IDEA-20260816-ec9a47 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'N in {8,16,32} with a 20-bit prime, chosen so the entire ternary secret space
+      is enumerable at N=8 and the empirical covariance carries no sampling assumption there. The
+      finite-sample behaviour of a covariance spectrum depends on the ratio of sample count to dimension,
+      and that ratio is entirely different at cryptographic degrees, so no numerical flatness value
+      transfers and none is claimed to. The only cross-scale statement is the qualitative one the
+      design tests directly: whether the signal-to-null flatness ratio persists across the factor-of-four
+      span from N=8 to N=32. If it does not persist over that span, the contract reports that no extrapolation
+      is supportable.'
+    correspondence: null
+  tail_checks:
+  - Report the smallest eigenvalues as well as the largest, since a spectrum with a near-zero tail
+    and one with a raised floor differ in what they imply about the coordinate the infinity norm lives
+    in.
+  - Report the flatness index computed on the enumeration subset with the largest noise magnitudes,
+    since the bound-relevant regime is the tail of the magnitude distribution.
+  - Report the spread of the white null's flatness index over 100 independent null draws, not just
+    its mean, so the comparison is against a distribution.
+  - Report the flatness index at half and at double the sample count, to expose the finite-sample
+    slope directly.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Abort as an instrument failure, not a result, if the fresh-encryption calibration disagrees with
+    the white null beyond the null's own spread.
+  - Abort if the two independent eigenvalue computations disagree beyond numerical tolerance.
+  - Halt sampled arms at 20000 secrets and flag them non-exhaustive.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: A post-multiplication flatness index at least 1.5 times the white null's, at
+    N=8 with an exhaustive enumeration, with the fresh-encryption calibration passing and the coefficient-permutation
+    control failing to reproduce the effect.
+  falsification_criterion:
+  - Signal flatness within the white null's spread at every state and degree.
+  - Fresh-encryption calibration fails, so the instrument is biased.
+  - Permutation control reproduces the signal flatness, so the effect is not a ring-structure effect.
+  - Spectra not reproducible across independent enumeration seedings.
+  - Flatness ratio at N=32 is below 1 while positive at N=8, indicating the effect is a small-dimension
+    artifact.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-ec9a47
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The Coordinator must name the specific variance-to-infinity-norm step, with its constant and its
+    stated tail assumption, that this measurement is claimed to stress; without that the flatness
+    number scores nothing in particular.
+  - The RQ-FHE-001 primary-source constraint must be ruled on before approval; this contract cites
+    no attack claim and measures only the scheme's own arithmetic.
+  - Whether the flatness index or the effective rank is the quantity the tail step actually depends
+    on is not derived; the contract reports both and the derivation linking one of them to a bound
+    is missing.
+  - The relationship between the fixed relinearization key and the measured spectrum is not separated
+    in the base design; a per-secret re-keyed arm should be added or the confound declared.

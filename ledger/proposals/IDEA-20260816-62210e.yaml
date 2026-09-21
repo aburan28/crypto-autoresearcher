@@ -1,0 +1,310 @@
+idea:
+  id: IDEA-20260816-62210e
+  question_id: RQ-SLHDSA-001
+  added: '2026-08-16'
+  title: 'Build the null object this whole lane is missing: a scaled-down signer in which every tweakable-hash
+    call is answered by a lazily sampled independent random oracle keyed by its address, so that any
+    measurement in this bucket runs in a signal and an ideal arm inside one invocation, and validate
+    the null against a second independently seeded copy of itself.'
+  class: control
+  claim: '(A) Every proposal on this research question idealizes the tweakable hash and none of them
+    can execute that idealization. Eleven records reason about what would happen under an ideal object;
+    zero can run the ideal object beside the real one. Under docs/inventor-protocol.md section 3 a
+    control arm that is described but not executable in the same invocation as the signal arm is not
+    a control at all, so the entire lane currently produces uncontrolled numbers by construction.
+    (B) The ideal tweakable hash is directly implementable at scaled-down sizes as a lazily sampled
+    table: on each call, form the key from the address and the public seed, and return a stored uniform
+    value if the key has been seen and a freshly drawn one otherwise. This is not an approximation
+    of the ideal object; at finite transcript length it is exactly a sample from it, and its cost
+    is one dictionary lookup per hash call. (C) The harness therefore has a second, non-obvious deliverable
+    beyond serving as a null: the count of distinct tweaks it materializes per signature, which is
+    exactly the number of distinct domain separators a transcript touches, and which the lane currently
+    assumes rather than counts. That count is a byproduct of the table''s size and comes free with
+    the control. (D) A control must itself be controlled, and the check available here is unusually
+    clean: run the ideal arm against a second, independently seeded copy of itself on every metric
+    in the bucket. Two ideal arms must agree within Monte-Carlo error on every one. Disagreement means
+    the harness leaks state across arms -- shared caches, reused generators, address collisions in
+    the table key -- and until it agrees with itself, no signal-versus-null comparison anywhere in
+    this bucket is admissible. (E) WHAT IS NOT CLAIMED: no attack, no forgery, no weakness, no security
+    level, no statement that any real hash does or does not behave ideally, no statement about any
+    FIPS 205 parameter set, no statement about what the literature contains, and nothing about the
+    fault or memory-corruption class. This entry claims only that a null object can be built, that
+    it agrees with itself, and that it materializes a countable number of tweaks per signature.'
+  mechanism: 'STAGE A: define the table key exactly and make its definition the object under scrutiny.
+    The key is the concatenation of the address structure -- layer, tree index, call type, keypair
+    index, chain index, hash index -- with the public seed and the call''s input, and getting this
+    wrong in either direction is the harness''s central failure mode: too coarse a key silently ties
+    calls that should be independent, too fine a key silently unties calls that should agree, and
+    both produce a plausible-looking null. STAGE B: implement the lazily sampled backend behind the
+    same interface the concrete backends use, so that swapping arms is a one-line change and no code
+    path can differ between arms except the backend itself. STAGE C: instrument the table to record,
+    per signature, the number of new keys created and the number of lookups that hit, which yields
+    the tweak-materialization count and the tweak-reuse count as free measurements. STAGE D: run the
+    self-consistency battery -- two independently seeded ideal arms against every metric this bucket
+    defines -- and require agreement within band on all of them before the harness is declared usable.
+    STAGE E: run a determinism check, where the same seed must reproduce the same table and the same
+    transcript byte for byte, and a leak check, where the two arms are run in the opposite order and
+    must give the same numbers. STAGE F: publish the tweak-materialization count against the structural
+    prediction computed by hand in STAGE 0, since a mismatch there means the signer''s call structure
+    is not what the repository''s structural description says it is.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'grep -ril for tweakable, random oracle, null, control, ideal over ledger/proposals/,
+      ledger/hypotheses/, knowledge/. Read RQ-SLHDSA-001 in full, the statement block of H-SLHDSA-3a403a,
+      and experiments/EXP-SLHDSA-9cbad4/specification.yaml including its what_this_is_not block. Read
+      docs/inventor-protocol.md section 3 in full, which is the binding requirement here. Read the
+      claim of IDEA-20260813-945a67 and the title of IDEA-20260807-c4f1fc. Listed harness/ to confirm
+      which existing modules provide null-control patterns: harness/ctrl_valueshuffle.py and harness/run_blocknull.py
+      are the two whose names indicate control arms.'
+    results: 'The string tweakable returns five proposals: IDEA-20260813-945a67 on this question,
+      and IDEA-20260816-a14ea4, IDEA-20260816-7ea680, IDEA-20260816-0e0e69 on RQ-ASCON-2dfd8b plus
+      IDEA-20260807-c4f1fc. None of them implements an ideal object; in all of them the tweakable
+      hash is a modelling assumption. EXP-SLHDSA-9cbad4, the only SLH-DSA contract in the repository,
+      is at status review_required with frozen false and execution_authorized false, and its arms
+      are analytic evaluations with a nearby-object control called VARIANT-P which is a hypothetical
+      construction rather than an executable null. The repository does contain executable control
+      patterns on other targets -- harness/ctrl_valueshuffle.py and harness/run_blocknull.py by their
+      names and location -- so the pattern exists here, but not for this scheme and not for a tweakable
+      hash. No record in the repository implements a lazily sampled oracle keyed by an address, and
+      no record reports a tweak-materialization count.'
+    verdict: 'UNVERIFIED. Lazily sampled random oracles are a completely standard implementation device
+      and this program cannot read external literature, so nothing is asserted about what exists elsewhere;
+      the technique is old and its use as a null arm is ordinary practice. What is claimed new is
+      internal and modest: this repository has eleven records on this question that idealize a tweakable
+      hash and zero that can execute the idealization, the specific harness proposed is the missing
+      executable arm those eleven need, and two elements are ones I did not find in this repository
+      on any target -- the self-consistency requirement that two independently seeded ideal arms must
+      agree on every bucket metric before any comparison is admissible, and treating the table''s
+      key-creation count as a free measurement of tweak materialization rather than as bookkeeping.'
+  object_first_candidate:
+    tracked_object: 'The tweak-to-oracle table: the mapping from materialized address-and-seed keys
+      to their sampled outputs, tracked as the set of distinct keys created over a signing transcript.
+      The object followed through the computation is this key set, and its cardinality per signature
+      is the tweak-materialization count.'
+    lossiness: 'The projection discards everything about how a hash output would be computed -- the
+      compression function, the message schedule, the internal state, every algebraic relation between
+      outputs -- and retains only the key''s identity and an independently drawn output. This is maximal
+      loss and it is not a defect but the definition: a null object''s entire purpose is to discard
+      exactly the structure the signal arm might contain, so that a difference between arms localizes
+      to that structure. The retained part still propagates because the signer''s control flow depends
+      only on hash outputs as opaque values and on addresses as structural data, neither of which
+      the projection touches. Stating the converse plainly: if any measurement in this bucket depends
+      on an algebraic relation between hash outputs rather than on their values, the ideal arm cannot
+      serve as its null and that measurement must say so.'
+    propagation: One signing step materializes a structurally determined number of new keys -- the
+      FORS leaf and tree calls, the WOTS+ chain calls across the used chains, the public-key compression
+      calls, the Merkle node calls at each of the d layers -- and hits the table for any key already
+      created by an earlier signature under the same subtree. The object therefore grows by (new keys)
+      per signature, a quantity that starts at its structural maximum and decays as subtrees repeat,
+      so the tweak-materialization curve against signature count is itself the propagation law and
+      is measured rather than assumed.
+    survival_score: 'The table is exact until memory bounds. At toy parameters (h = 4 to 8, d = 1
+      to 2, a = 2 to 3, k = 2 to 4, w = 4 to 16) a transcript of 2^14 signatures materializes on the
+      order of 10^7 keys, which fits comfortably; the contract caps the table at 2^24 entries and
+      reports the cap as reached rather than silently evicting, since eviction would break the oracle''s
+      consistency and turn the null into something else. Beyond the cap the object dissolves completely:
+      an evicting table is not a random oracle and the harness must refuse to run rather than degrade.
+      That refusal boundary, stated as a signature count per parameter set, is the survival score.'
+  null_object_control: 'This entry is itself a control, so its null is inverted and stated explicitly:
+    the object that must be run against it is a second, independently seeded instance of itself. Two
+    ideal arms, different seeds, identical parameters, identical transcript structure, every metric
+    this bucket defines, in the same invocation. The requirement is that all metrics agree within
+    their Monte-Carlo bands and that the between-instance spread is no larger than the between-seed
+    spread within a single instance. If two ideal arms disagree, the harness carries state across
+    arms and no signal-versus-null comparison in this bucket is admissible until it does not. A second,
+    sharper check: run the arms in reverse order and require identical numbers, which catches shared
+    caches and generator reuse that seed variation alone would hide.'
+  discriminated_from:
+  - 'EXP-SLHDSA-9cbad4: its nearby-object control VARIANT-P is a hypothetical construction reasoned
+    about analytically, and the contract states VARIANT-P is not any deployed or standardized algorithm.
+    It is not executed beside a signal arm, which is what inventor-protocol section 3 requires. This
+    entry is executable and runs in the same invocation as whatever it controls.'
+  - 'IDEA-20260807-c4f1fc: observes that the primitives under SLH-DSA are modelled as ideal everywhere
+    and probed nowhere, and proposes probing them cryptanalytically. This entry does the opposite
+    -- it makes the idealization runnable so that the probing is unnecessary for control purposes,
+    and it makes no cryptanalytic claim about any primitive.'
+  - 'IDEA-20260813-945a67: uses a tweakable-hash framing inside a single-fault ADRS-alias model, producing
+    certificates. No fault appears anywhere here and no certificate is produced; the object is a table
+    and its cardinality.'
+  - 'harness/ctrl_valueshuffle.py and harness/run_blocknull.py: existing executable control modules
+    in this repository, on different targets. This entry follows their pattern rather than inventing
+    one, and the discrimination is that neither implements an address-keyed lazily sampled oracle
+    nor applies to a signature scheme.'
+  - 'IDEA-20260816-a14ea4, IDEA-20260816-7ea680 and IDEA-20260816-0e0e69 on RQ-ASCON-2dfd8b: all use
+    tweakable or permutation-idealization language for a sponge construction, which is a different
+    scheme, a different call structure and a different address space; none provides an executable
+    oracle backend for a hypertree signer.'
+  assumptions:
+  - The signer's control flow depends on hash outputs only as opaque values, so that substituting
+    the backend cannot change which calls are made; this is checked by comparing call traces between
+    arms rather than assumed.
+  - The table key as defined captures exactly the intended domain separation; too coarse or too fine
+    a key both produce plausible nulls, and the contract tests three key definitions rather than fixing
+    one.
+  - A seeded pseudorandom generator is uniform enough at the transcript lengths used that its outputs
+    are indistinguishable from ideal for the metrics measured; this is checked by using two different
+    generators.
+  - The structural call counts used to predict the tweak-materialization number come from a structural
+    description this repository marks UNVERIFIED against primary text.
+  - No measurement in this bucket depends on algebraic relations between hash outputs; any that does
+    is outside this control's validity and must declare so.
+  predictions:
+  - metric: metric-by-metric disagreement between two independently seeded ideal arms, maximum over
+      all bucket metrics
+    direction: lower
+    minimum_effect: within the stated Monte-Carlo band at 10^5 samples per metric; a forced value
+      of exactly zero is not claimed because sampling noise is nonzero by construction, and claiming
+      zero would be a fabrication
+  - metric: number of distinct tweaks materialized per signature at the toy parameter set, first signature
+    direction: different
+    minimum_effect: 'forced value: the count predicted by the structural call formula computed by
+      hand in STAGE 0 and registered before any run; a mismatch means the signer''s call structure
+      differs from the repository''s structural description and is reported as such'
+  - metric: tweak-materialization count per signature as the transcript lengthens
+    direction: lower
+    minimum_effect: 0
+  - metric: difference in every bucket metric between arm-order-forward and arm-order-reversed execution
+    direction: lower
+    minimum_effect: 0
+  - metric: spread across the three candidate table-key definitions on the FORS forgery metric
+    direction: different
+    minimum_effect: 'explicit refusal to pre-commit: the key-definition sensitivity is the deliverable
+      of that arm and pre-committing to a magnitude would bias the choice of key toward whichever
+      definition made the number small'
+  minimal_test:
+    design: 'The cheapest decisive test is the harness arguing with itself. Build the lazily sampled
+      backend and the toy signer at h = 4, d = 1, a = 2, k = 3, w = 4. Instantiate two ideal arms
+      with different seeds and run 10^5 signing operations plus the FORS forgery metric and the leaf-index
+      histogram metric in each, inside one process invocation. Then run the same pair with the arm
+      order reversed. The discriminating observables are three: whether the two ideal arms agree within
+      band on both metrics, whether reversing the order changes any number at all, and whether the
+      tweak-materialization count on the first signature matches the hand-computed structural prediction.
+      All three are pass-or-fail, none requires a concrete hash, and the whole thing runs in minutes.
+      If the arms disagree with each other, or the order matters, the harness leaks state and every
+      other entry in this bucket that planned to use it must wait -- which is exactly the information
+      worth buying first and cheapest.'
+    controls:
+    - Second independently seeded ideal arm, all bucket metrics, same invocation.
+    - Arm-order reversal, requiring bit-identical numbers.
+    - Two different pseudorandom generators for the oracle sampling, requiring agreement within band.
+    - Call-trace comparison between the ideal arm and a concrete arm, requiring identical sequences
+      of call types and addresses so that only the returned values differ.
+    - Three candidate table-key definitions (coarse, structural, fine), run in parallel, with the
+      spread across them reported rather than one chosen silently.
+    required_metrics:
+    - pairwise disagreement between two independently seeded ideal arms on every bucket metric, with
+      bands
+    - tweak-materialization count per signature, and its curve against transcript length
+    - tweak-reuse count (table hits) per signature
+    - arm-order-reversal difference on every metric
+    - call-trace equality between ideal and concrete arms
+    - spread across the three table-key definitions per metric
+  falsification_conditions:
+  - 'Two independently seeded ideal arms disagree beyond band on any bucket metric: the harness leaks
+    state and is unusable until fixed; no entry in this bucket may cite it.'
+  - 'Reversing arm order changes any number: shared caches or generator reuse, same consequence.'
+  - 'Call traces differ between the ideal and concrete arms: the backend substitution changes control
+    flow and the arms are not comparable.'
+  - 'The tweak-materialization count on the first signature disagrees with the hand-computed structural
+    prediction: the signer''s call structure is not what the repository''s structural description
+    says, which is reported as a finding about the description rather than corrected silently.'
+  - 'The three table-key definitions give materially different results on a bucket metric and no principled
+    ground selects among them: the control''s own specification is underdetermined and every downstream
+    comparison must carry that spread.'
+  - 'The table reaches its cap within the transcript lengths the bucket needs: the harness refuses
+    to run at those lengths rather than evicting, and the refusal boundary is reported per parameter
+    set.'
+  confounders:
+  - A too-coarse table key ties calls that should be independent and makes the ideal arm look structured;
+    a too-fine key unties calls that should agree and makes it look more random than ideal. Both produce
+    a null that passes casual inspection, which is why three key definitions are run.
+  - Pseudorandom generator quality can masquerade as oracle behaviour at long transcripts; two generators
+    partially separate this but neither is a true random source.
+  - Memory pressure from a large table can change timing, and any timing-derived metric would then
+    differ between arms for a reason unrelated to the hash; no timing-derived metric is admitted into
+    the self-consistency battery.
+  - Lazily sampling means the table's content depends on call order, so a metric that is order-sensitive
+    will differ between arms for a structural reason; such metrics must be identified in STAGE 0 and
+    excluded or made order-invariant.
+  - 'Two ideal arms agreeing is necessary but not sufficient for correctness: a harness that returns
+    a constant would also agree with itself, so a uniformity check on the sampled outputs is required
+    alongside the agreement check.'
+  interpretation_limits:
+  - 'A validated null harness is an instrument, not a result: it supports no statement about SLH-DSA,
+    about any hash function, or about any parameter set.'
+  - Agreement between two ideal arms establishes internal consistency, not correctness of the oracle
+    semantics; the key-definition spread is the honest measure of how underdetermined those semantics
+    are here.
+  - The harness is valid only for measurements that depend on hash outputs as values; any measurement
+    depending on algebraic relations among outputs falls outside it.
+  - Tweak-materialization counts are properties of the toy signer at toy parameters and are not counts
+    for any deployed parameter set.
+  - Nothing here touches the fault or memory-corruption claim class.
+  target_complexity:
+    time_exponent: No attack exponent is claimed and no attack is performed. The harness's own cost
+      is one dictionary operation per hash call, so a transcript of q signatures costs O(q * calls
+      per signature) with calls per signature fixed by the toy parameters.
+    memory_exponent: No attack memory exponent is claimed. The harness's own memory is the table,
+      exactly one entry per materialized tweak, capped at 2^24 entries with the cap enforced and the
+      refusal boundary reported per parameter set rather than handled by eviction.
+    best_known: 'The incumbent inside this repository is the absence of an executable ideal arm: eleven
+      RQ-SLHDSA-001 proposals idealize the tweakable hash, and the one contract that exists, EXP-SLHDSA-9cbad4,
+      offers VARIANT-P as an analytic nearby object rather than an executable control. The count of
+      runnable ideal arms for this scheme currently held here is zero. No claim is made about what
+      exists outside this repository.'
+    hidden_overhead: 'The overhead hides in the table key, and it is not compute. Deciding what the
+      key must contain is a modelling decision disguised as an implementation detail, and it is the
+      one place where a wrong choice produces a null that looks fine and quietly changes every comparison
+      built on it. Running three key definitions is the mitigation and it triples the storage and
+      roughly triples the human effort of interpreting results. The second hidden cost is discipline:
+      a null harness is only a control if nothing else in the process shares state with it, which
+      means no module-level caches, no reused generators and no memoized hash wrappers anywhere in
+      the codebase this bucket touches -- a constraint on other entries, not on this one, and one
+      that is easy to violate later without noticing.'
+  dominated_by: 'n/a (no result claimed). Checked against every frontier row this repository maintains
+    across time, memory and data/queries: an instrument that produces no attack and searches for nothing
+    has no coordinate on any of those axes. Nothing dominates it, it dominates nothing, and it is
+    not entered on any frontier.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Against this repository''s own
+    state: eleven records on this question idealize a tweakable hash and zero can run the idealization
+    beside a signal arm, so under inventor-protocol section 3 the lane''s controls are currently non-executable.
+    This would make the count of executable ideal arms one, and would additionally report tweak-materialization
+    counts that the lane presently assumes.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'Separable parts. (1) That the lazily sampled backend can be built and
+    that two independently seeded ideal arms agree within band on every bucket metric: about 0.8.
+    The residual is not mathematical; it is the ordinary engineering risk of shared state, and I expect
+    the first attempt to fail the arm-order-reversal check for exactly that reason, which is why that
+    check is in the minimal test. (2) That the tweak-materialization count matches the hand-computed
+    structural prediction on the first signature: about 0.6, and I think a mismatch is genuinely likely,
+    because the structural description it is checked against is marked UNVERIFIED in this repository
+    and a mismatch would be a useful finding about the description rather than about the harness.
+    (3) That the three table-key definitions agree closely enough that downstream comparisons do not
+    have to carry a wide spread: about 0.5, and this is the part I am least confident of; if they
+    disagree, every other entry in this bucket inherits the spread and the honest consequence is weaker
+    conclusions everywhere, which I would rather discover here than not at all. (4) That the harness
+    is actually adopted by the other entries in this bucket rather than each rebuilding its own null:
+    about 0.7, contingent on it clearing (1) early enough to be available.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-SLHDSA-001
+  - H-SLHDSA-3a403a
+  - EXP-SLHDSA-9cbad4
+  - GOAL-SLHDSA-001
+  - IDEA-20260807-c4f1fc
+  - IDEA-20260813-945a67
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/ctrl_valueshuffle.py
+  - harness/run_blocknull.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SLHDSA-15534b

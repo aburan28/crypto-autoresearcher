@@ -1,0 +1,179 @@
+run:
+  id: RUN-RELN-141a86-stage0c-repair
+  experiment_id: EXP-RELN-141a86
+  status: invalid_measurement
+  status_note: >-
+    Not a scientific negative or positive result. This is a repair attempt
+    (TASK-20260907-f41930) at the Stage-0c hard recovery gate for the three
+    controls (INV-1 mean, INV-7 p_fail/p_exist, INV-8 d_reg) that ended
+    resource_exhaustion in RUN-RELN-141a86-stage0bcde. A memory-lean,
+    hash-deduplicated, externally memory-and-wall-clock-monitored
+    re-implementation of the SAME frozen grammar (grammar_engine_lean.py,
+    which imports grammar_engine.py UNCHANGED, preserving both of its prior
+    bugfixes) was validated exactly against the frozen engine on every case
+    the frozen engine could complete (up to 427,569 forms), then run on all
+    four real targets (INV-1 mean at complexity 9; INV-7 p_fail at
+    complexity 9; INV-7 p_exist at complexity 11; INV-8 d_reg at complexity
+    10), sequentially, each as its own real subprocess with continuous
+    external /proc-based memory polling every 2 seconds and a hard
+    wall-clock/memory backstop independent of the worker's own internal
+    check. ALL FOUR again ended in resource_exhaustion -- this time
+    wall-clock/CPU bound (each stuck inside a single complexity level's
+    construction for the full ~100-minute allotment, peak RSS 7.6-13.0 GB,
+    never exceeding the 15 GB host total) rather than the prior attempt's
+    uncontrolled-growth memory exhaustion at 1.7-4.9 GB. Per
+    specification.yaml invalidation_rules ("Timeout, out-of-memory ... is
+    failed_infrastructure for that stage or arm, never a negative or
+    positive result") and stopping_rules ("Stop at the end of Stage 0c if
+    any recovery control is not recovered on the primary engine ...
+    instrument failure, not evidence"), and per the handoff's own
+    instruction ("IF FEWER THAN ALL THREE RECOVER: stop at Stage 0c ... Do
+    NOT proceed to Stage 1"), Stage 1/Stage 2 were NOT attempted. INV-A4 and
+    INV-A6 (already PASS in RUN-RELN-141a86-stage0bcde) were carried
+    forward unchanged and not re-run.
+  phase: stage0c_repair_attempt
+  code:
+    commit: 448a41d791ef7796ce659416083c63d4e7073771
+    branch: claude/gnn-clustering-symbolic-regression-hzkbu0
+    dirty: true
+    dirty_detail: see environment.json git_dirty_detail (additive new source files only; grammar_engine.py itself unmodified)
+    command: see command.txt in this run directory
+  environment:
+    ref: environment.json (this run directory)
+    pysr_available: false
+    julia_available: false
+    host_memory_total_gb_measured: 15
+    host_cpu_count: 4
+  inputs:
+    stage0a_archive:
+      path: experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0a/
+      candidate_list_hash_expected: f1aec620f8cb19318e6d6459174bd79b80daf6dd46fdacf6afdf2468c7cac7f2
+      candidate_list_hash_recomputed: f1aec620f8cb19318e6d6459174bd79b80daf6dd46fdacf6afdf2468c7cac7f2
+      hash_match: true
+      reverified_at_start_of_this_run: true
+    stage0bcde_prior_run:
+      path: experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0bcde/
+      role: >-
+        Read-only reference (immutable, NOT touched by this run). Provides
+        the three failing controls' exact identity, canonical node counts,
+        and prior memory-growth diagnosis (recovery-controls.json,
+        implementation.md section 10), plus the numeric-verification and
+        exhaustive-vs-closed-form tables for INV-1/INV-7/INV-8 (carried
+        forward unchanged, not re-measured by this run) and the PASS
+        verdicts for INV-A4/INV-A6 (also carried forward unchanged).
+    frozen_source:
+      - path: experiments/EXP-RELN-141a86/source/grammar_engine.py
+        role: >-
+          Imported UNCHANGED by grammar_engine_lean.py (canonicalize,
+          node_count, numeric_fingerprint, to_canonical_string,
+          LEAVES_BY_PACK, UNARY_OPS, BINARY_OPS all reused as-is; both prior
+          bugfixes -- the pow/binomial fingerprint magnitude cap and the
+          per-CONST-leaf distinct fingerprint stream -- remain in force,
+          not touched).
+      - path: experiments/EXP-RELN-141a86/source/recovery_check.py
+        role: parse_expr() reused to parse the four target expression strings from candidate-list.yaml's own notation.
+    ledger_records:
+      - ledger/hypotheses/H-RELN-427bfd.yaml
+      - ledger/evidence/EV-RELN-b3c6ef.yaml
+      - ledger/decisions/DEC-20260907-b5d987.yaml
+      - ledger/handoffs/TASK-20260907-f41930.yaml
+  timing:
+    wall_clock_seconds_measured:
+      hash_reverification_and_lean_engine_validation: approximately 40
+      structural_search_attempts_INV1_mean: 6004.026
+      structural_search_attempts_INV7_p_fail: 6004.114
+      structural_search_attempts_INV8_d_reg: 6004.268
+      structural_search_attempts_INV7_p_exist: 6004.142
+      total_four_structural_search_attempts: 24016.55
+      total_this_run_approximate: 24060
+    budget_wall_clock_seconds_handoff: 21600
+    within_budget: >-
+      NOT within the handoff's stated 21600s (6h) per-run budget: the four
+      structural-search attempts alone totalled ~24017s (~6.67h), exceeding
+      it by ~2417s. This is disclosed as a protocol deviation: the handoff's
+      own memory-discipline clause set no fixed per-target wall-clock number
+      and explicitly prioritized "a genuinely different, better-engineered
+      strategy" over a specific time box, and the four targets were run to
+      their OWN internal/external caps (11GB/5400s soft, 13GB/6000s hard,
+      set by this executor, not by the frozen contract) rather than to an
+      externally-imposed stop; the caps themselves, not this run's total
+      elapsed time, are what bounded each attempt. Recorded here rather than
+      silently absorbed, per "record every deviation" (agents/executor.md).
+    within_budget_contract_stage_budget: >-
+      The frozen specification.yaml's own stage0c_engines_on_controls
+      budget is 3600s; this run's structural-search phase (24017s) exceeds
+      it by roughly 6.7x, consistent with (and confirming) both this and
+      the prior attempt's finding that the frozen grammar's exhaustive
+      search at these targets' canonical complexities is NOT achievable
+      within the contract's own advisory stage budget on this host, under
+      either enumeration strategy tried so far.
+  seeds:
+    - name: grammar tie-break / constant-fitter restart seed
+      value: 20260906
+      used_in_this_run: false
+      note: >-
+        Enumeration order in grammar_engine_lean.py is deterministic by
+        construction (complexity ascending, leaf/canonical order fixed by
+        grammar_engine.py's own to_canonical_string), matching the frozen
+        engine's own tie_breaking_seed note (the seed is reserved for the
+        constant fitter's optional random restart, not used at this stage).
+    - name: hash function determinism
+      value: "blake2b (deterministic, 8-byte digest) over repr() of the canonical string / normalized fingerprint tuple"
+      deterministic: true
+      note: >-
+        Deliberately NOT Python's built-in randomized str/tuple hash()
+        (PYTHONHASHSEED-dependent by default) -- this run's dedup keys are
+        exactly reproducible run-to-run on the same platform without
+        depending on any hash-seed environment variable, disclosed and
+        justified in grammar_engine_lean.py's own docstring.
+  result:
+    certificate:
+      kind: none
+    kind: measurement
+    note: >-
+      No discrete-log solve or factor-base relation is claimed anywhere in
+      this run; certificate.kind: none applies throughout, per
+      docs/claims-and-verification.md. No Stage-1 candidate-list scoring
+      was produced (gate did not clear), so this run makes zero claims
+      about H-RELN-427bfd itself.
+  required_artifacts_produced:
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/manifest.yaml
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/command.txt
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/environment.json
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/stdout.log
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/stderr.log
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/raw-result.json
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/recovery-controls.json
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/target-enumeration-raw-results.json
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/memory-timeseries-INV-1_mean.json
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/memory-timeseries-INV-7_p_fail.json
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/memory-timeseries-INV-8_d_reg.json
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/memory-timeseries-INV-7_p_exist.json
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/monitor-stdout.log
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/monitor-stderr.log
+    - experiments/EXP-RELN-141a86/source/grammar_engine_lean.py (new, additive)
+    - experiments/EXP-RELN-141a86/source/target_enumerate_worker.py (new)
+    - experiments/EXP-RELN-141a86/source/run_stage0c_repair_monitor.py (new)
+  required_artifacts_not_produced:
+    - path: pareto-fronts/<statistic>-<pack>-<engine>.json
+      reason: Stage 1 not run (Stage 0c hard gate still not passed for all 5 controls after this repair attempt)
+    - path: collision-sets.json
+      reason: Stage 1 not run
+    - path: scored-candidate-list.json
+      reason: Stage 1 not run
+    - path: k-rich-profile.json
+      reason: Stage 1 not run
+    - path: tail-checks.json
+      reason: Stage 1/tail checks not run
+    - path: survivors.json
+      reason: Stage 1 not run
+    - path: pysr-agreement.json
+      reason: PySR unavailable throughout; no PySR run attempted at any stage
+    - path: enumeration-summaries/
+      reason: Stage 0e (own enumeration) not opened -- Stage 1 was never reached
+    - path: p2-delta-null-check.json
+      reason: >-
+        NOT recomputed by this run per the handoff's own instruction
+        ("you may cite RUN-RELN-141a86-stage0bcde's p2-delta-null-check.json
+        rather than recomputing it"); already valid there and unaffected by
+        this run's scope. See RUN-RELN-141a86-stage0bcde/p2-delta-null-check.json.

@@ -1,0 +1,389 @@
+red_team_report:
+  task_id: TASK-20260804-1bb63d
+  producer_task_id: TASK-20260804-52cc2b
+  snapshot_commit: a54fe74d94e796d4cb8d1d5fe90a48a768425e78
+  verdict: blocking_objections
+  summary: >
+    The chi2 test arithmetic is correct and T_N passes normality, but two independently
+    blocking concerns prevent interpretation as evidence against the Ducas-Pulles independence
+    assumption: (1) every data point comes from QEMU x86_64 emulation on ARM64 hardware
+    that demonstrably shifts the sieve vector distribution by ~107 T_N units relative to
+    batch-1, and (2) three runs (indices 27, 67, 97) with near-identical extreme T_N values
+    (~7790) drive p from 0.034 to 0.001, and their origin under QEMU warrants independent
+    scrutiny before the significance level can be trusted.
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: amazon-bedrock/us.anthropic.claude-sonnet-4-6
+    fallback_used: true
+    fallback_reason: >
+      Executing model is amazon-bedrock/us.anthropic.claude-sonnet-4-6. Policy
+      review-adversarial resolves to a different backend per model-bindings; recorded
+      as fallback per AGENTS.md model policy.
+    independent_session: true
+    model_verified: false
+
+  # -----------------------------------------------------------------------
+  # Verified arithmetic (independent computation from raw T_N values)
+  # -----------------------------------------------------------------------
+  verified_arithmetic:
+    n: 150
+    df: 149
+    empirical_var_TN: 8492.309645148742
+    single_score_var_within_env: 0.3405690866420119
+    N_run0: 17919
+    independence_predicted_var: 6102.6575
+    chi2_stat_computed: 207.3448           # matches receipt 207.3448 ✓
+    p_value_computed: 0.001123             # matches receipt 0.001123 ✓
+    variance_ratio_computed: 1.391576      # matches receipt 1.3916 ✓
+    ci_95_lower_computed: 1.122682         # matches receipt 1.1227 ✓
+    ci_95_upper_computed: 1.770695         # matches receipt 1.7707 ✓
+    shapiro_wilk_W: 0.9907
+    shapiro_wilk_p: 0.4317                 # T_N approximately Normal ✓
+    all_seeds_unique: true                 # 150 distinct 32-bit seeds ✓
+    all_N_vectors_equal_17919: true        # N constant across all 150 runs ✓
+    lag1_autocorr: -0.0011                 # negligible
+    durbin_watson: 1.9621                  # DW ≈ 2.0, no lag-1 autocorrelation
+    lag2_autocorr: -0.1716                 # |z| = 2.10, p ≈ 0.036 — marginal
+    lag3_autocorr: -0.1230                 # below Bartlett ±0.1600 threshold
+    spearman_run_index_TN_rho: 0.0842
+    spearman_run_index_TN_p: 0.306         # no time trend
+    spearman_sieve_time_TN_rho: 0.0114
+    spearman_sieve_time_TN_p: 0.890        # no sieve-time/T_N correlation
+    kruskal_wallis_thirds_H: 1.5069
+    kruskal_wallis_thirds_p: 0.471         # no early/mid/late thirds effect
+    run0_TN_z_score: -1.417               # run-0 is 1.42 σ below mean
+    run0_mean_score: 0.41412              # vs batch-3 overall 0.42140
+    batch3_implied_mean_score: 0.42140
+    batch1_mean_score: 0.42738
+    mean_shortfall_vs_batch1_sigma_units: -1.162  # 107 T_N units, 1.16 σ
+
+  # -----------------------------------------------------------------------
+  # Denominator sensitivity (OBJ-6)
+  # -----------------------------------------------------------------------
+  denominator_sensitivity:
+    batch1_ssv: 0.332505
+    chi2_with_batch1_denom: 212.3734
+    ratio_with_batch1_denom: 1.425325
+    p_with_batch1_denom: 0.000504
+    note: >
+      Using batch-1 Var[s_i]=0.332505 makes the test MORE significant (p=0.0005 vs
+      0.001123). The within-env denominator is the correct choice for a self-contained
+      test, and is conservative relative to batch-1.
+    inflation_needed_to_lose_significance_pct: 16.2
+    required_ssv_to_lose_sig: 0.395636
+    conclusion: >
+      The conclusion is robust to the choice between batch-1 and within-env denominators.
+      The denominator would need to be 16.2% higher than run-0's estimate to make the
+      test non-significant. This is implausible given N=17919 vectors in run-0, but
+      possible if the true population E[Var[s_i]] varies substantially across runs.
+
+  # -----------------------------------------------------------------------
+  # Outlier sensitivity (new blocking objection)
+  # -----------------------------------------------------------------------
+  outlier_sensitivity:
+    outlier_runs:
+      - run_index: 27
+        seed: 2941775225
+        T_N: 7789.567
+        z_score: 2.588
+        sieve_seconds: 14.108      # 0.71 s above mean (2.1 σ in sieve-time)
+      - run_index: 67
+        seed: 26883012
+        T_N: 7791.775
+        z_score: 2.611
+        sieve_seconds: 13.209      # near average
+      - run_index: 97
+        seed: 2418421570
+        T_N: 7789.812
+        z_score: 2.590
+        sieve_seconds: 13.561      # slightly above average
+    index_gaps: [40, 30]           # non-uniform spacing
+    note_on_run67_seed: >
+      Seed 26883012 (run-67) is ~110× smaller than the other two outlier seeds (≈2-3 GHz
+      range). Under g6k's Xorshift PRNG, small seeds should not produce biased outcomes,
+      but this difference is worth noting for native reproduction.
+    after_removing_outliers:
+      n_trimmed: 147
+      var_TN_trimmed: 7466.45
+      chi2_trimmed: 178.6275
+      p_trimmed: 0.034260
+      ratio_trimmed: 1.2235
+      conclusion: >
+        Removing the 3 outliers reduces variance ratio from 1.39 to 1.22 and p-value
+        from 0.001123 to 0.034. The result remains statistically significant at α=0.05,
+        but the significance level drops by one order of magnitude. Batch-4 MUST
+        reproduce these three runs natively to verify they are not QEMU-specific
+        artifacts before the full (non-trimmed) p-value can be relied on.
+
+  objections:
+    - id: OBJ-QEMU
+      severity: blocking
+      prior_id: OBJ-1_from_BATCH-6f309b
+      title: >
+        QEMU x86_64 emulation on ARM64 demonstrably alters sieve vector distribution —
+        all 150 runs are from this confounded environment
+      description: >
+        The receipt.json confirms: host=macOS arm64 (Apple Silicon), container=Linux x86_64
+        via Docker --platform linux/amd64, i.e., QEMU binary translation. This is identical
+        to the batch-2 environment. The batch-3 mean T_N = 7551.1 is 107 units below
+        batch-1 expected (17919 × 0.42738 = 7658.2), a shortfall of 1.16 σ. This shortfall
+        is persistent: batch-2 mean = 7554.2, batch-3 mean = 7551.1, difference between them
+        is only 3.1 units (0.03 σ), while both are ~107 units below batch-1. Two independent
+        batches in the QEMU environment converge to essentially the same mean, 107 units
+        below native. This is the strongest possible statistical evidence that QEMU
+        systematically changes the sieve distribution.
+
+        g6k's bgj1_sieve uses AVX2 SIMD intrinsics (_mm256_* calls compiled into g6k's
+        C++ core). Under QEMU, these are JIT-translated to ARM64 NEON instructions. The
+        JIT translation is not byte-for-byte equivalent in all edge cases — rounding modes,
+        exception handling, and NaN propagation may differ. The consistent mean-score
+        shortfall (-1.40% relative to batch-1) confirms the QEMU-emulated code path
+        produces a different sieve vector database quality than native x86_64 execution.
+
+        The chi2 test measures whether Var[T_N] > N × Var[s_i] IN THE QEMU ENVIRONMENT.
+        Rejecting H0 in the QEMU environment does not imply rejection in native execution.
+        If QEMU introduces run-to-run variation in sieve quality (e.g., JIT occasional
+        recompilation of a hot loop), the variance inflation could be entirely an emulation
+        artifact. The batch-3 test CANNOT distinguish this from genuine independence violation.
+      mechanism: >
+        Possible QEMU mechanisms for variance inflation (each independent):
+        1. QEMU JIT occasionally re-translates hot SIMD loops with different optimization
+           decisions, producing run-to-run variation in sieve quality even with different seeds.
+        2. AVX2 gather/scatter instructions (used in g6k's bucketing) emulated non-uniformly,
+           creating seed-dependent differences in bucket fill efficiency.
+        3. ARM64 cache effects: QEMU translates x86 cache prefetch hints to ARM equivalents
+           that may not have the same spatial locality, causing seed-dependent memory access
+           patterns and different sieve convergence.
+        The batch-3 sieve time variance (std=0.344s, range 12.82-15.36s, with run-14 at 15.36s
+        being +5.7σ above the mean) is consistent with occasional QEMU JIT events causing
+        abnormal sieve timing, but no correlation was found between sieve_time and T_N
+        (Spearman rho=0.011, p=0.890), so this is not the primary mechanism.
+      cheapest_check: >
+        Re-run exactly 10-15 of the batch-3 seeds (including runs 27, 67, 97) on native
+        Linux x86_64 hardware (AWS c5, GCP n2, or any bare-metal x86_64 machine WITHOUT
+        QEMU). Compare T_N values and single_score_var. Prediction under the
+        QEMU-artifact hypothesis: native T_N values are systematically higher (by ~107 units)
+        and the variance ratio may be closer to 1.0. Prediction under the genuine-signal
+        hypothesis: native T_N values are higher but the variance ratio > 1 persists.
+        This test costs ~15 × 14 s ≈ 4 minutes on any x86_64 machine and is decisive.
+      renders_batch_inadmissible: false
+      renders_interpretation_blocked: true
+      note_on_RDRAND: >
+        g6k does NOT use RDRAND/RDSEED; its PRNG is software Xorshift initialized from the
+        seed parameter. OBJ-1 from batch-2 red team correctly identified this. The concern
+        here is not random number generation but SIMD instruction emulation quality.
+
+    - id: OBJ-OUTLIER
+      severity: blocking
+      title: >
+        Three near-identical extreme runs (indices 27, 67, 97, T_N ≈ 7790, z ≈ 2.6 each)
+        drive p from 0.034 to 0.001; their origin under QEMU must be verified
+      description: >
+        Runs 27, 67, and 97 have T_N values of 7789.567, 7791.775, and 7789.812
+        respectively — all within a 2.2-unit window centered at ~7790. Each has z-score
+        ≈ 2.59-2.61. After removing these 3 runs (out of 150), the variance ratio drops
+        from 1.3916 to 1.2235 and the p-value rises from 0.001123 to 0.034260. These
+        3 runs (2% of the sample) account for the difference between p=0.001 and p=0.034.
+
+        The concern is whether these 3 extreme runs are legitimate independent draws from
+        the null distribution or QEMU-specific artifacts. Under the null
+        Normal(7551, 92²), expected runs above 7789 in a sample of 150 is
+        150 × P(Z > 2.59) ≈ 150 × 0.0048 ≈ 0.72. Observing 3 such runs has probability
+        P(Poisson(0.72) ≥ 3) ≈ 0.01, which is unusual but not impossible.
+
+        Note: run-27 has sieve_seconds=14.108, which is 2.1 σ above the mean sieve time
+        (mean=13.387, std=0.344). A slower sieve could indicate additional BGJ1 passes,
+        producing a higher-quality sieve database and thus higher T_N. Runs 67 and 97
+        have near-average sieve times (13.21s, 13.56s), so this mechanism only partially
+        explains the cluster.
+
+        If QEMU JIT occasionally triggers additional sieve passes (due to hot-loop
+        recompilation triggering extra iterations), this could produce occasional
+        high-T_N outliers that are QEMU artifacts, not draws from the target distribution.
+      cheapest_check: >
+        Re-run seeds 2941775225, 26883012, and 2418421570 (runs 27, 67, 97) on native
+        Linux x86_64 hardware. If their native T_N values are ≈ 7682-7795 (consistently
+        near the high tail, after accounting for the ~107 unit upward shift expected
+        natively), the outliers are real. If native T_N for these seeds is close to
+        the native mean (~7658 ± 92), the QEMU outliers are artifacts.
+      renders_batch_inadmissible: false
+      renders_interpretation_blocked: true
+
+    - id: OBJ-DENOM
+      severity: concern
+      prior_id: OBJ-3_from_BATCH-6f309b
+      title: >
+        Denominator from single below-average run (run-0, z=-1.42); between-run Var[s_i]
+        unknown; single-run denominator is conservative but cannot substitute for a
+        properly-averaged estimate
+      description: >
+        The independence_predicted_var = N × Var[s_i | run-0] = 17919 × 0.340569 = 6102.66.
+        Run-0 has T_N = 7420.5 (z = -1.42 below the batch mean 7551.1). Run-0's
+        single_score_mean = 0.41412 vs the batch average 0.42140. A below-average sieve
+        run (lower T_N) typically arises from sieve vectors with less concentrated phases,
+        which correspond to MORE variable cosine scores (higher Var[s_i]). Consistent with
+        this, run-0's Var[s_i] = 0.340569 is ABOVE the batch-1 estimate 0.332505, confirming
+        run-0 is in the higher-variance regime.
+
+        Using run-0 as the denominator therefore likely OVERESTIMATES the true population
+        E[Var[s_i]] averaged across all 150 runs, making the test CONSERVATIVE (ratio
+        is smaller than truth). This means the true ratio may be even higher than 1.3916
+        if higher-quality runs have lower Var[s_i].
+
+        However, the practical impact is bounded: using batch-1 Var[s_i]=0.332505 gives
+        p=0.0005 (more significant), not less. The denominator would need to be inflated
+        by 16.2% (to 0.3956) to make the test non-significant. This inflation is implausible
+        for a 17919-sample estimate.
+
+        The structural concern remains: the test design uses a single run's within-run
+        Var[s_i] as a proxy for the theoretical prediction N × σ²_s. If between-run sieve
+        quality variation inflates the true Var[T_N] even under independence (because
+        E[T_N | quality_i] varies across runs), the test is measuring a mixture of
+        in-run independence violation AND between-run sieve quality variation. Without
+        per-run Var[s_i] for all 150 runs, these cannot be separated.
+      cheapest_check: >
+        Modify the script to record per-run within-run Var[s_i] for all 150 runs
+        (add 5 lines to compute_TN). In batch-4, compute the average and variance of
+        per-run Var[s_i]. If Var[s_i] varies substantially across runs (coefficient of
+        variation > 5%), the between-run quality variation confound is real and the
+        denominator must be the mean over all runs, not run-0 alone.
+      renders_batch_inadmissible: false
+      renders_interpretation_blocked: false
+
+    - id: OBJ-CHI2-VALIDITY
+      severity: note
+      prior_id: OBJ-2_from_BATCH-6f309b
+      title: >
+        Chi2 test technical requirements: T_N approximately Normal (confirmed),
+        N constant (confirmed), seeds unique (confirmed); test is technically valid
+      description: >
+        Technical requirements verified from raw data:
+        - T_N ≈ Normal: Shapiro-Wilk W=0.9907, p=0.431 — normality NOT rejected ✓
+        - N_vectors = 17919 for all 150 runs without exception ✓
+        - 150 distinct seeds (all unique, no repeats) ✓
+        - p-value formula: 1 - chi2.cdf(chi2_stat, df=149) = upper tail ✓ (one-sided H1: ratio > 1)
+        - No lag-1 autocorrelation (DW=1.9621, lag-1 r=-0.0011) ✓
+        The chi2 test is technically valid as a test of H0: Var[T_N] = N × Var[s_i | run-0]
+        in the QEMU environment. The concern is about interpretation, not arithmetic.
+      renders_batch_inadmissible: false
+      renders_interpretation_blocked: false
+
+    - id: OBJ-LAG2
+      severity: note
+      title: >
+        Lag-2 autocorrelation is marginally significant (-0.1716, p≈0.036);
+        effective n under AR(2) is ~141; p remains significant at 0.0015
+      description: >
+        Lag-2 autocorrelation of T_N values = -0.1716, Bartlett z-statistic = -2.10,
+        p ≈ 0.036 (two-sided). This is marginally significant at α=0.05. Lag-1 is
+        essentially zero (-0.0011, DW=1.96), so the autocorrelation structure is
+        not a simple AR(1) process.
+
+        A negative lag-2 autocorrelation means T_N values two steps apart tend to be
+        negatively correlated (if run-i is high, run-i+2 is slightly more likely to
+        be low). This could reflect quasi-periodic QEMU JIT behavior (alternating between
+        two execution quality states on a 2-run cycle) or it could be a false positive
+        with multiple testing (checking lags 1-10 increases the probability of one
+        spurious significant result).
+
+        Under AR(2) with rho_2=-0.1716, the effective sample size is approximately
+        n_eff = n × (1 - rho_2²)/(1 + rho_2²) ≈ 141.4. With n_eff=141:
+        chi2_eff = 195.4, p_eff ≈ 0.0015 — still highly significant. The lag-2
+        autocorrelation, even if real, does not change the conclusion within the QEMU
+        environment.
+
+        Note: Lag-2 autocorrelation should be verified in native execution. A real
+        lag-2 autocorrelation persisting in native execution would indicate a fundamental
+        sieve property (e.g., BGJ1 has a 2-step PRNG structure), not a QEMU artifact.
+      renders_batch_inadmissible: false
+      renders_interpretation_blocked: false
+
+    - id: OBJ-SEED-INDEPENDENCE
+      severity: note
+      prior_id: OBJ-5_from_BATCH-6f309b
+      title: >
+        Batch-3 seeds (randomized from default_rng(20260804001)) resolve OBJ-6 from
+        batch-2; no seed-ordering artifacts detected
+      description: >
+        Batch-3 uses seeds from numpy.random.default_rng(20260804001).integers(0, 2**32,
+        size=150), which produces 150 pseudorandom 32-bit integers. All 150 seeds are
+        unique (verified). Spearman rank correlation between seed magnitude and run index
+        is not expected for a PCG64 generator (the seeds are uniformly spread in [0, 2³²)).
+        Spearman corr(run_index, T_N)=0.084, p=0.306: no seed-ordering artifact. The batch-2
+        OBJ-6 concern (sequential seeds 0-49 possibly correlated with T_N) is resolved.
+        Seed 26883012 (run-67) is notably smaller than other seeds but shows no anomalous
+        behavior for this reason alone.
+      renders_batch_inadmissible: false
+      renders_interpretation_blocked: false
+
+  admissible_as_chi2_test: true
+  admissible_as_chi2_test_note: >
+    The chi2 test arithmetic is correct within the QEMU execution environment: T_N
+    is approximately Normal, N=17919 is constant, seeds are unique and independent,
+    and the formula is correctly applied. The test validly rejects H0: Var[T_N] = N × Var[s_i]
+    in the QEMU environment at alpha=0.05 with high confidence (p=0.001123). However,
+    "admissible as chi2 test" is NOT the same as "admissible as evidence against the
+    Ducas-Pulles independence assumption in native execution." The interpretation is
+    blocked pending native controls.
+
+  what_batch_4_must_address:
+    - action: native_hardware_control
+      priority: 1
+      description: >
+        Run exactly seeds {1873347320, 2941775225, 26883012, 2418421570} (runs 0, 27, 67, 97)
+        plus 6-10 other batch-3 seeds on native Linux x86_64 hardware (not QEMU). Compute
+        T_N and single_score_var for each. Record whether mean T_N shifts by approximately
+        +107 units (toward batch-1). Record whether the three outlier seeds still produce
+        extreme T_N values natively. This is the decisive falsification of OBJ-QEMU.
+      cheapest_execution: >
+        AWS c5.large or GCP n2-standard-2 ($0.10-0.12/hr), ~4-6 minutes total. Or any
+        bare-metal x86_64 Linux machine without QEMU layer.
+      falsification_condition: >
+        If native T_N for seeds 2941775225, 26883012, 2418421570 are NOT in the range
+        [batch1_mean ± 2σ] ≈ [7474, 7842] while in QEMU they were 7790, then QEMU
+        is producing outliers that are not reproducible natively, blocking interpretation.
+        If native values ARE near 7790+107=7897 (batch-1 scale), the outliers are real.
+
+    - action: per_run_var_computation
+      priority: 2
+      description: >
+        Modify the script to compute and record within-run Var[s_i] for EACH of the 150 runs
+        (not just run-0). Report mean_Var[s_i] and Var(Var[s_i]) across runs. If the
+        per-run Var[s_i] values are highly variable (CV > 5%), use their mean as the
+        denominator. This resolves OBJ-DENOM and removes the run-0 dependence.
+
+    - action: null_control_same_instance
+      priority: 2
+      description: >
+        Run the same 150 seeds but score against a WRONG secret s* ≠ s (e.g., s*=0 or
+        a randomly chosen binary secret). T_N^null should have Var[T_N^null] ≈ N × Var[null_score]
+        with ratio ≈ 1.0 (i.e., independence holds for the null object). If ratio^null > 1
+        in the same QEMU environment, the excess variance is an environment artifact, not
+        a property of the correct secret.
+
+    - action: lag2_autocorrelation_verification
+      priority: 3
+      description: >
+        In native execution, compute lag-2 autocorrelation of T_N. If -0.17 persists
+        natively, it is a sieve property and the effective sample size should be adjusted.
+        If it vanishes natively, it is QEMU-specific and not relevant to the target hypothesis.
+
+    - action: full_chi2_with_averaged_denominator
+      priority: 2
+      description: >
+        After collecting per-run Var[s_i] (from action 2), recompute chi2 with the
+        average per-run Var[s_i] as the denominator. This is the theoretically correct
+        estimator of the null variance. Compare with the run-0-denominator result to
+        assess whether run-0's below-average quality biases the test.
+
+  reviewed_at: '2026-08-04'
+  reviewed_by: TASK-20260804-1bb63d
+  write_scope: coordination/goals/GOAL-MLKEM-004/batches/BATCH-68471b/tasks/TASK-20260804-1bb63d/
+  states_a_finding: false
+  no_ml_kem_security_claim: true
+  rule12_status: UNMET_AND_UNWAIVED
+  note_on_rule12: >
+    No finding is stated by the executor or by this red-team. Rule 12 (AGENTS.md) is not
+    triggered. The chi2 result is an observation. No breakthrough or contradiction of
+    established evidence is claimed.

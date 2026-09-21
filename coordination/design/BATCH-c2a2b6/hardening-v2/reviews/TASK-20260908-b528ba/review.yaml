@@ -1,0 +1,262 @@
+task_id: TASK-20260908-b528ba
+scope:
+  joint: lifecycle_cost_and_terminal_authority_v2
+  reviewed_question: >-
+    Whether the v2 prospective worker, receipt, failure, terminal, rank-state,
+    and shared-cost definitions close the exploitable ambiguities named in the
+    committed review plan.
+  boundary: >-
+    Source-only review of the assigned joint. This report does not cover the
+    separately assigned statistics or certificate/alias joints.
+source_snapshot_commit: df391d3a024d6b030983cc692ae717e9a8e718b4
+review_plan_commit: 1c509e527143221c1021bffaf2a27a225eb5a751
+sources_read:
+  - path: ledger/handoffs/TASK-20260908-b528ba.yaml
+    commit: 1c509e527143221c1021bffaf2a27a225eb5a751
+    git_blob_sha1: c5d08d7434ef38e2e4045597711cbc55b957107d
+  - path: coordination/design/BATCH-c2a2b6/hardening-v2/review-plan.yaml
+    commit: 1c509e527143221c1021bffaf2a27a225eb5a751
+    git_blob_sha1: 70f15e1214dfe11fca6a965354adea12764b8a46
+  - path: experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+    commit: df391d3a024d6b030983cc692ae717e9a8e718b4
+    git_blob_sha1: a938bf834af944b9f472c49e8486fcced46abde9
+    sha256: 955d260b9264f98b0439b9a28fa844644fa2f372c8ddb8d75b2803ea581db66a
+  - path: experiments/EXP-ECDLP-ac7e8b/specification.yaml
+    commit: df391d3a024d6b030983cc692ae717e9a8e718b4
+    git_blob_sha1: fc1fac56778cd74816343c54a3a194947f538752
+  - path: coordination/design/BATCH-28dddb/protocol-appendix.yaml
+    commit: df391d3a024d6b030983cc692ae717e9a8e718b4
+    git_blob_sha1: 977db527806b0cdc54bec3807906a5361d252ba2
+    sha256: ac0b4b83fe32bd949d710a203bf1dd4248557f64dcdd381edcec65cd236e37b0
+  - path: ledger/decisions/DEC-20260908-ec4a02.yaml
+    commit: df391d3a024d6b030983cc692ae717e9a8e718b4
+    git_blob_sha1: d8ccf61ff39cc1f1edb653dac5492d2df262838e
+worked_attacks:
+  - attack: normal_counting_and_timing_root_process_accounting
+    construction: >-
+      Trace one 30-component counting root and one 30-component timing root.
+      Each phase uses a sequential fresh producer and fresh independent verifier.
+    expected_guard: >-
+      Counting starts/reaps 30 components times two phases times two workers =
+      120 workers. Timing adds 30 profile phases times two workers, for 180.
+      At any instant, supervisor plus one worker plus at most four burners is
+      at most six processes.
+    source_result: holds
+    evidence: >-
+      The amendment fixes those 120/180 counts and prohibits helper, sidecar,
+      overlap, or a seventh process. The predecessor appendix also requires
+      pids.max=6, actual descendant membership, and no extra children or threads.
+
+  - attack: checkpoint_as_final
+    construction: >-
+      Present a watchdog checkpoint segment as the root's final receipt and
+      attempt to use it to satisfy the 1600-final-receipt schedule.
+    expected_guard: >-
+      A checkpoint has receipt_kind=segment and terminal=false, while a final
+      has receipt_kind=final, terminal=true, and names a complete chain head.
+    source_result: holds
+    evidence: >-
+      The amendment explicitly requires rejection of a segment presented as a
+      final and the appendix independently states that a checkpoint emits no
+      imported final receipt.
+
+  - attack: changed_attempt_id_on_resume
+    construction: >-
+      Resume a checkpoint under a new attempt_id so a failed prefix can be
+      separated from a favorable continuation.
+    expected_guard: >-
+      Resume retains the sealed root's attempt identity and immutable segments;
+      a changed attempt_id is rejected.
+    source_result: holds
+    evidence: >-
+      The v2 receipt rule expressly rejects changed attempt IDs on resume, and
+      the appendix declares checkpoint segments resume the same sealed attempt.
+
+  - attack: forked_segment_hidden_by_selective_reporting
+    construction: >-
+      For one root, checkpoint segment S0. Resume S0 twice as S1-bad and
+      S1-good using the same attempt_id and predecessor. Retain only S0 and
+      S1-good in the reported chain and make S1-good's final point to S0.
+    expected_guard: >-
+      A validator must either prevent a second successor or discover every
+      launched successor before accepting the final chain.
+    source_result: breaks
+    evidence: >-
+      The amendment says that forked chains are rejected, but its required
+      receipt fields contain no append-only root-wide launch/segment registry,
+      no consumed single-successor capability, and no required authenticated
+      enumeration of all segment receipts. predecessor_segment_id and
+      resume_from_sha256 can describe the reported linear branch without
+      exposing an omitted sibling. A stated fork rejection cannot distinguish
+      that transcript from a one-successor run.
+
+  - attack: failed_first_calibration_matrix_and_false_not_activated
+    construction: >-
+      Fail the first calibration, then label all later sealed measurement roots
+      NOT_ACTIVATED to suppress startup/guard/binding resources and their
+      terminal receipts.
+    expected_guard: >-
+      The causal root retains completed-through-failure rows and omitted
+      downstream rows. Every remaining sealed root performs a real
+      administrative start-and-abort, emits omitted nominal-phase rows and one
+      IMPLEMENTATION_FAILURE final; only an imported synthetic conditional retry
+      may be NOT_ACTIVATED.
+    source_result: holds
+    evidence: >-
+      The amendment's failed-first-calibration matrix and the appendix's
+      execution gate order make this mutation an implementation-admission
+      failure, while preserving all 1600 activated roots and final receipts.
+
+  - attack: checkpoint_or_timeout_inferred_as_campaign_cancellation
+    construction: >-
+      Emit a final TIMEOUT_CENSORED receipt after a watchdog event, state that
+      it has historical cancelled_by_budget adapter metadata, and supply no
+      Coordinator decision or amendment binding. A downstream consumer then
+      treats that receipt as authorization to cancel the campaign.
+    expected_guard: >-
+      A checkpoint is nonterminal and asserts no campaign-budget exhaustion;
+      a discretionary TIMEOUT_CENSORED final needs a source-bound Coordinator
+      authority that a validator can resolve, and cannot authorize a goal change.
+    source_result: breaks
+    evidence: >-
+      The prose correctly says that no campaign cancellation may be inferred,
+      but the required receipt schema has no terminal_authority_id,
+      terminal_authority_sha256, coordinator disposition reference, or machine
+      event digest. Thus an unauthorized TIMEOUT_CENSORED assertion cannot be
+      mechanically separated from an authorized one. This is an enforcement
+      gap, not an assertion that a campaign has been cancelled.
+
+  - attack: rank_owner_handover_or_double_counted_rank_work
+    construction: >-
+      Let owner A append accepted row r0 from state h0 to h1, then let owner B
+      append r1 from h1 to h2 after checkpoint. Alternatively, compute two
+      children from h1 and report one. Charge both rank computations as distinct
+      owner objects.
+    expected_guard: >-
+      One sealed campaign owner, or an explicitly authorized, hash-bound
+      handover, must cover every accepted EC row in sealed ordinal order and
+      bind every state transition to exactly one rank resource vector.
+    source_result: breaks
+    evidence: >-
+      The amendment requires owner_id and a linear hash chain, but does not
+      define a campaign-sealed owner identity, an owner-handover receipt, a
+      previous-state equality rule, a committed accepted-row inventory, or a
+      validator reconstruction of all RELATION_VALID EC rows. owner_id can
+      therefore change while the visible state hashes remain linear, and an
+      omitted competing state chain is not detectable from the described output.
+
+  - attack: unowned_or_double_counted_shared_cost
+    construction: >-
+      Attribute one burner's measured CPU/IO interval to a burner object and
+      again to a separately named setup object, each with a different owner ID
+      and allocation fractions summing to one. Report both vectors as distinct
+      shared objects.
+    expected_guard: >-
+      Every shared physical source has one stable provenance key, one owner,
+      one raw additive vector, and a reconciliation to process/resource traces;
+      references and allocations must not introduce a second additive charge.
+    source_result: breaks
+    evidence: >-
+      The amendment states the intended once-only CPU/IO sum and wall-time
+      union, but it does not define the shared-cost owner table schema, a global
+      object-identity namespace, additive-coordinate provenance, or a
+      reconciliation to cgroup/process observations. Distinct labels and valid
+      per-object fractions can still double charge the same additive work, so
+      the intended invariant is not independently checkable.
+findings:
+  - severity: blocking
+    subject: segment_chain_completeness
+    finding: >-
+      Fork rejection is specified as an outcome but not as an observable,
+      authenticated completeness condition. Selective reporting of a sibling
+      resume branch remains indistinguishable from a valid linear continuation.
+    narrow_scope: >-
+      This concerns prospective receipt custody and lifecycle interpretation;
+      it says nothing about the underlying S3/S4 method or any scientific outcome.
+  - severity: blocking
+    subject: discretionary_terminal_authority
+    finding: >-
+      The stated non-cancellation policy is not bound into the receipt schema.
+      A validator lacks the required source reference needed to verify that a
+      TIMEOUT_CENSORED final was pre-authorized by the Coordinator.
+    narrow_scope: >-
+      This does not infer any campaign cancellation, budget exhaustion, or
+      mathematical failure.
+  - severity: blocking
+    subject: rank_state_and_shared_cost_ownership
+    finding: >-
+      The prose intends unique rank and shared-cost ownership, but no complete
+      source-level schema makes a unique owner, accepted-row coverage, resource
+      provenance, or once-only additive accounting verifiable.
+    narrow_scope: >-
+      This challenges cost and evidence custody only. It is not a claim about
+      measured operation counts, timing, rank values, or cryptanalytic security.
+verdict: breaks
+required_corrections:
+  - id: receipt_registry_and_single_successor
+    correction: >-
+      Add a root-scoped, append-only, hash-chained launch/segment registry with
+      a sealed segment ordinal and parent receipt hash. Each checkpoint issues a
+      single-use successor capability recorded as consumed by exactly one child.
+      Require the final to commit the registry head and the validator to reconcile
+      every registry entry, every on-disk receipt, and exactly one final.
+    acceptance_mutations: [hidden_sibling_resume, duplicate_successor_capability, omitted_launch_entry, final_on_nonhead_segment]
+  - id: terminal_authority_binding
+    correction: >-
+      Extend final receipts with terminal_authority_kind, authority_record_id,
+      authority_record_sha256, causal_event_sha256, and
+      asserts_no_goal_transition. Require a validated Coordinator decision or
+      approved amendment for discretionary TIMEOUT_CENSORED, a machine/validator
+      event binding for automatic finals, and rejection of absent, mismatched, or
+      non-Coordinator authority. Preserve cancelled_by_budget only as a
+      non-authoritative historical adapter label.
+    acceptance_mutations: [timeout_without_authority, wrong_authority_hash, machine_checkpoint_as_final, cancelled_adapter_as_goal_transition]
+  - id: rank_state_ownership_and_coverage
+    correction: >-
+      Seal rank_owner_id per fixture campaign. Define rank-state rows with
+      campaign_id, sealed ordinal, previous_state_sha256, output_state_sha256,
+      accepted_row_sha256, owner_id, process-incarnation or authorized handover
+      reference, and the unique resource-vector ID. Require a final commitment
+      to the complete accepted-row set and independently rebuild it from all
+      valid EC receipts in sealed order.
+    acceptance_mutations: [owner_swap_without_handover, duplicate_state_child, omitted_accepted_row, duplicated_rank_resource_vector]
+  - id: shared_cost_provenance_and_reconciliation
+    correction: >-
+      Define shared-cost-owners.jsonl as a normative schema with globally unique
+      object IDs, source process/interval or immutable raw-trace IDs, one owner,
+      raw additive vector, allocation domain, and explicit unallocated share.
+      Require validators to reject duplicate provenance for additive CPU/IO,
+      union wall intervals by provenance, and reconcile totals to recorded
+      cgroup/process resource observations.
+    acceptance_mutations: [same_cpu_under_two_object_ids, missing_owner, duplicate_owner, allocation_sum_not_one, overlapping_wall_interval_summed]
+limitations:
+  - >-
+    This was a source-only, zero-scientific-execution review. No implementation,
+    admission fixture, runtime, experiment, result, or model backend was run.
+  - >-
+    The review reads only the assigned handoff, its committed review plan, and
+    the four declared design sources at their plan-pinned source snapshot. It
+    does not read sibling or older review outputs.
+  - >-
+    The certificate-contract/alias joint and the statistics joint are outside
+    this reviewer's assigned boundary.
+scientific_runs: []
+implementation_approval: false
+scientific_claim: false
+explicit_nonapproval: >-
+  This report neither approves implementation nor makes a scientific,
+  cryptanalytic, mathematical, performance, or campaign-state claim.
+review_attestation:
+  task_id: TASK-20260908-b528ba
+  provenance_correction: CORR-20260908-8ec128
+  joints_owned: [lifecycle_cost_and_terminal_authority_v2]
+  paths_actually_read:
+    - ledger/handoffs/TASK-20260908-b528ba.yaml
+    - coordination/design/BATCH-c2a2b6/hardening-v2/review-plan.yaml
+    - experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+    - experiments/EXP-ECDLP-ac7e8b/specification.yaml
+    - coordination/design/BATCH-28dddb/protocol-appendix.yaml
+    - ledger/decisions/DEC-20260908-ec4a02.yaml
+  read_sibling_reports: false
+  independent_session: true
+  verdict: breaks

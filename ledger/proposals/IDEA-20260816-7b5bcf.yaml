@@ -1,0 +1,256 @@
+idea:
+  id: IDEA-20260816-7b5bcf
+  question_id: RQ-ECDSA-87625f
+  added: '2026-08-16'
+  title: 'Scalar blinding is always described as reducing per-trace leakage, never as changing how
+    leakage ACCUMULATES: measure both at once by computing, on the same instrumented routine, the
+    per-trace information and the joint information over m traces as a function of blinding width
+    b, and report the accumulation exponent.'
+  class: composition
+  claim: '(A) THE COMPOSITION QUESTION. A countermeasure is usually evaluated by what it does to ONE
+    observation. The quantity that decides whether it works is what it does to m observations. Scalar
+    blinding replaces k by k + r*n for a fresh b-bit r each invocation; the standard reading is that
+    each trace now speaks about a different value, so per-trace information about k falls. The unexamined
+    half is the accumulation law: does the joint information over m traces grow like m, like sqrt(m),
+    like log m, or saturate. (B) THE CLAIM. Both halves are measurable on the same object in the same
+    run, at toy scale, exactly. Fix the operation-word observation of a scalar-multiplication routine.
+    For blinding width b, compute I(k ; W) for a single trace and I(k ; W_1..W_m) for m traces, both
+    under an enumerable toy modulus, and fit the growth of the joint against m to an exponent alpha
+    in a stated family. The deliverable is the pair (per-trace information, accumulation exponent
+    alpha) as a function of b -- a two-number summary where the literature-style summary has one.
+    (C) THE FORCED CASE THAT MAKES IT CHECKABLE. At b=0 there is no blinding, every trace is identical,
+    and the joint information over m traces equals the single-trace information exactly: alpha = 0
+    with total saturation. That is a forced value and it calibrates the whole measurement. At b large
+    enough that r*n exceeds the enumerable range the computation stops being exact, and the record
+    says where. (D) WHAT IS NOT CLAIMED. No attack, no recovery, no claim that an operation word is
+    observable on any device -- the observation is ASSUMED and this environment has no physical measurement
+    capability. No claim about any real blinding implementation, whose randomness quality is a separate
+    question. No claim that alpha determines an attack cost: converting an accumulation exponent into
+    a trace count for recovery needs a search model this does not build. (E) WHY IT IS WORTH DOING.
+    A countermeasure evaluated only per-trace is evaluated on the wrong axis, and this program has
+    no measured accumulation law for any countermeasure.'
+  mechanism: 'STAGE 1: fix the observation as the operation word emitted by a chosen scalar-multiplication
+    routine, since it is deterministic, exactly enumerable and already the object of a companion proposal
+    in this batch -- so the two share an instrument and can cross-check. STAGE 2: fix a toy group
+    order n of 12 to 16 bits so that k ranges over an enumerable set and, for small b, so does k +
+    r*n. STAGE 3: for each b, compute the exact conditional distribution of the word given k, marginalising
+    over r; from it compute I(k ; W) exactly. STAGE 4: for m in a ladder, compute I(k ; W_1..W_m)
+    exactly for small m by direct enumeration over the m independent r values, and for larger m by
+    the exact recursion on the posterior over k, which stays tractable because the posterior lives
+    on the same enumerable support. STAGE 5: fit the joint against m to the family alpha*log(m) +
+    c and to a saturating family, report both fits with residuals, and select by residual rather than
+    by preference. STAGE 6: run the nulls and report (per-trace information, alpha) per b, with every
+    number carrying the assumed-observation caveat.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read RQ-ECDSA-87625f. Grepped ledger/proposals/ for 'blinding' (six hits including IDEA-20260812-104e1a,
+      IDEA-20260807-caf061, IDEA-20260806-7c1ae4, IDEA-20260805-9430e9, IDEA-20260814-92f825, IDEA-20260816-86a78d),
+      'countermeasure', 'accumulation', 'mutual information', 'operation sequence'. Read the CLAUDE.md
+      blacklist entries for this question. Read the titles of the nearest hits and of IDEA-20260815-1ac849.
+    results: '''blinding'' hits six proposals across the portfolio; reading their titles showed them
+      concerned with algebraic blinding in other lanes rather than with a leakage-accumulation law,
+      and none surfaced as a countermeasure-composition measurement. IDEA-20260815-1ac849 costs lattice
+      and Fourier nonce attacks on one memory-charged frontier and varies bias level, not countermeasure
+      strength. The blacklist for RQ-ECDSA-87625f covers deterministic nonce-generator substitution
+      and nonce-bias window shape; neither concerns blinding or accumulation. No record was found
+      that measures how information about a secret accumulates across repeated observations under
+      a countermeasure, for any countermeasure anywhere in this corpus.'
+    verdict: 'UNVERIFIED. Nothing is asserted about external literature. Assembled from known parts:
+      scalar blinding is standard practice, mutual-information leakage accounting is already used
+      in this repository (IDEA-20260816-b6de60), and the operation-word observation is shared with
+      a companion proposal in this batch. Claimed new only within this repository: treating the ACCUMULATION
+      LAW across traces as the measured object and reporting a countermeasure by the pair (per-trace
+      information, accumulation exponent) rather than by per-trace reduction alone.'
+  object_first_candidate:
+    tracked_object: The posterior over the secret scalar k given m observed operation words, P(k |
+      W_1..W_m), carried forward as m increases. What is followed is the posterior's entropy, and
+      the object of interest is the LAW by which that entropy decreases with m.
+    lossiness: 'Genuinely lossy at two levels. First, the operation word discards all values and retains
+      only the addition-chain shape, so many blinded scalars share a word. Second, the blinding itself
+      makes each word a function of k + r*n rather than of k, so an observer learns about a randomised
+      representative and must integrate over r -- which discards precisely the association between
+      traces that would make information add linearly. The retained part propagates because the posterior
+      update from one trace is a pointwise multiplication over the enumerable support of k, and independence
+      of the r values across traces makes the updates compose exactly. Nothing about this is a change
+      of coordinates: at b=0 the second loss vanishes and the accumulation collapses to saturation,
+      which is the visible signature that the lossiness is real and dial-controlled.'
+    propagation: One additional trace acts on the tracked object by multiplying the posterior by the
+      likelihood L(k) = sum over r of P(r) * [word_j equals the word emitted by k + r*n], normalised.
+      One step of the blinding dial -- increasing b by one bit -- doubles the number of representatives
+      summed over, which flattens each likelihood and slows the posterior's concentration. Both one-step
+      actions are exactly computable on the enumerable support, which is what makes the accumulation
+      law measurable rather than simulated.
+    survival_score: Stated as the number of traces m at which the posterior entropy of k has fallen
+      by one bit, as a function of b -- a single number per b that summarises the whole accumulation
+      curve. Reported alongside the fitted exponent alpha and the residuals of the fit, so that the
+      summary number is visibly derived from a curve rather than standing alone. At b=0 the survival
+      number is 1 by construction, since one trace already gives everything the observation will ever
+      give.
+  null_object_control: 'Two nulls in the same invocation. (i) INDEPENDENT-WORD NULL: replace each
+    observed word by one drawn independently of k with the same length distribution, and run the identical
+    posterior-update and fitting code. The posterior entropy must remain exactly H(k) at every m and
+    the fitted alpha must be exactly 0; a nonzero alpha means the fitting procedure manufactures accumulation
+    from noise and no signal fit is reportable. (ii) MASK-AND-UNMASK NULL: apply blinding with a fresh
+    r and then immediately remove it before the observation is formed, so the machinery runs at every
+    b but the observation is the unblinded one; the resulting curve must be bit-identical to the b=0
+    curve at every b, which shows the measured effect comes from the blinding''s presence in the observation
+    and not from the harness''s blinding code path. Both nulls are executed with the same seeds and
+    the same code as the signal arm.'
+  discriminated_from:
+  - 'The operation-word conditional-entropy proposal elsewhere in this batch: that computes H(k |
+    W) for ONE trace and no countermeasure, exactly; this holds the algorithm fixed and varies a countermeasure
+    and the trace count. They share an instrument deliberately, and the b=0, m=1 cell of this experiment
+    must reproduce that proposal''s number exactly, which is a free cross-instrument check neither
+    could do alone.'
+  - 'IDEA-20260815-1ac849 (lattice and Fourier on one memory-charged frontier, find the bias level
+    where the winner changes): varies the leakage level and compares attack families; this varies
+    a countermeasure and measures an information-accumulation law, producing no attack cost at all.'
+  - 'The blacklisted deterministic-ECDSA nonce-generator substitution proposals: those change how
+    the nonce is produced; blinding does not change the nonce, it randomises the representative of
+    the scalar in the group operation, and the two are different interventions on different objects.'
+  - 'The six existing proposals containing the word ''blinding'' in other lanes: reading their titles
+    showed algebraic blinding used as a proof or protocol device rather than as a side-channel countermeasure
+    with a measured accumulation law.'
+  - 'Any real-device countermeasure evaluation: none is performed, the observation is assumed, and
+    no claim about any implementation''s blinding randomness is made.'
+  assumptions:
+  - An operation-word observer is ASSUMED; this environment has no physical measurement capability
+    and demonstrates none.
+  - Blinding randomness r is uniform and independent across invocations, which is the idealisation;
+    a real generator's defects are out of scope and their absence from the model is stated rather
+    than corrected.
+  - The toy group order is small enough that k and, for the tested b, k + r*n stay enumerable, so
+    posteriors are exact.
+  - Traces are conditionally independent given k, which follows from independent r and is stated explicitly.
+  - The fitted family for the accumulation law is chosen from two candidates by residual; the true
+    law could lie outside both, and the run reports the residuals so a reader can see that.
+  predictions:
+  - metric: accumulation exponent alpha at b=0
+    direction: different
+    minimum_effect: 'forced value exactly 0 with total saturation: every trace is identical at b=0,
+      so the joint information over m traces equals the single-trace value at every m'
+  - metric: per-trace information I(k ; W) as b increases
+    direction: lower
+    minimum_effect: predicted non-increasing in b; no numeric minimum pre-committed because the rate
+      depends on how many representatives share an operation word, which is the quantity being measured
+  - metric: fitted alpha on the independent-word null
+    direction: lower
+    minimum_effect: forced value exactly 0, with posterior entropy remaining exactly H(k) at every
+      m
+  - metric: mask-and-unmask null curve versus the b=0 curve
+    direction: different
+    minimum_effect: 'forced: bit-identical at every b and every m'
+  - metric: traces-to-one-bit as a function of b
+    direction: higher
+    minimum_effect: predicted non-decreasing in b; a decrease would mean blinding accelerates accumulation
+      and would falsify the framing outright, which is why it is worth stating
+  minimal_test:
+    design: 'Fix a 12-bit toy group order, the naive double-and-add operation word, and b in {0, 1,
+      2, 3}. Enumerate k over all residues and r over all 2^b values, compute the exact single-trace
+      likelihood table, then iterate the posterior update for m up to 64. Compute posterior entropy
+      at each m, run both nulls with the same code, and fit alpha. This is seconds of compute and
+      settles three things: whether b=0 saturates exactly as forced, whether both nulls behave exactly
+      as forced, and whether alpha at b=3 is visibly different from alpha at b=1. If the accumulation
+      curves for different b are indistinguishable, blinding does not change the accumulation law
+      at this observation and that is a clean, cheap, reportable measured obstruction. If they separate,
+      the larger b and larger group-order sweep is worth its cost.'
+    controls:
+    - Independent-word null with matched length distribution, run through the identical posterior
+      and fitting code.
+    - Mask-and-unmask null, which must reproduce the b=0 curve at every b.
+    - b=0 forced-saturation control.
+    - 'Cross-instrument control: the b=0, m=1 cell must reproduce the exact conditional entropy computed
+      by the companion operation-word enumeration proposal in this batch, to the last bit.'
+    - 'Exact-arithmetic control: posterior entropies computed in Fraction and in float, agreement
+      to 1e-12.'
+    - 'Fit-family control: both the logarithmic and the saturating family are fitted and both sets
+      of residuals reported, with selection by residual and not by preference.'
+    required_metrics:
+    - I(k ; W) per trace at each b
+    - posterior entropy of k against m at each b
+    - fitted accumulation exponent alpha with residuals, for both candidate families
+    - traces-to-one-bit at each b
+    - both null curves
+    - cross-instrument agreement at the b=0, m=1 cell
+  falsification_conditions:
+  - The b=0 arm does not saturate exactly, i.e. joint information at m>1 exceeds the single-trace
+    value.
+  - The independent-word null yields nonzero alpha or a posterior entropy below H(k) at any m.
+  - The mask-and-unmask null curve differs from the b=0 curve at any b or m.
+  - The cross-instrument check at b=0, m=1 disagrees with the companion enumeration.
+  - Traces-to-one-bit decreases with b anywhere, contradicting the framing and requiring the whole
+    reading to be revised.
+  - Both fit families leave residuals so large that no accumulation law is supported, in which case
+    the curves are reported raw and no alpha is claimed.
+  confounders:
+  - At larger b the support of k + r*n exceeds the enumerable range and the computation stops being
+    exact; the boundary must be reported and no fitted alpha may cross it.
+  - The operation word's length varies with the blinded scalar's bit-length, so length itself is an
+    observation that must be included in the null's matching or the null is not matched.
+  - Fitting an exponent to a curve with a forced endpoint at b=0 biases the fit toward the forced
+    family.
+  - Posterior updates over many traces accumulate floating-point error; Fraction arithmetic guards
+    this but limits m.
+  - Assuming independent r across traces is the ideal case and makes blinding look as good as it can,
+    so the measured alpha is optimistic for the defender by construction.
+  interpretation_limits:
+  - The observation is assumed; no claim about any device follows from any number here.
+  - An accumulation exponent is not an attack cost; converting alpha into a trace count for recovery
+    needs a search model this does not supply.
+  - Results at a 12-16 bit group order do not transfer to 256-bit curves, where the blinding width
+    relative to the order is different in kind.
+  - The measured law describes blinding under ideal randomness only, and says nothing about a defective
+    generator.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The computation is O(2^{bit-length} * 2^b) per trace
+      update on the enumerable support, which is the measurement's cost.
+    memory_exponent: No attack exponent is claimed. Memory is the posterior table, O(2^{bit-length}).
+    best_known: 'Within this repository the incumbent is nothing: no record measures a leakage-accumulation
+      law for any countermeasure. The nearest cost-bearing object in this lane is IDEA-20260815-1ac849''s
+      memory-charged nonce-leakage frontier, which varies leakage level rather than countermeasure
+      strength and produces attack costs rather than information laws.'
+    hidden_overhead: 'The hidden term is the enumerability boundary: the exactness that makes this
+      worth doing evaporates as soon as b grows enough that the blinded scalar leaves the enumerable
+      range, and the honest reach of the method is therefore small b at small order. The human cost
+      is that an accumulation exponent invites conversion into a trace count for a real attack, and
+      refusing that conversion has to be done at every citation.'
+  dominated_by: 'n/a (no result claimed). No attack cost is produced, so no time/memory/data frontier
+    row applies; all three axes were considered and none is populated. Explicitly not null: the frontier
+    question does not arise rather than being won. The nearest cost-bearing object is IDEA-20260815-1ac849''s
+    frontier, which this neither joins nor competes with.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: replaces a one-number
+    per-trace description of a countermeasure with a two-number summary -- per-trace information in
+    bits plus a fitted accumulation exponent with residuals -- measured exactly at toy order for b
+    in a stated range, where the current corpus state has neither number for any countermeasure. No
+    attack time, memory or trace count is claimed to change.'
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'That the b=0 forced saturation and both nulls behave exactly as derived:
+    0.85, since all three are structural. That the cross-instrument check against the companion enumeration
+    agrees to the last bit: 0.7, because the two computations share an observation definition but
+    not a code path, and convention mismatches are the likely failure. That the accumulation curves
+    at different b are distinguishable rather than collapsing onto one another: 0.55, because at an
+    observation as coarse as an operation word, blinding may simply zero the per-trace information
+    and leave nothing to accumulate. That a fitted alpha is well-supported by residuals rather than
+    being a fit to a curve that is not in either family: 0.45.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ECDSA-87625f
+  - RQ-INSTR-f8faa0
+  - IDEA-20260815-1ac849
+  - IDEA-20260816-b6de60
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/toycurve.py
+  - harness/runner.py
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SIDECH-8598df

@@ -1,0 +1,254 @@
+suite: frobenius-next-wave
+status: proposed
+created_at: '2026-09-08'
+claim_boundary:
+  attack_claim: false
+  speedup_claim: false
+  beats_rho_claim: false
+  scope: toy_binary_and_subfield_curves_only_until_independent_review
+motivation: >-
+  Extend the existing orbit-aware decomposition suite without duplicating its
+  gauge-fixing, canonicalization, variable-rotation, invariant-prefilter,
+  pair-ranking, MITM, Burnside, Fourier/eigenbasis, or slope experiments.
+  These experiments target four remaining structural questions: whether orbit
+  stabilizers distort relation quality; whether Gröbner/SAT ordering can expose
+  cyclic structure without changing the equations; whether Frobenius character
+  structure survives Macaulay linearization; and whether cheap representation
+  surrogates can predict solving-degree improvements before expensive solves.
+
+baseline_dependencies:
+  - research/experiments/orbit_aware_decomposition_experiments.yaml
+  - research/ideas/orbit_aware_relation_generation.md
+  - research/ideas/frobenius_brauer_factor_base_angles.md
+
+common_ladder:
+  fields: [F2^11, F2^13, F2^17, F2^19, F2^23]
+  curve_families: [toy_koblitz, random_nonsupersingular_binary]
+  decomposition_arities: [3, 4]
+  seeds_per_cell: 20
+  held_out_curve_fraction: 0.25
+common_metrics:
+  - solved_fraction
+  - solver_seconds
+  - seconds_per_successful_decomposition
+  - independent_relation_fraction
+  - seconds_per_independent_relation
+  - peak_memory_bytes
+  - variables_or_polynomial_unknowns
+  - clauses_or_equation_count
+  - fitted_log2_time_slope
+
+experiments:
+  - id: EXP-FROB-STABSTRATA-002
+    title: Orbit-stabilizer stratified factor-base experiment
+    hypothesis: >-
+      Short Frobenius orbits create disproportionate duplicate or low-rank
+      relations; excluding or down-weighting short-orbit representatives can
+      improve independent relations per second even if raw decomposition
+      probability falls.
+    mechanism: >-
+      Partition factor-base points by exact Frobenius orbit length and compare
+      relation collection with full-length-only, natural-mixture, and
+      short-orbit-enriched bases at matched effective factor-base cardinality.
+    arms:
+      - natural_orbit_length_distribution
+      - full_length_orbits_only
+      - short_orbit_enriched
+      - inverse_stabilizer_weighted_sampling
+    controls:
+      - exact_orbit_length_verification
+      - matched_effective_factor_base_size
+      - identical_targets_and_seeds
+      - relation_reverification_on_original_curve
+    primary_metrics:
+      - seconds_per_independent_relation
+      - relation_matrix_rank_growth_per_100_relations
+      - duplicate_relation_fraction_mod_frobenius
+    secondary_metrics:
+      - raw_decomposition_probability
+      - average_orbit_length_of_used_points
+      - stabilizer_size_histogram
+    promotion_gate:
+      require:
+        - no_correctness_failures
+        - one_nonbaseline_arm_improves_seconds_per_independent_relation_by_at_least_20_percent
+        - improvement_persists_on_both_largest_fields
+        - rank_growth_improves_or_remains_within_5_percent
+    kill_if:
+      - all_nonbaseline_arms_reduce_independent_relation_throughput
+      - apparent_gain_disappears_after_mod_frobenius_deduplication
+
+  - id: EXP-FROB-GBORDER-002
+    title: Orbit-aware Gröbner and SAT variable-order experiment
+    hypothesis: >-
+      The orbit-aware encoding already contains cyclic dependency structure,
+      but generic variable ordering hides it; grouping representative bits and
+      eliminating relative shift variables last can lower intermediate basis
+      growth or SAT branching without changing the solution set.
+    mechanism: >-
+      Hold equations and factor base fixed and change only variable/block order.
+      For Gröbner runs compare grevlex and block orders; for SAT compare raw bit
+      order against representative-block and shift-last orders.
+    arms:
+      - generic_raw_order
+      - representative_bits_contiguous
+      - shift_variables_last
+      - orbit_block_grevlex
+      - orbit_block_then_fglm_if_zero_dimensional
+    controls:
+      - exact_same_polynomial_ideal_or_cnf_semantics
+      - identical_instances
+      - recovered_decomposition_verification
+    primary_metrics:
+      - maximum_basis_degree_or_sat_conflicts
+      - seconds_per_successful_decomposition
+      - peak_monomial_or_clause_database_size
+    secondary_metrics:
+      - degree_of_regularity
+      - macaulay_row_count_at_peak_degree
+      - solver_decisions
+    promotion_gate:
+      require:
+        - semantic_equivalence_verified
+        - median_solver_seconds_improves_by_at_least_25_percent
+        - peak_memory_does_not_increase_by_more_than_25_percent
+        - gain_persists_on_largest_two_fields
+    kill_if:
+      - only_tiny_field_constant_factor_gain
+      - order_reduces_time_but_increases_independent_relation_cost
+
+  - id: EXP-FROB-CHARMAC-002
+    title: Frobenius-character decomposition of Macaulay linearization
+    hypothesis: >-
+      After orbit-aware variable identification, Macaulay matrices retain an
+      approximately block-circulant action of Frobenius. Projecting rows and
+      columns into characters of the cyclic Frobenius group may split one
+      large elimination problem into smaller weakly coupled blocks.
+    mechanism: >-
+      Build exact Macaulay matrices at the first two nontrivial degrees for the
+      same Semaev systems. Apply the cyclic shift operator induced by Frobenius,
+      compute commutator defect M F - F M, and where the coefficient field
+      permits, character-project the matrix. Measure block leakage before doing
+      any full Gröbner solve.
+    arms:
+      - raw_macaulay
+      - orbit_permuted_macaulay
+      - character_projected_macaulay
+    controls:
+      - exact_rank_preservation
+      - exact_row_space_equivalence_after_inverse_transform
+      - synthetic_block_circulant_positive_control
+      - random_permutation_negative_control
+    primary_metrics:
+      - normalized_commutator_rank
+      - off_character_block_fraction
+      - largest_character_block_fraction
+      - elimination_seconds_if_block_splitting_is_exact_or_near_exact
+    promotion_gate:
+      require:
+        - transforms_are_exactly_invertible
+        - normalized_commutator_rank_decreases_with_field_degree_or_stays_below_0_1
+        - largest_character_block_is_at_most_0_6_of_raw_dimension_on_two_largest_fields
+    kill_if:
+      - character_leakage_is_dense
+      - block_sizes_are_effectively_full_dimension
+      - transform_cost_exceeds_elimination_savings
+
+  - id: EXP-SDEG-BASISSURR-001
+    title: Cheap representation surrogate for Semaev solving degree
+    hypothesis: >-
+      A basis with sparse multiplication tensors, simple Frobenius action, and
+      low early-degree Macaulay growth is statistically enriched for lower
+      actual solving degree and lower decomposition time.
+    mechanism: >-
+      Generate candidate field bases without solving the full system. Compute
+      only cheap structural features, rank candidates with a preregistered
+      score, then fully solve the top candidates and a matched random sample on
+      held-out curves.
+    candidate_representations:
+      - polynomial_basis
+      - normal_basis
+      - self_dual_normal_basis_when_available
+      - tower_basis_when_available
+      - random_low_xor_cost_GL_n_2_basis_changes
+    cheap_features:
+      - multiplication_tensor_nonzeros
+      - multiplication_tensor_xor_cost
+      - frobenius_matrix_nonzeros
+      - frobenius_cycle_count
+      - anf_monomial_count_after_weil_descent
+      - degree_2_macaulay_rank_fraction
+      - degree_3_macaulay_rank_fraction
+    preregistered_score: >-
+      z(mult_tensor_nonzeros) + z(frobenius_nonzeros) + z(anf_monomials)
+      + 2*z(degree_3_macaulay_rows_minus_rank). Lower is predicted better.
+    controls:
+      - score_frozen_before_full_solves
+      - held_out_curves_not_used_to_choose_score
+      - matched_random_basis_sample
+      - coordinate_invariant_solution_count_check
+    primary_metrics:
+      - actual_degree_of_regularity
+      - actual_solving_degree
+      - solver_seconds
+      - seconds_per_independent_relation
+      - spearman_score_vs_solver_seconds
+    promotion_gate:
+      require:
+        - top_quartile_by_surrogate_beats_random_median_solver_seconds_by_at_least_30_percent
+        - spearman_absolute_rho_at_least_0_4_on_held_out_curves
+        - no_solution_set_mismatch
+    kill_if:
+      - surrogate_correlation_disappears_on_held_out_curves
+      - feature_cost_exceeds_10_percent_of_full_solve_cost
+
+  - id: EXP-SDEG-ACTIVEBASIS-001
+    title: Active low-XOR basis search with expensive-solve validation
+    hypothesis: >-
+      Local moves in GL(n,2) guided by the cheap surrogate can find
+      representations with materially lower Semaev solving cost than standard
+      polynomial/normal bases without requiring an exhaustive basis search.
+    depends_on: [EXP-SDEG-BASISSURR-001]
+    mechanism: >-
+      Starting from polynomial and normal bases, perform bounded hill-climbing
+      over invertible low-XOR basis transforms using only the frozen cheap score.
+      Every K accepted moves, spend one full solve as an audit point. Compare
+      against equal-budget random walk and random-restart controls.
+    arms:
+      - surrogate_guided_hill_climb
+      - equal_budget_random_walk
+      - equal_budget_random_restarts
+      - standard_polynomial_and_normal_baselines
+    controls:
+      - fixed_candidate_evaluation_budget
+      - fixed_number_of_full_solve_audits
+      - held_out_curves
+      - exact_invertibility_and_solution_equivalence
+    primary_metrics:
+      - best_solver_seconds_found_per_100_candidate_evaluations
+      - best_actual_solving_degree_found
+      - search_overhead_seconds
+      - net_seconds_per_independent_relation_including_search_amortization
+    promotion_gate:
+      require:
+        - guided_search_beats_both_random_controls_on_majority_of_held_out_curves
+        - net_amortized_relation_cost_improves_by_at_least_20_percent
+        - improvement_survives_reexecution_with_fresh_seeds
+    kill_if:
+      - gains_are_curve_specific
+      - guided_search_only_optimizes_surrogate_not_actual_solve_cost
+      - basis_conversion_or_search_overhead_erases_gain
+
+execution_order:
+  - EXP-FROB-STABSTRATA-002
+  - EXP-FROB-GBORDER-002
+  - EXP-FROB-CHARMAC-002
+  - EXP-SDEG-BASISSURR-001
+  - EXP-SDEG-ACTIVEBASIS-001
+
+ranking_rationale:
+  - STABSTRATA is cheap and tests whether quotienting trades relation quality for symmetry reduction.
+  - GBORDER tests whether existing solvers can exploit the cyclic structure before inventing new algebra.
+  - CHARMAC is a structural preflight before investing in a character-decomposed solver.
+  - BASISSURR asks whether representation search can be automated cheaply instead of burning full solves blindly.
+  - ACTIVEBASIS runs only if the surrogate generalizes on held-out curves.

@@ -1,0 +1,117 @@
+=== INDEPENDENCE GREP RECORD -- TASK-20260805-d408ac (regenerated 2026-08-31T23:48:30Z with corrected section range and paths) ===
+
+--- G1: AES vocabulary inside the SUBSTITUTE-ORACLE + worker + gates zone (lines 262-584; expected ZERO) ---
+$ sed -n '262,584p' src/rc8probe_freshfeistel.c | grep -n 'SBOX\|ISBOX\|GLOG\|GEXP\|gmul\|ginv\|MixColumns\|mix_columns\|ShiftRows\|shift_rows\|RCON\|key_expand\|0x1b\|sub_bytes\|inv_sub_bytes\|add_rk\|rotl8'
+exit=1 (1 = no matches)
+
+--- G2: AES vocabulary matches in the WHOLE file with section map (oracle zone = 262-584; live-arm zone = 79-261) ---
+30: *   - LIVE ARM code copied from rc8probe.c: gf_init/GLOG/GEXP, gmul/ginv,
+31: *     SBOX/ISBOX, rotl8/build_aes_sbox, the M2/M3/M9/MB/MD/ME MixColumns
+32: *     tables, key_expand, add_rk/sub_bytes/inv_sub_bytes/shift_rows/
+33: *     inv_shift_rows/mix_columns/inv_mix_columns, enc_r/dec_r, and the
+83:static uint8_t GLOG[256], GEXP[512];
+87:        GEXP[i] = x;
+88:        GLOG[x] = (uint8_t)i;
+94:    GLOG[0] = 0;
+95:    for(int i = 255; i < 512; i++) GEXP[i] = GEXP[i - 255];
+97:static inline uint8_t gmul(uint8_t a, uint8_t b){
+99:    return GEXP[(int)GLOG[a] + (int)GLOG[b]];
+101:static inline uint8_t ginv(uint8_t a){
+103:    return GEXP[255 - (int)GLOG[a]];
+105:static uint8_t SBOX[256], ISBOX[256];
+106:static inline uint8_t rotl8(uint8_t v, int n){
+111:        uint8_t x = ginv((uint8_t)a);
+112:        SBOX[a] = (uint8_t)(x ^ rotl8(x,1) ^ rotl8(x,2) ^ rotl8(x,3) ^ rotl8(x,4) ^ 0x63);
+117:    for(int i = 0; i < 256; i++) cnt[SBOX[i]]++;
+119:    for(int i = 0; i < 256; i++) ISBOX[SBOX[i]] = (uint8_t)i;
+120:    for(int i = 0; i < 256; i++) if(ISBOX[SBOX[i]] != (uint8_t)i) return 0;
+121:    for(int i = 0; i < 256; i++) if(SBOX[ISBOX[i]] != (uint8_t)i) return 0;
+128:        M2[i] = gmul(v, 0x02); M3[i] = gmul(v, 0x03);
+129:        M9[i] = gmul(v, 0x09); MB[i] = gmul(v, 0x0b);
+130:        MD[i] = gmul(v, 0x0d); ME[i] = gmul(v, 0x0e);
+133:static void key_expand(const uint8_t key[16], uint8_t rk[11][16]){
+134:    static const uint8_t RCON[10] = {0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1b,0x36};
+143:            for(int b = 0; b < 4; b++) t[b] = SBOX[t[b]];
+144:            t[0] ^= RCON[i/4 - 1];
+156:static inline void sub_bytes(uint8_t s[16]){
+157:    for(int i = 0; i < 16; i++) s[i] = SBOX[s[i]];
+159:static inline void inv_sub_bytes(uint8_t s[16]){
+160:    for(int i = 0; i < 16; i++) s[i] = ISBOX[s[i]];
+162:static inline void shift_rows(uint8_t s[16]){
+169:static inline void inv_shift_rows(uint8_t s[16]){
+176:static inline void mix_columns(uint8_t s[16]){
+186:static inline void inv_mix_columns(uint8_t s[16]){
+200:        sub_bytes(s); shift_rows(s); mix_columns(s); add_rk(s, rk[i]);
+202:    sub_bytes(s); shift_rows(s); add_rk(s, rk[r]);
+207:    add_rk(s, rk[r]); inv_shift_rows(s); inv_sub_bytes(s);
+209:        add_rk(s, rk[i]); inv_mix_columns(s); inv_shift_rows(s); inv_sub_bytes(s);
+225:        uint8_t rk[11][16]; key_expand(K, rk);
+236:        uint8_t rk[11][16]; key_expand(k, rk);
+635:            for(int i = 0; i < 8; i++) printf("%d%s", SBOX[i], i < 7 ? "," : "");
+764:    key_expand(key, rk);
+825:        key_expand(key, rk);
+
+--- G3: RC-D fmix64 constants in this file (expected: ONLY keycheck set-hash at ~535 + disclosure comments, never oracle) ---
+$ grep -n '0xff51afd7ed558ccd\|0xc4ceb9fe1a85ec53\|fmix\|murmur' src/rc8probe_freshfeistel.c
+15: * murmur3-fmix64 multiply/xor-shift mix used by BATCH-014's RC-D oracle).
+288: * AES's round function and from RC-D's murmur3-fmix64 mix. */
+535:            h ^= h >> 33; h *= 0xff51afd7ed558ccdULL; h ^= h >> 33;  /* set hash only */
+exit=0
+
+--- G4: SipRound/SipHash vocabulary in ALL prior campaign instruments (expected: zero) ---
+../../../BATCH-007/tasks/TASK-20260803-e55757/rc8probe.c: 0
+../../../BATCH-009/tasks/TASK-20260803-a0a7b9/src/yoyo_sbox_v4.c: 0
+../../../BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_ideal.c: 0
+../../../BATCH-012/tasks/TASK-20260805-080b62/src/rc8probe_ideal.c: 0
+../../../BATCH-014/tasks/TASK-20260805-b95720/src/rc8probe_feistel.c: 0
+
+--- G5: perm128 architecture vocabulary in this file (expected: disclosure comments + ff_gate injectivity label only, no storage code) ---
+5: * (direct evaluation, no stored pair table -- unlike perm128, EV-AES-837cd8),
+9: * RC-D's fixed key), matching perm128's per-trial fresh-permutation semantics.
+50: *     perm128's pair-storage architecture (rc8probe_ideal.c BATCH-011/012;
+52: *     ideal-mode code (v4's ideal branch, injectivity rejection, dom/rng
+487:/* Round-trip + 2-point injectivity under MANY fresh keys. */
+509:        printf("  \"ff_gate_injectivity_failures\": %d,\n", inj_fail);
+827:        /* fresh-key gate: round-trip + injectivity under 4096 fresh keys. */
+exit=0
+
+--- G6: RC-D oracle function names in this file (expected: disclosure comment only) ---
+47: *   - NOT reused: rc8probe_feistel.c's oracle (feistel_F/feistel_round_keys/
+48: *     feistel_encrypt/feistel_decrypt -- BATCH-014 RC-D; wrong semantics for
+exit=0
+
+--- G7: this file's oracle vocabulary in prior instruments (expected: zero) ---
+../../../BATCH-007/tasks/TASK-20260803-e55757/rc8probe.c: 0
+../../../BATCH-009/tasks/TASK-20260803-a0a7b9/src/yoyo_sbox_v4.c: 0
+../../../BATCH-011/tasks/TASK-20260805-8fa4c6/src/rc8probe_ideal.c: 0
+../../../BATCH-012/tasks/TASK-20260805-080b62/src/rc8probe_ideal.c: 0
+../../../BATCH-014/tasks/TASK-20260805-b95720/src/rc8probe_feistel.c: 0
+
+--- G8: yoyo_sbox_v4 oracle/ideal-branch vocabulary in this file (expected: zero in code) ---
+exit=1 (1 = no matches)
+
+--- G9: digest formula source lines: yoyo_sbox_v4.c vs this file (copied harness bookkeeping, disclosed; the ONLY v4 code reused) ---
+[yoyo_sbox_v4.c]:
+280:    uint64_t pdig = 1469598103934665603ULL; /* FNV-1a 64 offset basis          */
+303:            for(int i=0;i<16;i+=8){ memcpy(&w,p0+i,8); pdig = (pdig ^ w) * 1099511628211ULL; }
+304:            for(int i=0;i<16;i+=8){ memcpy(&w,p1+i,8); pdig = (pdig ^ w) * 1099511628211ULL; }
+[this file]:
+378:    uint64_t pdig = 1469598103934665603ULL;
+379:    uint64_t kdig = 1469598103934665603ULL;
+399:            for(int i = 0; i < 16; i += 8){ memcpy(&w, p0 + i, 8); pdig = (pdig ^ w) * 1099511628211ULL; }
+400:            for(int i = 0; i < 16; i += 8){ memcpy(&w, p1 + i, 8); pdig = (pdig ^ w) * 1099511628211ULL; }
+410:            kdig = (kdig ^ k0) * 1099511628211ULL;
+411:            kdig = (kdig ^ k1) * 1099511628211ULL;
+
+--- G10: global-key-state check -- RC-D used a global RK[] fixed once; this file's RK is a per-trial stack array (expected: no file-scope RK) ---
+$ grep -n '^static.*RK\|RK\[' src/rc8probe_freshfeistel.c | head
+300:static inline void ff_trial_subkeys(uint64_t k0, uint64_t k1, uint64_t RK[FF_ROUNDS]){
+302:    for(int i = 0; i < FF_ROUNDS; i++) RK[i] = sm64(&st);
+305: * unlike RC-D's fixed global RK[]). O(1) memory per query. */
+306:static void ff_encrypt(const uint8_t in[16], uint8_t out[16], const uint64_t RK[FF_ROUNDS]){
+312:        uint64_t nR = L ^ ff_F(R, RK[i]);
+318:static void ff_decrypt(const uint8_t in[16], uint8_t out[16], const uint64_t RK[FF_ROUNDS]){
+324:        uint64_t pL = R ^ ff_F(L, RK[i]);
+375:    uint64_t RK[FF_ROUNDS];
+494:        uint64_t RK[FF_ROUNDS]; ff_trial_subkeys(k0, k1, RK);
+570:        uint64_t RK[FF_ROUNDS]; ff_trial_subkeys(k0, k1, RK);

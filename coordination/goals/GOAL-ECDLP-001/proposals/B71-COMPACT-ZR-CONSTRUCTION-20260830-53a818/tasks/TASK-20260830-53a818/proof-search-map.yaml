@@ -1,0 +1,148 @@
+schema: 'crypto.autoresearch.proof_search_map.v1'
+id: PSM-20260830-53a818
+task_id: TASK-20260830-53a818
+goal_id: GOAL-ECDLP-001
+applies_to: |-
+  docs/inventor-protocol.md Section 8's four audits, applied to the
+  meet-in-the-middle constructions reported in derivation-report.yaml
+  (outcome no_construction_found_inconclusive, not a proof of impossibility
+  and not a completed within-cap construction). Because the overall
+  disposition is inconclusive rather than a positive result or an
+  obstruction, these audits are applied as sanity checks on the reported
+  IMPROVEMENT (two-pairs Theta(B^4) -> Theta(B^3)) and on the discarded
+  per-single-query framing, not as a discharge of any claim beyond what
+  outcome-card.yaml states.
+
+audit_1_baseline_reproduction:
+  bottleneck: |-
+    The exact bottleneck is the online cost of determining, for the whole
+    B-sized target label set, which labels are extendible (equivalently,
+    the root set of z_R = gcd(g_I, r_R)) without materializing r_R's own
+    coefficient vector (degree Theta(B^2) one-pair, Theta(B^4) two-pairs).
+  parameter_slice: |-
+    The naive baseline is direct materialization of r_R's coefficient
+    vector followed by a standard polynomial gcd against g_I: this costs
+    exactly deg(r_R) field operations to write the vector (dominant term),
+    i.e. Theta(B^2) one-pair, Theta(B^4) two-pairs, matching
+    degree_bookkeeping in rcrep-candidate-definition.yaml exactly (already
+    independently re-derived twice, by the draft and by
+    proves-too-much-control-results.yaml's Object 3).
+  reproduction_check: |-
+    Symbolic reproduction only (this is a zero-compute task): the naive
+    baseline's exponent is re-derived directly from the two-pairs and
+    one-pair degree_bookkeeping sections already independently confirmed by
+    two prior review rounds (validator TASK-20260830-495939, red-team
+    TASK-20260830-031380), not re-asserted from memory. This session adds
+    no new baseline-reproduction risk since it does not dispute those
+    figures.
+
+audit_2_observation_collision:
+  observable: |-
+    The observable carrying the claimed cost improvement is the exponent of
+    the meet-in-the-middle construction's total field-operation count,
+    Theta(B^3) two-pairs (down from Theta(B^4)), derived from: (loop size
+    B^2 [g_12's roots] * B [target labels]) * O(1)-absorbed work per
+    iteration (quadratic solve + hash membership).
+  distinct_preimage_search: |-
+    Searched for a DISTINCT ground-truth object that would produce the
+    identical Theta(B^3) observable without the claimed mechanism (fixed
+    Semaev degree 2) being present -- i.e. a collision that would falsify
+    "the improvement comes from S_3's constant degree" as the explanation.
+    Found one directly relevant candidate and ruled it out with a
+    derivation (see audit_4 method_ceiling below): replacing S_3 with a
+    relation of GROWING degree d(B) in the nearby-object control reproduces
+    the NAIVE Theta(B^4) cost, not Theta(B^3) -- i.e. the two objects
+    (fixed-degree-2 relation vs growing-degree relation) do NOT collide on
+    the same observable, which is the correct, non-collision outcome: it
+    confirms the fixed degree is load-bearing for the Theta(B^3) figure
+    rather than an accidental artifact of the loop-counting method that
+    would apply regardless of S_3's degree.
+
+audit_3_quantifier_order:
+  explicit_statement: |-
+    FOR ALL fresh-target label sets of size B (i.e. uniformly over which B
+    labels of deck I are designated "the target," per V2's target-independence
+    requirement), THERE EXISTS a construction (the meet-in-the-middle
+    procedure) that computes z_R's exact support in Theta(B^3) online field
+    operations (two-pairs) / Theta(B^2) (one-pair), using ONLY
+    preprocessing objects that do not depend on the target set (g_12/g_34
+    or the raw decks, and their root hash sets). The construction itself
+    does not depend on which B labels are designated the target beyond
+    reading them online (matching V2's target-independence requirement on
+    preprocessing, which this construction satisfies since none of its
+    preprocessing objects reference the target set). No witness (rho, sigma
+    pair, or non-existence thereof) is allowed to depend on anything the
+    online phase does not have access to; the construction is a genuine
+    decision procedure, not an existence claim requiring an unavailable
+    witness. Because the construction does not reach cap, no universal
+    "within-cap for all instances" claim is made; the quantifier order
+    above describes only the DEMONSTRATED cost, not a cap-passing claim.
+
+audit_4_method_ceiling_and_nearby_object_control:
+  strongest_certifiable_claim: |-
+    The meet-in-the-middle method, as derived, can certify at most: online
+    cost = (size of the larger of the two split index sets) * (size of the
+    target label set) * (cost of solving the joint relation for the partner
+    variable, given one side and the target, plus a membership test). This
+    is Theta(B^2 * B) = Theta(B^3) for two-pairs (split sets of size B^2
+    each) and Theta(B * B) = Theta(B^2) for one-pair (split sets of size B
+    each), GIVEN that the joint relation (S_3) has FIXED degree in the
+    solved-for variable. The method provably cannot do better than
+    max(|split set|) * |target set| with this exact structure (a plain,
+    non-recursive two-list meet), since some pass over one full split set
+    against the whole target set is required to guarantee no admissible
+    pair is missed (correctness requires touching every (rho, t_a)
+    combination whose x34-solution has not yet been ruled out, and no
+    subset of these B^2*B / B*B pairs can be skipped without an additional,
+    not-yet-found structural argument for why the skipped pairs cannot
+    contain a witness).
+  nearby_object_control: |-
+    GENUINELY DERIVED, not asserted. Nearby object: replace the fixed-degree
+    Semaev relation S_3 (degree exactly 2 in each variable, independent of
+    B, per KN-TECH-002) with a HYPOTHETICAL joint relation of the SAME
+    bidegree shape but with degree d(B) = B (growing with B) in the
+    variable being solved for. Apply the IDENTICAL meet-in-the-middle
+    method: for each of the B^2 (two-pairs) or B (one-pair) choices of the
+    fixed side, and each of the B target labels, "solve for the partner"
+    now requires ROOT-FINDING A DEGREE-B POLYNOMIAL rather than a constant-
+    time quadratic-formula lookup -- this costs Omega(B) (or
+    Omega(B^{1+epsilon}) via standard poly-factoring algorithms such as
+    distinct-degree factorization / Cantor-Zassenhaus, recalled, standard)
+    per (fixed-side, target-label) pair instead of O(1)-absorbed. TOTAL for
+    this nearby object: (B^2 * B) * B = Theta(B^4) two-pairs-shaped,
+    (B * B) * B = Theta(B^3) one-pair-shaped -- i.e. the method
+    DEGRADES EXACTLY BACK TO the naive materialization cost when the
+    load-bearing structural fact (S_3's fixed, B-independent degree 2) is
+    removed. This is the correct, non-"proves-too-much" behavior: a method
+    that gave Theta(B^3)/Theta(B^2) regardless of the eliminated relation's
+    degree would be suspect (it would "prove too much," implying an
+    implausible universal speedup for arbitrary bivariate elimination,
+    which would contradict well-established negative results on prime-field
+    ECDLP index calculus, KN-TECH-003: "no good structured factor base is
+    known [for prime fields]; decomposition probability and Groebner cost
+    make it uncompetitive with rho"). Instead, the control shows the
+    speedup is SPECIFICALLY and ONLY available because Semaev's S_3 has
+    fixed degree 2 -- a genuine, curve-arithmetic-specific structural fact,
+    not a generic trick. This also connects to, and does not duplicate, the
+    goal's own standing subproduct-tree/known-linear-factors nearby-object
+    control (ledger/goals/GOAL-ECDLP-001/goal.yaml,
+    preadmission_gate_g2_g8_wording_amendment_20260830 discussion): that
+    control's nearby object (a product of independently KNOWN linear
+    factors, reducible in quasi-linear time via remainder trees) is a
+    DIFFERENT nearby object from the one used here, and the two do not
+    collide -- r_R's roots are not independently known linear factors (they
+    are only implicitly defined via S_3's joint vanishing locus), which is
+    exactly why r_R's minimal construction cost is NOT quasi-linear like
+    that other control's object, and why this session's B^3/B^2 bounds,
+    not a quasi-linear bound, are the honest result.
+
+not_applicable_sections: none
+
+conclusion: |-
+  All four audits were run against the reported improvement rather than
+  skipped. They support treating the Theta(B^3) two-pairs / Theta(B^2)
+  one-pair bounds as genuine, correctly-scoped, non-"proves-too-much"
+  results, while confirming (audit_4's strongest_certifiable_claim) that
+  this specific method has a ceiling strictly above the stated caps and
+  cannot be pushed further without a genuinely new structural ingredient
+  not identified in this session.

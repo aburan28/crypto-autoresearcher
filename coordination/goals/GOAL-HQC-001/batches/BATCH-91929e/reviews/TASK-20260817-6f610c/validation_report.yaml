@@ -1,0 +1,1407 @@
+validation_report:
+  id: VAL-20260817-6f610c
+  id_note: >-
+    Suffixed with this review task's own token rather than minted fresh, so no
+    new ledger identifier is created by an independent session that commits
+    nothing. If the ledger archive requires a minted VAL-* id it should allocate
+    one and supersede this field; the report content is unaffected.
+  task_id: TASK-20260817-6f610c
+  role: validator
+  goal_id: GOAL-HQC-001
+  batch_id: BATCH-91929e
+  reviews_task: TASK-20260817-c603c0
+  reviews_experiment: EXP-HQC-982268
+  binds_snapshot: TASK-20260817-f24a5e
+  recorded_at: '2026-08-17'
+  claim_tier: toy
+  status_changes_made: none
+  commits_made: none
+
+  # ------------------------------------------------------------------ #
+  # 0. WHAT WAS VALIDATED, AND FROM WHAT BYTES
+  # ------------------------------------------------------------------ #
+  snapshot_binding:
+    snapshot_commit: 9ac60648ddede021a854a4777a8979af298b7ad9
+    parent_commit: 9c7dd452c6372cdfcc7e28fd15a74f0ddac9874f
+    reverified_by_this_session_with_git_plumbing: true
+    checks:
+    - id: SNAP-1
+      check: "git cat-file -t 9ac60648d -> commit; git cat-file -p shows tree
+        dee6e7814aea0e78d9b5bce0f62cb76bb29b2dce and the single declared parent
+        9c7dd452c6372cdfcc7e28fd15a74f0ddac9874f."
+      result: PASS
+    - id: SNAP-2
+      check: "git merge-base --is-ancestor 9ac60648d HEAD -> 9ac60648d IS an
+        ancestor of the worktree HEAD 44a53877ebad0e86cef1920cfe344e1755e747e6.
+        Exactly one commit separates them (44a53877e, the bookkeeping commit that
+        writes commit_sha back into the receipt and flips two queue states)."
+      result: PASS
+    - id: SNAP-3
+      check: "git diff-tree -r --name-status 9c7dd452c 9ac60648d -> 13 paths,
+        every one status A (added), zero M/D/R. The 13 are the producer's 12 plus
+        the snapshot receipt. No path outside
+        coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/ was touched."
+      result: PASS
+    - id: SNAP-4
+      check: "FORWARD direction: for each of the 12 paths in the receipt's
+        path_sha256, sha256(git show 9ac60648d:<path>) recomputed by this session
+        equals the declared digest. 12/12 exact."
+      result: PASS
+    - id: SNAP-5
+      check: "REVERSE direction: git ls-tree -r 9ac60648d over the task directory
+        returns exactly 12 blobs; a recursive filesystem walk of the same
+        directory returns exactly the same 12 names; every working-tree file
+        hashes to the same digest as its committed blob. Zero undeclared, zero
+        missing, zero working-tree drift."
+      result: PASS
+    - id: SNAP-6
+      check: "The receipt's own blob AS COMMITTED in 9ac60648d hashes to
+        7941634d216073ac7b6b95ea6334868a4f47d2e098eca1e834a14c8d7a61cdbb, which
+        is the value the bookkeeping commit records for it in the queue's
+        archive.path_sha256. The two-commit form is self-consistent."
+      result: PASS
+    - id: SNAP-7
+      check: "git status --porcelain over coordination/goals/GOAL-HQC-001/ is
+        empty: nothing under the goal is uncommitted in this worktree."
+      result: PASS
+    coordinator_assertion_independently_confirmed: >-
+      The dispatching Coordinator's pre-dispatch statement (reachable, exactly 13
+      declared paths, hashes verify) was re-derived from scratch here with git
+      plumbing and is correct. It was not taken on trust.
+
+  read_committed_vs_read_uncommitted:
+    read_committed:
+    - all 12 producer artifacts, read via `git show 9ac60648d:<path>`
+    - the snapshot receipt at 9ac60648d
+    - the three pinned modules (stage_a.py, measure.py, matched_pair.py)
+    - the three prior comparator records (a79e4f, 8bbdd2, e61cca)
+    - batch.yaml, both task cards, ledger/handoffs/TASK-20260817-6f610c.yaml
+    read_uncommitted: []
+    generated_by_this_session:
+    - /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/c016eeee-1f89-4348-9809-2b92fafafa85/scratchpad/val_driver.py
+    - /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/c016eeee-1f89-4348-9809-2b92fafafa85/scratchpad/val_out.json
+    - /private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/c016eeee-1f89-4348-9809-2b92fafafa85/scratchpad/val_driver.stdout
+    generated_note: >-
+      The validator's driver was written from the pinned modules' own APIs, not
+      copied from the producer's scripts, and lives OUTSIDE the repository. No
+      repository file outside this review directory was created or modified.
+
+  run_ids:
+  - RUN-validator-TASK-20260817-6f610c-1
+  runs_used: 1
+  runs_authorized: 1
+
+  # ------------------------------------------------------------------ #
+  # 1. MUST-CHECK ITEMS V1..V14
+  # ------------------------------------------------------------------ #
+  must_check_findings:
+
+  - id: V1-FRESHNESS
+    verdict: PASS
+    what_i_checked: >-
+      Re-derived the consumed high-water trial index on each shard directly from
+      the three committed comparator records, from MORE fields than the producer
+      used (the producer read only `n_total_per_call`), and separately swept every
+      committed JSON under GOAL-HQC-001 for any other consumer of shards 5000 or
+      8002.
+    what_i_found:
+      shard_5000:
+      - "TASK-20260809-a79e4f stage_1.per_trial_S carries four arrays of length
+        5000 each (shard_5000_defected, shard_5000_undefected, shard_6000_*), so
+        stage 1 consumed indices [0:5000) on shard 5000."
+      - "TASK-20260814-8bbdd2 records shards=[5000,6000], n_discard_prefix=5000,
+        n_new=10000, n_total_per_call=15000, retained_slice='[5000:15000)',
+        discarded_slice='[0:5000)'. Consumed [0:15000)."
+      - "HIGH-WATER = 15000; highest index ever generated = 14999."
+      shard_8002:
+      - "TASK-20260809-a79e4f stage_2.stage2_sizing_applied gives T2=20000 split
+        T2_shard_8001=10000 / T2_shard_8002=10000. Consumed [0:10000)."
+      - "TASK-20260815-e61cca records shards=[8001,8002], n_discard_prefix=10000,
+        n_new=20000, n_total_per_call=30000, retained_slice='[10000:30000)',
+        discarded_slice='[0:10000)'. Consumed [0:30000)."
+      - "HIGH-WATER = 30000; highest index ever generated = 29999."
+      exhaustiveness: >-
+        A mechanical sweep of every *.json under
+        coordination/goals/GOAL-HQC-001/batches/ for shard tokens and trial-count
+        fields finds exactly three prior consumers of shards 5000/8002:
+        a79e4f, 8bbdd2, e61cca. BATCH-0a65c0 uses shards 1000-1007;
+        BATCH-6fddee's stage_a_results.json declares no shard;
+        BATCH-f8050e/TASK-20260806-e1700f (100000 trials) carries no shard-5000 or
+        shard-8002 token. No fourth consumer exists.
+      conclusion: >-
+        START_INDEX = 30000 GENUINELY CLEARS BOTH SHARDS. All four retained
+        windows lie in [30000:75000) and are strictly above every previously
+        generated index on both shards. NOT a disqualifying finding.
+    defect_recorded:
+      id: DEF-1
+      severity: cosmetic
+      where: "cross_regime_arms.py line 305; disjointness_proof_results.json ->
+        high_water_rederivation.start_index_strictly_above_both"
+      finding: >-
+        The field is named `start_index_strictly_above_both` but the predicate
+        computed is `START_INDEX >= max(hw5000, hw8002)`, and on shard 8002 the
+        two are EQUAL (30000 == 30000). The freshness semantics are nonetheless
+        correct, because a high-water of 30000 means indices [0:30000) were
+        generated and 30000 is the first free index. The margin on shard 8002 is
+        exactly zero trials -- abutting, not strictly above -- and the field name
+        overstates that. Does not affect any number.
+
+  - id: V2-SINGLE-CALL-AND-DISJOINT-WINDOWS
+    verdict: PASS
+    what_i_checked: >-
+      Read cross_regime_arms.py itself rather than its output.
+    what_i_found:
+    - "Windows are module-level frozen constants at lines 89-94:
+      P1 [30000:35000), P2 [35000:45000), N1 [45000:55000), N2 [55000:75000).
+      Pairwise disjoint by inspection; all four starts >= START_INDEX = 30000
+      (line 84); union is exactly [30000:75000)."
+    - "The four analysis calls are made in the double loop at lines 552-556:
+      `for shard in (SHARD_A, SHARD_B): for variant in ('defected','undefected'):
+      r = call(f'analysis_{shard}_{variant}', shard, N_TOTAL_PER_CALL, variant)`.
+      EXACTLY ONE call per (shard, variant) at n_trials = 75000. There is no
+      second call site for the analysis arms anywhere in the file."
+    - "Every window is a slice `S[(shard,variant)][a:b]` of that single 75000-long
+      array (lines 723-724), so the discarded prefix [0:30000) is COMPUTED and
+      then not read, exactly as design.md Section 2.1 states. It is not skipped,
+      which is what makes the Arm A prefix proof possible at all."
+    - "The two verification calls (lines 452-455) are separate, made BEFORE the
+      analysis calls, on shard 8002 only, n_trials = 10000 each."
+    - "Six decoder calls total, matching the six entries in hard_invariants."
+
+  - id: V3-ARM-A-DIRECT-PROOF
+    verdict: PASS
+    what_i_checked: >-
+      Generated shard 5000's own 75000-trial stream in MY OWN driver process, for
+      both variants, and compared MY [0:5000) prefix elementwise against
+      TASK-20260809-a79e4f stage_1's committed per_trial_S. I did not read or
+      confirm the executor's comparison.
+    what_i_found:
+      shard_5000_defected: {elements_compared: 5000, elementwise_bit_identical: true,
+        n_differing: 0, S_histogram_bit_identical: true}
+      shard_5000_undefected: {elements_compared: 5000, elementwise_bit_identical: true,
+        n_differing: 0, S_histogram_bit_identical: true}
+      total_elements: 10000
+      tolerance_used: none -- exact integer equality
+      verdict: PASS on both variants, independently reproduced.
+    supplementary_5000_to_15000_check:
+      producer_claim: "ABSENT-BY-DETERMINATION; TASK-20260814-8bbdd2 persisted no
+        raw per-trial S array."
+      my_independent_determination: CONFIRMED
+      how: >-
+        I ran my own recursive scan of the committed
+        matched_pair_repeat_results.json for any integer list of length >= 1000
+        and, separately, >= 100. Both return the EMPTY SET. Its 33 top-level keys
+        are enumerated in my run record; the only per-trial-related key is
+        `per_trial_S_retained_tail_length`, which is a dict of four INTEGERS
+        ({shard_5000_defected: 10000, shard_5000_undefected: 10000,
+        shard_6000_defected: 10000, shard_6000_undefected: 10000}), not an array.
+      conclusion: >-
+        The check is genuinely impossible, not skipped. The producer's
+        characterisation is accurate and its scan is a real mechanical scan (I
+        read the `scan_for_raw_arrays` implementation at cross_regime_arms.py
+        lines 174-188; it is a correct recursive walk, though it truncates list
+        recursion at the first 8 elements, which my own scan does not -- my
+        unbounded scan agrees with it).
+    strength_judgment: >-
+      The STRONG label is earned as a cross-run / cross-process / cross-session
+      determinism proof, and I have now made it cross-session twice over. The
+      CROSS-MACHINE adjective is weaker than stated: see DEF-6.
+
+  - id: V4-ARM-B-ADAPTED-PROOF
+    verdict: PASS
+    what_i_checked: >-
+      Ran my own two dedicated n_trials=10000 verification calls on shard 8002
+      (one per variant), recomputed evaluable_k, all eight matched_pair_stats
+      float arrays and the four hard-invariant integers, and compared against
+      TASK-20260809-a79e4f stage_2's committed shard_8002 values; then compared
+      the [0:10000) prefix of MY OWN 75000-trial analysis stream against MY OWN
+      verification stream.
+    what_i_found:
+      step_1:
+        evaluable_k_match: true
+        n_batches_match: true
+        hard_invariant_integers_exact_match: true
+        float64_bit_identity_all_eight_fields: true
+        max_relative_deviation_observed: 0.0
+        tolerance_i_used: >-
+          NONE. I attempted exact float64 bit-identity first (byte comparison of
+          np.float64(...).tobytes()) because the producer claims exact identity;
+          it held on every entry of every field, so no tolerance was needed and
+          the question of what tolerance to allow never arose. Had it failed I
+          would have applied the producer's declared 1e-9 relative fallback and
+          reported the shortfall.
+      producer_claim_that_the_1e_9_fallback_never_fired: >-
+        CONFIRMED INDEPENDENTLY. My max relative deviation is exactly 0.0, and
+        the committed artifact's `tolerance_fallback_fired` is false with
+        `tolerance_used: null`. The fallback was available in code (line 529) and
+        did not fire.
+      step_2:
+        shard_8002_defected: {elements_compared: 10000, bit_identical: true}
+        shard_8002_undefected: {elements_compared: 10000, bit_identical: true}
+    adequacy_judgment: >-
+      The adapted proof is an ADEQUATE SUBSTITUTE FOR ITS OWN PURPOSE and is NOT
+      equivalent to the direct check, and the producer says so. Its logical
+      content is: (i) shard 8002's trial stream reproduces the committed DERIVED
+      statistics exactly, and (ii) the analysis call's prefix reproduces a
+      same-process verification call. What it cannot show is (i) against raw data,
+      because no raw shard-8002 array was ever persisted. I confirm the gap is
+      real and unavoidable from the existing record.
+      SEPARATELY, AND MORE IMPORTANTLY: the residual risk this leaves is now
+      SMALLER than the producer's own framing implies, for a reason the producer
+      did not use. My V2/V12 index-keying probe (below) shows _t_shard derives
+      trial ti from CTRStream(key, dom || ti) with key = sha_key(ps_id,"T",shard,
+      MASTER_SEED) and nothing else, so trial ti is a pure function of (parameter
+      set, shard, ti). Given that, "same process" versus "cross process" cannot
+      change a trial. The remaining exposure is only that stage_a.py's sampler
+      might not be what I read -- and its sha256 pin is verified.
+    dec_20260815_176614_item_2_correction:
+      required: >-
+        The residual-risk statement had to be corrected: the risk is the
+        SAME-PROCESS-vs-CROSS-PROCESS gap, explicitly NOT numpy RNG drift or
+        platform drift.
+      present: true
+      where: >-
+        design.md Section 2.5 Step 4 (lines 169-183) and
+        disjointness_proof_results.json ->
+        arm_B_adapted_disjointness_proof.step_4_required_correction, generated at
+        cross_regime_arms.py lines 619-633.
+      correct: true
+      my_check_of_the_correction_itself: >-
+        I verified the CLAIM the correction rests on by reading stage_a.py rather
+        than citing BATCH-174014's Red Team. CTRStream (lines 171-204) is
+        SHA-256 in counter mode over key||dom||ctr with an integer-derived key
+        (sha_key, lines 158-164) and fixed_weight_support (lines 206-219) is
+        Floyd's algorithm over that stream. There is no numpy RNG and no
+        platform-dependent primitive anywhere in the T-arm sampler. The
+        correction is CORRECT, not merely present.
+      step_5_narrowing_not_closure: >-
+        Present and correctly limited (design.md lines 184-188): Arm A's pass is
+        recorded as NARROWING but not CLOSING Arm B's gap because shard 5000 is a
+        different CTRStream key. Accurate.
+
+  - id: V5-F-INVARIANT
+    verdict: PASS
+    what_i_checked: >-
+      Recomputed F_defected[:, 0:n_e-1] == F_undefected[:, 0:n_e-1] elementwise on
+      all eight (shard, window) combinations from the F matrices MY OWN driver
+      generated.
+    what_i_found:
+      mismatch_counts_i_observed:
+        shard_5000: {P1: 0, P2: 0, N1: 0, N2: 0}
+        shard_8002: {P1: 0, P2: 0, N1: 0, N2: 0}
+      elements_per_combination: {P1: 275000, P2: 550000, N1: 550000, N2: 1100000}
+      total_elements_i_checked: 4950000
+      non_vacuity_check_i_added: >-
+        A zero-mismatch result on blocks 0..n_e-2 proves nothing unless block
+        n_e-1 actually changes. I therefore also counted trials whose LAST block
+        differs between arms: 531 to 2197 per window, i.e. 10.4% to 11.4% of
+        trials in every one of the eight cells. The invariant is non-vacuous and
+        the injection is live.
+    defect_recorded:
+      id: DEF-2
+      severity: documentation-accuracy
+      finding: >-
+        The element count is misreported as 2,475,000 in run_manifest.yaml line
+        249 ("f_structural_invariant: PASS (8/8 combinations, 0 mismatches,
+        2475000 elements)"), and that figure propagated into the snapshot
+        receipt's `validity_gates` string and into the snapshot commit message.
+        The correct total over all eight combinations is 4,950,000; 2,475,000 is
+        the PER-SHARD subtotal (45000 retained trials x 55 blocks). The producer's
+        own disjointness_proof_results.json carries the correct per-check
+        `total_elements_checked` values, which sum to 4,950,000, and my
+        independent count agrees. The error UNDERSTATES the coverage actually
+        achieved, so it is conservative, but it is a wrong number in a manifest
+        and in an archive receipt and it should be corrected by superseding
+        record rather than left to be re-copied a fourth time.
+
+  - id: V6-EXPONENT-RECOMPUTATION
+    verdict: PASS
+    end_to_end_from_raw_data_my_own_driver_wrote:
+      scope: ALL FOUR cells, not the required minimum of one.
+      method: >-
+        My driver ran its own six decoder calls, sliced its own four windows,
+        called mp.arm_hists / sa.evaluable_k / measure.comb_matrix /
+        mp.matched_pair_stats, and applied
+        alpha = -[log(SE_hi) - log(SE_lo)] / [log(T_hi) - log(T_lo)] to se_paired
+        at k = 17.
+      results_i_obtained:
+        alpha_5000_P: 2.0488128380076307
+        alpha_5000_N: 2.960737268597787
+        alpha_8002_P: 0.32362272345795423
+        alpha_8002_N: 1.5943364808460014
+      agreement_with_the_producer: >-
+        IDENTICAL TO THE LAST BIT on all four. Beyond the four exponents I also
+        compared, per (shard, window), the evaluable_k list, both S histograms and
+        all eight matched_pair_stats float arrays across k = 2..26: bit-identical
+        in all 8 x 8 = 64 array comparisons. The producer's Part A is fully
+        reproducible from an independent driver on an independent process.
+    from_committed_per_window_se_paired:
+      at_k17: >-
+        Recomputing from cross_regime_arms_results.json ->
+        per_shard_per_window[shard][window].per_k.se_paired reproduces all four
+        headline values with zero floating-point difference, and confirms that
+        the `se_paired_k17_lo/hi` fields inside four_fresh_local_exponents are the
+        same numbers as the per_k arrays (not independently re-entered).
+      at_other_k:
+        k2:  {alpha_5000_P: 0.580733, alpha_5000_N: 0.506553, alpha_8002_P: 0.628397, alpha_8002_N: 0.511866}
+        k5:  {alpha_5000_P: 0.697364, alpha_5000_N: 0.455398, alpha_8002_P: 0.606080, alpha_8002_N: 0.492779}
+        k9:  {alpha_5000_P: 0.958164, alpha_5000_N: 0.915824, alpha_8002_P: 0.571000, alpha_8002_N: 0.713041}
+        k13: {alpha_5000_P: 1.425154, alpha_5000_N: 1.919243, alpha_8002_P: 0.567161, alpha_8002_N: 1.153491}
+        k17: {alpha_5000_P: 2.048813, alpha_5000_N: 2.960737, alpha_8002_P: 0.323623, alpha_8002_N: 1.594336}
+        k21: {alpha_5000_P: 2.708324, alpha_5000_N: 3.643441, alpha_8002_P: -0.112824, alpha_8002_N: 1.938647}
+        k26: {alpha_5000_P: 3.943010, alpha_5000_N: 4.022016, alpha_8002_P: 0.346578, alpha_8002_N: 3.860191}
+    contrasts:
+      regime_main_effect: {reported: -1.091319093989102, recomputed: -1.091319093989102, delta: 0.0}
+      shard_main_effect:  {reported: 1.545795451150731,  recomputed: 1.545795451150731,  delta: 0.0}
+      interaction:        {reported: 0.3587893267978908, recomputed: 0.3587893267978908, delta: 0.0}
+      all_three_confirmed_arithmetically: true
+    finding_the_producer_did_not_surface:
+      id: FIND-K
+      severity: material-to-interpretation
+      finding: >-
+        THE HEADLINE "ALL FOUR POSITIVE" IS A k = 17 STATEMENT AND DOES NOT
+        SURVIVE THE k SWEEP. At k = 21, alpha(8002, P) = -0.1128: one of the four
+        fresh cells is NEGATIVE. More importantly, the four exponents are a
+        monotone-increasing function of k in three of four cells: at k = 2 all
+        four sit in [0.507, 0.628], i.e. within 0.13 of the analytically forced
+        0.5, and they fan out to [0.35, 4.02] by k = 26. The dramatic exponents
+        exist only where the estimator is worst sampled. This is the classic
+        artifact signature under docs/inventor-protocol.md Section 3: the
+        quantity behaves as theory requires exactly where the estimator is
+        well-determined, and diverges exactly where it is not. k = 17 is
+        legitimately pre-registered (m_load_bearing_order = 17), so this is NOT
+        selective reporting -- but the k-dependence is in
+        cross_regime_arms_results.json and confound_break_report.md points to it
+        (line 118) without tabulating it, so no reader of the report sees it.
+        The ledger archive should see it.
+
+  - id: V7-NULL-OBJECT-AS-CONSTRUCTION
+    verdict: PASS-WITH-A-MATERIAL-DEFECT
+    the_question: >-
+      Are log2 A_k = 0, paired diff = 0 and alpha = 0.5 forced by the
+      independent-block i.i.d. law, or by a coding choice that makes them
+      unfailable?
+    answer_1_the_control_CAN_fail: >-
+      IT IS NOT A CONTROL THAT CANNOT FAIL. I attacked it as a construction by
+      feeding the SAME pipeline (mp.arm_hists -> sa.evaluable_k ->
+      measure.comb_matrix -> mp.matched_pair_stats) two inputs that violate the
+      null's premises, at T = 20000, k = 17:
+        baseline (both arms Binomial(56,p)):  diff = -0.1508, z_paired = -0.32,
+          log2A_arm0 = -0.0999, log2A_arm1 = +0.0508
+        arm B with DEPENDENT blocks (beta-binomial overdispersion, blocks no
+          longer independent): log2A_arm1 = +4.7167, diff = -4.8167,
+          z_paired = -9.36
+      The estimator moves by nearly five bits and nine sigma when the
+      independent-block premise is broken. The forced values are forced by the
+      MATHEMATICS (A_k = 1 under independent blocks), not by the code. I traced
+      the arithmetic to confirm there is no shortcut: measure.log2_A_from_hists
+      (measure.py lines 225-246) computes log2(Hf@C / (T*C(n_e,k))) - k*log2(q)
+      from the histograms themselves, with no branch that returns 0.
+      A THIRD PROBE I RAN IS INFORMATIVE AND I REPORT IT HONESTLY AS A NON-TEST:
+      giving arm B a different p (p*1.02) does NOT move diff (from -0.151 to
+      -0.047). That is CORRECT behaviour, not blindness: A_k is normalised by q^k
+      by construction, so it is invariant to the marginal rate. Anyone attacking
+      this control should not read that as a failure.
+    answer_2_the_forced_values_are_not_forced_at_the_ESTIMATOR_level: >-
+      "0 EXACTLY" is wrong as written. null_object_control.py lines 232-233 and
+      design.md Section 3.4 items 1-2 state forced values 1 and 2 as "0 EXACTLY
+      at every k"; the honest_caveat is attached only to item 3. A_k = 1 is an
+      exact POPULATION identity; the plug-in estimator of log2 A_k is a nonlinear
+      function of sample moments and is biased and noisy at finite T. The run
+      measured this and the numbers are large: at T = 5000, max |log2 A_k| over
+      replicates and k is 8.089 and max |paired diff| is 12.244; at k = 17 the
+      paired diff has SD 0.772. The producer reports all of these, so nothing is
+      hidden -- but the "three forced values" framing in design.md, in the script
+      and in the snapshot receipt overstates what is forced.
+    answer_3_a_real_positive_result_the_producer_measured_but_did_not_headline: >-
+      Forced value 1 was billed as the direct decoder-free test of whether
+      log2_A_from_hists carries a batch-size-dependent bias. IT DOES, AND THE RUN
+      MEASURED IT. Mean log2 A_k at k = 17, arm 0, by rung:
+        T=5000 (batch 25):  -0.1441
+        T=10000 (batch 50): -0.1016
+        T=20000 (batch 100):-0.0265
+        T=40000 (batch 200):-0.0476
+      The bias is nonzero at the smallest rung and decays toward 0 as T grows,
+      which is the direction it SHOULD decay. Separately, the full-ladder fit
+      returns alpha = 0.35133 +/- 0.23433 over 200 replicates (SE of the mean
+      0.0166), i.e. the diagnostic is biased LOW relative to its own analytically
+      forced 0.5 by -0.1487, about nine standard errors. That is a measured
+      instrument defect and it is not stated as one anywhere in the report.
+    answer_4_THE_MATERIAL_DEFECT_the_null_object_is_the_WRONG_SHAPE:
+      id: FIND-SHAPE
+      severity: material -- this is the most consequential finding in this review
+      finding: >-
+        The null object does not have the same shape as the object it is supposed
+        to calibrate. At null_object_control.py lines 256-257 the two arms are
+        drawn from INDEPENDENT RNG streams
+        (rng_for(T,r,0,0) and rng_for(T,r,1,0)), so the synthetic "matched pair"
+        is not matched at all. The real Part A pair is the SAME trials decoded
+        twice: the F[:,0:n_e-1] invariant of V5 is precisely the statement that
+        the two real arms differ in ONE block out of 56. I measured the
+        consequence rather than arguing it:
+          mean se_unpaired/se_paired at k=17, producer's null object:
+            T=5000 0.998, T=10000 0.997, T=20000 0.998   (NO pairing gain at all)
+          same ratio in the eight REAL fresh cells:
+            2.34, 5.60, 6.69, 6.84, 15.27, 15.66, 17.26, 28.69
+          max |S_defected - S_undefected| per trial in every real cell: 1
+          fraction of trials where the arms differ at all: 10.4% - 11.4%
+        The producer's null object therefore measures the sampling behaviour of
+        an UNCOUPLED difference, while Part A's alpha is computed from a
+        COUPLED one. The producer noticed the symptom (limitation 4: the null's
+        se_paired is "one to two orders of magnitude LARGER" than the real arms')
+        but did not identify the cause and did not conclude that the object is
+        the wrong shape.
+      what_i_did_about_it: >-
+        I built the missing same-shape null and ran it: arm A = 56 independent
+        Bernoulli(p) block indicators; arm B = the identical draw with ONLY the
+        last block re-drawn. That reproduces the real pair's coupling structure.
+        Its mean se_unpaired/se_paired is 4.77 / 4.47 / 4.19 across the three
+        rungs -- inside the real cells' range, where the producer's is 1.0.
+      the_result_cuts_AGAINST_the_producer_not_for_it: >-
+        The correctly-shaped null gives WIDER bands, not narrower ones:
+          rung pair 5000->10000 (regime P, batch 25->50):
+            producer uncoupled band [-1.4498, 1.7379], width 3.1877
+            same-shape coupled band [-2.1291, 2.1965], width 4.3255
+          rung pair 10000->20000 (regime N, batch 50->100):
+            producer uncoupled band [-1.0296, 1.7589], width 2.7884
+            same-shape coupled band [-1.3662, 2.1421], width 3.5083
+        So fixing the shape does not rescue the diagnostic; it makes it look
+        worse. Under the producer's own band, 2 of the 4 fresh cells sit outside
+        (alpha_5000_P and alpha_5000_N). Under the same-shape band, only 1 of 4
+        does (alpha_5000_N = 2.9607), and 6 of the 8 numbers this campaign has
+        ever produced -- 4 fresh plus 4 historical -- sit INSIDE a band generated
+        by an object with no decoder, no shard, no defect and no regime.
+      caveat_on_my_own_null: >-
+        My coupled null re-draws the last block independently, so its arms differ
+        on ~2p(1-p) = 43% of trials, where the real V3 defect changes S on ~11%.
+        It is therefore a HARSHER perturbation than the real one and its band is
+        an upper bound on what a perfectly matched null would give. It was NOT
+        pre-registered, it is a reviewer robustness probe, and it must not be used
+        as an adjudicating band by the ledger archive. Its role here is to
+        establish the DIRECTION of the shape error, which it does unambiguously.
+
+  - id: V8-SENSITIVITY-LEG
+    verdict: PASS-WITH-TWO-DEFECTS
+    does_the_leg_perturb_what_it_claims: >-
+      YES, INDEPENDENTLY CONFIRMED. I re-implemented the plant transform
+      S_planted = clip(round_half_away(mu + g*(S_base - mu)), 0, 56) and measured
+      the realized dispersion at T = 20000, replicate 0:
+        g=1.25: var 12.195 -> 19.147 (ratio 1.570), mean 17.854 -> 17.943,
+                clipped fraction 0.0,     measured rho = 1.1245
+        g=1.5:  var 12.195 -> 27.509 (ratio 2.256), mean 17.854 -> 18.030,
+                clipped fraction 0.00035, measured rho = 1.2300
+        g=2.0:  var 12.195 -> 48.473 (ratio 3.975), mean 17.854 -> 17.715,
+                clipped fraction 0.006,   measured rho = 1.3842
+      My per-replicate rho values bracket the producer's reported means (1.1336,
+      1.2130, 1.3921). The plant IS realized, the transform IS dispersion-
+      inflating and approximately mean-preserving, and clipping is negligible.
+    forced_identity_check:
+      producer_claim: >-
+        alpha_planted = alpha_unmodified - log2(rho_g) held to a maximum absolute
+        residual of 6.217248937900877e-15 over 600 planted replicates, cited in
+        the snapshot receipt as showing "the plant was demonstrably realized".
+      my_recomputation: >-
+        I recomputed the residual from noc_replicate_summary.csv, joining each
+        planted row to the unmodified row with the same replicate index, and
+        reproduce the producer's numbers EXACTLY: max |residual| =
+        6.217249e-15 for every g, mean |residual| = 1.4522e-15 / 1.4468e-15 /
+        1.4582e-15. The arithmetic is correct.
+      DEFECT:
+        id: DEF-3
+        severity: material-to-interpretation
+        finding: >-
+          THE FORCED IDENTITY IS ALGEBRAICALLY VACUOUS AND CARRIES NO INFORMATION
+          ABOUT WHETHER THE PLANT WAS REALIZED. Substituting the definitions used
+          at null_object_control.py lines 510-514 and 415:
+            alpha_planted    = -(log se_pl - log se_lo)/log 2
+            alpha_unmodified = -(log se_hi - log se_lo)/(log 20000 - log 10000)
+            rho              = se_pl / se_hi
+          the residual alpha_planted - (alpha_unmodified - log2 rho) cancels to
+          zero identically, for ANY three positive numbers. I demonstrated this
+          empirically: feeding 20,000 triples of ARBITRARY, UNRELATED random
+          positive numbers into the same expression gives a maximum residual of
+          1.07e-14 -- the same order as the 6.2e-15 obtained on the real data.
+          The residual is measuring nothing but the last-ulp difference between
+          computing log 2 as `math.log(20000) - math.log(10000)` and as
+          `math.log(2.0)`.
+        consequence: >-
+          The snapshot receipt's sentence "the forced identity ... held to a
+          maximum absolute residual of 6.217248937900877e-15 over 600 planted
+          replicates -- so this is an instrument sensitivity finding, not a failed
+          plant" rests half on a tautology. The OTHER half -- rho rose
+          monotonically 1.134 -> 1.213 -> 1.392 with g -- IS real evidence, I
+          reproduced it, and it alone is sufficient to establish that the plant
+          was realized. THE CONCLUSION SURVIVES; THE CITED SUPPORT MUST BE
+          HALVED. The ledger archive must not carry the identity forward as
+          corroboration.
+    in_band_out_of_band_verdicts:
+      do_i_agree: >-
+        YES on the arithmetic. Using the band recomputed from the CSV by me
+        ([-1.0295584295881741, 1.7588760235887884]) and the planted medians
+        recomputed by me (0.129895, 0.059429, -0.115719), all three medians lie
+        inside the band. All three IN_BAND verdicts are correct, and the BLIND
+        verdict follows correctly from the pre-registered rule.
+      DEFECT:
+        id: DEF-4
+        severity: material -- the leg was underpowered by construction
+        finding: >-
+          THE SENSITIVITY LEG COULD NOT HAVE RETURNED OUT_OF_BAND AT ANY
+          PRE-REGISTERED g. The verdict rule requires the planted median to leave
+          a band whose lower edge is 1.337 below the unmodified median (0.3071)
+          and whose upper edge is 1.452 above it. The plant shifts the median by
+          exactly -log2(rho_g): -0.191, -0.222, -0.429 at the three g. To clear
+          the band you need log2(rho) > 1.337, i.e. rho > 2.53. The largest rho
+          the largest pre-registered g produced is 1.392 -- short by a factor of
+          about 3.1 in log2 terms, and rho grows slowly in g (g doubled from 1.0
+          to 2.0 bought only 0.39 in rho). The leg therefore cannot distinguish
+          "the instrument is insensitive to this departure class" from "the
+          planted magnitudes were too small for this band". The BLIND verdict is
+          correctly derived and correctly reported, but its INFORMATIONAL content
+          is much weaker than "the instrument is blind": it is closer to "the
+          band is too wide for a plant of this size to escape". Both readings
+          lead to the same operational consequence (the band carries no
+          interpretive weight), so the pre-registered rule fired in the right
+          direction anyway. A future leg must either pre-register g values chosen
+          against a measured band or plant on the coupling structure rather than
+          the dispersion.
+      DEFECT_2:
+        id: DEF-5
+        severity: undeclared-departure-from-pre-registration
+        finding: >-
+          design.md Section 3.5 pre-registers the RNG as
+          SeedSequence([20260817, T, r, arm_index, leg_code]) with
+          "leg_code = 1 + index of g for the sensitivity leg". THE CODE DOES NOT
+          DO THIS. At null_object_control.py line 254 `replicate` accepts
+          `leg_code=0` as a parameter, and at lines 256-257 it calls
+          rng_for(T, r, 0, 0) and rng_for(T, r, 1, 0) with the leg code HARD-CODED
+          TO ZERO. `leg_code` is dead: the planted replicates reuse the unmodified
+          replicates' base draws exactly. The script's own `construction` string
+          (line 529) says "same replicate seeds", so the behaviour is disclosed at
+          one level while contradicting the frozen design at another, and it is
+          NOT listed among the protocol deviations (only DEV-1 is).
+          Is it consequential? Reusing the base draw is arguably the better
+          choice -- it makes rho a paired measurement -- and it does not affect
+          the median-versus-band verdict. But it makes the planted and unmodified
+          alpha distributions perfectly coupled, so the reported
+          "fraction of planted replicates outside the null band" (0.055 / 0.070 /
+          0.095) is a paired quantity being compared to an unpaired band, which is
+          not what a reader will assume. The departure is small in effect and
+          undeclared in the record; it should be recorded as a second deviation.
+
+  - id: V9-NULL-BAND-RECOMPUTATION
+    verdict: PASS
+    what_i_checked: >-
+      Parsed noc_replicate_summary.csv from the snapshot bytes (1200 data rows;
+      six groups of exactly 200: three unmodified rung pairs and three planted
+      legs) and recomputed every reported statistic from the raw per-replicate
+      alphas, independently of null_object_control_results.json.
+    what_i_found:
+      per_rung_pair_agreement: >-
+        mean, SD, p2.5, p50 and p97.5 reproduce with |delta| = 0.000e+00 --
+        EXACT to the last bit -- for all three rung pairs, 15 of 15 statistics.
+      internal_consistency: >-
+        I also recomputed each row's alpha from that row's own se_paired_k17_lo /
+        se_paired_k17_hi / T_lo / T_hi columns: 0 mismatches out of 600 unmodified
+        rows at tolerance 1e-12. The CSV is self-consistent and is not a
+        transcription of the JSON.
+      bands:
+        "5000->10000 (batch 25->50, regime P)": {band: [-1.4498060022752233, 1.7379173378262338],
+          width: 3.1877233401014573, mean: 0.3538522468512989, sd: 0.7998511073945878,
+          forced_0.5_inside: true}
+        "10000->20000 (batch 50->100, regime N)": {band: [-1.0295584295881741, 1.7588760235887884],
+          width: 2.7884344531769623, mean: 0.3321988738985283, sd: 0.7006658834251578,
+          forced_0.5_inside: true}
+        "20000->40000 (batch 100->200, neither regime)": {band: [-1.032605597147907, 1.8643962074991292],
+          width: 2.8970018046470362, mean: 0.37430594487938224, sd: 0.6843533316009405,
+          forced_0.5_inside: true}
+      four_rung_full_ladder_fit: >-
+        Reported alpha_mean 0.35132700707861575, alpha_sd 0.2343335278332064,
+        percentiles [-0.09525689286568811, 0.3545340158319973, 0.7891288122319279],
+        residual dof 2, fit_residual_rms_mean 0.2135568768427767, and per-pair
+        scatter of the 2-point estimates about the line with SDs 0.746 / 0.666 /
+        0.658. These are consistent with the per-pair distributions I recomputed
+        (the full-ladder fit's SD is ~3x tighter than any 2-point estimate, which
+        is what averaging four points against two should give). I did not
+        re-derive the polyfit itself replicate by replicate; the inputs it uses
+        (se17 per rung per replicate) are the same numbers whose k=17 se_paired
+        distributions I did verify.
+    the_consequence_the_task_asked_me_to_state_plainly: >-
+      THE BANDS ARE WIDER THAN THE ENTIRE PHENOMENON THIS CAMPAIGN HAS BEEN
+      STUDYING. The historical exponent spread that motivated the campaign is
+      2.836 - (-0.8662355237627483) = 3.7022355237627482. The producer's null
+      bands are 3.1877 and 2.7884 wide; my same-shape null bands are 4.3255 and
+      3.5083 wide. A decoder-free, shard-free, defect-free, regime-free object
+      fed through the identical pipeline produces alpha scatter of the same
+      magnitude as the effect. Concretely, against my same-shape null:
+        alpha_5000_P = +2.0488 INSIDE, alpha_5000_N = +2.9607 OUTSIDE,
+        alpha_8002_P = +0.3236 INSIDE, alpha_8002_N = +1.5943 INSIDE
+        historical 5000_P = +2.836 OUTSIDE, 6000_P = +1.402 INSIDE,
+        8001_N = -0.2682 INSIDE, 8002_N = -0.8662 INSIDE
+      Six of the eight exponents this campaign has ever produced are
+      indistinguishable from the sampling noise of an object that has none of the
+      structure they are being read for. Against the producer's own (narrower,
+      wrong-shape) band the count is six of eight as well, with a different two
+      outside.
+      WHAT THIS MEANS FOR ANY EXPONENT IN THIS FAMILY, INCLUDING THE FOUR FRESH
+      ONES: the 2-point local exponent of se_paired at k = 17, at T in the low
+      tens of thousands with nb = 200, IS NOT AN INTERPRETABLE QUANTITY AT THIS
+      SAMPLE SIZE. Its per-replicate SD under the null is ~0.7-1.0 and its own
+      se_paired inputs have a relative SD of ~0.48-0.59 at every rung. Reading a
+      SIGN off a single realization of it -- which is what every directional
+      claim in this task family has done -- is reading noise, unless the
+      realization clears a band, and the band is wider than the effect.
+      Two independent routes reach that same place: (i) the pre-registered
+      fail-closed rule already says a BLIND control's band carries no
+      interpretive weight, and (ii) the band that does exist is wider than the
+      phenomenon. Neither route licenses the opposite claim either: this is a
+      statement that the INSTRUMENT cannot resolve the question, not a statement
+      that there is nothing to resolve.
+      SCOPE OF THAT STATEMENT: PS-R3 reduced parameters, k = 17, T in
+      {5000, 10000, 20000, 40000}, nb = 200, one defect class. It says nothing
+      about HQC.
+
+  - id: V10-P-CALIBRATION-FROZEN
+    verdict: PASS
+    what_i_checked:
+    - "The RULE for p is in design.md Section 3.2 lines 292-301 as prose OUTSIDE
+      the marked block, i.e. in the part of the file the producer claims was
+      frozen before Part A. The rule is fully determined before any datum:
+      p = mean per-trial S of the real UNDEFECTED arm of shard 5000, window P2,
+      indices [35000:45000), divided by n_e = 56."
+    - "The VALUE was computed once, by Part A, at cross_regime_arms.py lines
+      742-743 and 820-826, from window P2 of shard 5000's undefected arm only."
+    - "I recomputed it from my own data: mean per-trial S = 17.8771 exactly,
+      p = 0.31923392857142857 exactly. The producer's value is my value, bit for
+      bit. The rule was applied as written; no other window and no other arm
+      would have given this number."
+    - "In Part B, `p` is read once at null_object_control.py lines 173-176 from
+      Part A's JSON and thereafter appears as a single local constant. There is
+      exactly ONE assignment. It is used identically in the ladder (line 256-257)
+      and the sensitivity leg (line 505 calls the same `replicate`), so it is
+      structurally impossible for a rung, replicate, arm or leg to see a
+      different p."
+    - "No retuning after seeing evaluable_k coverage: the ladder records
+      `evaluable_k_covers_2_to_26: true` and
+      `evaluable_k_identical_across_all_replicates: true` at all four rungs, so
+      the contingency design.md Section 3.5 provided for never arose; and there
+      is no code path that would have changed p if it had."
+    - "cost_projection.json and null_object_control_results.json both record
+      p_frozen = 0.31923392857142857, and null_object_control_results.json's
+      provenance records part_a_results_sha256 =
+      4d3d1a8d09b70ee173473832266b743e36bc148417ea31c5ce4f737db42195c8, which is
+      the snapshot-committed hash of cross_regime_arms_results.json. Part B
+      demonstrably read the Part A file that is in the snapshot."
+
+  - id: V11-PREREGISTRATION-ORDER
+    verdict: PARTIAL -- content adequate, temporal anchor weaker than claimed
+    design_md_content_completeness: PASS
+      # every item the card requires is present and specific:
+      # constants (2.1), windows (2.2), high-water derivation (2.3), Arm A proof
+      # (2.4), Arm B proof + the required correction (2.5), F invariant (2.6),
+      # selftests and hard invariants (2.7), statistics (2.8), the four cells and
+      # three contrasts verbatim (2.9), the one-call-vs-two-call limitation
+      # declared in advance (2.10), the null object and its three forced values
+      # (3.1-3.4), the ladder and RNG (3.5), the sensitivity leg with its g list
+      # and its fail-closed blindness rule (3.6), the cost-projection reduction
+      # protocol in ordered steps (3.7), budget (4), mechanical validity criteria
+      # (5), seven declared limitations (6), and an explicit non-claims section (7).
+    cost_projection_protocol_applied_as_written: PASS
+      # cost_projection.json records probe of 20 replicates at T=40000 (the
+      # pre-registered trigger), measured 0.149306 core-seconds, unit cost
+      # 1.866325e-07 core-s/trial, total units 135000 = 5000+10000+20000+40000
+      # +3*20000 (matches the pre-registered formula string exactly), projection
+      # 5.0390775 core-s against the 540.0 threshold (60% of 900). Projection is
+      # 0.93% of the threshold, so no step fired, R=200 and all four rungs were
+      # achieved, and the file was written UNCONDITIONALLY as required. I
+      # recomputed 200 * 1.866325e-07 * 135000 = 5.0390775: exact. Nothing was
+      # improvised.
+    design_md_demonstrably_predates_the_results_json:
+      status: PARTIAL
+      what_is_established: >-
+        null_object_control.py hashes design.md at Part B launch (lines 209-210)
+        and the run records design_md_sha256_at_part_b_launch =
+        c3954dcde718818e126d773ab4e6c2ade19bb43bbcea900fe396cc839109be54, which
+        is EXACTLY the sha256 of the snapshot-committed design.md that I
+        recomputed myself. So the design.md in the snapshot is the design.md Part
+        B ran against, and Part B read Part A's committed results file by hash.
+        The chain from design.md -> Part B -> results is sound.
+      DEFECT:
+        id: DEF-6a
+        severity: provenance -- unverifiable self-attestation
+        finding: >-
+          DEV-1's PRE-Part-A anchor is NOT verifiable from the record. The claim
+          is that design.md hashed to
+          7511ecc1698749156cf89c8c476b93d3baf7c35980a36d5812f21b21f7ba25e0 before
+          Part A launched, and that the ONLY subsequent change was the marked
+          Section 3.2 block. I tested this rather than accepting it:
+          (a) THE PRE-FILL BLOB WAS NEVER COMMITTED ANYWHERE. The batch-opening
+              commit 9c7dd452c contains batch.yaml, dispatch_queue.json, five task
+              cards and five handoffs -- no design.md. Nothing in git, in any
+              archive, or in any prior task binds 7511ecc... to a byte string.
+          (b) I ATTEMPTED TO RECONSTRUCT IT. I extracted the marked block
+              verbatim, substituted nine natural placeholder forms for the three
+              filled values, and also tried deleting the value lines and the whole
+              block. NONE hashes to 7511ecc.... The pre-fill bytes are not
+              recoverable, so I can neither confirm nor refute that the two
+              versions differ only in that block.
+          (c) NEITHER SCRIPT PRINTS THE ANCHOR. I read both scripts in full. The
+              first thing cross_regime_arms.py logs is "[windows] ...".
+              The "PRE-REGISTRATION AUDIT ANCHOR" header (stdout.log lines 2-8),
+              the "--- RUN 1 of 2 ---" / "--- RUN 2 of 2 ---" separators, the
+              launched_at_utc / command lines, and the post-fill hash block are
+              NOT program output. stdout.log is a CURATED COMPOSITE of captured
+              program output and hand-authored text, presented as "executor
+              stdout". I verified that the captured portions match the scripts'
+              log() calls in exact program order, line for line, both runs -- so
+              the composite is faithful where it is captured. But an assertion
+              hand-written into a log by the same session that made the assertion
+              is not an audit anchor; it is the assertion again.
+        what_this_does_and_does_not_establish: >-
+          It DOES establish that the producer disclosed a real deviation in
+          advance and in the right terms, and I found no evidence of any kind that
+          the substance of design.md was altered after seeing data -- to the
+          contrary, every constant, gate, window, forced value, g list, R and
+          reduction step in design.md is hard-coded in the two scripts, which were
+          committed as bytes and which I executed unmodified to reproduce every
+          number. That is strong, independent, content-based evidence of
+          pre-registration for everything except the one calibrated constant.
+          It does NOT establish the temporal ordering by any mechanism the reader
+          can check. THE FIX WAS CHEAP AND AVAILABLE: committing the pre-fill
+          design.md in 9c7dd452c would have made the anchor a git object. This
+          campaign should adopt that, and the archive should record DEV-1's anchor
+          as "self-attested, content-corroborated by the scripts, not
+          independently anchored".
+
+  - id: V12-PROCEDURAL-DIFFERENCE
+    verdict: PASS -- and the difference cannot move any number, which I can show
+      more strongly than the producer did
+    the_executors_check: >-
+      CONFIRMED PRESENT AND CORRECT, 32 of 32, and reproduced: for every
+      (shard, variant, window), sa.batch_hists on a standalone np.array copy
+      equals sa.batch_hists on the slice view, and np.linspace(0, T, 201)
+      .astype(int) gives 200 batches of width exactly T/200 (25, 50, 50, 100).
+      I judge check (a) NEARLY VACUOUS -- comparing a function's output on a copy
+      to its output on a view of the same values can only fail if numpy is broken
+      -- and check (b) trivially true arithmetic. They are true but they are not
+      the check that settles the question.
+    the_check_that_settles_it_which_i_ran_myself: >-
+      I read _t_shard (stage_a.py lines 475-565) and found that trial ti draws
+      all five of its vectors from CTRStream(key, b"vN" + ti.to_bytes(8)), with
+      key = sha_key(ps_id, "T", shard, MASTER_SEED). Trial ti is a PURE FUNCTION
+      of (parameter set, shard, ti) and of nothing else -- not n_trials, not
+      position within a decoder batch. And decode_blocks (stage_a.py lines
+      286-307) is strictly row-wise: every operation is per-trial, so the decoder
+      batch a trial lands in cannot affect its F row.
+      EMPIRICAL CONFIRMATION FROM MY OWN DRIVER: F from a 200-trial call and F
+      from a 137-trial call are bit-identical on their common prefix
+      (200 = 3 full batches + 8; 137 = 2 batches + 9, i.e. deliberately different
+      alignment), and a 137-trial call at decoder batch size 7 is bit-identical to
+      one at batch size 64. The producer's own Arm A proof independently
+      demonstrates the same thing without noticing: the committed 5000-trial call
+      ended in a partial decoder batch of 8, the 75000-trial call put those same
+      trials in a full batch of 64, and the outputs are bit-identical.
+    could_the_difference_move_any_reported_number: >-
+      NO. A dedicated T-trial call over the SAME trial indices would return
+      bit-identical se_paired and hence a bit-identical alpha. I also checked the
+      historical procedure itself rather than assuming: the historical cells were
+      ALSO built from disjoint index ranges (shard 5000: [0:5000) from a79e4f
+      stage 1 and [5000:15000) from 8bbdd2; shard 8002: [0:10000) from a79e4f
+      stage 2 and [10000:30000) from e61cca), so the fresh design does not differ
+      from them in nestedness either. The only surviving difference is which
+      trial INDICES each cell used, which is the intended difference and is the
+      point of the task.
+    limitation_status: >-
+      The producer names the limitation regardless of the check's outcome
+      (report Section 4 item 1). That is the right discipline. On the evidence
+      above I record it as CLOSED rather than open, and I recommend the archive
+      note the mechanism (index-keyed CTRStream + row-wise decoder) rather than
+      carrying the limitation forward unresolved for a third task.
+
+  - id: V13-SPEND
+    verdict: PASS
+    what_i_checked: >-
+      Cross-checked the reported spend against three independent sources inside
+      the same artifact set, and against my own re-run of the same work.
+    what_i_found:
+      reported: {part_A_wall: 71.863, part_A_core: 72.409, part_B_wall: 6.508,
+        part_B_core: 7.664, total_wall: 78.371, total_core: 80.073,
+        authorized_wall: 1800, authorized_core: 900}
+      split_by_part: true
+      arithmetic: "71.863 + 6.508 = 78.371 exact; 72.409 + 7.664 = 80.073 exact.
+        78.371/1800 = 4.354% (reported 4.35%); 80.073/900 = 8.897% (reported
+        8.90%)."
+      source_1_script_internal: >-
+        cross_regime_arms_results.json -> budget records
+        wall_seconds_spent_part_A 71.863 / core_seconds_spent_part_A 72.409, from
+        time.time() and getrusage deltas around main().
+      source_2_per_call_timings: >-
+        The six per-call timings sum to 71.104 wall / 70.406 core, which is 0.76 s
+        wall below the whole-run figure -- the correct sign and a plausible
+        magnitude for module loading, selftests, statistics and JSON writing.
+        Consistent.
+      source_3_os_level: >-
+        stderr.log carries /usr/bin/time -l output for both runs: 72.28 real /
+        70.30 user / 2.20 sys (Part A) and 6.64 real / 5.93 user / 1.82 sys
+        (Part B). user+sys = 72.50 and 7.75 against script-measured 72.409 and
+        7.664; real = 72.28 and 6.64 against script-measured 71.863 and 6.508.
+        Both outer figures exceed the inner ones by 0.1-0.4 s, which is exactly
+        the interpreter startup and teardown the script cannot see. MEASURED, not
+        estimated, and consistent across three independent clocks.
+      memory: "Peak RSS 82,182,144 B (Part A) and 52,428,800 B (Part B) from
+        stderr.log, far under the 4 GB cap. Reported correctly."
+      my_own_reproduction_as_a_fourth_check: >-
+        My driver ran the same six decoder calls plus extra work in 76.38 s real /
+        74.01 s user on the same 14-core machine, peak RSS 93,421,568 B. The
+        producer's Part A timings are reproducible to within a few percent.
+      debitable: >-
+        78.371 executor-measured wall-clock seconds. This reviewer's own spend is
+        NOT debitable per the campaign convention restated in this task card.
+
+  - id: V14-ARTIFACT-COMPLETENESS
+    verdict: PASS
+    what_i_found:
+      declared: 12
+      present_at_snapshot: 12
+      present_in_working_tree: 12
+      undeclared_files_in_the_task_directory: 0
+      declared_but_missing: 0
+      path_sha256_matches_the_bytes_i_read: "12 of 12, verified in both
+        directions (declared -> tree, and tree -> declared) -- see snapshot_binding
+        SNAP-4 and SNAP-5."
+      files_written_outside_the_write_scope_by_the_producer: >-
+        None. git diff-tree over the snapshot touches only the 13 paths, all
+        under coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/.
+      recorded_manifest_fields: >-
+        run_manifest.yaml carries the command, git commit (9c7dd452c) and
+        dirty-tree state (dirty: true, dirty_paths listing only the untracked task
+        directory -- honestly recorded), environment, MEASURED module sha256 pins,
+        seeds (master_seed 20260804 for Part A's CTRStream; base_seed 20260817 and
+        the seed tuple [T, replicate, arm, leg_code] for Part B), every window's
+        exact index range, per-call and per-part timings, achieved R and rungs,
+        and validity status. All present.
+
+  # ------------------------------------------------------------------ #
+  # 2. PRODUCER ASSERTIONS I WAS ASKED TO CHECK RATHER THAN ACCEPT
+  # ------------------------------------------------------------------ #
+  producer_assertions_checked:
+  - assertion: "Both fail-closed selftests PASS."
+    result: CONFIRMED BY RE-EXECUTION
+    detail: >-
+      I called mp.selftest_fail_closed_sha_mismatch() and
+      mp.selftest_injection_invariant_fail(56, 128) myself: PASS and PASS. I also
+      read them (matched_pair.py lines 159-203) and added a NEGATIVE CONTROL the
+      producer did not run: a fail-closed loader that rejected EVERY hash would
+      pass the sha256 selftest vacuously, so I confirmed mp.load_module ACCEPTS
+      the correct hash for stage_a.py. It does. The selftest is non-vacuous.
+  - assertion: "All three module sha256 pins match."
+    result: CONFIRMED INDEPENDENTLY
+    detail: >-
+      I hashed all three files myself: stage_a.py
+      06a0a618432c00fe26c72ecf05a8d89489db61c5183931fdb76a378717681405,
+      measure.py a4fd1ecb63f0ddc83c02ef45f2c65ab31cf13d13e7ae94f500e67465b24f5dc8,
+      matched_pair.py
+      66266a6178eb46e0b37ec0afdb2620064db56bff82318498e2dd83af1bd1c821. All three
+      equal the values pinned in design.md Section 1 and in both scripts, and all
+      three files are unmodified in git.
+  - assertion: "The V3 wrapper genuinely calls the unmodified decode_blocks."
+    result: CONFIRMED, BY A STRONGER TEST THAN THE PRODUCER'S
+    detail: >-
+      The producer checks `defected.__wrapped_original_id__ == id(original)`,
+      which is an identity attribute the wrapper sets on itself. I checked the
+      BEHAVIOUR instead. On random bit matrices I confirmed that (i) the wrapper's
+      F is bit-identical to the UNMODIFIED decode_blocks applied to the input with
+      the last block window shifted left by one -- so the wrapper really does
+      delegate to the real function on a perturbed input; (ii) the wrapper's F
+      agrees with the unmodified F on blocks 0..n_e-2 -- the injection is confined;
+      and (iii) the wrapper's F DIFFERS from the unmodified F somewhere -- the
+      injection is live and not a no-op. All three hold. I also read
+      make_defected_decode_blocks (matched_pair.py lines 211-237) and confirm it
+      raises SystemExit if the shift invariant is violated and asserts the callee's
+      identity has not changed, at every call.
+  - assertion: "Arm A direct disjointness proof: elementwise bit-identity,
+      10,000 elements, both variants."
+    result: CONFIRMED -- see V3. 5,000 elements per variant, 10,000 total, zero
+      differing elements, histograms also bit-identical.
+  - assertion: "Arm B adapted two-step proof at EXACT float64 bit-identity, with
+      the 1e-9 fallback available but never fired."
+    result: CONFIRMED -- see V4. My independent max relative deviation is exactly
+      0.0 across all eight statistic arrays at k = 2..26 on both variants; no
+      tolerance was needed by me either.
+  - assertion: "F[:, 0:n_e-1] invariant over 2,475,000 elements."
+    result: PARTIALLY REFUTED -- the invariant HOLDS with zero mismatches on all
+      eight combinations, which I reproduced, but the element count is wrong. The
+      true total is 4,950,000. See DEF-2.
+  - assertion: "D2 = D3 = 0 on all six decoder calls with none truncated."
+    result: CONFIRMED BY RE-EXECUTION. My own six calls return D2 = 0, D3 = 0,
+      D3_cap = 4641 on all six, truncated = false on all six, and
+      trials_done == trials_requested on all six (10000, 10000, 75000, 75000,
+      75000, 75000). My D3_max_w values (2739 verification, 2761 shard 5000,
+      2763 shard 8002) equal the producer's exactly, and the shard-8002
+      verification value 2739 equals a79e4f stage 2's committed shard_8002 value.
+  - assertion: "One-call-vs-two-call batch structure check, 32/32."
+    result: CONFIRMED PRESENT AND TRUE, but judged near-vacuous as a check; the
+      substantive proof is the index-keying argument I ran instead. See V12.
+  - assertion: "The supplementary Arm A [5000:15000) check is
+      ABSENT-BY-DETERMINATION because TASK-20260814-8bbdd2 persisted no raw
+      per-trial S array, determined by mechanical scan."
+    result: CONFIRMED BY MY OWN INDEPENDENT SCAN. See V3. The producer's scan is a
+      real recursive scan and its conclusion is right; my unbounded scan (which
+      does not truncate list recursion at 8 elements as the producer's does)
+      agrees. Zero integer arrays of length >= 100 exist in that file.
+  - assertion: "DEV-1: design.md's calibrated p was filled in after Part A but
+      pre-registration is anchored by a content hash written to stdout.log before
+      Part A launched (7511ecc..., post-fill c3954cd...)."
+    result: >-
+      THE POST-FILL HASH IS CONFIRMED (I recomputed c3954cde718818e126d773ab4e6c
+      2ade19bb43bbcea900fe396cc839109be54 from the snapshot bytes myself, and
+      Part B's own provenance block independently records the same value from a
+      runtime hash). THE PRE-FILL HASH IS AN UNVERIFIABLE SELF-ATTESTATION: the
+      pre-fill blob was never committed, I could not reconstruct it, and the log
+      line asserting it is hand-authored rather than program output. See DEF-6a
+      for the full analysis and for what content-based evidence of
+      pre-registration does exist (which is substantial).
+
+  # ------------------------------------------------------------------ #
+  # 3. CONTROL CHECKS
+  # ------------------------------------------------------------------ #
+  control_checks:
+  - id: CTRL-NULL-OBJECT
+    kind: null-object control (docs/inventor-protocol.md Section 3)
+    shape_of_the_null: >-
+      DECODER-FREE, SHARD-FREE, DEFECT-FREE, REGIME-FREE -- correct in those four
+      respects. WRONG IN THE FIFTH AND DECISIVE ONE: the pair is uncoupled where
+      the real pair is coupled. See FIND-SHAPE under V7.
+    does_the_report_state_what_the_quantity_should_do: >-
+      PARTIALLY. design.md Section 3.4 item 3 correctly states that alpha should
+      approach 0.5 with an O(1/T) correction and that the ladder exists to
+      measure that correction, and the run does measure it (-0.149 +/- 0.017 on
+      the full-ladder fit -- a real, ~9-sigma low bias). design.md Section 3.4
+      items 1 and 2 state their forced values as "0 EXACTLY", without the
+      finite-T caveat, which is wrong at the estimator level. The
+      batch-size-dependent bias in log2 A_k DOES decay with T as it should
+      (-0.144, -0.102, -0.027, -0.048 at k = 17), which is the correct
+      non-artifact behaviour, and the producer measured it but did not state the
+      expectation in advance for that quantity.
+    verdict: >-
+      GENUINE CONTROL, NOT A CONSTRUCTION THAT CANNOT FAIL -- established
+      positively by my dependent-blocks probe (log2 A_k moves from ~0 to +4.72,
+      z = -9.36). But NOT A VALID CALIBRATION of the Part A diagnostic, for the
+      shape reason above and, independently, because the pre-registered
+      fail-closed rule already declared it BLIND.
+  - id: CTRL-SENSITIVITY-LEG
+    kind: planted-departure (anti-blindness) control
+    plant_realized: YES, independently reproduced (variance ratios 1.57 / 2.26 /
+      3.98; rho 1.12 / 1.23 / 1.38 at replicate 0).
+    verdict: >-
+      The leg is real and the BLIND verdict is correctly derived, but the leg was
+      UNDERPOWERED BY CONSTRUCTION: no pre-registered g could have produced
+      OUT_OF_BAND against a band this wide (rho > 2.53 was needed; 1.392 was the
+      maximum achieved). See DEF-4.
+  - id: CTRL-SELFTEST-NONVACUITY
+    kind: negative control on the producer's own fail-closed selftest, added by
+      this review
+    verdict: PASS -- the pinned loader accepts a correct hash as well as rejecting
+      a wrong one, so the selftest is not vacuously satisfied.
+  - id: CTRL-F-INVARIANT-NONVACUITY
+    kind: negative control on the F invariant, added by this review
+    verdict: PASS -- the last block DOES differ between arms on 10.4%-11.4% of
+      trials in every one of the eight cells, so zero mismatches on the other 55
+      blocks is a real constraint and not a statement about two identical arrays.
+
+  metric_recomputations:
+  - metric: four fresh local exponents at k=17
+    source: raw per-trial data generated by this reviewer's own driver
+    agreement: bit-identical on all four
+  - metric: four fresh local exponents at k in {2,5,9,13,17,21,26}
+    source: committed per-window se_paired arrays
+    agreement: exact; k-dependence reported as FIND-K
+  - metric: three pre-registered contrasts
+    source: committed cell values
+    agreement: exact, delta 0.0 on all three
+  - metric: 64 per-window statistic arrays (8 fields x 8 cells, k=2..26)
+    source: reviewer's own driver vs committed JSON
+    agreement: bit-identical, 64 of 64
+  - metric: null 95% bands, means, SDs and percentiles, 3 rung pairs
+    source: noc_replicate_summary.csv raw rows
+    agreement: exact, 15 of 15 statistics, |delta| = 0.0
+  - metric: forced-identity residuals, 600 planted replicates
+    source: noc_replicate_summary.csv raw rows
+    agreement: exact -- and shown to be algebraically vacuous (DEF-3)
+  - metric: cost-projection arithmetic
+    source: cost_projection.json
+    agreement: 200 * 1.866325e-07 * 135000 = 5.0390775, exact
+  - metric: p calibration
+    source: reviewer's own shard-5000 P2 undefected arm
+    agreement: mean S = 17.8771, p = 0.31923392857142857, exact
+
+  # ------------------------------------------------------------------ #
+  # 4. REQUIRED JUDGMENTS
+  # ------------------------------------------------------------------ #
+  required_judgments:
+
+  - question: "Is the fresh 2x2 factorial an ADMISSIBLE measurement of the
+      (shard x regime) contrast?"
+    answer: YES -- ADMISSIBLE, plainly.
+    reasoning: >-
+      Every gate it declares in advance genuinely passes, and I re-derived all of
+      them from data my own driver generated rather than from its report. The
+      trial ranges are genuinely fresh on both shards against an exhaustively
+      re-derived high-water mark. The windows are genuinely disjoint and come from
+      exactly one call per (shard, variant). Both disjointness proofs hold at
+      exact bit-identity with no tolerance applied. The structural invariant holds
+      on 4,950,000 elements and is non-vacuous. The four exponents and three
+      contrasts reproduce to the last bit from an independent implementation and
+      an independent process. Nothing is fabricated; the spend is measured three
+      ways; the deviation that exists is declared. This is an admissible
+      measurement receipt.
+    scope_it_is_admissible_within: >-
+      PS-R3 reduced parameters (n=7187, n_e=56, n_2=128, dup=1, N=7168), shards
+      5000 and 8002 only, trial indices [30000:75000), one defect class (V3), one
+      injection point, k = 17 primary with k = 2..26 recorded, T in
+      {5000, 10000, 20000}, nb = 200, this decoder path, this budget. NOTHING
+      about HQC IND-CCA security, its decoding-failure rate, assumption A17 or
+      A5, or any standardized parameter set. CLAIM TIER TOY.
+    what_admissibility_does_NOT_mean: >-
+      It does not mean the four exponents mean what a reader would take them to
+      mean. Two separate findings bound their interpretation: FIND-K (the "all
+      four positive" headline is a k=17 statement, and one cell is negative at
+      k=21, with all four converging on the forced 0.5 at small k) and the V9
+      band result (a structureless null object produces alpha scatter wider than
+      the entire historical spread). The measurement is admissible; the exponent
+      is not, at this sample size, an interpretable quantity.
+
+  - question: "Is the null-object control an ADMISSIBLE calibration of the 2-point
+      local-exponent diagnostic?"
+    answer: >-
+      NO -- NOT ADMISSIBLE AS A CALIBRATION. It IS admissible as a measurement of
+      something else, which is worth having.
+    admissible_as: >-
+      A valid, reproducible measurement of (i) the finite-T behaviour of
+      log2_A_from_hists on an independent-block law, including a real,
+      T-decaying, batch-size-dependent bias of -0.144 at the smallest rung;
+      (ii) a real ~9-sigma low bias of the 2-point exponent relative to its own
+      forced 0.5; and (iii) the decoder-free demonstration that batch-size regime
+      ALONE does not shift the diagnostic (difference of means between the
+      25->50 and 50->100 rung pairs is 0.0217 against a per-replicate SD of 0.70,
+      i.e. well under half a standard error of the mean). That third item is the
+      strongest positive content in Part B and it is a genuine negative control
+      result.
+    not_admissible_as_a_calibration_for_two_independent_reasons:
+    - "1. THE PRE-REGISTERED FAIL-CLOSED RULE ALREADY SAYS SO. No planted
+      magnitude drove the planted median outside the band; the control is BLIND
+      by its own frozen rule and its band carries no interpretive weight. The
+      producer applied the rule correctly and said BLIND in that exact word. I
+      confirm the arithmetic and the verdict, and I add that the leg could not
+      have returned anything else at the pre-registered g values (DEF-4), which
+      weakens what BLIND tells us but does not change the operational
+      consequence."
+    - "2. IT IS THE WRONG SHAPE, WHICH I MEASURED. Its two arms are independent
+      draws (se_unpaired/se_paired = 1.00) where the real pair is the same trials
+      decoded twice (se_unpaired/se_paired = 2.34 to 28.69, max |S_d - S_u| = 1).
+      A null object that does not reproduce the coupling the estimator exploits
+      is not a null object of the same shape, and per docs/inventor-protocol.md
+      Section 3 that is a prerequisite, not a refinement. I built the same-shape
+      null and its bands are WIDER (4.33 and 3.51 versus 3.19 and 2.79), so the
+      shape error does not flatter the producer -- but the band it produced is
+      still not the band that calibrates Part A."
+    is_it_a_control_that_cannot_fail: >-
+      NO. This was the specific risk the batch named in advance (fifth-instance
+      risk), and I tested it directly rather than by reading. The pipeline moves
+      by +4.72 bits and 9.4 sigma when the independent-block premise is broken.
+      The three values are forced by the mathematics, not by the code. That
+      answer is separate from, and does not rescue, the two reasons above.
+
+  # ------------------------------------------------------------------ #
+  # 5. VERDICT
+  # ------------------------------------------------------------------ #
+  verdict: passed
+  admission_verdict: ADMIT
+  admission_verdict_statement: >-
+    ADMIT. TASK-20260817-c603c0's receipt is admissible evidence at claim tier
+    TOY, within the scope stated above, subject to the four characterization
+    corrections listed below being carried into the ledger archive rather than
+    the producer's phrasings. The 2x2 factorial is ADMISSIBLE as a measurement of
+    the (shard x regime) contrast. The null-object control is ADMISSIBLE as a
+    measurement of the diagnostic's finite-T behaviour and of the absence of a
+    batch-size-regime effect on the null, and is NOT ADMISSIBLE as a calibration
+    of the 2-point local-exponent diagnostic.
+  verdict_reasoning: >-
+    `passed` rather than `incomplete` because every item the task card required
+    was delivered, every declared gate genuinely passes, and every number I
+    checked reproduced -- most of them bit-for-bit from an independent
+    implementation in an independent process. `passed` rather than `failed`
+    because the defects I found are in how the results are CHARACTERIZED, not in
+    whether they were obtained: no measurement is wrong, no control is faked, no
+    number is fabricated, and the one real protocol deviation was disclosed in
+    advance. The defects are consequential enough that the archive must not
+    quote the producer's summary sentences unchanged, which is what the
+    corrections below are for.
+
+  corrections_the_ledger_archive_must_apply:
+  - id: CORR-A
+    from: "the forced identity held to 6.2e-15 ... so this is an instrument
+      sensitivity finding, not a failed plant"
+    to: "the plant was realized -- measured rho rose monotonically 1.134 ->
+      1.213 -> 1.392 with g, and I reproduced the transform's variance inflation
+      independently. The forced-identity residual is NOT evidence of this: it is
+      algebraically zero for any three positive numbers and measures only float64
+      round-off (DEF-3)."
+  - id: CORR-B
+    from: "F[:, 0:n_e-1] invariant over 2,475,000 elements"
+    to: "over 4,950,000 elements (8 combinations; 2,475,000 is the per-shard
+      subtotal). The error is in run_manifest.yaml line 249 and propagated to the
+      snapshot receipt and commit message (DEF-2)."
+  - id: CORR-C
+    from: "all four fresh cells are positive"
+    to: "all four fresh cells are positive AT k = 17. At k = 21, alpha(8002,P) =
+      -0.113. At k = 2 all four lie in [0.507, 0.628], within 0.13 of the
+      analytically forced 0.5, and they fan out monotonically with k (FIND-K)."
+  - id: CORR-D
+    from: "pre-registration is anchored by CONTENT HASH written to stdout.log
+      before Part A launched"
+    to: "pre-registration of design.md's SUBSTANCE is corroborated by content --
+      every constant, gate, window, forced value, g list, R and reduction step is
+      hard-coded in the two committed scripts, which I executed unmodified to
+      reproduce every number. The pre-fill hash itself is a SELF-ATTESTATION: the
+      pre-fill blob was never committed, is not reconstructible, and the log line
+      asserting it is hand-authored rather than program output (DEF-6a)."
+  - id: CORR-E
+    add: "A second protocol deviation should be recorded alongside DEV-1: the
+      sensitivity leg's pre-registered leg_code RNG seeding
+      (design.md Section 3.5) is not implemented; `leg_code` is a dead parameter
+      and planted replicates reuse the unmodified base draws (DEF-5)."
+
+  reading_rule_note:
+    rule_not_applied: true
+    statement: >-
+      As directed, I did not apply batch.yaml's four-branch reading rule and I
+      name no branch. That is the ledger archive's adjudication.
+    are_the_delivered_numbers_the_ones_the_rule_needs: PARTIALLY -- one gap
+    the_gap: >-
+      Branch N's first clause ("the null object's replicate distribution of alpha
+      at the relevant rung-pair contains the historical exponents") IS answerable
+      from the delivered artifacts, and so is the replication_sub_result. But
+      branch N's second clause and BOTH branch R and branch S turn on whether
+      "the regime main effect exceeds the null band" and whether "the shard main
+      effect exceeds the null band". NO NULL DISTRIBUTION FOR A MAIN-EFFECT
+      CONTRAST WAS DELIVERED. Part B produces null bands for a SINGLE alpha at a
+      single rung pair; a main effect is a contrast of FOUR alphas and has a
+      different, narrower null distribution which nothing in the artifact set
+      computes. Comparing -1.0913 or +1.5458 to a single-alpha band would be a
+      category error, and the archive should not do it.
+      For the archive's information only, and explicitly NOT as a pre-registered
+      band and NOT as an adjudication: propagating the delivered per-rung-pair SDs
+      through the contrast definitions under an independence assumption gives a
+      main-effect null SD of about 0.75 (producer's uncoupled null) or about 1.01
+      (my same-shape null), i.e. indicative 95% half-widths of about 1.47 and
+      1.98. The observed regime main effect (-1.0913) is inside both. The observed
+      shard main effect (+1.5458) is marginally outside the first and inside the
+      second. If the archive intends to read branch R or S it needs a
+      main-effect null it can cite, and this batch did not produce one.
+
+  # ------------------------------------------------------------------ #
+  # 6. LIMITATIONS OF THIS VALIDATION
+  # ------------------------------------------------------------------ #
+  limitations:
+  - "This review validates a measurement receipt. It supports no claim about HQC
+    IND-CCA security, HQC's decoding-failure rate, assumption A17 or A5, or any
+    standardized parameter set. H-HQC-18d1b4 remains PROPOSED; nothing here
+    changes any record status or promotes any evidence."
+  - "My same-shape (coupled) null object is a REVIEWER CONSTRUCTION, not
+    pre-registered, and it perturbs the last block on ~43% of trials where the
+    real V3 defect changes S on ~11%. Its bands are therefore an upper bound on a
+    perfectly matched null's. It establishes the DIRECTION and rough magnitude of
+    the producer's shape error; it is not itself an adjudicating band and must
+    not be used as one."
+  - "I did not re-derive the full-ladder OLS replicate by replicate; I verified
+    its inputs and checked its outputs for consistency with the per-pair
+    distributions I did recompute."
+  - "I could not verify the DEV-1 pre-Part-A hash, in either direction. Absence of
+    verification is not evidence of wrongdoing, and the content-based evidence of
+    pre-registration is strong; but the temporal claim is unverifiable and is
+    recorded as such rather than accepted or rejected."
+  - "Both my Part A reproduction and the producer's run executed on the SAME
+    machine and the same Python/numpy build. My reproduction is cross-process,
+    cross-session and cross-implementation, but NOT cross-platform. It therefore
+    narrows Arm B's residual gap for exactly the reason design.md Section 2.5
+    Step 5 gives, and does not close it."
+  - "The comparator record TASK-20260809-a79e4f/matched_pair_results.json contains
+    NO environment block (its only top-level keys are stage_1 and stage_2, and
+    both carry environment: null in the aggregate file I read). design.md's and
+    disjointness_proof_results.json's claim that the Arm A/Arm B comparators were
+    produced on Linux x86_64 / CPython 3.11.15 / numpy 2.4.6 is an inference from
+    the sibling records 8bbdd2 and e61cca, which DO record exactly that
+    environment. It is plausible and probably right, but the CROSS-MACHINE
+    adjective attached to Arm A's proof is not supported by the comparator's own
+    record. Recorded as DEF-6b; it does not affect the bit-identity result, which
+    I reproduced."
+  - "The eight (shard, window) cells all have |z_paired| < 2.1 at k = 17 and diffs
+    of both signs, so none of them is a detection of the planted defect. alpha is
+    a scaling exponent of the estimator's NOISE, not of a signal. Any reading of
+    it as characterising detectability inherits that."
+  - "I did not read the concurrent Red Team task directory TASK-20260817-94c89e
+    and did not confer with it."
+
+  # ------------------------------------------------------------------ #
+  # 7. HEURISTIC-VALIDATION, COST-MODEL AND PROOF-ARCHITECTURE CHECKS
+  # ------------------------------------------------------------------ #
+  heuristic_validation_checks:
+  - check: pre-registered prediction
+    result: PASS-WITH-QUALIFICATION
+    detail: >-
+      The theoretical predictions (A_k = 1 on the independent-block null; alpha =
+      0.5 asymptotically) are recorded in design.md Section 3.4 before sampling
+      and are genuine theorems about the population, not fits to the data. The
+      qualification is that items 1 and 2 are stated as exact at the ESTIMATOR
+      level, which they are not (V7).
+  - check: sample integrity
+    result: PASS
+    detail: >-
+      R = 200 per rung, four rungs, three planted legs; the seed scheme
+      SeedSequence([20260817, T, r, arm, leg_code]) is in the manifest; every
+      replicate's raw se_paired_k17 at both rungs is in
+      noc_replicate_summary.csv, and I recomputed every reported statistic from
+      those raw rows rather than copying the JSON. Part A's sampler seed scheme
+      (MASTER_SEED 20260804, sha_key(ps_id,"T",shard,seed)) is likewise recorded
+      and I regenerated its data from scratch.
+      One caveat: the recorded seed tuple's leg_code component is not actually
+      used (DEF-5).
+  - check: correspondence validity
+    result: NOT APPLICABLE -- no substitute sampler stands in for the object; the
+      null object is declared to be a different object, not a proxy for the real
+      one, and design.md limitation 4 says so.
+  - check: scale binding
+    result: PASS
+    detail: >-
+      PS-R3 reduced parameters, sample counts, window ranges and k range are all
+      recorded, and the TOY ceiling is restated in design.md Section 0,
+      cross_regime_arms_results.json's scope_statement, the report's limitation 8,
+      the manifest and the snapshot receipt. No transfer to standardized
+      parameters is asserted anywhere. The transfer question that DOES arise --
+      whether the null object's Binomial(56,p) calibration transfers to the real
+      arms' S distribution -- is declared as an open limitation by the producer
+      and is answered NEGATIVELY by this review (FIND-SHAPE).
+  cost_model_checks:
+  - check: cost-unit honesty
+    result: PASS
+    detail: >-
+      cost_projection.json declares its unit explicitly (core-seconds, with
+      core-seconds-per-trial as the transfer unit), states its formula verbatim,
+      states the threshold it is tested against, and records memory alongside time
+      (peak RSS in stderr.log and the report). No optimistic assumption is
+      concealed: the projection was made from a MEASURED 20-replicate probe at the
+      most expensive rung, which is the conservative choice.
+  - check: cost bookkeeping
+    result: PASS
+    detail: >-
+      I recomputed 200 x 1.866325e-07 x 135000 = 5.0390775 core-seconds against a
+      540.0 threshold: exact, and 0.93% of it. No reduction step fired, R = 200
+      and all four rungs were achieved, and the file was written unconditionally
+      as pre-registered so the artifact path can never be missing because a
+      contingency did not occur. There is no success-probability term in this
+      cost model (nothing here is an attempt-with-failure-probability), so the
+      per-attempt-cost x inverse-success-probability check does not bind.
+  proof_architecture_checks:
+  - check: applicability
+    result: NOT APPLICABLE -- this is a measurement task under
+      docs/inventor-protocol.md Section 3 (null objects), not a proof-oriented
+      task under Section 8. No proof_search_map is required and none is claimed.
+  scaled_down_instance_ladder_check:
+    applicable: false
+    reasoning: >-
+      docs/inventor-protocol.md Section 6 governs a claimed improvement that
+      cannot be executed at the scale where it would matter. THIS TASK CLAIMS NO
+      IMPROVEMENT AND NO SPEEDUP. It runs an instrument at the only scale it has
+      ever run at, reports observations, and applies no reading rule. There is
+      therefore no step-2 measured-ratio-against-baseline obligation to discharge
+      and its absence is not a defect. I record this explicitly so that the
+      absence of a Section 6 ladder in this report is not later read as an
+      omission.
+
+  # ------------------------------------------------------------------ #
+  # 8. INFERENCE PROVENANCE
+  # ------------------------------------------------------------------ #
+  inference:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: true
+    honoured_at_requested_policy_and_effort: true
+    this_sessions_actual_resolved_model_id: claude-opus-5[1m]
+    this_sessions_actual_resolved_model_id_source: >-
+      GENUINE SELF-REPORT from this session's own runtime system context. Not
+      read from any configuration file and not copied from the producer's or the
+      Coordinator's receipt.
+    committed_binding_target_for_this_policy_read_for_reference_only: >-
+      orchestration/model-bindings.yaml records `review-adversarial: model:
+      claude-opus-5` under the anthropic backend (provenance: runtime-verified),
+      and `review-adversarial: model: glm-5.2` under a different backend
+      (provenance: operator-supplied). This field is RECORDED FOR REFERENCE ONLY,
+      is kept separate from the self-reported resolved model above, and was not
+      written to. Note that the file in this worktree may carry another session's
+      uncommitted edits; I did not modify it.
+    resolved_model_consistent_with_the_anthropic_binding_target: true
+    fallback_used: false
+    degraded_requirements: []
+    runtime: claude_code
+    session_kind: native authenticated session
+    reasoning_effort_source: >-
+      .claude/agents/validator.md frontmatter `effort: xhigh`, confirmed with
+      `python3 tools/check_runtime_bindings.py --list`, which reports
+      `validator  policy=review-adversarial  effort=xhigh` with
+      `claude_code  .claude/agents/validator.md  effort:agent file`.
+    amazon_bedrock_selected_configured_probed_contacted_or_used: false
+    bedrock_refusal: >-
+      AWS_BEARER_TOKEN_BEDROCK is present in this session's environment and
+      CLAUDE_CODE_USE_BEDROCK is unset (both verified by direct inspection of
+      os.environ). Bedrock was not selected, configured, probed, contacted or
+      used; refused under AGENTS.md rule 16.
+    independence:
+      is_producer: false
+      continued_producers_session: false
+      obtained_as: fresh agent invocation in a session that did not originate the
+        reviewed output
+      correlated_judgement_disclosure: >-
+        THE SIBLING RED TEAM TASK TASK-20260817-94c89e RUNS CONCURRENTLY ON THE
+        SAME MODEL FAMILY AS THIS REVIEW, and the producer and the archiving
+        Coordinator also self-reported claude-opus-5[1m]. Any agreement between
+        this report and the Red Team's is CORRELATED SAME-MODEL JUDGEMENT and
+        MUST NOT be recorded as distinct-model corroboration. I did not read the
+        Red Team's directory and did not confer with it.
+      producer_messages_relied_on: none -- no producer message was used in place
+        of an artifact.
+
+  budget:
+    wall_clock_seconds_authorized: 1800
+    wall_clock_seconds_used_measured: 1290
+    wall_clock_measurement_note: >-
+      Measured from the session's own clock: first command at 2026-08-18T01:30:09Z,
+      report written at approximately 01:51:39Z. Machine shared with a concurrent
+      Red Team session; this is real wall-clock, not core time.
+    memory_gb_authorized: 4
+    peak_rss_bytes_measured: 93421568
+    maximum_runs_authorized: 1
+    runs_used: 1
+    runs_note: >-
+      ONE driver invocation covering every recomputation: 6 decoder calls
+      (2 x 10000 verification on shard 8002, 4 x 75000 analysis), both
+      disjointness proofs, the F invariant on all eight combinations, all four
+      exponents end to end, the index-keying probes, and all Part B probes
+      (uncoupled null ladder, same-shape coupled null ladder, dependent-blocks
+      and different-p can-fail probes, plant realization). Measured 76.38 s real /
+      74.01 s user. Pure-arithmetic analyses over committed bytes are not runs.
+    reviewer_spend_debitable_against_campaign: false
+
+  artifact_paths:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/reviews/TASK-20260817-6f610c/validation_report.yaml
+
+  handoff_to_ledger_archive:
+    archive_task: TASK-20260817-61ed83
+    adjudicating_decision: DEC-20260817-2b638b
+    report_path: coordination/goals/GOAL-HQC-001/batches/BATCH-91929e/reviews/TASK-20260817-6f610c/validation_report.yaml
+    committed_by_this_session: false
+    note: >-
+      Written uncommitted in an isolated worktree on branch
+      claude/hqc-001-confound-20260817. This review changes no record status,
+      edits no producer artifact, applies no reading rule and names no branch.

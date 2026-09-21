@@ -1,0 +1,179 @@
+coordinator_decision:
+  id: DEC-20260901-ed8359
+
+  context: >-
+    GOAL-AES-003 batch-opening act by the dispatching Coordinator (session
+    coordinator-aes003-1, 2026-09-01), discharging the goal record's own
+    next_action -- "OPEN GOAL-AES-003 BATCH-016 ON THE BATCH-015 CHECKPOINT"
+    -- written by DEC-20260805-af8565 when it closed BATCH-015. The
+    conceptual batch number "BATCH-016" is realized under the minted
+    identifier BATCH-7939d0 (rule 14: new records carry random 6-hex
+    suffixes; legacy sequential names are retired).
+
+    Facts verified by this session before deciding: BATCH-015 is fully
+    closed and landed on origin/main (ledger archive 71d332f0a, verified
+    follow-up b2a60b223, PR #659 merged, final queue-state backfill
+    e0a31b52b; the BATCH-015 queue now renders Ready: none). A standing
+    portfolio sweep ran this session (47 active goals). The sweep's two
+    ready items were triaged before opening this batch: (1) GOAL-AES-003's
+    TASK-20260805-237cad showed Ready only because coordinator archive
+    completion receipts had never been published; this session published
+    the three missing receipts and backfilled the completed card states and
+    237cad/58a03d archive blocks (commit e0a31b52b), and the queue now
+    renders fully closed; (2) GOAL-AES-002's TASK-20260810-1a81be was
+    attempted and REFUSED by the claim tool because coordinator-aes2-session
+    already released it completed (its archive is in flight on that
+    session's branch; commit 74c913a68 and BATCH-286bcd activity confirm
+    that goal is actively owned) -- GOAL-AES-002 is therefore left
+    untouched. GOAL-AES-003 carries no open lanes or claims of its own.
+
+    The two producers in this batch discharge exactly the two unresolved
+    confounds EV-AES-dec938 names under U4: "does not test other Feistel
+    round counts, other deterministic PRP families, or other keys/seeds".
+    Producer TASK-20260901-92672b varies round count over {4,8,16,32} at
+    matched 2^30 exposure (r=16 must byte-for-byte reproduce RC-D at seed
+    531001 as the binding control). Producer TASK-20260901-47b21f re-runs
+    the UNMODIFIED RC-D oracle with preregistered second seed 531002 at
+    matched 2^30 exposure. Instrument parameters are pinned from the
+    archived BATCH-014 artifacts (seed 531001, armid 1, amask=smask=1,
+    log2N 30/33, FEISTEL_ROUNDS compile-time 16, TIMING26 101.9s at 2^26
+    on 4 threads).
+
+  decision: open_batch_dispatch
+
+  decision_scope: >-
+    THIS DECISION OPENS BATCH-7939d0 AND DISPATCHES ITS TWO INDEPENDENT
+    PRODUCERS, AND NOTHING ELSE.
+
+    It moves NO head field: current_batch_id stays BATCH-015,
+    dispatch_queue_path stays
+    coordination/goals/GOAL-AES-003/batches/BATCH-015/dispatch_queue.json,
+    latest_verified_commit stays
+    71d332f0aa4101cfd5fb91ba8dab280716405ead, and next_action stays as
+    written by DEC-20260805-af8565 until this batch's ledger archive
+    (TASK-20260901-2a7ecc, owning ledger/goals/GOAL-AES-003.yaml in the
+    BATCH-7939d0 queue) supersedes them with committed evidence. It reviews
+    NO experimental evidence, moves NO hypothesis, promotes NO knowledge,
+    closes NO batch, and asserts NOTHING about AES at any round count. It
+    is a batch-opening and dispatch act.
+
+  target_ids:
+    - GOAL-AES-003
+    - RQ-AES-003
+    - BATCH-7939d0
+    - TASK-20260901-92672b
+    - TASK-20260901-47b21f
+    - TASK-20260901-bfd667
+    - TASK-20260901-951e22
+    - TASK-20260901-0dcc8d
+    - TASK-20260901-2a7ecc
+    - DEC-20260805-af8565
+    - EV-AES-dec938
+    - EV-AES-4ba350
+    - DEC-20260831-0d1eeb
+
+  target_ids_note: >-
+    Closing reservations EV-AES-5478a0 and DEC-20260901-bad1e5 are
+    deliberately absent from target_ids, which references committed
+    records: both ids were minted and --checked free before queue
+    authorship, but are written only by ledger archive
+    TASK-20260901-2a7ecc. Naming an uncommitted EV-* in target_ids
+    fails validate_ledger (unknown target). This note was added in the
+    schema-complete replacement registered 2026-09-01; the archived
+    original incorrectly listed both reserved ids in target_ids.
+
+  rationale:
+    - >-
+      The goal's next_action names exactly this batch as RANK 1 with its
+      two follow-ons specified ("decay check varying rc8probe_feistel's
+      round count" and "second key/seed for the same construction"), and
+      both map one-to-one onto EV-AES-dec938's U4 unresolved confounds.
+      Opening dispatch is the mechanical discharge of committed state, not
+      a new research judgement.
+    - >-
+      The two producers are disjoint by construction: different write
+      scopes, different task directories, different varied parameters
+      (round count vs seed), and the second producer uses the archived
+      source VERBATIM while the first parameterizes it -- neither can
+      contaminate the other's control. Both write only under their own
+      task directories; the contended goal file is owned exclusively by
+      the ledger archive card in this queue.
+    - >-
+      max_concurrent is 3 and both producers dispatch together: the
+      machine has 14 cores, current load is below the core count, and the
+      two 2^30 arm pairs (7200s and 3600s declared) leave headroom for the
+      snapshot/validator coordinator acts this session must also run.
+    - >-
+      The rank-2 item from DEC-20260805-af8565 (BATCH-713991 integrity
+      debt: RANK-1 stamp-gap supersession and verified ledger-archive
+      commit for TASK-20260804-0e75d5) is deliberately NOT in this queue:
+      it edits historical ledger and queue records and needs its own
+      scoped task with a write scope disjoint from this batch's. The
+      closing decision DEC-20260901-bad1e5 (id minted and --checked, owned
+      by the ledger archive card) will name it as the successor
+      next_action.
+    - >-
+      Inference runs under DEC-20260831-0d1eeb: executor and validator
+      role policies resolve to
+      fireworks-ai/accounts/fireworks/models/qwen3p8-max for the duration
+      of the zai billing outage; the rebind is committed to opencode.json
+      on main and the revert decision remains owed once zai is confirmed
+      by an actual role-bound launch.
+
+  precedence_ruling: >-
+    BATCH-7939d0 TAKES RANK 1 for GOAL-AES-003 as the direct discharge of
+    DEC-20260805-af8565's next_action. BATCH-713991 integrity debt takes
+    RANK 2 and is scheduled by a later decision after this batch's ledger
+    archive lands, keeping historical-record writes out of this batch's
+    concurrent write scopes. No other GOAL-AES-003 work is opened by this
+    act.
+
+  evidence_refs:
+    - ledger/evidence/EV-AES-dec938.yaml
+    - ledger/evidence/EV-AES-4ba350.yaml
+    - ledger/decisions/DEC-20260805-af8565.yaml
+    - ledger/decisions/DEC-20260831-0d1eeb.yaml
+    - coordination/goals/GOAL-AES-003/batches/BATCH-014/tasks/TASK-20260805-b95720/runs/M1-FEISTEL-P30.json
+
+  dispatch_note: >-
+    Queue authored and validated at
+    coordination/goals/GOAL-AES-003/batches/BATCH-7939d0/dispatch_queue.json
+    (tools/research_dispatch.py exit 0, Ready: TASK-20260901-92672b,
+    TASK-20260901-47b21f). Both producer tasks are claimed and dispatched
+    in the same act; snapshot archives run alone per queue; the validator
+    runs in an independent session after both snapshots commit; the ledger
+    archive owns the goal file and the two minted record ids
+    EV-AES-5478a0 and DEC-20260901-bad1e5.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      NOT WARRANTED. This is a batch-opening and dispatch act: it opens
+      BATCH-7939d0 and queues two preregistered producers plus their
+      snapshot/validator/ledger successors. It produces NO DURABLE
+      RESEARCH CLAIM -- no mechanism, no measurement, no technique, no
+      boundary -- and reviews no new evidence record. There is nothing
+      to promote to knowledge/findings/.
+
+  decided_by: coordinator
+  decided_at: '2026-09-01'
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+
+  added: 2026-09-01
+  recorded_at: 2026-09-01T15:49:20Z
+  author_role: coordinator
+  author_session: coordinator-aes003-1
+
+  schema_replacement_note: >-
+    Complete schema replacement registered 2026-09-01 after PR #661 landed
+    the archived original without required knowledge_promotion and
+    decided_by fields, and with reserved future EV-AES-5478a0 incorrectly
+    listed in target_ids. Decision substance (open_batch_dispatch for
+    BATCH-7939d0) is unchanged; the archived original at
+    ledger/decisions/DEC-20260901-ed8359.yaml remains hash-pinned.

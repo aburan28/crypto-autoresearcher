@@ -1,0 +1,21 @@
+{
+  "fpylll_version_this_host": "0.6.4",
+  "BKZReductionBase.__init__ source (fpylll.algorithms.bkz.BKZReduction)": "    def __init__(self, A):\n        \"\"\"Construct a new instance of the BKZ algorithm.\n\n        :param A: an integer matrix, a GSO object or an LLL object\n\n        \"\"\"\n        if isinstance(A, GSO.Mat):\n            L = None\n            M = A\n            A = M.B\n        elif isinstance(A, LLL.Reduction):\n            L = A\n            M = L.M\n            A = M.B\n        elif isinstance(A, IntegerMatrix):\n            L = None\n            M = None\n            A = A\n        else:\n            raise TypeError(\"Matrix must be IntegerMatrix but got type '%s'\" % type(A))\n\n        if M is None and L is None:\n            # run LLL first, but only if a matrix was passed\n            LLL.reduction(A)\n\n        self.A = A\n        if M is None:\n            self.M = GSO.Mat(A, flags=GSO.ROW_EXPO)\n        else:\n            self.M = M\n        if L is None:\n            self.lll_obj = LLL.Reduction(self.M, flags=LLL.DEFAULT)\n        else:\n            self.lll_obj = L\n",
+  "bkz2_subclass_adds_own_init": true,
+  "bkz2_init_source": "    def __init__(self, A):\n        \"\"\"Create new BKZ object.\n\n        :param A: an integer matrix, a GSO object or an LLL object\n\n        \"\"\"\n        BKZBase.__init__(self, A)\n",
+  "checks": {
+    "isinstance_A_LLL_Reduction_branch_present": true,
+    "LLL_Reduction_branch_sets_L_A_M_L_M_pattern_matched": true,
+    "note": "Read directly from source: the isinstance(A, LLL.Reduction) branch sets L = A; M = L.M; A = M.B, then later 'self.M = M' (M is not None -> reuses L.M, does not construct a new GSO.Mat) and 'self.lll_obj = L' (L is not None -> reuses the passed LLL.Reduction object, does not build a new one). The GSO.Mat(A, flags=GSO.ROW_EXPO) construction line only executes in the 'M is None' branch, i.e. only when a raw IntegerMatrix or GSO.Mat(without prior LLL.Reduction) is passed -- confirming BKZReduction(L), where L is an LLL.Reduction(GSO.Mat(A, float_type='mpfr')) instance with no ROW_EXPO flag, does NOT rebuild a ROW_EXPO GSO internally. This matches, exactly, ADJUDICATION.md's own claimed construction shape and stage0_v2_feasibility.py's own writeup.md section 1 claim, verified independently against this host's own live fpylll 0.6.4 install (matching the producer's own environment.json fpylll version) rather than trusting the producer's quoted source."
+  },
+  "probe2_bug_disclosure": "An earlier version of this probe used a naive whole-file/whole-function src.index()/substring search, which produced two FALSE NEGATIVES: (1) it found the FIRST occurrence of the GSO.Mat(A, float_type=\"mpfr\") literal in the file's own module docstring (offset ~900), which precedes the real code (offset ~6751), making the naive ordering check false; (2) it matched the substring 'flags=GSO.ROW_EXPO' inside an explanatory CODE COMMENT that correctly documents the flag's absence, making the naive absence check false. Both were bugs in THIS PROBE, not drift in the producer's code -- corrected here by checking the exact GSO.Mat( call line's own content (stripped of its trailing comment) and comparing real line numbers within worker_main_cell only. Disclosed per this task's own 'never fabricate' constraint and to avoid silently swallowing a probe-authoring error as if it were a clean first-pass result.",
+  "stage0_v2_feasibility_py_worker_main_cell_shape_checks": {
+    "FPLLL.set_precision_before_GSO_Mat_construction": true,
+    "GSO_Mat_no_ROW_EXPO_flag_in_worker_main_cell": true,
+    "M_update_gso_called": true,
+    "LLL_Reduction_M_flags_LLL_DEFAULT_present": true,
+    "BKZReduction_constructed_from_L_not_raw_A": true
+  },
+  "all_shape_checks_pass": true,
+  "critical_finding": "NONE -- construction shape matches ADJUDICATION.md's own validated shape exactly, no drift detected."
+}

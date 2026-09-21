@@ -1,0 +1,228 @@
+idea:
+  id: IDEA-20260727-002
+  question_id: RQ-ECDLP-002
+  title: >-
+    Yield-charged descent cost - testing whether the H-IC-001 multi-target
+    crossover is the p-flat factor-base-enumeration artifact
+  class: control
+  claim: >-
+    The H-IC-001 result supported by DEC-20260726-005 (T_desc / sqrt(N)
+    decreasing monotonically by 300x across 8-36 bits, K* finite for 4/4
+    instances with N above about 10^9) is produced by charging only the cost of
+    a single Groebner call on a trivial ideal at a FIXED factor base B = 14 and
+    arity m = 2, without charging the expected number of attempts needed to
+    obtain one decomposition. When the descent is charged by yield -
+    T_desc_charged = T_attempt / P_dec(N), with P_dec the measured probability
+    that a random target decomposes over the fixed factor base - the ratio
+    T_desc_charged / sqrt(N) will INCREASE with N, K* will be infinite at every
+    instance that DEC-20260726-005 counted as finite, and the sign of the
+    H-IC-001 conclusion reverses inside its own tested scope. The competing
+    outcome is that P_dec is measured far above the counting bound
+    (B^2/2)/N, which would be either a measurement error or a genuine
+    non-generic property of Semaev fibers, and in the latter case requires
+    independent review.
+  mechanism: >-
+    At a fixed factor base of size B and arity m = 2, the set of achievable
+    factor-base sums has at most C(B,2) + B distinct elements - for B = 14 that
+    is at most 105 group elements. Those land inside a subgroup of order N.
+    For a target drawn uniformly from the subgroup, the decomposition
+    probability therefore satisfies P_dec <= (B^2/2)/N, which tends to zero
+    like 1/N. The expected cost of one SUCCESSFUL descent is
+    T_attempt / P_dec >= 2 N T_attempt / B^2, growing linearly in N, so the
+    correctly charged ratio T_desc_charged / sqrt(N) grows like sqrt(N) instead
+    of falling. EV-IC-001 reports T_desc at roughly 32,000 to 35,000
+    group-operation equivalents flat across all bit sizes from 8 to 36, and
+    separately records that all Groebner solves ran on trivial ideals with no
+    decompositions found and that the S_rel heuristic was never measured at
+    bits >= 16. A cost that does not grow with the field size is the documented
+    diagnostic of measuring factor-base enumeration rather than decomposition -
+    the same failure was found and overturned by verifiers in a prior
+    independent campaign, recorded as EXP-009 round 5 and NR-017 in
+    PAPER_prime_field_ecdlp_resistance_map.md, whose text states that the
+    measured cost was factor-base enumeration and that "a p-flat cost signature
+    is the diagnostic of this failure", and describes the resulting shrinking
+    ratio as "a tautological artifact of a p-independent constant divided by
+    the rho baseline's sqrt(p) growth". This control therefore discriminates
+    three explanations of the identical EXP-IC-001 numbers - (a) yield charging
+    restores linear growth and the crossover is an accounting artifact,
+    (b) the measured yield is far above the counting bound, implying either an
+    instrumentation error or genuine structure, (c) yield matches the bound but
+    the charged ratio still falls, which is an internal contradiction that must
+    be resolved before any promotion.
+  novelty_status: known
+  novelty_screen:
+    screened_on: '2026-07-27'
+    corpus_paths_grepped:
+      - /Volumes/Volume/git/autolab/research
+      - /Volumes/Volume/crypto-autoresearcher-worktrees/ecdlp-batch006/ledger
+    grep_results:
+      - >-
+        "p-flat|flat across bits|tautological artifact|p-independent constant"
+        in the report corpus - 16 occurrences across 6 files
+        (PAPER_prime_field_ecdlp_resistance_map.md 2, negative_results.md 4,
+        round_011_synthesis.md 5, round_012_synthesis.md 3,
+        round_010_synthesis.md 1, round_005_synthesis.md 1). Read in full - the
+        p-flat cost signature is an established diagnostic in that corpus and
+        was the basis for overturning a self-labelled POTENTIAL SURVIVOR.
+      - >-
+        In this ledger, no record contains a yield-charged descent cost. EV-IC-001
+        states the confound in its own boundaries block ("all Groebner solves on
+        trivial ideals (no decompositions)"; "S_rel heuristic not directly
+        measured at bits >= 16") but the arithmetic consequence is not drawn and
+        no control exists.
+    literature_verified: []
+    conclusion: >-
+      The diagnostic and the counting bound are both known. This record is a
+      control importing a known diagnostic into a live ledger claim; no novelty
+      is asserted.
+  assumptions:
+    - >-
+      Targets in EXP-IC-001 were drawn effectively uniformly from the
+      prime-order subgroup, so the counting bound applies. If targets were
+      biased, the bound must be recomputed on the actual target distribution.
+    - >-
+      T_desc as recorded in EV-IC-001 is the cost of one attempted
+      decomposition, not the cost of one successful decomposition. The runs
+      found no decompositions at all, which makes this reading the only
+      consistent one.
+    - >-
+      The factor base was fixed at B = 14 independently of N across all bit
+      sizes, as recorded in EV-IC-001.
+    - >-
+      Membership of a target in the precomputed set of factor-base sums can be
+      decided by hash lookup, so P_dec can be estimated without any Groebner
+      call. This is what makes the test implementation-independent.
+  predictions:
+    - metric: decomposition_success_probability_P_dec
+      direction: lower
+      minimum_effect: >-
+        P_dec(N) <= 2 * (B^2/2) / N at every tested instance, which at B = 14
+        and N = 3 x 10^9 is P_dec <= 7.4 x 10^-8. The competing prediction is
+        P_dec >= 10^-3 at N >= 10^9, which exceeds the counting bound by more
+        than four orders of magnitude and cannot occur without an error or
+        genuine structure.
+    - metric: yield_charged_T_desc_over_sqrt_N
+      direction: higher
+      minimum_effect: >-
+        The yield-charged ratio increases monotonically over the tested bit
+        range with at least a 10x rise from 8-bit to 36-bit, in contrast to the
+        300x FALL reported for the uncharged ratio in EV-IC-001. A charged
+        ratio that still falls falsifies this record.
+    - metric: K_star_yield_charged
+      direction: different
+      minimum_effect: >-
+        K* = infinity for 4/4 of the instances that DEC-20260726-005 counted as
+        finite. Any instance retaining a finite charged K* falsifies this
+        record for that instance.
+    - metric: p_flatness_of_uncharged_attempt_cost
+      direction: different
+      minimum_effect: >-
+        The uncharged per-attempt cost varies by less than 2x across 8-36 bits
+        (confirming the p-flat signature) while the yield-charged cost varies by
+        more than 10^6x over the same range. If the uncharged cost instead
+        grows with N, the p-flat diagnosis does not apply.
+  minimal_test:
+    design: >-
+      Use the exact curve and seed set of EXP-IC-001 with the same B = 14,
+      m = 2 configuration. (1) At bits 8, 12, 16 and 20, enumerate all
+      C(B,2) + B factor-base sums, deduplicate them, and compute P_dec exactly
+      as the number of distinct reachable group elements divided by N.
+      (2) At bits 24, 28, 32 and 36 (including the four instances with
+      N > 10^9), precompute the same sum set once and estimate P_dec by drawing
+      at least 10^6 uniform random targets and testing set membership by hash
+      lookup - no Groebner call is required at any point. (3) Recompute
+      T_desc_charged = T_attempt / P_dec using the SAME group-operation
+      calibration EXP-IC-001 used, so the only change is the yield factor.
+      (4) Recompute K* = ceil((S_rel + S_LA) / (sqrt(N) - T_desc_charged)) with
+      the same accounting rules, reporting infinity when the denominator is not
+      positive. (5) Plot charged and uncharged T_desc / sqrt(N) on the same
+      axes across all bit sizes.
+    controls:
+      - >-
+        Exhaustive truth control at 8-12 bits - exact enumerated P_dec against
+        the sampled estimate on the same instances; the two must agree within
+        sampling error, validating the estimator used at larger sizes.
+      - >-
+        Matched Pollard rho with negation and matched BSGS on the same
+        instances, in the same group-operation unit already used by
+        EXP-IC-001.
+      - >-
+        Scaling positive control - repeat at B = ceil(sqrt(N)) with m = 2,
+        where P_dec is approximately 1/2 by construction. Charged and uncharged
+        costs must then agree within a factor 2, confirming that the charging
+        procedure introduces no artifact of its own.
+      - >-
+        Implementation-invariance control - repeat the charged computation with
+        the Groebner-to-group-op calibration factor perturbed by 10x in each
+        direction. The sign of the trend in T_desc_charged / sqrt(N) must not
+        change, because the yield term is pure counting.
+      - >-
+        Zero-cost-oracle control - set T_attempt to 0 and confirm that the
+        remaining IC cost (relation collection plus linear algebra) is reported
+        separately, so the yield effect is isolated from the oracle cost.
+    required_metrics:
+      - P_dec per instance, both enumerated and sampled, with confidence bounds
+      - distinct reachable factor-base sums per instance and the counting bound
+      - T_attempt per instance in group-operation equivalents (unchanged)
+      - T_desc_charged per instance and the ratio T_desc_charged / sqrt(N)
+      - K* charged and uncharged per instance
+      - matched rho and BSGS group-operation counts per instance
+      - calibration-perturbation sensitivity of the charged trend sign
+  falsification_conditions:
+    - >-
+      Measured P_dec exceeds the counting bound (B^2/2)/N by more than 2x at
+      any instance - the counting mechanism underlying this record is wrong and
+      the H-IC-001 result may survive as stated.
+    - >-
+      The yield-charged ratio T_desc_charged / sqrt(N) still decreases with N
+      over the tested range - the artifact explanation fails.
+    - >-
+      Any instance retains a finite K* after yield charging - the reversal claim
+      is false for that instance and must be scoped accordingly.
+    - >-
+      The scaling positive control (B = ceil(sqrt(N))) shows charged and
+      uncharged costs differing by more than 2x - the charging procedure itself
+      is introducing an artifact and the test is inconclusive.
+  confounders:
+    - >-
+      The Groebner-seconds to group-operations calibration is implementation
+      bound, but it multiplies both the charged and uncharged costs identically
+      and therefore cannot change the sign of the trend. This is precisely why
+      the test is decisive without re-running any solver.
+    - >-
+      Distinct factor-base sums may collide, which lowers the reachable set
+      below C(B,2) + B. This makes P_dec smaller, so the bias direction is
+      known and strengthens rather than weakens the prediction.
+    - >-
+      The four finite-K* instances in EV-IC-001 are different curves with
+      different N; P_dec must be computed per instance, not pooled.
+    - >-
+      Sampling at 10^6 targets cannot resolve a P_dec below about 10^-6, so at
+      the largest N only an upper bound is obtainable. An upper bound is
+      sufficient for the prediction, which is one-sided.
+  interpretation_limits:
+    - >-
+      A confirmation closes only the (B = 14, m = 2) parameterization of
+      EXP-IC-001 under the stated accounting rules. It is a correction to a
+      ledger claim, not evidence about index calculus in general and not
+      evidence about ECDLP at cryptographic scale.
+    - >-
+      K* = infinity here is a statement about a specific fixed-factor-base
+      configuration that cannot yield decompositions, not a statement that
+      multi-target amortization is impossible.
+    - >-
+      A refutation (yield far above the counting bound) is a measurement claim
+      requiring independent replication before it is treated as structure.
+    - >-
+      Nothing in this record touches the generic preprocessing frontier
+      S * T^2 = Omega(eps N) or the Shoup bound; those remain the controlling
+      references for the multi-target question.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  source_refs:
+    - ledger/hypotheses/H-IC-001.yaml
+    - ledger/evidence/EV-IC-001.yaml
+    - ledger/decisions/DEC-20260726-005.yaml
+    - /Volumes/Volume/git/autolab/research/PAPER_prime_field_ecdlp_resistance_map.md

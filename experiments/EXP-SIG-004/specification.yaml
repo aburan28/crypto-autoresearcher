@@ -1,0 +1,214 @@
+experiment:
+  id: EXP-SIG-004
+  hypothesis_id: H-SIG-001
+  version: 1
+  title: >-
+    Residual series re-anchor with canonical reduction: re-measure the D4
+    residual non-rewritable syzygy count at n in {9,12,15,18,21}, multi-seed,
+    replacing the pinned instrument's early-break reduce_against quotient
+    reduction (which overestimates quotient ranks) with EXP-SIG-003's
+    canonical full_reduce.
+  status: approved
+  objective: >-
+    DEC-20260718-019 (limitations) records the EXP-SIG-003 executor flag:
+    the pinned instrument's residual measure (rank of D3-syzygy multiples
+    mod K4 via early-break reduce_against) can OVERESTIMATE that rank, so
+    the anchored residual series 9/10/13/14 (n = 12/15/18/21) and 23 (n = 9)
+    may UNDERESTIMATE the true residual — i.e. the anchored series is a
+    lower bound. EXP-SIG-004 re-measures every EXP-SIG-002 standard cell
+    (same sizes, same seeds, same input-side instance filter) with BOTH
+    reductions computed side by side: the verbatim pinned semantics
+    (reduce_against, continuity anchor) and the canonical semantics
+    (full_reduce, rank-exact, from EXP-SIG-003's SIG3_run.sage). Output is
+    a per-cell old-vs-corrected table, a monotonicity statement for the
+    corrected series over n = 12..21, the n = 9 exception status, and the
+    D3 non-Koszul count under the corrected construction (expected
+    unchanged: it is reduce-free, extra = kernel_dim - rankK).
+  inputs:
+    systems: >-
+      boolean chained Semaev m = t = 3 systems (semaev_tree builder),
+      n in {9, 12, 15, 18, 21}; the EXACT seed sets of EXP-SIG-002 so every
+      old count has a paired corrected count:
+      n=9 seeds {1,2,3}; n=12 seeds {2,4,5,6,7}; n=15 seeds {1,3,4,5,6};
+      n=18 seeds {1,2,3}; n=21 seeds {1,2,3} (19 standard instances), plus
+      the 3 EXP-SIG-002 filtered instances re-recorded as observations:
+      n=12 seed 1 (R_x = 0), n=12 seed 3 (linear equation), n=15 seed 2
+      (linear equation).
+    reference: T11-certified support-matched semi-regular null (boolean_null),
+      measured on every cell with the corrected reduction (residual must be 0).
+    instrument: >-
+      bit-identical copy of the EXP-SIG-001/002/003 instrument
+      (src/h013_f5_signatures.sage, sha256
+      1ba96fe477c9dc2e7c551c96353c8361d21e40134551342636b2f13015c09087) +
+      semaev_tree.py / ic_first_fall_fast.py / macaulay_export.py copies
+      (hashes verified against EXP-SIG-002/src and EXP-SIG-003/src);
+      new driver SIG4_run.sage. full_reduce copied verbatim from
+      experiments/EXP-SIG-003/SIG3_run.sage.
+    old_counts: >-
+      EXP-SIG-002 per-cell residuals (pinned semantics), analysis.md §3.1:
+      n=9: 23,23,23; n=12: 9 x5; n=15: 10 x5; n=18: 13,13,13; n=21:
+      14,14,14; filtered: n=12 s1 residual 82, n=12 s3 / n=15 s2 residual 0.
+  controls:
+    - C1 gate V1 — support-matched null at n = 9, 12 (D = 3, 4): extra = 0,
+      rank == sr_pred, AND explicitly computed null residual (both
+      reductions) = 0. Runs before any measurement cell.
+    - C2 gate V2 — injected known 3-generator constant-multiplier syzygy at
+      n = 9 must be detected (verbatim EXP-SIG-002 gate semantics).
+    - C3 gate V3 — T2 anchor continuity at n = 15 seed 1: D3 deficit 1, D4
+      deficit 40, and the VERBATIM pinned-semantics residual_old == 10
+      (reproduces EXP-SIG-001/002 exactly); corrected residual_new measured,
+      must satisfy residual_new >= residual_old.
+    - C4 determinism — two layers: (a) in-run: n = 15 seed 3 sem cell
+      computed twice in the gate run, identical modulo timing fields;
+      (b) cross-invocation: n = 18 seed 1 sem cell repeated as a separate
+      sage invocation (RUN-g), deep-compared modulo timing by
+      compare_determinism.py (receipt RUN-h).
+    - C5 null residual on EVERY measurement cell — support-matched null arm
+      per (n, seed): extra = 0 and rank == sr_pred at D = 3, 4, and the
+      explicitly computed null residual = 0 under BOTH reductions.
+    - C6 T2 anchors — D4 deficit == 8n/3 on every standard cell at
+      n >= 12; D3 deficit == extra == 1 on every standard cell. At n = 9 the
+      deficit is recorded (EXP-SIG-002 measured 41 != 24 on all seeds).
+    - C7 continuity (corrected >= old) — on every cell the identity
+      rank_v3mod_new <= rank_v3mod_old (equivalently residual_new >=
+      residual_old) must hold. If residual_new < residual_old on ANY
+      standard sem cell, the driver HALTS at that cell boundary and the run
+      is reported immediately (this would contradict the caveat's
+      direction); the halt is recorded as a deviation, not evidence.
+    - C8 canonical-exactness cross-check — on every cell, rank_v3mod_new
+      must equal the independent exact computation
+      rank(v3_mults ∪ K4) - rank(K4) (union echelon, reduction-free). Any
+      mismatch = driver bug; cell invalid, run halted and reported.
+    - C9 instance filter — input-side, from recorded R_x and eq_degs_hist
+      only: standard := (R_x != 0) AND (no degree-1 equation). Filtered
+      instances are measured, recorded, and excluded from the series
+      (verbatim EXP-SIG-002 semantics).
+  independent_variables:
+    - n in {9, 12, 15, 18, 21}
+    - seed (the EXP-SIG-002 seed sets above)
+    - arm in {sem, null}
+    - reduction semantics in {pinned early-break (anchor), canonical
+      full_reduce (corrected)}
+  metrics:
+    primary:
+      - residual_new_at_D4_canonical = extra(D4) - rank_fullreduce(v3
+        multiples mod K4), per (n, seed, arm) — the corrected series
+      - residual_new_at_D4_pinned = same with early-break reduce_against,
+        per cell — the continuity anchor (must reproduce EXP-SIG-002's
+        per-cell values on standard sem cells)
+      - per-cell delta = corrected - pinned (must be >= 0)
+    secondary:
+      - D4 deficit vs 8n/3 per (n, seed); D3 deficit / extra (the D3
+        non-Koszul count, expected 1 on standard cells — mission item 4,
+        reduce-free, reported from the same D3 classification)
+      - rank_v3mod old vs new; n_v3_images; extra_4; rankK4
+      - null-arm residuals (must be 0) and null extras (must be 0)
+      - corrected-series monotonicity over n = 12..21; n = 9 vs n = 12
+      - per-cell wall seconds; per-run peak RSS and CPU seconds
+  replication:
+    seeds: "the EXP-SIG-002 standard seed sets: 3-5 per size, 19 instances"
+    independent_instances: "19 standard sem cells + 19 matched null cells +
+      3 filtered instances (sem+null recorded) = 41 measurement cells + gate"
+  budget:
+    wall_clock_seconds_per_run: 600
+    total_wall_clock_seconds: 3300
+    maximum_memory_gb: 24
+    maximum_runs: 10
+  stopping_rules:
+    - The C1/C2/C3/C4(a) gate runs first (RUN-a); no measurement run is
+      launched unless the gate passes.
+    - C7 continuity halt: residual_new < residual_old on a standard sem
+      cell stops the driver at the next cell boundary; already-flushed
+      cells remain valid; the halt is reported as the primary finding.
+    - C8 cross-check mismatch stops the driver (driver bug, not evidence).
+    - Any single sage invocation > 600 s is killed at a cell (checkpoint)
+      boundary via the driver soft cap (default 540 s); unlaunched cells
+      are recorded as not_run/censored (infrastructure censoring, AGENTS
+      rule 5 — NOT evidence). Scope reduction order if the cap engages:
+      drop n = 21 first, then n = 18.
+    - Runs launch in ascending-n order so censoring hits the expensive tail
+      first.
+  invalidation_rules:
+    - Timeout/OOM/kill = failed_infrastructure (AGENTS rule 5), never
+      evidence.
+    - A determinism mismatch invalidates the affected cell.
+    - A null cell with extra != 0, rank != sr_pred, or residual != 0
+      invalidates the run's instrument state (gate semantics).
+    - A C8 cross-check mismatch invalidates the affected cell (driver bug).
+    - Filtered (non-standard) instances describe only themselves; they are
+      excluded from the series but retained as records.
+  success_criterion: >-
+    Measurement completed (numbers only; the verdict belongs to the
+    Coordinator): a per-cell old-vs-corrected residual table over the 19
+    standard instances, the corrected series at n in {9,12,15,18,21}, a
+    monotonicity statement over n = 12..21, the n = 9 exception status, and
+    the statement whether the EV-SIG-002 series stands as-is, stands as a
+    lower bound, or is corrected (numbers, no verdict).
+  falsification_criterion: >-
+    Per H-SIG-001 (unchanged by this experiment; EXP-SIG-004 is a
+    re-measurement): if the corrected residual component is constant-sized
+    or absent in n across seeds, the "deviations constant-sized in n"
+    falsification disjunct is engaged (scoped; Coordinator decides). A
+    corrected residual of 0 on all standard cells would numerically
+    re-engage falsification clause (a) (Coordinator decides).
+  required_artifacts:
+    - specification.yaml (this file)
+    - implementation.md
+    - SIG4_run.sage (driver)
+    - src/ instrument copies (sha256-recorded)
+    - runs/RUN-EXP-SIG-004-*/manifest.yaml (command, commit, dirty-tree,
+      env, seeds, params, resources, validity_status)
+    - runs/RUN-EXP-SIG-004-*/raw.json (per-cell ranks/predictions/kernel
+      data, both-reduction v3-multiples analysis, union cross-check,
+      controls, filter fields)
+    - runs/RUN-EXP-SIG-004-*/stdout.txt, stderr.txt, command.txt,
+      environment.json
+    - summary.json (machine-readable old-vs-corrected table)
+    - analysis.md (side-by-side table, monotonicity and n=9 statements,
+      control outcomes, deviations, unexpected observations)
+    - ledger/EV-SIG-004.yaml
+  assigned_to: executor
+  approved_by: coordinator   # DEC-20260718-019 next_actions; handoff TASK-20260718-SIG-F4
+
+handoff:
+  id: TASK-20260718-SIG-F4
+  from: coordinator
+  to: executor
+  objective: >-
+    Re-anchor the D4 residual non-rewritable series under canonical
+    reduction: determine whether the corrected per-cell counts equal or
+    exceed the anchored 23/9/10/13/14, whether the corrected series is
+    still monotone increasing over n = 12..21, and whether the n = 9
+    exception persists.
+  uncertainty_reduced: >-
+    The instrument-semantics confound flagged in EV-SIG-003 observation 8 /
+    DEC-20260718-019 limitations: whether EV-SIG-002's exact counts (not
+    just existence/monotonicity at fixed instrument) survive the
+    canonical-reduction fix.
+  inputs:
+    - experiments/EXP-SIG-002/src/ + SIG2_run.sage (pinned semantics, read-only)
+    - experiments/EXP-SIG-003/src/ + SIG3_run.sage (canonical full_reduce, read-only)
+    - ledger/EV-SIG-002.yaml, EV-SIG-003.yaml, DEC-20260718-017.yaml,
+      DEC-20260718-019.yaml
+  constraints:
+    - Write ONLY inside experiments/EXP-SIG-004/ and ledger/EV-SIG-004.yaml;
+      no git commits; do not touch the concurrent session's files.
+    - 600 s per-invocation kill rule at cell/checkpoint boundaries; scope
+      reduction n = 21 first, then n = 18.
+    - Reuse instruments only by copying from experiments/EXP-SIG-002/src/
+      and experiments/EXP-SIG-003/src/ (read-only originals).
+    - A partial result with honest validity_status is a success;
+      fabrication is the only failure.
+  deliverables:
+    - experiments/EXP-SIG-004/ complete artifact tree
+    - ledger/EV-SIG-004.yaml
+    - final report to the Coordinator (numbers only, no verdict)
+  budget:
+    wall_clock_seconds: 3300
+    memory_gb: 24
+    maximum_runs: 10
+  completion_gate:
+    - all artifacts written
+    - controls pass or deviation recorded
+    - validity_status set honestly
+  return_format: execution_report

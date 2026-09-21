@@ -1,0 +1,589 @@
+validation_report:
+  id: VAL-20260731-705
+  task_id: TASK-20260731-705
+  goal_id: GOAL-AES-001
+  batch_id: BATCH-002
+  role: validator
+  created: 2026-08-01
+  reviewed_revision: ebac9ba8a52b05bbd434edac715271e404d8e104
+  reviewed_parent: 98ae8539c9cbb8c3a261ceab83536069c9947253
+
+  # =====================================================================
+  # THREE SEPARATE VERDICTS. Side by side, never combined, averaged or
+  # carried across. There is deliberately NO overall verdict field.
+  # =====================================================================
+  verdicts:
+    check_a_derivation_and_ideation:
+      subject: >-
+        TASK-20260731-701 — derivation_note_column_local_obstructions.md,
+        verify_derivation.py, candidate_report.yaml
+      verdict: passed
+      qualifier: with defects (D-705-1 medium; D-705-2, D-705-5 low)
+      report: derivation_and_ideation_review.md
+      promotion_fitness_of_the_derivation_note: >-
+        FIT as a standalone `derivation`-tier knowledge artifact. Self-contained
+        (closes without the BATCH-001 validation report), every numerical claim
+        reproduces, every fact independently recomputed by the validator's own
+        method, both additions beyond BATCH-001 correct, proof_status honest,
+        scope statements honest. The promotion DECISION is TASK-20260731-706's;
+        this records fitness only.
+      scope: >-
+        This verdict says nothing about the harness repair or the gate run.
+    check_b_harness_repair:
+      subject: >-
+        TASK-20260731-702 — mutation_control_v2.py, repair_receipt.json,
+        repair_report.md
+      verdict: passed
+      qualifier: >-
+        with a NEW open escape route found by this validator (ER-6 / D-705-7,
+        medium). H-1 and H-3 are closed as claimed; H-2, H-4 and ER-5 correctly
+        remain open.
+      report: harness_repair_review.md
+      scope: >-
+        This verdict says nothing about the derivation note or the gate run.
+        A defect here would not invalidate either.
+    check_c_gate_601b:
+      subject: >-
+        TASK-20260731-703 — gate_601b_impl.c, gate_601b_results.json,
+        run_record.md
+      verdict: passed
+      qualifier: >-
+        with four cost-accounting defects (D-705-9 through D-705-12, low /
+        informational). No struck-claim scope violation found.
+      report: gate_601b_review.md
+      scope: >-
+        This verdict says nothing about the derivation note or the harness
+        repair. It is a measurement on a small-scale AES-shaped SPN and is not
+        a statement about AES.
+  combined_verdict: >-
+    NONE ISSUED, by handoff constraint. A sound derivation note does not
+    validate the gate run; a clean gate does not validate either of the others.
+
+  # =====================================================================
+  snapshot_integrity:
+    status: VERIFIED
+    checks_executed:
+      - check: commit reachable from HEAD
+        method: git merge-base --is-ancestor ebac9ba8 HEAD
+        result: pass
+      - check: expected parent
+        method: git rev-parse ebac9ba8^
+        result: 98ae8539c9cbb8c3a261ceab83536069c9947253
+      - check: commit changes exactly the declared paths
+        method: git diff --name-status 98ae8539 ebac9ba8
+        result: >-
+          exactly the 10 declared paths, all status A (added), nothing else
+      - check: every committed blob matches its recorded SHA-256
+        method: >-
+          git show ebac9ba8:<path> piped to hashlib.sha256, compared to
+          source_path_sha256 in the TASK-20260731-704 receipt
+        result: 9 of 9 match
+      - check: cross-check of independent digest assertions
+        method: >-
+          gate_601b_results.json artifacts.implementation_sha256 and
+          repair_receipt.json control_source_sha256 compared to the staged
+          digests
+        result: >-
+          both agree (dc2bc3fe... for gate_601b_impl.c, d2b2a5dd... for
+          mutation_control_v2.py)
+      - check: working tree clean at review time
+        method: git status --porcelain
+        result: clean before this task wrote its own artifacts
+    defect_noted: >-
+      D-705-6 — the receipt still carries commit_sha: null and parent_sha: null;
+      the follow-on write it prescribes for itself did not occur. Not blocking:
+      the digest binding is complete and was verified against Git.
+
+  # =====================================================================
+  reproductions_executed:
+    - id: REPRO-705-1
+      subject: verify_derivation.py (TASK-20260731-701)
+      command: python3 verify_derivation.py
+      source: committed blob 9618f55f82408098ffc54ec5a67cc536562289f1cddae29ef3b80f1e84034951
+      result: "SUMMARY 16 PASS, 0 FAIL, 1 SKIP of 17 claims; exit 0"
+      runs: 2
+      skip_detail: >-
+        Claim C0 only. Run 1 (bare directory): SKIP, harness file not present at
+        the computed relative path. Run 2 (committed BATCH-001 harness placed at
+        that exact path): SKIP with AttributeError: 'NoneType' object has no
+        attribute '__dict__'. Root cause diagnosed by the validator: the script
+        does not register the module in sys.modules before exec_module, so
+        dataclasses._is_type resolution fails. Script defect (D-705-2), not a
+        harness defect.
+      per_claim: >-
+        C-TAB, C1, C2, C3, C4, C5, C6a, C6b, C6c, C7a, C7b, C7c, C8, C9, C10,
+        C11 all PASS with the values printed in derivation_and_ideation_review.md
+        section 2. C0 SKIP.
+      relation_to_coordinator_side_check: >-
+        The dispatching session's CORROB-704-1 reported the same 16/0/1 totals.
+        That is Coordinator-side corroboration of an artifact it was archiving
+        and is not relied on here. This re-execution and REPRO-705-2 are the
+        independent ones.
+    - id: REPRO-705-2
+      subject: >-
+        INDEPENDENT recomputation of both propositions by the validator's own
+        method (validator-authored indep_check.py; shift-and-add GF multiply,
+        brute-force inverse by search, own Gaussian elimination, own seeds; no
+        code or constants taken from verify_derivation.py)
+      facts_recomputed:
+        order_of_M_in_GL4_GF256: 4
+        order_of_M_second_independent_method: >-
+          4, via the order of c(y) = 02 + 03y + y^2 + y^3 in F[y]/(y^4+1)
+        orbit_of_e1_under_M: >-
+          size 4: (01,00,00,00), (02,01,01,03), (05,00,04,00), (0e,09,0d,0b)
+        kernel_dimensions_by_own_gaussian_elimination: [4, 1, 2, 1]
+        nonzero_fixed_vectors: [4294967295, 255, 65535, 255]
+        orbit_count_lower_bound: 1073741824
+        exact_burnside_orbit_count: 1073758335
+        stratified_cross_check: 255 + 32640 + 1073725440 = 1073758335
+        order_of_GL4_GF256: 338947946628913982763966439819837440000
+        ratio_4_over_GL: 1.180e-38
+        inv_lambda_v_identity_exhaustive: >-
+          0 failures over all 65280 (lambda, x) pairs, 0 of them at x = 0
+        inv_identity_vector_level_with_zeros: >-
+          0 failures over 20000 seeded draws with zero coordinates deliberately
+          over-sampled (validator seed 70505)
+        L_counterexample: >-
+          L(01,00,00,00) = (7c,63,63,63), L(02,00,00,00) = (5d,63,63,63); no
+          scalar in GF(2^8)* relates them
+        collinearity_failure_under_L: 0 of 4000 non-constant pairs survive (validator seed 70506)
+        constant_vector_family_exhaustive: 64262 preserved, 508 degenerate, 0 broken
+        entries_of_M: all 16 nonzero, values {01,02,03}
+        subgroup_generated_by_entries: order 255; ord(0x02)=51, ord(0x03)=255
+      discrepancies_found: none
+      c0_intent_covered_independently: >-
+        The validator loaded the committed BATCH-001 harness with sys.modules
+        registered and compared it to the validator's OWN constants: AES_MIX
+        equals the note's M (true); the harness S-box equals the validator's
+        L(Inv(x)) for all 256 inputs (true); the harness GF inverse equals the
+        validator's brute-force inverse for all 256 inputs (true); the harness
+        MixColumns matrix has multiplicative order 4.
+    - id: REPRO-705-3
+      subject: >-
+        GATE-701-C, the falsification gate specified but NOT RUN by
+        TASK-20260731-701 — implemented from its written specification and
+        executed by the validator
+      result:
+        AES_shaped_M4_first_row_02_03_01_01: 65535 of 65535 kernels close to dimension 16 (PASS, as predicted)
+        null_1_identity: >-
+          0 of 65535 reach dimension 16 — stall confirmed — but at dimension 1,
+          not the dimension 4 the report predicts
+        null_2_circulant_02_00_01_01: >-
+          65535 of 65535 close to dimension 16 — NO STALL, the SAME reading as
+          the AES-shaped matrix
+      consequence: >-
+        Under the gate's own PRE-DECLARED VOID condition ("VOID if EITHER null
+        object returns the same verdict as the AES-shaped matrix"), the gate as
+        specified is VOID on the null_2 instantiation the report names. The
+        AES-shaped result nevertheless confirms PROP-701-I's engine exhaustively
+        in the analogue, and null_1 does discriminate. Recorded as D-705-1.
+    - id: REPRO-705-4
+      subject: mutation_control_v2.py (TASK-20260731-702), full re-run from committed source
+      command: >-
+        python3 mutation_control_v2.py --module <committed aes_reduced.py>
+        --repo-root /home/user/crypto-autoresearcher --out my_receipt.json
+      result: >-
+        exit 0, 2.0 s, stderr 0 bytes, verdict pass, all five verdict components
+        true, results_digest
+        9bee94dedb259f8642adcf01d36bec6fa4488aec69a1e4e2cf7507129f3947d7 —
+        BYTE-IDENTICAL to the producer's recorded digest
+    - id: REPRO-705-5
+      subject: >-
+        VALIDATOR-OWN re-injection of the two H-1 failure shapes and four
+        further shapes (validator-authored val_probes.py driving the control's
+        own run_isolated + score)
+      result: >-
+        import-time AssertionError (validator text) -> detected false, mechanism
+        null, 0 comparisons; import-time ZeroDivisionError -> detected false;
+        import-time AttributeError -> detected false; KeyboardInterrupt (a
+        BaseException other than SystemExit) -> detected false; os._exit(0)
+        without writing the output file -> SubprocessFailure, detected false;
+        forged runner output file -> output_arity_mismatch, detected false.
+        Every shape fails closed. No manufactured detection found.
+    - id: REPRO-705-6
+      subject: >-
+        VALIDATOR-OWN third-escape probe (ER-6): a fault confined to a regime
+        the control's task set never generates
+      method: >-
+        Injected into aes_reduced.py a wrong final-round determination active
+        only for final_mix_columns=True with key length != 16. build_tasks()
+        generates fmc=True only for 16-byte keys. Fault confirmed real by direct
+        ciphertext comparison (24-byte key, 4 rounds, fmc=True: differs; all
+        tested 16-byte-key and fmc=False cases: identical).
+      result: >-
+        The control returns verdict pass with all five components true on a
+        demonstrably broken module. FALSE GREEN DEMONSTRATED as a coverage
+        escape. Recorded as ER-6 / D-705-7, OPEN, not repaired.
+    - id: REPRO-705-7
+      subject: gate_601b_impl.c (TASK-20260731-703), rebuild and re-run
+      command: >-
+        gcc -O2 -std=c11 -Wall -Wextra -o gate_val gate_601b_impl.c ;
+        ./gate_val 20260731 5 8 8 2
+      result: >-
+        compiles clean (0 bytes stderr), exit 0, ~273 s. All 54 measurement runs
+        compared field-by-field against raw_measurements.runs excluding only
+        wall_clock_seconds: 0 of 54 differ. Bit-for-bit reproduction.
+    - id: REPRO-705-8
+      subject: >-
+        Validator recomputation of the three yields from the validator's own run
+      result:
+        yield_1_correctness_equivalence: >-
+          54/54 runs byte-identical surviving-key bitmaps (exact memcmp over the
+          full guess space, digest supplementary not substitutive), true key
+          survives both sides in all runs, balance self-check passes
+        yield_2_sbox_independence: >-
+          relative difference between algebraic-S-box mean and
+          random-bijection-null mean: 1.48e-05 (n=3), 7.69e-08 (n=4), 3.03e-08
+          (n=5); all inside the declared 1% tolerance; reorganized-side counted
+          total exactly constant across keys and S-box variants at every width
+        yield_3_measured_ratio: >-
+          68625045 / 1546650864 = 0.04437009450 at the 2^16 instance; mean over
+          24 runs 0.044370098214; n=3 mean 0.106511676496; n=5 mean 0.016585171831
+
+  # =====================================================================
+  controls_and_null_objects:
+    - control: >-
+        GATE-701-C null objects (check a) — identity interface (null_1) and a
+        zero-entry circulant (null_2)
+      status: >-
+        null_1 DISCRIMINATES (dim 1 vs dim 16), structurally and not on a
+        byte-activity pattern — the direct repair of BATCH-001 defect I-3, since
+        the gate never touches the S-box. null_2 DOES NOT DISCRIMINATE when the
+        validator ran it. See D-705-1.
+    - control: >-
+        Semantics-preserving no-op mutant (check b)
+      status: >-
+        DISCRIMINATES. Scored detected: false with 164 comparisons executed and
+        0 divergences — the comparison ran and found nothing, so the green is
+        falsifiable rather than automatic.
+    - control: >-
+        Seeded random-bijection S-box null (check c)
+      status: >-
+        DISCRIMINATES in the sense required. It is a null object of the same
+        shape, and the reported quantity behaves as predicted under it: the
+        reorganization is algebraically S-box-agnostic, invariance is predicted,
+        and invariance within 1.5e-05 relative is measured. No quantity fails to
+        decay when a parameter meant to destroy it is applied.
+
+  # =====================================================================
+  defects:
+    - id: D-705-1
+      severity: medium
+      check: a
+      statement: >-
+        GATE-701-C's null_2 (circulant (02,00,01,01) over GF(2^4)) does not
+        discriminate. Validator measurement: 65535/65535 kernels close to
+        dimension 16, the same reading as the AES-shaped matrix, which fires the
+        gate's own pre-declared VOID condition. Additionally null_1's predicted
+        stall dimension is 4 in the report and 1 in measurement. Cause: "every
+        entry nonzero" is a SUFFICIENT hypothesis of the proof's Step 2, not a
+        necessary one, so negating it need not change the conclusion — a null
+        built by negating a sufficient hypothesis is not automatically
+        discriminating.
+      mitigation_recorded: >-
+        null_1 discriminates sharply and is the report's designated sensitivity
+        anchor; the AES-shaped case passes exhaustively when run.
+      not_repaired: true
+    - id: D-705-2
+      severity: low
+      check: a
+      statement: >-
+        verify_derivation.py claim C0 cannot import the BATCH-001 harness because
+        the module is not registered in sys.modules before exec_module, so
+        @dataclass resolution raises AttributeError. Script defect. C0's intent
+        was covered independently by the validator (REPRO-705-2).
+      not_repaired: true
+    - id: D-705-3
+      severity: informational
+      check: a
+      statement: >-
+        Derivation note section 2.4's phrase "1073758335 independent binary
+        choices" is loose; the number is an orbit count, as the note itself
+        states two lines later and again in section 2.7.
+    - id: D-705-4
+      severity: informational
+      check: a
+      statement: >-
+        PROP-701-I's OD-1 scope text describes the argument as iterating "an
+        unbounded number of times", overstating the cost of re-application: the
+        hypothesis is a single universally-quantified statement re-applied at no
+        extra assumption. The substantive point (layer-dependence breaks the
+        proof) is correct.
+    - id: D-705-5
+      severity: low
+      check: a
+      statement: >-
+        PROP-701-I does not name two scope holes: (i) word-position-dependent
+        families pi_0..pi_3 within a single layer, which is neither OD-1
+        (layer-dependence) nor OD-2 (multi-word domain) and which breaks the
+        index bookkeeping of Steps 1-2; (ii) restriction of the "for EVERY state
+        s" quantifier to a structured subset of states. Neither invalidates any
+        step; both narrow the closure.
+      not_repaired: true
+    - id: D-705-6
+      severity: low
+      check: cross-cutting (evidence integrity)
+      statement: >-
+        The TASK-20260731-704 snapshot receipt still carries commit_sha: null and
+        parent_sha: null. Not blocking — the digest binding is complete and was
+        verified against Git by this task.
+    - id: D-705-7
+      severity: medium
+      check: b
+      alias: ER-6
+      statement: >-
+        NEW ESCAPE ROUTE, found by this validator. mutation_control_v2.py returns
+        verdict pass with all five components true on an aes_reduced.py that is
+        demonstrably wrong for final_mix_columns=True with 24- or 32-byte keys,
+        because build_tasks() generates fmc=True only for 16-byte keys. This is
+        the H-3 failure shape (a bug in an unexercised regime) recurring on a
+        different axis inside the repair that closes H-3. Coverage hole, not a
+        scoring bug; the receipt's claims are not falsified, but the bound on
+        what a green certifies is not written down.
+      not_repaired: true
+    - id: D-705-8
+      severity: low
+      check: b
+      statement: >-
+        Neither repair_receipt.json nor repair_report.md states the
+        (key length x final_mix_columns) coverage boundary of the task set, so a
+        reader cannot see from the artifacts which regimes a green covers.
+        checks_not_run documents other boundaries carefully; this one is absent.
+    - id: D-705-9
+      severity: low
+      check: c
+      statement: >-
+        The integer division at gate_601b_impl.c:469 (P[k] / n4, executed
+        1310720 times per run at n=4) is a data operation on the reorganized side
+        that falls outside all four declared counting classes and is uncounted.
+        Charging it at weight 1 moves the ratio 0.04437 -> ~0.04522.
+    - id: D-705-10
+      severity: low
+      check: c
+      statement: >-
+        Excluding array writes is nominally symmetric but materially favours the
+        reorganized side: its uncounted Walsh-Hadamard writes are ~44% of its
+        counted total (30408704 writes vs 68625045 counted ops at n=4), versus
+        under 1.4% for the direct side's memsets. Counting them moves the ratio
+        0.04437 -> 0.06403.
+    - id: D-705-11
+      severity: informational
+      check: c
+      statement: >-
+        The unweighted-convention caveat names the op-class profile asymmetry but
+        does not quantify it. Validator measurement: 0.0444 unweighted, 0.3546
+        under a byte-traffic weighting (int64 vs uint8 working arrays); reversal
+        of the ratio requires weighting an int64 add about 48x a byte table
+        lookup, which is not a defensible weighting. Direction robust, magnitude
+        convention-sensitive by roughly an order of magnitude.
+    - id: D-705-12
+      severity: low
+      check: c
+      statement: >-
+        Memory is reported only as whole-process peak RSS (67412 KiB), not per
+        side. From the committed source at n=4 the reorganized side allocates
+        ~3211264 bytes against the direct side's ~69904 — a 46x memory ratio not
+        tabulated beside the 0.044 operation ratio, which the target-result
+        profile's cost-honesty requirement asks for.
+
+  # =====================================================================
+  referred_defect_rulings:
+    - id: D-701-1
+      subject: >-
+        The TASK-20260731-701 completion gate asked the PRODUCER to transcribe
+        the invocation and output of verify_derivation.py. The producer had no
+        execution tool, refused to fabricate a transcript under AGENTS.md rule 9,
+        and labelled the note "machine recomputation pending". TASK-20260731-704
+        did not waive the gate and referred it here.
+      ruling: DISCHARGED, by substitution and at a higher standard.
+      basis:
+        - >-
+          The gate's PURPOSE was machine confirmation of the derived numbers.
+          REPRO-705-1 re-executed the script from committed source (16 PASS, 0
+          FAIL, 1 SKIP), and REPRO-705-2 independently recomputed every fact in
+          both propositions by a different method with no discrepancy. An
+          independent session that did not author the note is strictly stronger
+          evidence than a producer transcript.
+        - >-
+          The gate's LETTER remains unmet and is recorded as such rather than
+          back-dated. The note's section 6.2 status line was accurate when
+          written; it is superseded by this report, NOT by an edit to the note —
+          records are immutable and the note must not be amended.
+        - >-
+          The producer's refusal to fabricate output is correct behaviour under
+          rule 9 and is not itself a defect.
+        - >-
+          The dispatching session's run is Coordinator-side corroboration of an
+          artifact it was archiving, explicitly labelled as such in the snapshot
+          receipt. It is not independent validation and this ruling does not
+          rest on it.
+      residual: >-
+        Claim C0 alone remains SKIP (D-705-2). Its intent is covered
+        independently in REPRO-705-2.
+    - id: D-704-1
+      subject: >-
+        mutation_control_v2.py and gate_601b_impl.c carry no per-artifact
+        inference block. TASK-20260731-704 ruled the gate satisfied because each
+        producer met its own frozen completion gate exactly (the -702 and -703
+        cards name only their manifest pair; only -701's is blanket) and because
+        provenance is bound by DIGEST, not proximity.
+      ruling: >-
+        The TASK-20260731-704 ruling is ACCEPTED for BATCH-002. Manifest-level
+        hash-bound coverage adequately discharges the provenance requirement
+        HERE, and per-artifact blocks SHOULD be mandated GOING FORWARD by
+        protocol amendment.
+      basis_for_accepting_it_here:
+        - >-
+          The binding was verified, not assumed. This task recomputed SHA-256 for
+          both source files from the committed blobs: gate_601b_impl.c =
+          dc2bc3fe02a08881a048eccfe48c64ebe2c5a35a6a9884b1fc33f0cf4b4789f3,
+          matching gate_601b_results.json artifacts.implementation_sha256;
+          mutation_control_v2.py = d2b2a5dd7720e36b7ff821737d3b7c299254a58f01dd7382bcb67c7a855a00d7,
+          matching repair_receipt.json control_source_sha256. Each manifest
+          carrying an inference block names, by digest, the exact source bytes it
+          covers. That is a stronger binding than co-location in a directory.
+        - >-
+          Retroactive enforcement would return two tasks that met the completion
+          gates they were actually given. Changing the gate after the fact and
+          failing a producer on the new text is a fairness failure, and it would
+          discard a run and a repair that both reproduce exactly.
+        - >-
+          A source file is not an execution record. The inference block describes
+          who/what produced a RESULT; the natural home is the record that reports
+          the result, which is where both blocks are.
+      why_it_should_still_change_prospectively:
+        - >-
+          The digest binding is only as good as the manifest surviving beside the
+          source. A source file extracted or vendored without its manifest
+          carries no provenance at all, and this batch's own artifacts are
+          plausible candidates for exactly that (mutation_control_v2.py is
+          explicitly designed to be reused).
+        - >-
+          It cost the batch a defect (D-704-1) and a validator ruling to settle a
+          question a two-line comment header would have foreclosed. Both files
+          are source code with comment syntax available.
+        - >-
+          The rule as it stands requires the reader to hold two files and a hash
+          function to answer "what produced this". That is a checkable but
+          expensive invariant, and cheap invariants are the ones that survive.
+      recommended_form_of_the_amendment: >-
+        PROSPECTIVE ONLY, not retroactive to BATCH-002. Either (i) every declared
+        source-code artifact carries a comment-block inference stanza, or
+        (ii) the covering manifest carries an explicit artifact_provenance list
+        binding each covered path to its SHA-256 and stating that the manifest's
+        inference block covers it. Option (ii) is the smaller change and matches
+        what BATCH-002 already does in substance; option (i) is more robust to
+        the artifact travelling alone. The Coordinator owns the amendment; this
+        validator proposes and does not enact it.
+
+  # =====================================================================
+  inference_block_audit:
+    method: >-
+      grep for resolved_model_id / requested_policy / fallback_used /
+      model_verified across all nine committed producer artifacts, then read the
+      matched blocks.
+    results:
+      coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-701/derivation_note_column_local_obstructions.md: present
+      coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-701/verify_derivation.py: present
+      coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-701/candidate_report.yaml: present
+      coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-702/mutation_control_v2.py: ABSENT (source-code artifact; covered by digest from repair_receipt.json — see D-704-1 ruling)
+      coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-702/repair_receipt.json: present (twice — executor_meta.inference and top level)
+      coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-702/repair_report.md: present
+      coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-703/gate_601b_impl.c: ABSENT (source-code artifact; covered by digest from gate_601b_results.json — see D-704-1 ruling)
+      coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-703/gate_601b_results.json: present
+      coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-703/run_record.md: present
+    summary: 7 of 9 carry a filled block; the 2 gaps are the D-704-1 subject and are ruled on above.
+
+  # =====================================================================
+  limitations:
+    - >-
+      NETWORK POLICY. eprint.iacr.org, csrc.nist.gov and arxiv.org are
+      unreachable. No primary source was read in this validation. Every
+      literature statement made by this validator is UNVERIFIED-FROM-MEMORY and
+      is marked as such at the point of use, including the recollection that the
+      AES S-box values S(00)=63, S(01)=7c, S(53)=ed are the standard ones and the
+      recollection that AES subspace trails have a known two-round ceiling.
+      Neither settles a novelty question. Two agreeing recollections are not a
+      citation.
+    - >-
+      INDEPENDENCE IS IN SESSION, NOT IN MODEL. Under inference-amendment commit
+      0137a051eb5828789eb267fa83c8278086578d4c, this validator, the Coordinator
+      and all three producers resolve to the SAME model under this Claude Code
+      harness. Agreement between them is correlated. This is a recorded
+      limitation, not a defect to hide, and it BLOCKS any goal-closure
+      attestation from this session.
+    - >-
+      NO INDEPENDENT REIMPLEMENTATION of the GATE-601-B aggregations was written.
+      Budget did not permit it. The correctness check for check (c) is exact
+      reproduction of the producer's comparison plus source reading of both
+      aggregations, not a third implementation.
+    - >-
+      The exploratory development sweep referenced in run_record.md section 9.1
+      was not re-run and is outside this validation.
+    - >-
+      All three checks are at TOY SCALE. Check (a) is algebra over GF(2^8) and a
+      GF(2^4) analogue; check (c) is a small-scale AES-shaped SPN at 3-, 4- and
+      5-bit cells. Nothing validated here is crypto-scale evidence, and no
+      finding may be presented as such (AGENTS.md rule 7).
+    - >-
+      A passed validation verdict means the receipt is ADMISSIBLE EVIDENCE. It
+      does not support an ECDLP or AES claim, does not demonstrate a speedup, and
+      does not authorize promotion.
+
+  # =====================================================================
+  authority_assertions:
+    official_state_changed: none
+    hypothesis_status_proposed: none
+    ledger_records_created: none
+    knowledge_promoted: none
+    evidence_strength_assigned: >-
+      NONE. Evidence strength and the official transition are TASK-20260731-706's.
+    producer_artifacts_modified: >-
+      NONE. All executions were on copies extracted from the committed tree into
+      a session scratch directory. No producer artifact was edited, repaired,
+      extended, or re-run to make it pass.
+    commits_made: none
+    write_scope_observed: >-
+      coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-705
+      only.
+
+  # =====================================================================
+  artifacts_written:
+    - coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-705/validation_report.yaml
+    - coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-705/derivation_and_ideation_review.md
+    - coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-705/harness_repair_review.md
+    - coordination/goals/GOAL-AES-001/batches/BATCH-002/tasks/TASK-20260731-705/gate_601b_review.md
+
+  inference:
+    policy: review-adversarial
+    requested_policy: review-adversarial
+    resolved_model_id: claude-opus-5
+    reasoning_effort: xhigh
+    fallback_used: true
+    fallback_reason: >-
+      review-adversarial is a GPT-5.6-family policy alias in
+      orchestration/model-policies.yaml and cannot be resolved by Claude Code,
+      whose subagent frontmatter accepts only Claude models. The substitution is
+      structural and expected under this harness (CLAUDE.md, "Model policy
+      note").
+    degraded_allowed: false
+    degraded_requirements: []
+    independent_session_required: true
+    independent_session: true
+    model_verified: false
+    model_verified_note: >-
+      `python3 -m orchestration.adapter doctor --probe` was NOT run in this task,
+      so the resolved model identifier is unverified configuration in the sense
+      of AGENTS.md "Model policy".
+    standing_basis: >-
+      inference-amendment commit 0137a051eb5828789eb267fa83c8278086578d4c
+    independence_statement: >-
+      This session is independent of the three producing sessions and produced
+      none of what it reviews. Under the 0137a051 amendment its INDEPENDENCE IS
+      IN SESSION AND NOT IN MODEL: the resolved model is the same one that served
+      TASK-20260731-701, -702, -703 and -704. Stated plainly as required, and it
+      blocks any goal-closure attestation from this session.
+
+  handoff_return:
+    to: coordinator
+    archived_by: TASK-20260731-706

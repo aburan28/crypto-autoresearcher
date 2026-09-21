@@ -1,0 +1,222 @@
+idea:
+  id: IDEA-20260815-90f638
+  question_id: RQ-ECDLP-002
+  added: '2026-08-15'
+  title: >-
+    KN-OPEN-5b3a08 RECORDS A CONFIRMED s4_expr BUG AND A WHOLE-CURVE FACTOR-
+    BASE SAMPLING ERROR IN THE SHARED harness/semaev.py: determine which
+    committed results actually depend on the broken paths
+  class: control
+
+  claim: >-
+    The program records a confirmed bug in its shared Semaev implementation
+    and a factor-base sampler that draws from the whole curve rather than
+    the target subgroup. Both are in code that multiple lanes share. Until
+    someone maps which committed evidence records touched the broken paths,
+    every Semaev result in the ledger carries an unquantified risk.
+
+  mechanism: >-
+    Identify the exact broken code paths. Trace which run records invoked
+    them, by version. For each affected record, determine whether the bug
+    could change its conclusion, and re-run the cheapest affected case to
+    check.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Read of KN-OPEN-5b3a08; grep 'semaev.py', 's4_expr',
+      'build_factor_base', 'subgroup sampling'.
+    results: >-
+      The open problem records both defects as confirmed. No record maps
+      their blast radius across committed evidence.
+    verdict: >-
+      ADAPTATION. The bugs are already identified by the program; the
+      contribution is the dependency map and the re-run of affected cases.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE SET OF COMMITTED RECORDS whose conclusions depend on the broken
+      code paths.
+    lossiness: >-
+      Reducing a record to affected or unaffected discards the degree of
+      dependence, so a third state -- affected but conclusion-robust -- is
+      recorded explicitly.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while run records retain enough version and invocation
+      detail to trace; records that do not are reported untraceable, which
+      is itself a reproducibility finding.
+
+  null_object_control: >-
+    NULL 1 -- a record known not to use Semaev at all, which must trace as
+    unaffected; if it traces as affected the tracing is wrong. NULL 2 -- re-
+    running an affected case with the bug deliberately reintroduced,
+    confirming the bug actually changes the output rather than being latent.
+
+  discriminated_from:
+    - >-
+        KN-OPEN-5b3a08, which identifies the defects; this record maps
+        their consequences.
+    - >-
+        The three-degree gap record in this series, which concerns which
+        degree is measured rather than whether the measurement code is
+        correct.
+
+  assumptions:
+    - >-
+        Run records retain the code version and invocation detail needed
+        to trace dependence; untraceable records are reported rather than
+        assumed unaffected.
+    - >-
+        The bug's effect on output is determinable, which the deliberate-
+        reintroduction null tests directly.
+
+  predictions:
+    - metric: >-
+        no-Semaev control record
+      direction: different
+      minimum_effect: >-
+        FORCED to trace as unaffected; otherwise the tracing is wrong.
+    - metric: >-
+        bug-reintroduction null
+      direction: different
+      minimum_effect: >-
+        FORCED to change the output; a latent bug that changes nothing
+        has a much smaller blast radius and that is worth establishing.
+    - metric: >-
+        count of affected committed records
+      direction: different
+      minimum_effect: >-
+        The deliverable, with each classified as conclusion-changing,
+        conclusion-robust, or untraceable.
+
+  minimal_test:
+    design: >-
+      Trace the dependency map first, then re-run only the cheapest
+      conclusion-changing candidate.
+    controls:
+      - >-
+          No-Semaev control record.
+      - >-
+          Deliberate bug reintroduction.
+      - >-
+          Untraceable records reported, never defaulted to unaffected.
+    required_metrics:
+      - >-
+          Per-record classification: affected-and-conclusion-changing,
+          affected-but-robust, unaffected, or untraceable.
+      - >-
+          Re-run outcome for the cheapest affected case.
+      - >-
+          Count of untraceable records.
+
+  falsification_conditions:
+    - >-
+        The no-Semaev control traces as affected. Tracing method wrong.
+    - >-
+        The reintroduced bug changes nothing. Its blast radius is smaller
+        than feared, which is good news and must be stated rather than
+        assumed either way.
+    - >-
+        Many records are untraceable. The campaign cannot determine its
+        own exposure, which is a serious reproducibility finding.
+    - >-
+        A committed conclusion changes on re-run. It must be superseded by
+        correction per AGENTS.md rule 2, never edited.
+
+  confounders:
+    - >-
+        ASSUMING UNAFFECTED BY DEFAULT: an untraceable record is not an
+        unaffected one, and conflating them is the specific error that
+        would make this audit falsely reassuring.
+    - >-
+        PARTIAL DEPENDENCE: a record may use one broken path and not
+        another, so path-level rather than file-level tracing is required.
+
+  interpretation_limits:
+    - >-
+        Maps a known defect's consequences; produces no new mathematical
+        result.
+    - >-
+        Scoped to the two recorded defects and the traceable records.
+    - >-
+        Any conclusion change is handled by superseding correction, never
+        by overwriting the original record.
+
+  heuristic_assumptions:
+    - id: HEUR-BUG-TRACE-1
+      statement: >-
+        Run records retain enough version and invocation information to
+        determine whether they exercised the broken code paths.
+      rigorous_support: >-
+        Rigorous ingredient: the run-record schema requires a manifest
+        with the resolved environment and invocation. THE GAP: the
+        schema's retention has varied over the campaign's history, and
+        older records predate parts of it, so traceability is expected
+        to degrade with age in exactly the region where most Semaev work
+        sits.
+      falsification_condition: >-
+        A record whose manifest cannot determine path-level dependence.
+      validation_plan: >-
+        SAMPLE: every committed record invoking the shared Semaev
+        module. COMPARISON: traceable versus untraceable, broken out by
+        record age. TAIL CHECK: the oldest records, where traceability
+        is likeliest to fail. TRANSFER: none.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is manifest tracing plus one re-run of the
+      cheapest affected case.
+    memory_exponent: >-
+      Same profile as the re-run case.
+    best_known: >-
+      No incumbent blast-radius map exists; KN-OPEN-5b3a08 identifies the
+      defects without mapping their consequences.
+    hidden_overhead: >-
+      Older records may lack the manifest detail needed to trace, and that
+      gap is likeliest exactly where the affected work concentrates.
+    tradeoff_note: >-
+      Path-level tracing costs more effort than file-level and is the only
+      kind that gives a defensible unaffected verdict.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As cryptanalysis: nothing. As a defect
+    blast-radius map: none exists here. Not null on any axis.
+  sota_delta: >-
+    No attack, no exponent. Content delivered: a per-record dependency map
+    for two confirmed defects in shared campaign code, a re-run of the
+    cheapest conclusion-changing candidate, and an explicit count of records
+    whose exposure cannot be determined at all.
+
+  estimated_cost:
+    implementation: low
+    compute: medium
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.85 that the broken paths are precisely identifiable. 0.5 that most
+    affected records are traceable at path level, with older ones the
+    likeliest failures. 0.3 that at least one committed conclusion changes,
+    which would require a superseding correction.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-ECDLP-002
+    - KN-OPEN-5b3a08
+    - GOAL-SDEG-001
+    - GOAL-RELN-001
+    - GOAL-SIG-001
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

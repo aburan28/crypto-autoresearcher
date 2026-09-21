@@ -1,0 +1,244 @@
+idea:
+  id: IDEA-20260815-c4a653
+  question_id: RQ-INSTR-f8faa0
+  added: '2026-08-15'
+  title: >-
+    EVERY COST NUMBER IN THIS CAMPAIGN COMES FROM ONE MACHINE AND THE
+    CAMPAIGN HAS NEVER MEASURED ITS OWN MACHINE VARIANCE: run the standard
+    battery on a second machine and report the disagreement
+  class: control
+
+  claim: >-
+    Comparisons across this campaign's records implicitly assume the numbers
+    are comparable. They come from different sessions, possibly different
+    hardware, under different load. Running the standard battery on two
+    machines and reporting the disagreement bounds how much cross-record
+    comparison is justified at all, which is a precondition for every
+    charged comparison the campaign plans.
+
+  mechanism: >-
+    Run the standard battery on two machines with the same frozen instances
+    and seeds. Report per-metric disagreement. Identify which metrics are
+    portable and which are machine-bound.
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Grep 'wall clock', 'machine', 'hardware', 'reproducibility'; read of
+      RQ-INSTR-f8faa0 and the run-manifest schema's environment fields.
+    results: >-
+      Run manifests record the environment; no record measures cross-
+      machine disagreement on the standard battery.
+    verdict: >-
+      ADAPTATION. Cross-machine reproducibility checking is standard
+      practice; the contribution is bounding this campaign's cross-record
+      comparability before its charged comparisons rely on it.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE DISAGREEMENT between machines on each battery metric, at fixed
+      instances and seeds.
+    lossiness: >-
+      A single machine's numbers project away hardware dependence, which
+      every cross-record comparison silently assumes is zero.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while two machines are available; if only one is, the
+      record cannot run and the campaign should know its comparability is
+      unmeasured.
+
+  null_object_control: >-
+    NULL 1 -- the same machine twice, bounding within-machine variance so
+    cross-machine differences below it are not real. NULL 2 -- a
+    deterministic metric such as operation count or solving degree, which
+    MUST agree exactly across machines; disagreement there means the runs
+    are not actually identical.
+
+  discriminated_from:
+    - >-
+        The portable-operation-count record in this series, which proposes
+        operation counts as a machine-independent metric; this measures
+        which metrics are actually machine-bound and would justify that
+        proposal empirically.
+    - >-
+        The run-manifest environment fields, which record hardware without
+        anyone comparing across it.
+
+  assumptions:
+    - >-
+        Two machines are available and the frozen instances and seeds
+        reproduce identically on both.
+    - >-
+        Deterministic metrics are genuinely deterministic in the
+        implementation; if they are not, that non-determinism is a more
+        serious finding than any machine effect.
+
+  predictions:
+    - metric: >-
+        deterministic-metric agreement
+      direction: different
+      minimum_effect: >-
+        FORCED exact across machines; disagreement means the runs differ
+        in more than hardware and voids the comparison.
+    - metric: >-
+        same-machine repeated variance
+      direction: different
+      minimum_effect: >-
+        Bounds within-machine noise; cross-machine differences below it
+        are not real.
+    - metric: >-
+        cross-machine disagreement per metric
+      direction: different
+      minimum_effect: >-
+        The measurement; metrics with large disagreement are not
+        comparable across records and must be flagged as machine-bound.
+    - metric: >-
+        which metrics are portable
+      direction: different
+      minimum_effect: >-
+        The actionable output: the campaign should compare across
+        records only on those.
+
+  minimal_test:
+    design: >-
+      The standard battery on two machines, one frozen instance set, both
+      nulls.
+    controls:
+      - >-
+          Same-machine repeated-run null.
+      - >-
+          Deterministic-metric exact-agreement check.
+      - >-
+          Identical frozen instances and seeds on both machines,
+          verified by hash.
+      - >-
+          Machine specifications recorded in full for both.
+    required_metrics:
+      - >-
+          Per-metric disagreement with intervals.
+      - >-
+          Within-machine variance per metric.
+      - >-
+          Classification of each metric as portable or machine-bound.
+      - >-
+          Both machines' full specifications.
+
+  falsification_conditions:
+    - >-
+        A deterministic metric disagrees. The runs are not identical and
+        nothing else in the comparison is interpretable.
+    - >-
+        Disagreement is small on all metrics. Cross-record comparison is
+        justified, which is worth establishing since the campaign already
+        relies on it.
+    - >-
+        Disagreement is large on timing metrics. Cross-record timing
+        comparisons in this campaign are not justified and must be redone
+        on one machine or restated in portable metrics.
+    - >-
+        Only one machine is available. The record cannot run and the
+        campaign's cross-record comparability remains unmeasured, which
+        should be recorded as a known gap.
+
+  confounders:
+    - >-
+        LOAD CONFOUNDING: a busy machine looks slow, so both machines must
+        be measured under controlled load or the disagreement measures
+        scheduling rather than hardware.
+    - >-
+        IMPLICIT SINGLE-MACHINE ASSUMPTION: if all campaign records happen
+        to come from one machine, the disagreement is irrelevant to past
+        comparisons but bounds future ones, and which case applies must be
+        checked from the manifests.
+
+  interpretation_limits:
+    - >-
+        Measures measurement infrastructure; establishes nothing
+        mathematical.
+    - >-
+        Scoped to the two tested machines and the standard battery.
+    - >-
+        A portability classification binds the tested metrics, not all
+        possible metrics.
+
+  heuristic_assumptions:
+    - id: HEUR-INSTR-1
+      statement: >-
+        Cross-machine disagreement measured on two machines bounds the
+        disagreement across all machines the campaign's records were
+        produced on.
+      rigorous_support: >-
+        Rigorous ingredient: deterministic metrics must agree exactly,
+        giving a hard check that the comparison is well posed. THE GAP:
+        two machines are a sample of size two, and hardware diversity
+        across the campaign's history could be far wider -- so the
+        measured disagreement is a lower bound on the campaign's real
+        cross-record variance rather than a bound on it.
+      falsification_condition: >-
+        Campaign manifests showing hardware more diverse than the two
+        machines tested.
+      validation_plan: >-
+        SAMPLE: the full battery on both machines, plus an inventory of
+        hardware recorded across existing manifests. COMPARISON:
+        measured disagreement against the diversity actually present in
+        the corpus. TAIL CHECK: manifests recording hardware unlike
+        either tested machine. TRANSFER: stated and unjustified beyond
+        the two machines.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is the standard battery run twice.
+    memory_exponent: >-
+      Same as the battery's own profile.
+    best_known: >-
+      No incumbent cross-machine measurement exists; the manifest schema
+      records environment without anyone comparing across it.
+    hidden_overhead: >-
+      Hardware diversity across the campaign's history may exceed the two
+      machines tested, making the measured disagreement a lower bound.
+    tradeoff_note: >-
+      Two machines is the minimum that measures anything and is a sample
+      of two; more would bound better and cost proportionally.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As cryptanalysis: nothing. As a measurement-
+    infrastructure check: none exists here. Not null on any axis.
+  sota_delta: >-
+    No attack, no exponent. Content delivered: per-metric cross-machine
+    disagreement on the campaign's standard battery, a within-machine
+    variance floor, and a classification of which metrics are portable
+    enough for the cross-record comparisons the campaign's charged
+    comparisons depend on.
+
+  estimated_cost:
+    implementation: low
+    compute: medium
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.6 that a second machine is available, which is the binding
+    precondition. 0.9 that deterministic metrics agree exactly if the
+    instances truly match. 0.5 that timing disagreement is large enough to
+    invalidate some existing cross-record comparison, which would be the
+    finding with practical consequences.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-INSTR-f8faa0
+    - RQ-ECDLP-002
+    - GOAL-ENDO-001
+    - docs/evidence-and-reproducibility.md
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

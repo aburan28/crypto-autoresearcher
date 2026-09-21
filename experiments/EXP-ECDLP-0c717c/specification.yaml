@@ -1,0 +1,121 @@
+experiment:
+  id: EXP-ECDLP-0c717c
+  hypothesis_id: H-ECDLP-5b245d
+  derived_from_idea: IDEA-20260905-5a1ea2
+  question_id: RQ-ECDLP-4fcbd3
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  title: >-
+    Additive and quadratic envelopes of the factor-base sumset x-histogram for
+    interval and residue bases at index-calculus sizes, against random bases and a
+    subgroup-contained base on an even-order curve
+  status: draft
+  objective: >-
+    Compute, for interval and residue factor bases at m = p^(1/3) and p^(1/2) on
+    cofactor-1 prime-order subgroups at field_bits 12 to 24, the additive envelope
+    S_add and the quadratic envelope S_quad of the sumset x-histogram, their ratio
+    to the distribution over random bases of the same size, and their slope in p at
+    fixed size exponent; verify the null's level and the known-true object's
+    envelopes. Decide H-ECDLP-5b245d claims (1)-(3).
+  inputs:
+    procedure: >-
+      STAGE 0 (zero compute, blocking): derivation note for the envelope
+      inequality, the null level, the Gauss-sum blind spot, and the base
+      definitions. STAGE 1 (instrument, blocking): pair enumeration with exclusion
+      count, a = 0 reproduction, null distribution on the smallest size, control
+      curve generation. STAGE 2: all cells. STAGE 3: order-2q control. STAGE 4:
+      ratios, slopes, report.
+    mechanism: >-
+      For a base F: enumerate all unordered pairs {P, Q} with P != +-Q, compute
+      x(P + Q) by affine addition, accumulate H_F over F_p (a length-p integer
+      array; unordered pairs counted once, ordered convention fixed in Stage 0 and
+      applied identically to every arm). S_add: FFT of H_F over F_p, max modulus at
+      a != 0, divided by the counted pair number. S_quad: cyclic convolution of H_F
+      with the Legendre symbol array via FFT, max modulus over c, divided by the
+      counted pair number. Null: 32 seeded uniformly random m-subsets of G (8 at
+      24 bits), same statistics, reported as a distribution. Ratios use the null's
+      median; bands use its 2.5 and 97.5 percentiles. Slopes: fit log envelope
+      against log p at fixed size exponent across the ladder with bootstrap over
+      seeds. Control: on the order-2q curve take F inside the index-2 subgroup
+      (points with Legendre(x - e) = +1, verified by the exhaustive homomorphism
+      check of EXP-ECDLP-184fc4 Stage 3 or repeated here), compute both envelopes.
+    instrument: >-
+      harness/toycurve.py for arithmetic; a new driver under
+      experiments/EXP-ECDLP-0c717c/driver/; numpy FFT; harness/runner.py for run
+      records.
+  controls:
+    - random m-subsets of G, 32 per cell (8 at 24 bits), same file (blocking)
+    - a = 0 exact reproduction of the counted pair number per base (blocking)
+    - second curve family per size
+    - subgroup-contained base on the order-2q curve (blocking for claim 3)
+  independent_variables:
+    - field_bits in {12, 16, 20, 24}
+    - seed in {20260905, 20260906, 20260907}
+    - size exponent in {1/3, 1/2}
+    - base family in {interval, residue, random, subgroup-contained control}
+  metrics:
+    primary:
+      - S_add and S_quad per base per cell, with the null distribution (median, percentiles) beside them
+      - envelope ratio to the null median per base per cell
+      - slope of each envelope against log p at fixed size exponent, with bootstrap interval
+      - control envelopes on the order-2q curve
+    secondary:
+      - argmax frequency and argmax shift per base per cell
+      - counted and excluded pair numbers per base
+      - wall seconds and peak bytes per cell
+  heuristic_under_test: HEUR-CBIAS-H3
+  preregistered_prediction:
+    quantity: S_add(F) and S_quad(F) for F_B and F_res as functions of p at fixed size exponent gamma
+    formula: >-
+      Within a factor 2 of the null's median at every cell; slope -gamma +- 0.1;
+      null level sqrt(2 ln p)/m within 1.5; control S_quad = 1 at c = e and S_add
+      at or below the null.
+    source: >-
+      Pre-registered in IDEA-20260905-5a1ea2 and H-ECDLP-5b245d; the Poisson law
+      of a random subset's pair counts is the model imitated; never tuned to data.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      m^2 additions per base with m up to 4096 and FFTs of length p <= 2^24;
+      evidence capped at claim_tier toy; slopes are the only scale statements.
+    correspondence: null
+  tail_checks:
+    - The largest envelope ratio observed across all bases and cells has null exceedance probability above 1/(bases measured); otherwise re-run at a fourth seed.
+    - At m = p^(1/2) the histogram has about one hit per bin; the null distribution is reported in full so a reader can see the Poisson floor.
+    - Argmax frequencies recurring across sizes at a fixed fraction of p are reported as a named frequency.
+  replication:
+    seeds: [20260905, 20260906, 20260907]
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 10
+    maximum_memory_gb: 8
+    maximum_runs: 48
+  stopping_rules:
+    - Stop at maximum_runs or total_cpu_hours, whichever binds first.
+    - Stop immediately if the a = 0 reproduction fails on any base; measurements with a failed instrument are attempted_and_inconclusive.
+    - Stop and escalate to an independent review-adversarial session if a base shows envelope ratio above 4 with positive slope on both families at the two largest sizes.
+  invalidation_rules:
+    - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure and is never negative mathematical evidence (AGENTS.md rule 5).
+    - A cell whose null envelope is outside a factor 1.5 of sqrt(2 ln p)/m is an instrument defect and is invalid.
+    - Any claimed relation (none is expected) whose certificate fails makes the run completed_invalid.
+  success_criterion: >-
+    F_B and F_res within a factor 2 of the null's median for both envelopes at
+    every cell with slopes -gamma +- 0.1; null level within 1.5 of sqrt(2 ln p)/m;
+    control S_quad = 1 at c = e with S_add at or below the null. This supports
+    H-ECDLP-5b245d claims (1)-(3) at toy scale.
+  falsification_criterion:
+    - Envelope ratio above 4 at the two largest sizes with positive slope, both families, for F_B or F_res. Claim (1) false for that base.
+    - Null level outside a factor 1.5 of sqrt(2 ln p)/m. Claim (2) false; instrument.
+    - Control S_quad not 1 at c = e or S_add above the null. Claim (3) false; instrument void.
+    - Crashes, timeouts, memory exhaustion. Infrastructure, never negative mathematical evidence.
+  required_artifacts:
+    - manifest.yaml with command, commit, dirty-tree state, environment and the inference block
+    - raw-result.json with every envelope, argmax, pair count and the full null distribution per cell
+    - the Stage 0 derivation note and the pair-ordering convention
+    - the order-2q control curve parameters, the 2-torsion point, and the subgroup membership check
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    - Coordinator approval required before execution; this contract is a design draft and is NOT approved.
+    - Stage 0 and Stage 1 are blocking; no ladder cell runs before the a = 0 reproduction and the null level pass on the smallest size.

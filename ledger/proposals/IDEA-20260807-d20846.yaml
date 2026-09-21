@@ -1,0 +1,658 @@
+idea:
+  id: IDEA-20260807-d20846
+  question_id: RQ-EQLA-0d3f40
+  added: '2026-08-07'
+  title: >-
+    FOLD BEFORE YOU PEEL: structured Gaussian elimination lives on the light
+    column tail, and closing a relation matrix under phi triples the row count
+    without adding rank - which multiplies every column weight by g and, under a
+    Poisson weight law at arity 3, cuts the number of peelable weight-1 columns
+    by about two orders of magnitude, so the lane's own construction actively
+    destroys the one linear-algebra saving that real index-calculus
+    implementations rely on
+
+  class: algorithm
+
+  claim: >-
+    (A) THE STAGE NOBODY IN THIS LANE HAS MEASURED. Production index calculus
+    does not run Wiedemann on the raw relation matrix. It runs STRUCTURED
+    GAUSSIAN ELIMINATION first - filtering, merging, weight-1 and weight-2 column
+    peeling - and only then hands a much smaller, denser core to an iterative
+    solver. The peeling stage is driven entirely by the LIGHT COLUMN TAIL: a
+    column of weight 1 gives a free pivot with no fill-in, and a column of weight
+    2 gives an exact elimination whose fill-in is bounded by the symmetric
+    difference of two rows. This program already owns an implementation of
+    exactly that two-phase peel plus dense core
+    (src/h012_peel_rank.py::peel_and_rank, with its weight histogram, pivot
+    counts, fill-in accounting and core dimensions), written for GF(2) Macaulay
+    matrices. Not one record in the STR/EQLA lane has ever measured a peeling
+    statistic on a relation matrix.
+
+    (B) THE ARITHMETIC OF THE HARM, AND IT IS THE RECORD'S CENTRAL CLAIM. Take a
+    phi-stable factor base of size B, harvest R base relations of weight m, and
+    close under sigma to get 3R rows (g = 3). Compare three objects:
+      OBJ-1 THE CLOSED, UNFOLDED MATRIX: B columns, gR rows, total nonzeros
+        g R m, so the mean column weight is g R m / B.
+      OBJ-2 THE FOLDED MATRIX: B/g columns, R rows (the g R closed rows fold to
+        R rows up to scalars, IDEA-20260807-0e4d83), total nonzeros about R m,
+        so the mean column weight is R m / (B/g) = g R m / B.
+      OBJ-3 THE SIZE-MATCHED GENERIC MATRIX: B columns, B rows of weight m at
+        the same relations-per-unknown ratio, mean column weight m R' / B.
+    At the natural operating point R = B/g for OBJ-2 and R' = B for OBJ-3, the
+    mean column weights are: OBJ-1 has mean m (g rows per base relation, but
+    only B/g base relations needed... measured, not assumed - see below), OBJ-2
+    has mean m, OBJ-3 has mean m. THE MEANS AGREE, AND THAT IS THE FIRST
+    NON-OBVIOUS FINDING: folding does not thin the light tail, because it shrinks
+    rows and columns by the same factor g.
+    THE HARM APPEARS WHEN THE MATRIX IS NOT FOLDED. If one harvests enough BASE
+    relations to make the CLOSED matrix square - which is what a pipeline that
+    does not know the rows are redundant will do, and which is what
+    harness/endomorphism_la.py's collection loop produces - then R = B and OBJ-1
+    has gB rows on B columns with mean column weight g m. Under a Poisson weight
+    law the expected fraction of weight-1 columns falls from mu e^{-mu} at
+    mu = m to g mu e^{-g mu} at mu = g m. At m = 3 and g = 3 that is
+    3 e^{-3} = 0.149 against 9 e^{-9} = 0.00111: A FACTOR OF ABOUT 134 FEWER
+    PEELABLE COLUMNS. The weight-2 tail is suppressed comparably. So closing the
+    matrix under phi before peeling does not merely waste rank - it removes the
+    structure that structured Gaussian elimination exists to exploit.
+
+    (C) THE CONSEQUENCE FOR EVERY COST NUMBER THE LANE HAS PRODUCED. All of
+    them - EV-STR-002's cost_ratio, H-STR-002's alpha^2 B log B against 2 B^2,
+    the four measured phi_alpha values - are computed on OBJ-1, the closed
+    unfolded matrix. If a real pipeline would peel first, then OBJ-1's true cost
+    is not 2 B^2 but (post-peel core dimension)^2-ish, and OBJ-1 is exactly the
+    object whose post-peel core is LARGEST. Comparing a structured-solve model on
+    OBJ-1 against a Wiedemann model on OBJ-1 compares two ways of solving the
+    worst-conditioned object the lane can construct. The correct comparison is
+    fold-then-peel-then-solve against generic-peel-then-solve, and it has never
+    been made.
+
+    (D) THE SECOND, SUBTLER EFFECT, WHICH COULD CUT EITHER WAY. Folding can
+    ANNIHILATE a column: a relation meeting an orbit in all g positions with
+    equal coefficients contributes 1 + lambda + ... + lambda^{g-1} = 0 there
+    (IDEA-20260807-61049d, IDEA-20260807-d6956c section C). So the folded row is
+    LIGHTER than the base row by one for each fully-hit orbit, at a rate about
+    C(m, g) (g/B)^{g-1}. Lighter rows mean lighter columns mean MORE peelable
+    columns - a small benefit, concentrated at small B, and therefore exactly the
+    regime the lane's toy measurements occupy. Whether the annihilation benefit
+    or the closure harm dominates at the measured B values is an empirical
+    question with a two-sided answer, and it is one candidate explanation for
+    EV-STR-003 O-9's unexplained rank deficiencies of 4, 6, 30 and 67.
+
+    (E) THE THREE OUTCOMES.
+      OUTCOME 1 (predicted) - OBJ-2 and OBJ-3 have statistically identical
+        peeling profiles after scaling by g, and OBJ-1's profile is far worse.
+        Then the lane's linear-algebra recommendation is settled: fold first,
+        never peel the closed matrix, and the resulting saving is exactly the
+        g^2 = 9 of IDEA-20260807-9ecc6f with no interaction term. A clean,
+        useful, negative-flavoured engineering result.
+      OUTCOME 2 - OBJ-2's profile is materially BETTER than OBJ-3's after
+        scaling. Then the phi structure interacts constructively with structured
+        Gaussian elimination and the lane has found something beyond the block
+        split. The candidate mechanism is (D)'s annihilation, and its scaling in
+        B is measurable, so the finding would come with its own extrapolation
+        warning built in.
+      OUTCOME 3 - OBJ-2's profile is materially WORSE than OBJ-3's. Then folding
+        costs something at the peeling stage and part of the g^2 is given back;
+        the amount is measured and the lane's ceiling drops accordingly.
+
+  resource_label: >-
+    R1 + R3. R3 supplies the fold (powers of lambda) and the orbit partition;
+    R1 is what makes the orbit computable by field multiplication. The peeling
+    itself consumes no resource - it is ordinary sparse linear algebra - and the
+    record's content is how the resource-derived structure interacts with it.
+
+  admissibility: admissible
+
+  admissibility_argument: >-
+    Admissible on the lane's standard narrow ground: the measured objects are
+    matrices of field data and the fold is a field operation. The ceiling is
+    stated with it - the informational content of the phi structure is
+    generic-group simulable (KN-FIND-b7e091), so no exponent can arise here and
+    none is claimed. What this record contributes is not a new resource but the
+    observation that the lane has been consuming its resource in the WORST
+    available order (close, then measure) and that the correct order (fold, then
+    peel, then solve) changes the numbers by more than the structure itself is
+    worth.
+
+  discriminated_from:
+    - >-
+      IDEA-20260807-9ecc6f, which prices the block split algebraically at g and
+      g^2 assuming a Wiedemann-style solve. This record asks whether that
+      accounting survives contact with the stage that comes BEFORE the solve in
+      any real implementation. The block-split argument is silent about peeling;
+      peeling is where the practical wins in index calculus actually come from.
+    - >-
+      IDEA-20260807-fafc04, which measures Wiedemann iteration counts. Peeling
+      changes the object Wiedemann is run on, so the two are sequential stages
+      and neither subsumes the other; fafc04's measurements should ideally be
+      taken on the post-peel core, and this record supplies it.
+    - >-
+      src/h012_peel_rank.py and src/h012c_block_m4ri.py, which implement two-phase
+      peeling and checkpointable block rank for GF(2) MACAULAY matrices in the
+      DREG lane. This record reuses the algorithmic machinery on a different
+      object (relation matrices over F_N, with column orbits) and asks a
+      different question (does an imposed group structure help or hurt peeling).
+      The adaptation is real work - the GF(2) XOR elimination becomes a scaled
+      subtraction over F_N - and it is declared rather than assumed free.
+    - >-
+      EV-STR-001's displacement-rank and Wiedemann-model comparisons, which
+      operate on unpeeled matrices throughout, and whose la_share figures
+      (0.4%-3%) were computed with unpeeled costs on both sides. Peeling changes
+      both sides and could change the ratio; this record measures it rather than
+      assuming the ratio is stable.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE COLUMN WEIGHT DISTRIBUTION, and specifically its light tail: the counts
+      n_1, n_2, n_3 of columns of weight 1, 2, 3, tracked through folding,
+      closure and one round of peeling.
+    lossiness: >-
+      GENUINELY LOSSY: the weight histogram forgets which rows touch which
+      columns, retaining only how many touch each. The matrix is not recoverable.
+      It passes the section-2 test in the harder direction too: what is discarded
+      is discarded COMPATIBLY with the peeling operation, because peeling's
+      eligibility rule depends ONLY on the weight - a weight-1 column peels
+      regardless of which row it sits in - so the retained part propagates
+      deterministically for one step. It stops propagating deterministically at
+      the SECOND step, because the fill-in produced by a weight-2 elimination
+      depends on the symmetric difference of two rows, which the histogram has
+      forgotten. That is the exact boundary of the object's validity and it is
+      stated rather than discovered: the histogram predicts the first peeling
+      round exactly and later rounds only in distribution.
+    propagation: >-
+      One step, exactly defined: peeling a weight-1 column in row r decrements
+      the weight of every other column in r. Folding an orbit replaces g column
+      weights by their sum, minus 1 for each row that hit the orbit in all g
+      positions (the annihilation of (D)). Closure under sigma multiplies every
+      column weight by g. All three rules are stated in advance and each is
+      independently checkable on the emitted histograms.
+    survival_score: >-
+      Survives: the field (GF(2) or F_N), the solver, the arity, and the curve
+      within the family. Dies at the second peeling round, where fill-in makes
+      the histogram insufficient - which is why the record measures the actual
+      peel and reports the histogram only as the predictor whose accuracy is
+      itself a measurement.
+
+  mechanism: >-
+    STEP 1. Adapt src/h012_peel_rank.py::peel_and_rank from GF(2) to F_N: the
+    weight-1 phase is unchanged (a weight-1 column is a free pivot in any field);
+    the weight-2 phase becomes t := t - c p for the appropriate scalar c rather
+    than t := t XOR p, and the fill-in bookkeeping is identical because it
+    depends on supports. Validate the adaptation against the existing GF(2)
+    validation gates recorded in that file's header (n = 12 sem D5 ti0 -> 28096;
+    n = 18 sem D5 ti0 -> 143882) by running it over GF(2) and reproducing them
+    exactly. A rank engine that does not reproduce its own committed gates is not
+    usable and the line halts there.
+
+    STEP 2. Build the three objects on the same instance and the same harvest:
+    OBJ-1 (closed, unfolded), OBJ-2 (folded), OBJ-3 (size-matched generic), plus
+    OBJ-4 (the quotient-size generic control of IDEA-20260807-d6956c ARM QUOT,
+    which has B/g columns and no structure). OBJ-2 versus OBJ-4 is the sharpest
+    comparison in the record: same dimensions, same unknown count, one has the
+    phi structure and one does not.
+
+    STEP 3. Emit, for each object: the full column weight histogram; the
+    weight-1 and weight-2 counts; peeling pivots from each phase; fill-in;
+    maximum row weight reached; residual core dimensions and core rank; total
+    exact rank; and the time in each phase. These are exactly the fields
+    peel_and_rank already returns.
+
+    STEP 4. Check the three predicted propagation rules directly: closure
+    multiplies column weights by g (exactly, on OBJ-1 against its base
+    sub-matrix); folding sums weights within orbits (exactly, minus annihilations);
+    and the first peeling round's pivot count is predicted by n_1 (exactly).
+    Each is a known-answer test of the implementation and costs nothing.
+
+    STEP 5. Measure the end-to-end cost of the two candidate pipelines on the
+    same instance, in the same units, with memory beside time:
+      PIPELINE A (what the lane has effectively been modelling): close, then
+        solve OBJ-1.
+      PIPELINE B (what this record recommends): fold, then peel, then solve the
+        core of OBJ-2.
+      PIPELINE C (the generic baseline): peel, then solve the core of OBJ-3.
+    Report B/C - the honest saving - and A/B, which is the size of the mistake.
+
+    STEP 6. The annihilation limb of (D): measure the rate of fully-hit orbits
+    and the resulting folded-row lightening, and check whether the peeling
+    profile of OBJ-2 improves relative to OBJ-4 by an amount consistent with it.
+    Report the rate's scaling in B, since the effect is predicted to be a
+    small-B phenomenon and therefore not extrapolable.
+
+    STEP 7. The null and the decay sweep (see null_object_control).
+
+  novelty_status: adaptation
+
+  novelty_screen:
+    method: >-
+      Ripgrep over the whole repository on 2026-08-07:
+      "structured Gaussian|filtering|merging"; "peel|peeling"; "weight-1|weight
+      1|weight-2"; "fill-in"; "column weight"; "core rank". Full reads of
+      src/h012_peel_rank.py (all of peel_and_rank), the header of
+      src/h012c_block_m4ri.py, EV-STR-001, EV-STR-002, EV-STR-003, EV-STR-004,
+      H-STR-002, IDEA-20260727-001.
+    results: >-
+      Peeling machinery EXISTS in this repository and is well developed, but
+      exclusively in the DREG/Macaulay lane over GF(2) (src/h012_peel_rank.py,
+      src/h012c_block_m4ri.py). "peel" returns ZERO hits in any STR or EQLA
+      record. No relation-matrix column weight histogram appears anywhere. No
+      record in the STR lane distinguishes the closed matrix from the folded one
+      as objects to be solved, and every cost model in the lane
+      (alpha^2 B log B, 2 B^2, 2 (B/r)^2) is stated for an unpeeled matrix. The
+      interaction between an imposed group structure and structured Gaussian
+      elimination appears nowhere in the corpus.
+    verdict: >-
+      ADAPTATION. Structured Gaussian elimination is standard index-calculus
+      practice, this repository already implements a two-phase peel, and the
+      Poisson weight-law arithmetic is elementary; none of that is claimed as
+      new. New to this corpus: applying peeling to relation matrices at all; the
+      observation that closure under phi multiplies column weights by g and
+      suppresses the light tail by about two orders of magnitude at m = g = 3;
+      the OBJ-2 versus OBJ-4 comparison; and the annihilation-lightening effect.
+      No novelty is claimed against external literature and a Stage-0 check for
+      published treatments of filtering on orbit-structured relation matrices is
+      part of the design.
+
+  null_object_control: >-
+    MANDATORY AND BLOCKING.
+    NULL 1 - OBJ-4, the quotient-size generic control: B/g columns, B/g rows of
+    weight m, no orbit structure, same field. It is dimension-matched and
+    weight-matched to OBJ-2 and differs only in provenance. PREDICTED: identical
+    peeling profile within seed noise. If so, the phi structure contributes
+    nothing to peeling and OUTCOME 1 fires.
+    NULL 2 - MATCHED RANDOM MATRIX with identical shape, density and
+    column-orbit partition, closed under a positional permutation with zero
+    endomorphism content (the generator of IDEA-20260807-1e673d). Its peeling
+    profile must match OBJ-1's, establishing that the light-tail suppression is a
+    consequence of closure per se and not of the endomorphism - which is the
+    honest attribution and is what makes the (B) arithmetic a general statement
+    rather than a curve fact.
+    DECAY PARAMETER: the orbit closure fraction c. The mean column weight must
+    rise linearly from m at c = 0 to g m at c = 1, and the weight-1 column count
+    must fall along the Poisson prediction over that range. A light-tail count
+    that does not fall as c rises means the closure is not doing what (B) says
+    and every number is void.
+    PLANTED POSITIVE: a synthetic matrix with a DECLARED number of weight-1 and
+    weight-2 columns. The peeler must find exactly that many phase-1 and phase-2
+    pivots. src/h012_peel_rank.py's own committed validation gates serve the same
+    role for the rank output and must be reproduced exactly over GF(2) before any
+    F_N number is reported.
+
+  assumptions:
+    - >-
+      The peeling adaptation from GF(2) to F_N preserves exactness. Weight-1
+      peeling is field-independent; weight-2 elimination over F_N requires a
+      scalar multiply and its fill-in is support-determined, so the argument
+      carries - but it is validated against the committed GF(2) gates rather than
+      assumed.
+    - >-
+      Relation rows have right-hand sides and resolved signs. Without them the
+      "matrix" is an incidence structure and peeling it computes a rank with no
+      linear-system meaning (EV-STR-003 O-9; IDEA-20260807-add964 section C).
+      Declared as a driver prerequisite.
+    - >-
+      The Poisson weight-law arithmetic in (B) is a MODEL used to state the
+      prediction, not a claim about the actual distribution. The actual histogram
+      is measured and the Poisson prediction is reported beside it as a
+      comparison, never in place of it.
+    - >-
+      Toy scale. src/h012_peel_rank.py was written against matrices where the
+      dense core is the memory wall; at toy relation-matrix sizes there is no
+      wall, so the record measures profiles rather than feasibility, and cannot
+      claim anything about the large-B regime where filtering actually matters.
+    - Claim tier `toy`.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Predominantly empirical and implementational: it measures weight histograms
+      and peeling outcomes on four matrices and compares two pipelines. The one
+      derivational element - the closure rule "column weights multiply by g" and
+      the Poisson consequence - is a two-line computation stated in (B), reported
+      as a prediction beside the measured histogram, and carrying no claim beyond
+      what the measurement shows. No theorem, asymptotic bound, certificate
+      family, reduction or closure argument is asserted, so a full map would be
+      decoration. What is pre-registered instead, serving the same falsification
+      role, is the three-outcome rule of (E) with its effect thresholds and the
+      three propagation rules of STEP 4, all declared before execution.
+
+  heuristic_assumptions:
+    - id: HEUR-L5-17
+      statement: >-
+        Column weights of a relation matrix from a size-B factor base at arity m
+        with R rows are approximately Poisson with mean R m / B, independently
+        across columns.
+      rigorous_support: >-
+        Imitates the classical balls-in-bins/Poissonisation approximation for the
+        occupancy distribution when R m balls are thrown into B bins with
+        R m / B = O(1) - rigorous as a limit, and the standard model used
+        throughout the filtering literature for sieve relation matrices.
+        Independence across columns is FALSE in detail (each row places exactly m
+        balls, so weights are negatively correlated) and the negative correlation
+        makes the true light tail slightly heavier than Poisson predicts.
+      validation_plan: >-
+        Measure the full empirical column-weight histogram at every cell and
+        compare to Poisson(R m / B) by a chi-squared statistic, reporting the
+        deviation rather than assuming the fit. Tail check: the observed n_1 and
+        n_2 against their Poisson predictions specifically, since those two
+        numbers, not the bulk, drive peeling. Report the correlation-induced
+        excess explicitly. TOY SCALE ONLY; at toy B the Poisson limit is poorly
+        approached and the measured histogram, not the model, is what any
+        conclusion rests on.
+    - id: HEUR-L5-18
+      statement: >-
+        The fraction of harvested relations whose support meets some orbit in all
+        g positions is about C(m, g) (g/B)^{g-1}, so the annihilation-lightening
+        of (D) is a small-B effect that vanishes as B grows.
+      rigorous_support: >-
+        Imitates the standard birthday/occupancy estimate for a random m-subset
+        of B elements partitioned into B/g blocks of size g. Rigorous as an
+        estimate for uniformly random supports; relation supports are NOT
+        uniformly random, which is the heuristic part and which
+        IDEA-20260807-d6956c measures directly.
+      validation_plan: >-
+        Measure the fully-hit-orbit rate at three B values spanning an order of
+        magnitude and fit its scaling in B, comparing to the predicted
+        B^{-(g-1)}. Tail check: the maximum per-instance rate. If the measured
+        rate does not fall with B as predicted, the decomposition search is
+        biased toward within-orbit supports and that is a structural finding
+        about relation collection which must be reported and handed to L4.
+        TOY SCALE ONLY, and any benefit found from annihilation must be labelled
+        as a toy-regime effect and explicitly NOT extrapolated.
+
+  predictions:
+    - metric: mean column weight, OBJ-1 divided by its base sub-matrix
+      direction: higher
+      minimum_effect: >-
+        EXACTLY g (= 3), with no tolerance: closure under sigma replicates every
+        nonzero g times. A measured ratio below g localises dedup suppression
+        (harness/endomorphism_la.py lines 303-304) and is an instrument finding.
+    - metric: weight-1 column count, OBJ-1 versus OBJ-3 at matched square shape
+      direction: lower
+      minimum_effect: >-
+        A reduction of at least a factor 20 (Poisson predicts about 134 at
+        m = g = 3; the threshold is set well below it to leave room for the
+        negative correlation of HEUR-L5-17, which makes the true tail heavier).
+        This is the record's headline number and it is a HARM caused by the
+        lane's own construction.
+    - metric: peeling pivots and residual core dimension, OBJ-1 versus OBJ-3
+      direction: different
+      minimum_effect: >-
+        OBJ-1's core, as a fraction of its column count, at least 1.5x larger
+        than OBJ-3's. If the cores are proportionally the same size, the
+        light-tail suppression does not translate into a worse peel and the (B)
+        arithmetic, while correct about weights, does not matter - which is a
+        legitimate and reportable negative.
+    - metric: peeling profile, OBJ-2 versus NULL 1 (OBJ-4)
+      direction: different
+      minimum_effect: >-
+        PREDICTED NO DIFFERENCE beyond seed noise. A difference exceeding 3
+        pooled sigma in core fraction, with consistent sign, is OUTCOME 2 or 3
+        and locates a genuine interaction between the phi structure and
+        structured Gaussian elimination.
+    - metric: PIPELINE A cost divided by PIPELINE B cost
+      direction: higher
+      minimum_effect: >-
+        At least 5x. This is the size of the mistake the lane's cost models make
+        by pricing the closed unfolded matrix, and it is predicted to EXCEED the
+        g^2 = 9 that the structure could ever save - meaning the lane's modelling
+        error is comparable to its entire claimed benefit.
+    - metric: PIPELINE B cost divided by PIPELINE C cost
+      direction: lower
+      minimum_effect: >-
+        In [0.8/g^2, 1.2/g^2], about 1/9. This is the honest saving, and it must
+        be reported against the interpretation limit that the stage is 0.4-3% of
+        the charged total.
+    - metric: fully-hit-orbit rate as a function of B
+      direction: lower
+      minimum_effect: >-
+        Falling like B^{-(g-1)} = B^{-2} within a factor 2 across three B values.
+        A flat rate means supports are biased toward orbits and hands a new
+        question to L4.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (hours, HARD GATE): adapt peel_and_rank to F_N and reproduce its
+      committed GF(2) validation gates exactly (28096 and 143882). No F_N number
+      is reported before this passes.
+      STAGE 1 (minutes, HARD GATE): the planted weight-1/weight-2 positive
+      control - declared counts must be found exactly.
+      STAGE 2 (minutes): build OBJ-1..OBJ-4 on one instance; emit all four
+      histograms; check the three propagation rules of STEP 4 exactly. This alone
+      establishes or refutes the (B) arithmetic and costs almost nothing.
+      STAGE 3 (minutes): run the peel on all four objects; report pivots,
+      fill-in, core dimensions and exact ranks.
+      STAGE 4 (an hour): the three pipelines end to end, same units, memory
+      beside time.
+      STAGE 5 (an hour): the c-sweep decay test and NULL 2.
+      STAGE 6 (an hour): the annihilation-rate scaling across three B values.
+      THE CHEAPEST DECISIVE SUBSET is STAGES 0-2: the histograms alone settle
+      whether closure suppresses the light tail by the predicted amount, and that
+      is the record's central claim.
+    controls:
+      - NULL 1 - OBJ-4, quotient-size generic matrix, dimension- and
+        weight-matched to OBJ-2 with no orbit structure
+      - >-
+        NULL 2 - matched random matrix with identical shape, density and
+        column-orbit partition, closed under a zero-endomorphism permutation
+      - planted weight-1/weight-2 counts, recovered exactly
+      - >-
+        src/h012_peel_rank.py's committed GF(2) validation gates, reproduced
+        exactly by the adapted engine
+      - c-sweep over orbit closure fraction as the decay test
+      - >-
+        matched Pollard rho with negation and BSGS in group operations for the
+        Pareto row, even though nothing is attacked
+    required_metrics:
+      - full column weight histogram for OBJ-1..OBJ-4, per cell, per seed
+      - n_1 and n_2 measured, beside their Poisson predictions and the
+        chi-squared deviation
+      - phase-1 and phase-2 pivot counts, fill-in, maximum row weight
+      - core rows, core columns, core rank, total exact rank
+      - the three propagation-rule checks, exactly
+      - PIPELINE A, B, C costs in field operations, wall time and peak memory
+      - fully-hit-orbit rate at three B values, with its fitted scaling
+      - c-sweep curves for mean column weight and n_1
+      - GF(2) gate reproduction results
+
+  falsification_conditions:
+    - >-
+      The adapted peeler does not reproduce the committed GF(2) gates. The
+      engine is wrong; halt and report as infrastructure under AGENTS.md rule 5,
+      never as mathematical evidence.
+    - >-
+      The planted weight-1/weight-2 counts are not recovered exactly. The
+      instrument cannot count what it claims to count; every profile is void.
+    - >-
+      OBJ-1's mean column weight is not exactly g times its base sub-matrix's.
+      Closure is not replicating nonzeros as claimed - most likely dedup - and
+      the (B) arithmetic does not apply to the object actually built.
+    - >-
+      The weight-1 suppression is below a factor 20. The Poisson prediction is
+      badly wrong at these B, HEUR-L5-17's negative correlation dominates, and
+      the harm claimed in (B) is overstated; the record's headline is withdrawn
+      and the measured factor is reported instead.
+    - >-
+      OBJ-2 and OBJ-4 differ materially. The phi structure interacts with peeling
+      beyond dimension reduction; OUTCOME 2 or 3; requires replication before
+      interpretation, and if OBJ-2 is BETTER it is the only constructive result
+      available in this lane's linear-algebra stage.
+    - >-
+      PIPELINE B is not cheaper than PIPELINE A. Folding before peeling does not
+      help, which would contradict both the rank argument
+      (IDEA-20260807-0e4d83) and the weight argument, and would require
+      reconciling before anything is reported.
+
+  confounders:
+    - >-
+      DEDUPLICATION. The committed harness suppresses duplicate rows, which
+      breaks the exact "closure multiplies weights by g" rule and does so
+      unevenly across instances (EV-STR-003 O-4 recorded dedup_suppressed_count 0
+      at some cells with nonzero misalignment at the same cells). Dedup must be
+      off or logged per row.
+    - >-
+      TOY-SCALE PEELING IS NOT PRODUCTION FILTERING. Real filtering also merges
+      heavy columns, prunes singleton rows and optimises a weight function over
+      many passes. The two-phase peel measured here is a lower bound on what
+      filtering achieves, so all three pipelines are understated - but understated
+      in the same direction, which is why ratios are reported rather than
+      absolutes.
+    - >-
+      THE CORE SOLVE IS NOT MODELLED. peel_and_rank hands its core to a dense
+      echelon; a production pipeline would hand it to Wiedemann. The pipeline
+      comparison of STEP 5 must charge the same core solver on all three arms or
+      it is comparing solvers rather than objects.
+    - >-
+      SMALL B. At B = 27 with g = 3 there are 9 folded columns and the histogram
+      has essentially no resolution; peeling on a 9-column matrix is not
+      informative. B must span at least an order of magnitude and small-B cells
+      labelled low-resolution.
+    - >-
+      SIGNS AND RIGHT-HAND SIDES. Peeling an unsigned incidence matrix computes a
+      rank with no linear-system meaning. IDEA-20260807-add964 must be settled
+      first or this record measures the wrong object.
+
+  interpretation_limits:
+    - >-
+      THE LINEAR-ALGEBRA STAGE IS NOT THE DOMINANT COST OF PRIME-FIELD INDEX
+      CALCULUS - RELATION COLLECTION IS. EV-STR-001 measured the linear-algebra
+      share at 0.4% to 3% of the charged total at p = 211, 1009 and 4099. Peeling
+      reduces that share further on every arm, so this record's effect on a
+      charged total is smaller still. Its value is in correcting how the lane
+      MODELS the stage, not in reducing the total.
+    - >-
+      Toy tier only, claim tier `toy`. Filtering matters at production scale where
+      matrices have millions of columns; nothing measured at toy B extrapolates,
+      and HEUR-L5-18's annihilation effect is explicitly a small-B phenomenon
+      that must not be extrapolated in either direction.
+    - >-
+      A confirmed OUTCOME 1 is an engineering recommendation (fold, then peel,
+      then solve) plus a quantified correction to the lane's cost models. It is
+      not evidence about the endomorphism mechanism, and it moves no hypothesis
+      status.
+    - >-
+      The record's headline - that the lane's own construction suppresses the
+      peelable tail by about two orders of magnitude - is a statement about
+      CLOSURE, not about endomorphisms. NULL 2 establishes that explicitly, and
+      any citation that attributes the effect to phi rather than to row closure
+      is misreading it.
+
+  reachability_gate: >-
+    T5's isogeny-walk form does not apply: one curve, no movement. T4 binds as
+    everywhere in L5: the orbit structure requires D_0 = -3 or -4, which is
+    class-determined and unreachable from a generic curve at any cost, so OBJ-1
+    and OBJ-2 do not exist for a generic prime-field curve and only OBJ-3 does.
+    Within the CM families the objects are free: folding costs nnz field
+    multiplications and peeling costs what it costs regardless of the curve.
+    SCOPE NOTE, not an attack claim: secp256k1 has a = 0 and lies in the
+    D_0 = -3 family.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT MOVES AND NONE IS CLAIMED. The record claims a constant factor
+      in both directions: a saving of at most g^2 = 9 for fold-then-peel against
+      the generic pipeline, and a LOSS of a predicted factor of at least 5 (and
+      plausibly comparable to 9) if the closed unfolded matrix is peeled or
+      solved instead. The net is that the lane's honest linear-algebra benefit is
+      bounded by 9 and its current modelling error may be of the same size.
+      Nothing here could produce a super-constant effect: peeling's benefit is
+      governed by the weight distribution, which is unchanged in the mean by
+      folding.
+    memory_exponent: >-
+      Constant: the folded matrix is g^2 = 9 times smaller in nonzeros-times-
+      dimension terms, and the post-peel core is smaller still by a measured
+      factor. Peeling's memory is O(nnz + fill + core), so the reduction carries
+      through; the fill-in term is measured rather than modelled because it is
+      the one term the weight histogram cannot predict.
+    best_known: >-
+      For the linear-algebra stage: structured Gaussian elimination followed by
+      sparse Wiedemann or block Lanczos, which is what production index calculus
+      uses; within this repository, src/h012_peel_rank.py's two-phase peel plus
+      dense core over GF(2). For the ECDLP: parallel rho at 0.886 sqrt(N) with
+      O(1) memory (KN-TECH-001, KN-TECH-006), automorphism-discounted rho at
+      about 0.36 sqrt(N) on j = 0 (KN-TECH-018), BSGS at 2 sqrt(N) time and
+      sqrt(N) memory (KN-TECH-031). None moves.
+    hidden_overhead: >-
+      No o(1). Disclosed instead: the Poisson arithmetic of (B) is a model whose
+      independence assumption is known false in the direction that WEAKENS the
+      predicted harm, so the measured suppression may be materially below 134 and
+      the record's threshold is set at 20 to keep the prediction falsifiable
+      rather than safe.
+    tradeoff_note: >-
+      The pipeline order is itself the tradeoff and it is the record's
+      deliverable: fold-peel-solve against peel-fold-solve against
+      close-and-solve. The first is predicted best, the last is what the lane has
+      been modelling, and the gap between them is measured rather than asserted.
+
+  dominated_by: >-
+    CHECKED ROW BY ROW ACROSS TIME, MEMORY AND DATA/QUERIES, and not null. As an
+    attack: none is mounted, so dominated on every axis by parallel rho
+    (0.886 sqrt(N) time, O(1) memory, KN-TECH-001/KN-TECH-006), by
+    automorphism-discounted rho on exactly these curves (about 0.36 sqrt(N),
+    KN-TECH-018), and by BSGS (2 sqrt(N) time, sqrt(N) memory, KN-TECH-031). As a
+    LINEAR-ALGEBRA PIPELINE: dominated on generality by plain structured Gaussian
+    elimination plus Wiedemann, which needs no CM structure and applies to every
+    curve; it matches that pipeline's asymptotics exactly and beats it only by
+    the bounded constant g^2 = 9 on the CM families. As a MEASUREMENT: nothing in
+    the STR/EQLA lane measures peeling at all, so on that axis it is dominated by
+    nothing, and it is dominated by src/h012_peel_rank.py on maturity, since that
+    engine has committed validation gates and this adaptation has none yet.
+  sota_delta: >-
+    Zero speedup against any attack baseline. Quantitatively: predicts that the
+    lane's own construction (closing the relation matrix under phi before
+    solving) suppresses the weight-1 column count by about 134x under a Poisson
+    weight law at m = g = 3, with a falsification threshold set at 20x; predicts
+    the resulting pipeline mistake at at least 5x, which is of the same order as
+    the g^2 = 9 the structure could ever save; and prices the honest saving at
+    1/9 of the generic pipeline on a stage EV-STR-001 measured at 0.4% to 3% of
+    the charged total, i.e. under 3% of the total. It also supplies the first
+    peeling measurement of any relation matrix in this program.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.8 that the adapted peeler reproduces the committed GF(2) gates - the
+    adaptation is mechanical but the weight bookkeeping in phase 2 is fiddly.
+    0.85 that closure multiplies mean column weight by exactly g once dedup is
+    off. 0.6 that the measured weight-1 suppression exceeds the 20x threshold -
+    the risk is HEUR-L5-17's negative correlation and the small toy B, and a
+    measured value below threshold is a legitimate and reportable partial
+    negative. 0.7 that OBJ-2 and OBJ-4 are indistinguishable, i.e. OUTCOME 1.
+    0.15 that OBJ-2 is measurably better than OBJ-4, which would be the only
+    constructive linear-algebra finding available in this lane and is the reason
+    the record is worth running despite its modest headline.
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json;
+    all 126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-EQLA-0d3f40
+    - IDEA-20260807-0e4d83
+    - IDEA-20260807-61049d
+    - IDEA-20260807-9ecc6f
+    - IDEA-20260807-1e673d
+    - IDEA-20260807-fafc04
+    - IDEA-20260807-d6956c
+    - IDEA-20260807-add964
+    - H-STR-002
+    - EV-STR-001
+    - EV-STR-002
+    - EV-STR-003
+    - KN-FIND-b7e091
+    - KN-TECH-001
+    - KN-TECH-006
+    - KN-TECH-018
+    - KN-TECH-031
+    - IDEA-20260727-001
+    - src/h012_peel_rank.py
+    - src/h012c_block_m4ri.py
+    - harness/endomorphism_la.py
+    - analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md

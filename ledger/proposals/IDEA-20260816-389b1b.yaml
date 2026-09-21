@@ -1,0 +1,254 @@
+idea:
+  id: IDEA-20260816-389b1b
+  question_id: RQ-SHAONE-081e3a
+  added: '2026-08-16'
+  title: 'Measure the hardware efficiency coefficient that every device-hour figure silently sets
+    to one: the ratio of attack-loop compression-function throughput to the same device''s peak straight-line
+    hashing throughput, mapped against message-modification condition depth on the hardware this harness
+    actually has.'
+  class: measurement
+  claim: '(A) A cost quoted as device-hours converts to evaluations by multiplying by a device''s
+    throughput, and the throughput used is almost always the device''s peak straight-line hashing
+    rate. An attack loop does not hash straight-line: it does message modification, condition checking,
+    early aborts and state rollback, all of which break the pipelining and vectorisation that produce
+    the peak number. Define the hardware efficiency coefficient eta_hw = (attack-loop compression-function
+    evaluations per second) / (peak straight-line evaluations per second on the same device, same
+    implementation quality). It is dimensionless, directly measurable, and every device-hour-to-evaluation
+    conversion implicitly sets it to 1. (B) The claim is that eta_hw is materially below 1 on commodity
+    hardware, that it falls as the message-modification condition depth rises because deeper condition
+    chains mean more branch divergence and more abandoned pipeline work, and that this dependence
+    is measurable on the CPUs available to this harness without any GPU and without any collision
+    being completed. (C) The claim is further that eta_hw is separable into identifiable components
+    -- branch misprediction, abandoned vector lanes, and state save/restore -- by comparing against
+    instrumented variants that disable each in turn, so the coefficient comes with an attribution
+    rather than as a bare number. (D) WHAT IS NOT CLAIMED: no attack, no cost for SHA-1, no dollar
+    figure, no claim that any published conversion is wrong, no GPU measurement of any kind, and no
+    security consequence. eta_hw measured on this harness''s CPUs is a statement about those CPUs
+    and that implementation. (E) An eta_hw close to 1 would be a fully valuable result, licensing
+    the peak-throughput conversion for this loop shape on this hardware, which is currently an untested
+    convention here.'
+  mechanism: 'STAGE 1: build a straight-line baseline -- the same compression function, same compiler
+    flags, same vector width, hashing a long stream with no conditions -- and measure its evaluations
+    per second. Using the SAME implementation for baseline and attack loop is what makes the ratio
+    a hardware statement rather than a programming statement. STAGE 2: build the attack loop with
+    a parameterised condition chain of depth d, so that d can be swept without changing anything else.
+    STAGE 3: measure evaluations per second at each d, forming eta_hw(d). No collision needs to complete;
+    the loop runs for a fixed evaluation budget and reports rate. STAGE 4: attribution -- rerun with
+    branch-free condition evaluation (all conditions computed, none used to branch), with vectorisation
+    disabled, and with state save/restore removed, isolating each component''s contribution to the
+    gap. STAGE 5: null control -- run the identical harness against a synthetic loop whose conditions
+    are always satisfied, which by construction should recover eta_hw close to 1; and against one
+    whose conditions are satisfied at matched rates but positioned randomly rather than in a chain,
+    separating depth from rate. STAGE 6: cross-machine check -- repeat on at least two distinct CPU
+    models available to the harness, reporting eta_hw per machine, since a coefficient that varies
+    wildly across two commodity CPUs is not a transportable quantity and must be labelled accordingly.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Read RQ-SHAONE-081e3a in full, whose second target names hardware and the gap between
+      a GPU-time figure and what the search actually needs, and GOAL-SHA1-001 in full. Ran: grep -ril
+      ''throughput penalty'' ledger/proposals (zero hits); grep -ril ''branch misprediction|vectorisation|vectorization''
+      ledger/proposals; grep -l ''RQ-SHAONE'' ledger/proposals/*.yaml (zero); grep -ril ''machine
+      variance|single-machine timing'' ledger/proposals. Read knowledge/techniques/KN-TECH-066.md
+      for the message-modification framing that supplies the condition-depth parameter.'
+    results: 'Zero proposals use the phrase throughput penalty and zero target RQ-SHAONE-081e3a. The
+      nearest relatives are the 15-plus machine-variance and single-machine-timing audits under RQ-INSTR-f8faa0,
+      which the batch blacklist explicitly forbids re-proposing -- and this proposal is deliberately
+      not one of them: those measure the noise in this program''s own timings, whereas this measures
+      a RATIO between two timings taken on the same machine in the same run, which is constructed
+      precisely so machine variance cancels. KN-TECH-066 supplies the message-modification condition-chain
+      notion but records no throughput measurement. No record defines a hardware efficiency coefficient.'
+    verdict: 'UNVERIFIED. Nothing is asserted about whether attack-loop versus straight-line hashing
+      throughput ratios have been published; implementers plausibly measure this routinely. Claimed
+      new internally: this repository holds no such ratio for any primitive, and the specific construction
+      -- a same-implementation same-run ratio designed so machine variance cancels, swept against
+      condition depth, with component attribution and an always-satisfied null that must recover 1
+      -- is assembled from KN-TECH-066''s condition-chain notion plus the program''s own null-control
+      discipline, and is explicitly NOT a machine-variance audit of the kind RQ-INSTR-f8faa0 owns.'
+  object_first_candidate:
+    tracked_object: 'The per-evaluation execution profile: for each compression-function evaluation
+      inside the attack loop, the triple (condition depth reached, branch taken or not at each level,
+      whether the evaluation''s vector lane was retired or abandoned). What is followed is the ABANDONMENT
+      pattern across evaluations, which is the object whose accumulation produces the throughput gap.'
+    lossiness: 'Genuinely lossy. The profile discards every message word and every internal state
+      value, retaining only a depth integer and a small bitmask of control-flow outcomes. It is compatible
+      with the operation because throughput is determined by control flow and lane utilisation, not
+      by the values flowing through, so the retained profile determines the rate and propagates. What
+      is lost is the ability to attribute a slowdown to a specific condition''s semantics -- two conditions
+      failing at the same depth are indistinguishable -- and that is precisely why the STAGE 4 component
+      ablations are required rather than optional: they recover attribution the profile cannot.'
+    propagation: One step of the target operation is one attack-loop iteration. It advances the profile
+      by one evaluation, setting the depth reached and marking lanes abandoned when a condition fails
+      mid-vector. Throughput is the reciprocal of the mean cost per retired evaluation, so the object
+      accumulates directly into eta_hw, and sweeping condition depth d changes the abandonment distribution
+      in a way the profile makes visible rather than inferred.
+    survival_score: 'The profile object survives the whole loop by construction. It dissolves as a
+      useful summary when the compiler reorganises the loop so that condition depth no longer corresponds
+      to a distinct control-flow point -- concretely, when aggressive branch flattening turns the
+      chain into predicated arithmetic and the depth parameter stops affecting the machine code. Detecting
+      that is a required check: the compiled code must be inspected or the effect confirmed by the
+      branch-free variant returning the same rate as the branching one, in which case the depth sweep
+      is measuring nothing and must be reported as such.'
+  null_object_control: 'Always-satisfied condition chain: run the IDENTICAL attack loop with a condition
+    chain of the same depth whose conditions are constructed always to hold, in the same invocation
+    on the same machine. By construction no abandonment occurs, so this null must recover eta_hw close
+    to 1; if it does not, the gap is being produced by the loop''s structure rather than by condition
+    failure and no depth-dependent claim is admissible. A second null uses conditions satisfied at
+    the same overall RATE but at randomly scattered positions rather than in a chain, separating the
+    effect of depth from the effect of failure rate -- the two are routinely conflated and this control
+    is the only thing that separates them.'
+  discriminated_from:
+  - 'The 15-plus machine-variance and single-machine-timing audits under RQ-INSTR-f8faa0 that the
+    batch blacklist forbids re-proposing: those measure absolute timing noise on this program''s machines;
+    this measures a RATIO of two rates taken on the same machine in the same run, deliberately constructed
+    so that machine speed and machine variance cancel, and its deliverable is a dimensionless coefficient
+    rather than a variance estimate.'
+  - 'The birthday-phase efficiency proposal in this batch: that measures eta, wasted algorithmic work
+    in evaluation counts, and is machine-independent by design; this measures eta_hw, the hardware
+    realisation rate of those evaluations. The two multiply rather than overlap, and a cost model
+    needs both -- which is exactly why they are separate proposals with separate evidence.'
+  - 'The abort-depth distribution proposal in this batch: that measures how often the loop restarts;
+    this measures how fast each evaluation runs. Same loop, orthogonal quantities, no shared evidence.'
+  - 'KN-TECH-066 (message modification): supplies the condition-chain notion and no throughput measurement
+    whatsoever.'
+  - 'A generic benchmark of a hash implementation: that reports one rate; this reports a ratio against
+    a same-implementation baseline, swept against depth, with three component ablations and two nulls.'
+  assumptions:
+  - Baseline and attack loop share the same compression-function implementation, compiler flags and
+    vector width, so the ratio isolates loop shape rather than implementation quality. This is the
+    assumption the whole design rests on and it is enforced mechanically by building both from one
+    source file.
+  - 'CPU measurements are informative about the loop-shape effect even though published attack costs
+    are quoted for GPUs. THIS IS THE PROPOSAL''S WEAKEST ASSUMPTION and it is stated plainly: GPU
+    divergence behaviour differs qualitatively from CPU branch prediction, so eta_hw measured here
+    does NOT transfer to GPUs and the record will say so rather than imply otherwise.'
+  - Condition depth is a real parameter of the compiled code, checked by the branch-free variant comparison.
+  - Throughput measurement is stable enough on this harness that a ratio taken within one run carries
+    a usable interval; repeated interleaved measurement is used rather than sequential blocks.
+  - No collision needs to complete, so the loop can be run for a fixed evaluation budget.
+  predictions:
+  - metric: eta_hw at the deepest tested condition depth
+    direction: lower
+    minimum_effect: 0.7
+  - metric: eta_hw of the always-satisfied null chain
+    direction: higher
+    minimum_effect: 0.95
+  - metric: eta_hw under a chained condition set relative to a rate-matched randomly positioned set
+    direction: lower
+    minimum_effect: 1.1
+  - metric: spread of eta_hw across the two CPU models at fixed depth
+    direction: different
+    minimum_effect: 'explicit refusal to pre-commit: whether the coefficient is transportable across
+      commodity CPUs is one of the questions, and pre-committing a spread would decide it in advance.
+      Reported as both values with intervals and an explicit transportability statement.'
+  minimal_test:
+    design: 'The cheapest discriminating run needs one machine, one afternoon, and no collision at
+      all: build baseline and attack loop from a single source file, sweep condition depth over three
+      values, and run the always-satisfied null at each depth, all interleaved within one process
+      so that thermal and scheduling drift affects both arms equally. Report eta_hw(d) and the null''s
+      eta_hw(d). This costs CPU-minutes. It settles the gating question immediately: does the always-satisfied
+      null recover eta_hw near 1? If it does not, the measured gap is loop structure rather than condition
+      failure and the whole framing is wrong at negligible cost. If it does, and eta_hw falls with
+      depth in the real arm, the coefficient is real on this hardware and the component ablations
+      and the second machine become worth buying. Either outcome is a number this repository does
+      not currently have.'
+    controls:
+    - Always-satisfied condition chain at each depth, interleaved in the same process.
+    - Rate-matched, randomly positioned condition set, separating depth from failure rate.
+    - Branch-free variant with all conditions computed but none branched on, isolating misprediction.
+    - Vectorisation-disabled variant, isolating abandoned-lane cost.
+    - State-save-removed variant, isolating rollback cost.
+    - Interleaved rather than sequential measurement blocks, so thermal drift cannot masquerade as
+      a depth effect.
+    required_metrics:
+    - attack-loop evaluations per second at each condition depth
+    - straight-line baseline evaluations per second, same implementation, same run
+    - eta_hw(d) with interval, per machine
+    - eta_hw of both null arms at each depth
+    - eta_hw of each ablation variant, giving component attribution
+    - branch misprediction and lane-utilisation counters where hardware performance counters are readable
+    - interleaving order and per-block timing, to expose drift
+  falsification_conditions:
+  - The always-satisfied null does not recover eta_hw near 1, showing the gap is loop structure rather
+    than condition failure and voiding the depth interpretation.
+  - eta_hw is flat in condition depth, refuting the premise that deeper chains cost more per evaluation
+    on this hardware.
+  - The branch-free variant returns the same rate as the branching one at every depth, showing the
+    compiler flattened the chain and the depth parameter is not present in the machine code.
+  - The chained and rate-matched-random arms give the same eta_hw, showing depth adds nothing beyond
+    failure rate.
+  - Interleaved block timings drift monotonically, showing thermal effects dominate and no stable
+    ratio exists.
+  confounders:
+  - Compiler optimisation can eliminate the depth structure entirely, which the branch-free comparison
+    is designed to detect but which can also occur partially and subtly.
+  - Thermal throttling and frequency scaling can produce a monotone rate decline across a sweep that
+    looks exactly like a depth effect; interleaving is the defence and its sufficiency is arguable.
+  - Cache behaviour differs between a straight-line stream and an attack loop for reasons unrelated
+    to conditions, so part of the gap may be memory rather than control flow.
+  - Hardware performance counters may be unavailable in the execution environment, leaving component
+    attribution to ablations alone.
+  interpretation_limits:
+  - eta_hw measured on this harness's CPUs does NOT transfer to GPUs, where divergence behaviour is
+    qualitatively different; the record must state this rather than let a reader assume otherwise.
+  - The coefficient describes THIS loop implementation, and a better-optimised attack loop would give
+    a different value; it is not a lower bound on what is achievable.
+  - A ratio measured within one run is robust to machine speed but not to implementation quality,
+    which it deliberately holds fixed rather than optimises.
+  - Nothing here bears on SHA-1's security, on any cost figure, or on any deployed system.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. eta_hw is a dimensionless hardware realisation ratio.
+    memory_exponent: No attack memory exponent is claimed. Cache and memory effects are reported as
+      a named confounder of eta_hw rather than as an exponent.
+    best_known: The incumbent is the practice of converting device-hours to evaluations at peak straight-line
+      throughput, which sets eta_hw to 1 implicitly. RQ-SHAONE-081e3a names hardware efficiency among
+      the quantities a device-hour figure does not express. No algorithm is beaten; an implicit constant
+      is measured.
+    hidden_overhead: Holding implementation quality genuinely constant between baseline and attack
+      loop is harder than it sounds and is the part that determines whether the ratio means anything;
+      building both from one source file helps but does not fully settle it. Access to hardware performance
+      counters may be unavailable, and without them component attribution rests entirely on ablations.
+      Interleaving measurement blocks complicates the harness noticeably for a reason that is invisible
+      in the output.
+  dominated_by: 'n/a (no result claimed). Checked across time, memory and data/query axes: the deliverable
+    is a dimensionless hardware ratio measured on CPUs with no collision produced, so it places no
+    point on any attack frontier, and the single UNVERIFIED chosen-prefix cost row this repository
+    holds lies on a disjoint axis set. Not null; inapplicable, and stated so.'
+  sota_delta: no attack; conceptual/measurement contribution only. Quantitatively the repository moves
+    from an implicit eta_hw of 1 to a measured coefficient per condition depth per machine, with two
+    null arms, three component ablations and an explicit statement that the value does not transfer
+    to GPUs. There is no speed comparison to state because no algorithm is proposed and no attack
+    is run.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'Separable parts. (1) That the always-satisfied null recovers eta_hw near
+    1, validating the framing: about 0.7; loop overhead unrelated to conditions is a real risk. (2)
+    That eta_hw falls materially with condition depth on CPUs: about 0.6, since branch divergence
+    is a well-understood cost, though compiler flattening could remove it. (3) That the depth effect
+    survives separation from the failure-rate effect via the rate-matched random control: about 0.45
+    -- I suspect a good deal of the effect is failure rate rather than depth, and that separation
+    is where I expect the claim to shrink. (4) That eta_hw is comparable across two commodity CPU
+    models, making it transportable: about 0.4. Composite roughly 0.08. The proposal remains worth
+    running because parts (1) and (2) cost CPU-minutes and because the honest limitation -- that none
+    of this transfers to GPUs -- is worth stating with a measurement behind it rather than as an unsupported
+    caveat.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-SHAONE-081e3a
+  - GOAL-SHA1-001
+  - RQ-INSTR-f8faa0
+  - KN-TECH-066
+  - KN-LIT-91b680
+  - RQ-RSA-afe33c
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SHAONE-630aa1

@@ -1,0 +1,157 @@
+hypothesis:
+  id: H-MLKEM-009
+  question_id: RQ-MLKEM-002
+  title: >-
+    GNU ld --wrap library-path interposition of a defective comparator preserves
+    isolation under a hardened ML-KEM conformance gate
+  statement: >-
+    A conformance gate that (1) interposes a defective comparator onto wolfSSL compare symbols actually
+    called by substantive conformance_probe / decap_boundary_probe binaries via
+    true GNU ld -Wl,--wrap=mlkem_cmp{,_avx2,_neon} on linux/amd64 (not
+    -DINTERPOSE_COMPARE probe-local bypass; not SO-local adequacy_probe dlopen), such that G1-silent and G2-or-G3-visible detection is
+    observed through those library entry points with attestation derived from
+    wrap/call evidence rather than a hard-coded true flag, and (2) re-asks the
+    second-peer question under the strict fixed-bound preference order first —
+    measuring a fixed-bound peer if reachable, otherwise recording
+    second_impl_unavailable for that neighborhood without paraphrasing any
+    widened null as H-MLKEM-004 support or as GOAL-MLKEM-002 completion
+    criterion 2 — finds the known wolfSSL v5.9.1 defect retained and finds no
+    new reproducible silent ciphertext byte or equal-length decapsulation accept
+    on wolfSSL post-fix backends or on any measured peer under the grids
+    executed.
+  mechanism: >-
+    OBJ-RT005-001 established that EXP-MLKEM-005's CTRL-LIBRARY-FACING-ADEQUACY
+    was a construction tautology: adequacy_probe dlopened a defective SO and
+    called mlkem_injected_defective_compare directly, never riding wolfSSL or
+    PQClean compare/decap symbols. True instrument power requires the defective
+    comparator to sit on the same call path the substantive probes use. The
+    probes already declare and invoke wolfSSL mlkem_cmp / mlkem_cmp_avx2 /
+    mlkem_cmp_neon (and PQClean verify entry points); GNU ld --wrap on linux/amd64 routes probe references to mlkem_cmp* through
+    __wrap_mlkem_cmp* without modifying library source. EXP-MLKEM-006's
+    INTERPOSE_COMPARE path was rejected as probe-local tautology
+    (OBJ-RT006-001/002 / EV-MLKEM-009). Separately, EV-MLKEM-007/008/009
+    emptied the public fixed-bound neighborhood; BATCH-004 must re-check and either measure a newly reachable
+    fixed-bound peer or keep second_impl_unavailable as the honest cross-impl
+    outcome for GOAL completion criterion 2 — never cite a
+    widened_optimized_compare isolation class as H-MLKEM-004 support.
+  assumptions:
+    - Laboratory-only builds from public source; no deployed system, network peer, or third-party key.
+    - The wolfSSL v5.9.1 AVX2 ML-KEM-1024 omission at indices 1536..1567 remains a valid G1-visible detection-retention control (EV-MLKEM-005).
+    - Link-time wrap or call-site wrapper of mlkem_cmp / backend variants (and PQClean verify if used) is feasible on the Executor host/toolchain without modifying library source.
+    - EV-MLKEM-008 remains scoped to criterion_used=widened_optimized_compare with SO-local adequacy; it does not support H-MLKEM-004 and does not satisfy GOAL completion criterion 2.
+    - Mutations that change the decrypted message legitimately produce rejection at the API boundary.
+  predictions:
+    - metric: true_library_path_adequacy_marginal_detection
+      direction: higher
+      minimum_effect: >-
+        Through conformance_probe / decap_boundary_probe (or attested equivalent
+        library entry), the interposed control is G1-silent on region R and
+        G2-or-G3-detected with non-empty marginals; library_call_path_exercised
+        is true only when wrap/call attestation evidence supports it.
+    - metric: known_defect_detection_retained
+      direction: higher
+      minimum_effect: >-
+        The wolfSSL v5.9.1 AVX2 omission at 1536..1567 remains detected by G1
+        and by every widened class that reaches those indices on unmodified
+        library builds (no wrap active for that retention measurement).
+    - metric: fixed_bound_peer_or_honest_unavailability
+      direction: different
+      minimum_effect: >-
+        Either a fixed-bound hand-written vector-tail peer is measured under
+        criterion_used=strict_fixed_bound, or second_impl_unavailable is the
+        load-bearing cross-impl outcome for that neighborhood after re-checking
+        the preference order.
+    - metric: new_silent_indices_post_fix_and_peer
+      direction: lower
+      minimum_effect: >-
+        Exactly 0 new reproducible silent indices and 0 equal-length
+        decapsulation accepts on wolfSSL post-fix backends and on any peer
+        actually measured.
+  test_boundary:
+    instances:
+      - wolfSSL v5.9.1-stable and v5.9.2-stable, scalar and x64 AVX2, and aarch64 NEON under emulation if available
+      - interposed defective comparator on mlkem_cmp / mlkem_cmp_avx2 / mlkem_cmp_neon and, if PQClean is built, its verify entry used by pqclean_probe
+      - second peer under re-checked strict fixed-bound order, or honest unavailability for that neighborhood
+    parameters:
+      parameter_sets: [ML-KEM-512, ML-KEM-768, ML-KEM-1024]
+      keys_per_parameter_set: 4
+      generator_classes:
+        G1_single_byte: xor 0x01 and xor 0xff at every ciphertext index
+        G2_multi_byte: seeded k-byte coordinated flips for k in [2, 4, 8, 16] plus whole-block flips
+        G3_alignment: mutations at every 16, 32, and 64 byte boundary and at the last byte of each aligned block
+        G4_malformed_length: truncated and extended ciphertexts, recorded in a separate table
+        G5_key_dependence: every class replayed across all four keys
+      prohibited: any mutation program directed at recovering a secret
+    implementation: >-
+      Extend EXP-MLKEM-006 harness: replace INTERPOSE_COMPARE call-site bypass with
+      GNU ld -Wl,--wrap of mlkem_cmp{,_avx2,_neon} on linux/amd64 so library
+      symbols are actually invoked; retain repaired precedence; re-check
+      fixed-bound peer order; forbid H-MLKEM-004 / GOAL-criterion-2 paraphrase
+      of EV-MLKEM-008/009 or widened nulls. Library comparison logic, buffer
+      lengths, and dispatch conditions are never modified in-tree.
+    budget:
+      wall_clock_seconds: 5400
+      cpu_hours: 2.0
+      maximum_memory_gb: 4
+      maximum_runs: 4
+  falsification_conditions:
+    - >-
+      The interposed control is detected by G1, or is undetected by both G2 and
+      G3 through the substantive probe library call path. Either case falsifies
+      the true-library-path adequacy repair.
+    - >-
+      Adequacy uses -DINTERPOSE_COMPARE / call-site bypass of mlkem_cmp*, or
+      SO-local adequacy_probe/dlopen alone. This falsifies the BATCH-004
+      repair (OBJ-RT006-001 recurrence).
+    - >-
+      library_call_path_exercised is hard-coded true without wrap/call
+      attestation evidence.
+    - >-
+      The known wolfSSL v5.9.1 defect is no longer detected on unmodified
+      library builds by a generator class that reaches indices 1536..1567.
+    - >-
+      A reproducible silent index or equal-length decapsulation accept appears
+      in a wolfSSL post-fix backend or in a measured peer. Escalate; no exploit.
+    - >-
+      A widened_optimized_compare null is paraphrased as H-MLKEM-004 support or
+      as satisfying GOAL-MLKEM-002 completion criterion 2.
+    - >-
+      Rediscovery of the known defect is counted as class_marginal_information.
+  distinguishable_outcomes:
+    isolated_to_audited_commits: >-
+      True library-path adequacy control is G1-silent and G2-or-G3-detected via
+      substantive probe entry points; known defect retained; no new silent/accept
+      on post-fix or measured peer. Record criterion_used. Does not license
+      H-MLKEM-004 or GOAL criterion 2 unless criterion_used=strict_fixed_bound
+      with a measured fixed-bound peer.
+    systemic_incomplete_comparison: >-
+      A measured peer or wolfSSL post-fix backend shows a reproducible silent
+      index or accept. Escalate; construct no exploitation path.
+    generator_hardening_insufficient: >-
+      Interposition is attested on the library path but G2/G3 do not detect the
+      control through that path. Instrument failed; isolation not licensed.
+    synthetic_control_inadequate: >-
+      Control is G1-visible, scoring special-cases len(diffs)==1, or adequacy is
+      only SO-local (no true library-path exercise). Repair failed.
+    second_impl_unavailable: >-
+      Strict fixed-bound preference order re-checked empty and no widened peer
+      is required for the load-bearing GOAL-criterion-2 honesty path; record as
+      the cross-impl outcome for that neighborhood. May co-exist with a separate
+      laboratory widened measurement that must not be paraphrased as criterion 2.
+    invalid_harness_or_dispatch: >-
+      Required build fails, wrap/interposition cannot be attested, backend cannot
+      be attested, anchor fails, or decapsulation probe cannot be reached.
+  interpretation_limits:
+    - Functional comparison completeness only; nothing about timing, power, EM, cache, microarchitectural, or fault behavior.
+    - Isolation is claimed only over implementations, versions, backends, parameter sets, keys, generator classes, and selection criterion actually exercised.
+    - EV-MLKEM-008 must not be cited as H-MLKEM-004 support.
+    - A null under widened_optimized_compare does not license isolation under the strict fixed-bound-tail mechanism class of H-MLKEM-004.
+    - claim_tier capped at laboratory_implementation_conformance.
+    - Nothing here bears on MLWE hardness or passive ML-KEM security.
+  selected_by: coordinator
+  proposal_ref: DEC-20260730-005
+  evidence_basis: [EV-MLKEM-005, EV-MLKEM-007, EV-MLKEM-008, EV-MLKEM-009, KN-TECH-054, KN-FIND-001]
+  status: specified
+  proposed_by: coordinator
+  created_at: '2026-07-30'
+  updated_at: '2026-07-30'

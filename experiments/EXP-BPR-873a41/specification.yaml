@@ -1,0 +1,227 @@
+experiment:
+  id: EXP-BPR-873a41
+  hypothesis_id: H-BPR-965f0b
+  version: 1
+  title: >-
+    Belief propagation on the ladder encoding of the ECDLP: exact-rational
+    verification of two forced message values, and a Fourier-truncation sweep
+    measured against its derived m + N/m curve
+  status: review_required
+  objective: >-
+    Verify in exact rational arithmetic that every forward BP message on the
+    ladder encoding is exactly uniform and that every backward message is
+    supported on the enumeration set; confirm uncompressed BP costs exactly what
+    enumeration costs; sweep the Fourier truncation parameter m at three toy
+    sizes and compare the measured total cost against the derived m + N/m curve
+    with its minimum 2 sqrt(N); and establish, via a Hidden Number Problem
+    positive control, that the implementation can solve a soft-constraint
+    instance at all.
+  experiment_class: control
+  inputs:
+    encodings:
+      - flat: n bit-variables and a single factor of arity n
+      - ladder: intermediate points R_{i+1} = 2 R_i + k_i P, a chain
+    encoding_note: >-
+      Structural check first: the flat encoding must have exactly one factor of
+      arity n, and the ladder encoding must be a CHAIN. This is where a reader
+      expecting a loopy graph discovers there is none, and it is recorded rather
+      than assumed.
+    N_sizes: >-
+      Three toy prime-order subgroups small enough that exact rational messages
+      over the full group are feasible, frozen into instances.json.
+    arithmetic: >-
+      EXACT RATIONAL throughout the message checks. F1 is an exact statement;
+      a floating-point check reporting "approximately uniform" has not verified
+      it and is inadmissible.
+    compression: Fourier (character) truncation to the m lowest modes, m swept
+    hnp_instances: >-
+      Hidden Number Problem instances with a declared number of leaked nonce
+      bits, sufficient for BP-style decoding to succeed.
+    opaque_group_instances: >-
+      Generic cyclic groups Z/N with arbitrary opaque labelling and no curve.
+  controls:
+    - id: C1_hnp_positive
+      description: >-
+        The SAME BP code must solve an HNP instance with leaked bits. BLOCKING
+        AND ESSENTIAL: without it, a negative result on the plain ECDLP is
+        indistinguishable from a broken implementation. A BP implementation that
+        has never solved anything is not evidence that BP cannot solve the plain
+        ECDLP.
+    - id: C2_opaque_group_null
+      description: >-
+        The identical pipeline on a generic cyclic group with opaque labelling.
+        Every derivation in H-BPR-965f0b uses ONLY the group structure, so
+        results must be IDENTICAL to the curve case. A difference means the
+        pipeline uses structure the analysis does not model. BLOCKING.
+    - id: C3_uncompressed_cost
+      description: >-
+        Uncompressed BP (m = N) must cost exactly what enumeration costs, by
+        integer operation count. BLOCKING: otherwise the implementation is not
+        the algorithm analysed.
+    - id: C4_derived_curve_precomputation
+      description: >-
+        The m + N/m curve is computed in exact integer arithmetic for every
+        declared (N, m) cell BEFORE the sweep runs, so the measurement can
+        disagree with it. A curve fitted after the sweep is not a null.
+    - id: C5_structural_check
+      description: >-
+        Confirm the flat encoding has one factor of arity n and the ladder
+        encoding is a chain, mechanically from the constructed graph rather than
+        by assertion.
+  independent_variables:
+    - encoding (2 values)
+    - N (3 toy sizes)
+    - Fourier truncation parameter m (swept 1 to N)
+    - instance class (curve, opaque group, HNP)
+  metrics:
+    primary:
+      - >-
+        forward_message_deviation: maximum deviation of any forward message from
+        uniform, in exact rational arithmetic. Forced to exactly 0.
+      - >-
+        backward_support_match: whether the backward message support equals the
+        enumeration set {2^{-j}(Q - mP) : m < 2^j}, per step. Forced to exact
+        equality.
+      - >-
+        truncated_total_cost(m): measured total cost of Fourier-truncated BP,
+        against the derived m + N/m curve and its minimum 2 sqrt(N).
+    secondary:
+      - achieved localisation width versus the predicted N/m
+      - collision count among logarithms agreeing on m retained modes, versus N/m
+      - uncompressed BP operation count versus the enumeration count
+      - HNP control success rate at the declared leakage
+      - peak memory as a function of m (message size is the binding cost)
+  measured_vs_modeled:
+    measured:
+      - message deviations and supports in exact rational arithmetic
+      - truncated total cost, localisation width, collision counts
+      - operation counts, HNP success rate, peak memory
+    modeled:
+      - F1 (forward messages exactly uniform, from bijectivity)
+      - F2 (backward support equals the enumeration set)
+      - the m + N/m cost curve and its 2 sqrt(N) minimum
+    rule: >-
+      Measured and modeled never share a column. This experiment checks
+      derivations, so the modeled column is the substance; the report presents
+      the measurements as an audit of it rather than as discoveries.
+  optimistic_assumptions:
+    - >-
+      Exact rational arithmetic caps N at toy sizes. BIAS: the forced values are
+      confirmed only where the full group fits in memory. Direction: the
+      derivations, not the measurements, are what carry -- and a derivation error
+      biting only at large N would not be caught here.
+    - >-
+      Only Fourier truncation is analysed among compressions. BIAS: the
+      conclusion is about one compression, and the record does not claim
+      otherwise. Direction: understates what some other compression might do.
+    - >-
+      The HNP control uses a leakage level chosen to make BP succeed. BIAS: it
+      demonstrates the code CAN solve a soft-constraint instance, not that it is
+      competitive on one. Direction: neutral for the purpose, which is
+      instrument validation only.
+  optimistic_assumption_rule: >-
+    Every conclusion names its encoding, its prior, and its compression, and the
+    m + N/m result is reported as covering Fourier truncation only. The list
+    above is reproduced in the results report with the direction of each bias.
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: >-
+      Total cost of Fourier-truncated belief propagation on the ladder encoding
+      as a function of the number of retained character modes m.
+    formula: >-
+      cost(m) = m + N/m, minimised at m = sqrt(N) with total 2 sqrt(N); and
+      achieved localisation width = N/m.
+    source: >-
+      Derived in H-BPR-965f0b from F2 plus the Dirichlet-kernel behaviour of a
+      truncated interval indicator. Computed in exact integer arithmetic at
+      control C4 BEFORE the sweep. Frozen; a revision is a protocol_amendment and
+      never a re-scoring of executed runs.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Exact rational message arithmetic over the full group caps N at toy sizes,
+      which is exactly what makes "exactly uniform" and "exact support equality"
+      checkable rather than approximate -- and those exact statements are the
+      whole content. The cost conclusion (2 sqrt(N)) is a DERIVATION whose
+      functional form the sweep tests at three sizes; it is not an extrapolation
+      from measurement. Resulting evidence is capped at claim_tier toy.
+    correspondence: null
+  tail_checks:
+    - >-
+      The largest single-cell deviation of measured cost from the derived
+      m + N/m curve across the whole sweep, reported by cell.
+    - >-
+      The measured cost at the predicted optimum m = sqrt(N) specifically,
+      compared against 2 sqrt(N) -- the one cell where a discrepancy would matter
+      most and would be easiest to lose in an averaged curve.
+    - >-
+      The smallest m at which the localisation width departs from N/m, which
+      would localise where the Dirichlet-kernel argument stops applying.
+  replication:
+    seeds: [59, 61, 67]
+    independent_instances: 3
+    note: >-
+      Message computations are deterministic given the instance, so seeds vary
+      the curve, generator and target. F1 and F2 must hold IDENTICALLY across
+      seeds; a seed-dependent result indicates a bug, not variance. Seeds matter
+      for the HNP control, where the leaked bits are drawn.
+  budget:
+    wall_clock_seconds_per_run: 1200
+    total_cpu_hours: 20
+    maximum_memory_gb: 8
+    maximum_runs: 400
+  stopping_rules:
+    - >-
+      HALT if any forward message is not exactly uniform: F1 is refuted and that
+      is the reportable result.
+    - >-
+      HALT at C1 if the HNP control fails: nothing about the plain ECDLP may be
+      concluded from an implementation that has never solved anything.
+    - >-
+      HALT at C2 if the opaque-group null differs from the curve instance.
+    - >-
+      Stop the sweep at a size once the measured curve has tracked m + N/m
+      through its minimum and out the other side; extending past that spends
+      budget confirming a monotone tail.
+  invalidation_rules:
+    - C1, C2, C3 or C5 failing invalidates every downstream number.
+    - >-
+      Any F1 check performed in floating point rather than exact rational
+      arithmetic is invalid, whatever it reports.
+    - >-
+      A cost curve compared against a null computed AFTER the sweep is invalid;
+      C4 exists to prevent it.
+    - >-
+      Crashes, timeouts and memory exhaustion are infrastructure outcomes under
+      AGENTS.md rule 5.
+  success_criterion: >-
+    C1-C5 pass; F1 and F2 are verified exactly at all three sizes; and the
+    truncation sweep is reported against the pre-computed m + N/m curve with its
+    minimum. The experiment succeeds by confirming the derivation -- which closes
+    a large, attractive, currently unexamined family at near-zero cost with named
+    obstructions -- or by refuting it, which is larger still.
+  falsification_criterion: >-
+    F1 is REFUTED by any forward message that is not exactly uniform; F2 by a
+    backward support differing from the enumeration set; and the compression
+    derivation by a measured minimum materially below 2 sqrt(N) reproduced at
+    three sizes -- which would make this a live direction and would be escalated
+    immediately. Failures at C1 or C2 refute nothing and report nothing: they
+    mean the instrument is untested or the analysis is incomplete.
+  required_artifacts:
+    - the Stage-0 write-up of both encodings, F1, F2, the m + N/m derivation, and
+      the survey-propagation inapplicability argument
+    - frozen instances.json for the curve, opaque-group and HNP instances
+    - per-run manifest with command, commit, environment, seed, resolved model
+    - per-step forward message deviations in exact rational form
+    - per-step backward message supports against the enumeration set
+    - the pre-computed m + N/m table from C4, timestamped before the sweep
+    - measured cost, localisation width and collision counts across the m sweep
+    - control outcomes C1-C5 with pass/fail
+    - measured-vs-modeled table, columns unmixed
+  assigned_to: executor
+  approved_by: null
+  approval_note: >-
+    Status is review_required. The cheapest measurement experiment of the nine
+    (20 CPU-hours). Its value is concentrated in C1: without a demonstrated
+    soft-constraint success, the negative result is not distinguishable from a
+    broken program.

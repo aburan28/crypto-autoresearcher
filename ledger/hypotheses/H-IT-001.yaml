@@ -1,0 +1,243 @@
+hypothesis:
+  id: H-IT-001
+  question_id: RQ-ECDLP-002
+  source_proposal: IDEA-20260731-008
+  linked_control_proposal: IDEA-20260731-011
+  sub_goal_id: SG-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  statement: >-
+    Let E/F_p be a prime-field curve with prime-order subgroup G of order N.
+    For GENERIC random E (no planted path), the minimal ordinary-isogeny path
+    degree ell connecting E to any member of the named special families
+    (anomalous N=p, low embedding degree for MOV/Frey–Ruck, or
+    subfield/Weil-descent friendly) satisfies
+    C_path(ell) + C_special(E',N) >= 0.886 sqrt(N) with high probability under
+    HEUR-ISO-1 (random isogeny-graph distance to a sparse special set), so
+    isogeny transfer cannot move the ECDLP exponent on generic curves inside
+    the tested toy scope. The hypothesis is falsified inside scope if a
+    constructive search finds, on a random sample of >=20 unplanted toy curves
+    at 20–28 bits, a path with total charged cost < 0.7 * matched_rho and a
+    verified discrete-log certificate on E pulled back from E'.
+  mechanism: >-
+    Special-curve ECDLP algorithms (Smart–Araki–Satoh–Semaev anomalous; MOV;
+    GHS Weil descent on weak extension fields) beat rho only on sparse
+    families. An isogeny is a group homomorphism on the N-primary part when
+    deg is coprime to N, so logs transfer as
+    log_E(Q) = log_{E'}(phi(Q)) * (deg-scaling). The bottleneck is finding a
+    short path in the ordinary isogeny graph to a weak j-invariant. This
+    hypothesis installs a charged cost gate: measure path-finding cost against
+    matched rho before any special-curve algorithm is credited as a
+    generic-curve attack. Structural ingredient: ordinary isogeny volcano /
+    class-group action geometry (Delfs–Galbraith; Couveignes HHS).
+  assumptions:
+    - deg(phi) coprime to N so phi is injective on G.
+    - Special-family detectors are exact for the named families (embedding
+      degree, trace/anomalous, subfield).
+    - Toy sizes only for constructive path search (20/24/28-bit subgroups).
+    - Isogeny evaluation cost model is calibrated; ±10x sensitivity must be
+      reported and must not silently flip a decisive ratio <0.7 vs >=1.0.
+    - Structured public curves (explicit CM, pairing-friendly) are out of the
+      GENERIC claim and are scored separately if present.
+  rerandomization: null
+  asymptotic_claim:
+    problem: prime-field ECDLP via isogeny transfer to special families
+    prior_best: >-
+      Pollard rho ~0.886 N^{1/2} group ops for generic prime-field ECDLP;
+      special families retain their known special exponents after an exhibited
+      short path
+    time_exponent: >-
+      >= 1/2 for GENERIC E under HEUR-ISO-1; special E retain known special
+      exponents after transfer. THIS HYPOTHESIS DOES NOT ASSERT AN
+      UNCONDITIONAL EXPONENT MOVE BELOW RHO ON GENERIC CURVES; toy gate
+      measurements cannot support asymptotic_claim toward `supported`
+      (promotion gates remain open).
+    memory_exponent: MITM path find ~ ell^{1/2} nodes (plus special-solver memory)
+    hidden_cofactor: >-
+      poly(log p) isogeny arithmetic; class-polynomial costs if CM methods used;
+      detector completeness gaps
+    claim_kind: constant_factor
+  heuristic_assumptions:
+    - id: HEUR-ISO-1
+      formal_statement: >-
+        For a random ordinary curve E/F_p with End ring of discriminant ~p,
+        distances in the ell-isogeny graph to the sparse set of special
+        j-invariants behave like distances to a sparse set in a random regular
+        graph of the same degree, so the expected minimal ell is exponential
+        in the special-set density (hitting time).
+      random_model_justification: >-
+        Random regular graph distance / hitting-time heuristics; Delfs–Galbraith
+        structure of ordinary volcanoes supplies the graph model but not a
+        proven special-set hitting time.
+      supporting_results:
+        - Delfs–Galbraith ordinary isogeny volcano structure
+        - Classical random-regular-graph distance heuristics
+        - Couveignes hard homogeneous spaces / class-group action framing
+      validation_experiment_ids:
+        - EXP-IT-001
+      falsification_condition: >-
+        At toy sizes with the contract's sample, the empirical min-ell
+        distribution has Kolmogorov–Smirnov distance from the pre-registered
+        random-regular hitting-time prediction exceeding the EXP-IT-001
+        threshold, or >=2 unplanted curves exhibit charged ratio <0.7 with
+        certificates — reported as HEUR-ISO-1 / generic-safety failure at toy
+        scale, not as crypto-scale refutation.
+  structural_ingredients:
+    - description: >-
+        Ordinary isogeny volcano / class-group action geometry converting
+        special-curve algorithms into a path-finding cost before transfer credit
+      citation: Delfs–Galbraith; Couveignes HHS; IDEA-20260731-008
+      role: external graph model for the transfer bottleneck
+    - description: >-
+        Exit-map consistency with IDEA-20260727-005 — algebraic self-maps must
+        not be miscounted as transfer paths
+      citation: IDEA-20260727-005
+      role: negative control against homomorphism misclassification
+  reduction_chain:
+    core_problem: charged isogeny-transfer cost gate vs matched rho at toy scale
+    corollaries: []
+  predictions:
+    - metric: min_charged_transfer_ratio
+      direction: higher
+      minimum_effect: >-
+        min (C_path + C_special) / matched_rho >= 1.0 on >=90% of random
+        unplanted toy curves sampled at 20/24/28 bits
+    - metric: planted_path_recovery
+      direction: higher
+      minimum_effect: >-
+        Planted-path positive control recovers a cheap reverse path with
+        charged ratio < 0.7 and a verified certificate; failure voids the harness
+    - metric: HEUR_ISO_1_toy_KS
+      direction: different
+      minimum_effect: >-
+        Toy min-ell distribution either passes the pre-registered KS/tail checks
+        against the random-regular hitting-time prediction or is explicitly
+        reported failed; missing samples are reported missing, never fabricated
+  test_boundary:
+    instances:
+      - '>=20 random prime-field curves with prime-order subgroups at 20, 24, and 28 bits'
+      - planted-path positive-control instances (known special family + short walk)
+    parameters:
+      ell_max_budget: 'N^{1/2} degree budget (group-op charged)'
+      special_families:
+        - anomalous_N_eq_p
+        - low_embedding_degree_MOV
+        - subfield_Weil_descent_friendly
+      baselines:
+        - matched_pollard_rho_with_negation
+        - matched_BSGS
+      null_or_consistency:
+        - IDEA-20260731-011 structure-destruction gate on any claimed sub-rho win
+        - IDEA-20260727-005 exit-map consistency (no algebraic self-map miscount)
+    implementation: >-
+      New EXP-IT-001 driver under experiments/EXP-IT-001/; ordinary isogeny
+      BFS/MITM up to ell_max; special-family detectors; special-curve solvers
+      with pullback; certificate check [k]P=Q on E; harness/rho.py (or
+      equivalent) for matched rho
+    budget:
+      wall_clock_seconds_per_run: 7200
+      total_cpu_hours: 48
+      maximum_memory_gb: 16
+  falsification_conditions:
+    - >-
+      >=2 random (unplanted) curves show total charged ratio < 0.7 with
+      certificates: generic-curve safety claim fails inside tested scope;
+      independent review mandatory.
+    - >-
+      Planted-path positive control not recovered: harness void
+      (infrastructure / packaging), not mathematical support of generic safety.
+    - >-
+      Claimed generic-curve exponent move without an exhibited short path:
+      packaging failure, not support.
+  interpretation_limits:
+    - Toy graph diameter is not crypto graph diameter; a negative at 28 bits
+      does not prove crypto-scale safety.
+    - Structured public curves (explicit CM, pairing-friendly) are out of the
+      GENERIC claim.
+    - Distinct from H-ISO-001 (short ell-neighbor d_reg/yield; rejected_scoped)
+      and from H-ECTD-001 (transfer-degree / endomorphism themes differ).
+    - Does not alter H-DS-001 / H-IC-001 / H-STR-002.
+    - All four asymptotic-claim promotion gates remain open.
+  status: weakened
+  status_history:
+    - status: specified
+      decision_id: DEC-20260731-023
+      decided_at: '2026-07-31'
+      reason: >-
+        Specified from IDEA-20260731-008 under SG-ECDLP-002 by BATCH-025
+        /design-experiment (TASK-20260731-095) after DEC-022 closed BATCH-024
+        as RC-24 non-execution. Official approval of EXP-IT-001 awaits
+        independent pre-exec review; this status is specification only, not
+        experimental support.
+    - status: specified
+      decision_id: DEC-20260731-036
+      decided_at: '2026-08-01'
+      reason: >-
+        BATCH-028 first execution attempt (RUN-IT-001-bounded-toy, EXP-IT-001
+        v3, snapshot a4561488) was void: the driver crashed (EXIT:1, Sage
+        Integer serialization TypeError at run_bounded_toy.sage.py line 746),
+        the required HEUR_ISO_1_report.json is a truncated crash artifact,
+        both positive controls failed, and the run was reclassified
+        failed_infrastructure (EV-IT-001 / DEC-20260731-036, with validator
+        VAL-20260801-129 NOT_ADMISSIBLE and red team RT-20260731-130 blocking).
+        No admissible measurement was produced, so the hypothesis is neither
+        supported nor refuted; status unchanged (specified). The censored
+        zeros are not negative evidence; a gated repair/rerun task is the next
+        action.
+    - status: specified
+      decision_id: DEC-20260801-002
+      decided_at: '2026-08-01'
+      reason: >-
+        BATCH-030 rerun (RUN-IT-001-rerun, EXP-IT-001 v3, snapshot 62055d296)
+        produced real toy density measurements but its two validating controls
+        fail under the frozen ledger, so it is NOT an admissible transfer-gate
+        measurement. The planted-path control passes only under an unamended
+        C_special_MOV formula substitution applied to an embedding-degree-1
+        (non-anomalous) endpoint (frozen-formula recomputation R_xfer=2.08 >=
+        0.7 -> spec F2 harness void); the null-plant recomputation is not
+        independently verifiable (empty edge ledger; null gate never ran);
+        RATE-ISO-1 fails by the letter, so S1 is not met. EV-IT-002 /
+        DEC-20260801-002 (Validator VAL-20260801-145 NOT_SUPPORTED as a
+        transfer-gate measurement; Red Team RT-20260801-146 blocking O1/O2).
+        The run stands completed_valid only as a toy-tier density-measurement
+        package; the censored zeros are not negative evidence; HEUR-ISO-1 is
+        unmeasured; a second gated repair is the next action.
+    - status: weakened
+      decision_id: DEC-20260804-2fae6a
+      decided_at: '2026-08-04'
+      reason: >-
+        BATCH-048 TASK-20260804-002 applied the Tate isogeny theorem
+        (unconditional) to establish that ordinary F_p-isogenies preserve trace
+        of Frobenius, so the three named special families (anomalous, MOV,
+        Weil-descent) are isogeny-class invariants. No ordinary F_p-isogeny path
+        of finite degree coprime to p can connect a generic non-special curve to
+        any of these special endpoints. H-IT-001's ordinary-isogeny transfer
+        mechanism is structurally infeasible for these families. Weakened (not
+        rejected outright) because successor directions DIR-2 (non-invariant
+        special family) and DIR-3 (within-class reformulation) remain open and
+        the experiment was never executed cleanly. Scoped rejection: ordinary
+        isogeny mechanism only; supersingular and extension-field mechanisms out
+        of scope of this decision.
+    - status: rejected_scoped
+      decision_id: DEC-20260807-d4f2a9
+      decided_at: '2026-08-07'
+      reason: >-
+        BATCH-d8bb19 theoretical analysis (EV-ECDLP-b3e847) established four
+        obstructions to isogeny-transfer attacks and closed SG-ECDLP-002.
+        Transitioned weakened -> rejected_scoped scoped to ordinary isogeny
+        mechanism.
+    - status: weakened
+      decision_id: DEC-20260808-86ec3c
+      decided_at: '2026-08-08'
+      reason: >-
+        Coordinator directive: no pausing allowed. Revert rejected_scoped to
+        weakened to keep the hypothesis open for successor directions (DIR-2
+        non-invariant special families, DIR-3 within-class reformulations,
+        supersingular isogeny paths). SG-ECDLP-002 transitioned to paused
+        (not closed) to preserve the research direction.
+  proposed_by: coordinator
+  does_not_modify:
+    - H-DS-001
+    - H-IC-001
+    - H-STR-002
+    - H-ISO-001
+    - H-ECTD-001

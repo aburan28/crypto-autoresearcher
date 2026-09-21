@@ -1,0 +1,245 @@
+experiment:
+  id: EXP-XOR-7267e4
+  hypothesis_id: H-XOR-a227dc
+  version: 1
+  title: >-
+    Charged-cost comparison: oracle-guided MITM vs exhaustive search vs
+    random-from-F_p MITM true-null (toy scale, m=3)
+  status: approved
+  frozen: true
+  approved_by: coordinator
+  approval_note: >-
+    Approved 2026-08-08 by the user (approval gate of /design-experiment)
+    and frozen by the Coordinator. The pre-registered cost model, C_A > C_D > C_B
+    ranking, controls, and falsification criteria are the frozen contract; any
+    later change requires a versioned protocol_amendment (never a silent edit).
+  claim_tier: toy
+  source_design: >-
+    coordination/goals/GOAL-ECDLP-001/batches/BATCH-bd36fe/tasks/TASK-20260808-8bff69/design_draft.md
+  objective: >-
+    Measure, under a charged cost model (one field operation = one E.add as
+    performed by the frozen harness.toycurve add), whether the x-oracle-guided
+    MITM arm (B) reaches the complete relation set with strictly fewer field
+    operations than exhaustive search (A), and whether that cheapness is owed
+    to the oracle's information rather than to MITM structure alone (D: true
+    null, uniform random queries from F_p with the same query count and the
+    same table). This is the DEC-20260808-6a7ac4-mandated successor to the
+    rejected H-XOR-d1a480: the cost question, not the yield question
+    (EV-ECDLP-65b004 established Y_A = Y_B exactly, so A-vs-B yield is a
+    machinery control here, not a hypothesis driver).
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Toy-scale primes (7-8 bits), m=3, frozen machinery identical to
+      EXP-SEMAEV-f48dd1. No result is presented as crypto-scale evidence
+      (AGENTS.md rule 7); the deliverable is the first charged-cost artifact
+      in this lane, at toy amplitude only.
+    correspondence: null
+  inputs:
+    m: 3
+    primes: [101, 103, 107, 211]
+    b_values: [0.4, 0.5]
+    seeds: [1, 2, 3, 4, 5]
+    curve_selection_rule: >-
+      Deterministic first nonsingular curve with 2m-1 = 5 point of order >= 5,
+      exactly harness.toycurve calls; identical to EXP-SEMAEV-f48dd1.
+    factor_base_rule: >-
+      Identical to EXP-SEMAEV-f48dd1: B = floor(p^b) x-coordinates,
+      deterministic selection of the first B on-curve x-coordinates in [0, p)
+      in increasing order. |F| counts the point entries in the implementation's
+      points list (approximately 2x the x-base size, each x lifting to two
+      points mod +-1).
+  controls:
+    - id: CTRL-QUERY-COUNT
+      method: >-
+        Arms B and D must execute exactly the same oracle-query count Q per
+        run (extends the frozen CTRL-SMOKE-QUERY-MATCH equality to D).
+      pass_condition: oracle_queries_B == oracle_queries_D
+    - id: CTRL-PRNG-NO-COLLISION
+      method: >-
+        Arm D's PRNG must be collision-free within the run (extends the
+        frozen CTRL-SMOKE-PRNG-COLLISION control).
+      pass_condition: all PRNG outputs distinct within the run
+    - id: CTRL-BLOB
+      method: >-
+        Implementation must be byte-identical to the frozen blob at its
+        archived sha256 (the no-reimplementation gate).
+      pass_condition: sha256(implementation) == archived sha256
+    - id: CTRL-YIELD-REF
+      method: >-
+        Arm B must reproduce R_A = R_B (the Y_A = Y_B equality re-derived
+        per-configuration as a machinery control, per design draft section 2).
+      pass_condition: R_B == R_A in every configuration
+  independent_variables:
+    - arm: [A, B, D]
+    - cell: (p, b) with p in {101,103,107,211}, b in {0.4, 0.5}
+  metrics:
+    primary:
+      - C_A: total field adds per cell (mean over seeds)
+      - C_B: total field adds per cell (mean over seeds)
+      - C_D: total field adds per cell (mean over seeds)
+      - R_A, R_B, R_D: relation counts per cell
+      - R_D_over_R_B: null information rate R_D/R_B per cell
+    secondary:
+      - hash_table_probes: >-
+          hash-table probing counts for arms B and D, measured and reported
+          (NOT in the primary charge; see charge_model)
+      - wall_clock_seconds_per_arm
+      - peak_rss_bytes: >-
+          per run, reconciled against the analytic table size |F|^2 (see
+          charge_model.memory_accounting)
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: >-
+      Per-cell total field adds C_A, C_B, C_D and the null information rate
+      R_D/R_B
+    formula: >-
+      C_A ~ 2|F|^3; C_B ~ |F|^2 + 2*R; C_D ~ |F|^2 + 2*(#chance collisions)
+      with expected chance collisions ~ Q * (|distinct table keys| / p) *
+      avg bucket size; predicted ranking C_B < C_D < C_A in every cell;
+      R_D/R_B expected ~ Q * (|distinct table keys| / p), measured directly.
+    source: >-
+      TASK-20260808-8bff69 design draft section 3 (pre-registered, never
+      adjusted after runs; cost model is part of the frozen contract per
+      /design-experiment rules).
+  tail_checks:
+    - >-
+      Ranking stability across scale: the C_B < C_D < C_A ordering must hold
+      at both the smallest cell (p=101, b=0.4) and the largest cell (p=211,
+      b=0.5); a flip confined to one cell flags a scale interaction for
+      review rather than silent acceptance.
+  replication:
+    seeds: [1, 2, 3, 4, 5]
+    independent_instances: 8
+    seed_policy: >-
+      Five deterministic seeds per (p,b) cell; each seed is an independent
+      run. Total: 4 primes x 2 b-values x 3 arms x 5 seeds = 120 arm-runs.
+      Statistics at n=8 independent (p,b) groups; NEVER pseudo-replicate
+      cells together (the corrected-statistics discipline of
+      EV-ECDLP-65b004 / DEC-20260808-6a7ac4).
+  budget:
+    wall_clock_seconds_per_run: 30
+    total_wall_clock_seconds: 3600
+    maximum_memory_gb: 4
+    maximum_runs: 120
+  stopping_rules:
+    - >-
+      Fixed set: 24 cells (4 primes x 2 b x [A, B, D]) x 5 seeds = 120
+      arm-runs, <= 3600s total wall budget.
+    - >-
+      Early-exit: stop and escalate if in >= 2 of the first 4 cells
+      C_D <= C_B -- that falsifies prediction 1 immediately (oracle not
+      load-bearing); record as a negative result and close the successor.
+    - >-
+      Any infrastructure failure is recorded as failed_infrastructure, never
+      as a result (AGENTS.md rule 5).
+  invalidation_rules:
+    - any run missing manifest, command, or raw-result is invalid
+    - query count mismatch between arms B and D invalidates the cell (CTRL-QUERY-COUNT)
+    - PRNG collision in arm D invalidates the cell (CTRL-PRNG-NO-COLLISION)
+    - implementation hash mismatch invalidates the run (CTRL-BLOB)
+    - R_B != R_A invalidates the cell (CTRL-YIELD-REF machinery control)
+    - >-
+      controls that trip = invalid run, never evidence (design draft section
+      3, Controls line)
+  success_criterion: >-
+    All 120 arm-runs complete within budget, all control checks pass for each
+    cell, and results are deterministic (reproducible with the same seed).
+    Report, per cell (mean over seeds) and at n=8 group level: C_A, C_B, C_D,
+    R_A, R_B, R_D, and R_D/R_B, each with confidence intervals. The criterion
+    is DECIDABLE from the predefined metrics: the per-cell C ranking
+    (C_A > C_D > C_B) and the R_D/R_B information rate are the reported
+    outcome; no possible outcome is treated as negative except through the
+    falsification_criterion below.
+  falsification_criterion: >-
+    F1: in any cell C_B >= C_A -> oracle+MITM does not beat exhaustive search
+    in the charged model -> scoped rejection of H-XOR-a227dc. F2: in any cell
+    C_B >= C_D -> MITM structure alone reaches the same point cheaper or
+    equally; the oracle is the wrong carrier of the benefit -> scoped
+    rejection (close the lane with the honest structure-vs-information
+    breakdown). F3: R_D/R_B >= 0.95 at the B-equal query count -> null arm is
+    not discriminative, oracle provides no information (near-null
+    convergence). Infrastructure failure or control trips never falsify
+    (AGENTS.md rule 5); they invalidate the run.
+  required_artifacts:
+    - experiments/EXP-XOR-7267e4/specification.yaml
+    - experiments/EXP-XOR-7267e4/amendments/
+    - experiments/EXP-XOR-7267e4/implementation/<blob>.py
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-*/manifest.json
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-*/raw-results.json
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-*/analysis.yaml
+    - snapshot commit post-run; ledger commit after reviews
+    - >-
+      reviews: reviewer + validator + red-team (policy review-adversarial),
+      mandatory because this is the first charged-cost artifact in this lane
+      (design draft section 3, Required artifacts)
+  assigned_to: executor
+  inference_receipt:
+    requested_policy: executor-implementation
+    resolved_model_id: null
+    fallback_used: false
+  charge_model:
+    unit: >-
+      one field operation = one E.add evaluation as performed by the frozen
+      harness.toycurve add (implementation-defined, the only charged unit).
+    arm_a_accounting: >-
+      C_A = 2|F|^3 (each triple = lhs add + rhs add). R_A = relations found
+      (triples summing to O).
+    arm_b_accounting: >-
+      C_B = |F|^2 (right-half table construction, every bit adds) + Q oracle
+      queries + 2 * candidates_verified (each verified candidate costs 2
+      adds) + 0 hash ops. The oracle query is x(P2+P3) of the left element:
+      zero extra computation, the x-coordinate is a free attribute of the
+      stored element -- the oracle is a field accessor, not a charged query.
+      B verifies only true-match candidates (expected ~ R).
+    arm_d_accounting: >-
+      C_D = |F|^2 (same table construction) + Q queries + 2 *
+      candidates_verified (chance collisions only) + 0 hash ops. D verifies a
+      candidate when a random query value happens to collide with a table
+      bucket: expected ~ Q * (|distinct table keys| / p) * avg bucket size.
+    hash_ops: >-
+      hash-table probing is charged in the SECONDARY wall-clock meters
+      (lookups measured and reported), NOT in the primary charge -- the
+      primary charge is the conservative one for the oracle.
+    measured_vs_modeled: >-
+      Every reported number is labeled measured (instrumented run with
+      manifest) or modeled (formula above, source: design draft section 3).
+      The two never mix in one column.
+    optimistic_assumptions:
+      - >-
+        one field operation per table entry (|F|^2 construction) treats every
+        E.add as equal-cost; bias direction: favors B/D (any variance in add
+        cost is unmodeled).
+      - >-
+        oracle query as free attribute accessor (zero charge); bias
+        direction: favors B.
+      - >-
+        hash probing excluded from primary charge; bias direction: favors B
+        (conservative for the oracle, since B's probes are where its real
+        overhead could hide).
+    memory_accounting: >-
+      Peak memory is a first-class metric. Dominant data structure: the
+      right-half table of |F|^2 entries; analytic size |F|^2 (point entries,
+      ~2x the x-base size). Measured peak_rss_bytes is reconciled against
+      this analytic size in analysis.yaml; a discrepancy > 2x flags a hidden
+      structure for review.
+    hidden_overhead: >-
+      No superpolynomial factor hides in an o(1) term at this toy scale; the
+      declared hidden overhead is hash-table probing, excluded from the
+      primary charge and reported in the secondary meters (see hash_ops).
+    speedup_definition: >-
+      ANY subsequent "speedup" or operator derived from this run MUST be
+      defined as (C_A - C_B)/C_A under the declared accounting, live-operated,
+      with spread +/- measurement noise at n=8; toy amplitude only; no
+      crypto-scale extrapolation (AGENTS.md rule 7; design draft section 3,
+      Charged-cost declaration).
+  design_note: >-
+    The design draft's section-3 arithmetic fixes the charged battery at
+    4 primes x 2 b x [A, B, D] x 5 seeds = 120 arm-runs; this spec preserves
+    those numbers exactly. Arm C (PRNG predictor) is retained by the draft as
+    a historical continuity control (section 2) but is NOT part of the
+    charged battery or the 120-run count; the draft's own stopping rule and
+    early-exit rule refer to cells over [A, B, D] only. If a future amendment
+    adds arm C runs for continuity, it must do so via a versioned amendment
+    and separate run records, and the per-cell hypothesis statistics are
+    computed on [A, B, D] regardless.

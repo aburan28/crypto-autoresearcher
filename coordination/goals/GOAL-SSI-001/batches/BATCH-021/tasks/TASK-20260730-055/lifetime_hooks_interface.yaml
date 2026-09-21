@@ -1,0 +1,385 @@
+lifetime_hooks_interface:
+  package_id: FC0-EXT-PKG-SSI-001
+  freeze_status: frozen
+  version: "1.0.0-freeze"
+  task_id: TASK-20260730-055
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-021
+  idea_id: IDEA-20260729-001
+  decision_ref: DEC-20260730-018
+  evidence_ref: EV-SSI-020
+  recovery_spec_ref: >-
+    coordination/goals/GOAL-SSI-001/batches/BATCH-013/tasks/TASK-20260730-017/recovery_spec.md
+  lifetime_trace_ref: >-
+    coordination/goals/GOAL-SSI-001/batches/BATCH-017/tasks/TASK-20260730-039/lifetime_trace.yaml
+  recorded_at: '2026-07-31T21:00:00Z'
+
+  method: >-
+    Freeze birth / last-use / cleanup / peak-stage signatures for every
+    recovery_spec object class required by an end-to-end FC0 recovery host.
+    Signatures are interface contracts for a later executor spike. No numeric
+    widths, no implementation bodies, no CollimationSieve API invention.
+
+  deferred_hooks: []
+  deferred_rationale: >-
+    Prefer defining all required hooks now. None deferred; B_* classes are
+    enumerated explicitly below (including accepted_transcript as classical
+    B-class transcript backing).
+
+  stage_live_sets:
+    preparation:
+      members: [B_input, B_attempt, W_label, R_label]
+    sieve_attempt:
+      members: [B_input, B_attempt, W_sieve, R_sieve, B_sieve]
+    recovery:
+      members: [B_input, B_attempt, B_post, B_recovery, accepted_transcript]
+    tail_verification:
+      members: [B_input, B_attempt, B_recovery, M_tail, B_candidate]
+
+  common_hook_fields:
+    width_unit_status: deferred_to_implementation_not_frozen_as_number
+    implementation_status: interface_only_not_implemented
+    collimation_sieve_api: false
+
+  hooks:
+    - id: W_label
+      class: W
+      width_unit_status: deferred_to_implementation_not_frozen_as_number
+      implementation_status: interface_only_not_implemented
+      collimation_sieve_api: false
+      birth:
+        signature: birth_W_label(x, attempt_ctx) -> W_label_handle
+        stage: oracle_label_preparation
+        precondition: B_input_and_B_attempt_live
+      last_use:
+        signature: last_use_W_label(W_label_handle) -> void
+        event: accepted_handoff_to_sieve_attempt
+      cleanup:
+        signature: cleanup_W_label(W_label_handle) -> CleanupResult
+        precondition: explicit_uncompute_and_verify_cleanup_before_handoff
+        on_failure: F_oracle_or_F_cleanup
+      death:
+        signature: destroy_W_label(W_label_handle) -> void
+        after: successful_cleanup_W_label
+      peak_stage_membership: [preparation]
+      concurrency_note: may_coexist_with_B_input_and_B_attempt
+
+    - id: R_label
+      class: R
+      width_unit_status: deferred_to_implementation_not_frozen_as_number
+      implementation_status: interface_only_not_implemented
+      collimation_sieve_api: false
+      birth:
+        signature: birth_R_label(x, attempt_ctx, address_semantics_decl) -> R_label_handle
+        stage: oracle_label_preparation
+        precondition: B_input_and_B_attempt_live
+      last_use:
+        signature: last_use_R_label(R_label_handle) -> void
+        event: last_declared_query
+      cleanup:
+        signature: cleanup_R_label(R_label_handle) -> CleanupResult
+        precondition: destroy_only_after_last_declared_query
+        on_failure: F_oracle_or_F_cleanup
+      death:
+        signature: destroy_R_label(R_label_handle) -> void
+        after: last_declared_query_then_cleanup
+      peak_stage_membership: [preparation]
+      concurrency_note: may_coexist_with_W_label_B_input_B_attempt
+
+    - id: W_sieve
+      class: W
+      width_unit_status: deferred_to_implementation_not_frozen_as_number
+      implementation_status: interface_only_not_implemented
+      collimation_sieve_api: false
+      birth:
+        signature: birth_W_sieve(attempt_ctx) -> W_sieve_handle
+        stage: sieve_attempt_before_local_transition
+        precondition: attempt_local_schedule_ready
+      last_use:
+        signature: last_use_W_sieve(W_sieve_handle) -> void
+        event: final_specified_use_after_accepted_sieve_output
+      cleanup:
+        signature: cleanup_W_sieve(W_sieve_handle, mode) -> CleanupResult
+        modes:
+          retry: destroy_or_reset_before_next_attempt
+          accept: destroy_only_after_final_specified_use_then_enter_recovery
+        on_failure: F_cleanup
+      death:
+        signature: destroy_W_sieve(W_sieve_handle) -> void
+        after: cleanup_W_sieve_success
+      peak_stage_membership: [sieve_attempt]
+      concurrency_note: may_coexist_with_R_sieve_B_sieve_B_input_B_attempt
+
+    - id: R_sieve
+      class: R
+      width_unit_status: deferred_to_implementation_not_frozen_as_number
+      implementation_status: interface_only_not_implemented
+      collimation_sieve_api: false
+      birth:
+        signature: birth_R_sieve(attempt_ctx, address_semantics_decl) -> R_sieve_handle
+        stage: sieve_attempt_before_local_transition
+        precondition: attempt_local_schedule_ready
+      last_use:
+        signature: last_use_R_sieve(R_sieve_handle) -> void
+        event: final_specified_use_after_accepted_sieve_output
+      cleanup:
+        signature: cleanup_R_sieve(R_sieve_handle, mode) -> CleanupResult
+        modes:
+          retry: destroy_or_reset_before_next_attempt
+          accept: destroy_only_after_final_specified_use
+        on_failure: F_cleanup
+      death:
+        signature: destroy_R_sieve(R_sieve_handle) -> void
+        after: cleanup_R_sieve_success
+      peak_stage_membership: [sieve_attempt]
+      concurrency_note: may_coexist_with_W_sieve_B_sieve_B_input_B_attempt
+
+    - id: B_input
+      class: B
+      width_unit_status: deferred_to_implementation_not_frozen_as_number
+      implementation_status: interface_only_not_implemented
+      collimation_sieve_api: false
+      birth:
+        signature: birth_B_input(x) -> B_input_handle
+        stage: initialize
+        precondition: parse_and_validate_x_ok
+        on_parse_failure: F_input
+      last_use:
+        signature: last_use_B_input(B_input_handle) -> void
+        event: after_final_verification_record_retained
+      cleanup:
+        signature: cleanup_B_input(B_input_handle) -> CleanupResult
+        precondition: final_verification_record_retained_then_explicit_cleanup
+        on_failure: F_cleanup
+      death:
+        signature: destroy_B_input(B_input_handle) -> void
+        after: cleanup_B_input_success
+      peak_stage_membership: [preparation, sieve_attempt, recovery, tail_verification]
+
+    - id: B_attempt
+      class: B
+      width_unit_status: deferred_to_implementation_not_frozen_as_number
+      implementation_status: interface_only_not_implemented
+      collimation_sieve_api: false
+      birth:
+        signature: birth_B_attempt(schedule_decl) -> B_attempt_handle
+        stage: initialize
+        precondition: B_input_birthed
+      last_use:
+        signature: last_use_B_attempt(B_attempt_handle) -> void
+        event: after_final_verification_record_retained
+      cleanup:
+        signature: cleanup_B_attempt(B_attempt_handle) -> CleanupResult
+        precondition: final_verification_record_retained_then_explicit_cleanup
+        on_failure: F_cleanup
+      death:
+        signature: destroy_B_attempt(B_attempt_handle) -> void
+        after: cleanup_B_attempt_success
+      peak_stage_membership: [preparation, sieve_attempt, recovery, tail_verification]
+      stopping_breach: F_stop
+
+    - id: B_sieve
+      class: B
+      width_unit_status: deferred_to_implementation_not_frozen_as_number
+      implementation_status: interface_only_not_implemented
+      collimation_sieve_api: false
+      birth:
+        signature: birth_B_sieve(attempt_ctx) -> B_sieve_handle
+        stage: sieve_attempt_before_local_transition
+        precondition: attempt_local_schedule_ready
+      last_use:
+        signature: last_use_B_sieve(B_sieve_handle) -> void
+        event: end_of_attempt_or_accept_handoff
+      cleanup:
+        signature: cleanup_B_sieve(B_sieve_handle, mode) -> CleanupResult
+        modes:
+          retry: release_allocation_before_next_attempt
+          accept: release_or_handoff_per_declared_rules_before_recovery
+        on_failure: F_cleanup
+      death:
+        signature: destroy_B_sieve(B_sieve_handle) -> void
+        after: cleanup_B_sieve_success
+      peak_stage_membership: [sieve_attempt]
+
+    - id: accepted_transcript
+      class: B
+      width_unit_status: deferred_to_implementation_not_frozen_as_number
+      implementation_status: interface_only_not_implemented
+      collimation_sieve_api: false
+      birth:
+        signature: birth_accepted_transcript(sieve_output) -> accepted_transcript_handle
+        stage: accepted_sieve_output_handoff
+        precondition: W_sieve_and_R_sieve_final_use_completed_or_declared
+      last_use:
+        signature: last_use_accepted_transcript(accepted_transcript_handle) -> void
+        event: recovery_candidate_reconstruction
+      cleanup:
+        signature: cleanup_accepted_transcript(accepted_transcript_handle) -> CleanupResult
+        precondition: retained_through_recovery_then_explicit_release_under_cleanup_rules
+        on_failure: F_cleanup
+      death:
+        signature: destroy_accepted_transcript(accepted_transcript_handle) -> void
+        after: cleanup_accepted_transcript_success
+      peak_stage_membership: [recovery]
+
+    - id: B_post
+      class: B
+      width_unit_status: deferred_to_implementation_not_frozen_as_number
+      implementation_status: interface_only_not_implemented
+      collimation_sieve_api: false
+      birth:
+        signature: birth_B_post(accepted_transcript_handle) -> B_post_handle
+        stage: classical_postprocessing_recovery
+        precondition: W_sieve_and_R_sieve_destroyed_after_final_use
+      last_use:
+        signature: last_use_B_post(B_post_handle) -> void
+        event: before_or_during_candidate_reconstruction
+      cleanup:
+        signature: cleanup_B_post(B_post_handle) -> CleanupResult
+        precondition: destroy_after_verification_under_explicit_cleanup_rules
+        on_failure: F_cleanup
+      death:
+        signature: destroy_B_post(B_post_handle) -> void
+        after: cleanup_B_post_success
+      peak_stage_membership: [recovery]
+      algebraic_error: F_recovery
+
+    - id: B_recovery
+      class: B
+      width_unit_status: deferred_to_implementation_not_frozen_as_number
+      implementation_status: interface_only_not_implemented
+      collimation_sieve_api: false
+      birth:
+        signature: birth_B_recovery(B_post_handle, accepted_transcript_handle) -> B_recovery_handle
+        stage: classical_postprocessing_recovery
+        precondition: B_post_birthed
+      last_use:
+        signature: last_use_B_recovery(B_recovery_handle) -> void
+        event: verification_event
+      cleanup:
+        signature: cleanup_B_recovery(B_recovery_handle) -> CleanupResult
+        precondition: destroy_after_verification_under_explicit_cleanup_rules
+        on_failure: F_cleanup
+      death:
+        signature: destroy_B_recovery(B_recovery_handle) -> void
+        after: cleanup_B_recovery_success
+      peak_stage_membership: [recovery, tail_verification]
+      algebraic_error: F_recovery
+
+    - id: M_tail
+      class: M_tail
+      width_unit_status: deferred_to_implementation_not_frozen_as_number
+      implementation_status: interface_only_not_implemented
+      collimation_sieve_api: false
+      birth:
+        signature: >-
+          birth_M_tail(B_recovery_handle, width_decl, enumeration_order_decl,
+          stopping_rule_decl, shares_B_recovery_decl) -> M_tail_handle
+        stage: residual_tail_after_recovery_transition
+        precondition: recovery_transition_complete
+        declarations_required:
+          - width_decl_symbolic_not_numeric_in_this_freeze
+          - enumeration_order_decl
+          - stopping_rule_decl
+          - whether_shares_B_recovery
+      last_use:
+        signature: last_use_M_tail(M_tail_handle) -> void
+        event: verification_event_or_tail_exhaustion
+      cleanup:
+        signature: cleanup_M_tail(M_tail_handle) -> CleanupResult
+        precondition: >-
+          Destroy after verification; must not be counted dead merely because
+          source variables are unused.
+        on_failure: F_cleanup
+      death:
+        signature: destroy_M_tail(M_tail_handle) -> void
+        after: cleanup_M_tail_success
+      peak_stage_membership: [tail_verification]
+      exhaustion_or_omitted_branch: F_tail
+      concurrency_note: may_coexist_with_B_recovery_and_B_candidate
+      note: >-
+        Stopping-rule declaration is a symbolic interface field; it does not
+        invent τ or clear QM-STOPPING.
+
+    - id: B_candidate
+      class: B
+      width_unit_status: deferred_to_implementation_not_frozen_as_number
+      implementation_status: interface_only_not_implemented
+      collimation_sieve_api: false
+      birth:
+        signature: birth_B_candidate(M_tail_handle_or_recovery_candidate) -> B_candidate_handle
+        stage: verification_event
+        precondition: candidate_available_for_Verify
+      last_use:
+        signature: last_use_B_candidate(B_candidate_handle) -> void
+        event: Verify_x_k_prime_predicate
+      cleanup:
+        signature: cleanup_B_candidate(B_candidate_handle) -> CleanupResult
+        precondition: destroy_after_Verify_then_cleanup_upstream_objects
+        on_failure: F_cleanup
+      death:
+        signature: destroy_B_candidate(B_candidate_handle) -> void
+        after: cleanup_B_candidate_success
+      peak_stage_membership: [tail_verification]
+      verify_false_or_fault: F_verify
+
+  CleanupResult:
+    type: enum
+    values: [ok, cleanup_failure]
+    cleanup_failure_maps_to: F_cleanup
+
+  peak_accounting_obligation: >-
+    Required peak is the maximum over the named stage live sets, not a sum of
+    separate expected maxima. Retry counts may not convert into a peak-memory
+    bound without implemented cleanup facts and widths. This freeze supplies
+    no numeric widths or probabilities.
+
+  error_composition_checklist:
+    constituents:
+      - F_input
+      - F_oracle
+      - F_cleanup
+      - F_stop
+      - F_recovery
+      - F_tail
+      - F_verify
+    inclusion: subseteq_F
+    status: interface_checklist_not_instantiated
+    does_not_map: F_sim_to_F
+
+  coverage_summary:
+    required_hooks_defined: 12
+    deferred_hooks_count: 0
+    implemented_hooks_count: 0
+    collimation_sieve_apis_invented: 0
+    hook_ids:
+      - W_label
+      - R_label
+      - W_sieve
+      - R_sieve
+      - B_input
+      - B_attempt
+      - B_sieve
+      - accepted_transcript
+      - B_post
+      - B_recovery
+      - M_tail
+      - B_candidate
+
+  explicit_non_claims:
+    - no_implementation
+    - no_numeric_widths
+    - no_tau
+    - no_global_peak_memory_bound
+    - no_CollimationSieve_API
+    - no_QUERY_MEMORY_clearance
+    - no_QM_MEMORY_MAP_clearance
+    - no_retry_to_peak_conversion
+    - no_PIN_COMPLETE
+
+  interpretation_limit: >-
+    Frozen signatures define what a later spike must implement. They do not
+    assert that any host currently provides these hooks, do not patch
+    CollimationSieve@6f9188e4, and do not reconcile QUERY_MEMORY.
+
+  non_extrapolation: true

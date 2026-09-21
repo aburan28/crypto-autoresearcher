@@ -1,0 +1,196 @@
+blind_rederivation:
+  schema: crypto.autoresearch.blind_rederivation.v1
+  id: BLIND-P1553-MIXED-RADIX-2d18e9
+  task_id: TASK-20260824-2c3105
+  goal_id: GOAL-ECDLP-001
+  statement_id: BLIND-P1553-MIXED-RADIX-2d18e9
+  status: completed
+  mode: independent_statement_only_derivation
+  scope_verdict: agrees_on_frozen_reduction_and_exponent
+  whole_claim_verdict: not_issued
+  scientific_transition: not_authorized
+  joints_owned: []
+  scientific_inputs:
+    - coordination/goals/GOAL-ECDLP-001/proposals/P1553-MIXED-RADIX-GENERIC-CORRECTION-20260824-2d18e9/blind-statement.yaml
+    - coordination/goals/GOAL-ECDLP-001/proposals/P1553-MIXED-RADIX-GENERIC-CORRECTION-20260824-2d18e9/handoffs/TASK-20260824-2c3105.yaml
+  non_evidentiary_operating_contracts:
+    - AGENTS.md
+    - agents/validator.md
+    - docs/task-lifecycle.md
+    - docs/dynamic-subagent-dispatch.md
+    - .agents/skills/crypto-autoresearcher-harness/SKILL.md
+    - plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/SKILL.md
+  derivation:
+    parameters:
+      B: N^(1/5)
+      L: ceil(log2(B))
+      m: 2^L
+      C: sum(i=0..4, m^i)
+      deck_occurrences_per_deck: 2*m
+      deck_count: 5
+      inequalities:
+        - B <= m < 2*B
+        - N <= m^5
+        - 0 <= x < N <= m^5
+    universal_special_deck_relation:
+      conclusion: holds_for_every_x_in_0_to_N_minus_1
+      steps:
+        - >-
+          Because 0 <= x < m^5, x has a five-digit base-m expansion
+          x = sum(i=0..4, e_i*m^i), with each e_i in {0,...,m-1}.
+        - >-
+          In deck i choose the positively signed labelled occurrence
+          (i,e_i,+1,[(e_i+1)m^i]P).
+        - >-
+          The sum of the five selected group elements is
+          [sum_i (e_i+1)m^i]P = [x+C]P = Q+[C]P = R.
+      overflow_handling: >-
+        The argument is over arbitrary-precision integers followed by scalar
+        reduction modulo N. It does not assume C<N or m^5=N. The only needed
+        fact is x<m^5, which follows even when m^5>N.
+    labelled_signed_decoder:
+      input: >-
+        One isolated labelled occurrence (i,d_i,sigma_i) from each deck whose
+        five group elements sum to R.
+      integer_accumulator: a = sum(i=0..4, sigma_i*(d_i+1)*m^i)
+      decoded_value: x_hat = least_nonnegative_residue(a-C mod N)
+      correctness:
+        - "The returned relation gives [a]P = R = [x+C]P."
+        - "Therefore [(a-C-x)]P is the identity."
+        - >-
+          Since P generates a group of prime order N, N divides a-C-x, so
+          x_hat equals x as the unique representative in [0,N).
+      collision_and_sign_handling:
+        - >-
+          The decoder uses occurrence labels, not equality of group encodings.
+          Cross-deck or within-deck encoding collisions modulo N therefore do
+          not merge i, d, or sigma.
+        - >-
+          Negative selected coefficients and accumulators outside [0,N) are
+          permitted; the final least-residue operation is part of decoding.
+        - >-
+          The existence proof happens to use only positive signs, but decoder
+          correctness covers every signed labelled tuple returned by the exact
+          predicate.
+    exact_dyadic_recovery:
+      initial_invariant: >-
+        The Cartesian product of the five current deck restrictions contains
+        at least one satisfying labelled tuple.
+      tree_depth_per_deck: log2(2*m) = L+1
+      step_rule: >-
+        Split the current canonical dyadic node of one deck into its left and
+        right children while holding all other current restrictions fixed.
+        Query the exact existential predicate on the left child. If true,
+        retain the left child. If false, retain the right child, because the
+        invariant and exactness imply E(parent)=E(left) OR E(right).
+      witness_stability_requirement: none
+      witness_stability_note: >-
+        The witness may change between queries; only existential truth of the
+        current Cartesian product is maintained.
+      terminal_state: >-
+        After all five trees reach singleton leaves, the invariant supplies one
+        complete satisfying labelled signed tuple, which the decoder maps to x.
+      exact_restricted_predicate_queries: 5*(L+1)
+      expanded_query_count: 5*ceil(log2(B))+5
+      asymptotic_query_count: O(log(N))
+    online_interaction_accounting:
+      restricted_predicate_calls: 5*(ceil(log2(B))+1)
+      final_tuple_verification: charged
+      adaptive_recovery: charged
+      all_other_main_group_interactions: charged
+      theorem_parameter: k
+      aggregate_bound_from_statement: k <= T = B^(5/4+o(1))
+      qualification: >-
+        The blind statement does not expose the number of generic-group oracle
+        interactions inside one restricted-predicate call or the chosen
+        verification circuit. No such number is invented. Instead every such
+        interaction is included in the statement's aggregate charged bound k<=T,
+        which explicitly includes adaptive recovery and verification.
+    advice_bit_mapping:
+      word_count_bound: S = B^(9/4+o(1))
+      ordinary_word_width: O(log(N)) bits
+      advice_bits: ell <= O(S*log(N)) = B^(9/4+o(1))
+      serialization_boundary: >-
+        This conversion relies on ordinary bounded serialized words. A unit-cost
+        word containing an unbounded number of bits would invalidate it.
+    supplied_preprocessing_generic_group_bound:
+      formula: success <= 3*ell*(k+1)^2/N
+      shared_random_oracle_corollary_used: true
+      substitutions:
+        - ell = B^(9/4+o(1))
+        - k+1 = B^(5/4+o(1))
+        - N = B^5
+      B_exponent_arithmetic: 9/4 + 2*(5/4) - 5 = -1/4
+      B_form: success <= B^(-1/4+o(1))
+      N_parameters:
+        ell: N^(9/20+o(1))
+        k: N^(1/4+o(1))
+      N_exponent_arithmetic: 9/20 + 2*(1/4) - 1 = -1/20
+      N_form: success <= N^(-1/20+o(1))
+    contradiction_under_frozen_assumptions:
+      universal_solver_success: 1
+      theorem_upper_bound_limit: 0
+      conclusion: >-
+        Exact unrestricted-and-dyadically-restricted predicate answers imply
+        deterministic recovery and correct decoding for every fresh x, hence
+        success one. The supplied generic-group theorem bounds the same success
+        by B^(-1/4+o(1)), which vanishes. Therefore, for sufficiently large N,
+        the frozen resource, exactness, universality, target-independence, and
+        generic-oracle assumptions cannot all hold simultaneously.
+  nonapplicability_boundaries:
+    - id: random_decks_only
+      boundary: >-
+        A solver promised only random decks need not answer the adversarial
+        special decks constructed here, so the reduction cannot invoke it.
+    - id: no_single_deck_restrictions
+      boundary: >-
+        If the predicate cannot answer canonical restrictions in even one deck,
+        the dyadic invariant cannot isolate all five occurrence labels.
+    - id: target_conditioned_preprocessing
+      boundary: >-
+        Advice depending on Q or x is not target-independent preprocessing and
+        is outside the supplied preprocessing theorem substitution.
+    - id: unbounded_serialized_words
+      boundary: >-
+        If a unit-cost word may contain unboundedly many serialized bits, the
+        implication ell=O(S log N) fails.
+    - id: coordinate_aware_elliptic_curve_oracle
+      boundary: >-
+        Coordinate, endomorphism, or representation leakage is not a generic
+        group oracle and is not bounded by the supplied theorem.
+    - id: fifth_interval_only_output
+      boundary: >-
+        Returning only one deck or interval without recovering the other four
+        signed labels does not supply a complete coefficient sum and cannot be
+        decoded by the stated formula.
+    - id: approximate_predicate
+      boundary: >-
+        False positives or false negatives break the exact Boolean partition
+        invariant used in dyadic recovery.
+    - id: unlabelled_or_deduplicated_occurrences
+      boundary: >-
+        Removing occurrence labels or deduplicating equal group encodings can
+        erase deck, digit, or sign data needed by the decoder.
+    - id: wrong_group_model
+      boundary: >-
+        If P does not generate a prime-order N group, equality of encoded sums
+        need not identify x modulo N in the stated way.
+    - id: incomplete_interaction_charge
+      boundary: >-
+        Omitting predicate, adaptive-recovery, verification, or other online
+        main-group interactions from k invalidates the exponent substitution.
+    - id: extra_uncovered_oracle
+      boundary: >-
+        The supplied shared-random-oracle corollary covers only its stated
+        oracle model; an additional information-bearing oracle is outside it.
+  limitations:
+    - The supplied preprocessing theorem is accepted as a frozen premise and is not independently proved or literature-checked here.
+    - No producer implementation, report, snapshot, packet, queue, review plan, or sibling review was read.
+    - No experiment, implementation, empirical measurement, or external citation was used.
+    - The exact internal generic-interaction cost of one predicate call is not specified; only the supplied aggregate charged bound is used.
+    - The result is agreement on the frozen reduction and exponent only, not a J1-J3 joint verdict or a whole-claim verdict.
+  claim_ceiling: >-
+    The frozen assumptions imply the labelled reduction and the bound
+    B^(-1/4+o(1)) = N^(-1/20+o(1)). This record does not establish a
+    coordinate-aware elliptic-curve lower bound, P1553 closure, B71 admission,
+    an official scientific transition, or a breakthrough.

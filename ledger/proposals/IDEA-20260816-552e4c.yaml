@@ -1,0 +1,241 @@
+idea:
+  id: IDEA-20260816-552e4c
+  question_id: RQ-FHE-001
+  added: '2026-08-16'
+  title: 'Treat an approximate scheme''s decryption error as a communication channel rather than a
+    precision issue: at toy parameters with an enumerable secret space, count in bits per released
+    result how much the low-order error carries about the secret, and count the same for an exact
+    scheme''s rounding residual.'
+  class: mechanism
+  claim: '(A) In an approximate homomorphic scheme the value a decryption returns is the message plus
+    an error term, and that error term is a deterministic function of the secret, the ciphertext and
+    the evaluation history. This makes the released result a channel whose input is the secret and
+    whose output is the low-order part of the decryption, and a channel has a capacity that can be
+    estimated by counting, not merely a precision that can be described. The claim is that at toy
+    parameters where the entire secret space is enumerable, the empirical mutual information between
+    the released low-order error bits and the secret can be estimated directly from the exhaustive
+    joint distribution, giving a leakage rate in bits per released result, with a measured estimator
+    bias floor. (B) The claim is further that the same measurement applied to an exact scheme''s decryption
+    is a different object with a different expected value: an exact scheme returns the message exactly,
+    so the analogous channel exists only through correctness failure and through any residual the
+    implementation exposes, and posing the two as two objects with one shared measurement is what
+    makes the comparison meaningful rather than rhetorical. (C) NOT CLAIMED: that any approximate
+    scheme is insecure, that any leakage rate measured here enables key recovery, that a positive
+    mutual information is exploitable, or that noise-flooding countermeasures are inadequate. Mutual
+    information is not an attack; a channel with positive capacity may still require more releases
+    than exist. No security consequence of any kind is asserted, and the number produced is a counted
+    rate at toy parameters only.'
+  mechanism: STAGE 1 implements a toy approximate scheme with a small scaling factor, so that decryption
+    returns a scaled message plus an error that is exactly representable in integers and needs no
+    floating point. STAGE 2 enumerates the entire secret space at N=8 (3^8 ternary secrets) and, for
+    each secret, evaluates a fixed circuit on a fixed public input and records the released result's
+    low-order bits, defined as the bits below the message precision the scheme claims. STAGE 3 builds
+    the exhaustive joint empirical distribution of (secret, low-order bits) and computes the plug-in
+    mutual information estimate, together with the Miller-Madow correction and a shuffled-secret floor.
+    STAGE 4 repeats with the secret held fixed and only the encryption randomness varying, which isolates
+    how much of the observed information is about the secret rather than about the randomness. STAGE
+    5 applies the identical estimator to an exact scheme's decryption residual at matched parameters,
+    and to a key-independent synthetic error of matched variance. The deliverable is three numbers
+    with one estimator and one floor. Refutation is a plug-in estimate at the shuffled floor in the
+    approximate arm, which would say the channel is not measurable by counting at this resolution.
+  novelty_status: unverified
+  novelty_screen:
+    method: Ran grep -ril 'approximate homomorphic' and 'IND-CPA' over ledger/proposals/ and knowledge/;
+      grep -rl 'RQ-FHE-001' ledger/proposals/; ls experiments/ | grep -i fhe; read knowledge/literature/KN-LIT-95256d.md
+      (IND-CPA^D attacks on exact FHE) and knowledge/literature/KN-LIT-7675.md (noise-flooding countermeasure
+      gap), plus RQ-FHE-001 and KN-TECH-082.
+    results: '''approximate homomorphic'' hits only knowledge entries: KN-LIT-1880, KN-LIT-3533, KN-LIT-6477,
+      KN-LIT-6349 and knowledge/sources.json, with no proposal or hypothesis. ''IND-CPA'' in ledger/proposals/
+      hits exactly one record, IDEA-20260805-3d71ca, which is attached to RQ-MLKEM-001 and concerns
+      cheap-proxy target selection over many ciphertexts of a static ML-KEM key by measuring the left
+      tail of a projected-error norm; that is a KEM attack-target-selection statistic, not a leakage
+      rate, not homomorphic, and not information-theoretic. KN-LIT-95256d and KN-LIT-7675 are the
+      two knowledge records that frame approximate-scheme error as a security-relevant object, both
+      marked confidence unverified and citation_verified web, and both are cited by zero ledger records.
+      No proposal anywhere estimates a mutual information for any scheme. No experiments/EXP-FHE-*
+      exists.'
+    verdict: 'UNVERIFIED. Nothing is asserted about the external literature; KN-LIT-95256d and KN-LIT-7675
+      record, from web summaries only, that this area is actively worked, so a leakage-counting treatment
+      very plausibly exists outside. What is claimed new is internal and narrow: no ledger record
+      estimates an information rate for any scheme, and the specific construction here (exhaustive
+      secret enumeration, plug-in plus Miller-Madow mutual information, shuffled-secret floor, and
+      the exact-scheme residual run through the identical estimator as a second object) is assembled
+      from standard entropy estimation and this program''s null-object rule.'
+  object_first_candidate:
+    tracked_object: The empirical mutual information I(S ; B) in bits per released result, where S
+      is the secret drawn from an enumerable space and B is the vector of low-order bits of the decrypted
+      result below the claimed message precision.
+    lossiness: 'Genuinely lossy. The full object is the exact integer error term, which together with
+      the ciphertext determines the secret completely by construction; B retains only the lowest k
+      bits of that term and I(S;B) retains one scalar. Discarded: the high-order error, the ciphertext,
+      the sign, and any structure across multiple releases. What survives propagates because information
+      is monotone under the projection: whatever I(S;B) measures is a lower bound on what the full
+      error carries, so the retained coordinate is one-sided in a known direction and the direction
+      is the safe one for a measurement that must not overclaim. This is precisely not a change of
+      coordinates: recovering the error from B alone is impossible for k less than the error''s bit
+      length, and that irrecoverability is the point.'
+    propagation: 'One further homomorphic operation before release maps the error term through the
+      scheme''s error-propagation rule, growing its magnitude and mixing in fresh randomness. The
+      channel''s output alphabet therefore shifts: the same k low-order bits are now a projection
+      of a larger error, so I(S;B) is predicted to decrease with evaluation depth as fresh randomness
+      accumulates below the observation window, and to increase with the number of independent releases
+      under one secret if those are aggregated. Both directions are measurable and both are measured.'
+    survival_score: The per-release information is expected to be a small fraction of a bit and to
+      decay with circuit depth as fresh noise accumulates; the object survives as a measurable quantity
+      for as long as the estimator floor is below it, which at N=8 with an exhaustive secret enumeration
+      and k around 8 bits is expected to be the first two or three levels. It dissolves once the plug-in
+      estimate is at the shuffled floor.
+  null_object_control: 'Two nulls, both run through the identical estimator in the same invocation.
+    First, the shuffled-secret floor: pair each released bit vector with a secret drawn independently
+    from the same enumeration, destroying the association while preserving both marginals; this measures
+    the plug-in estimator''s positive bias at the given alphabet size and sample count, which is always
+    positive and is the number most likely to be mistaken for a finding. Second, a key-independent
+    synthetic error of matched variance and matched bit width in place of the real error. For the
+    signal arm to mean anything the approximate-scheme estimate must exceed the shuffled floor by
+    the pre-committed margin AND the synthetic-error arm must sit at the floor. If the approximate
+    arm sits at the floor, the recorded outcome is a controlled null.'
+  discriminated_from:
+  - IDEA-20260805-3d71ca (RQ-MLKEM-001) selects attack targets among many ciphertexts of a static
+    ML-KEM key using the left tail of a projected-error norm; that is a ranking statistic for a KEM
+    decapsulation attack, not an information rate, and involves no homomorphic evaluation and no released
+    plaintext.
+  - KN-LIT-95256d records IND-CPA^D attacks on exact FHE from a web summary and is a threat-model
+    note, not a measurement; this contract mounts no attack and defines no adversary, only a counted
+    rate.
+  - KN-LIT-7675 concerns noise-flooding calibration; entry 7 of this bucket addresses that separately
+    as a distribution-distance measurement, while this entry measures the uncountermeasured channel.
+  - 'A side-channel leakage assessment: there is no physical channel here, no traces, and no timing;
+    the channel is the released ciphertext value itself, which is a functional rather than an implementation
+    artifact.'
+  - Entries 1 through 4 of this bucket all measure noise magnitude or its second-moment structure;
+    this measures an information rate in bits, in units none of them produce.
+  assumptions:
+  - The full ternary secret space at N=8 is enumerable and the released bit vector alphabet at k bits
+    is small enough that a plug-in mutual information estimate has a measurable and stable bias floor.
+  - A toy approximate scheme can be implemented with exact integer arithmetic, so no floating-point
+    rounding of the host language contaminates the measured error.
+  - The claimed message precision, which defines which bits count as low-order, can be stated unambiguously
+    for the toy scheme.
+  - Mutual information estimated over an exhaustive secret enumeration with a fixed public input is
+    the quantity of interest; the alternative of averaging over inputs is a separate arm, not the
+    base measurement.
+  predictions:
+  - metric: I(S;B) in the approximate arm at depth 1, minus the shuffled floor
+    direction: higher
+    minimum_effect: 0.05 bits per released result
+  - metric: I(S;B) in the synthetic key-independent-error arm, minus the shuffled floor
+    direction: different
+    minimum_effect: within 1 standard error of zero, i.e. a predicted absence
+  - metric: I(S;B) as circuit depth increases from 1 to 4
+    direction: lower
+    minimum_effect: a factor of 2 decrease from depth 1 to depth 4
+  - metric: I(S;B) in the exact-scheme residual arm
+    direction: lower
+    minimum_effect: 'refusal to pre-commit a number: an exact scheme''s released value carries no
+      error at all when decryption succeeds, so the quantity is either identically zero or entirely
+      determined by failure events whose rate is a separate parameter, and pre-committing would confuse
+      the two regimes'
+  minimal_test:
+    design: 'At N=8, ternary secret enumerated in full (6561), a small scaling factor giving 8 low-order
+      bits below claimed precision, a fixed public input and a depth-1 circuit: for every secret,
+      record the 8-bit low-order vector of the released result over 32 encryption randomness seeds.
+      Build the 6561-by-256 empirical joint, compute the plug-in and Miller-Madow mutual information,
+      and compute the shuffled-secret floor by the identical code on a permuted pairing. Then rerun
+      with a key-independent synthetic error of matched variance. Three numbers, one estimator, minutes
+      of compute. This discriminates because the entire framing rests on whether the released low-order
+      bits carry countable information about the secret above the estimator''s own bias; if the approximate
+      arm is at the floor, the channel is not measurable by counting at this resolution and the closure
+      is a real measured statement rather than a fatigue report. Larger N and deeper circuits only
+      extend the surface.'
+    controls:
+    - Shuffled-secret floor, identical estimator, same invocation, measuring plug-in bias at the exact
+      alphabet size and sample count.
+    - Key-independent synthetic error of matched variance and bit width, which must sit at the floor.
+    - Fixed-secret arm in which only encryption randomness varies, separating information about the
+      secret from information about the randomness.
+    - Exact-scheme residual arm at matched parameters, run through the identical estimator, as the
+      second object.
+    - Alphabet-size sweep at k in {4, 8, 12} bits, since the plug-in bias grows with alphabet size
+      and a single k could be chosen to flatter the result.
+    required_metrics:
+    - plug-in mutual information I(S;B) in bits per release
+    - Miller-Madow corrected mutual information
+    - shuffled-secret floor for the same alphabet and sample count
+    - signal minus floor, with standard error
+    - the same four quantities for the synthetic-error, fixed-secret and exact-scheme arms
+    - enumeration size, alphabet size k, and sample count per secret
+  falsification_conditions:
+  - Approximate-arm estimate is within 1 standard error of the shuffled floor at every k and every
+    depth.
+  - Synthetic key-independent-error arm exceeds the floor, which means the estimator is detecting
+    structure that cannot be about the secret and is therefore broken.
+  - The estimate does not decrease with depth, contradicting the stated mechanism that fresh randomness
+    accumulates below the observation window.
+  - Estimates are not stable across independent randomness seedings of the same enumeration.
+  - The floor exceeds the signal at every k, meaning the design has no resolution and must be rebuilt
+    with a smaller alphabet or more samples.
+  confounders:
+  - Plug-in mutual information is positively biased and the bias grows with alphabet size; the shuffled
+    floor bounds it but the two must be at identical sample counts or the comparison is meaningless.
+  - Fixing the public input means the measurement is conditional on that input, and a different input
+    could give a different rate.
+  - The toy scaling factor determines which bits are low-order and a different choice changes the
+    object.
+  - At N=8 the secret space is small enough that a substantial fraction of a bit is recoverable in
+    principle from very little, inflating rates relative to any larger space.
+  - Encryption randomness reuse across secrets, if not carefully avoided, creates a spurious association.
+  interpretation_limits:
+  - 'Mutual information is not an attack: a positive rate does not imply any feasible recovery, and
+    no recovery is attempted or claimed.'
+  - A rate measured with an 8-bit secret space says nothing quantitative about a scheme with a secret
+    space of thousands of coefficients.
+  - The contract measures one release channel with a fixed input and is silent about adaptive or multi-input
+    release patterns.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The measurement costs O(|S| * R * N^2) integer operations
+      for |S| secrets and R randomness seeds, plus O(|S| * 2^k) for the joint histogram.
+    memory_exponent: No attack memory exponent is claimed. The joint histogram is O(|S| * 2^k) counters,
+      which at |S| = 6561 and k = 12 is the binding constraint.
+    best_known: The incumbent is the qualitative treatment of approximate-scheme error as a precision
+      parameter, plus whatever countermeasure calibration a system chooses. This proposal does not
+      beat any attack and names none; it replaces a qualitative description with a counted rate at
+      toy scale.
+    hidden_overhead: The estimator bias is the hidden term and it is of the same order as the effect;
+      the human cost hides in defending the choice of k and of the public input, both of which move
+      the number and neither of which has a principled default.
+  dominated_by: 'n/a (no result claimed). Checked: no FHE experiment directory exists in this repository,
+    so there is no internal frontier row; and since the contract claims no recovery, no query count
+    and no attack time or memory, it does not appear on the time/memory/data frontier at all.'
+  sota_delta: no attack; conceptual/measurement contribution only. The output is bits per release
+    against a measured estimator floor, a unit in which no attack cost is stated.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'That the toy approximate scheme and the estimator can be built and produce
+    stable numbers: 0.85. That the approximate arm exceeds the shuffled floor by the pre-committed
+    0.05 bits: 0.6, since the low-order bits of an error that is a linear function of the secret should
+    carry something, but the estimator floor at a 6561-symbol input alphabet is high and may swallow
+    it. That the synthetic-error arm sits at the floor as required: 0.8. That the rate decays with
+    depth as predicted: 0.65. That anything here transfers quantitatively to a real approximate scheme
+    at deployed precision: 0.05, and no transfer is claimed.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FHE-001
+  - KN-LIT-95256d
+  - KN-LIT-7675
+  - KN-OPEN-026
+  - KN-TECH-082
+  - IDEA-20260805-3d71ca
+  - IDEA-20260807-a06996
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FHEX-736606

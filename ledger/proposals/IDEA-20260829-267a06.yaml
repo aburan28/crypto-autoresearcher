@@ -1,0 +1,973 @@
+idea:
+  id: IDEA-20260829-267a06
+  question_id: RQ-QALG-122b59
+  added: '2026-08-29'
+  proposed_by: idea-generator
+  status: proposed
+  title: >-
+    THE COHERENT PRANGE ORACLE DOES NOT NEED GAUSSIAN ELIMINATION -- restrict
+    Grover-Prange to information sets whose two blocks are unions of rho and
+    gamma cyclic INTERVALS, so the submatrix to invert is mosaic-Toeplitz of
+    displacement rank at most rho+gamma+2 and a superfast structured solver
+    replaces O(n^3) elimination, at ZERO cost in success probability because
+    Prange's success probability depends only on the SIZE of the information
+    set and not on its shape
+  class: algorithm
+
+  claim: >-
+    Grover-Prange against quasi-cyclic syndrome decoding spends essentially all
+    of its per-iteration cost coherently reducing a permuted parity-check matrix
+    to systematic form, estimated at about 2^{43.3} Toffoli-equivalents and
+    about 2^{28} layers of depth at HQC-128. That cost is an artifact of
+    searching over UNSTRUCTURED information sets. For a quasi-cyclic code with
+    parity check [I_n | rot(h)], an information set that takes S from the first
+    block and T from the second requires inverting the submatrix rot(h)[S^c, T];
+    when S and T are each unions of cyclically consecutive intervals -- rho of
+    them and gamma of them -- that submatrix is a mosaic of Toeplitz blocks and
+    therefore has displacement rank at most rho + gamma + 2, so a superfast
+    structured-matrix solver of the Bitmead-Anderson / Morf type solves it in
+    O((rho+gamma)^2 n log^2 n) field operations instead of O(n^3). THE CLAIM HAS
+    TWO HALVES AND BOTH ARE FALSIFIABLE. (i) COST -- the per-iteration oracle
+    drops by a predicted 12 to 18 bits in gates and, more importantly, by a
+    predicted 8 to 16 bits in DEPTH, which is the axis on which amplitude
+    amplification against this target actually fails under a binding MAXDEPTH.
+    (ii) NO PROBABILITY LOSS -- restricting the information-set family costs
+    NOTHING in per-iteration success probability, because for a uniformly random
+    error support the probability that a FIXED n-subset avoids it depends only
+    on the subset's cardinality, not on its shape; the only requirement is that
+    the structured family be at least as large as the search space 2^{2w}, which
+    fixes a minimum interval count predicted to be exactly rho = gamma = 3 at
+    HQC-128, 4 at HQC-192 and 5 at HQC-256. NOTHING IS CLAIMED ABOUT THE
+    ITERATION-COUNT EXPONENT -- it stays 2^{w(1+o(1))} -- and the record says so
+    plainly rather than dressing a multiplier as an exponent. What moves is the
+    depth-limited total cost, which under the parallel-Grover accounting scales
+    as N_full * d * g / MAXDEPTH and therefore inherits the full (g,d) reduction
+    linearly -- a predicted 20 to 34 bit reduction in total logical gate cost at
+    MAXDEPTH 2^{40}, on an axis where the same accounting is what makes
+    Grover-Prange lose to classical ISD at all.
+  mechanism: >-
+    SETUP. HQC's public code has parity check H = [I_n | rot(h)] over F_2, where
+    rot(h) is the n x n circulant of the public ring element h, n prime. Prange
+    selects n of the 2n columns as the REDUNDANCY set, assumes the error is zero
+    on the complementary information set, inverts the selected n x n submatrix
+    and checks the residual weight. Write the selected set as S in block 1 (the
+    identity block, |S| = a) together with T in block 2 (|T| = n - a). Column
+    j of the identity block is e_j, so eliminating those columns simply deletes
+    the rows indexed by S; what remains to invert is the (n-a) x (n-a)
+    submatrix M = rot(h)[S^c, T], rows S^c and columns T.
+    THE STRUCTURAL INGREDIENT. rot(h) has entries M[i][j] = h_{i-j mod n}: it is
+    Toeplitz along every diagonal. A submatrix with row set a union of rho
+    cyclic intervals and column set a union of gamma cyclic intervals is
+    therefore a rho x gamma MOSAIC of Toeplitz blocks. Mosaic-Toeplitz matrices
+    have DISPLACEMENT RANK at most rho + gamma + 2 with respect to the standard
+    shift-displacement operator, and matrices of displacement rank alpha are
+    represented by 2 alpha generator columns rather than by n^2 entries and are
+    inverted by superfast divide-and-conquer solvers (Morf; Bitmead-Anderson;
+    the Kaltofen line over finite fields) in O(alpha^2 n log^2 n) field
+    operations. The generators of a Schur complement are computable from the
+    generators of the parent -- that closure property is what makes the recursion
+    work, and it is also exactly the compatibility half of the lossy-projection
+    test below.
+    WHY THE PROBABILITY DOES NOT MOVE. Amplitude amplification's cost is
+    p^{-1/2} where p is the fraction of MARKED elements of whatever set the
+    initial state ranges over. Here p = Pr[supp(e) avoids I] for I drawn from the
+    structured family. For a uniformly random weight-2w support and ANY fixed
+    n-subset I, that probability is C(2n - n, 2w)/C(2n, 2w), a function of |I|
+    alone. Averaging over any family of n-subsets returns the same number.
+    Restricting the family therefore changes nothing in the numerator of the
+    exponent, and the ONLY constraint the restriction imposes is that the family
+    be large enough to contain 2^{2w} distinct members -- otherwise amplitude
+    amplification is searching a space with fewer than one expected marked
+    element and must re-use information sets, which wastes work.
+    FAMILY SIZE, WHICH FIXES rho AND gamma. A union of rho cyclic intervals in
+    Z_n is determined by 2 rho endpoints, so there are about C(n, 2 rho) choices
+    for S and C(n, 2 gamma) for T, less about a factor n for the constraint
+    |S| + |T| = n. At HQC-128 (n = 17669, log2 n = 14.11, 2w = 132) with
+    rho = gamma = 3 that is about 2^{12 x 14.11 - log2(720^2) - 14.11} = 2^{136},
+    which clears 2^{132} with 4 bits to spare; rho = gamma = 2 gives about
+    2^{94} and does NOT clear it. At HQC-192 (n = 35851, 2w = 200) the same
+    computation predicts rho = gamma = 4, and at HQC-256 (n = 57637, 2w = 262)
+    rho = gamma = 5. So the mechanism's own parameter is pinned by a counting
+    argument, not chosen, and the counting argument is a one-line falsifiable
+    prediction.
+    THE RESULTING ALGORITHM. Amplitude amplification over the index of a
+    structured information set (the 2(rho+gamma) interval endpoints, about 136
+    qubits at HQC-128), with an oracle that (1) builds the displacement
+    generators of M directly from h and the endpoints -- O(alpha n) work, no
+    matrix ever materialized, (2) runs a branch-free structured solver on the
+    generators, (3) computes the residual weight and marks. Width is O(alpha n)
+    logical qubits rather than the about 2^{29} needed to materialize a permuted
+    matrix, so this improves the WIDTH axis as well and requires NO QRAM and NO
+    QRACM: h is a classical constant compiled into the circuit.
+    WHY THIS IS NOT COFACTOR POLISHING, STATED HONESTLY. In the iteration-count
+    model it IS a multiplier, and per docs/target-result-profile.md C2 that
+    disqualifies it from target class on its own. Its claim to exponent-level
+    relevance is conditional and specific: once a depth budget D binds, the
+    optimal parallel arrangement costs Theta(N_full * d * g / D) total gates
+    rather than N_it * g, so d and g enter LINEARLY and a 2^{26} reduction in
+    d*g is a 26-bit reduction in the total, at a budget where the quantum row is
+    within tens of bits of the classical one.
+  novelty_status: unverified
+
+  novelty_screen:
+    corpus_screen: >-
+      Greps of ledger/proposals, ledger/hypotheses and knowledge/ for
+      'quasi-cyclic', 'syndrome decoding', 'HQC', 'ISD', 'Toeplitz',
+      'displacement rank', 'van Oorschot', 'claw find', plus full reads of the
+      five records the prior-art file lists for this RQ
+      (IDEA-20260815-6ed3c9, IDEA-20260818-45b8ea, -d5668d, -e0ce51, -f8dc30)
+      and of the KN records KN-LIT-b9e1a8, KN-LIT-aa3372, KN-LIT-f7d7dd.
+      NOT FOUND: any record proposing structured (Toeplitz / mosaic-Toeplitz /
+      displacement-rank) information sets, any record using a superfast
+      structured-matrix solver anywhere, and any record observing that Prange's
+      per-iteration success probability is invariant under the SHAPE of the
+      information set. IDEA-20260818-e0ce51 NAMES the missing object -- it asks
+      whether 'a quasi-cyclic Prange oracle using O~(n) ring operations rather
+      than O(n^3) bit operations' exists and explicitly declines to construct
+      one, recording it as an open item. This record is the construction.
+    discriminated_from:
+      - >-
+        IDEA-20260818-e0ce51 MEASURES the cost of two fixed algorithms under a
+        MAXDEPTH sweep and names the cheap-QC-oracle question as open. This
+        record proposes a specific oracle, predicts its (g, d, width), and pins
+        its own free parameter by a counting argument. The two compose in one
+        direction only: e0ce51's frozen cost model M is the right unit for
+        reporting this record's numbers, and if e0ce51 runs first this record
+        should adopt its model rather than invent another.
+      - >-
+        IDEA-20260818-45b8ea changes the INITIAL STATE over information sets (a
+        prior-matched amplitude) and leaves the oracle alone. This record
+        changes the ORACLE and leaves the amplitude uniform. They act on
+        different factors of the same cost and are composable without
+        interaction: 45b8ea multiplies the marked fraction by 2^{Delta}, this
+        record divides the per-iteration cost by 2^{g+d}.
+      - >-
+        IDEA-20260818-f8dc30 also works inside the ring but tracks LINEAR
+        COMPLEXITY of the transform-domain syndrome and concludes the
+        transform lane is closed at wt(h) about n/2. This record needs h to be
+        DENSE (a sparse h would make the structured solver trivially cheap but
+        would also make f8dc30's Berlekamp-Massey attack work outright), so the
+        two records are consistent and disjoint: f8dc30 uses the ring to attack,
+        this record uses the ring only to make an existing attack cheaper.
+      - >-
+        IDEA-20260813-a46301 (quantum-DOOM shift-orbit folding) uses the cyclic
+        group to multiply TARGETS. This record uses the cyclic group to make one
+        oracle call cheap and does not touch the target count; the two multiply
+        rather than compete.
+    web_screen: >-
+      One WebSearch run 2026-08-29 ('quasi-cyclic code information set decoding
+      Toeplitz displacement rank fast structured linear algebra Gaussian
+      elimination speedup'). Returned: NP-completeness of quasi-cyclic decoding
+      (eprint 2023/1064), the HQC/RQC efficient-encryption paper
+      (eprint 2016/1194), QC-LDPC encoder constructions that use Toeplitz
+      submatrices, and a quantum reduction paper (arXiv 2106.02747). NOT FOUND
+      in that one search: any use of displacement-rank solvers inside an ISD
+      iteration, classical or coherent. One search is not a literature review;
+      structured-matrix solvers are textbook computer algebra and their use for
+      circulant submatrices may well be folklore in coding implementations.
+      What is not folklore, as far as this screen can tell, is the combination
+      with the shape-invariance of Prange's success probability and the
+      resulting family-size counting argument.
+    verdict: >-
+      unverified. Expected classification if properly checked: 'adaptation' --
+      each ingredient (mosaic-Toeplitz displacement rank, superfast solvers,
+      Prange, coherent oracles) is standard; the assembly and the pinned
+      interval counts were not found in this corpus and were not exhaustively
+      searched for on the web. No novelty is claimed from memory.
+
+  citations:
+    - ref: KN-LIT-b9e1a8
+      provenance: internal
+      claim: >-
+        This corpus's read-in-full record of the HQC specification of
+        2025-08-22, supplying every parameter this record uses: n =
+        17669 / 35851 / 57637, k = 128 / 192 / 256, omega = 66 / 100 / 131,
+        omega_r = omega_e = 75 / 114 / 149, ring F_2[X]/(X^n - 1) with n stated
+        to be 'the smallest primitive prime greater than n1 n2'. The record's
+        citation_verified is 'read' and it carries the sha256 of the source PDF.
+      verified_by: >-
+        Full read of knowledge/literature/KN-LIT-b9e1a8.md by this session,
+        2026-08-29. The underlying specification PDF was NOT opened by this
+        session; parameters are taken from the corpus record.
+    - ref: IDEA-20260818-e0ce51
+      provenance: internal
+      claim: >-
+        The adjacent proposal supplying the baseline this record improves on:
+        it estimates the coherent Gaussian-elimination oracle at g about
+        2^{43.3} Toffoli-equivalents and d about 2^{28} layers at HQC-128, a
+        materialized-matrix width of about 2^{29.2} logical qubits, and the
+        depth-limited scaling law total = N_full * d * g / D. It also states,
+        as an explicit open item, that a quasi-cyclic Prange oracle costing
+        O~(n) ring operations would drop g to about 2^{28} and d to about
+        2^{15} and reverse its headline sign prediction.
+      verified_by: >-
+        Full read of ledger/proposals/IDEA-20260818-e0ce51.yaml by this session,
+        2026-08-29.
+    - ref: KN-LIT-aa3372
+      provenance: internal
+      claim: >-
+        Perriello, Barenghi, Pelosi, 'A complete quantum circuit to solve the
+        information set decoding problem' (QCE 2021), recorded in this corpus as
+        a full quantum circuit for ISD with no step left as an abstract oracle.
+        The corpus record states explicitly that circuit size, depth and qubit
+        count are NOT recorded in it and that the paper's full text was not
+        read by the program. It is the baseline this record's (g, d, width)
+        predictions must be quoted against, and it may already supersede the
+        dense-elimination figures adopted here from IDEA-20260818-e0ce51.
+      verified_by: >-
+        Full read of knowledge/literature/KN-LIT-aa3372.md by this session,
+        2026-08-29 (corpus record only; the paper was NOT opened).
+    - ref: KN-LIT-f7d7dd
+      provenance: internal
+      claim: >-
+        Kirshanova, 'Improved quantum information set decoding' (PQCrypto 2018),
+        recorded in this corpus as the second step of the quantum-ISD asymptotic
+        line after Kachigar-Tillich, with the corpus record stating that the
+        claimed exponent is NOT recorded in it. Cited because any (g, d)
+        improvement must be reported against whichever algorithm actually holds
+        the best time exponent in HQC's sublinear-weight regime, which is
+        IDEA-20260813-fe3c5e's open question and not this record's.
+      verified_by: >-
+        Full read of knowledge/literature/KN-LIT-f7d7dd.md by this session,
+        2026-08-29 (corpus record only; the paper was NOT opened).
+    - ref: >-
+        Morf (1980) and Bitmead-Anderson (1980), superfast solution of
+        displacement-structured linear systems; Kaltofen's finite-field
+        treatment
+      provenance: recalled
+      claim: >-
+        A matrix of displacement rank alpha with respect to a shift operator is
+        represented by O(alpha n) field elements and its Schur complements
+        inherit displacement rank at most alpha, so a divide-and-conquer solver
+        runs in O(alpha^2 n log^2 n) field operations rather than O(n^3). This
+        is the load-bearing external algorithmic ingredient and it is RECALLED
+        FROM MEMORY: the exact exponent of the log factor, the exact bound on
+        the displacement rank of a rho x gamma mosaic of Toeplitz blocks, and
+        the regularity conditions the recursion needs over F_2 must all be
+        checked against the primary sources before any number here is quoted.
+      verified_by: null
+    - ref: >-
+        Kaltofen-Lobo / Daykin, count of nonsingular Toeplitz matrices over a
+        finite field
+      provenance: recalled
+      claim: >-
+        The fraction of n x n Toeplitz matrices over F_q that are nonsingular
+        tends to 1 - 1/q, i.e. 1/2 over F_2, which is LARGER than the dense
+        random-matrix constant prod_{i>=1}(1 - 2^{-i}) about 0.2888. Used as the
+        rigorous anchor for heuristic H1 (structured submatrices are not
+        pathologically singular). RECALLED FROM MEMORY and must be checked; if
+        the constant is wrong the direction of H1's prediction still holds but
+        its calibration does not.
+      verified_by: null
+    - ref: 'Zalka (1999), optimality of parallel Grover'
+      provenance: recalled
+      claim: >-
+        Parallel amplitude amplification over P processors achieves only a
+        sqrt(P) speedup and this is optimal, which is what makes the
+        depth-limited total cost scale as N_full * d * g / D. This record uses
+        the consequence, not the proof, and takes the statement at second hand
+        from IDEA-20260818-e0ce51's H2.
+      verified_by: null
+
+  assumptions:
+    - >-
+      HQC's public code is the rate-1/2 quasi-cyclic code with parity check
+      [I_n | rot(h)] over R = F_2[X]/(X^n - 1), n prime, and h is a dense
+      uniform ring element derived from a public seed.
+    - >-
+      The error support is uniform over weight-2w vectors. If it is NOT --
+      which is exactly what IDEA-20260818-45b8ea proposes to measure -- the
+      shape-invariance argument still holds for any support distribution that is
+      EXCHANGEABLE across positions, and must be re-derived otherwise. This
+      record does not assume 45b8ea's outcome in either direction.
+    - >-
+      The unit of account is the logical Toffoli-equivalent gate and the logical
+      circuit layer; full fault-tolerant error correction is assumed and no
+      physical-qubit overhead is modelled. NISQ is excluded by inspection.
+    - >-
+      The comparison baseline for the (g, d, width) columns is whichever of
+      IDEA-20260818-e0ce51's first-principles estimate or KN-LIT-aa3372's
+      published circuit is authoritative; where they differ, the published
+      circuit supersedes and this record's ratios must be recomputed against it.
+
+  object_first_framing:
+    established_families_declared_off_limits_as_primary_lens:
+      - >-
+        Grover-Prange and quantum-walk BJMM/MMT AS ALGORITHMS. This record
+        changes neither's search structure; it changes only the implementation
+        of one subroutine.
+      - >-
+        The ten objects already generated against this RQ: shift-orbit DOOM
+        folding, CRT-residue hidden shift, automorphism-orbit walk quotient,
+        electric-network walk re-derivation, sparse-regime baseline
+        reproduction, classical-baseline attribution, support-distribution
+        Renyi deficit, dual-window (eps, s) bound, the MAXDEPTH cost functional,
+        and transform-domain linear complexity.
+      - >-
+        Any claim on the ITERATION-COUNT exponent. This record explicitly does
+        not touch it.
+    tracked_object: >-
+      THE DISPLACEMENT-GENERATOR PAIR (G, H) OF THE INFORMATION-SET SUBMATRIX --
+      that is, an information set is followed through the computation not as a
+      set of columns and not as a matrix, but as 2 alpha generator columns of
+      length n from which the whole submatrix and all its Schur complements are
+      reconstructible.
+    lossy_projection_test: >-
+      PASSES. LOSSY: the submatrix M = rot(h)[S^c, T] has about n^2 = 2^{28.2}
+      bit entries at HQC-128 while its generator pair has 2 alpha n = about
+      2^{18.2} bits at alpha = 8 -- a compression of ten orders of magnitude in
+      bits, so the fibres of the projection are astronomically large (almost
+      every n x n matrix is NOT displacement-structured and has no such
+      representation at all). COMPATIBLE, which is the half with teeth: the one
+      operation the oracle performs on M is Schur complementation, and the
+      generators of a Schur complement are computable from the generators of the
+      parent by a rank-preserving update -- displacement rank does not grow
+      under the recursion. So the discarded information is discarded compatibly
+      with the target's own operation and the retained part propagates
+      deterministically, which is precisely why a superfast solver exists at
+      all. FAILING VARIANT, recorded to show the test bites: tracking 'M in
+      row-echelon form' discards nothing (echelon form is a basis change and M
+      is recoverable), so it is a change of coordinates, not an object -- and it
+      is exactly what the dense oracle currently tracks, which is why the dense
+      oracle costs n^3.
+    survival: >-
+      The object survives every step of the ISD iteration: generator
+      construction, the full solver recursion, and the residual-weight test. It
+      DISSOLVES the moment the information set stops being interval-structured
+      -- one arbitrary column moved out of an interval raises alpha by 2, and a
+      generic information set has alpha = Theta(n), at which point the
+      representation is larger than the matrix. That dissolution boundary is
+      exactly the family-size constraint, which is why rho and gamma are pinned
+      rather than free.
+
+  proof_search_map:
+    bottleneck: >-
+      The per-iteration coherent linear-algebra cost pair (g, d). The iteration
+      count 2^{w} is NOT the bottleneck for this record and is not touched.
+    baseline_embedding:
+      parameter_slice: >-
+        rho = gamma = n/2, i.e. every column is its own interval. Then
+        alpha = Theta(n), the structured solver degenerates to dense elimination
+        and the cost must reproduce EXACTLY the O(n^3) figure, including its
+        leading constant. This is the old-method boundary and it is an identity,
+        not an approximation.
+      reproduction_check: >-
+        Symbolic: substitute alpha = n into O(alpha^2 n log^2 n) and check the
+        crossover point against 2 n^3 term by term, recording the n at which the
+        structured solver stops winning. Numeric: a frozen fixture at
+        n in {31, 101, 257} that runs BOTH solvers on the same submatrices and
+        asserts bit-identical solutions, plus operation counts fitted against
+        alpha^2 n log^2 n and n^3 respectively. A structured solver that does not
+        agree with dense elimination on every fixture instance is discarded
+        before any cost number is reported.
+    observation_collision:
+      observable: >-
+        The displacement rank alpha of the information-set submatrix, and
+        through it the predicted (g, d).
+      distinct_preimage_search: >-
+        A COLLISION EXISTS AND IT MATTERS. Two information sets with identical
+        alpha can have very different SOLVER BEHAVIOUR, because the
+        divide-and-conquer recursion needs strongly regular leading minors and
+        alpha says nothing about regularity: a mosaic-Toeplitz matrix of
+        displacement rank 8 can be nonsingular with a singular leading half,
+        which stalls the recursion. In superposition a stall is not recoverable
+        by a data-dependent branch, so alpha alone is NOT an identifying
+        observable for cost. SEPARATING CONDITION: carry the pair (alpha, number
+        of regularization retries needed), and measure the retry distribution
+        empirically. A second, milder collision: alpha does not determine the
+        error-avoidance probability, but that is harmless here because the
+        probability is shape-independent by the exact argument above.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace 'the permuted parity-check matrix' by 'the displacement
+          generator pair of the information-set submatrix'. The hypothesis
+          'this information set is cheap to eliminate' becomes the exact
+          algebraic condition 'displacement rank at most rho + gamma + 2'.
+        predicted_gain: >-
+          Per-iteration gates from about 2^{43.3} to about 2^{27.7}, depth from
+          about 2^{28} to a predicted 2^{12}-2^{20}, width from about 2^{29.2}
+          to O(alpha n) = about 2^{17.2} logical qubits, at HQC-128.
+      - transform: boundary_lift
+        proposed_object: >-
+          Enlarge the certificate family from 'unstructured information sets' to
+          'interval-structured information sets with the minimum interval count
+          that keeps the family larger than 2^{2w}', and prove a strict inward
+          improvement -- the cost strictly drops and the success probability is
+          strictly unchanged, rather than merely 'a cheaper family exists'.
+        predicted_gain: >-
+          The pinned counts rho = gamma = 3 / 4 / 5 at HQC-128/192/256, each
+          derived from the family-size inequality rather than tuned.
+    quantifier_order: >-
+      FOR ALL parameter sets P and FOR ALL interval counts (rho, gamma) with
+      C(n,2 rho) C(n,2 gamma) / n at least 2^{2w}, THERE EXISTS a coherent
+      oracle whose gate and depth costs are O((rho+gamma)^2 n log^2 n) and whose
+      marked fraction is EXACTLY the Grover-Prange marked fraction, uniformly
+      over instances. Note what is NOT claimed: the witness (the solver) must not
+      depend on the instance h or on the information-set index in a way that
+      requires data-dependent control flow -- that uniformity is precisely
+      heuristic H3, it is the single most likely failure point, and it is stated
+      as an assumption rather than assumed away.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        'At HQC-128/192/256, under cost model M, a coherent Prange oracle over
+        interval-structured information sets costs (g*, d*, width*) with the
+        same marked fraction as the unstructured oracle, giving a total
+        depth-limited cost lower by X bits at MAXDEPTH D.' The method can NEVER
+        certify anything about the iteration-count exponent, about the hardness
+        of QC-SD, or about physical qubit cost.
+      nearby_object_control: >-
+        The nearby object where the hoped-for conclusion must FAIL is a RANDOM
+        (non-quasi-cyclic) [2n, n] code at the same parameters. There, submatrix
+        entries are independent and no interval structure exists, so alpha must
+        measure as Theta(n) and the structured solver must show NO advantage. A
+        pipeline that reports a speedup on a random code is measuring its own
+        implementation, not quasi-cyclicity. Second control: BIKE/QC-MDPC, where
+        the code is also quasi-cyclic -- the method MUST show the same oracle
+        saving there, and if it does not, the saving is not coming from
+        circulant structure.
+    proof_obligations:
+      - claim: 'rot(h)[S^c, T] has displacement rank at most rho + gamma + 2'
+        responsibility: size
+      - claim: 'a displacement-rank-alpha system of size m solves in O(alpha^2 m log^2 m) operations'
+        responsibility: runtime
+      - claim: 'the structured solver returns the same solution as dense elimination'
+        responsibility: correctness
+      - claim: 'Pr[supp(e) avoids I] depends only on |I|, for exchangeable supports'
+        responsibility: success_probability
+      - claim: 'C(n,2rho) C(n,2gamma)/n >= 2^{2w} at the pinned (rho, gamma)'
+        responsibility: size
+      - claim: 'the solver admits a branch-free reversible implementation at bounded retry count'
+        responsibility: feasibility
+      - claim: 'the family degenerates to dense elimination at alpha = Theta(n)'
+        responsibility: baseline
+      - claim: 'no claim is made on the iteration-count exponent'
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        minimum interval count rho = gamma satisfying
+        C(n,2rho) C(n,2gamma) / n >= 2^{2w}, per parameter set
+      direction: different
+      minimum_effect: >-
+        PREDICTED 3 at HQC-128, 4 at HQC-192, 5 at HQC-256, computed this
+        session from KN-LIT-b9e1a8's parameters (HQC-128 margin is only about 4
+        bits, so an exact recomputation may push it to 4). Any value above 8 at
+        any parameter set makes alpha large enough that the structured solver's
+        alpha^2 factor eats the saving, and the mechanism dies at that set.
+    - metric: 'displacement rank alpha of rot(h)[S^c, T] at the pinned (rho, gamma)'
+      direction: lower
+      minimum_effect: >-
+        PREDICTED at most rho + gamma + 2, i.e. at most 8 / 10 / 12. A measured
+        alpha above 2(rho + gamma) falsifies the mosaic-Toeplitz bound and the
+        record with it.
+    - metric: 'coherent oracle gate count g at HQC-128, Toffoli-equivalents'
+      direction: lower
+      minimum_effect: >-
+        PREDICTED about 2^{27.7} against the dense estimate 2^{43.3}, i.e. a
+        saving of 12 to 18 bits. A saving below 8 bits makes the record
+        uninteresting; a saving above 20 bits is implausible and indicates an
+        uncounted step.
+    - metric: 'coherent oracle depth d at HQC-128, logical layers'
+      direction: lower
+      minimum_effect: >-
+        PREDICTED between 2^{12} and 2^{20} against the dense estimate 2^{28},
+        i.e. a saving of 8 to 16 bits. THIS IS THE HEADLINE METRIC: it is the
+        axis on which the depth-limited total cost is computed, and it is also
+        the metric most likely to disappoint, because superfast structured
+        solvers are recursive and their depth is not obviously polylogarithmic.
+    - metric: 'logical qubit width of the oracle at HQC-128'
+      direction: lower
+      minimum_effect: >-
+        PREDICTED about 2^{17.2} = O(alpha n) against the about 2^{29.2} of a
+        materialized permuted matrix, a saving of about 12 bits. KN-LIT-072f64
+        (named in IDEA-20260818-e0ce51) is the row that may already dominate
+        this column and must be read before it is claimed.
+    - metric: >-
+        per-iteration marked fraction measured on the structured family versus
+        the unstructured family, at toy scale
+      direction: different
+      minimum_effect: >-
+        PREDICTED IDENTICAL to within sampling error -- this is the record's
+        load-bearing 'no free lunch is being taken' check. A structured-family
+        marked fraction lower by more than 1 percent relative at any toy
+        parameter falsifies the shape-invariance argument and the record.
+    - metric: >-
+        total logical gate cost at MAXDEPTH 2^{40}, HQC-128, structured versus
+        dense oracle
+      direction: lower
+      minimum_effect: >-
+        PREDICTED 20 to 34 bits lower (the product of the g and d savings, since
+        both enter N_full * d * g / D linearly). Under IDEA-20260818-e0ce51's
+        predicted 2^{163.3} dense figure that would be about 2^{129}-2^{143},
+        which would REVERSE that record's headline sign prediction against
+        classical ISD at 2^{153}. Reported as conditional on e0ce51's numbers,
+        which are themselves estimates.
+    - metric: 'regularization retries per solve, empirical distribution at toy n'
+      direction: higher
+      minimum_effect: >-
+        PREDICTED O(1) with an exponentially decaying tail. A retry count
+        growing with n, or a heavy tail, makes the branch-free reversible
+        implementation pay a factor that must be added back to g and d, and is
+        the most likely way this record's saving evaporates.
+
+  minimal_test:
+    design: >-
+      Four stages, classical throughout, no quantum simulation, ordered so the
+      cheapest falsifier runs first.
+      STAGE 0 (minutes, arithmetic, RUNS FIRST AND CAN KILL THE RECORD): read
+      n and 2w for the three parameter sets from KN-LIT-b9e1a8, evaluate
+      C(n,2rho) C(n,2gamma) / n for rho = gamma in {2,...,8}, and emit the
+      pinned minimum interval count per set. If the pinned count exceeds 8
+      anywhere, record that and stop for that parameter set.
+      STAGE 1 (hours, exact linear algebra at toy scale): at primes
+      n in {31, 101, 257, 521, 1021}, build rot(h) for uniform h, sample
+      interval-structured (S, T) at the pinned counts, and MEASURE (a) the
+      displacement rank of rot(h)[S^c, T] with respect to the standard shift
+      operator, against the predicted bound rho + gamma + 2; (b) the fraction of
+      sampled submatrices that are nonsingular, against the Toeplitz constant
+      1/2 and the dense constant 0.2888; (c) the number of regularization
+      retries the divide-and-conquer recursion needs.
+      STAGE 2 (days, implementation): implement the structured solver and dense
+      Gauss-Jordan over F_2, verify bit-identical solutions on every fixture,
+      and fit measured operation counts and CRITICAL-PATH DEPTH (as a circuit
+      DAG, not wall-clock) against alpha^2 n log^2 n and against n^3 / n^2. Fit
+      across at least three doublings and report the fitted exponents with
+      residuals; extrapolate to n = 17669 explicitly labelled as an
+      extrapolation.
+      STAGE 3 (hours, statistics): the shape-invariance check. At toy n, sample
+      10^6 random weight-2w supports and, for a fixed structured family and a
+      fixed unstructured family of equal cardinality, measure the empirical
+      marked fraction of each. Report the ratio with a bootstrap 99 percent
+      interval.
+      STAGE 4 (hours, arithmetic): plug the Stage-2 (g, d, width) into
+      IDEA-20260818-e0ce51's depth-limited total-cost formula, at MAXDEPTH in
+      {2^{40}, 2^{64}, 2^{96}, infinity}, and emit the table structured versus
+      dense versus classical ISD+DOOM, under e0ce51's frozen cost model M if it
+      exists and under an explicitly stated model of this record's own if it
+      does not.
+    controls:
+      - >-
+        NULL OBJECT 1 (decisive): a RANDOM non-quasi-cyclic [2n, n] code at the
+        same parameters. Displacement rank of an arbitrary n-column submatrix
+        must measure as Theta(n) and the structured solver must show NO
+        advantage. If it shows one, the harness is measuring its own
+        implementation.
+      - >-
+        NULL OBJECT 2: interval-structured submatrices of a random
+        (non-circulant) Toeplitz-like matrix built from independent diagonals.
+        Displacement rank must match the circulant case, since the bound depends
+        on structure and not on the entries. A difference means the measured
+        rank is entry-dependent and the bound is being estimated, not verified.
+      - >-
+        POSITIVE CONTROL: rho = gamma = 1 (a single interval per block), where
+        the submatrix is a plain Toeplitz matrix and the classical superfast
+        solver is textbook. Recovery and cost must match published Toeplitz
+        solver behaviour; failure here means the implementation is wrong and no
+        other cell may be read.
+      - >-
+        SHAPE-INVARIANCE CONTROL (Stage 3, load-bearing): the marked fractions
+        of the structured and unstructured families must be statistically
+        indistinguishable. This is the null object for the record's central 'no
+        probability is lost' claim, and without it the cost saving is
+        uninterpretable.
+      - >-
+        STRUCTURAL TELL (inventor-protocol section 3.1): the measured advantage
+        of the structured solver must GROW with n, since the ratio is
+        n^3 / (alpha^2 n log^2 n). An advantage that is flat across three
+        doublings of n is the signature of a constant-factor implementation
+        artifact rather than of the asymptotic being exercised, and must be
+        reported as such.
+    required_metrics:
+      - pinned (rho, gamma) per parameter set with the family-size margin in bits
+      - measured displacement rank distribution versus the predicted bound, per (n, rho, gamma)
+      - nonsingularity fraction and regularization-retry distribution, per (n, rho, gamma)
+      - operation count and critical-path depth of both solvers, with fitted exponents and residuals
+      - bit-identity check of structured versus dense solutions on every fixture
+      - marked-fraction ratio structured/unstructured with 99 percent bootstrap interval
+      - extrapolated (g, d, width) at the three cryptographic n, labelled as extrapolations
+      - depth-limited total-cost table at MAXDEPTH in {2^{40}, 2^{64}, 2^{96}, infinity}
+
+  null_object_control: >-
+    NULL OBJECT 1 (random non-quasi-cyclic code) is the load-bearing control and
+    must run BEFORE any saving is interpreted, per docs/inventor-protocol.md
+    section 3. The failure mode it exists to catch is concrete: a structured
+    solver implemented with early exits or with sparse-aware arithmetic will
+    look fast on ANY input with structured sparsity in the test harness, and the
+    only way to know the saving comes from circulant structure is to remove the
+    circulant structure and watch it vanish. The SHAPE-INVARIANCE CONTROL is the
+    second null and protects the other half of the claim.
+
+  falsification_conditions:
+    - >-
+      Stage 0 pins rho = gamma above 8 at any standardized parameter set. The
+      alpha^2 factor then exceeds the saving and the mechanism is closed at that
+      set by its own counting argument.
+    - >-
+      Measured displacement rank exceeds 2(rho + gamma) at two or more toy n.
+      Falsifies the mosaic-Toeplitz bound and every cost number downstream.
+    - >-
+      Structured and dense solvers disagree on any fixture instance. Falsifies
+      the implementation; nothing else in the run may be reported.
+    - >-
+      The structured family's marked fraction is lower than the unstructured
+      family's by more than 1 percent relative at 99 percent confidence.
+      Falsifies shape-invariance -- the central claim -- and converts the record
+      into a probability-versus-cost tradeoff that must be re-optimized rather
+      than a free saving.
+    - >-
+      Fitted depth of the structured solver scales as n^{>=1.5}, i.e. no
+      material depth saving. This falsifies the HEADLINE metric while leaving
+      the gate and width savings standing, and the record must then be restated
+      as a gate/width improvement only, with its MAXDEPTH claim withdrawn.
+    - >-
+      Regularization retries grow with n or have a heavy tail. Falsifies H3 and
+      the branch-free reversible implementation, which is the difference between
+      an algorithm and a sketch.
+    - >-
+      NULL OBJECT 1 shows an advantage on a random code. Falsifies the
+      measurement, not the mechanism, and voids the run.
+    - >-
+      KN-LIT-aa3372's published complete circuit reports a dense-oracle (g, d)
+      more than 2^{5} away from IDEA-20260818-e0ce51's estimates. The baseline
+      this record's ratios are quoted against moves, every predicted saving must
+      be recomputed, and the record should be superseded rather than adjusted.
+
+  confounders:
+    - >-
+      ADOPTING A BASELINE FROM AN ESTIMATE. The dense (g, d, width) figures come
+      from IDEA-20260818-e0ce51, which states they are first-principles
+      estimates and may be superseded by KN-LIT-aa3372. Every ratio in this
+      record inherits that uncertainty and must be reported as a ratio against a
+      named source, never as an absolute.
+    - >-
+      WALL-CLOCK IS NOT DEPTH. A superfast solver can be slower in wall-clock at
+      toy n (big constants) while having far shorter critical path. The Stage-2
+      metric must be the circuit-DAG critical path, and reporting wall-clock
+      would measure the implementation language.
+    - >-
+      REVERSIBILITY IS NOT FREE. The classical operation count is a lower bound
+      on the coherent one; uncomputation of intermediate Schur complements may
+      double or worse. The record must report the coherent count with
+      uncomputation included, or state that it reports a lower bound.
+    - >-
+      The family-size margin at HQC-128 is only about 4 bits on this session's
+      arithmetic. Ordinary corrections (the |S| + |T| = n constraint, cyclic
+      wrap-around double counting, sets with coincident endpoints) could consume
+      it and push the pinned count to 4, which changes alpha and every cost
+      number. Stage 0 must count exactly, not asymptotically.
+    - >-
+      Interval-structured information sets are CLUSTERED, so while the marked
+      fraction is unchanged in expectation, the variance across the family is
+      higher than for unstructured sets. Amplitude amplification depends only on
+      the mean, but any implementation that samples a subfamily adaptively would
+      feel the variance -- so the protocol must forbid adaptive subfamily
+      selection or model it explicitly.
+    - >-
+      Recalled parameters and recalled solver complexities. Both must be re-read
+      before any figure is published.
+
+  interpretation_limits:
+    - >-
+      NO EXPONENT-MOVING CLAIM IS MADE ON THE ITERATION COUNT. In the model in
+      which the RQ's baseline is currently quoted (2^{w(1+o(1))} iterations),
+      this record's contribution is a multiplier, and per
+      docs/target-result-profile.md C2 that is not target class. Its
+      exponent-level relevance exists only in the depth-limited accounting and
+      is conditional on that accounting being the right one.
+    - >-
+      A cost saving inside the oracle does not weaken quasi-cyclic syndrome
+      decoding as an assumption. It weakens one published cost figure for one
+      attack, which is a different statement, and the record must never be cited
+      as moving the QC-SD exponent.
+    - >-
+      Toy-scale (n <= 1021) measurements of rank, singularity and depth are
+      hypothesis-generating for the scaling law only, and any statement about
+      n = 17669 is an extrapolation with the fitted residual as its error bar.
+    - >-
+      Nothing here bears on HQC's decoding-failure-rate model (RQ-HQC-001's
+      subject), on its classical ISD baseline, or on the sibling questions
+      RQ-QALG-457b41 and RQ-QALG-74bf20.
+    - >-
+      The record assumes exchangeable error supports. If IDEA-20260818-45b8ea
+      measures a materially non-exchangeable sampler, the shape-invariance
+      argument must be re-derived under the measured distribution, and the two
+      records must then be read together.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For h uniform in R = F_2[X]/(X^n - 1) with n prime, and for S, T unions
+        of rho and gamma cyclic intervals with |S| + |T| = n, the submatrix
+        M = rot(h)[S^c, T] is nonsingular with probability bounded below by an
+        absolute constant c > 0 independent of n, rho and gamma, with
+        c in [0.28, 0.55] for all rho, gamma <= 8 and all n >= 100; and the
+        probability that the divide-and-conquer recursion encounters a singular
+        leading minor at any level is at most C/2^{level} for an absolute
+        constant C.
+      rigorous_support: >-
+        The rigorous ingredients are two exact counts: the fraction of
+        nonsingular n x n matrices over F_2 tends to prod_{i>=1}(1 - 2^{-i})
+        about 0.2888, and the fraction of nonsingular n x n TOEPLITZ matrices
+        over F_q is exactly 1 - 1/q, i.e. 1/2 over F_2 (Kaltofen-Lobo / Daykin,
+        recalled). The heuristic is only that a rho x gamma MOSAIC of Toeplitz
+        blocks drawn from one circulant interpolates between these two exactly
+        computable regimes rather than degenerating -- it imitates the classical
+        random-matrix-rank distribution over F_2 in the same way the Toeplitz
+        count does, and the classical result being imitated is the
+        Kolchin/Fisher limit law for corank of random matrices over a finite
+        field.
+      validation_plan: >-
+        At n in {31, 101, 257, 521, 1021} and (rho, gamma) in {1,...,8}^2,
+        sample 10^5 uniform h and one structured (S, T) each, and record the
+        empirical nonsingularity fraction and the empirical corank distribution.
+        COMPARISON DISTRIBUTION: the corank distribution must match the
+        Kolchin limit law Pr[corank = j] = 2^{-j^2} prod_{i>j}(1-2^{-i}) /
+        prod_{i=1..j}(1-2^{-i}) at the dense end and the Toeplitz count at
+        rho = gamma = 1. TAIL CHECK: the maximum corank observed over all 10^5
+        samples must lie inside the Bonferroni-corrected 10^{-5} quantile of
+        whichever law the data selects; a corank tail heavier than both laws is
+        a finding about circulant submatrices in its own right and must be
+        reported rather than smoothed.
+      falsification_condition: >-
+        Nonsingularity fraction below 0.15 at any (n, rho, gamma) tested, or a
+        corank tail exceeding both reference laws by more than 3x, either of
+        which makes the expected number of oracle retries superconstant and
+        removes the saving.
+    - id: H2
+      statement: >-
+        For an error support drawn from any EXCHANGEABLE distribution on
+        weight-2w subsets of the 2n coordinates, and for every fixed n-subset I,
+        Pr[supp(e) and I are disjoint] = C(2n - n, 2w)/C(2n, 2w), depending on I
+        only through |I| = n; consequently the marked fraction of the
+        interval-structured family equals that of the unstructured family
+        exactly, for every rho and gamma.
+      rigorous_support: >-
+        This is an EXACT combinatorial identity for the uniform distribution on
+        weight-2w supports, with no heuristic content at all: the hypergeometric
+        probability depends only on cardinalities. The heuristic half is
+        strictly the modelling assumption that HQC's deployed fixed-weight
+        sampler produces an exchangeable support distribution -- the same
+        assumption that IDEA-20260818-45b8ea proposes to MEASURE, and it is
+        imported here as a stated dependency, not as a result.
+      validation_plan: >-
+        Direct: evaluate the hypergeometric identity symbolically for both
+        families and check equality. Empirical: at toy n, draw 10^6 supports
+        from the HQC reference fixed-weight sampler (seeded, recorded) and
+        measure the marked fraction of a structured family and of a size-matched
+        unstructured family; compare by a bootstrap two-sample test at
+        alpha = 0.01. TAIL CHECK: repeat restricted to the 1 percent of supports
+        with the most clustered spacing, where a shape-dependent effect would
+        appear first if it exists at all -- a clustered support is precisely the
+        kind that an interval-structured information set could correlate with.
+        SAMPLED PARAMETERS RECORDED: toy n only; transfer to n = 17669 is by the
+        exact identity, not by extrapolation, PROVIDED exchangeability holds.
+      falsification_condition: >-
+        Bootstrap two-sample test rejecting equality of the two marked fractions
+        at alpha = 0.01 at any toy n, or a clustered-support subgroup effect
+        above 1 percent relative.
+    - id: H3
+      statement: >-
+        The Morf / Bitmead-Anderson recursion admits a BRANCH-FREE reversible
+        implementation whose gate count and depth exceed the classical
+        O(alpha^2 n log^2 n) and its critical path by at most a factor
+        polylogarithmic in n, using a fixed number r of pre-chosen structured
+        randomizers to regularize leading minors, with r = O(1) sufficing except
+        with probability 2^{-Omega(r)}.
+      rigorous_support: >-
+        NO RIGOROUS SUPPORT FOR THE UNIFORMITY IN r. The rigorous part is only
+        that Bennett-style reversible simulation of a classical circuit costs a
+        polylogarithmic overhead in depth for a polynomial overhead in space,
+        and that random preconditioning of a structured matrix regularizes it
+        with constant probability per attempt (the classical statement imitated
+        is the Kaltofen-Saunders randomized preconditioner analysis). This is the
+        weakest link in the record and is flagged as such: a data-dependent
+        branch is not implementable in superposition, so a solver that needs an
+        unbounded retry loop is not an oracle at all.
+      validation_plan: >-
+        At n in {101, 257, 521, 1021} and the pinned (rho, gamma), run the
+        recursion with r in {1, 2, 4, 8} fixed randomizers over 10^4 uniform h
+        and record the failure rate as a function of r; fit against the
+        predicted 2^{-Omega(r)} decay. TAIL CHECK: report the WORST-CASE
+        instance over all trials, not the mean, because the coherent oracle must
+        succeed on every branch of the superposition simultaneously and its cost
+        is set by the worst branch. Record explicitly the transfer assumption
+        that a failure rate measured at n <= 1021 extrapolates to n = 17669 with
+        no measurement in between.
+      falsification_condition: >-
+        Failure rate not decaying in r, or worst-case retry count growing with
+        n, or a reversible-implementation depth overhead measured above
+        polylog(n) -- any of which converts the claimed saving into an unpriced
+        loop and the record must be withdrawn or restated with the loop charged.
+
+  target_complexity:
+    time_exponent: >-
+      ITERATION COUNT UNCHANGED at 2^{w(1+o(1))} = about 2^{66} at HQC-128; this
+      record makes no claim on it. TOTAL LOGICAL GATE COST, unbounded depth:
+      N_it * g, predicted to fall from about 2^{109.3} to about 2^{93.7} at
+      HQC-128 (a 15.6-bit reduction from the g column alone). TOTAL LOGICAL GATE
+      COST under a binding depth budget D: N_full * d * g / D, predicted to fall
+      by 20 to 34 bits, i.e. from about 2^{163.3} to about 2^{129}-2^{143} at
+      MAXDEPTH 2^{40}. Both totals are quoted against
+      IDEA-20260818-e0ce51's estimates and inherit their uncertainty.
+    memory_exponent: >-
+      IMPROVED AND THAT IS PART OF THE CLAIM. No QRAM and no QRACM anywhere: h
+      is a classical constant compiled into the circuit, exactly as in
+      Grover-Prange. Classical memory: none. Logical qubit width: O(alpha n) =
+      about 2^{17.2} at HQC-128 with alpha = 8, against about 2^{29.2} for a
+      materialized permuted matrix -- a 12-bit reduction, subject to
+      KN-LIT-072f64 (named in IDEA-20260818-e0ce51) possibly already dominating
+      this column. Quantum-walk BJMM/MMT, the competing time row, needs QRACM
+      proportional to its list size and is therefore on a different memory axis
+      entirely; the comparison must be reported as a Pareto pair, never merged.
+    qubit_and_depth_exponent: >-
+      FULL FAULT-TOLERANT ERROR CORRECTION ASSUMED; NISQ excluded by inspection
+      (serial depth about 2^{78}-2^{86} even after the saving). Index register:
+      2(rho + gamma) log2 n = about 136 qubits at HQC-128 for the interval
+      endpoints, against about 539 for an unstructured information-set index --
+      a small but real saving in the amplified register. Oracle depth per
+      iteration: predicted 2^{12}-2^{20} against about 2^{28} dense. Serial
+      total depth: N_it * d, predicted about 2^{78}-2^{86} against about 2^{94},
+      which is the difference between fitting and not fitting under MAXDEPTH
+      2^{96} at HQC-192 and HQC-256 -- the single most consequential
+      qualitative effect of the record.
+    best_known: >-
+      Grover-Prange at 2^{w(1+o(1))} iterations = about 2^{66} at HQC-128, with
+      per-iteration (g, d, width) estimated at (2^{43.3}, 2^{28}, 2^{29.2}) by
+      IDEA-20260818-e0ce51 and possibly measured by KN-LIT-aa3372. Quantum-walk
+      BJMM/MMT (Kachigar-Tillich, with the improved line recorded as
+      KN-LIT-f7d7dd) claimed no better in the sublinear-weight regime up to
+      o(1), itself unverified in this corpus and the subject of
+      IDEA-20260813-fe3c5e. Classical ISD + DOOM about 2^{125} iterations,
+      about 2^{153} gate-equivalents.
+    hidden_overhead: >-
+      The O(alpha^2 n log^2 n) hides: the reversible-simulation overhead of the
+      recursion (H3, unmeasured); uncomputation of intermediate Schur
+      complements, which could double the gate count; the regularization retries
+      whose worst-case rather than average behaviour sets the coherent cost; and
+      the generator-construction step O(alpha n). None of these is
+      superpolynomial, unlike the exemplar's o(1). The honest summary is that
+      this record's uncertainty is entirely in constants and in the depth of a
+      recursive algorithm, and the depth is the number the headline rests on.
+    tradeoff_note: >-
+      There is a genuine tradeoff curve in the interval count: raising
+      rho + gamma enlarges the information-set family (needed for the search
+      space to be big enough) and raises alpha quadratically in cost. The pinned
+      values sit at the smallest point that clears the family-size constraint,
+      which is the optimum. Parallelization behaves exactly as Grover
+      (sqrt(P)), so the saving is preserved under parallelization and is
+      AMPLIFIED under a depth constraint, because d enters the depth-limited
+      total linearly rather than under a square root -- the record's saving is
+      therefore worth MORE, not less, in the regime where the quantum advantage
+      is weakest.
+
+  dominated_by: >-
+    NOT DOMINATED ON THE (time, memory, QRAM) TRIPLE BY ANY ROW CHECKED, but the
+    time-axis position is unchanged from Grover-Prange and the record says so.
+    Every frontier row was checked individually. (1) GROVER-PRANGE with a dense
+    oracle: identical iteration count and identical marked fraction, strictly
+    higher g, d and width -- this record dominates it on three axes and ties on
+    the fourth, which is the whole claim. (2) QUANTUM-WALK BJMM/MMT
+    (Kachigar-Tillich; improved line KN-LIT-f7d7dd): may hold a lower TIME
+    exponent, in which case it dominates this record on time and is dominated by
+    it on memory (QRACM proportional to list size versus none). Whether it
+    actually holds a lower exponent at HQC's sublinear weight is
+    IDEA-20260813-fe3c5e's open question and is NOT settled here; until it is,
+    this record's Pareto position against that row is undetermined and is
+    reported as undetermined. (3) CLASSICAL ISD + DOOM, about 2^{125}
+    iterations, about 2^{153} gate-equivalents, polynomial memory: dominates
+    both quantum rows at MAXDEPTH 2^{40} on IDEA-20260818-e0ce51's estimates,
+    and this record is precisely an attempt to reverse that -- so it is
+    currently DOMINATED by classical ISD in the most conservative depth model,
+    and the experiment decides whether it stops being. (4) KN-LIT-aa3372's
+    complete ISD circuit: LIKELY DOMINATES THE BASELINE (g, d) COLUMNS this
+    record measures itself against, but is not described as exploiting
+    quasi-cyclic structure, so it is expected to be an input rather than a
+    competitor. Not read by this session, so 'likely' is the strongest word the
+    evidence supports. (5) KN-LIT-072f64 (qubit reduction in quantum ISD, named
+    in IDEA-20260818-e0ce51): LIKELY DOMINATES THE WIDTH COLUMN and may do so at
+    higher depth, which would cut against this record's headline; must be read
+    before the width saving is claimed. (6) RLPN / dual attacks: dominated at
+    R = 1/2 per IDEA-20260818-d5668d, not on this frontier. (7) Brute-force
+    support enumeration 2^{1064}: not on the frontier. NO ROW WAS LEFT
+    UNCHECKED.
+  sota_delta: >-
+    ZERO BITS on the iteration-count exponent, stated plainly. On the concrete
+    cost axes at HQC-128, against IDEA-20260818-e0ce51's estimated baseline:
+    predicted -12 to -18 bits in oracle gates, -8 to -16 bits in oracle depth,
+    about -12 bits in logical width, and -20 to -34 bits in total logical gate
+    cost at MAXDEPTH 2^{40}. The qualitative deliverable, which is worth more
+    than any single number: serial depth falls from about 2^{94} to about
+    2^{78}-2^{86} at HQC-128, which changes WHETHER Grover-Prange fits inside
+    NIST's depth budgets at all. If the depth prediction fails, sota_delta
+    reduces to the gate and width savings and the record should be re-ranked
+    accordingly.
+
+  obstruction:
+    statement: >-
+      To be filled by the run. Two anticipated forms, and they point in opposite
+      directions. NEGATIVE FORM: 'superfast displacement-structured solvers are
+      recursive, and their critical path over F_2 is Theta(n^{c}) with c >= 1.5
+      once regularization retries are charged at worst case, so the depth saving
+      that the depth-limited accounting needs does not exist even though the
+      gate saving does.' POSITIVE FORM: 'the coherent Prange oracle for a
+      quasi-cyclic code costs (g*, d*) with d* polylogarithmic, and the
+      information-set family of pinned interval count is large enough, so
+      Grover-Prange against QC-SD fits inside MAXDEPTH 2^{96} at every
+      standardized parameter set.' Both are claims about the OBJECT (the
+      displacement structure of circulant submatrices), not about the attempt.
+    quantity: >-
+      (q1) the displacement rank alpha of rot(h)[S^c, T] at the pinned
+      (rho, gamma), dimensionless; (q2) the coherent oracle pair (g, d) in
+      Toffoli-equivalents and logical layers at each standardized n; (q3) the
+      family-size margin log2(C(n,2rho)C(n,2gamma)/n) - 2w in bits.
+    value: >-
+      NOT MEASURED. No run exists; this record proposes the measurement.
+      PREDICTED at HQC-128: q1 <= 8; q2 about (2^{27.7}, 2^{12}-2^{20}); q3
+      about +4 bits at rho = gamma = 3. Units: dimensionless, gates and layers,
+      bits. Computed this session from KN-LIT-b9e1a8's parameters and recalled
+      solver complexities; predictions, not measurements, per AGENTS rule 5.
+    measured_by: []
+    scope: >-
+      Would be claimed only for rate-1/2 quasi-cyclic codes over
+      F_2[X]/(X^n - 1) with n prime, for the exact parameter sets and interval
+      counts measured, under the stated logical cost model, and for
+      Grover-Prange as the outer search. NOT claimed for random codes, for
+      quantum-walk algorithms whose inner structure is different, for physical
+      cost, or for the hardness of QC-SD.
+    resource_check:
+      examined: true
+      reading: >-
+        THE MEASUREMENT IS A RESOURCE FOR TWO THEORIES INDEPENDENT OF THIS
+        ATTACK. (i) DESIGN: if q2 shows that quasi-cyclicity makes the coherent
+        oracle cheap, then quasi-cyclicity -- adopted for KEY SIZE -- is also a
+        quantum-attack-surface parameter, and the tradeoff 'compact keys buy a
+        cheaper coherent oracle' is a design statement no HQC-family rationale
+        in this corpus makes. The same measurement applies verbatim to BIKE and
+        to any QC scheme, transferring the TOOL without transferring any
+        cryptanalytic conclusion, which this RQ's isolation constraint requires.
+        (ii) COST-MODEL THEORY: q2 is an input that IDEA-20260818-e0ce51's
+        MAXDEPTH table needs and currently estimates; supplying it measured
+        rather than estimated improves that record regardless of whether this
+        record's saving materializes. A THIRD READING FAILED and is recorded:
+        q3, the family-size margin, was examined as a possible resource for a
+        counting or entropy theory and none was found that wants it -- it is
+        simply a feasibility threshold, and its only content is that it is
+        positive.
+      spawned_ids: []
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+    basis: >-
+      Stage 0 is arithmetic on three integers. Stage 1 is rank computation over
+      F_2 at n <= 1021, seconds per sample. Stage 2 is the real work: a correct
+      superfast displacement-structured solver over F_2 with an explicit circuit
+      DAG for depth accounting is a few hundred to a thousand lines and is easy
+      to get subtly wrong, which is why bit-identity against dense elimination
+      on every fixture is mandatory. Stage 3 is 10^6 sampler draws. Stage 4 is
+      arithmetic. No quantum simulation, no cryptographic-scale execution, total
+      compute well under one core-day.
+
+  recommended_priority: high

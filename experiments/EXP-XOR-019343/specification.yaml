@@ -1,0 +1,129 @@
+experiment:
+  id: EXP-XOR-019343
+  hypothesis_id: H-XOR-56cc0a
+  version: 1
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-08-08'
+  frozen: true
+  title: Executable coverage-matched uniform-query MITM null with fully charged cost
+  objective: >-
+    Test whether the x-oracle's measured toy-scale cost advantage survives a
+    fair comparison to an identically shaped MITM null at matched unique
+    relation coverage, with every query and verification charged.
+  source_decision: DEC-20260808-3a0bf2
+  supersedes:
+    experiment_id: EXP-XOR-62b256
+    executor_report: >-
+      coordination/goals/GOAL-ECDLP-001/batches/BATCH-0d70df/tasks/
+      TASK-20260808-9d3de5/report.yaml
+    reason: >-
+      The frozen predecessor required a byte-for-byte external rerun while
+      allowing one invocation and recording live timings, and its snapshot
+      omitted four required artifacts. It was refused before execution.
+  implementation:
+    path: experiments/EXP-XOR-019343/implementation/arm_d_cost_v2.py
+    sha256: 5202a5cd14c61516fc2916614c0d61d1f38a2ce72dd153206a311b5145f620cc
+    predecessor_path: experiments/EXP-XOR-62b256/implementation/arm_d_cost.py
+    predecessor_sha256: c8c8e7df68f9d761a5caed663e8d3448765a1ea2cc779e76a626adc0a7a6caf7
+    baseline_path: experiments/EXP-SEMAEV-f48dd1/implementation/full_grid.py
+    baseline_sha256: 64d682e56e28472987ebd319f6250a09620c566ab7a881701d53acce3300a540
+  parameters:
+    primes: [101, 103, 107, 211]
+    b_values: [0.4, 0.5]
+    arity_m: 3
+    seeds: [1, 2, 3, 4, 5]
+    kappa_add_equivalents_per_query: 1
+    q_grid_rule:
+      q_1: 1
+      q_50: ceil(log(1-0.50) / log(1-1/p))
+      q_90: ceil(log(1-0.90) / log(1-1/p))
+  charge_model:
+    definitions:
+      N: number of point entries in the factor base
+      n_x: size of the right-table bucket at field key x
+      T: sum_x n_x, the total non-identity right-table population
+      q: independent uniform field queries per source point in Arm D
+      kappa: one E.add-equivalent charged per query in both B and D
+    arm_a: C_A = 2*N^3
+    arm_b: C_B = N^2 + kappa*N + 2*candidates_B
+    arm_d_expected_candidates: E[V_D(q)] = q*N*T/p
+    arm_d: C_D(q) = N^2 + kappa*q*N + 2*V_D(q)
+    arm_d_unique_coverage: 1-(1-1/p)^q
+    q1_recall: approximately 1/p
+    primary_normalization: charged cost per unique valid relation recovered
+    memory: >-
+      B and D share the identical right table. The run records N^2 table
+      insertions, T stored candidate pairs, and distinct bucket count; no
+      memory advantage is inferred from equal structure.
+    replay_accounting: >-
+      The internal second pass is a reproducibility control and is charged in
+      actual command wall time and resource use, but it is not added to either
+      algorithm's modeled per-attempt cost.
+  metrics:
+    - charged_cost
+    - unique_valid_relations
+    - cost_per_unique_relation
+    - measured_unique_coverage
+    - predicted_unique_coverage
+    - candidates_verified
+    - predicted_candidate_verifications
+    - wall_clock_seconds
+    - table_total_bucket_size
+  controls:
+    - id: CTRL-BLOB
+      pass: all three frozen implementation hashes match before computation
+    - id: CTRL-A-B
+      pass: Arm A and Arm B relation counts are exactly equal in every cell
+    - id: CTRL-QUERY
+      pass: every D record has exactly q*N queries
+    - id: CTRL-SEED
+      pass: >-
+        One top-level invocation performs two complete evaluations and their
+        canonical scientific payloads match byte-for-byte after excluding only
+        wall_clock_seconds fields; both scientific SHA-256 values are retained.
+    - id: CTRL-NEARBY
+      pass: q=1 is retained as the nearby low-information object
+  success_criterion: >-
+    The single bounded command completes both internal evaluations for all
+    eight cells and five seeds, all controls pass, and it reports the
+    preregistered q=1, q50, and q90 metrics without changing q after output.
+  falsification_criterion: >-
+    The hypothesis is falsified within this toy boundary if Arm D's charged
+    cost per unique recovered relation is no larger than Arm B's in any q50
+    or q90 cell. A control failure, timeout, or implementation failure makes
+    the run invalid and is not mathematical evidence.
+  budget:
+    wall_clock_seconds: 900
+    memory_gb: 2
+    maximum_runs: 1
+  stopping_rules:
+    - stop at 900 seconds or 2 GiB and record infrastructure failure
+    - do not add cells, seeds, q values, or external invocations after output
+    - stop immediately on any frozen hash mismatch
+  proof_search_map:
+    applicable: false
+    reason: >-
+      This is an empirical toy measurement, not a theorem, asymptotic bound,
+      certificate family, reduction, or closure argument.
+  dominated_by: Pollard rho at exponent 1/2
+  sota_delta:
+    time_exponent: 0
+    memory_exponent: 0
+    note: toy constant-factor instrument only
+  claim_ceiling: toy
+  required_artifacts:
+    - command.txt
+    - environment.json
+    - stdout.log
+    - stderr.log
+    - raw-result.json
+    - analysis.yaml
+    - manifest.yaml
+    - execution-report.yaml
+  inference:
+    requested_policy: executor-implementation
+    runtime: codex_native
+    no_bedrock: true
+    resolved_model_id: null
+    model_verified: false

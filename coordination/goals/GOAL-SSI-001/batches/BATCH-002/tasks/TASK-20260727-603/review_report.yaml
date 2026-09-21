@@ -1,0 +1,245 @@
+red_team_report:
+  id: RT-20260727-603
+  task_id: TASK-20260727-603
+  goal_id: GOAL-SSI-001
+  batch_id: BATCH-002
+  verdict: REVISE
+  claim_under_review: |
+    The derivation note (TASK-20260727-601) claims that Wiener full-cost
+    accounting raises the MITM baseline from p^{1/2} step count to p^{2/3}
+    full cost (F_{p^2}) and the Delfs-Galbraith baseline from p^{1/4} step
+    count to p^{1/3} full cost (F_p), while a low-memory van Oorschot-Wiener
+    distinguished-point collision search on the supersingular l-isogeny
+    graph achieves full cost O~(p^{1/2}) for F_{p^2} and O~(p^{1/4}) for F_p
+    (the latter conditional on unproven F_p subgraph mixing), strictly
+    dominating MITM/DG under full cost. It recommends VW as the matched
+    baseline in both regimes and warrants a KN-TECH entry.
+  exact_supported_final_claim: |
+    The Wiener full-cost exponents for MITM (p^{2/3} for F_{p^2}) and
+    Delfs-Galbraith (p^{1/3} for F_p) are correct: the wiring penalty on
+    the p^{1/2}-entry (resp. p^{1/4}-entry) table raises the exponent from
+    1/2 to 2/3 (resp. 1/4 to 1/3), matching Wiener's BSGS result with
+    group order n = |V| ~ p (resp. n = |V^{F_p}| ~ sqrt(p)). The F_p
+    mixing conditional is correctly scoped as an unproven heuristic with
+    a fallback to DG at p^{1/3} full cost. No uncharged oracles are
+    smuggled in: the walk, distinguished predicate, and collision-to-path
+    reconstruction use only standard Vélu isogenies, Vélu duals, and
+    j-invariant isomorphisms. However, the VW collision-search analogue is
+    incorrectly parallelized as specified. The derivation states "the walk
+    function is fixed and shared by all processors" and runs "P independent
+    walks from different starting curves," but with a fixed deterministic
+    walk function, all walks from E_0 follow the same path and all walks
+    from E_1 follow the same path — only 2 useful walks exist, not
+    P = p^{1/4}. Walks from random starting curves produce paths between
+    random curves, not between E_0 and E_1; this is fundamentally different
+    from the group setting where all walks lie on the same cyclic group and
+    any collision yields a useful exponent relation. With only 2 useful
+    walks, the wall-clock is O~(p^{1/2}) (not O~(p^{1/4})), giving full
+    cost O~(p^{3/4}) — worse than MITM's p^{2/3}, not better. The claimed
+    P = p^{1/4} processors and full cost p^{1/2} require per-processor
+    walk-function variation (P/2 distinct hash functions from E_0, P/2
+    from E_1), which the derivation does not describe and explicitly
+    contradicts. With that fix, the VW full-cost exponents (p^{1/2} for
+    F_{p^2}, p^{1/4} for F_p conditional on mixing) and the matched-
+    baseline recommendation are correct by Wiener's theorem on parallel
+    collision search (per-processor storage O(1) sets the clock cycle, not
+    the shared table). Knowledge promotion is warranted for the MITM/DG
+    full-cost exponents immediately; the VW analogue and matched-baseline
+    recommendation require the parallelization fix before promotion.
+  inference:
+    requested_policy: review-adversarial
+    resolved_model: fireworks-ai/accounts/fireworks/models/glm-5p2
+    reasoning_effort: xhigh
+    fallback_used: false
+    independent_session: true
+  snapshot_review:
+    reviewed_commit: 65e5bdb87ee4e8a0a4bdedfca9d4e93d3134c704
+    parent_commit: 37f7b12898f38214c4a653c4ce1cc0e723408f39
+    changed_paths_exact: true
+    artifact_hashes_match_receipt: true
+    verified_hashes:
+      derivation_note.md: 2a405d9417523e0383b9123a50ec8e2bda1d4bc210b1f956450c2c3e4f9277c9
+      matched_baseline_recommendation.yaml: dfa6b50b036aba720ff4d9696715d10108792f3b7a6d6ba6347cd14495609cea
+    receipt_metadata_note: >-
+      Archive receipt commit c92f2656 (HEAD) adds only snapshot-receipt.json
+      with parent 65e5bdb8. Snapshot commit 65e5bdb8 changes exactly the two
+      declared producer paths. Working tree has unrelated modifications in
+      experiments/EXP-SIG-008/ (macOS ._ metadata files), none in SSI task
+      directories. Receipt is valid.
+    durable_evidence_used: committed_snapshot_only
+  fatal_objections:
+    - id: F1
+      title: VW parallelization fails on isogeny graphs with a fixed walk function
+      detail: >-
+        The derivation specifies "the walk function is fixed and shared by all
+        processors" (section 5, Walk model) and "Run P independent walks from
+        different starting curves (including E_0 and E_1)" (section 5,
+        Collision detection), then claims P = p^{1/4} processors with
+        p^{1/4} walk steps each (section 6). This is the group-setting VW
+        parallelization strategy, where all P walks from random starting
+        points g^{r_i} are useful because any collision yields an exponent
+        relation. On the isogeny graph this does NOT hold: a collision
+        between walks from random curves S_A and S_B yields a path S_A ->
+        S_B, not E_0 -> E_1. Only walks originating from E_0 or E_1 produce
+        useful paths. With a fixed deterministic walk function, there is
+        exactly ONE walk from E_0 and ONE from E_1 (the walk is determined
+        by hash(j(E)) mod (l+1) at each step). The remaining P-2 processors
+        run useless walks from random curves. Effective parallelism is P=2,
+        not P=p^{1/4}. With P=2, each walk runs O~(p^{1/2}) steps before
+        collision (birthday bound for 2 walks on |V| ~ p vertices),
+        wall-clock is O~(p^{1/2}), hardware is 2 + O(p^{1/4}) ~ p^{1/4},
+        and full cost is O~(p^{3/4}) — strictly WORSE than MITM's p^{2/3}.
+        The claimed full cost p^{1/2} and the matched-baseline recommendation
+        (VW dominates MITM) are incorrect as specified. FIX: assign P/2
+        distinct hash functions to walks from E_0 and P/2 to walks from E_1,
+        so each processor explores a different path from its endpoint. A
+        collision between any E_0-walk and any E_1-walk yields a path
+        E_0 -> E_1. This gives P = p^{1/4} useful processors, p^{1/4} steps
+        each, and full cost p^{1/2} by Wiener's theorem. The derivation must
+        (a) describe per-processor walk-function variation, (b) retract
+        "fixed and shared by all processors," and (c) note that the
+        reconstruction must record which walk function produced each
+        distinguished point.
+  nonfatal_objections:
+    - id: N1
+      title: Clock cycle inconsistency between MITM and VW tables
+      detail: >-
+        Section 4 defines "Clock cycle is set by the longest signal path:
+        tau = S^{1/3} for a table of S entries" and applies it to MITM
+        (tau = p^{1/6}, wall-clock = (W/P)*tau). Section 6 lists "Clock
+        cycle tau: p^{1/12}" for VW (S = p^{1/4}) but then states
+        "Wall-clock: O~(p^{1/4}) (dominated by local computation)," which
+        implies tau = polylog, not p^{1/12}. Under the section-4 rule,
+        wall-clock would be p^{1/4} * p^{1/12} = p^{1/6}, giving full cost
+        p^{1/4} * p^{1/6} = p^{5/12} — even better than claimed. The
+        correct justification (from KN-LIT-094: "parallel collision search
+        retains its advantage because per-processor storage is small") is
+        that the clock cycle is set by per-processor storage (O(1)), not
+        the shared table, because the table is accessed only at
+        distinguished points. The derivation should state this explicitly
+        and reconcile the tau column with the wall-clock column. The result
+        (full cost p^{1/2}) is correct by Wiener's theorem; the reasoning
+        is inconsistent as written.
+    - id: N2
+      title: Stored-kernels phrasing in YAML implies non-polynomial storage
+      detail: >-
+        The matched_baseline_recommendation.yaml says "Velu duals from
+        stored kernels," which could be read as storing one kernel per walk
+        step (O(sqrt(p) * polylog) bits — exponential in log p, not
+        polynomial). The derivation note (section 5, step 4) correctly
+        describes recomputation: "The dual isogeny is computed step-by-step
+        from the kernels (Velu duals)" during the reconstruction re-run.
+        The YAML phrasing should be corrected to "recomputed kernels" or
+        "kernels recomputed during reconstruction" to avoid implying that
+        per-step kernel storage breaks the polynomial-space claim.
+    - id: N3
+      title: Isogeny degree l not specified; cost depends on l
+      detail: >-
+        The walk model enumerates (l+1) subgroups of E[l] at each step.
+        Computing E[l] requires the l-division polynomial and its roots,
+        which is polynomial in log p for fixed small l (e.g., l=2 for CGL)
+        but could be costlier for large l. The derivation does not state
+        that l is a small fixed prime. This is standard in practice but
+        should be stated for completeness.
+    - id: N4
+      title: Merge-vertex reconstruction assumes walks are long enough to mix
+      detail: >-
+        The birthday bound O~(sqrt(|V|)) assumes the walk distribution is
+        close to uniform, which requires O(log p) mixing steps (Ramanujan
+        property, KN-TECH-024). If the collision occurs before mixing
+        (short paths), the birthday constant may differ. This is a standard
+        caveat in collision-search analysis and does not affect the
+        exponent, but the derivation should note that the O~(sqrt(|V|))
+        bound is an expected-time bound that assumes mixing has occurred.
+  mathematical_correctness:
+    mitm_full_cost_exponent: >-
+      CORRECT. Table of p^{1/2} entries, clock cycle p^{1/6}, optimal
+      P = p^{1/2}, wall-clock p^{1/6}, hardware p^{1/2}, full cost
+      p^{1/2} * p^{1/6} = p^{2/3}. Matches Wiener's BSGS result
+      (KN-LIT-094) with group order n = |V| ~ p. The structural identity
+      between isogeny MITM (table of sqrt(|V|) j-invariants, sqrt(|V|)
+      lookups) and BSGS (table of sqrt(n) baby steps, sqrt(n) giant steps)
+      is valid.
+    vw_time_exponent: >-
+      CORRECT in value (1/2 for F_{p^2}, 1/4 for F_p) but the derivation
+      of the value is conditional on the F1 fix. The total walk steps
+      O~(sqrt(|V|)) = O~(p^{1/2}) for F_{p^2} is the correct birthday
+      bound on a Ramanujan graph with mixing time O(log p). The per-
+      processor step count p^{1/4} requires P = p^{1/4} useful walks,
+      which requires per-processor walk-function variation (F1 fix).
+    vw_space_exponent: >-
+      CORRECT. Polynomial space: per-processor storage O(1), shared table
+      O(sqrt(|V|)/2^d) = O(p^{1/4}) with 2^d = p^{1/4}. The output path
+      O(sqrt(p) * log p) bits is sequential, not random-access, and is
+      not charged under the Wiener model. This is a reasonable argument.
+    dg_full_cost_exponent: >-
+      CORRECT. DG is MITM on the F_p subgraph of |V^{F_p}| ~ sqrt(p)
+      vertices. Table of p^{1/4} entries, clock cycle p^{1/12}, optimal
+      P = p^{1/4}, wall-clock p^{1/12}, hardware p^{1/4}, full cost
+      p^{1/4} * p^{1/12} = p^{1/3}. Matches Wiener's BSGS result with
+      n = sqrt(p).
+    collision_to_path_reconstruction: >-
+      Well-defined in mechanism. The walk is deterministic (given starting
+      curve and walk function), so re-running reproduces the exact path.
+      At each step, the kernel K is determined by hash(j(E)) mod (l+1)
+      and recomputed during reconstruction; the dual isogeny is computed
+      via Vélu duals from K; the isomorphism between curves at the same
+      j-invariant is standard over F_{p^2} (bounded correction for
+      j=0,1728). No hidden oracle. However, the YAML phrasing "stored
+      kernels" (N2) is misleading and the reconstruction must track
+      which walk function produced each distinguished point if the F1
+      fix (per-processor variation) is applied.
+  f_p_mixing_assessment: |
+    The F_p mixing conditional is correctly scoped. The derivation
+    explicitly states that G_l^{F_p} is NOT known to be Ramanujan, that
+    VW on the F_p subgraph requires rapid mixing for the birthday bound
+    (a stronger assumption than DG's BFS-based MITM, which needs no
+    mixing), and that this is "a caveat, not a falsification." The
+    fallback is correct: if mixing fails, DG at p^{1/3} full cost
+    remains the baseline. The matched_baseline_recommendation.yaml
+    records this conditional clearly, with matched_baseline_fallback
+    set to DG at p^{1/3}. This is the right scope: a heuristic-
+    conditional claim paired with a falsification condition (mixing
+    failure) and a fallback baseline, consistent with AGENTS.md rule 2
+    and the target-result-profile's "explicit conditional rigor"
+    requirement. No objection here.
+  matched_baseline_assessment: |
+    The matched-baseline recommendation is decision-relevant IF the F1
+    fix is applied. Under step-count accounting, MITM, DG, and VW are
+    tied at p^{1/2} (F_{p^2}) and p^{1/4} (F_p). Under full cost, they
+    separate: MITM p^{2/3}, DG p^{1/3}, VW p^{1/2}/p^{1/4}. Choosing VW
+    as the baseline raises the bar for future candidates: a low-memory
+    candidate must beat p^{1/2} (not the easier p^{2/3} MITM target),
+    and a high-memory candidate pays the wiring penalty on top. This is
+    decision-relevant because it prevents a high-memory candidate from
+    claiming an advantage by comparing against the inflated MITM full-
+    cost baseline. KN-TECH-029 records step-count exponents only
+    (p^{1/2} MITM, p^{1/4} DG); it does NOT record full-cost exponents
+    or the VW analogue. So the recommendation adds new information.
+    However, as specified (F1 unfixed), VW does NOT achieve p^{1/2}
+    full cost — it achieves O~(p^{3/4}) with only 2 useful walks — and
+    the matched baseline falls back to MITM at p^{2/3} (F_{p^2}) or DG
+    at p^{1/3} (F_p). The recommendation is correct only after the F1
+    fix.
+  knowledge_promotion_assessment: |
+    Partial promotion is warranted. The full-cost exponents for MITM
+    (p^{2/3} F_{p^2}) and Delfs-Galbraith (p^{1/3} F_p) under the Wiener
+    3D wiring model are correct, new, and not in KN-TECH-029; they
+    should be promoted (via KN-TECH-029 update or a new entry) after
+    the F1 fix is applied to the VW sections. The VW analogue definition
+    (walk model, distinguished predicate, collision-to-path
+    reconstruction) is well-defined and has no uncharged oracles, but
+    the parallelization specification (F1) and the clock-cycle reasoning
+    (N1) must be corrected before the VW full-cost exponents and the
+    matched-baseline recommendation are promoted. Promoting the VW
+    exponents as-is would record an incorrect p^{1/2} full cost that
+    does not hold under the derivation's own fixed-walk-function
+    specification. DEC-20260725-002 deferred knowledge promotion until
+    "BATCH-002 derivation either proves a decision-relevant ranking
+    change or confirms KN-TECH-029 already suffices." The derivation
+    proves a decision-relevant ranking change (full-cost exponents
+    separate MITM/DG/VW), but the VW side of the ranking is incorrect
+    as specified. Promote the MITM/DG full-cost exponents now; promote
+    the VW analogue after F1 is fixed.
+  breakthrough_claim_detected: false
+  official_state_changed: false

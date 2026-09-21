@@ -1,0 +1,280 @@
+idea:
+  id: IDEA-20260816-0bbb70
+  question_id: RQ-BLAKE-584719
+  added: '2026-08-16'
+  title: Require two independently written encodings of the same reduced-round BLAKE3 differential
+    model -- one CNF for a SAT solver, one MILP -- to agree on every optimum they both reach, and
+    publish the agreement table as the precondition any bound-per-round curve must clear before it
+    is compared with another primitive's.
+  class: tooling
+  claim: '(A) Every bound-per-round curve in this bucket is a statement about an ENCODING, not about
+    a permutation. Two encodings of the same differential model can disagree for reasons that are
+    entirely modelling errors -- a mis-stated carry constraint, an off-by-one in a rotation, a message
+    variable that was accidentally fixed -- and a single-encoding pipeline has no way to detect any
+    of them, because a wrong bound looks exactly like a right one. The claim is that an ENCODING-AGREEMENT
+    TABLE, produced by two independently written encodings solved by two different solvers, is a cheap
+    and decisive instrument-validity artifact, and that it should gate every curve comparison in this
+    lane rather than being an optional extra. (B) Concretely: for every round count r where both encodings
+    return a proved optimum, the two optima must be EQUAL. Not close, not correlated -- equal, because
+    they are claimed to be the same integer. The agreement table records, per r, both values, both
+    optimality statuses, both solve times, and an equal/unequal verdict, and a single unequal cell
+    invalidates every curve derived from either encoding until the discrepancy is resolved and the
+    resolution recorded. (C) NOT CLAIMED: agreement between two encodings does not make either correct
+    -- both can share a common misreading of the specification, and that shared-error mode is exactly
+    what agreement cannot detect. The record states this limitation as its principal one rather than
+    as a footnote, and proposes the partial remedy (independent authorship from primary text, with
+    the two authors not comparing notes until both encodings are frozen) while conceding it is partial.
+    No attack, no break, no security consequence, and no statement about BLAKE3''s design follows
+    from an agreement table. (D) The negative outcome is the most valuable one available in this bucket:
+    a DISAGREEMENT is a located modelling bug, and locating it costs far less than discovering it
+    after a curve has been compared, published, and cited by a downstream record.'
+  mechanism: 'Stage one: two encodings written independently from the pinned specification -- one
+    CNF targeting a SAT solver, one MILP targeting a linear-programming solver -- with the authors
+    instructed not to share intermediate artifacts until both are frozen and hashed. In a single-agent
+    runtime this is approximated by writing them in separate sessions with separate contexts, and
+    the approximation is declared rather than glossed. Stage two: freeze both, record hashes. Stage
+    three: solve r = 1..R on both, recording per r the optimum or bound and the optimality status.
+    Stage four: build the agreement table and compute the verdict per cell; any unequal cell with
+    both statuses proved_optimum is a hard failure. Stage five: for every disagreement, bisect --
+    reduce to the smallest r that disagrees, then to a single round''s constraint block, then to a
+    single operation -- and record which encoding was wrong and why. That bisection record is the
+    deliverable''s most reusable part, because a catalogue of modelling errors found is worth more
+    to the next author than a clean table. Stage six: run both encodings against a PLANTED-ERROR control:
+    deliberately corrupt one encoding in a known way (drop a carry constraint, fix one message word)
+    and confirm the agreement table flags it, so the table''s detection power is measured rather than
+    assumed. Stage seven: publish the table as an artifact that downstream curve comparisons must
+    cite.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril 'encoding|MILP|SAT|SMT' over knowledge/techniques (KN-TECH-076 is the central
+      hit and was read); grep -ril blake over the repository; scanned ledger/questions for RQ-INSTR-f8faa0
+      and the EXP-INSTR-* experiment directories (EXP-INSTR-0fb5dc, 267cdc, 2d32ba, 36c8cf, 3805e5,
+      38214a, 5813d7, 7fadc1, 8015ee, 85b102, e314e7, f1aebb) to check the program's existing instrument-validity
+      lane; read RQ-BLAKE-584719's constraint that bound-per-round curves are compared only where
+      the two pipelines are demonstrably identical; read the anti-duplication blacklist item on cost-model
+      and machine-variance audits.
+    results: 'KN-TECH-076 states explicitly that a solver returns an optimum with a proof of optimality
+      WITHIN THE MODEL, which is the exact gap this record instruments; it names model correctness
+      among its tags but supplies no cross-encoding agreement procedure. RQ-INSTR-f8faa0 and the twelve
+      EXP-INSTR-* directories constitute this program''s instrument lane, and the blacklist warns
+      that cost-model, machine-variance and single-machine-timing audits are saturated there with
+      15+ proposals. THIS RECORD IS DELIBERATELY NOT THAT: it audits neither cost model nor machine
+      variance nor timing, but the SEMANTIC CORRECTNESS of a constraint encoding, measured by cross-encoding
+      equality of integers rather than by any timing quantity. No BLAKE proposal exists. RQ-BLAKE-584719''s
+      own constraint (''compared only where the two pipelines are demonstrably identical'') asks for
+      pipeline identity across primitives; this record asks for encoding agreement across formalisms,
+      which is the orthogonal half and is not covered by that constraint.'
+    verdict: 'UNVERIFIED. Nothing asserted about external literature; differential-model cross-validation
+      is not a technique anyone here invented. Assembled from known parts: KN-TECH-076''s within-model
+      caveat, ordinary cross-implementation validation, and this program''s existing instrument-validity
+      discipline. Claimed new HERE: making the agreement table a PRECONDITION artifact that downstream
+      curve comparisons must cite rather than a diagnostic the author may run; the planted-error control
+      that measures the table''s detection power instead of assuming it; and the explicit statement
+      that shared misreading is the limitation agreement cannot address, with independent authorship
+      named as a partial and declared-imperfect remedy.'
+  object_first_candidate:
+    tracked_object: The pair of optima (W_cnf(r), W_milp(r)) with their optimality statuses, and the
+      derived per-round agreement verdict. The tracked object is the AGREEMENT RELATION between two
+      formalisms, not either bound.
+    lossiness: 'Lossy in an unusual direction, and it is worth being precise. Each encoding''s full
+      content is thousands of constraints; the tracked object is one integer pair per round plus a
+      verdict. Discarded: the constraint sets themselves, the solver''s proof, the trail realising
+      the optimum. What survives propagation and why: the claim both encodings make is that they compute
+      THE SAME integer-valued function of r, so equality of that integer is exactly the property closed
+      under the abstraction -- two encodings agreeing at r says nothing about their internals and
+      everything about the only quantity either is used for. The honest caveat the lossy-projection
+      test forces: the projection loses the ability to detect a shared error, because a shared error
+      moves both integers identically and the verdict stays ''equal''. That is not a fixable feature
+      of the projection; it is its defining blind spot and part (C) states it as such.'
+    propagation: The object does not propagate through rounds of a permutation; it propagates through
+      the SWEEP. One step is moving from round r to round r+1, and the agreement relation propagates
+      in the sense that a disagreement first appearing at r+1 localises the bug to the constraint
+      block added at that round -- which is what makes the bisection in stage five cheap and mechanical
+      rather than exploratory. An agreement holding for r = 1..k and failing at k+1 is a far more
+      informative object than a scalar verdict, and the table's row ordering is what carries that
+      information.
+    survival_score: 'The object survives to the smaller of the two encodings'' proved-optimum ranges,
+      which is strictly less than either curve''s own reach and is the honest cost of the method:
+      requiring two formalisms to both close means the agreement table is shorter than either curve.
+      Stated concretely, if the CNF encoding closes to r = 5 and the MILP to r = 3, the table covers
+      r = 1..3 and the curve beyond r = 3 is UNVALIDATED by this instrument -- and the record''s rule
+      is that a curve may be published beyond the table''s reach only if every row beyond it is labelled
+      unvalidated, which is a real and uncomfortable constraint rather than a formality.'
+  null_object_control: 'Planted-error controls, run through the identical table-building code path
+    in the same invocation. Corruptions injected one at a time into one encoding: drop a carry constraint
+    from one modular addition; fix one message word to a constant; shift one rotation constant by
+    one; drop the objective''s contribution from one round. For each, the agreement table must flag
+    a disagreement, and the bisection must localise it to the corrupted round or operation. What the
+    null must show for the signal arm to mean anything: every planted error must be detected, and
+    the record must report the DETECTION RATE per error class, because an agreement table that catches
+    dropped constraints but misses off-by-one rotations has known blind spots that a clean table would
+    otherwise appear to exclude. Additionally, a matched-null shared-error control: inject the SAME
+    error into both encodings and confirm the table reports agreement -- demonstrating the blind spot
+    concretely rather than merely conceding it in prose, which is the difference between a stated
+    limitation and a measured one.'
+  discriminated_from:
+  - 'RQ-INSTR-f8faa0 and the EXP-INSTR-* lane: those audit cost models, machine variance and timing,
+    and the blacklist marks that space saturated. This audits semantic correctness of a constraint
+    encoding by integer equality across formalisms, uses no timing quantity as a result, and would
+    be unaffected by any machine-variance finding.'
+  - 'KN-TECH-076: supplies the method and the within-model caveat, and is the reason this record exists;
+    it does not supply a cross-encoding agreement procedure, a detection-rate measurement, or a precondition
+    artifact.'
+  - 'RQ-BLAKE-584719''s pipeline-identity constraint: that requires the SAME pipeline across two primitives.
+    This requires TWO pipelines on the same primitive. Both are needed and neither implies the other,
+    which the record states so the two are not conflated at review.'
+  - 'The transfer-curve record in this bucket: that produces the curves this record validates. The
+    dependency runs one way and is declared: no curve comparison in this bucket should be accepted
+    without citing an agreement table covering its rounds.'
+  assumptions:
+  - Two encodings can be written independently enough that their errors are uncorrelated. In a single-agent
+    runtime this is approximated by separate sessions and declared as an approximation; the assumption
+    is weakest exactly where it matters most, and the record says so.
+  - Both formalisms can express the same differential model faithfully. If MILP cannot express some
+    constraint the CNF can, the comparison is over a restricted model and that restriction is stated
+    rather than absorbed.
+  - Equality of integers is the right agreement criterion. It is, for proved optima; for certified
+    lower bounds the criterion is weaker (each must not exceed the other's proved optimum where one
+    exists) and the table reports those rows separately.
+  - The planted-error catalogue is representative enough that a measured detection rate is meaningful;
+    it is not exhaustive and the record does not claim it is.
+  predictions:
+  - metric: agreement verdict on rows where both encodings return proved optima
+    direction: different
+    minimum_effect: equality is forced -- the two encodings claim the same integer. Any unequal cell
+      is a located bug in one of them and the run's most valuable output
+  - metric: planted-error detection rate across the injected error classes
+    direction: higher
+    minimum_effect: 1.0 is the target and anything below it must be reported per error class, since
+      an undetected class is a named blind spot that a clean table would otherwise appear to exclude
+  - metric: shared-error control verdict
+    direction: different
+    minimum_effect: the table must report AGREEMENT when the same error is injected into both encodings
+      -- a forced value demonstrating the blind spot as a measurement rather than as a caveat
+  - metric: table reach (rounds where both encodings close) versus the better single encoding's reach
+    direction: lower
+    minimum_effect: the table's reach is at most the smaller of the two and is expected to be strictly
+      smaller; this is a cost of the method and is reported as one rather than hidden
+  minimal_test:
+    design: 'Run the planted-error controls before the real comparison, on r = 2 only. Write both
+      encodings, freeze them, then inject the four planted errors one at a time into the CNF arm and
+      confirm each produces a disagreement at r = 2 that bisects to the corrupted operation. Then
+      inject one shared error into both and confirm the table reports agreement. The whole sequence
+      is five short solves at a trivial round count and costs minutes. It establishes the two things
+      that decide whether the instrument is worth building out: the detection rate per error class,
+      and a concrete demonstration of the shared-error blind spot. If the detection rate is low --
+      for instance if an off-by-one rotation does not change the optimum at r = 2 -- then the table''s
+      power is round-dependent and the minimal test has told us so before any curve was validated
+      against it, which is precisely the failure this record exists to prevent in the first place.'
+    controls:
+    - Planted single-error injections (dropped carry constraint, fixed message word, shifted rotation
+      constant, dropped objective term), one at a time, with required detection and bisection localisation.
+    - 'Shared-error control: the same error injected into both encodings, with agreement REQUIRED
+      as the demonstration of the method''s blind spot.'
+    - 'Frozen-hash control: both encodings hashed before any comparison, so no post-hoc editing of
+      one to match the other is possible; the hashes appear in the table.'
+    - 'Status-separated reporting: proved-optimum rows and certified-lower-bound rows are verdicted
+      under different criteria and never merged.'
+    - 'Independent-authorship declaration: the degree of independence actually achieved is recorded
+      verbatim, including the fact that a single-agent runtime only approximates it.'
+    required_metrics:
+    - 'per-round agreement table: W_cnf(r), W_milp(r), both statuses, verdict'
+    - table reach (largest r with both proved)
+    - planted-error detection rate per error class
+    - bisection localisation accuracy (correct operation identified or not)
+    - shared-error control verdict
+    - both encoding hashes
+    - declared independence level
+  falsification_conditions:
+  - A planted error is not detected, defining a blind spot that must be named before any curve is
+    validated.
+  - Bisection fails to localise a detected disagreement to the corrupted operation, meaning disagreements
+    are found but not actionable.
+  - The shared-error control reports disagreement, which would mean the two encodings are not modelling
+    the same thing at all and the whole comparison is void.
+  - The table reach is 1 or 0, so no curve row can be validated and the instrument has no applicable
+    range.
+  - MILP cannot express the differential model faithfully, restricting the comparison to a sub-model
+    that does not cover the curve's claims.
+  - An unequal cell appears between two proved optima and cannot be resolved by bisection, leaving
+    both encodings under suspicion and every curve derived from them unvalidated.
+  confounders:
+  - 'Correlated authorship: two encodings written by the same agent in the same session share a reading
+    of the specification and therefore share errors, inflating apparent agreement. This is the central
+    confounder, it is only partly mitigable, and the record''s honest position is to declare the achieved
+    independence level rather than to claim independence.'
+  - 'Round-dependent detection power: an error that changes nothing at r = 2 but everything at r =
+    5 will be missed by a cheap minimal test and reported as detected-rate 0 for that class, which
+    is the correct report but is easily misread as a defect in the class rather than in the round
+    choice.'
+  - 'Formalism mismatch absorbed silently: if MILP expresses a slightly weaker model, agreement is
+    against a weaker claim and the table looks clean.'
+  - Solver bugs, which agreement across two different solvers partially addresses and which are therefore
+    a reason to use different solvers rather than the same one twice.
+  - Treating a clean table as evidence about BLAKE3, which it is not -- it is evidence about two encodings.
+  interpretation_limits:
+  - Agreement does not imply correctness; shared misreading of the specification is invisible to this
+    instrument by construction, and the shared-error control demonstrates it rather than excusing
+    it.
+  - The table validates only the rounds it covers, which is strictly less than either curve's reach;
+    rows beyond it must be labelled unvalidated.
+  - Nothing about BLAKE3's design, security, or round-count adequacy follows from any agreement table.
+  - Detection rates are measured over a non-exhaustive planted-error catalogue and bound nothing about
+    error classes not in it.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Solve times appear only as table metadata, and this
+      record explicitly declines to make any timing quantity a result, since that space is saturated
+      under RQ-INSTR-f8faa0.
+    memory_exponent: No attack memory exponent is claimed.
+    best_known: The incumbent is single-encoding practice, in which a bound is reported with a solver's
+      optimality proof and no independent check that the model is the intended one. Nothing is beaten
+      in an attack sense; what is added is a detection rate against a planted-error catalogue where
+      currently there is none, and a stated blind spot where currently there is silence.
+    hidden_overhead: 'Independent authorship is the hidden cost and the hidden weakness simultaneously:
+      it roughly doubles the encoding work and, in a single-agent runtime, cannot be fully achieved,
+      so the expensive part buys less than it appears to. The second hidden cost is the table''s short
+      reach, which forces curve rows beyond it to be labelled unvalidated -- a labelling that reduces
+      the apparent value of work already done and that an author under pressure will be tempted to
+      skip.'
+  dominated_by: 'n/a (no result claimed on any attack frontier). Pareto check across time, memory
+    and data/queries: no attack row exists. As an instrument-validity method it is dominated by formal
+    verification of an encoding against a machine-checked specification, which would catch shared
+    errors that this cannot; that stronger method is named here explicitly as the thing this does
+    not achieve, and it is the intended supersession path rather than a rhetorical concession.'
+  sota_delta: 'no attack; conceptual/measurement contribution only. Quantitatively: bound-per-round
+    curves in this lane currently carry zero cross-encoding validation and no measured error-detection
+    rate, and a run supplies an agreement table over the rounds both encodings close plus a per-class
+    detection rate plus a demonstrated blind spot. The delta is a validated round range and a number
+    for what the validation can and cannot catch.'
+  estimated_cost:
+    implementation: high
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'By part. That two encodings can be written and frozen without one being
+    derived from the other: 0.5 in this runtime, and I would rather state that low number than claim
+    independence I cannot deliver. That the planted single errors are detected at r = 2: 0.6 -- some
+    errors genuinely do not change a two-round optimum, and a low detection rate here is informative
+    rather than disappointing. That the shared-error control behaves as predicted (agreement): 0.95,
+    close to certain, and it is included because a measured blind spot is worth more than a conceded
+    one. That the table reach is at least 3 rounds: 0.5, limited by MILP''s likely weaker reach on
+    ARX. That a genuine disagreement is found between the two independently written encodings: 0.35,
+    and if one is found this record''s value exceeds every other in this bucket, because a located
+    modelling bug invalidates curves that would otherwise have been compared and cited.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-BLAKE-584719
+  - GOAL-BLAKE-001
+  - KN-TECH-076
+  - RQ-INSTR-f8faa0
+  - EXP-INSTR-36c8cf
+  - GOAL-MD5-001
+  - docs/inventor-protocol.md
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-BLAKE-ac02f6

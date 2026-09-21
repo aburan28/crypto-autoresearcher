@@ -1,0 +1,690 @@
+idea:
+  id: IDEA-20260807-63056d
+  question_id: RQ-GGMB-6eaabc
+  added: '2026-08-07'
+  title: >-
+    THE L12 ADJUDICATION PROCEDURE: a six-question decision tree with a fixed
+    verdict alphabet, a mandatory witness artifact per verdict, and a declared
+    ceiling of one hour of agent work and sixty seconds of compute per oracle,
+    so that "is this oracle generic-group simulable?" becomes a routine
+    pre-compute gate any lane runs on its own oracle instead of a bespoke
+    argument the audit lane must write fourteen times
+  class: tooling
+
+  claim: >-
+    (A) THE PROBLEM THIS SOLVES. GOAL-ENDO-001 completion criterion C3 requires
+    that EVERY oracle class invented by ANY lane be adjudicated as simulable or
+    non-simulable with an explicit argument. There are fourteen lanes. The only
+    adjudication the corpus contains (KN-FIND-b7e091, four oracles) was a bespoke
+    analysis, and bespoke analyses do not scale to fourteen lanes generating
+    oracles continuously. Without a procedure, C3 is either unmet or met by
+    assertion.
+
+    (B) THE THEORETICAL BASIS, IN ONE SENTENCE. Let lambda be the map sending a
+    group handle to its formal linear form (alpha, beta) in (Z/N)^2. GENERIC-
+    GROUP SIMULABILITY IS EXACTLY THE INVENTOR-PROTOCOL LOSSY-PROJECTION TEST
+    WITH PROJECTION lambda: an oracle is simulable when its answer is a function
+    of lambda plus non-encoding public data, i.e. when the oracle's own tracked
+    object propagates through the projection that the group operations preserve;
+    it escapes when its answer needs the coordinates lambda discards. This
+    identity is what makes the audit mechanical, and it is stated here so the
+    procedure is not a checklist with no theory under it.
+
+    (C) THE PROCEDURE. Six questions, asked in this order. Each terminates in a
+    verdict from the fixed alphabet {SIM, PUB, COST, PRIV, OPEN}. Each verdict
+    requires a specific artifact, and a verdict without its artifact is not a
+    verdict.
+      Q0  FREEZE THE SPECIFICATION. Write the oracle as
+          O : (handles h_1..h_r ; field/public args) -> answer type, and state
+          its QUANTIFIER STRUCTURE: is it a VERIFY oracle (checks a supplied
+          object) or a SEARCH oracle (returns an object asserted to exist)?
+          Two oracles with the same signature and different quantifier structure
+          are DIFFERENT ORACLES with different simulator costs. No further
+          question may be asked until this is frozen.
+          ARTIFACT: the frozen signature with its quantifier structure.
+      Q1  IS THE ANSWER INDEPENDENT OF ALL HANDLES -- a function of the curve
+          data and adversary-supplied field elements only? If yes: verdict SIM
+          with T_sim = 0 group operations, and additionally the answer carries
+          zero bits about k (see IDEA-20260807-413fcc).
+          ARTIFACT: the explicit public function.
+      Q2  DOES THE ANSWER FACTOR THROUGH lambda? I.e. is there f with
+          answer = f(lambda(h_1), .., lambda(h_r), p, a, b, N, args), computable
+          without k? If yes: verdict SIM. Compute T_sim = cost(f) in group
+          operations, AND STATE IT -- a SIM verdict without T_sim is incomplete
+          because a large T_sim makes the closure quantitatively vacuous
+          (IDEA-20260807-7270d1).
+          ARTIFACT: the explicit f and the explicit T_sim.
+      Q3  IS THE ANSWER COMPUTABLE IN poly(log p) TIME BY THE REAL ADVERSARY,
+          which holds (p, a, b, N, P, Q) as concrete data and knows the linear
+          form it used to build each handle? If yes: verdict PUB. The oracle
+          hands the adversary nothing it did not have; the GGM adjudication is
+          SILENT, not negative; the lane must be re-posed as a charged algorithm.
+          ARTIFACT: the poly-time algorithm computing the answer.
+      Q4  IS THE ANSWER COMPUTABLE AT ALL WITHOUT k? If no: verdict PRIV. The
+          oracle is not realizable by an adversary and is not an attack model.
+          (KN-FIND-b7e091's Oracle A is the type case.)
+          ARTIFACT: the argument that the answer determines k, or vice versa.
+      Q5  THE ONLY REMAINING CELL: the oracle is realizable at superpolynomial
+          cost C. Verdict COST. The adjudication is now arithmetic, not logic:
+          state C, state the query count q an actual algorithm would need, and
+          evaluate q*C + g against 0.886*sqrt(N).
+          ARTIFACT: the pair (C, q) with the source of each, and the arithmetic.
+      If Q0-Q5 cannot be answered within the declared budget: verdict OPEN, with
+      the exact question that blocked and what would unblock it. OPEN IS A LEGAL
+      AND HONEST VERDICT and is strictly better than a guessed SIM.
+
+    (D) THE QUANTIFIER-FORM OBLIGATION, WHICH IS WHERE SIMULABILITY ARGUMENTS
+    ACTUALLY DIE. Any non-SIM verdict must declare which of two statements it
+    establishes:
+      (N-weak)  there exist two instances with identical generic transcript
+                distributions and different oracle answers -- so no simulator
+                that is a FUNCTION OF lambda ALONE is correct;
+      (N-strong) for every efficient generic simulator there is a distinguisher.
+    (N-weak) does not imply (N-strong): a simulator may lazily SAMPLE consistent
+    answers instead of computing them. Every existing non-simulability verdict in
+    this corpus is (N-weak). The procedure requires the label, and reporting
+    (N-weak) as (N-strong) is the lane's characteristic overclaim.
+
+    (E) THE BUDGET, WHICH IS PART OF THE CLAIM. The procedure is asserted to
+    terminate on a well-specified oracle in <= 60 minutes of agent work and
+    <= 60 seconds of compute, with no Groebner basis, no curve enumeration, and
+    no run record. If a lane's oracle cannot be adjudicated in that budget, the
+    verdict is OPEN and the oracle is flagged as under-specified -- which is
+    itself the useful output, because an oracle nobody can specify in an hour is
+    an oracle nobody can implement.
+
+    (F) WHAT WOULD REFUTE IT. Any oracle for which two competent independent
+    adjudications, both following the procedure, return different verdicts. That
+    is an inter-rater failure and it means the procedure's questions are not
+    well-posed. The design includes the inter-rater check for exactly this
+    reason, and a failure is the useful result.
+
+  resource_label: 'audit: consumes no resource'
+  admissibility: admissible
+  admissibility_argument: >-
+    Consumes no non-generic resource; it is the instrument that decides which
+    resource other lanes consume. Admissible as tooling under DECOMPOSITION.md
+    section 4, lane L12, whose stated decisive test is "an explicit simulator, or
+    an explicit proof that none exists" -- this proposal is the bounded-time
+    procedure for producing one or the other, plus the third and fourth outcomes
+    (PUB, PRIV) that the binary framing has no slot for.
+
+  discriminated_from:
+    - >-
+      H-GGM-001 (status `analyzed`), which proposes a machine-checkable
+      simulability TEST with a binary output and a witness. This proposal keeps
+      the witness obligation, replaces the binary output with a five-symbol
+      alphabet, adds the quantifier-form label, adds the T_sim obligation, and
+      adds a declared time budget. The overlap is real and is acknowledged: this
+      is an EXTENSION of H-GGM-001's design, not an independent invention.
+    - >-
+      IDEA-20260807-5876b8, which states the four-cell dichotomy this procedure
+      operationalizes. That is the theorem; this is the runbook. Filing them
+      separately is deliberate: the dichotomy can be wrong while the procedure
+      remains a useful forcing function, and the procedure can be unusable while
+      the dichotomy remains true.
+    - >-
+      IDEA-20260806-530fdd / H-AOM-8d4a83, which parameterizes simulability by
+      algebraic degree d. That is a THEORY OF T_sim for algebraically-specified
+      oracles and slots into Q2 as a way of BOUNDING T_sim without constructing
+      f. It does not answer Q1, Q3, Q4 or Q5 and is not a procedure.
+    - >-
+      IDEA-20260807-5ddd98, which supplies this procedure's two-directional
+      control set. The procedure without that control set is an uncalibrated
+      instrument and may not support a conclusion (GOAL-ENDO-001 criterion C4).
+      They must be run together.
+
+  object_first_candidate:
+    tracked_object: >-
+      The VERDICT RECORD itself: the tuple (frozen signature, quantifier
+      structure, verdict in {SIM, PUB, COST, PRIV, OPEN}, T_sim or C, the witness
+      artifact, the quantifier form N-weak/N-strong, elapsed adjudication time).
+      This is the object followed through the campaign, from oracle proposal to
+      lane disposition.
+    lossiness: >-
+      LOSSY BY DESIGN AND SEVERELY SO: an entire mathematical construction is
+      projected onto one symbol plus one number plus one artifact. Everything
+      about WHY the oracle was proposed, what curve family it targets, and what
+      the lane hoped to do with it is discarded. What survives is exactly what
+      determines whether compute may be spent.
+    propagation: >-
+      Deterministic under COMPOSITION of oracles, which is the operation that
+      matters here and is stated as a rule the procedure enforces:
+        SIM o SIM = SIM with T_sim multiplied (not added, when the outer oracle
+          queries the inner one per handle);
+        SIM o PUB = PUB;  PUB o PUB = PUB;  anything o PRIV = PRIV;
+        COST o anything = COST with C multiplied by the inner query count.
+      A lane that builds a compound oracle therefore inherits a verdict
+      mechanically rather than restarting the audit, which is the main reason to
+      have an alphabet at all.
+    survival_score: >-
+      Survives change of curve, change of field size, change of model, and change
+      of solver, because the verdict is an argument about an interface, not a
+      measurement. Dies at a change of the SIMULATOR KNOWLEDGE SET (grant the
+      simulator the coordinates and every verdict becomes SIM), at a change from
+      single-instance to preprocessing (the composition rules above are false
+      under amortization), and at an under-specified Q0.
+
+  mechanism: >-
+    STEP 1 -- WRITE THE RUNBOOK as a single markdown page with the six questions,
+    the five verdicts, the artifact required per verdict, the composition table,
+    and the frozen simulator knowledge set {handles, group oracle, p, a, b, N,
+    lambda} with its explicit exclusions {coordinates of P and Q, k}.
+
+    STEP 2 -- ENCODE THE ORACLE SPECIFICATION SCHEMA. A machine-readable YAML
+    block: name, signature, handle arity, field-argument list, answer type,
+    quantifier structure (verify | search), and the lane that proposed it. This
+    is what Q0 produces and it is the only input the procedure needs.
+
+    STEP 3 -- CALIBRATE ON THE FROZEN CONTROL SET before adjudicating anything
+    new. The set is supplied by IDEA-20260807-5ddd98 and must include, at
+    minimum: the pure group-operation oracle (must return SIM, T_sim = 1); the
+    public-curve-data oracle (SIM, T_sim = 0); KN-FIND-b7e091's Oracle C in
+    verify form (SIM, T_sim = O(m)) and Oracle D (SIM, T_sim = O(log N)); Oracle
+    A (PRIV); Oracle B (PUB); the x-coordinate oracle (PUB); the DLP oracle
+    (COST, with C = best known DLP cost); and the sham random-answer oracle (SIM,
+    T_sim = 0). Nine specifications, nine required verdicts, all pre-registered.
+    ANY MISMATCH HALTS THE PROCEDURE AND VOIDS ITS OUTPUT.
+
+    STEP 4 -- INTER-RATER CHECK. Two independent adjudications of the same three
+    oracles, by sessions that do not see each other's verdicts, with agreement
+    measured on the verdict symbol AND on the order of magnitude of T_sim or C.
+    Disagreement on the symbol is a design failure of the procedure. Disagreement
+    on the magnitude only is a documentation failure and is repaired by
+    tightening Q2/Q5.
+
+    STEP 5 -- RUN IT on the campaign's ten named candidate oracle classes and
+    publish the verdict table, with the elapsed time per oracle recorded so the
+    budget claim in (E) is measured rather than asserted.
+
+    STEP 6 -- BIND IT. Every subsequent BATCH proposal in GOAL-ENDO-001 that
+    names an oracle carries its verdict record. A lane that proposes an oracle
+    without one is incomplete in the same way a proposal without dominated_by is
+    incomplete.
+
+  novelty_status: adaptation
+  novelty_screen:
+    method: >-
+      ripgrep via the harness Grep tool (semantics of `grep -ril`), 2026-08-07,
+      over ledger/, knowledge/, docs/, analysis/. Patterns:
+      "simulab|simulator|generic-group|generic group model"; "Oracle A|Oracle B|
+      Oracle C|Oracle D|oracle class|oracle taxonomy"; "simulator overhead|T_sim|
+      charged work|overhead per query".
+    results: >-
+      The simulability screen exists as a CONCEPT in KN-TECH-005 ("the standard
+      first screen for a candidate"), as an OPEN PROBLEM in KN-OPEN-005, as a
+      PROPOSED TEST in H-GGM-001 / IDEA-20260726-004, and as an APPLIED ANALYSIS
+      in KN-FIND-b7e091 / EV-GGM-79e710. It exists NOWHERE as a bounded-time
+      runbook with a verdict alphabet, an artifact obligation, a composition
+      table, an inter-rater check, or a declared budget. Sixteen files mention
+      the four named oracles; none states a procedure another lane could execute
+      on a new oracle without re-deriving the theory.
+    verdict: adaptation
+  novelty_screen_note: >-
+    ADAPTATION of H-GGM-001's test design, not a new idea. Its value is entirely
+    operational: it converts a concept the corpus already endorses into something
+    fourteen lanes can each run in an hour. Recording it as `novel` would be
+    false.
+
+  null_object_control: >-
+    MANDATORY AND BLOCKING, and this instrument needs BOTH directions because it
+    is an instrument (GOAL-ENDO-001 criterion C4, RQ-INSTR-f8faa0).
+    REJECTS A MATCHED NULL: the sham oracle O_rand returning uniform random
+    answers of the correct type must be adjudicated SIM with T_sim = 0. An
+    instrument that awards O_rand anything else is manufacturing structure.
+    DETECTS A PLANTED SIGNAL: the DLP oracle must be adjudicated COST, and the
+    anomalous-curve p-adic-logarithm oracle on a trace-one toy curve
+    (KN-TECH-033) must be adjudicated PUB WITH AN IMPLEMENTING ALGORITHM THAT
+    SOLVES THE INSTANCE IN O(log p) -- i.e. the procedure must not merely label
+    it, it must surface that the labelled algorithm is an attack. An instrument
+    that returns a bland PUB for the Smart-attack oracle without surfacing the
+    O(log p) implementing algorithm has failed the planted-signal direction and
+    is void.
+    DECAY PARAMETER: r, the number of independent uniform random bits appended to
+    the oracle's answer. Every verdict must be invariant in r for r in
+    {0, 8, 64, 256}. A verdict that moves with r is reading noise. SECOND DECAY
+    PARAMETER: d, the number of irrelevant handle arguments added to the
+    signature; verdict must be invariant in d while T_sim may grow.
+
+  assumptions:
+    - >-
+      The simulator knowledge set is frozen as in IDEA-20260807-5876b8. Every
+      verdict is relative to it and is not stable under changing it.
+    - >-
+      Oracles proposed by lanes can be specified precisely enough to freeze at
+      Q0. Where they cannot, the honest verdict is OPEN with "under-specified"
+      as the blocking reason, and this is expected to happen and is not a
+      failure of the procedure.
+    - >-
+      The composition table in object_first_candidate.propagation is correct for
+      single-instance, non-amortized settings. It is asserted, not proved, and
+      proving it is a listed proof obligation.
+    - >-
+      "poly(log p)" at Q3 is decided by an asymptotic argument about the
+      implementing algorithm, never by a toy-scale timing. This is stated because
+      the temptation to decide it by stopwatch at p <= 2^32 is strong and wrong.
+
+  proof_search_map:
+    bottleneck: >-
+      Q2, "does the answer factor through lambda". Every other question is either
+      bookkeeping (Q0), trivially decidable (Q1), or a cost estimate (Q3, Q5).
+      Q2 is where a wrong answer produces a confident wrong closure, and it is
+      the step whose reliability determines whether the procedure is worth
+      binding lanes to.
+    baseline_embedding:
+      parameter_slice: >-
+        The nine-oracle control set of Step 3, at the KN-FIND-b7e091 parameters.
+        The procedure must reproduce the four standing verdicts of that finding
+        exactly, as its own baseline, before any new oracle is adjudicated.
+      reproduction_check: >-
+        FROZEN REGRESSION FIXTURE: the nine specifications and their nine
+        pre-registered verdicts, stored machine-readably and re-run before every
+        adjudication session. Exact symbol match required; T_sim/C compared to
+        within an order of magnitude. Any mismatch halts.
+    observation_collision:
+      observable: >-
+        The verdict symbol in {SIM, PUB, COST, PRIV, OPEN}.
+      distinct_preimage_search: >-
+        REQUIRED AND EXPECTED TO SUCCEED. The x-coordinate oracle and the
+        anomalous-curve p-adic-logarithm oracle (KN-TECH-033) both receive PUB,
+        and one of them breaks the ECDLP in linear time. The verdict symbol
+        therefore does NOT order oracles by danger, and any use of it as a
+        ranking is a misuse. The separating condition is a property of the CURVE
+        (trace one), not of the oracle, and the procedure records it by requiring
+        the PUB artifact to be the implementing ALGORITHM -- which forces the
+        adjudicator to look at the algorithm's cost rather than stopping at the
+        label. A second collision, inside SIM: the verify-form and search-form
+        incidence oracles differ in T_sim by a factor of roughly binomial(L, m)/m
+        while sharing the SIM symbol, which is why T_sim is a mandatory field
+        (IDEA-20260807-7270d1).
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace "prove or disprove simulability" (an unbounded research task)
+          with "answer six questions with a fixed artifact each" (a bounded
+          clerical task with a declared budget), accepting OPEN as a legal
+          output. Encoding obligation: the oracle schema. Completeness
+          obligation: the five verdicts cover every oracle. Soundness obligation:
+          the nine-oracle control set. Cost-loss obligation: the procedure may
+          return OPEN where a full research effort would have decided, and the
+          rate at which that happens is a measured quantity, not a hidden one.
+        predicted_gain: >-
+          Adjudication cost per oracle falls from "a task-sized analysis" to a
+          declared <= 60 agent-minutes and <= 60 compute-seconds, which is what
+          makes discharging C3 across fourteen lanes feasible at all. No attack
+          speedup.
+      - transform: stronger_invariant
+        proposed_object: >-
+          Carry (verdict, T_sim or C, quantifier form) rather than the verdict
+          alone. The extra state is what survives COMPOSITION -- the composition
+          table cannot be stated for bare symbols, because SIM o SIM needs the
+          two T_sim values to produce the composite one.
+        predicted_gain: >-
+          Compound oracles inherit verdicts mechanically instead of restarting
+          the audit; this is the property that makes the procedure hold up as
+          lanes build oracles out of other lanes' oracles, which they will.
+    quantifier_order: >-
+      THE PROCEDURE'S OWN CLAIM:
+        FORALL oracle specifications O that pass Q0 (are freezable),
+        EXISTS a verdict v(O) in {SIM, PUB, COST, PRIV, OPEN} and an artifact
+        a(O) such that the procedure outputs (v, a) within the declared budget,
+        and FORALL competent independent adjudicators the symbol v agrees.
+      The last conjunct is the falsifiable one and is measured by the inter-rater
+      check; the rest is a definition.
+      THE VERDICTS' OWN QUANTIFIER ORDERS, which the procedure must record and
+      not blur:
+        SIM: EXISTS S, FORALL A, FORALL instances -- the simulator is fixed
+          FIRST and may not depend on the adversary, the instance, or k. A
+          "simulator" quantified after the instance may hard-code k and proves
+          nothing; this is the single most common invalid simulability argument
+          and Q2's artifact requirement exists to block it.
+        PUB: FORALL instances, EXISTS a poly-time algorithm -- and here the
+          algorithm MAY depend on the curve family (e.g. trace one), which is
+          why PUB does not imply harmless.
+        COST: EXISTS an implementation at cost C; the arithmetic is then
+          FORALL algorithms using q queries, cost >= q*C.
+        PRIV: FORALL algorithms without k, the answer is not computable.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "This oracle specification, under this frozen simulator knowledge set,
+        receives this verdict, supported by this artifact, in this much time."
+        It can NEVER certify that an oracle is useless, that a lane is closed, or
+        that no attack exists -- only SIM plus a small T_sim licenses the phrase
+        "closed at exponent 1/2", and only within the single-instance,
+        prime-order, prime-field, no-preprocessing scope.
+      nearby_object_control: >-
+        THE MULTI-TARGET / PREPROCESSING ORACLE of lane L13 (resource R8). Its
+        cost is amortized over many targets, so the composition table's
+        multiplicative rules are false for it and Q5's arithmetic
+        (q*C + g vs 0.886*sqrt(N)) is the wrong accounting -- the right one is
+        the S*T^2 = Omega~(N) tradeoff (KN-TECH-005, KN-LIT-013). The procedure
+        as specified CANNOT correctly adjudicate an L13 oracle, and rather than
+        silently mis-adjudicating it, Q0 must route any amortized oracle to
+        verdict OPEN with "amortized model, out of procedure scope" as the
+        blocking reason. Naming this failure is part of the deliverable.
+    proof_obligations:
+      - claim: The five verdicts are exhaustive over freezable oracles.
+        responsibility: correctness
+      - claim: >-
+          The composition table (SIM o SIM, SIM o PUB, ... ) is correct in the
+          single-instance non-amortized setting.
+        responsibility: correctness
+      - claim: >-
+          The nine-oracle control set produces its nine pre-registered verdicts.
+        responsibility: baseline
+      - claim: >-
+          The sham oracle receives SIM with T_sim = 0 and every verdict is
+          invariant under appending r random bits.
+        responsibility: soundness
+      - claim: >-
+          The DLP oracle receives COST and the Smart-attack oracle receives PUB
+          with its O(log p) implementing algorithm surfaced.
+        responsibility: soundness
+      - claim: The declared budget is met on the ten campaign oracles.
+        responsibility: runtime
+      - claim: >-
+          Independent adjudicators agree on the verdict symbol.
+        responsibility: interface
+      - claim: >-
+          Every verdict names the simulator knowledge set and the scope
+          qualifiers.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        control-set reproduction: number of the nine pre-registered verdicts
+        reproduced
+      direction: different
+      minimum_effect: >-
+        9 of 9 on the symbol, and T_sim/C within one order of magnitude on all
+        nine. 8 or fewer voids the procedure and it may not be used to adjudicate
+        anything. Pre-registered before the runbook is written.
+    - metric: >-
+        inter-rater agreement on the verdict symbol over three independently
+        adjudicated oracles
+      direction: different
+      minimum_effect: >-
+        3 of 3. Any disagreement on the symbol is a design failure of the
+        questions and must be reported as such rather than resolved by
+        discussion. Disagreement on T_sim magnitude only is reported separately
+        and repaired by tightening Q2/Q5.
+    - metric: >-
+        wall-clock adjudication time per oracle, over the campaign's ten named
+        candidate classes
+      direction: lower
+      minimum_effect: >-
+        Median <= 60 agent-minutes, maximum <= 120, compute <= 60 seconds each.
+        Exceeding this on more than 2 of 10 falsifies claim (E); the procedure
+        may still be correct but it is not routine, which was the point.
+    - metric: >-
+        fraction of the ten campaign oracles receiving verdict OPEN
+      direction: different
+      minimum_effect: >-
+        Pre-registered expectation: <= 2 of 10. More than 4 of 10 means the
+        questions are not answerable from the information lanes actually supply,
+        and the fix is in the oracle schema (Q0), not in the questions.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (2-3 hours, zero compute): write the runbook and the oracle schema.
+      STAGE 1 (HARD GATE, 2 hours, zero compute): adjudicate the nine-oracle
+      control set and compare against the nine pre-registered verdicts. A single
+      mismatch halts everything downstream.
+      STAGE 2 (HARD GATE, zero compute): the decay controls -- re-adjudicate
+      three control oracles with r in {0, 8, 64, 256} random bits appended and
+      with d in {0, 2} irrelevant handle arguments. Every verdict must be
+      invariant.
+      STAGE 3 (2 hours, zero compute): the inter-rater check on three oracles,
+      run in independent sessions.
+      STAGE 4 (<= 10 agent-hours, <= 10 minutes compute): adjudicate the ten
+      campaign candidate classes, recording elapsed time per oracle.
+      STAGE 5 (zero compute): publish the verdict table and the measured budget,
+      and bind the schema into the next batch's proposal requirements.
+      TOY COMPUTE IS USED ONLY to instantiate (N-weak) witnesses concretely on
+      p <= 2^20 curves so a third party can check them. It does not bound the
+      verdicts, which are arguments.
+    controls:
+      - >-
+        nine-oracle frozen control set with pre-registered verdicts (blocking)
+      - >-
+        sham random-answer oracle: must be SIM, T_sim = 0 (null direction)
+      - >-
+        DLP oracle: must be COST (planted-signal direction)
+      - >-
+        anomalous-curve p-adic-log oracle on a trace-one toy curve: must be PUB
+        AND must surface the O(log p) implementing algorithm (planted-signal
+        direction, and the harder of the two)
+      - >-
+        decay controls in r (appended random bits) and d (irrelevant handles)
+      - >-
+        inter-rater: two independent sessions, three oracles
+    required_metrics:
+      - verdict symbol, T_sim or C, and artifact per oracle
+      - quantifier form (N-weak / N-strong) per non-SIM verdict
+      - control-set reproduction count out of nine
+      - inter-rater agreement count out of three
+      - elapsed agent minutes and compute seconds per oracle
+      - count of OPEN verdicts and the blocking question for each
+
+  falsification_conditions:
+    - >-
+      The control set does not reproduce all nine pre-registered verdicts. The
+      procedure is void and no verdict it produced may be cited.
+    - >-
+      Independent adjudicators disagree on a verdict symbol. The questions are
+      not well-posed; the procedure is a draft, not an instrument, and must be
+      revised under a new record rather than patched.
+    - >-
+      A verdict changes when r random bits are appended or d irrelevant handles
+      are added. The procedure is reading noise.
+    - >-
+      The Smart-attack oracle receives PUB without the implementing algorithm
+      being surfaced. The planted-signal direction has failed: the procedure can
+      label an attack as harmless, which is the worst failure mode available to
+      it, and it is void until Q3's artifact requirement is strengthened.
+    - >-
+      More than 2 of 10 campaign oracles exceed the 120-minute ceiling. Claim (E)
+      is false; record the measured budget honestly and either relax the claim or
+      simplify the questions. This falsifies the ROUTINENESS claim, not the
+      correctness claim, and the two must not be conflated in the write-up.
+    - >-
+      A lane exhibits an oracle for which the composition table gives the wrong
+      verdict. The table is repaired under a superseding record, and every
+      compound verdict derived from it is re-derived.
+
+  confounders:
+    - >-
+      SPECIFICATION LAUNDERING. A lane that wants a NON-SIM verdict can get one
+      by writing its oracle with extra encoding-dependence it does not need. Q0's
+      freeze plus the artifact requirement is the defence, and the adjudicator
+      must ask whether the encoding-dependence is load-bearing for the lane's
+      actual mechanism.
+    - >-
+      VERDICT AS RANKING. SIM/PUB/COST is not an ordering by danger; the
+      x-coordinate / Smart-attack collision proves it. Any downstream use of the
+      symbol as a priority signal is a misuse and should be caught in review.
+    - >-
+      ADJUDICATOR ANCHORING. An adjudicator who has read the lane's proposal
+      knows what verdict the lane wants. The inter-rater check should use a
+      session that has seen the frozen signature and NOT the motivating proposal.
+    - >-
+      BUDGET GAMING. "Adjudicated in 45 minutes" is worthless if the 45 minutes
+      produced a guess. The artifact requirement is what makes the time
+      meaningful; a verdict whose artifact is a paragraph of prose asserting the
+      conclusion has not been adjudicated.
+    - >-
+      TOY-SCALE LEAKAGE. The (N-weak) witnesses are exhibited at p <= 2^20. They
+      are illustrations of an argument, not measurements, and must never be
+      reported as toy-scale evidence for a verdict.
+
+  interpretation_limits:
+    - >-
+      A SIM verdict closes a lane at exponent 1/2 in charged work ONLY when
+      T_sim is small; with large T_sim the closure is correct and quantitatively
+      vacuous (IDEA-20260807-7270d1). The procedure records T_sim precisely so
+      this cannot be papered over.
+    - >-
+      A PUB verdict is a REDIRECTION, not a closure: it says the oracle framing
+      is empty and the lane must re-pose itself as a charged algorithm. Reporting
+      PUB as "the lane is closed" is wrong and is the most likely
+      misinterpretation.
+    - >-
+      An OPEN verdict asserts nothing about the oracle. It is a statement about
+      the adjudication budget and the specification's completeness.
+    - >-
+      The procedure cannot adjudicate amortized / preprocessing oracles and
+      routes them to OPEN by construction. Lane L13 needs a different accounting.
+    - >-
+      Nothing here is evidence about the ECDLP. The procedure decides where
+      compute should NOT go; it produces no mathematical result about any curve.
+
+  reachability_gate: >-
+    NOT APPLICABLE: no curve motion is proposed. The procedure does, however,
+    adjudicate oracles that PROPOSE curve motion, and for those Q0 must record
+    whether the oracle's answer requires reaching a SPECIFIED curve (which costs
+    the vectorization problem, ~p^{1/4} classically per DECOMPOSITION.md T5) or a
+    RANDOM one (O(log p) steps under GRH). That cost enters at Q5 as part of C
+    and must not be omitted, because an oracle whose implementation includes an
+    unreachable curve has C = infinity for practical purposes.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        INTER-RATER STABILITY. For a frozen oracle specification, the verdict
+        symbol produced by the procedure is a function of the specification and
+        not of the adjudicating session, in the sense that two independent
+        competent adjudications agree with probability at least 0.9.
+      rigorous_support: >-
+        NOT A THEOREM AND NOT DERIVABLE. This is the procedure's central
+        empirical claim and the reason the inter-rater check is a blocking stage
+        rather than a nicety. The analogous rigorous statement it imitates is
+        that a decision procedure over a decidable predicate is deterministic;
+        the gap is that Q2, Q3 and Q5 require mathematical judgement, so the
+        procedure is deterministic only relative to that judgement.
+      validation_plan: >-
+        Measure it: three oracles, two independent sessions each, agreement on
+        the symbol reported as a count out of three, with the disagreements
+        analysed rather than averaged. Scale: three oracles is a TINY sample and
+        the record says so -- it can detect a badly-posed question but cannot
+        estimate an agreement rate. Extending to the full ten-oracle table
+        doubles the adjudication cost and is the obvious follow-up if the first
+        three agree. Explicitly labelled a small-sample check, never presented as
+        a validated reliability figure.
+    - id: H2
+      statement: >-
+        BUDGET SUFFICIENCY. A well-specified oracle is adjudicable in <= 60
+        agent-minutes and <= 60 compute-seconds, with the median over the ten
+        campaign oracles below that bound.
+      rigorous_support: >-
+        No rigorous support. It is a design target derived from the observation
+        that Q1-Q4 are answerable by inspection for every oracle analysed in
+        KN-FIND-b7e091, and that Q5 requires a literature cost lookup rather than
+        a derivation. It is refutable directly by measurement.
+      validation_plan: >-
+        Record elapsed agent minutes and compute seconds for each of the ten
+        campaign oracles and report the median and maximum against the target.
+        Comparison distribution: none is available or needed -- this is a
+        measured cost, not a statistical claim. Tail check: the single slowest
+        oracle and the question that consumed the time. Toy scale is irrelevant
+        here; the measurement is of adjudication effort, not of curves.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED. The procedure's own cost is
+      O(1) per oracle -- a bounded number of questions with a declared wall-clock
+      ceiling, independent of p and N. What it asserts about exponents is
+      derivative: SIM with small T_sim preserves exponent 1/2 in charged work;
+      PUB leaves the exponent equal to that of the unaugmented non-generic
+      problem (best known 1/2); COST leaves it undetermined pending the
+      arithmetic at Q5.
+    memory_exponent: >-
+      O(1): the procedure's state is nine control specifications plus one verdict
+      record per oracle. No table, no enumeration.
+    best_known: >-
+      Parallel Pollard rho with distinguished points at 0.886*sqrt(N) group
+      operations and O(1) memory (KN-TECH-001, KN-TECH-006); automorphism-
+      discounted variant on CM curves (KN-TECH-018); BSGS at sqrt(N) time and
+      memory (KN-TECH-031). As an ADJUDICATION instrument, the incumbent is
+      H-GGM-001's binary test as applied in KN-FIND-b7e091.
+    hidden_overhead: >-
+      The 60-minute budget hides the cost of Q0: writing a precise oracle
+      specification is often harder than adjudicating it, and that cost falls on
+      the PROPOSING lane, not on the adjudicator. Total campaign cost is
+      therefore higher than the per-oracle adjudication figure suggests, and this
+      record does not hide that. Second hidden cost: the artifact obligation
+      means a SIM verdict requires exhibiting f, which for a complicated oracle
+      is real work that the "60 minutes" may not cover -- in which case the
+      honest verdict is OPEN.
+    tradeoff_note: >-
+      The procedure trades COMPLETENESS for BOUNDEDNESS: it accepts OPEN where an
+      unbounded research effort would decide. The rate of OPEN verdicts is the
+      price and is measured (predicted <= 2 of 10). No cryptanalytic time-memory
+      tradeoff is involved.
+
+  dominated_by: >-
+    AS AN ATTACK: mounts none. Dominated by every row of the prime-field
+    frontier, checked individually: parallel rho with distinguished points
+    (0.886*sqrt(N) time, O(1) memory, zero queries) dominates on time, memory and
+    queries; automorphism-discounted rho on CM curves (KN-TECH-018) dominates by
+    a further factor up to sqrt(6) on time; BSGS (KN-TECH-031) at sqrt(N) time
+    and sqrt(N) memory also dominates, since this proposal occupies no point on
+    the attack frontier at all. `null` would be a fabrication.
+    AS AN ADJUDICATION INSTRUMENT: dominated by nothing in this corpus on
+    throughput or on resolution -- the incumbent (H-GGM-001's binary test,
+    KN-FIND-b7e091's application) is dominated by this on both. It IS dominated
+    by the incumbent on VALIDATION STATUS: the incumbent has an archived evidence
+    record and a Coordinator decision; this has neither and its own reliability
+    claim (H1) is untested.
+  sota_delta: >-
+    Zero on every attack axis: 0 time speedup, 0 memory reduction, 0 query
+    reduction. Instrument delta in numbers: adjudication capacity goes from 4
+    oracles adjudicated in the corpus to a claimed 10 in <= 10 agent-hours;
+    verdict resolution goes from 2 symbols to 5 symbols plus a cost number plus a
+    quantifier-form label; the composition table lets a compound oracle inherit a
+    verdict at 0 additional cost where today it would need a fresh analysis; and
+    the OPEN verdict makes the currently-invisible "we could not decide" outcome
+    countable, with a pre-registered target of <= 2 of 10.
+
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    0.9 that the nine-oracle control set reproduces -- eight of the nine verdicts
+    are already implied by records I have read, and the ninth (Smart-attack
+    oracle must surface its algorithm) is the one I would bet against at 0.75
+    because it is the requirement most likely to be satisfied only in letter.
+    0.65 that inter-rater agreement is 3 of 3 on the symbol; Q3's poly-time
+    boundary is the likeliest disagreement. 0.5 that the 60-minute median budget
+    holds. Overall 0.6 that the procedure emerges usable and binding on the next
+    batch; the dominant failure mode is not being wrong but being ignored,
+    which is why STEP 6 (binding it into the proposal schema) is part of the
+    proposal rather than an afterthought.
+
+  id_allocation_provenance: >-
+    Coordinator pre-allocated in BATCH-cb71b5 via python3 tools/allocate_id.py
+    --next idea --date 20260807; block recorded in
+    coordination/goals/GOAL-ENDO-001/batches/BATCH-cb71b5/id_allocation.json;
+    all 126 verified free with --check.
+
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-07'
+  source_refs:
+    - RQ-GGMB-6eaabc
+    - RQ-INSTR-f8faa0
+    - KN-FIND-b7e091
+    - EV-GGM-79e710
+    - H-GGM-001
+    - H-ENDO-001
+    - KN-TECH-005
+    - KN-TECH-033
+    - KN-OPEN-005
+    - IDEA-20260726-004
+    - IDEA-20260806-530fdd
+    - IDEA-20260807-5876b8
+    - IDEA-20260807-7270d1
+    - IDEA-20260807-5ddd98
+    - analysis/endomorphism-isogeny-decomposition/DECOMPOSITION.md
+    - docs/inventor-protocol.md

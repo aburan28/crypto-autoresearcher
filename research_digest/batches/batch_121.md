@@ -1,0 +1,61 @@
+# Batch 121 digest
+
+## Overview
+- This batch is anomalous: 48 of 50 files are Springer LNCS proceedings volumes whose extract shows only the front-matter/editorial-board page, not an individual research paper.
+- Volumes span CRYPTO, EUROCRYPT, ASIACRYPT, and PKC from roughly 2007 to 2026 (LNCS 4450 through 16554), a nearly complete IACR flagship-conference run.
+- Several older volumes (2007–2012 era) show only the LNCS series number and generic editorial board; the specific conference is not visible in the extract and is marked with (?).
+- Only two files are actual research papers: Naito–Yasuda on keyed-sponge PRF bounds, and Abed et al. on the RIV robust authenticated-encryption construction.
+- Nothing here covers ECC/ECDLP directly; the batch is essentially bibliographic metadata for whole conference proceedings.
+- One likely future-dated anomaly: 978-3-032-26740-5.pdf is labeled PKC 2026 (May 25–28, 2026).
+
+## Papers
+- **978-3-031-15985-5.pdf** — CRYPTO 2022 Proceedings, Part IV, LNCS 13510 (eds. Yevgeniy Dodis, Thomas Shrimpton). LNCS proceedings front matter only, not an individual paper.
+- **978-3-031-22972-5.pdf** — ASIACRYPT 2022 Proceedings, Part IV, LNCS 13794 (eds. Shweta Agrawal, Dongdai Lin). LNCS proceedings front matter only, not an individual paper.
+- **978-3-031-31371-4.pdf** — PKC 2023 Proceedings, Part II, LNCS 13941 (eds. Alexandra Boldyreva, Vladimir Kolesnikov). LNCS proceedings front matter only, not an individual paper.
+- **978-3-031-38554-4.pdf** — CRYPTO 2023 Proceedings, Part V, LNCS 14085 (eds. Helena Handschuh, Anna Lysyanskaya). LNCS proceedings front matter only, not an individual paper.
+- **978-3-031-57728-4.pdf** — PKC 2024 Proceedings, Part IV, LNCS 14604 (eds. Qiang Tang, Vanessa Teague). LNCS proceedings front matter only, not an individual paper.
+- **978-3-031-68403-6.pdf** — CRYPTO 2024 Proceedings, Part X, LNCS 14929 (eds. Leonid Reyzin, Douglas Stebila). LNCS proceedings front matter only, not an individual paper.
+- **978-3-031-91101-9.pdf** — EUROCRYPT 2025 Proceedings, Part VIII, LNCS 15608 (eds. Serge Fehr, Pierre-Alain Fouque). LNCS proceedings front matter only, not an individual paper.
+- **978-3-031-91832-2.pdf** — PKC 2025 Proceedings, Part V, LNCS 15678 (eds. Tibor Jager, Jiaxin Pan). LNCS proceedings front matter only, not an individual paper.
+- **978-3-032-01913-4.pdf** — CRYPTO 2025 Proceedings, Part VIII, LNCS 16007 (eds. Yael Tauman Kalai, Seny F. Kamara). LNCS proceedings front matter only, not an individual paper.
+- **978-3-032-26740-5.pdf** — PKC 2026 Proceedings, Part IV, LNCS 16554 (eds. Shi Bai, Edoardo Persichetti). LNCS front matter only; future-dated volume (May 2026) is anomalous.
+- **978-3-319-63697-9.pdf** — CRYPTO 2017 Proceedings, Part III, LNCS 10403 (eds. Jonathan Katz, Hovav Shacham). LNCS proceedings front matter only, not an individual paper.
+- **978-3-319-70700-6.pdf** — ASIACRYPT 2017 Proceedings, Part III, LNCS 10626 (eds. Tsuyoshi Takagi, Thomas Peyrin). LNCS proceedings front matter only, not an individual paper.
+- **978-3-319-76581-5.pdf** — PKC 2018 Proceedings, Part II, LNCS 10770 (eds. Michel Abdalla, Ricardo Dahab). LNCS proceedings front matter only, not an individual paper.
+- **978-3-319-96878-0.pdf** — CRYPTO 2018 Proceedings, Part III, LNCS 10993 (eds. Hovav Shacham, Alexandra Boldyreva). LNCS proceedings front matter only, not an individual paper.
+- **978-3-540-71677-8.pdf** — LNCS 4450 front matter (conference not visible in extract; circa-2007 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-540-74143-5.pdf** — LNCS 4622 front matter (conference not visible in extract; circa-2007 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-540-76900-2.pdf** — LNCS 4833 front matter (conference not visible in extract; circa-2007 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-540-78440-1.pdf** — LNCS 4939 front matter (conference not visible in extract; circa-2008 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-540-85174-5.pdf** — LNCS 5157 front matter (conference not visible in extract; circa-2008 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-540-89255-7.pdf** — LNCS 5350 front matter (conference not visible in extract; circa-2008 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-642-00468-1.pdf** — LNCS 5443 front matter (conference not visible in extract; circa-2009 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-642-03356-8.pdf** — CRYPTO 2009 Proceedings, LNCS 5677 (ed. Shai Halevi). LNCS proceedings front matter only, not an individual paper.
+- **978-3-642-10366-7.pdf** — LNCS 5912 front matter (conference not visible in extract; circa-2009 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-642-13013-7.pdf** — LNCS 6056 front matter (conference not visible in extract; circa-2010 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-642-14623-7.pdf** — LNCS 6223 front matter (conference not visible in extract; circa-2010 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-642-17373-8.pdf** — LNCS 6477 front matter (conference not visible in extract; circa-2010 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-642-19379-8.pdf** — LNCS 6571 front matter (conference not visible in extract; circa-2011 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-642-22792-9.pdf** — LNCS 6841 front matter (conference not visible in extract; circa-2011 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-642-29011-4.pdf** — LNCS 7237 front matter (conference not visible in extract; circa-2012 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-642-30057-8.pdf** — LNCS 7293 front matter (conference not visible in extract; circa-2012 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-642-32009-5.pdf** — CRYPTO 2012 Proceedings, LNCS 7417 (eds. Reihaneh Safavi-Naini, Ran Canetti). LNCS proceedings front matter only, not an individual paper.
+- **978-3-642-34961-4.pdf** — LNCS 7658 front matter (conference not visible in extract; circa-2012 IACR proceedings (?)). Editorial-board page only, not an individual paper.
+- **978-3-642-36362-7.pdf** — PKC 2013 Proceedings, LNCS 7778 (eds. Kaoru Kurosawa, Goichiro Hanaoka). LNCS proceedings front matter only, not an individual paper.
+- **978-3-642-40084-1.pdf** — CRYPTO 2013 Proceedings, Part II, LNCS 8043 (eds. Ran Canetti, Juan A. Garay). LNCS proceedings front matter only, not an individual paper.
+- **978-3-642-54631-0.pdf** — PKC 2014 Proceedings, LNCS 8383 (ed. Hugo Krawczyk). LNCS proceedings front matter only, not an individual paper.
+- **978-3-642-55220-5.pdf** — EUROCRYPT 2014 Proceedings, LNCS 8441 (eds. Phong Q. Nguyen, Elisabeth Oswald). LNCS proceedings front matter only, not an individual paper.
+- **978-3-662-44381-1.pdf** — CRYPTO 2014 Proceedings, Part II, LNCS 8617 (eds. Juan A. Garay, Rosario Gennaro). LNCS proceedings front matter only, not an individual paper.
+- **978-3-662-45608-8.pdf** — ASIACRYPT 2014 Proceedings, Part II, LNCS 8874 (eds. Palash Sarkar, Tetsu Iwata). LNCS proceedings front matter only, not an individual paper.
+- **978-3-662-46447-2.pdf** — PKC 2015 Proceedings, LNCS 9020 (ed. Jonathan Katz). LNCS proceedings front matter only, not an individual paper.
+- **978-3-662-48000-7.pdf** — CRYPTO 2015 Proceedings, Part II, LNCS 9216 (eds. Rosario Gennaro, Matthew Robshaw). LNCS proceedings front matter only, not an individual paper.
+- **978-3-662-48800-3.pdf** — ASIACRYPT 2015 Proceedings, Part II, LNCS 9453 (eds. Tetsu Iwata, Jung Hee Cheon). LNCS proceedings front matter only, not an individual paper.
+- **978-3-662-49387-8.pdf** — PKC 2016 Proceedings, Part II, LNCS 9615 (eds. Cheng, Chung, Persiano, Yang). LNCS proceedings front matter only, not an individual paper.
+- **978-3-662-53015-3.pdf** — CRYPTO 2016 Proceedings, Part III, LNCS 9816 (eds. Matthew Robshaw, Jonathan Katz). LNCS proceedings front matter only, not an individual paper.
+- **978-3-662-53890-6.pdf** — ASIACRYPT 2016 Proceedings, Part II, LNCS 10032 (eds. Jung Hee Cheon, Tsuyoshi Takagi). LNCS proceedings front matter only, not an individual paper.
+- **978-3-662-54388-7.pdf** — PKC 2017 Proceedings, Part II, LNCS 10175 (ed. Serge Fehr). LNCS proceedings front matter only, not an individual paper.
+- **978-981-95-5125-5.pdf** — ASIACRYPT 2025 Proceedings, Part VIII, LNCS 16252 (eds. Goichiro Hanaoka, Bo-Yin Yang). LNCS proceedings front matter only, not an individual paper.
+- **978-981-96-0947-5.pdf** — ASIACRYPT 2024 Proceedings, Part IX, LNCS 15492 (eds. Kai-Min Chung, Yu Sasaki). LNCS proceedings front matter only, not an individual paper.
+- **978-981-99-8742-9.pdf** — ASIACRYPT 2023 Proceedings, Part VIII, LNCS 14445 (eds. Jian Guo, Ron Steinfeld). LNCS proceedings front matter only, not an individual paper.
+- **97830001.pdf** — New Bounds for Keyed Sponges with Extendable Output: Independence between Capacity and Message Length (Yusuke Naito, Kan Yasuda). Gives improved PRF-security bounds for keyed sponges, removing capacity/message-length dependence and partly answering Gaži et al.'s CRYPTO 2015 open problem.
+- **97830021.pdf** — RIV for Robust Authenticated Encryption (Abed, Forler, List, Lucks, Wenzel). Extends SIV with an extra PRF call to yield AE provably secure even when unverified plaintext is released; AES instantiation runs under 1.5 cycles/byte.

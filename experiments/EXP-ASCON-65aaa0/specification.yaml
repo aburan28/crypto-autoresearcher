@@ -1,0 +1,228 @@
+experiment:
+  id: EXP-ASCON-65aaa0
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-7ea680; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-7ea680
+  question_id: RQ-ASCON-2dfd8b
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Enumerate the admissible placement-and-masking lattice for a 256-bit-key sponge variant under
+    declared width constraints and compute per cell the key-dependence of the capacity portion at
+    first squeeze, against random-placement and degenerate nulls
+  objective: 'The one uncertainty a run reduces is whether the placement of key and nonce material
+    inside a fixed-width sponge state, together with a masking rule, is load-bearing for a structural
+    key-dependence property -- and it reduces that uncertainty WITHOUT the variant being pinned. Concretely:
+    (i) enumerating every placement satisfying the declared width and partition constraints crossed
+    with a declared masking family, what is the distribution across cells of the number of capacity
+    bits depending on key material at first squeeze, and how many cells are injective on the key space
+    as judged by a reduced-width exhaustive analogue; (ii) does that distribution differ materially
+    from the same computation over cardinality-matched random non-admissible placements, which is
+    the only evidence the constraints are binding; (iii) at what depth does key-dependence saturate
+    per cell, since if every admissible cell saturates before the declared initialization depth the
+    lattice stops discriminating and that is the run''s complete result. No cell is asserted to be
+    the standard and the standard''s row is left blank by design.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable claim is: under the declared width constraints,
+      pattern families and masking family, the admissible lattice has N cells, whose structural key-dependence
+      quantity at first squeeze distributes as reported, with M cells injective at reduced width,
+      K undecidable, saturation depths as tabulated, against a random-placement null distribution
+      as reported. WHAT DOES NOT FOLLOW: that any cell is the standardized variant; that a deficient
+      cell is weak, attackable, or insecure; that reduced-width injectivity transfers to full width;
+      that anything here bears on Ascon or any deployed system. The lattice is a pre-computed lookup
+      table for a question that cannot yet be asked directly.'
+  inputs:
+    procedure: 'STAGE 0 (hours): declare and freeze the width constraints, the pattern families and
+      the masking family, hashing the declaration into the run manifest; name the unenumerated remainder
+      explicitly. STAGE 1 (hours): implement the constraint enumerator and produce the lattice cells.
+      STAGE 2 (hours): extract or conservatively bound the permutation''s per-bit dependency relation,
+      recording which route was used. STAGE 3 (minutes of CPU): propagate the key-dependence indicator
+      per cell through the declared initialization depth and the first absorption; read the capacity
+      count at first squeeze; record saturation depth. STAGE 4 (minutes): build the reduced-width
+      analogue and test injectivity by exhaustive key enumeration at at most 2^20 keys per cell, labelling
+      undecidable cells. STAGE 5 (minutes, same invocation): repeat the whole computation over 1000
+      cardinality-matched random non-admissible placements, plus the no-key and full-key forced controls.
+      STAGE 6 (minutes): recompute the lattice under the conservative full-dependency fallback for
+      comparison, then emit the table, distributions, control outcomes, remainder statement and seeds.'
+    instrument: Python 3.11 with itertools and a small hand-rolled integer-constraint enumerator for
+      the placement space; numpy for the dependency relation as bitsets and for the reduced-width
+      exhaustive enumeration; scipy.stats for the two-sample distribution comparison; pytest for the
+      forced controls; harness/runner.py for the manifest, seeds and inference block. No Sage, no
+      computer algebra system, no MILP or SAT solver -- the constraint system is small enough for
+      direct enumeration and keeping it so is a deliberate design choice.
+    parameters: 'State width 320 bits. Key widths 128 and 256; nonce width 128; tag width 128. Pattern
+      families: contiguous blocks, 64-bit-word-aligned blocks, and one declared interleaved pattern.
+      Masking family: four declared rules (none, nonce masked by key-derived material, key masked
+      by nonce-derived material, and one declared combined rule). Initialization depth swept over
+      the candidate full-round counts. Reduced-width analogue: state 40 bits, key 16 or 20 bits, exhaustive
+      key enumeration at at most 2^20. Random null: 1000 cardinality-matched non-admissible placements,
+      seeded. Two forced controls.'
+  controls:
+  - Random non-admissible placement null, 1000 draws, identical computation, same invocation, seed
+    recorded.
+  - Degenerate no-key placement, where the structural quantity must be exactly zero at every depth.
+  - Full-key placement, where every state position holds key material and the quantity must be full
+    at depth zero.
+  - 'Conservative-dependency fallback comparison: the whole lattice recomputed under a full-dependency
+    assumption, bounding how much the result depends on the extracted relation.'
+  - Reduced-width injectivity check validated against a placement whose injectivity is known by construction,
+    confirming the enumerator can detect non-injectivity.
+  - Pattern-family sweep, so a partition is never reported for one pattern family as though it covered
+    all placements.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): RANDOM NON-ADMISSIBLE PLACEMENTS: assignments of state positions to
+    key, nonce and IV roles drawn uniformly WITHOUT the width and partition constraints, evaluated
+    by the IDENTICAL entropy computation in the SAME invocation with the same declared masking family.
+    For the lattice to mean anything, the admissible cells'' distribution of the structural quantity
+    must differ materially from the random arm''s; if random placements score identically, the arithmetic
+    constraints are doing no work and the enumeration is decoration. A SECOND null uses a deliberately
+    degenerate placement in which no position holds key material, where the structural quantity must
+    be exactly zero at every depth, confirming the computation can report a deficiency when one is
+    present.'
+  independent_variables:
+  - placement pattern family
+  - masking rule from the declared family
+  - key width (128 versus 256)
+  - initialization depth
+  - arm (admissible lattice / random non-admissible null / forced controls)
+  metrics:
+    primary:
+    - structural key-dependence count of the capacity portion at first squeeze, per cell
+    - injectivity verdict per cell at reduced width, with undecidable cells counted separately
+    - two-sample comparison statistic between admissible and random-null distributions
+    - saturation depth per cell
+    secondary:
+    - lattice size per pattern family and masking rule
+    - difference between the extracted-dependency and conservative-fallback partitions
+    - forced control outcomes
+    - named unenumerated remainder, stated as a proportion of the declared family where quantifiable
+    - wall-clock and seeds
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: E(cell), the number of capacity-portion bits depending on key material at first squeeze,
+      and the two-sample statistic comparing the distribution of E over admissible cells against its
+      distribution over cardinality-matched random non-admissible placements.
+    formula: 'Propagate a binary key-dependence indicator k[i] over state positions with k_out[j]
+      = OR over i in dep(j) of k_in[i], initialised from the placement and rewritten by the masking
+      rule; then E(cell) = the number of capacity positions with k[i] = 1 after the declared initialization
+      depth and the first absorption. Forced values: E = 0 at every depth for the no-key placement,
+      and E = full capacity width at depth 0 for the full-key placement. The distribution of E over
+      the admissible lattice must differ from the random-null distribution by a two-sample test at
+      the 0.01 level; the shape of the admissible distribution itself is NOT pre-committed, since
+      the enumeration has never been run.'
+    source: Pre-registered in the parent proposal IDEA-20260816-7ea680 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Two different scales are used and both are labelled. The placement enumeration
+      and key-dependence propagation run at the FULL 320-bit state and full declared widths, so nothing
+      about that computation is scaled down. The INJECTIVITY check runs at a reduced 40-bit-state,
+      16-to-20-bit-key analogue chosen so the key space is exhaustively enumerable, and its transfer
+      assumption is stated explicitly: injectivity at reduced width is evidence about placements of
+      the same shape and is NOT extrapolated to full width, with every injectivity verdict in the
+      deliverable carrying that label.'
+    correspondence: null
+  tail_checks:
+  - No-key placement, where E must be 0 at every depth.
+  - Full-key placement, where E must be full capacity width at depth 0.
+  - Initialization depth 0, where E must equal the count of key positions inside the capacity portion
+    and nothing more.
+  - A placement putting all key material entirely inside the rate, the extreme case for capacity key-dependence
+    at depth 0.
+  - The largest declared initialization depth, confirming every arm has saturated or reporting explicitly
+    that some has not.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt before propagation if the width constraints admit an unbounded family under any declared
+    pattern, and report the pattern family as inadequate rather than sampling it.
+  - Halt and report a computation defect if either forced control fails.
+  - Stop at the declared masking family; do not extend it after seeing the partition, since post-hoc
+    extension would let the distribution be shaped by the result.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: Both forced controls pass, the lattice enumerates finitely under every declared
+    pattern family, E is tabulated per cell with injectivity verdicts and undecidable cells labelled,
+    the admissible-versus-random distribution comparison is reported, and the unenumerated remainder
+    of the masking and pattern families is named explicitly with the standard's row left blank.
+  falsification_criterion:
+  - The random non-admissible null distribution is indistinguishable from the admissible one at the
+    0.01 level.
+  - Either forced control fails.
+  - The reduced-width enumerator fails to detect a known non-injective placement.
+  - Every admissible cell saturates before the declared initialization depth, which is a clean negative
+    reported as the placement question not being load-bearing.
+  - The extracted-dependency and conservative-fallback partitions differ qualitatively, showing the
+    result rests on an unvalidated extraction.
+  - The constraint system admits an unbounded family under a declared pattern.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-7ea680
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The state, key, nonce and tag widths are reported but UNVERIFIED here; a Coordinator must file
+    the specification as a KN-LIT entry or ratify the bounds used, noting the RQ constraint against
+    experiment design before both documents are filed.
+  - The masking family is authored by this program with no external anchor; a Coordinator must ratify
+    it and decide how the unenumerated remainder is to be reported so it is not quietly dropped.
+  - Whether the reduced-width analogue is faithful enough for injectivity verdicts to be worth recording
+    at all is a modelling judgement the Coordinator must make before the run.
+  - Whether extending the goal's surface to an optional variant RQ-ASCON-2dfd8b does not name among
+    its targets is in scope requires an explicit Coordinator ruling.

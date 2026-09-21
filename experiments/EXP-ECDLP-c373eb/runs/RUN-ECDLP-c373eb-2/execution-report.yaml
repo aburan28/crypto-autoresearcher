@@ -1,0 +1,157 @@
+execution_report:
+  task_id: TASK-20260902-ff016d
+  run_id: RUN-ECDLP-c373eb-2
+  experiment_id: EXP-ECDLP-c373eb
+  specification_path: experiments/EXP-ECDLP-c373eb/specification.yaml
+  specification_status_at_execution: approved
+  approved_by: coordinator
+  scope: >-
+    REPLICATION run of the frozen RC-1 specification on a second,
+    independently chosen toy instance. This report documents what ran and
+    what was observed; it does not interpret the results with respect to
+    H-ECDLP-a40416 (interpretation is reserved for a subsequent
+    /review-evidence pass, per the task handoff).
+
+  instance_chosen:
+    curve: 'y^2 = x^3 + 2x + 2 over F_1013'
+    p: 1013
+    A: 2
+    B: 2
+    N_points: 984
+    N_factorization: '2^3 * 3 * 41'
+    a_p: 30
+    ordinary: true
+    point_S: {x: 393, y: 263}
+    order_n: 41
+    precision_r: 8
+    difference_from_RUN-1: >-
+      RUN-1 used p=1009, A=1, B=1, n=47, S=(286,680). This run differs in p,
+      in both curve coefficients, and in n (41 vs 47), so it is a genuine
+      second data point rather than a restatement of RUN-1's instance.
+
+  what_ran:
+    script: experiments/EXP-ECDLP-c373eb/implementation/rc1_tabulation_run2.py
+    description: >-
+      An adaptation of RUN-1's rc1_tabulation.py to the new instance
+      parameters above. The algorithm is unchanged from RUN-1: Jacobian-
+      coordinate scalar multiplication over Z/p^r, canonical order-n
+      torsion lift via single-variable Hensel/Newton lifting on the
+      order-n condition (independently verified: n*S_hat equals the exact
+      projective identity mod p^8), a discriminating null lift (x
+      perturbed by +p before Hensel-lifting y), and the same Part 1/2/3
+      tabulation structure as the frozen specification requires.
+    command: 'cd experiments/EXP-ECDLP-c373eb/implementation && python3 rc1_tabulation_run2.py'
+    wall_clock_seconds_observed: 0.2
+    budget_wall_clock_seconds_per_run: 600
+    exit_status: 0 (no errors, no exceptions)
+
+  observed_results:
+    part1_D1_image_canonical_lift: [0, 8]
+    part1_pairs_tabulated: 780
+    part1_on_fibre_count: 20
+    part1_off_fibre_count: 760
+    part1_violations_or_intermediate_values: 'none (part1_notes list is empty)'
+    part2_D1_image_null_lift: [0, 1]
+    part3_vandermonde_image: [0, 8]
+    part3_nonrigid_image: [0]
+    part3_triples_used: '[(1,2,3), (2,5,9), (7,13,33), (4,33,37), (1,40,20), (3,38,35)]'
+    precision_cap_note: >-
+      Every reported value of 8 means v_p >= 8, observed only to the finite
+      precision r=8 used in this run -- never literal infinity. No value in
+      raw-result.json should be read as an exact infinite-precision claim.
+
+  comparison_to_RUN-1_observed_values:
+    note: >-
+      Presented as a side-by-side factual comparison only; no judgment is
+      made here about what agreement or disagreement means for
+      H-ECDLP-a40416.
+    RUN-1_part1_canonical: [0, 8]
+    RUN-2_part1_canonical: [0, 8]
+    RUN-1_part2_null_lift: [0, 1]
+    RUN-2_part2_null_lift: [0, 1]
+    RUN-1_part3_vandermonde: [0, 8]
+    RUN-2_part3_vandermonde: [0, 8]
+    RUN-1_part3_nonrigid: [0]
+    RUN-2_part3_nonrigid: [0]
+
+  spot_check:
+    pair_checked: '(j, k) = (5, 12)'
+    method: >-
+      x([j]S_hat) and x([k]S_hat) each recomputed via a second, independent
+      code path (k or j sequential jac_add calls with no doubling step,
+      vs. the double-and-add scalar_mult used throughout the tabulation).
+    result: >-
+      Both independent paths produced identical affine x-coordinates for
+      both j and k; D1(5,12) recomputed from the independently-obtained
+      values equals 0, matching the tabulated value of 0. The curve
+      equation Y^2 Z = X^3 + A X Z^4 + B Z^6 was also verified to hold
+      exactly mod p^8 for both S_hat and the null lift.
+
+  invalidation_rules_check:
+    gcd_n_p_and_good_reduction: >-
+      Verified: n=41 is prime and gcd(41, 1013) != 0 (41 does not divide
+      1013); discriminant of the curve is nonzero mod p (good reduction);
+      a_p=30 != 0 (ordinary reduction).
+    p_adic_arithmetic_spot_checked: >-
+      Verified: see spot_check above, an independent recomputation path
+      agreed exactly.
+    conclusion: 'No invalidation_rules triggered; run classified completed_valid.'
+
+  deviations_from_specification:
+    - id: DEV-1
+      description: >-
+        Curve/point/n were chosen by the executor for this instance, per the
+        specification's inputs clause, subject to the task-level requirement
+        of being distinct from RUN-1's instance (satisfied: different p,
+        different A/B, different n).
+      severity: none
+    - id: DEV-2
+      description: >-
+        Part 3's six sample triples were re-selected for n=41 (RUN-1's
+        triples reference indices up to 46, invalid mod 41), following the
+        same design pattern (near-adjacent, spread, and one deliberately
+        degenerate/near-collision triple: (3,38,35) with 38 = -3 mod 41,
+        analogous to RUN-1's (3,44,41) with 44 = -3 mod 47).
+      severity: none
+    - id: DEV-3
+      description: >-
+        The manifest includes the code/environment/inputs/timing/result
+        schema blocks from the start (per the task brief's explicit
+        instruction), rather than requiring a follow-up schema-completion
+        fix as RUN-1 needed.
+      severity: none
+
+  operational_limitations:
+    - >-
+      This remains a single additional toy-scale instance (p approximately
+      1013, about 10 bits); together with RUN-1 this gives two toy
+      instances, not a systematic sweep. No claim about cryptographic-scale
+      curves, and no claim about instances beyond these two toy points, is
+      made or implied by this run.
+    - >-
+      Precision is capped at r=8 p-adic digits as specified; values reported
+      as 8 are lower bounds (v_p >= 8), not proofs of exact infinite
+      valuation.
+
+  certificate:
+    kind: none
+    statement: >-
+      Pure measurement (p-adic valuation tabulation); no discrete-log solve
+      or factor-base relation is claimed by this run. No solution
+      certificate protocol applies.
+
+  no_interpretation_note: >-
+    Per the task handoff, this report states observed facts only. Whether
+    these results support, are consistent with, or falsify H-ECDLP-a40416
+    is not assessed here and is reserved for a subsequent Coordinator/
+    review pass. No hypothesis or experiment status was changed by this
+    run, and no B71/DEC/KN-FIND/KN-OPEN/CORR record was created.
+
+  artifacts:
+    manifest: experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-2/manifest.yaml
+    command: experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-2/command.txt
+    environment: experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-2/environment.json
+    stdout: experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-2/stdout.log
+    stderr: experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-2/stderr.log
+    raw_result: experiments/EXP-ECDLP-c373eb/runs/RUN-ECDLP-c373eb-2/raw-result.json
+    script: experiments/EXP-ECDLP-c373eb/implementation/rc1_tabulation_run2.py

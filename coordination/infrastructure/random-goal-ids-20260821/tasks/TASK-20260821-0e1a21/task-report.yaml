@@ -1,0 +1,295 @@
+schema: crypto.autoresearch.task_report.v1
+task_id: TASK-20260821-0e1a21
+role: validator
+status: completed
+recorded_at: '2026-08-22T07:08:23Z'
+objective: >-
+  Independently validate the immutable random-suffix GOAL-ID implementation
+  snapshot, its archive binding, exact scope, compatibility behavior,
+  regression coverage, and zero-new-ledger-error claim.
+
+authority_boundary:
+  experiments_executed: 0
+  mathematical_or_rank_searches_executed: 0
+  implementation_files_modified: 0
+  existing_records_modified: 0
+  commits_created: 0
+  pushes_performed: 0
+  merges_performed: 0
+  official_status_changes: 0
+  scientific_approvals: 0
+
+inference:
+  requested_policy: review-adversarial
+  requested_reasoning_effort: xhigh
+  fallback_allowed: false
+  fallback_used: false
+  degraded_allowed: false
+  degraded_requirements: []
+  runtime: native_codex_validator_subagent
+  codex_thread_id: 01a02840-0dc0-7ab1-9298-3c0f9b46f278
+  resolved_model_id: not_exposed_by_native_codex_host
+  model_verified: false
+  model_inferred: false
+  provider_inferred: false
+  provider_prohibition_checked: true
+  bedrock_selected_configured_probed_contacted_or_used: false
+  independent_session: true
+
+environment:
+  validation_checkout: /private/tmp/goalid-validator.ndTP00
+  base_comparison_checkout: /private/tmp/goalid-validator-base.UY8R7H
+  report_checkout: /Users/adamburan/.codex/worktrees/infra-random-goal-ids-20260821/crypto-autoresearcher
+  platform: >-
+    Darwin Adams-MacBook-Pro.local 25.6.0 Darwin Kernel Version 25.6.0;
+    RELEASE_ARM64_T6041 arm64
+  python: 3.13.1
+  memory_budget_gb: 8
+  peak_memory_gb: not_measured
+  snapshot_commit: e0c4f9384e6db209065660756b425617d78d6b08
+  snapshot_parent: 231ab571faa8a0890f77bac45d4c4a07c5b3c2c1
+  snapshot_tree: 25238f59e12b205e046582439a73debca6b4c355
+  bound_base_commit: 76b860c1ba1364b6a74695a09d1ae995a6ba8ebe
+  inspected_branch_head: f88b405d59b24216faf7c738ff760487f5f8e031
+  isolated_snapshot_tracked_dirty_path_count: 0
+  isolated_snapshot_untracked_nonignored_path_count: 0
+
+preflight:
+  command: >-
+    python3 plugins/crypto-autoresearcher-harness/scripts/preflight.py
+    --repo "$PWD" --runtime codex --doctor
+  exit_code: 0
+  result: READY
+  generated_bindings_current: true
+  generated_binding_count: 11
+  roles_consistent: true
+  role_count: 8
+  output_location: native_tool_session_capture_and_this_summary
+  warnings:
+    - Shell API credentials for several optional backends were unset.
+    - No pinned evaluation baseline exists.
+  interpretation: >-
+    Repository, dependency, configuration, role-binding, and local runtime
+    checks passed. Optional backend warnings did not block this already-running
+    native independent session and were not used as evidence.
+
+commands:
+  - id: snapshot_metadata_and_reachability
+    command: >-
+      git rev-parse snapshot^{tree}; git rev-parse snapshot^;
+      git merge-base --is-ancestor snapshot HEAD; git diff-tree snapshot
+    exit_code: 0
+    observed_output: >-
+      commit e0c4f9384e6db209065660756b425617d78d6b08, parent
+      231ab571faa8a0890f77bac45d4c4a07c5b3c2c1, tree
+      25238f59e12b205e046582439a73debca6b4c355, reachable, 20 paths.
+    output_location: validation-report.yaml snapshot_binding and snapshot_manifest_audit
+
+  - id: pre_post_hash_recomputation
+    command: >-
+      For each implementation-contract pre_edit_sha256 and archive-receipt
+      source_path_sha256 entry, read git show COMMIT:PATH and compute SHA-256.
+    exit_code: 0
+    observed_output: 16 of 16 pre-edit and 19 of 19 post-edit bindings matched.
+    output_location: validation-report.yaml hash_audit
+
+  - id: immutable_root_diff
+    command: >-
+      git diff --name-status BASE SNAPSHOT -- ledger/goals ledger/questions
+      ledger/evidence ledger/decisions experiments knowledge coordination/goals
+    exit_code: 0
+    observed_output: ''
+    output_location: validation-report.yaml immutable_record_audit
+
+  - id: focused_compile_unit_and_projection
+    command: >-
+      python3 -m py_compile <affected Python files>; python3 -m unittest
+      tools/test_allocate_id.py tools/test_goal_closure_quorum.py
+      tools/test_goal_id_random_suffix.py tools/test_research_dispatch.py;
+      python3 -m pytest -q tests/test_campaign_projection.py
+    exit_code: 0
+    observed_output: 'compile PASS; 115 unit tests PASS; 13 projection tests PASS'
+    output_location: validation-report.yaml regression_checks
+
+  - id: isolated_mcp
+    command: >-
+      uv run --isolated --with 'fastmcp>=3.4.3,<4' --with 'pytest>=8'
+      --with pytest-anyio --with 'PyYAML>=6.0' --with 'httpx>=0.28'
+      python -m pytest -q tests/test_campaign_mcp.py
+    exit_code: 0
+    observed_output: 10 passed in 2.24s
+    output_location: validation-report.yaml regression_checks
+
+  - id: allocator_random_mint
+    command: python3 tools/allocate_id.py --next goal --area ERANK --seed 29
+    exit_code: 0
+    observed_output: GOAL-ERANK-2b92bc; random 6-hex; no state scanned.
+    output_location: validation-report.yaml allocator_cli_checks
+
+  - id: allocator_random_check
+    command: python3 tools/allocate_id.py --check GOAL-ERANK-2b92bc
+    exit_code: 0
+    observed_output: well-formed YES; zero occurrences; free across the union.
+    output_location: validation-report.yaml allocator_cli_checks
+
+  - id: allocator_sequential_negative_control
+    command: python3 tools/allocate_id.py --next goal --area ERANK --sequential
+    exit_code: 1
+    expected_nonzero: true
+    observed_output: sequential GOAL allocation is prohibited.
+    output_location: validation-report.yaml allocator_cli_checks
+
+  - id: merge_hygiene
+    command: >-
+      python3 tools/check_merge_hygiene.py --base
+      76b860c1ba1364b6a74695a09d1ae995a6ba8ebe
+    exit_code: 0
+    observed_output: >-
+      PASS: no conflict markers, no unparseable records, no identifier
+      collisions, no new legacy GOAL identifiers
+    output_location: validation-report.yaml prospective_policy_audit
+
+  - id: runtime_bindings
+    command: python3 tools/check_runtime_bindings.py
+    exit_code: 0
+    observed_output: 'OK: 8 roles consistent with every runtime binding'
+    output_location: validation-report.yaml regression_checks
+
+  - id: run_immutability
+    command: python3 tools/check_run_immutability.py
+    exit_code: 0
+    observed_output: 'OK: no committed run artifacts were modified or deleted'
+    output_location: validation-report.yaml immutable_record_audit
+
+  - id: ledger_snapshot_validation
+    command: python3 tools/validate_ledger.py
+    working_directory: /private/tmp/goalid-validator.ndTP00
+    exit_code: 1
+    expected_inherited_nonzero: true
+    observed_output: >-
+      One unsuppressed error: EXP-SSI-697354-v2 RUN-SSI-697354-v2-a
+      manifest expected top-level key run.
+    output_location: validation-report.yaml ledger_comparison
+
+  - id: ledger_base_validation
+    command: python3 tools/validate_ledger.py
+    working_directory: /private/tmp/goalid-validator-base.UY8R7H
+    exit_code: 1
+    expected_inherited_nonzero: true
+    observed_output: >-
+      The same one unsuppressed SSI manifest error, with the same notes and
+      fingerprint as the snapshot.
+    output_location: validation-report.yaml ledger_comparison
+
+  - id: bespoke_compatibility_controls
+    command: >-
+      Independent temporary-fixture Python check using the committed
+      validate_ledger, allocate_id, and check_merge_hygiene modules.
+    exit_code: 1
+    product_checks_completed_before_exit: true
+    observed_output: >-
+      Legacy/random grammar, malformed forms, path mismatches, duplicate
+      heads, flat/sharded collisions, migration, new legacy rejection, new
+      random acceptance, and reference-only behavior all produced expected
+      results. The final dispatch call then rejected the validator-authored
+      incomplete queue because queue.schema was absent.
+    output_location: validation-report.yaml compatibility_matrix and additional_non_gate_checks
+
+  - id: corrected_dispatch_fixture
+    command: >-
+      Load templates/subagent-task-queue.json, substitute legacy then random
+      goal_id, and call research_dispatch.select.
+    exit_code: 0
+    observed_output: GOAL-BASE-001 and GOAL-ERANK-a1b2c3 preserved exactly.
+    output_location: validation-report.yaml additional_non_gate_checks
+
+  - id: inventory_reconciliation
+    command: >-
+      Parse committed inventory, scope freeze, and implementation report;
+      compare required, frozen, and actual path sets.
+    exit_code: 0
+    observed_output: all three sets equal at 16 paths; every set difference empty.
+    output_location: validation-report.yaml consumer_inventory_reconciliation
+
+  - id: optional_full_repository_pytest
+    command: python3 -m pytest -q
+    exit_code: 2
+    disposition: FAILED_INFRASTRUCTURE
+    observed_output: >-
+      Interrupted at 51 percent after Coordinator bounded-scope direction;
+      19 runner tests failed because Python imported runner.py from
+      /Volumes/SSD990/crypto-autoresearcher outside the isolated checkout.
+      Partial summary: 558 passed, 19 failed, 2 skipped, 123 subtests passed,
+      407.07 seconds.
+    output_location: validation-report.yaml additional_non_gate_checks
+
+  - id: final_inbox_check
+    command: python3 tools/agent_bus.py inbox --as validator
+    exit_code: 0
+    observed_output: no unread for validator.
+    output_location: task-report.yaml inbox
+
+test_summary:
+  required_focused_and_affected:
+    disposition: PASS
+    unit_passed: 115
+    projection_passed: 13
+    mcp_passed: 10
+    required_failures: 0
+    required_infrastructure_failures: 0
+  optional_repository_wide:
+    disposition: FAILED_INFRASTRUCTURE
+    partial_passed: 558
+    partial_failed: 19
+    partial_skipped: 2
+    partial_subtests_passed: 123
+  ledger:
+    base_exit_code: 1
+    snapshot_exit_code: 1
+    base_errors: 1
+    snapshot_errors: 1
+    new_errors: 0
+    identical_inherited_fingerprint: true
+
+resource_observations:
+  budget_maximum_runs_interpretation: one_validator_invocation
+  validator_invocations: 1
+  experiment_runs: 0
+  full_suite_partial_duration_seconds: 407.07
+  focused_unit_duration_seconds: 8.363
+  projection_duration_seconds: 0.82
+  mcp_duration_seconds: 2.24
+  memory_measurement_available: false
+  memory_budget_exceeded: false
+  wall_clock_budget_exceeded: false
+
+dirty_state:
+  isolated_snapshot_before_report:
+    tracked_changes: []
+    untracked_nonignored_paths: []
+  shared_report_worktree_expected_writes:
+    - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260821-0e1a21/validation-report.yaml
+    - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260821-0e1a21/task-report.yaml
+  sibling_task_output_read: false
+  sibling_task_output_modified: false
+
+inbox:
+  address: validator
+  checked_at: '2026-08-22T07:08:23Z'
+  unread_count: 0
+  output: no unread for validator.
+
+result:
+  required_completion_gates_passed: 35
+  required_completion_gates_failed: 0
+  required_completion_gates_failed_infrastructure: 0
+  verdict: PASS
+  interpretation: >-
+    Snapshot e0c4f938 is an admissible, exactly scoped infrastructure repair
+    receipt for random-suffix GOAL identifiers. This validates implementation
+    and evidence integrity only. It is not merge approval, goal-status
+    approval, a rank result, novelty evidence, or a scientific conclusion.
+
+artifact_paths:
+  - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260821-0e1a21/validation-report.yaml
+  - coordination/infrastructure/random-goal-ids-20260821/tasks/TASK-20260821-0e1a21/task-report.yaml

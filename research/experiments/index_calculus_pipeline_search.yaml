@@ -1,0 +1,267 @@
+suite: index-calculus-pipeline-search
+status: proposed
+created_at: '2026-09-09'
+claim_boundary:
+  attack_claim: false
+  speedup_claim: false
+  beats_rho_claim: false
+  asymptotic_claim: false
+  scope: toy_and_held_out_validation_only_until_independent_review
+
+motivation: >-
+  Search complete relation-generation pipelines rather than isolated solver
+  knobs. Candidate dimensions include factor base, representation, decomposition
+  formulation, symmetry handling, solver family, and search policy. All outputs
+  must be independently verified on the original curve and charged for total
+  setup/encoding/solve/conversion/verification cost.
+
+baseline_dependencies:
+  - research/experiments/orbit_aware_decomposition_experiments.yaml
+  - research/experiments/frobenius_next_wave_experiments.yaml
+  - research/ideas/index_calculus_pipeline_search.md
+
+common_controls:
+  - evaluator_hidden_scalar_and_ground_truth_tables
+  - independent_group_law_verifier
+  - fixed_targets_and_seeds_per_paired_comparison
+  - matched_factor_base_cardinality_when_required
+  - no_planted_only_performance_corpus
+  - timeouts_are_not_unsat_claims
+  - all_setup_and_conversion_costs_charged
+  - raw_outputs_and_environment_persisted
+
+common_ladder:
+  cohorts:
+    - generic_prime_field
+    - structured_prime_field
+    - random_nonsupersingular_binary
+    - toy_koblitz_binary
+  initial_subgroup_bits: [12, 16, 20, 24]
+  decomposition_arities: [2, 3, 4]
+  seeds_per_cell: 30
+  held_out_fraction: 0.25
+
+common_metrics:
+  - solved_fraction
+  - solver_seconds
+  - total_seconds
+  - peak_memory_bytes
+  - verified_relation_count
+  - independent_relation_count
+  - duplicate_relation_fraction
+  - seconds_per_independent_relation
+  - relation_matrix_rank_deficit
+  - setup_seconds
+  - encoding_seconds
+  - conversion_and_verification_seconds
+  - fitted_log2_time_slope
+
+experiments:
+  - id: EXP-IC-VERIFY-001
+    title: Exhaustive decomposition-equivalence harness
+    hypothesis: >-
+      Independent exhaustive checking on tiny groups can reject invalid solver,
+      symmetry, and representation encodings before performance benchmarking.
+    mechanism: >-
+      For tiny curves enumerate all factor-base tuples for each target and build
+      the exact solution set. Compare every candidate backend and encoding
+      against this ground truth after lifting solutions back to curve points.
+    arms:
+      - direct_enumeration_ground_truth
+      - semaev_grobner
+      - semaev_sat_xor
+      - orbit_aware_encoding_when_applicable
+      - alternate_field_representation_when_applicable
+    primary_metrics:
+      - false_positive_count
+      - false_negative_count
+      - exact_solution_set_match
+    promotion_gate:
+      require:
+        - zero_false_positives
+        - zero_false_negatives
+        - original_group_equation_verified_for_every_returned_solution
+    kill_if:
+      - any_unexplained_solution_set_mismatch
+
+  - id: EXP-IC-SOLVERMATCH-001
+    title: Matched Gröbner versus SAT/XOR relation-generation benchmark
+    depends_on: [EXP-IC-VERIFY-001]
+    hypothesis: >-
+      Solver superiority is formulation-dependent; SAT/XOR may outperform
+      Gröbner on some descended binary formulations while Gröbner remains better
+      on others. The comparison must use identical mathematical instances.
+    mechanism: >-
+      Freeze curve, target, factor base, and mathematical decomposition problem.
+      Produce semantically equivalent polynomial and Boolean/XOR encodings and
+      compare total cost per independently verified relation.
+    arms:
+      - grobner_default
+      - grobner_best_frozen_order_from_baseline
+      - sat_cnf
+      - sat_xor_aware
+      - hybrid_algebraic_preprocess_then_sat
+    primary_metrics:
+      - seconds_per_independent_relation
+      - solved_fraction
+      - peak_memory_bytes
+    secondary_metrics:
+      - maximum_grobner_degree
+      - actual_solving_degree
+      - peak_macaulay_rows
+      - sat_decisions
+      - sat_conflicts
+      - xor_propagations
+    promotion_gate:
+      require:
+        - semantic_equivalence_verified
+        - one_nonbaseline_arm_improves_median_seconds_per_independent_relation_by_at_least_20_percent
+        - gain_persists_on_two_largest_completed_sizes
+        - no_rank_quality_regression_over_10_percent
+    kill_if:
+      - gain_disappears_after_encoding_and_verification_overhead
+      - only_planted_or_tiny_instances_improve
+
+  - id: EXP-IC-FBFORM-001
+    title: Factor-base and decomposition-formulation co-design
+    depends_on: [EXP-IC-VERIFY-001]
+    hypothesis: >-
+      Factor-base quality cannot be evaluated independently from the algebraic
+      formulation; paired choices can improve relation throughput even when
+      either choice alone does not.
+    mechanism: >-
+      At matched effective factor-base cardinality, cross product selected
+      factor-base families with direct summation-polynomial, chained lower-arity,
+      and direct point-addition formulations. Use identical targets and budgets.
+    factor_base_arms:
+      - matched_random_control
+      - algebraically_described_subset
+      - orbit_closed_when_applicable
+      - stabilizer_stratified_when_applicable
+    formulation_arms:
+      - direct_summation_polynomial
+      - chained_lower_arity_with_auxiliaries
+      - direct_point_addition_constraints
+    primary_metrics:
+      - seconds_per_independent_relation
+      - relation_matrix_rank_deficit_after_fixed_time
+      - decomposition_success_probability
+    secondary_metrics:
+      - variables_or_unknowns
+      - equation_count
+      - maximum_solver_degree_or_conflicts
+      - setup_seconds
+    promotion_gate:
+      require:
+        - matched_effective_factor_base_size
+        - one_pair_improves_seconds_per_independent_relation_by_at_least_25_percent
+        - improvement_survives_fresh_targets
+        - rank_deficit_is_not_worse_than_baseline
+    kill_if:
+      - apparent_gain_is_only_larger_factor_base_coverage
+      - construction_cost_erases_relation_gain
+
+  - id: EXP-IC-FROBJOINT-001
+    title: Joint representation-Frobenius-solver experiment
+    depends_on: [EXP-IC-VERIFY-001, EXP-IC-SOLVERMATCH-001]
+    cohorts: [toy_koblitz_binary, random_nonsupersingular_binary]
+    hypothesis: >-
+      Exposing Frobenius structure inside both field representation and solver
+      formulation can reduce decomposition cost beyond established external
+      orbit quotienting and symmetry-breaking baselines.
+    arms:
+      - established_frobenius_baseline
+      - normal_basis_same_problem
+      - normal_basis_orbit_rep_plus_explicit_index
+      - orbit_rep_index_plus_orbit_block_solver_order
+    solvers:
+      - grobner
+      - sat_xor_aware
+    correctness_invariant: >-
+      Frobenius transforms the target together with all summands. No candidate
+      may normalize summands independently while leaving the target fixed unless
+      the retained orbit-index variables and constraints prove exact equivalence.
+    primary_metrics:
+      - seconds_per_independent_relation
+      - solved_fraction
+      - relation_matrix_rank_deficit_after_fixed_time
+    secondary_metrics:
+      - maximum_basis_degree_or_sat_conflicts
+      - peak_macaulay_or_clause_database_size
+      - encoding_overhead_seconds
+    promotion_gate:
+      require:
+        - exhaustive_solution_set_equivalence_on_stage_0
+        - one_joint_arm_beats_established_frobenius_baseline_by_at_least_25_percent
+        - gain_persists_on_largest_two_completed_extension_degrees
+        - fresh_seed_replication_confirms_direction
+    kill_if:
+      - benefit_disappears_after_orbit_deduplication
+      - invalid_target_orbit_normalization_detected
+      - normal_basis_conversion_cost_erases_gain
+
+  - id: EXP-IC-AUTOSEARCH-001
+    title: Budgeted automated pipeline search
+    depends_on: [EXP-IC-SOLVERMATCH-001, EXP-IC-FBFORM-001, EXP-IC-FROBJOINT-001]
+    hypothesis: >-
+      A constrained search policy using verified historical measurements can
+      discover better pipeline combinations per unit compute than random search
+      without overfitting the repeatedly exposed benchmark corpus.
+    candidate_dimensions:
+      - factor_base_family
+      - representation
+      - decomposition_formulation
+      - symmetry_strategy
+      - solver_family
+      - variable_or_elimination_order
+    policies:
+      - random_search
+      - simple_hand_written_rules
+      - frozen_cost_timeout_predictor
+      - budgeted_bandit_or_bayesian_search
+    compute_allocation:
+      incumbent_refinement_fraction: 0.50
+      orthogonal_family_fraction: 0.25
+      replication_and_holdout_fraction: 0.15
+      high_risk_new_formulation_fraction: 0.10
+    primary_metrics:
+      - best_verified_seconds_per_independent_relation_after_fixed_compute
+      - number_of_promoted_candidates_after_fixed_compute
+      - held_out_regret_vs_oracle_over_evaluated_candidates
+    secondary_metrics:
+      - predictor_timeout_auc
+      - predictor_rank_correlation_with_total_cost
+      - exploration_family_entropy
+    promotion_gate:
+      require:
+        - policy_beats_random_search_on_fresh_benchmark_generations
+        - incumbent_gain_reproduces_with_fresh_seeds
+        - no_evaluator_or_hidden_test_access
+        - complete_solve_accounting_does_not_reverse_gain_when_run
+    kill_if:
+      - improvement_disappears_on_fresh_benchmark_generation
+      - policy_collapses_to_one_family_without_measured_advantage
+      - predictor_optimizes_proxy_but_not_verified_relation_cost
+
+execution_order:
+  - EXP-IC-VERIFY-001
+  - EXP-IC-SOLVERMATCH-001
+  - EXP-IC-FBFORM-001
+  - EXP-IC-FROBJOINT-001
+  - EXP-IC-AUTOSEARCH-001
+
+full_solve_promotion:
+  required_metrics:
+    - total_setup_seconds
+    - total_relation_collection_seconds
+    - total_linear_algebra_seconds
+    - total_target_recovery_seconds
+    - total_end_to_end_seconds
+    - peak_end_to_end_memory_bytes
+  compare_against:
+    - strongest_repo_index_calculus_baseline
+    - appropriate_pollard_rho_baseline
+  claim_classes:
+    implementation_improvement: automatic_if_verified
+    scaling_signal: automatic_if_fitted_and_held_out
+    asymptotic_complexity_claim: requires_theory_review

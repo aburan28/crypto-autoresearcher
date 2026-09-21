@@ -1,0 +1,236 @@
+schema_version: "1.0"
+task_id: TASK-20260802-206
+record_kind: pareto_frontier
+official_state_change: none
+
+dominance_definition:
+  lower_is_better:
+    - online_time_exponent
+    - memory_exponent
+    - preprocessing_exponent
+    - secret_dependent_aux_elements
+    - auxiliary_queries
+  comparability_requirement: "Rows are directly dominance-comparable only when source problem, input contract, success criterion, and cost units match."
+  exponent_zero_warning: "One secret-dependent group element has data exponent zero but is not equivalent to zero secret-dependent elements."
+
+parameters:
+  N: prime_group_order
+  delta: "log_N(d), with 0 < delta < 1"
+  gamma: "per-visited-state overhead exponent"
+  tau: "max((1-delta)/2, delta/2)"
+  a: "exponent for acquiring A from an ordinary ECDLP instance"
+
+rows:
+  - id: PF-206-01
+    name: ordinary_pollard_rho
+    problem: ordinary_ECDLP
+    input_contract:
+      public_elements:
+        - P
+        - "Q=[x]P"
+      secret_dependent_aux_elements: 0
+    online_time_exponent: "1/2"
+    memory_exponent: "0"
+    preprocessing_exponent: "0"
+    encoded_aux_bits: 0
+    auxiliary_queries: 0
+    success: constant_per_bounded_restart
+    inverse_success_charged: true
+    realized_status: standard_baseline
+    dominated_by: null
+    null_justification: "No authorized ordinary-input row has both lower time and no worse memory, preprocessing, data, and queries."
+
+  - id: PF-206-02
+    name: ordinary_baby_step_giant_step
+    problem: ordinary_ECDLP
+    input_contract:
+      public_elements:
+        - P
+        - "Q=[x]P"
+      secret_dependent_aux_elements: 0
+    online_time_exponent: "1/2"
+    memory_exponent: "1/2"
+    preprocessing_exponent: "0"
+    encoded_aux_bits: 0
+    auxiliary_queries: 0
+    success: deterministic
+    inverse_success_charged: true
+    realized_status: comparator
+    dominated_by: PF-206-01
+    dominance_reason: "Same time exponent and input contract; Pollard rho uses lower memory."
+
+  - id: PF-206-03
+    name: lossy_unlabelled_quotient
+    problem: ordinary_ECDLP
+    input_contract:
+      public_elements:
+        - P
+        - "Q=[x]P"
+      secret_dependent_aux_elements: 0
+    online_time_exponent: "gamma+(1+delta)/2"
+    memory_exponent_lower_bound: "0"
+    preprocessing_exponent_lower_bound: "0"
+    encoded_aux_bits: 0
+    auxiliary_queries: 0
+    per_attempt_time_exponent: "gamma+(1-delta)/2"
+    success_probability: "N^(-delta+o(1))"
+    inverse_success_charged: true
+    realized_status: falsified_as_speedup
+    dominated_by: PF-206-01
+    dominance_reason: "For gamma>=0 and delta>0, total time is strictly above 1/2 with no compensating improvement below Pollard's zero exponents."
+
+  - id: PF-206-04
+    name: augmented_input_pollard_rho
+    problem: auxiliary_power_ECDLP
+    input_contract:
+      public_elements:
+        - P
+        - "Q=[x]P"
+        - "A=[x^d mod N]P"
+      secret_dependent_aux_elements: 1
+    online_time_exponent: "1/2"
+    memory_exponent: "0"
+    preprocessing_exponent: "0"
+    encoded_aux_bits: "Theta(log N)"
+    auxiliary_queries_during_solve: 0
+    auxiliary_queries_if_oracle_supplied: 1
+    success: constant_per_bounded_restart
+    inverse_success_charged: true
+    realized_status: matched_augmented_input_baseline
+    dominated_by: null
+    null_justification: "PF-206-05 has lower time but higher memory; neither dominates."
+
+  - id: PF-206-05
+    name: auxiliary_power_two_stage_MITM
+    candidate_id: IDEA-20260802-206-01
+    problem: auxiliary_power_ECDLP
+    input_contract:
+      public_elements:
+        - P
+        - "Q=[x]P"
+        - "A=[x^d mod N]P"
+      public_arithmetic_condition: "d | (N-1)"
+      secret_dependent_aux_elements: 1
+    exact_state_cardinalities:
+      image_stage: "(N-1)/d"
+      fiber_stage: "d"
+    online_time_exponent: "tau=max((1-delta)/2,delta/2)"
+    memory_exponent: "tau=max((1-delta)/2,delta/2)"
+    preprocessing_exponent: "0"
+    encoded_aux_bits: "Theta(log N)"
+    auxiliary_queries_during_solve: 0
+    auxiliary_queries_if_oracle_supplied: 1
+    success: "1 conditional on exhaustive APR-206 construction and well-formed input"
+    inverse_success_charged: true
+    verification_exponent: "0"
+    amortization: none
+    realized_status: conditional_open_algorithm_lemma
+    dominated_by: null
+    rows_checked:
+      - PF-206-04
+      - PF-206-06
+      - PF-206-07
+    null_justification: "Within the augmented-input contract, PF-206-04 has lower memory but higher time; PF-206-06 is worse in both time and memory; PF-206-07 includes acquisition and is a different source contract."
+    sota_delta:
+      comparator: PF-206-04
+      online_time_exponent: "-min(delta,1-delta)/2"
+      memory_exponent: "+tau"
+      preprocessing_exponent: "0"
+      secret_dependent_aux_elements: 0
+      auxiliary_queries: 0
+      balanced_delta_one_half:
+        time_delta: "-1/4"
+        memory_delta: "+1/4"
+    scope_warning: "This is not an ordinary-ECDLP SOTA delta."
+
+  - id: PF-206-06
+    name: augmented_input_BSGS_ignoring_A
+    problem: auxiliary_power_ECDLP
+    input_contract:
+      public_elements:
+        - P
+        - "Q=[x]P"
+        - "A=[x^d mod N]P"
+      secret_dependent_aux_elements: 1
+    online_time_exponent: "1/2"
+    memory_exponent: "1/2"
+    preprocessing_exponent: "0"
+    encoded_aux_bits: "Theta(log N)"
+    auxiliary_queries_during_solve: 0
+    success: deterministic
+    inverse_success_charged: true
+    realized_status: comparator
+    dominated_by: PF-206-05
+    dominance_condition: "APR-206 holds and 0<delta<1"
+    dominance_reason: "Same augmented input and data; candidate has strictly lower time and memory exponents."
+
+  - id: PF-206-07
+    name: ordinary_to_auxiliary_end_to_end
+    candidate_id: IDEA-20260802-206-01
+    problem: ordinary_ECDLP_with_A_acquisition
+    input_contract:
+      initial_public_elements:
+        - P
+        - "Q=[x]P"
+      acquired_element: "A=[x^d mod N]P"
+    online_time_exponent: "max(a,tau)"
+    memory_exponent: "max(acquisition_memory_exponent,tau)"
+    preprocessing_exponent: "max(acquisition_preprocessing_exponent,0)"
+    secret_dependent_aux_elements_created: 1
+    encoded_aux_bits: "Theta(log N)"
+    auxiliary_queries: "acquisition_contract_dependent"
+    success: "product of acquisition and APR-206 success probabilities"
+    inverse_success_charged: required
+    realized_status: unresolved
+    dominated_by:
+      if_a_at_least_one_half: PF-206-01
+      if_a_below_one_half: null
+    null_condition: "Requires a proved acquisition mechanism with all resource coordinates and success probability charged."
+    sota_delta:
+      comparator: PF-206-01
+      online_time_exponent: "max(a,tau)-1/2"
+      unconditional_value: "not_established"
+
+frontiers:
+  ordinary_ECDLP_authorized_rows:
+    members:
+      - PF-206-01
+    excluded:
+      - row: PF-206-03
+        reason: inverse_success_makes_time_no_better
+      - row: PF-206-07
+        reason: acquisition_cost_unresolved
+
+  auxiliary_power_ECDLP_conditional_rows:
+    members:
+      - PF-206-04
+      - PF-206-05
+    tradeoff:
+      - "PF-206-04 minimizes memory."
+      - "PF-206-05 conditionally minimizes online time among authorized augmented-input rows."
+    candidate_dominated_by: null
+    audit_complete_over_authorized_rows: true
+
+balanced_case:
+  condition:
+    - "d | (N-1)"
+    - "d=N^(1/2+o(1))"
+    - APR_206_proved
+    - A_supplied_under_augmented_input_contract
+  candidate_time_exponent: "1/4"
+  candidate_memory_exponent: "1/4"
+  candidate_preprocessing_exponent: "0"
+  candidate_secret_dependent_aux_elements: 1
+  candidate_auxiliary_queries_during_solve: 0
+  matched_rho_time_exponent: "1/2"
+  matched_rho_memory_exponent: "0"
+  time_sota_delta: "-1/4"
+  ordinary_ECDLP_sota_delta: not_established
+
+accounting_controls:
+  cardinality_preserving_null: "Replace A with an independent uniform group element while preserving all dimensions."
+  fiber_label_destruction: "Permute A across independent instances."
+  large_d_limit: "Require the U-shaped sqrt((N-1)/d)+sqrt(d) law."
+  inverse_success: "Omitting the fiber stage changes success to 1/d and multiplies attempts by d."
+  scalar_and_type: "Check Q=[x]P and A=[x^d mod N]P."
+  units: "Charge tables, acquisition, verification, restarts, data, and queries explicitly."

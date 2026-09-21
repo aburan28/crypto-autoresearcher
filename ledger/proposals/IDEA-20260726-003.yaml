@@ -1,0 +1,180 @@
+idea:
+  id: IDEA-20260726-003
+  title: Target-dependent decomposition difficulty predictor from Semaev fiber geometry
+  class: measurement
+  claim: >-
+    For toy prime-field curves with a frozen factor base and decomposition
+    arity m, the Semaev fiber S_{m+1}(x_1,...,x_m; x_R) over a target
+    x-coordinate x_R has a computable geometric invariant (e.g., the
+    F_p-rational point count of the fiber, its Galois group, or the
+    factorization pattern of the fiber polynomial) that predicts decomposition
+    difficulty — specifically, the Groebner solving time and the number of
+    factor-base solutions — well enough that a two-phase strategy (decompose
+    predicted-easy targets, rho for predicted-hard) achieves a lower total
+    cost than uniform rho or uniform IC. If no such predictor exists (the
+    decomposition difficulty is uniform across targets, or the predictor is
+    as expensive as the decomposition itself), the two-phase strategy offers
+    no advantage.
+  mechanism: >-
+    In point-decomposition index calculus (KN-TECH-003), the decomposition
+    cost for a target R is the cost of solving S_{m+1}(x_1,...,x_m; x_R) = 0
+    over the factor base. This cost varies across targets: some targets have
+    many factor-base decompositions (easy) and some have none (hard). The
+    Semaev fiber over x_R is a zero-dimensional variety whose geometric
+    properties (point count, Galois group, factorization pattern) are
+    computable from x_R alone, without solving the full system. If these
+    properties correlate with decomposition difficulty, they provide a cheap
+    predictor that enables target selection. The two-phase strategy works as
+    follows: given K targets, predict which are easy (cheap decomposition),
+    attempt IC decomposition on those, and fall back to rho for the rest.
+    The total cost is f * C_IC_easy + (1-f) * sqrt(N) where f is the
+    predicted-easy fraction and C_IC_easy is the median IC cost for easy
+    targets. This beats rho when f * C_IC_easy < f * sqrt(N), i.e.,
+    C_IC_easy < sqrt(N) — which is the standard IC advantage condition.
+    However, the two-phase strategy has an additional benefit: it avoids
+    paying the full IC cost (including failures) on hard targets, which
+    uniform IC must pay. The net advantage is the avoided failure cost on
+    the (1-f) hard fraction. The measurement discriminates between:
+    (a) decomposition difficulty is uniform — no predictor exists, and the
+    two-phase strategy offers no advantage over uniform IC or rho; (b) a
+    cheap predictor exists and identifies a non-trivial easy fraction — the
+    two-phase strategy beats both uniform IC and rho; (c) a predictor exists
+    but is as expensive as the decomposition — no practical advantage.
+  novelty_status: unverified
+  assumptions:
+    - >-
+      The Semaev fiber S_{m+1}(x_1,...,x_m; x_R) treated as a polynomial in
+      (x_1,...,x_m) with parameter x_R has computable geometric invariants
+      (point count, Galois group, factorization pattern) that are cheaper to
+      evaluate than solving the full system.
+    - >-
+      The decomposition difficulty (Groebner time, solution count) varies
+      across targets in a way that is correlated with the fiber invariant.
+    - >-
+      The predictor cost (computing the fiber invariant) is much less than
+      the decomposition cost (solving the full system).
+    - >-
+      Toy-scale measurements can detect the correlation if it exists, though
+      they cannot prove its asymptotic strength.
+  predictions:
+    - metric: correlation_between_fiber_invariant_and_decomposition_cost
+      direction: different
+      minimum_effect: >-
+        Spearman rank correlation |rho_s| >= 0.4 between the fiber invariant
+        (e.g., F_p-rational point count of the fiber) and the decomposition
+        cost (Groebner seconds or group-operation count), across at least 200
+        targets per curve. The competing prediction is |rho_s| < 0.2, meaning
+        no useful predictor exists.
+    - metric: two_phase_total_cost_vs_uniform_rho
+      direction: lower
+      minimum_effect: >-
+        Two-phase total cost (predictor + IC on easy + rho on hard) is at
+        least 20% below K * sqrt(N) for K = 100 targets at the largest
+        tested size. If the saving is < 10%, the predictor is not useful
+        in practice.
+    - metric: predictor_cost_vs_decomposition_cost
+      direction: lower
+      minimum_effect: >-
+        The predictor cost (computing the fiber invariant) is at least 10x
+        less than the median decomposition cost. If the ratio is < 2x, the
+        predictor is too expensive to be useful.
+  minimal_test:
+    design: >-
+      For 3 toy prime-field curves at 16 and 20 bits with B = ceil(sqrt(N))
+      and m=3: (1) for 200 random targets R_i = a_i*P + b_i*Q, compute the
+      Semaev fiber invariant: the number of F_p-rational roots of
+      S_4(x_1, x_2, x_3; x_{R_i}) projected to x_1 (a univariate polynomial
+      in x_1 after eliminating x_2, x_3, or the Galois group of the fiber
+      computed by factoring over F_{p^k} for small k); (2) for each target,
+      measure the decomposition cost: Groebner solve time, number of
+      factor-base solutions, and whether the decomposition succeeded;
+      (3) compute the Spearman rank correlation between the fiber invariant
+      and the decomposition cost; (4) if |rho_s| >= 0.4, simulate the
+      two-phase strategy: sort targets by the predictor, attempt IC on the
+      top f%, use rho for the rest, and measure total cost vs K*sqrt(N).
+      All costs in group-operation equivalents; Groebner times reported
+      separately as implementation artifacts.
+    controls:
+      - >-
+        Random predictor control: use a random function of x_R (not derived
+        from the fiber) as the predictor. The two-phase strategy with a random
+        predictor should give no advantage over uniform IC, confirming that
+        any advantage comes from the fiber invariant, not from target
+        selection in general.
+      - >-
+        Uniform IC control: run IC on all K targets without selection. Compare
+        total cost to the two-phase strategy. The two-phase strategy should
+        avoid the failure cost on hard targets.
+      - >-
+        Uniform rho control: run rho on all K targets. Compare K*sqrt(N) to
+        both uniform IC and two-phase costs.
+      - >-
+        Exhaustive truth control: on tiny curves (8-12 bit), enumerate all
+        decompositions for all targets and verify that the fiber invariant
+        correctly predicts the decomposition count.
+      - >-
+        Chebotarev reference: compare the observed fiber invariant distribution
+        to the Chebotarev prediction (KN-LIT-039, KN-OPEN-009). If the
+        distribution matches Chebotarev, the predictor is theoretically
+        grounded; if not, the deviation may indicate exceptional structure.
+    required_metrics:
+      - fiber invariant value for each target (point count, Galois group, or
+        factorization pattern)
+      - decomposition cost for each target (Groebner seconds, group-op count,
+        success/failure)
+      - Spearman rank correlation |rho_s| between invariant and cost
+      - predictor cost in group-operation equivalents
+      - two-phase total cost vs uniform IC and uniform rho for K = 50, 100
+      - fraction f of targets classified as easy
+      - C_IC_easy (median IC cost for easy targets) vs sqrt(N)
+  falsification_conditions:
+    - >-
+      |rho_s| < 0.2 across all tested curves and sizes, meaning no useful
+      predictor exists — the decomposition difficulty is effectively uniform
+      or uncorrelated with any cheap fiber invariant.
+    - >-
+      The predictor cost exceeds the decomposition cost (ratio < 2x), making
+      the two-phase strategy more expensive than uniform IC.
+    - >-
+      The two-phase total cost is within 10% of K*sqrt(N), meaning the
+      avoided failure cost is negligible.
+    - >-
+      The fiber invariant distribution matches Chebotarev but the
+      decomposition cost does not correlate with it, meaning the geometric
+      invariant is a correct but useless predictor.
+  confounders:
+    - >-
+      Groebner solve time at toy scale is highly variable and
+      implementation-bound; the correlation may be an artifact of the solver,
+      not the mathematics.
+    - >-
+      The F_p-rational point count of the fiber may be expensive to compute
+      (requiring factoring a high-degree polynomial over F_p), making the
+      predictor cost higher than expected.
+    - >-
+      At toy scale (16-20 bit), the number of targets (200) may be too few
+      to detect a weak correlation (power < 0.8).
+    - >-
+      The Semaev fiber invariant may correlate with the target's scalar
+      multiple a (if a is known), introducing a circularity: the predictor
+      uses information that is only available after solving the DLP.
+  interpretation_limits:
+    - >-
+      Toy-scale only; a correlation at 16-20 bits does not prove an
+      asymptotic predictor. The predictor may break down at larger sizes
+      where the fiber geometry is more uniform.
+    - >-
+      A useful predictor is a measurement tool, not a breakthrough. It
+      improves the two-phase strategy but does not change the fundamental
+      IC cost per decomposition.
+    - >-
+      The idea is restricted to curves where the Semaev fiber invariant is
+      efficiently computable; for some curves, the invariant may be as hard
+      as the DLP itself.
+    - >-
+      A negative result (no predictor) closes only the tested fiber invariants
+      and curve sizes; other invariants or larger sizes are not covered.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: medium

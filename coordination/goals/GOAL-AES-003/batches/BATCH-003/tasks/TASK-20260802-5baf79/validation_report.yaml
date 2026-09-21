@@ -1,0 +1,961 @@
+validation_report:
+  id: VAL-20260802-5baf79
+  task_id: TASK-20260802-5baf79
+  goal_id: GOAL-AES-003
+  batch: BATCH-003
+  role: validator
+  produced_utc: "2026-08-03T00:15Z"
+
+  package_under_validation:
+    snapshot_archive: coordination/goals/GOAL-AES-003/batches/BATCH-003/archives/TASK-20260802-d8a5ed/snapshot-receipt.json
+    snapshot_commit: 13da18a1
+    snapshot_verified_commit: 1241e174
+    producer_tasks:
+      - TASK-20260802-4500d4   # rank 1, segment-3 re-execution
+      - TASK-20260802-447db8   # rank 2 cross-instrument anchor, rank 4 hint slots
+    read_only: true
+    working_tree_receipt_refused: false
+    note: >-
+      This report validates the Coordinator-committed snapshot, not a working-tree
+      receipt. All 46 declared artifact paths were re-hashed and every one matched
+      the receipt's path_sha256 (see artifact_checks). git status was clean at the
+      start and end of this task; nothing under either producer directory was
+      edited, and no producer artifact was repaired.
+
+  claim_tier: toy
+  claim_tier_basis: >-
+    Reduced-round AES-shaped SPN, r in {4,5} counting and r=6 hinted filter, 2^32
+    chosen inputs of one diagonal coset, four keys total, one 4-core machine.
+    NOTHING in this report is a statement about full-round or deployed AES, and no
+    comparison to published cryptanalysis is made or implied in either direction
+    (RQ-AES-003 R3). A recollection is used neither to promote nor to dismiss.
+
+  independence_statement: >-
+    SESSION AND IMPLEMENTATION INDEPENDENCE ONLY. NO MODEL INDEPENDENCE under
+    standing basis 0137a051eb5828789eb267fa83c8278086578d4c. Nothing in this
+    report counts toward a closure quorum. This validator ran in a session that
+    did not produce the package and re-executed the load-bearing arms on
+    instruments it wrote itself, but it resolves to the same model as both
+    producers and as the Coordinator.
+
+  authority_disclaimer: >-
+    A passed verdict means the receipt is ADMISSIBLE EVIDENCE at the toy tier and
+    nothing more. It assigns no official state, no evidence strength, and
+    recommends no promotion. It does not support any claim about deployed AES and
+    demonstrates no speedup.
+
+  instruments_written_for_this_validation:
+    - path_in_scratch: vcnt.c
+      sha256: 2a612d1eb9872c1cf06619f6393e210755f5e5c4c184538503654096ed01d036
+      build: gcc -O3 -march=native -pthread -o vcnt vcnt.c
+      what: >-
+        Independent counting engine written from FIPS-197 and the object
+        description in the two PREREGISTRATIONs. Software T-table SPN with a
+        configurable GF(2^8) mixing matrix; no AES-NI path in the counting kernel.
+      kernel_design_difference: >-
+        A THIRD kernel design, deliberately unlike both producers'. count5.c is
+        value-partitioned with a uint8 SATURATING counter; cnt.c is
+        value-partitioned with every thread rescanning the whole 2^32 input space
+        (NTHREADS-fold redundant encryption, plain non-atomic increments);
+        collide.c is value-WINDOW partitioned with private per-thread arrays.
+        vcnt.c is INPUT-partitioned -- each input encrypted exactly once, total
+        work 2^32 independent of thread count -- writing into one shared array via
+        RELAXED ATOMIC increments. Non-saturating, with an exact conservation
+        check sum_b b*hist[b] == N == 2^32 and a cell-count check.
+      external_correctness_anchor: >-
+        FIPS-197 C.1 known-answer vector, r=10 with the AES MixColumns matrix,
+        returns 69c4e0d86a7b0430d8cdb78070b4c55a on BOTH internal paths (a
+        byte-array reference implementation and the T-table fast path). Every
+        counting run additionally self-tests the fast path against the byte-array
+        reference on the first 64 coset points before counting begins. This pins
+        the S-box, key schedule, ShiftRows, MixColumns and byte order against a
+        published standard rather than against any BATCH-001/002/003 artifact.
+    - path_in_scratch: gf.py
+      sha256: 94efc467f80a667a218f88493a8dde2c1a79fab44a958c51af69302ab3fff8e9
+      what: >-
+        GF(2^8) linear algebra written for this task. Leibniz determinant over all
+        24 permutations of S4 and Gauss-Jordan pivot-product determinant, inverse
+        by augmented elimination, both products checked against the identity.
+        BATCH-003's matrix_verification.json and BATCH-002's matrices.json were
+        NOT read by it.
+    - path_in_scratch: (inline python)
+      what: >-
+        AES key schedule with the S-box DERIVED FROM ITS ALGEBRAIC DEFINITION
+        (multiplicative inverse in GF(2^8) composed with the affine map), not
+        copied from any source in this repository, checked against the FIPS-197
+        expanded-key vector 13111d7fe3944a17f307a78b4d2b30c5. Used to verify the
+        rank 4 hint bytes.
+    - path_in_scratch: cnt.c, sq_slot.c
+      what: >-
+        The producers' OWN sources, copied unmodified from the snapshot (sha256
+        re-verified before compiling) and executed by this validator. Used where
+        the question was specifically about those code paths.
+
+  environment:
+    git_commit_at_validation: 09b2d9457a5bb0499dea05984aec3964b03d6c25
+    dirty_tree: false
+    uname: Linux 6.18.5 x86_64
+    cpu_model: Intel(R) Xeon(R) Processor @ 2.80GHz
+    cpu_cores: 4
+    mem_total_gb: 15
+    gcc: gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+    python: Python 3.11.15
+    concurrency: >-
+      A red team ran concurrently on ANALYSIS ONLY and consumed no measurable CPU.
+      All counting arms below had the machine otherwise to themselves. Two arms
+      were run concurrently on disjoint core sets (documented per run); the
+      one-thread producer-binary arm was pinned to core 0 throughout and its
+      throughput matched the single-core rate implied by the anchor arm, so
+      contention did not distort it.
+
+  artifact_checks:
+    - check: snapshot hash re-verification
+      method: sha256 of every declared path re-computed against path_sha256
+      declared_paths: 47
+      files_checked: 46
+      mismatches: 0
+      missing: 0
+      result: PASS
+      note: >-
+        The 47th entry is the receipt's own path, excluded from self-hashing. The
+        receipt's excluded_from_declaration field correctly names the compiled
+        binaries and __pycache__ as rebuildable and out of the path set; both
+        binaries rebuilt cleanly from the declared sources here.
+    - check: producer source provenance
+      method: >-
+        sha256 of src/count5.c, src/cnt.c, src/sq_null.c, src/pin.c compared with
+        the BATCH-001/BATCH-002 originals named in RESULTS.json
+      result: PASS
+      finding: >-
+        originals_sha256_identical is TRUE as claimed. No BATCH-001 or BATCH-002
+        artifact was edited. src/sq_slot.c is the only modified derivative and its
+        diff is declared.
+    - check: commands, exit statuses, timeout handling
+      result: PASS
+      finding: >-
+        Every command in commands_rank2.txt / commands_rank4.txt / raw_runs.jsonl
+        has a matching runs/*.status with an exit code and epoch bounds. The three
+        non-zero exits (124, 124, 143) are recorded as resource exhaustion and are
+        NOT presented as negative evidence anywhere in the package. Correct
+        handling, and I confirm it independently below by completing one of the
+        timed-out runs.
+    - check: seeds and determinism
+      result: PASS
+      finding: >-
+        Both counting engines contain no RNG; all parameters are on the command
+        line. sq_slot uses srand(90009), identical to BATCH-002 PART6-1of3-A. I
+        confirmed determinism empirically: my re-run of sq_slot at a DIFFERENT
+        thread count reproduced BATCH-002's structure bases and intermediate
+        survivor-pair counts exactly.
+    - check: bookkeeping discrepancy (minor, no claim affected)
+      result: NOTE
+      finding: >-
+        RESULTS.json arms.B1_cnt_soft tabulates the command with "8 0 2" (2
+        threads) and wall 900 s, which is the SECOND attempt (runs/B1b_*). The
+        first attempt (1 thread, 600 s timeout, runs/B1_cnt_soft.status exit 124)
+        appears in runs/ and commands_rank2.txt but is not separately tabulated in
+        the arms block. Both are disclosed in the artifact set; nothing is hidden
+        and no claim depends on it.
+
+  # ------------------------------------------------------------------
+  # PRIORITY 1 -- does the anchor CLOSE the confound or only NARROW it?
+  # ------------------------------------------------------------------
+  priority_1_cross_instrument_confound:
+    the_question_as_put: >-
+      Does an AES-NI-path agreement plus a single-block software pin license
+      trusting the SOFTWARE COUNTING KERNEL's M0/M1 outputs? The producer's own
+      read was NARROWED, NOT CLOSED, and the Coordinator did not overrule it.
+
+    ruling: >-
+      THE PRODUCER'S READ WAS CORRECT ON THE EVIDENCE IT HAD, AND IS NOW
+      SUPERSEDED BY MEASUREMENT. I ran the missing count twice: once on an engine
+      I wrote, and once on the producer's OWN unmodified cnt.c software binary.
+      Both return the anchor value exactly. For the anchor configuration the
+      confound is CLOSED, not merely narrowed. The producer failed only on time,
+      as it said, and the reason is a diagnosable design property of cnt.c rather
+      than any defect in what it measures.
+
+    what_i_ran:
+      - arm: V1 -- my own software engine on the anchor configuration
+        command: ./vcnt 5 1 2b7e151628aed2a6abf7158809cf4f3c 00112233445566778899aabbccddeeff 02030101010203010101020303010102 8 4
+        cores: 4 (whole machine)
+        wall_seconds: 481.53
+        exit_status: 0
+        measured:
+          N: 4294967296
+          N_ok: true
+          cells: 4294967296
+          conservation_mass: 4294967296
+          conservation_ok: true
+          n: 2147661752
+          n_alt: 2147661752
+          agree: true
+          n_mod8: 0
+          n_mod16: 8
+          max_occ: 12
+          at_counter_ceiling: false
+          occ_hist:
+            0: 1580100570
+            1: 1579946777
+            2: 790002231
+            3: 263345223
+            4: 65845538
+            5: 13171514
+            6: 2197283
+            7: 313674
+            8: 39651
+            9: 4359
+            10: 428
+            11: 45
+            12: 3
+      - arm: V2 -- the producer's OWN cnt.c SOFTWARE path, the run that timed out twice
+        source_sha256_verified_before_build: 7a32d928e264e5b3a960108d106f08c7e02f9e2d16db18ed85e04ba160f41c5b
+        command: taskset -c 0 ./cnt soft 5 1 2b7e151628aed2a6abf7158809cf4f3c 00112233445566778899aabbccddeeff 02030101010203010101020303010102 8 0 1
+        cores: 1 (pinned)
+        wall_seconds: 1983.45
+        exit_status: 0
+        measured:
+          N: 4294967296
+          N_ok: true
+          n: 2147661752
+          n_alt: 2147661752
+          agree: true
+          n_mod8: 0
+          n_mod16: 8
+          max_occ: 12
+          counter_integrity_ok: true
+          saturating: false
+          occ_hist: identical in all 13 bins to V1, to A1_count5 and to B2_cnt_aesni
+
+    five_way_exact_agreement:
+      configuration: r=5, j0=1, full 2^32 coset of D_0, key 2b7e15..., base 001122..., real AES MixColumns, C1 convention
+      engines:
+        - A1_count5 (BATCH-001, AES-NI, value-partitioned, saturating uint8)
+        - B2_cnt_aesni (BATCH-002 engine, AES-NI path)
+        - V2 cnt SOFTWARE path (BATCH-002 engine, the previously-unexercised path)
+        - V1 vcnt (this validator, independent software engine, input-partitioned atomics)
+      n: 2147661752 in all four
+      n_alt: 2147661752 in all four
+      max_occ: 12 in all four
+      histogram_bins_compared: 13
+      bins_differing: 0
+      verdict: CONFIRMED
+
+    why_the_producer_timed_out_and_i_did_not:
+      finding: >-
+        cnt.c's worker sets `lo=0, hi=1ull<<32` for EVERY thread and partitions
+        only the VALUE space. Each thread therefore performs the full 2^32
+        software encryptions, so the encryption work scales as NTHREADS * 2^32 and
+        thread count buys no speedup at all in the software path. The producer ran
+        it at 1 thread under a 600 s timeout and at 2 threads under a 900 s
+        timeout; the work actually needs ~1980 core-seconds. Neither budget was
+        close, and the 2-thread attempt was strictly worse than the 1-thread one.
+        The header comment documents the value-partitioned design honestly; what
+        was not noticed is its cost in the software path.
+      classification: >-
+        SCHEDULING DEFECT, not an engine defect, and squarely resource exhaustion
+        under AGENTS rule 3. Naming it is what let me finish the run inside budget.
+      verdict_on_producer_diagnosis: CONFIRMED -- "both attempts hit their timeouts; resource_exhaustion, not evidence" is exactly right.
+
+    what_is_still_NOT_closed_and_cannot_be:
+      - item: the anchor rests on ONE configuration
+        status: STILL TRUE, and the producer said so
+        detail: >-
+          Four engines now agree at r=5, j0=1, AES_MC, one key, one base. That is
+          one point in the configuration space. Agreement there does not by itself
+          certify agreement at other r, other j0, other keys, or other matrices.
+      - item: NO cross-instrument anchor with engine A is possible for ANY M0/M1 arm, ever
+        status: STRUCTURAL LIMIT, and the package understates the reason
+        detail: >-
+          count5.c takes no matrix argument. Its round function is _mm_aesenc_si128,
+          i.e. AES's own MixColumns hard-wired in silicon. It CANNOT express M0 or
+          M1 at all. The uint8 saturating counter (P2.4) is a real second barrier
+          but it is not the first one: even with a 64-bit counter and unlimited
+          time, engine A could not have run a single matrix-varying arm. See
+          priority_2_4 below.
+      - item: the M0/M1 arms are anchored by a THIRD engine, not by engine A
+        status: CLOSED BY A DIFFERENT ROUTE, and this is the route that matters
+        detail: >-
+          Because the engine-A route is structurally unavailable, what actually
+          licenses the M0/M1 numbers is independent re-implementation. That now
+          exists at three levels and I supply two of them: rank 1's collide.c
+          reproduced the r=4 M0 number, and my vcnt reproduced BATCH-002's r=5 M1
+          number under their own key to the digit (see priority_2). The
+          matrix-varying results do not rest on an unanchored kernel.
+
+    answer_to_the_coordinator: >-
+      NARROWED WAS THE RIGHT WORD FOR THE PACKAGE AS SUBMITTED; CLOSED IS THE RIGHT
+      WORD NOW, at the anchor configuration, and the closing measurement is the
+      producer's own code path executed to completion. The residual is not "is the
+      software counting kernel trustworthy" -- that question is answered -- but
+      "does one configuration generalise", which is an ordinary scope limit and is
+      recorded as one, not as a confound.
+
+  # ------------------------------------------------------------------
+  # PRIORITY 1b -- the P2.4 capability-limit claim, verified from source
+  # ------------------------------------------------------------------
+  priority_2_4_saturating_counter:
+    claim_as_stated: >-
+      count5.c uses a uint8 SATURATING counter with a 256-bin histogram, so
+      BATCH-002's r=4 critical arm, whose max occupancy is exactly 256, could
+      never have been cross-checked on engine A -- it would report max_occ 255,
+      overflow true, and a wrong n.
+    verdict: CONFIRMED from source, and the claim UNDERSTATES its own conclusion.
+    source_evidence:
+      counter_declaration: "static uint8_t *cnt;  // 2^32 bytes  (count5.c line 16)"
+      histogram_declaration: "static uint64_t HIST[4][256];  (line 17)"
+      increment: "uint8_t *q=base_cnt+v; uint8_t c=*q; if(c!=255) *q=c+1; else *q=255;  (line 63)"
+      max_occ_scan: "for(int v=255;v>=0;v--) if(hist[v]){maxocc=v;break;}  (line 116)"
+      overflow_flag: "(maxocc>=255)?\"true\":\"false\"  (line 125)"
+    derived_counterfactual:
+      note: >-
+        DERIVED BY ARITHMETIC FROM THE OBSERVED TRUE HISTOGRAM, NOT MEASURED. I did
+        not and could not run count5 on an M0 arm, because count5 cannot express M0.
+      true_histogram: {0: 4278190080, 256: 16777216}
+      true_n: 547608330240
+      what_count5_would_report: "max_occ 255, overflow true, and n = 16777216 * C(255,2) = 543330140160"
+      shortfall: 4278190080
+    the_understatement: >-
+      The producer frames P2.4 as the reason the r=4 critical arm "was never
+      cross-checkable on engine A even with unlimited time". That is true but it is
+      the SECOND barrier. count5.c has no matrix parameter and computes its rounds
+      with _mm_aesenc_si128; it is AES-MixColumns-only by construction. NO M0 or M1
+      arm at any round count or any occupancy was ever expressible on engine A. The
+      counter width is what would break it if the matrix problem were solved. cnt.c's
+      own header comment states the matrix limitation plainly, so the package knows
+      this; the P2.4 headline just attributes the impossibility to the narrower cause.
+    consequence_for_the_anchor: >-
+      This bounds what ANY cross-instrument anchor could ever have shown, exactly as
+      the producer says: the anchor is confined to the AES_MC configuration by the
+      instrument, not by the budget. The producer's judgement to call it a capability
+      limit rather than a convention disagreement is CONFIRMED.
+
+  # ------------------------------------------------------------------
+  # PRIORITY 2 -- is the r=5 half now REVIEWED MEASUREMENT?
+  # ------------------------------------------------------------------
+  priority_2_r5_half:
+    m1_non_singularity:
+      requirement: verify independently before accepting anything that depends on it
+      method: >-
+        gf.py, written for this task; rank 1's matrix_verification.json and
+        BATCH-002's matrices.json were not read by it. Determinant computed twice
+        by genuinely different algorithms (Leibniz sum over all 24 permutations of
+        S4 with signs vanishing in characteristic 2; Gauss-Jordan pivot product),
+        inverse by augmented elimination, both M*Minv and Minv*M checked.
+      M1_hex: "00030101010203000101000303000102"
+      M1_rows: [[0,3,1,1],[1,2,3,0],[1,1,0,3],[3,0,1,2]]
+      det_leibniz: 20
+      det_gauss_pivot_product: 20
+      methods_agree: true
+      non_singular: true
+      inverse: [[0,123,246,141],[141,123,123,0],[246,141,0,123],[123,0,141,123]]
+      M_times_Minv_is_identity: true
+      Minv_times_M_is_identity: true
+      zero_entries: [[0,0],[1,3],[2,2],[3,1]]
+      agreement_with_rank1: EXACT on determinant, inverse and zero set
+      verdict: CONFIRMED. M1 is non-singular. Nothing that depends on it is voided.
+      added_precision_rank1_did_not_state: >-
+        M1's zeros sit at row (-c) mod 4 of column c. CORR-20260802-46b73b's r=4
+        critical entries are M[(-c-j0) mod 4][c]. These two sets COINCIDE only when
+        j0 = 0. Rank 1's preregistration says the zeros make fact 2 "FALSE for M1
+        for every j0", which is correct for fact 2 AS STATED ("MC has no zero
+        entry", a j0-independent sentence) but should not be read as "the critical
+        entries vanish for every j0" -- they do so only at j0=0. This matters in
+        rank 1's FAVOUR, see the understatement audit.
+
+    my_own_m1_arm:
+      requirement: re-measure at least one M1 arm on my own key with my own code
+      key_derivation:
+        seed_string: "TASK-20260802-5baf79|validator-own-arm|v1"
+        method: sha256(seed+"|key") first 16 bytes; sha256(seed+"|base") first 16 bytes
+        key: 78b3958429d2c98dbeca4fd00125c2ec
+        base: 99fa1621766f00b82a54fc79a4512f2b
+        note: A FOURTH key, distinct from BATCH-002's, rank 1's and the FIPS-197 anchor key.
+      command: taskset -c 1,2,3 ./vcnt 5 0 78b3958429d2c98dbeca4fd00125c2ec 99fa1621766f00b82a54fc79a4512f2b 00030101010203000101000303000102 16 4
+      wall_seconds: 438.02
+      exit_status: 0
+      measured:
+        N: 4294967296
+        N_ok: true
+        conservation_ok: true
+        n: 1097582510080
+        n_alt: 1097582510080
+        agree: true
+        n_mod8: 0
+        n_mod16: 0
+        n_mod256: 0
+        max_occ: 2816
+        at_counter_ceiling: false
+        occ_hist: {0: 4284363448, 256: 6170505, 512: 3085442, 768: 1028764, 1024: 257750, 1280: 51393, 1536: 8595, 1792: 1211, 2048: 172, 2304: 14, 2560: 1, 2816: 1}
+      against_frozen_criterion: >-
+        The frozen falsification criterion (rank 1 PREREGISTRATION section 5) is
+        "any r=5 arm under M1 that returns n mod 8 != 0 with N = 2^32 and the
+        counter-integrity check passing". NOT MET. n mod 8 = 0.
+
+    my_own_invalidated_attempt_disclosed:
+      what_happened: >-
+        My FIRST attempt at this arm ran with 3 threads. 3 does not divide 2^32, so
+        integer division dropped one input point: N = 4294967295, N_ok false,
+        cells_ok false. Under rank 1's own frozen rule "N != 2^32 is an INVALID
+        measurement, never a number", I discarded it and re-ran with an exact
+        4-way partition. It is disclosed here rather than deleted.
+      invalid_reading: n = 1097582509825, n mod 8 = 1
+      why_it_is_not_evidence: >-
+        It differs from the valid re-run by exactly 255, which is precisely
+        C(256,2) - C(255,2), i.e. the arithmetic signature of one input removed
+        from a single fibre of size 256. The off-by-one is fully accounted for. It
+        is a defect in MY partitioning, not a reading about the object, and it must
+        not be cited in either direction.
+      what_it_demonstrates: >-
+        That the conservation check is load-bearing, not decoration. A validator
+        without it would have reported n mod 8 = 1 and called the r=5 half
+        falsified. Both producer engines carry the equivalent check and every
+        producer arm reports it passing.
+
+    exact_reproduction_of_the_gap_rank_1_named:
+      the_gap: >-
+        Rank 1 stated plainly that it did NOT reproduce BATCH-002's two exact M1
+        counts under THEIR key, and that "the segment-3 arms' EXACT NUMBERS REMAIN
+        UNREPRODUCED". I had budget rank 1 did not, so I ran it.
+      command: taskset -c 1,2,3 ./vcnt 5 0 6fe52e2e9b3ea04085c370f9bc609245 e35f00e7631cdd862e59d126e72b8fc9 00030101010203000101000303000102 16 2
+      wall_seconds: 718.56
+      exit_status: 0
+      target: BATCH-002 TASK-20260802-142a4b raw_rows[7] -- r=5, M1, j0=0, their key and base
+      claimed_by_batch_002: {n: 1098070622208, max_occ: 2816}
+      measured_by_me:
+        N: 4294967296
+        N_ok: true
+        conservation_ok: true
+        n: 1098070622208
+        n_alt: 1098070622208
+        n_mod8: 0
+        max_occ: 2816
+        occ_hist: {0: 4284367173, 256: 6166079, 512: 3083806, 768: 1030616, 1024: 257919, 1280: 51764, 1536: 8567, 1792: 1226, 2048: 124, 2304: 17, 2560: 3, 2816: 2}
+      exact_match: true
+      histogram_bins_compared: 12
+      bins_differing: 0
+      verdict: >-
+        CONFIRMED TO THE DIGIT, histogram included, on an engine written for this
+        validation. THE GAP RANK 1 NAMED IS CLOSED. It was also correctly
+        prereigstered: rank 1's PREREGISTRATION table predicted exactly
+        1098070622208 with max_occ 2816 for this arm before dropping it for budget.
+
+    ruling_on_the_coordinator_second_question:
+      question: >-
+        Is rank 1's fresh-key mod-8 result sufficient to move the r=5 half of the
+        round-split rule from reviewed ANALYSIS to reviewed MEASUREMENT?
+      ruling: >-
+        YES, AND ON MORE THAN RANK 1 SUPPLIES. The r=5 half is now supported by
+        reviewed measurement on FOUR arms, THREE engines and THREE keys:
+        BATCH-002's two arms (producer), rank 1's A3 on its own key (independent
+        engine collide.c, reviewed here), my arm on a fourth key (independent
+        engine vcnt.c), and my exact reproduction of BATCH-002's A1 under their own
+        key. Every one reads n mod 8 = 0 with N = 2^32 and integrity checks
+        passing. The frozen falsification criterion was available and was not met.
+      the_qualification_that_must_travel_with_it: >-
+        SEE next section. The mod-8 reading under M1 is CORRECT but LOW
+        DISCRIMINATION, and the arms measure something considerably stronger than
+        what is being claimed from them. Any promotion drafted from this should
+        state the sharper fact rather than the mod-8 one.
+
+  # ------------------------------------------------------------------
+  # AUDIT IN BOTH DIRECTIONS
+  # ------------------------------------------------------------------
+  understatement_audit:
+    instruction: >-
+      This campaign has understated its own evidence twice and overstated it once,
+      and reviews not told to look for understatement missed them. Findings below
+      are graded in both directions.
+
+    UNDERSTATEMENT_1_the_strongest_finding_in_the_batch_is_unstated:
+      severity: material
+      what_is_claimed: "n mod 8 = 0 under M1 at r=5."
+      what_is_actually_measured: >-
+        In EVERY M1 arm in this campaign -- BATCH-002 j0=0, BATCH-002 j0=1, rank 1's
+        A3 on its own key, and my arm on a fourth key -- EVERY NON-ZERO OCCUPANCY IS
+        AN EXACT MULTIPLE OF 256. The occupied bins are {256, 512, 768, ..., 2816}
+        with no others. I recomputed this from the raw histograms of all four arms.
+      the_arithmetic_consequence: >-
+        If every fibre size m_v is divisible by 256 then
+        n = sum_v C(m_v,2) = sum_k h_k * 128k(256k-1), which is divisible by 128.
+        And indeed n mod 256 = 0 in all four arms, not merely n mod 8 = 0. The
+        measured statement is FIVE BITS STRONGER than the claimed one.
+      why_this_cuts_BOTH_ways:
+        as_understatement: >-
+          The package, CORR-20260802-46b73b, DEC-20260802-b226fb and both BATCH-003
+          producers all report the mod-8 reading and none reports the divisibility.
+          The measured regularity -- 256 divides every fibre of the projection under
+          M1 -- is a sharper, more falsifiable and more structurally informative
+          statement, it holds across four arms, three engines, three keys and two
+          j0 values, and nobody has claimed it.
+        as_a_limit_on_the_evidence: >-
+          It also means the mod-8 test had LOW DISCRIMINATION on these particular
+          arms. Given the fibre structure, n mod 8 = 0 follows by arithmetic alone,
+          with no appeal to any round-geometry argument. The frozen falsification
+          criterion could only have fired if the fibre structure itself broke. So
+          the M1 arms confirm the MECHANISM of CORR-20260802-46b73b's analytic line
+          (a) -- which predicts exactly this, that the k=1 class contributes
+          multiples of 2^24 -- more than they independently test its CONCLUSION.
+      the_contrast_that_makes_this_concrete: >-
+        Under real AES MixColumns at r=5, the anchor arm has max_occ 12, no
+        divisibility whatsoever, and n mod 16 = 8. There, mod 8 is exactly the right
+        modulus and the property is NOT arithmetically trivial. The M1 regime and the
+        AES_MC regime are different in kind, and the r=5 half of the rule currently
+        states one sentence covering both.
+      verdict: UNDERSTATED. The measured content exceeds the claim, and the claim's discriminating power on these arms is weaker than its wording suggests. Both facts should be recorded.
+      caution: >-
+        I verified the divisibility on four arms at r=5 under M1 only. I did NOT test
+        whether it holds for other zero-entry matrices, other round counts or other
+        j0 beyond {0,1}. It is a measured regularity over a narrow set, not a theorem,
+        and must not be promoted as one.
+
+    UNDERSTATEMENT_2_rank_1_understates_the_adversarial_quality_of_its_own_arm:
+      severity: minor
+      finding: >-
+        Rank 1's A3 arm ran at j0 = 0. As established above, j0 = 0 is exactly the
+        alignment at which ALL FOUR of M1's zeros land on the r=4-critical positions
+        M[(-c-j0) mod 4][c]. Rank 1 chose the maximally adverse alignment and did not
+        say so; its preregistration's "false for every j0" phrasing actually flattens
+        the distinction and makes its own configuration sound generic.
+      verdict: UNDERSTATED, in rank 1's favour. The arm is more adversarial than claimed.
+
+    ON_RANK_1_DECLINING_TO_CALL_THE_RULE_STRENGTHENED:
+      the_producer_position: >-
+        "The producer declined to call the rule strengthened by more than one arm's
+        worth."
+      my_ruling: CORRECT, NOT EXCESSIVE -- as an accounting of what rank 1 itself contributed.
+      reasoning: >-
+        Rank 1 ran ONE valid r=5 M1 arm on a fresh key and did not obtain the exact
+        BATCH-002 numbers. One arm is one arm, and saying so was accurate. Refusing
+        to inflate a single measurement is the correct instinct and I decline to
+        overturn it; premature closure and overclaiming are symmetric failures and
+        this is neither.
+      but: >-
+        The modesty is correctly calibrated on ARM COUNT and MISCALIBRATED on
+        CONTENT. Rank 1 held its own most informative measurement -- the
+        256-divisibility visible in its own printed histogram -- without reporting
+        it, and understated how adversarial its chosen j0 was. So: right conclusion,
+        reached without noticing the two places where it had more than it thought.
+      what_changes_now: >-
+        The arm-count objection is separately answered by this validation, which adds
+        a fourth key and the exact reproduction rank 1 dropped. That is my
+        contribution, not rank 1's, and rank 1's own statement remains accurate as
+        written.
+
+    OVERSTATEMENT_WATCH_the_digit_identical_framing:
+      severity: minor, framing only
+      finding: >-
+        The snapshot receipt says rank 1's r=4 anchor is "DIGIT-IDENTICAL to
+        BATCH-002 and to the BATCH-002 validator's independent reproduction. Three
+        implementations now agree exactly." Every word is true. The risk is in how it
+        reads. n = 547608330240 is a DETERMINISTIC FUNCTION of the histogram, and the
+        histogram here is a single structural fact: the projection image has exactly
+        2^24 points and every fibre has exactly 256 preimages. I verified the
+        identity: 2^24 * C(256,2) = 16777216 * 32640 = 547608330240 exactly. So the
+        three-way agreement is ONE structural agreement plus arithmetic, not twelve
+        digits of independent confirmation.
+      already_recorded_upstream: >-
+        EV-AES-d8a13e OBS-B2-3 limits ALREADY states this: "The exact count and its
+        occupancy histogram are ONE structural prediction reported as two, since n is
+        a deterministic function of the histogram." The BATCH-002 validator caught it
+        and the ledger carries it. BATCH-003 did not restate it, so a reader of the
+        snapshot receipt alone would not meet it.
+      verdict: >-
+        CONFIRMED as a claim; the weight qualification must travel with it and
+        currently does not travel with the BATCH-003 framing. Not an overstatement in
+        RESULTS.json, which is careful; a framing risk in the receipt summary.
+
+  # ------------------------------------------------------------------
+  # PRIORITY 3
+  # ------------------------------------------------------------------
+  priority_3_third_independent_agreement:
+    claim: >-
+      Rank 1's r=4 instrument anchor returned 547608330240 with the identical
+      histogram, a genuine third independent agreement and not a shared-code artifact.
+    verdict: CONFIRMED as genuinely independent, with the weight qualification above.
+    basis:
+      - >-
+        The three implementations are cnt.c (BATCH-002 producer, software T-table,
+        value-partitioned, full rescan per thread), vcount.c (BATCH-002 validator,
+        written from scratch), and collide.c (rank 1, written for BATCH-003,
+        value-WINDOW partitioned with private per-thread arrays, 16-bit counters, no
+        AES-NI path). RESULTS.json declares batch002_engine_reused false,
+        batch002_engine_compiled_or_executed false, and
+        batch002_engine_read_for_conventions TRUE.
+      - >-
+        The conventions were READ ACROSS rather than derived independently. That is
+        disclosed by both cnt.c's header and rank 1's RESULTS.json. It means the
+        agreement is weaker evidence about CONVENTION than about IMPLEMENTATION -- a
+        shared convention error would propagate. What breaks that concern is the
+        external anchor: collide.c passes the FIPS-197 C.1 known-answer vector, which
+        pins S-box, key schedule, ShiftRows, MixColumns and byte order against a
+        published standard rather than against BATCH-002. My own engine does the same
+        and additionally reproduces both producers' single-block pins
+        (r=5: 4167e8f8367c38cdb7bde2ade620a7a8; r=10: 8df4e9aac5c7573a27d8d055d6e4d64b).
+      - >-
+        NOT a shared-code artifact: no source is shared, and I confirmed the source
+        hashes against the BATCH-001/002 originals.
+    what_i_did_not_do:
+      check: I did not myself re-run the r=4 M0 anchor.
+      reason: >-
+        Budget. It is the most expensive single arm in the batch (rank 1 needed 1138 s
+        on 2 cores) and it is the ONE number in this campaign that already has three
+        independent reproductions, whereas the r=5 M1 exact numbers had none. I spent
+        the time on the unreproduced arm instead. Recorded as a deliberate trade, and
+        the r=4 arm is graded from artifact recomputation only.
+      what_i_did_instead: >-
+        Recomputed n, n_alt, N, cell count and every modulus from rank 1's raw
+        histogram: N = 4294967296, cells = 4294967296, n = 547608330240 = n_alt,
+        n mod 8 = 0. All internally consistent and matching the reported values.
+
+  priority_3_rank_4_single_slot_corruption:
+    claim: >-
+      Single-slot corruption at t=1 and t=2 both give {0: 4}; the generalising patch
+      reproduces the original exactly when the mask argument is omitted, so the
+      comparison is genuinely single-variable.
+    verdict: CONFIRMED, and I verified it in the one way the producer did not.
+    checks:
+      - check: patch semantics, from source
+        result: PASS
+        detail: >-
+          src/sq_slot.diff introduces
+          `int slotmask = (argc>9 && !strcmp(argv[9],"mask")) ? nwrong : ((1<<nwrong)-1);`
+          and replaces the hint selector `(t<nwrong)` with `((slotmask>>t)&1)`. For
+          slotmask = (1<<nwrong)-1 these are identical for all t in {0,1,2} and all
+          nwrong in {0..3}. The only other change is two added printf fields.
+        precision_note: >-
+          "Reproduces the original EXACTLY" is true of the COMPUTATION. It is not true
+          of the output bytes: the header printf now emits `slotmask` and
+          `false_slots`, so the JSON is a superset, not byte-identical. Harmless, but
+          the word "exactly" should carry that footnote.
+      - check: patch equivalence, BY EXECUTION -- the control the producer asserted but never ran
+        result: PASS
+        detail: >-
+          commands_rank4.txt contains only three invocations, all with the literal
+          "mask" argument. The no-mask reproduction was never executed by the
+          producer; the claim rested on reading the diff. I ran it.
+        command: taskset -c 1,2,3 ./sq_slot attack6n 2b7e151628aed2a6abf7158809cf4f3c 53787ef6b300ea19f0a43d4915afd440 6 2 90009 3 1
+        wall_seconds: 132
+        exit_status: 0
+        compared_against: coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/runs/PART6-1of3-A.json
+        outcome: >-
+          IDENTICAL on every field except wall-clock timings, nthreads, and the two
+          new output fields. slotmask resolved to 1, false_slots [0]. Structure bases
+          5e77f2bad662df57028a36f9fa4894c7 and f9b9980bf046e9cb0e76e0eb00bd295e match.
+          Intermediate surviving (k3,k4) pair counts [4080, 8] match. Per-diagonal
+          survivor counts [0,0,0,0] match. Every hint_used and hint_true byte matches.
+      - check: is the comparison genuinely single-variable?
+        result: PASS, after resolving a caveat the producer did not name
+        detail: >-
+          Strictly, TWO things differ between BATCH-002's t=0 arm and rank 4's t=1/t=2
+          arms: the false slot AND nthreads (4 vs 1). The producer asserts nthreads
+          affects only work partitioning. I resolved this empirically rather than
+          accepting it: my no-mask run used a THIRD thread count (3) and reproduced
+          BATCH-002's structure bases and intermediate survivor-pair counts exactly,
+          so the plaintext draws and the candidate set are invariant under thread
+          count. With that established, the comparison IS single-variable.
+      - check: hint bytes, against independently derived key schedules
+        result: PASS
+        method: >-
+          AES key schedule computed with an S-box derived from its algebraic
+          definition (GF(2^8) inverse composed with the affine map), verified against
+          the FIPS-197 expanded-key vector 13111d7fe3944a17f307a78b4d2b30c5. Not
+          copied from any repository source. DIAGP read from sq_null.c.
+        detail: >-
+          For all three arms and all four diagonals, hint_used carries the HINT key's
+          round-6 byte at exactly the named slot and the TARGET key's round-6 byte at
+          the other two. hint_bytes_actually_differing = 1 everywhere, as reported.
+          The reported true_byte values [253, 65, 253, 122] equal rk[6][DIAGP[d][3]]
+          for d = 0..3 as they should.
+      - check: outcome recomputation
+        result: PASS
+        detail: >-
+          t=1 gives survivor counts [0,0,0,0] and t=2 gives [0,0,0,0]; both summarise
+          to {0: 4}. diagonals_with_survivors = 0 and no survivor set contains the
+          true byte or the hint key's byte -- vacuously, the sets are empty.
+          Pooled with BATCH-002's t=0 arm this is {0: 12} over 12 diagonals across all
+          three slots, as claimed.
+    scope_limit_that_must_travel: >-
+      This is ONE target key, ONE hint key, ONE seed, nstruct 2, r=6. It shows all
+      three hint slots are individually load-bearing FOR THIS INSTANCE. It is not a
+      distributional claim and the package does not make one.
+
+  control_checks:
+    - control: FIPS-197 C.1 known-answer vector (external positive control)
+      engines_passing: [ref.py (producer), pin.c (producer), cnt.c both paths (producer), collide.c (rank 1), vcnt.c (this validator)]
+      result: PASS
+    - control: single-block cross-engine pin at r=5 and r=10
+      values: {r5: 4167e8f8367c38cdb7bde2ade620a7a8, r10: 8df4e9aac5c7573a27d8d055d6e4d64b}
+      producer_claim: four-way equal
+      my_addition: my independent engine makes it FIVE-way equal on both paths
+      result: PASS
+    - control: internal cross-check n_alt = (sum m^2 - N)/2 against n = sum C(m,2)
+      result: PASS in every arm, mine included
+      weight_note: >-
+        This is a WEAK control and the ledger already says so (EV-AES-d8a13e
+        OBS-B2-3): n and n_alt are two arithmetic functions of the same histogram,
+        so their agreement tests the arithmetic, not the counting. The controls that
+        actually bind are conservation (sum_b b*hist[b] == N == 2^32) and the paired
+        j0 behaviour.
+    - control: conservation / counter integrity
+      result: PASS in every producer arm and in my valid arms; FAILED in my own first
+        M1 attempt and correctly caused me to discard it
+      note: This control is demonstrably load-bearing -- see my invalidated attempt.
+    - control: negative / null-object control status for this batch
+      result: NOT APPLICABLE TO THE ARMS VALIDATED HERE, and correctly not claimed
+      detail: >-
+        Per docs/inventor-protocol.md section 3, a statistical signal needs a
+        null-object control of the same shape. The BATCH-003 arms are DETERMINISTIC
+        EXACT COUNTS and structural reproductions, not statistical excesses, so no
+        p-value or bias is asserted and none needs a null. The campaign's one
+        genuinely statistical claim -- the r=5 yoyo 15.63x -- lives in EV-AES-d8a13e
+        OBS-B2-5, where a measured PRP null and a structure-destroyed control reading
+        1.00x ARE recorded, and where the decay-with-rounds behaviour IS stated
+        (alive at r=5, dead at r=6). That is the correct shape. BATCH-003 adds
+        nothing to it and claims nothing from it.
+      one_thing_i_would_flag_for_the_next_batch: >-
+        The r=4/r=5 counting properties DO have a natural null -- a random bijective
+        S-box, already run at 120/120 per the carried-forward note, and a random
+        permutation, for which n ~ 2^31. The AES_MC r=5 arm reads 2147661752 against
+        that null of ~2147483648, i.e. essentially AT the null, while M1 reads
+        ~1.1e12, three orders above it. The package does not present the AES_MC
+        number as an excess and is right not to; I record the comparison so that a
+        future reader does not mistake the large M1 numbers for a signal about AES.
+
+  metric_recomputations:
+    - metric: n and n_alt from raw occupancy histograms, all four M1 arms plus the r=4 anchor
+      method: independent python recomputation from the published histograms
+      result: EXACT MATCH in every case; n == n_alt in every case; N == 2^32 and
+        cell count == 2^32 in every case
+    - metric: n for the r=4 M0 anchor as a closed form
+      finding: 2^24 * C(256,2) = 16777216 * 32640 = 547608330240, exactly the reported value
+    - metric: divisibility of occupancies under M1
+      finding: every non-zero bin index is a multiple of 256 in all four M1 arms
+    - metric: n mod 8 / mod 16 / mod 256
+      finding: >-
+        M1 arms: n mod 8 = 0, n mod 16 = 0, n mod 256 = 0 (all four).
+        AES_MC anchor: n mod 8 = 0, n mod 16 = 8, n mod 256 = 184.
+    - metric: count5.c saturation counterfactual on the r=4 histogram
+      finding: 543330140160, short of the true 547608330240 by 4278190080
+      status: DERIVED BY ARITHMETIC, NOT MEASURED
+
+  heuristic_validation_checks:
+    applicable: false
+    reason: >-
+      This package makes no heuristic-conditional complexity claim of the
+      docs/target-result-profile.md exemplar shape. There is no pre-registered
+      analytic distribution, no substitute-sampling correspondence, no asymptotic
+      exponent and no extrapolation to cryptographic scale. Every arm is an exact
+      deterministic enumeration over a fully materialised 2^32 input set, so the
+      quantity measured is a count, not an estimate, and no sampling distribution is
+      involved. Preregistration WAS present and WAS honoured -- rank 1's
+      PREREGISTRATION.md fixes the falsification criterion and the exact-value
+      predictions before measuring, and I confirmed the predicted 1098070622208 was
+      written down before the arm that would have produced it was dropped.
+
+  cost_model_checks:
+    applicable: partially
+    findings:
+      - item: no cost table or speedup is claimed in BATCH-003
+        detail: >-
+          There is no per-attempt cost, no inverse-success-probability total, and no
+          comparison against a baseline runtime. Nothing here asserts an improvement,
+          so docs/inventor-protocol.md section 6's ladder is not triggered by this
+          package.
+      - item: the campaign's one cost claim lives upstream and is correctly negative
+        detail: >-
+          EV-AES-d8a13e OBS-B2-2 records the r=6 construction as DOMINATED with
+          sota_delta negative, costed on time (69.39 s against roughly 25 s) and
+          corrected to add query cost (2^33 chosen plaintexts against O(1)), which
+          makes the domination LARGER. Memory is not reported alongside time there;
+          for these counting arms it is effectively fixed by the counter array (4 GB
+          at cw=8, 8 GB at cw=16) and I record my own below.
+      - item: resource records present and adequate
+        detail: >-
+          Both producers record wall seconds, exit status, epoch bounds, core
+          pinning, thread counts, counter width and concurrency conditions. The rank 2
+          producer's deviations_from_the_task_card block discloses its core usage
+          honestly rather than excusing it. This is the standard I would want.
+  my_own_resource_record:
+    budget_wall_clock_seconds: 4800
+    consumed_wall_clock_seconds_approx: 2600
+    budget_memory_gb: 16
+    peak_memory_gb_approx: 12
+    maximum_runs_allowed: 25
+    runs_used: 8
+    breakdown:
+      - {run: V1 anchor software count, threads: 4, cores: 4, mem_gb: 4, seconds: 482, exit: 0}
+      - {run: V2 producer cnt.c software path, threads: 1, cores: 1, mem_gb: 4, seconds: 1983, exit: 0, concurrent_with: [V3, V4, V5]}
+      - {run: V3 my M1 arm (INVALID, 3 threads), threads: 3, cores: 3, mem_gb: 8, seconds: 437, exit: 0, discarded: true}
+      - {run: V4 my M1 arm (valid), threads: 4, cores: 3, mem_gb: 8, seconds: 438, exit: 0}
+      - {run: V5 exact reproduction under BATCH-002 key, threads: 2, cores: 3, mem_gb: 8, seconds: 719, exit: 0}
+      - {run: V6 sq_slot no-mask equivalence control, threads: 3, cores: 3, seconds: 132, exit: 0}
+      - {run: V7 FIPS-197 KAT and single-block pins, seconds: 1, exit: 0}
+      - {run: V8 gf.py matrix verification, seconds: 3, exit: 0}
+    concurrency_disclosure: >-
+      V2 was pinned to core 0 for its whole life and V3/V4/V5/V6 ran on cores 1-3.
+      This is oversubscription-free by construction. V2's 1983 s on one dedicated
+      core is consistent with V1's 482 s on four cores for the same 2^32 encryptions
+      plus scatter, so contention did not distort either.
+    dropped_work_named:
+      - >-
+        I did not re-run the r=4 M0 anchor myself (rank 1 needed 1138 s). Traded for
+        the unreproduced r=5 M1 exact arm, which had zero independent reproductions
+        against the r=4 arm's three. Graded from artifact recomputation only.
+      - >-
+        I did not run BATCH-002's second M1 arm (j0=1, claimed n = 1097141846016).
+        One of the two exact numbers is now reproduced; the other is not.
+      - >-
+        I did not test whether the 256-divisibility regularity holds for other
+        zero-entry matrices, other round counts, or j0 outside {0,1}. It is reported
+        strictly as a measured regularity over the four arms that exist.
+      - >-
+        I did not probe the inference adapter, so model_verified is false.
+
+  verdicts_per_claim:
+    - claim: "The engines agree exactly on identical configuration: n = 2147661752, n_alt, max_occ 12, all 13 histogram bins."
+      verdict: CONFIRMED
+      basis: Reproduced by me on an independent software engine AND on the producer's own previously-unexercised cnt.c software path. Four-way exact agreement, now five-way counting mine.
+    - claim: "Engine B's software T-table path never produced a count; that is the path BATCH-002 used for every matrix-varying arm, so the software counting kernel is anchored only at single-block level."
+      verdict: CONFIRMED as a description of the package, SUPERSEDED by measurement in this report.
+      basis: True of the submitted package. I completed the run (1983 s, exit 0) and it agrees exactly. The cause was a thread-scaling property of cnt.c, not a defect in what it measures.
+    - claim: "The confound is NARROWED, NOT CLOSED."
+      verdict: CONFIRMED for the package as submitted; NO LONGER THE CASE for the anchor configuration.
+      basis: See priority_1. The residual is a one-configuration scope limit plus a structural impossibility of ever anchoring matrix-varying arms against engine A, which is handled by third-engine reproduction instead.
+    - claim: "P2.4: count5.c uses a uint8 saturating counter and cannot represent the r=4 critical arm whose max occupancy is exactly 256."
+      verdict: CONFIRMED from source, and UNDERSTATED.
+      basis: Saturating increment at line 63, 256-bin histogram, max_occ scan from 255. Understated because count5.c also has no matrix parameter at all, so no M0/M1 arm was expressible on engine A for a more basic reason.
+    - claim: "Rank 1: the r=5 half of CORR-20260802-46b73b SURVIVES; n mod 8 = 0 on a fresh key and a from-scratch engine."
+      verdict: CONFIRMED, and independently extended.
+      basis: Reproduced on a fourth key with my own engine (n = 1097582510080, n mod 8 = 0) and BATCH-002's exact number reproduced to the digit under their key.
+    - claim: "M1 is non-singular, determinant 20 by two independent methods."
+      verdict: CONFIRMED
+      basis: My own Leibniz and Gauss-Jordan computations, inverse and both identity products.
+    - claim: "Rank 1 did NOT reproduce BATCH-002's exact M1 counts; those exact numbers remain unreproduced."
+      verdict: CONFIRMED as of rank 1; NOW RESOLVED for the j0=0 arm by this validation. The j0=1 arm remains unreproduced.
+    - claim: "The producer declined to call the rule strengthened by more than one arm's worth."
+      verdict: CORRECT MODESTY, NOT EXCESSIVE, on arm count; but rank 1 understated its own content (256-divisibility) and its own adversarial j0 choice.
+    - claim: "Rank 1's r=4 anchor returned 547608330240 with the identical histogram -- a third independent agreement, not a shared-code artifact."
+      verdict: CONFIRMED as genuinely independent; weight qualification required (n is a deterministic function of a single structural fact, per EV-AES-d8a13e OBS-B2-3).
+    - claim: "Single-slot corruption at t=1 and t=2 both gave {0: 4}."
+      verdict: CONFIRMED
+      basis: Recomputed from the run JSON; hint substitution independently verified against key schedules I derived from the algebraic S-box definition.
+    - claim: "The generalising patch reproduces the original exactly when the mask argument is omitted, so the comparison is genuinely single-variable."
+      verdict: CONFIRMED, and now verified by EXECUTION rather than by reading the diff. Two footnotes: the JSON output is a superset not byte-identical, and nthreads also differed, which I resolved empirically.
+    - claim: "n mod 8 = 0 is the load-bearing measured property of the M1 arms."
+      verdict: UNDERSTATED / LOW DISCRIMINATION. The arms measure that 256 divides every fibre, hence n mod 256 = 0. On these arms the mod-8 reading follows arithmetically from the fibre structure and could not have fired the falsification criterion unless that structure broke.
+    - claim: Any statement about full-round or deployed AES, or any comparison to published cryptanalysis.
+      verdict: NOT MADE by the package, and NOT MADE here. Both producers state the toy tier and its basis explicitly and correctly.
+    - claim: Timeouts treated as resource exhaustion, never negative evidence.
+      verdict: CONFIRMED throughout, and independently vindicated: I completed one of the timed-out runs and it agreed.
+
+  not_checked:
+    - item: BATCH-002's second M1 arm (r=5, M1, j0=1, their key, claimed n = 1097141846016)
+      reason: Budget. One 2^32 arm at cw=16 costs ~700 s and I had already reproduced the j0=0 arm exactly.
+    - item: Direct re-execution of the r=4 M0 anchor on my own engine
+      reason: Budget, traded deliberately for the unreproduced arm. Recomputed from artifacts instead.
+    - item: rank 1's collide.c source review line by line
+      reason: >-
+        Budget. I verified its OUTPUTS against my own independent engine and against
+        the FIPS-197 anchor it declares, which is the stronger check, but I did not
+        audit its source for defects that would cancel out.
+    - item: Whether the 256-divisibility under M1 is j0-general or matrix-general
+      reason: Out of scope and out of budget; flagged as an open question, not a claim.
+    - item: Adapter probe for model identity
+      reason: No adapter probe is available in this harness; model_verified is false.
+
+  limitations:
+    - >-
+      TOY TIER. Reduced-round AES-shaped SPN only, r in {4,5,6}. Nothing here is a
+      statement about full-round or deployed AES, and no comparison to published
+      cryptanalysis is made or implied in either direction.
+    - >-
+      SESSION AND IMPLEMENTATION INDEPENDENCE ONLY. NO MODEL INDEPENDENCE under
+      standing basis 0137a051eb5828789eb267fa83c8278086578d4c. This validation
+      counts toward no closure quorum.
+    - >-
+      The cross-instrument anchor now holds at exactly ONE configuration (r=5, j0=1,
+      AES MixColumns, one key, one base). Agreement there is not agreement everywhere.
+    - >-
+      No cross-instrument anchor against BATCH-001's engine is possible for ANY
+      matrix-varying arm, at any budget, because count5.c cannot express a
+      non-AES mixing layer. Those arms are anchored by independent re-implementation
+      instead, which is a different and weaker kind of guarantee than running the
+      same object through two instruments.
+    - >-
+      The r=5 M1 mod-8 evidence, though now on four arms and three engines, is LOW
+      DISCRIMINATION for the reason given in the understatement audit. Treat the
+      256-divisibility as the real measured content and the mod-8 statement as its
+      corollary.
+    - >-
+      The rank 4 result is one target key, one hint key, one seed, nstruct 2, r=6.
+      It is an instance result, not a distributional one.
+    - >-
+      One of my own runs was invalidated by my own partitioning bug and is disclosed
+      rather than deleted. It is not evidence in either direction.
+    - >-
+      This report assigns no official state, no evidence strength, and recommends no
+      promotion. Any promotion decision belongs to the Coordinator and, per
+      DEC-20260802-b226fb, would need to state the qualifications above.
+
+  verdict: passed
+  verdict_basis: >-
+    Every declared artifact hashes to the snapshot. Every command, exit status,
+    seed, environment and resource record checks out. Every load-bearing claim I
+    tested reproduced on instruments written for this validation, and the two
+    questions the Coordinator put to the reviewers both resolve in the package's
+    favour on new measurement rather than on argument: the software counting kernel
+    now has a count-level anchor, obtained from the producer's own code path, and
+    the r=5 half of the round-split rule is reviewed measurement on four arms,
+    three engines and three keys, with BATCH-002's exact number reproduced to the
+    digit. I found no fabricated number, no overstated claim in either RESULTS.json,
+    and correct resource-exhaustion handling throughout. I did find one claim
+    asserted from source reading rather than execution (the patch equivalence),
+    which I then executed and confirmed; one materially understated finding (the
+    256-divisibility) which strengthens the evidence while simultaneously weakening
+    the discriminating power of the way it is currently claimed; and one framing
+    risk carried forward from a qualification the ledger already records. None of
+    these is a defect in the package's honesty. `passed` means this receipt is
+    admissible evidence at the toy tier. It supports no ECDLP claim, demonstrates
+    no speedup, and authorizes no promotion.
+
+  artifact_paths:
+    - coordination/goals/GOAL-AES-003/batches/BATCH-003/tasks/TASK-20260802-5baf79/validation_report.yaml
+
+  reproducibility_pointer:
+    note: >-
+      My instruments were built and run in a session scratch directory outside the
+      repository and are NOT committed; my write scope is this report only. Anyone
+      re-running should rebuild from the recipe below rather than from a stored
+      binary. The producer artifacts I executed are in the snapshot and were
+      hash-verified before compiling.
+    rebuild_recipe:
+      - "gcc -O3 -march=native -pthread -o vcnt vcnt.c   # sha256 2a612d1eb9872c1cf06619f6393e210755f5e5c4c184538503654096ed01d036"
+      - "gcc -O3 -march=native -maes -pthread -o cnt <snapshot>/src/cnt.c        # sha256 7a32d928e264e5b3a960108d106f08c7e02f9e2d16db18ed85e04ba160f41c5b"
+      - "gcc -O3 -march=native -maes -pthread -o sq_slot <snapshot>/src/sq_slot.c # sha256 13eb85a3a433a7e1d1ce9df292ae696f66075fd55b27ee26c36eb883a7272a79"
+    exercised: >-
+      Both producer binaries were rebuilt from the snapshot sources in this session
+      and executed; the source hashes were re-verified against the snapshot receipt
+      before each build. This pointer was exercised, not asserted.
+
+  handoff:
+    to: Coordinator ledger archive task
+    report_path: coordination/goals/GOAL-AES-003/batches/BATCH-003/tasks/TASK-20260802-5baf79/validation_report.yaml
+    committed_by_me: false
+    git_add_run_by_me: false
+    note: >-
+      Left UNCOMMITTED and unstaged per CORR-20260802-009 and the task card. The
+      ledger archive stages it; an archive can only bind content it introduces.
+
+  inference:
+    policy: validator-review
+    requested_policy: validator-review
+    resolved_model: claude-opus-5
+    fallback_used: true
+    fallback_note: >-
+      orchestration/model-policies.yaml names GPT-5.6-family aliases this harness
+      cannot resolve; .claude/agents/ subagents run model: inherit. Recorded rather
+      than silently substituted.
+    model_verified: false
+    model_verified_reason: no adapter probe was run in this session
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c

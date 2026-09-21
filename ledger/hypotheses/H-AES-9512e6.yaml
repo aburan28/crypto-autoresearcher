@@ -1,0 +1,128 @@
+hypothesis:
+  id: H-AES-9512e6
+  question_id: RQ-AES-003
+  goal_id: GOAL-AES-003
+  source_idea_id: IDEA-20260807-8e20fe
+
+  statement: >-
+    SCOPE: the reliability of converting counted table-reads into measured
+    seconds for two implementations (X direct, Y reorganised fold-then-reuse)
+    of one identical candidate-filtering subproblem, on this machine. TOY
+    TIER, NO CRYPTANALYTIC CLAIM. There exists W* <= 2^33 bytes at which
+    rho_ops(W*) > 1.5 (Y still wins decisively on counted operations) while
+    rho_time(W*) < 1.0 (Y loses on the clock); equivalently the conversion
+    factor kappa(W) = rho_time(W)/rho_ops(W) falls below 1/1.5 before the
+    15 GB envelope, is monotone non-increasing in W, and spans at least a
+    factor of 4 across W in [2^12, 2^33] bytes. This bears on every
+    operation-count-based cost saving reported anywhere in this repository's
+    AES campaigns.
+
+  mechanism: >-
+    Full derivation: ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/A3.md lines
+    179-236. Y trades cheap sequential reads for scattered histogram reads,
+    so its op-count advantage is bought with a worse access pattern whose
+    per-access cost rises faster than X's as W grows past L1/L2/L3 into DRAM
+    — the sign of the advantage can flip while the counted-op advantage is
+    unchanged.
+
+  assumptions:
+    - >-
+      X and Y's outputs (candidate-set equality) are checked identical, as
+      `compare6` already does, before any timing comparison is trusted.
+    - >-
+      The counted-op ratio is held analytically fixed and verified from the
+      counters at every sweep point, never assumed constant.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement of a memory-hierarchy effect; no proof-search
+      object. The mechanism (access-pattern cost divergence) is a standard
+      systems fact, not a mathematical claim requiring lemma decomposition.
+
+  rerandomization: null
+  asymptotic_claim: null
+
+  heuristic_assumptions:
+    - id: HEUR-AES-9512e6-1
+      formal_statement: >-
+        kappa(W) = rho_time(W)/rho_ops(W) is monotone non-increasing in W
+        over W in [2^12, 2^33] bytes, and spans at least a factor of 4 across
+        that range, because the reorganised implementation's scattered access
+        pattern degrades relative to the direct implementation's sequential
+        pattern as the working set exceeds successive cache levels.
+      random_model_justification: >-
+        A claim about THIS MACHINE's memory hierarchy, not a distributional
+        or random-model claim; validated by direct sweep measurement with a
+        sibling control (S-box replaced by identity map) confirming the
+        effect tracks access pattern, not table values.
+      supporting_results: []
+      validation_experiment_ids: [EXP-AES-966fb3]
+      falsification_condition: >-
+        kappa(W) in [0.75, 1.33] at every one of 22 sweep points, IQR small
+        enough to resolve a 25% deviation -> the scalar conversion is
+        faithful across the entire envelope; the entry closes itself and the
+        closure IS the deliverable (a measured licence to convert counted
+        operations to seconds with one constant at reduced-round scale).
+
+  structural_ingredients: []
+
+  reduction_chain:
+    core_problem: >-
+      Whether operation-count savings reported anywhere in this repository
+      may be converted to measured-second savings by one global scalar.
+    corollaries: []
+
+  predictions:
+    - metric: "kappa(W) at W <= 24 KB (L1-resident, known-answer gate)"
+      direction: different
+      minimum_effect: "kappa in [0.9, 1.1] required, or the timer/counter/compiler is broken"
+    - metric: "kappa(W) with X=Y (same binary, different argv label, second degenerate gate)"
+      direction: different
+      minimum_effect: "kappa = 1.00 +/- 0.03 at every W, or a scheduler/thermal artifact is masquerading as a hierarchy effect"
+    - metric: "existence of W* <= 2^33 with rho_ops(W*) > 1.5 and rho_time(W*) < 1.0"
+      direction: different
+      minimum_effect: "sign inversion establishes the amortization-inversion locus"
+    - metric: "kappa(W) with AES S-box replaced by identity map (sibling control)"
+      direction: different
+      minimum_effect: "unchanged from the AES-S-box arm; if it moves, the measurement is picking up something other than the access pattern"
+
+  test_boundary:
+    instances:
+      - "X (direct) and Y (fold-then-reuse partial-sum-shaped rewrite) over one frozen subproblem, output-checked identical"
+    parameters:
+      working_set_sweep_bytes: "~22 geometrically spaced points, 4 KB to 8 GB"
+      repeats_per_point: 5
+      cores: 1
+      compiler_flags: "-O3 -maes -msse4.1"
+    implementation: "~300 lines C, re-instrumented compare6 skeleton plus counter and clock_gettime harness"
+    budget:
+      total_wall_clock_seconds: 12600
+      maximum_memory_gb: 8
+      maximum_workers: 1
+
+  falsification_conditions:
+    - >-
+      kappa(W) in [0.75, 1.33] at every one of 22 sweep points with adequate
+      IQR resolution -> the scalar conversion is faithful, entry closes
+      itself (a positive, not a negative, deliverable).
+    - >-
+      A single point with rho_ops > 1.5 and rho_time < 1.0 -> the inversion
+      is established and every operation-count saving in this repository
+      must be re-quoted with its footprint.
+    - "Failure of either degenerate known-answer gate -> instrument void, no other point may be read."
+    - "Sibling-control divergence (S-box vs identity map differs) -> measurement is picking up something other than access pattern."
+
+  interpretation_limits:
+    - "A claim about this machine's cost-conversion behavior, not about AES."
+    - "Ceiling medium. Risk band conservative."
+    - "No cryptanalytic claim of any kind; zero cipher queries beyond the frozen fold input."
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260807-8e20fe.yaml
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/A3.md
+    - ledger/questions/RQ-AES-003.yaml
+    - ledger/goals/GOAL-AES-003.yaml
+    - ledger/hypotheses/H-AES-d6405d.yaml

@@ -1,0 +1,603 @@
+idea:
+  id: IDEA-20260829-217643
+  question_id: RQ-MLKEM-003
+  added: '2026-08-29'
+  title: >-
+    The instrument's most-used lossy projection has never been tested - every cost this lane has
+    ever quoted enters the estimator as a single number, the noise standard deviation, so the model
+    predicts EXACTLY ZERO difference between ML-KEM's actual centered-binomial law and the
+    discrete Gaussian it is replaced by. Track the noise law's CHARACTERISTIC FUNCTION on the
+    frequency band the attack actually probes, derive the exact closed form for CBD (which the
+    Gaussian cannot see because it depends on the 4-norm of the dual vector, not the 2-norm),
+    and discriminate "the sigma-only projection is exact at the operating point" from "its error
+    is concentrated on the enumeration/FFT coordinates where the probed frequencies are large"
+  class: control
+  claim: >-
+    (A) THE PROJECTION. Every lattice-estimator call this program has made passes the error and
+    secret laws in as a variance - Xe = ND.DiscreteGaussian(sigma) or equivalent. ML-KEM's actual
+    law is a centered binomial, CBD(eta), with eta1 = 3 and eta2 = 2 at ML-KEM-512 and eta1 =
+    eta2 = 2 at ML-KEM-768/1024 (RECALLED, Stage 0 must source), and the ciphertext carries a
+    third law that is not random at all - deterministic compression rounding, modelled as
+    independent uniform noise. The model therefore asserts, by construction and not by argument,
+    that these laws are interchangeable at matched variance. That assertion has never been
+    measured anywhere in this program, and it is a stronger assertion than any of the constants
+    the lane has audited, because it is not a constant that could be wrong by a few percent - it
+    is a claim that an entire infinite sequence of cumulants is irrelevant.
+    (B) THE EXACT OBJECT, WHICH IS COMPUTABLE IN CLOSED FORM. A dual distinguisher's expected
+    score on a dual vector w is a linear functional of the noise law's characteristic function
+    evaluated at the frequencies 2 pi w_j / q. For CBD(eta) that function is exactly
+    phi(theta) = cos^(2 eta)(theta / 2), because CBD(eta) is a sum of eta independent terms each
+    taking -1, 0, +1 with probabilities 1/4, 1/2, 1/4, whose characteristic function is
+    (1 + cos theta)/2 = cos^2(theta/2). The matched Gaussian with sigma^2 = eta/2 gives
+    phi_G(theta) = exp(-eta theta^2 / 4). Expanding, ln phi_CBD = -eta theta^2/4 - eta theta^4/96
+    - O(theta^6), so phi_CBD < phi_G STRICTLY for every theta in (0, pi), with a leading
+    correction whose aggregate over a dual vector is (eta/96)(2 pi/q)^4 times the FOURTH POWER
+    SUM of w's coordinates. THE MODEL SEES ||w||_2. THE TRUTH NEEDS ||w||_4. That is the precise
+    sense in which the projection is lossy, and the 4-norm is a coordinate the estimator has no
+    slot for.
+    (C) THE CLAIM PROPER, TWO-SIDED, WITH A DERIVED SIZE. The relative correction to the
+    log-advantage, for a dual vector of Euclidean length L spread over d coordinates at the
+    standard operating point where the Gaussian exponent is order 1, is approximately
+    1/(2 eta d) - suppressed by the dimension, hence NEGLIGIBLE on the reduced-lattice
+    coordinates. It is NOT suppressed where the probed frequency is order 1 rather than order
+    1/sqrt(d), which is exactly the enumeration and FFT block of a MATZOV-style hybrid, where the
+    attack deliberately uses coordinates that are not small. THE CLAIM IS THEREFORE AN
+    INTERACTION AND A LOCALISATION, NOT A GLOBAL CORRECTION: the sigma-only projection's error is
+    negligible on the lattice part and concentrated on the guessing part, and the size of the
+    concentrated part is computable exactly from k_fft, q and eta with no simulation at all.
+    EXPLANATION A, PROJECTION EXACT ENOUGH - the total correction across both blocks is below
+    0.01 bits of attack cost at all three parameter sets; then the sigma-only convention is
+    validated with a number, a lane of possible objections closes, and the twenty-eight numerator
+    proposals inherit a validated noise model. EXPLANATION B, PROJECTION LOSSY WHERE IT MATTERS -
+    the FFT-block correction alone exceeds 0.1 bits, in which case every dual and hybrid cost this
+    program has quoted carries an unmodelled term whose sign is known (it makes the attack HARDER
+    than modelled, since phi_CBD < phi_G) and whose size is not.
+    (D) THE SECOND ARM, MEASURED RATHER THAN DERIVED. On the primal side the noise law enters
+    through the length of the target vector. Matched variance forces E||e||^2 identical across
+    laws, but NOT its dispersion - Var(||e||^2) = d (mu4 - sigma^4), which is 1.5 d for CBD(2)
+    against 2 d for a discrete Gaussian of the same variance, a ratio of exactly 0.75, and 3.75 d
+    against 4.5 d for CBD(3), a ratio of 0.8333. So the Gaussian model gives the attacker a FATTER
+    LEFT TAIL of unusually short error vectors - more lucky, cheap instances - than the real law
+    does. The estimator predicts a ratio of 1 exactly. The measurement predicts sqrt(0.75) =
+    0.866 in the dispersion of the recovery blocksize. This is a forced null against a derived
+    alternative, which is the cleanest discrimination available in this lane.
+    (E) NOT CLAIMED. No attack, no speedup, no security consequence, no statement about FIPS 203's
+    text, no claim that any published analysis uses the Gaussian approximation where this record
+    says the estimator does - MATZOV and others may well compute the exact CBD transform in places,
+    and Stage 0's job is to find out rather than to assume. A correction derived here is a
+    correction to THIS PROGRAM'S instrument path until a primary read says otherwise.
+  mechanism: >-
+    STAGE 0, READING AND SOURCING. Source ML-KEM's actual eta1/eta2 per parameter set and the
+    compression parameters d_u, d_v from a readable primary or vendored copy (NIST domains are
+    unreachable from this harness per RQ-MLKEM-003's provenance block; a pq-crystals specification
+    PDF or a vendored copy under inputs/ is the fallback and the route used must be recorded).
+    Grep the pinned estimator source for every point at which a noise law enters, and record
+    verbatim whether it accepts anything beyond a variance. Read MATZOV (KN-LIT-110) and the
+    corpus's dual-attack entries for whether the exact CBD transform is used; if it is, this
+    record demotes to a literature note on the estimator path only, and says so.
+    STAGE 1, THE ANALYTIC ARM, ZERO COMPUTE, EXACT. Re-derive phi_CBD(theta) = cos^(2 eta)
+    (theta/2) symbolically and verify it numerically against the empirical characteristic function
+    of 10^7 CBD samples at eta = 2, 3 (this is a check on the derivation, not evidence about
+    ML-KEM). Then compute, at each FIPS 203 parameter set and at the attack parameters
+    EV-MLKEM-020 committed, the exact log-advantage under phi_CBD and under phi_G, separately for
+    the reduced-lattice block and for the enumeration/FFT block, and report the difference in bits
+    of attack cost per block. All arithmetic in exact or high-precision rationals; the whole stage
+    is closed-form evaluation.
+    STAGE 2, THE PRIMAL DISPERSION ARM, MEASURED, PAIRED. At dimensions where exact recovery is
+    reachable (n roughly 40 to 60), generate matched instance triples sharing A and s and
+    differing only in the error law - CBD(2) or CBD(3), a discrete Gaussian of identical variance,
+    and a uniform law on a matched-variance support - and run progressive BKZ plus Babai to exact
+    recovery against retained ground truth, recording beta* per instance. Report the MEAN beta*
+    per arm (which must agree - a forced equality that catches generator bugs) and the DISPERSION
+    of beta* per arm, whose predicted ratio is sqrt(0.75) = 0.866 at eta = 2.
+    STAGE 3, THE COMPRESSION ARM, WHERE THE MODEL ERROR MIGHT BE STRUCTURAL RATHER THAN A MOMENT
+    EFFECT. Build the ciphertext-side instance with ML-KEM's actual compression at scaled-down
+    parameters and compare recovery against a surrogate in which the rounding term is replaced by
+    an independent uniform of identical variance. The rounding term is a deterministic function of
+    the value being rounded, hence correlated with the secret through the ciphertext; the surrogate
+    is not. A difference here is not a cumulant effect and would not be predicted by Stage 1.
+    STAGE 4, REPORTING. One table per arm, with the estimator's own prediction (zero difference)
+    printed alongside every measured difference, so the forced null is visible in the deliverable
+    rather than described in prose.
+  novelty_status: unverified
+  novelty_screen:
+    method: >-
+      Read in full or in substantial part this session: RQ-MLKEM-003; the 28-title inventory for
+      this RQ; IDEA-20260816-bd7f26 (head, the nearest neighbour); IDEA-20260816-725f05 (head);
+      IDEA-20260816-08eda1 (head); IDEA-20260828-5b7795; IDEA-20260821-472aa2 (lines 1-681);
+      EV-MLKEM-020 lines 388-467 and 595-634.
+      Greps: `question_id: RQ-MLKEM-003` over ledger/proposals (28 files); a scan of all 28 titles
+      for noise-law, distribution, moment, cumulant, characteristic-function and compression
+      language. The crypto-kb MCP index was not queried; no `kb` provenance appears here.
+      No external literature search was run specifically on the Gaussian approximation of the CBD
+      transform in dual-attack analyses, which is the single largest gap in this screen and is why
+      the status is unverified.
+    results: >-
+      Of the 28 filed proposals, the nearest is IDEA-20260816-bd7f26, which crosses structure
+      against secret SPARSITY (Hamming weight) in a two-factor design. That factor changes the
+      secret's NORM, which the model does see - the estimator's sigma input changes with it - so
+      it is a measurement of an effect the instrument already predicts. THIS record's factor holds
+      the second moment EXACTLY fixed and varies only the higher cumulants, so the instrument's
+      prediction is provably zero and the null is forced rather than fitted. That distinction is
+      the whole design and the two records do not overlap.
+      IDEA-20260805-5a4409 (Parseval energy budget) and IDEA-20260808-0eb075 (effective number of
+      independent FFT bins) both work in the Fourier domain of the SCORE landscape over candidate
+      secrets. This record works in the Fourier domain of the NOISE LAW over the integers. Same
+      word, different transform, different variable, different object.
+      IDEA-20260805-a102ec audits three constants inside MATZOV.Nf; nothing in it concerns the
+      noise law's shape. No proposal in the lane mentions cumulants, characteristic functions,
+      bounded support, or ciphertext compression as a modelled noise term.
+    verdict: >-
+      UNVERIFIED, and specifically unverified on the external question that matters most - whether
+      published dual-attack analyses already use the exact CBD transform rather than the Gaussian
+      approximation. If they do, Stage 0 returns a citation and this record collapses to a
+      statement about the estimator path this program actually calls, which is still worth having
+      and is a good outcome. Claimed new RELATIVE TO THIS REPOSITORY: the noise law's
+      characteristic function on the probed band as a tracked object, the closed form
+      cos^(2 eta)(theta/2) and its 4-norm dependence, the localisation claim that the correction
+      lives on the FFT block, and the matched-variance forced-null design with a derived
+      dispersion ratio of 0.866. Assembled from known parts: the characteristic function of a
+      binomial is elementary, the dual distinguisher is MATZOV's, and paired instance generation
+      is already used in this lane.
+  object_first_candidate:
+    established_families_off_limits: >-
+      Declared off-limits as the primary lens: dual-attack score geometry (IDEA-20260805-5a4409,
+      -a102ec, -bb7668, IDEA-20260808-0eb075, IDEA-20260816-ba5bd8, -725f05), sieve cost constants
+      (IDEA-20260807-8fbc86, IDEA-20260805-fc6361, -f7c912), memory pricing (IDEA-20260816-70e41d,
+      -7bc28c), the module-structure discount and its sparsity crossing (IDEA-20260816-b824af,
+      -f4ce0b, -fdc8e8, -bd7f26). This record's lens is the noise law itself, which none of them
+      varies at fixed variance.
+    tracked_object: >-
+      The noise law's characteristic function restricted to the frequency set the attack actually
+      probes - phi(2 pi w_j / q) for the coordinates of the dual vectors the attack retains, plus
+      the cumulant sequence (kappa_2, kappa_4, ...) that determines the distribution of ||e||^2 on
+      the primal side. One function on a band, plus a short list of numbers.
+    lossiness: >-
+      LOSSY twice over. The underlying state is the realised error vector e in Z^d together with
+      its joint law. The projection discards the realisation entirely - two different error vectors
+      drawn from the same law are the same object here - and discards phi outside the probed band.
+      NOT A CHANGE OF COORDINATES, and this is checkable rather than assertable: CBD(2) and the
+      discrete Gaussian with sigma = 1 agree in phi to order theta^2 and differ only at order
+      theta^4, so on any band of small frequencies they are indistinguishable to any finite
+      precision, while at theta near pi they differ by a constant factor. The map law -> phi|band
+      is therefore many-to-one, and exhibiting the two laws IS the exhibition of a collision.
+      THE COMPATIBILITY CONDITION, which is why this projection is legitimate: the operation being
+      modelled - the distinguisher's expected score - is by linearity of expectation EXACTLY a
+      linear functional of phi at the probed frequencies, and nothing else. The retained part
+      therefore propagates deterministically under the attack's own operation, which is precisely
+      what the definition demands. On the primal side the corresponding fact is that the
+      distribution of ||e||^2 is determined by the cumulant sequence, exactly.
+      WHAT THE PROJECTION LOSES AND WHY IT MATTERS HERE: the estimator's projection is COARSER
+      still - it keeps only kappa_2. The gap between the two projections is the entire content of
+      this record.
+    propagation: >-
+      One step of the target operation is adding one more dual vector to the score, or one more
+      coordinate to the inner product. Under that step the log-advantage gains
+      ln phi(2 pi w_j / q) additively, so the object propagates by summation and the Gaussian
+      model propagates by summing only the theta^2 term. The discrepancy therefore accumulates as
+      the sum of theta^4 over probed coordinates - the 4-norm - which is why the correction is
+      suppressed by 1/d on a spread-out lattice vector and is not suppressed on a block of
+      coordinates carrying order-1 frequencies. That contrast is the mechanism and it is exact
+      arithmetic, not a simulation.
+    survival_score: >-
+      Survives exactly, with no approximation, as long as the noise coordinates are independent -
+      which they are for the secret and the LWE error and are NOT for the compression rounding.
+      The object dissolves precisely at the compression term, which is why Stage 3 is a separate,
+      measured arm rather than an extension of the closed form. That dissolution boundary is
+      stated as the record's own reach, and it is where a later reader should look for the
+      structural, non-moment part of the model error.
+  null_object_control: >-
+    NULL-M, THE MATCHED-MOMENT NULL, WHICH IS THE FORCED NULL AND THE LOAD-BEARING CONTROL. Across
+    all arms, the laws are matched in variance to machine precision, and the estimator is called on
+    each arm and must return IDENTICAL costs. If it does not, the arms differ in something other
+    than the intended factor and the design is void. This is the rare case where the instrument's
+    own blindness supplies the null.
+    NULL-E, THE EQUAL-MEAN CHECK. Because E||e||^2 is matched by construction, the MEAN recovery
+    blocksize must agree across the primal arms within sampling error. A difference in means is
+    evidence of a generator bug, not of a moment effect, and the run reports it as such.
+    NULL-G, THE SELF-CONSISTENCY NULL. Run the identical pipeline with BOTH arms drawn from the
+    same law under two different seeds. The measured dispersion ratio must be 1 within its
+    interval. If a spurious ratio appears here, the dispersion estimator is biased by the
+    censoring pattern and no signal-arm ratio is reportable.
+    NULL-D, THE DERIVATION CHECK. The closed form cos^(2 eta)(theta/2) is verified against the
+    empirical characteristic function of 10^7 samples before any conclusion depends on it. This
+    checks arithmetic, not ML-KEM.
+    FORCED VALUES DECLARED IN ADVANCE. (1) phi_CBD <= phi_G for all theta in (0, pi) at matched
+    variance is forced by the sign of the fourth cumulant, so the DIRECTION of the analytic
+    correction carries no information - only its magnitude and its localisation do. (2) The
+    estimator returning identical costs across matched-variance arms is forced by its interface.
+    (3) Var(||e||^2) is smaller for CBD than for the matched Gaussian by an exactly computable
+    factor; only whether that propagates into beta* dispersion is open.
+  discriminated_from:
+    - >-
+      IDEA-20260816-bd7f26 varies secret Hamming weight crossed with structure. Sparsity changes
+      the secret's norm and hence the quantity the estimator already models; this record holds the
+      second moment fixed to machine precision so that the estimator's prediction is exactly zero.
+      A factor the instrument can see and a factor it provably cannot are different objects.
+    - >-
+      IDEA-20260805-5a4409 and IDEA-20260808-0eb075 work in the Fourier domain of the score over
+      the candidate space (Parseval on the score vector, effective bin count from the score
+      polynomial's support). This record works in the Fourier domain of the noise law over Z. The
+      transforms are over different groups and the objects are unrelated despite the shared word.
+    - >-
+      IDEA-20260805-a102ec audits three constants inside MATZOV.Nf including a
+      single-representative-length model. Those are constants in the cost formula; this is the
+      probability law feeding the advantage. No overlap in quantity.
+    - >-
+      IDEA-20260828-5b7795 concerns the decryption-failure probability delta in the FO proof.
+      Stage 3 of this record touches the same underlying object (the compression term's law) from
+      the opposite side - the ATTACK's error model rather than the PROOF's failure bound - and the
+      two are complementary. If Stage 3 finds the independent-uniform surrogate materially wrong,
+      that is also an input to 5b7795's confounder about how delta is computed, and the records
+      should cite each other rather than merge.
+  citations:
+    - ref: >-
+        Characteristic function of CBD(eta), phi(theta) = cos^(2 eta)(theta / 2), and its expansion
+        ln phi = -eta theta^2/4 - eta theta^4/96 - O(theta^6)
+      provenance: internal
+      claim: >-
+        Derived by this agent in this session from the elementary fact that CBD(eta) is a sum of
+        eta independent terms taking -1, 0, +1 with probabilities 1/4, 1/2, 1/4, whose
+        characteristic function is (1 + cos theta)/2 = cos^2(theta/2). The moment figures used in
+        part (D) are computed the same way - for CBD(2), E[x^2] = 1 and E[x^4] = 2.5, giving
+        Var(||e||^2) = 1.5 d against 2 d for a matched discrete Gaussian; for CBD(3), E[x^2] = 1.5
+        and E[x^4] = 6, giving 3.75 d against 4.5 d. THIS IS ARITHMETIC PERFORMED HERE, NOT A
+        MEASUREMENT AND NOT A CITATION, and Stage 1 must re-derive it symbolically and check it
+        numerically before anything depends on it.
+      verified_by: >-
+        Hand derivation by the idea-generator subagent, 2026-08-29; not machine-checked, not
+        externally sourced. Explicitly flagged for symbolic re-derivation in Stage 1.
+    - ref: EV-MLKEM-020 (committed evidence record, this repository)
+      provenance: internal
+      claim: >-
+        Supplies the committed attack parameters and cost figures at which Stage 1's closed-form
+        correction is to be evaluated, and records that its own noise handling is inherited from
+        the estimator path without independent check. Also records H11's sensitivity - one bit of
+        cutoff error moves c* by 0.0113 / 0.0076 / 0.0055 - which is the scale against which a
+        sub-bit correction must be judged relevant or not.
+      verified_by: >-
+        Read directly this session (idea-generator, 2026-08-29), partial read - lines 388-467 and
+        595-634 plus a targeted grep; not a full-file read.
+    - ref: >-
+        ML-KEM parameter values eta1 = 3, eta2 = 2 at ML-KEM-512 and eta1 = eta2 = 2 at
+        ML-KEM-768/1024, with ciphertext compression parameters d_u, d_v
+      provenance: recalled
+      claim: >-
+        The centered-binomial parameters and compression widths of the three FIPS 203 parameter
+        sets. NOT fetched from primary text this session; NIST domains are recorded as unreachable
+        from this harness. Every numeric evaluation in Stage 1 is conditional on these values and
+        Stage 0 must source them or record that it could not.
+      verified_by: null
+    - ref: 'KN-LIT-110 (MATZOV, "Report on the Security of LWE"), corpus entry'
+      provenance: recalled
+      claim: >-
+        The dual-attack cost model this program's committed figures are computed under
+        (RC.MATZOV). Whether its distinguisher analysis uses the exact CBD characteristic function
+        or a Gaussian approximation is UNKNOWN to this record and is Stage 0's first job; the
+        corpus entry was not opened this session. If MATZOV uses the exact transform, this record's
+        scope narrows to the estimator path this program calls.
+      verified_by: null
+    - ref: RQ-MLKEM-003 (this repository)
+      provenance: internal
+      claim: >-
+        Records that NIST domains are unreachable from this harness, and names as a method
+        "measured sieve behaviour at reduced dimensions to calibrate, not replace, the model" -
+        which is exactly the role of Stage 2 and Stage 3 here.
+      verified_by: 'read in full this session, ledger/questions/RQ-MLKEM-003.yaml'
+  assumptions:
+    - >-
+      The estimator path this program calls accepts only a variance for the noise law. Stage 0
+      verifies this by grep against the pinned commit and quotes the lines; if the path accepts a
+      distribution object, the forced null is not forced and the design must be rebuilt.
+    - >-
+      Independence of the LWE error coordinates holds for the secret and error but NOT for the
+      compression rounding. The closed form of Stage 1 is applied only where independence holds,
+      and Stage 3 is measured precisely because it does not.
+    - >-
+      beta* is a monotone, locally smooth function of ||e|| in the reachable band, so a difference
+      in the dispersion of ||e||^2 propagates into a difference in the dispersion of beta*. This is
+      the transfer step of Stage 2 and it is stated as a heuristic (H2), not assumed silently.
+    - >-
+      Scaled-down instances preserve the qualitative structure of the compression term. Stage 3
+      reports its scale and makes no statement about FIPS 203 dimensions.
+  proof_search_map:
+    bottleneck: >-
+      The replacement of a noise law by its second moment at the single point where the attack's
+      advantage is computed. Removing that replacement changes the advantage by an amount equal to
+      a fourth-cumulant term proportional to the probed vector's 4-norm, and that step is performed
+      implicitly by every dual and hybrid cost this program has quoted.
+    baseline_embedding:
+      parameter_slice: >-
+        eta -> infinity with sigma^2 = eta/2 held fixed by rescaling is the exact old-method
+        boundary - the CBD converges to the Gaussian and phi_CBD -> phi_G pointwise, so the
+        correction term must vanish in that limit. It is a runnable configuration of the
+        closed-form evaluator, not a limit argument.
+      reproduction_check: >-
+        Symbolic: the Stage-1 evaluator, given a Gaussian law, must reproduce the estimator's
+        committed advantage figures digit for digit at the committed attack parameters. Given
+        CBD with eta large and rescaled, it must converge to the same figures monotonically. A
+        frozen fixture stores both.
+    observation_collision:
+      observable: >-
+        The noise law's variance sigma^2 - which is the entire observable the instrument records.
+      distinct_preimage_search: >-
+        COLLISION EXHIBITED, NOT MERELY SEARCHED FOR. CBD(2) and the discrete Gaussian with
+        sigma = 1 have identical variance and are therefore identical under the instrument's
+        observable, while differing in every higher even cumulant - the fourth differs by 1.5
+        against 2 in Var(||e||^2) per coordinate. A second pair on opposite sides of a conclusion:
+        the uniform law on a matched-variance support has the LIGHTEST tail and the largest
+        deviation from the Gaussian, while a mixture law can be constructed with matched variance
+        and a HEAVIER tail than the Gaussian, so the observable cannot even order the arms by
+        difficulty. The separating condition is to record the cumulant sequence, or equivalently
+        phi on the probed band, alongside sigma - which is this record's deliverable.
+    constructive_transforms:
+      - transform: stronger_invariant
+        proposed_object: >-
+          Carry phi restricted to the probed frequency band (equivalently the first few cumulants)
+          instead of the variance alone. The stronger state is what survives the distinguisher's
+          own operation - a product over coordinates - because the product of Gaussians is only an
+          approximation to the product of the true transforms and the error compounds coordinatewise.
+        predicted_gain: >-
+          A signed, closed-form correction to the log-advantage, decomposed by block: order
+          1/(2 eta d) relative on the reduced-lattice block, and order 1 in the theta^4 term on any
+          block whose probed frequencies are order 1. Output measured in bits of attack cost per
+          parameter set.
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the observable (sigma) fixed, vary the forgotten structure (the higher cumulants),
+          and exhibit an intrinsic invariant distinguishing the resulting instances - here
+          Var(||e||^2)/d = mu4 - sigma^4, which is 1.5 for CBD(2), 2 for the matched Gaussian, and
+          different again for the uniform arm.
+        predicted_gain: >-
+          A measured dispersion ratio in recovery blocksize with a derived target of sqrt(0.75) =
+          0.866, against an instrument prediction of exactly 1.
+    quantifier_order: >-
+      FOR EACH parameter set and FOR EACH block B in {reduced-lattice, enumeration/FFT}, THERE
+      EXISTS a correction Delta(B) in bits, computed in closed form, such that the true
+      log-advantage equals the Gaussian-modelled one minus Delta(B). THE DISCRIMINATING CLAIM,
+      which can fail: THERE EXISTS a parameter set for which Delta(enumeration/FFT) >= 0.1 bits
+      while Delta(reduced-lattice) < 0.01 bits, i.e. the error is LOCALISED. NOT claimed: anything
+      uniform over attack families, anything about laws other than the three arms, anything about
+      dependent noise (Stage 3 measures that and derives nothing), and nothing about published
+      analyses until Stage 0 reads them.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "For the noise laws and attack parameters named, the exact characteristic-function
+        computation differs from the matched-variance Gaussian model by Delta bits, decomposed by
+        block, and the measured dispersion of recovery blocksize differs between matched-variance
+        laws by ratio r at dimensions n in [40, 60]." Nothing about FIPS 203-dimension recovery,
+        nothing about security, nothing about the compression term beyond the measured scale.
+      nearby_object_control: >-
+        The nearby object where the hoped-for conclusion fails is a matched-variance law whose
+        fourth cumulant EQUALS the Gaussian's - constructible as a discrete law on a small support
+        with mu4 = 3 sigma^4. The method must report zero correction and zero dispersion difference
+        for it. If it reports a difference there, the pipeline is measuring support size or
+        integrality rather than the cumulant, and has not identified the load-bearing structure.
+    proof_obligations:
+      - claim: The closed form cos^(2 eta)(theta/2) is re-derived symbolically and checked against 10^7 samples.
+        responsibility: correctness
+      - claim: With a Gaussian law the evaluator reproduces the committed advantage figures exactly.
+        responsibility: baseline
+      - claim: The estimator returns identical costs across all matched-variance arms (NULL-M).
+        responsibility: interface
+      - claim: The matched-fourth-cumulant nearby object returns zero difference in both arms.
+        responsibility: strictness
+      - claim: Mean beta* agrees across primal arms within sampling error (NULL-E).
+        responsibility: correctness
+      - claim: No statement is made about published analyses before Stage 0 reads them.
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: >-
+        Delta, the closed-form correction to the dual distinguisher's log-advantage on the
+        ENUMERATION/FFT block, in bits of attack cost, at the committed attack parameters
+      direction: higher
+      minimum_effect: >-
+        0.1 bits at at least one parameter set for the localisation claim to stand. Below 0.01
+        bits on both blocks at all three sets refutes the claim and validates the sigma-only
+        projection with a number.
+    - metric: >-
+        Delta on the REDUCED-LATTICE block, relative to the Gaussian log-advantage
+      direction: lower
+      minimum_effect: >-
+        Predicted approximately 1/(2 eta d), i.e. below 0.3 percent at d of order 400 and eta = 2;
+        a measured value above 1 percent falsifies the derivation and sends Stage 1 back to the
+        algebra rather than forward to a conclusion.
+    - metric: >-
+        ratio of the standard deviation of recovery blocksize beta* between the CBD(2) arm and the
+        matched-variance discrete Gaussian arm, paired on A and s
+      direction: lower
+      minimum_effect: >-
+        Predicted sqrt(0.75) = 0.866; the discriminating threshold is a 95 percent interval
+        excluding 1.0, which is the instrument's forced prediction. An interval containing 1.0
+        across a well-powered grid is a measured statement that the fourth cumulant does not
+        propagate into beta* dispersion at these dimensions.
+    - metric: >-
+        difference in mean beta* between the true-compression ciphertext arm and the
+        independent-uniform surrogate at matched variance
+      direction: different
+      minimum_effect: >-
+        1 blocksize unit. A difference here is structural, not a moment effect, and is the one
+        outcome Stage 1's closed form does not predict.
+  minimal_test:
+    design: >-
+      Stage 1 alone is the minimal discriminator and needs no lattice computation at all -
+      re-derive the CBD characteristic function, evaluate the exact and the Gaussian log-advantage
+      at the committed attack parameters, decompose by block, and report the difference in bits.
+      Hours of arithmetic. Stages 2 and 3 are the measured follow-ons and are only worth running if
+      Stage 1 does not already close the question.
+    controls:
+      - NULL-M, the forced null - the estimator must return identical costs across matched-variance arms.
+      - NULL-E, equal means across primal arms.
+      - NULL-G, same-law-both-arms dispersion ratio must be 1 within interval.
+      - NULL-D, the closed form checked against 10^7 samples.
+      - The matched-fourth-cumulant nearby object, which must return zero difference.
+      - The eta -> infinity rescaled limit, which must converge to the Gaussian figures monotonically.
+    required_metrics:
+      - phi_CBD and phi_G evaluated on the probed frequency band, with the band recorded
+      - Delta in bits, per block, per parameter set
+      - the 2-norm and the 4-norm of the probed vectors, since the model uses only the first
+      - beta* per instance per arm, with the pairing key recorded
+      - mean and standard deviation of beta* per arm, with intervals and the censoring map
+      - the estimator's own predicted difference (zero) printed alongside every measured difference
+  falsification_conditions:
+    - >-
+      If Delta is below 0.01 bits on both blocks at all three parameter sets, the sigma-only
+      projection is validated quantitatively for the dual family, the claim in part (C) is
+      REFUTED, and a whole class of objections to this lane's dual figures closes with a number.
+    - >-
+      If the measured dispersion ratio's interval contains 1.0 on a well-powered grid, the fourth
+      cumulant does not propagate into beta* at these dimensions and part (D) is refuted as a
+      measurable effect, whatever the algebra says about ||e||.
+    - >-
+      If Stage 0 finds that the estimator path this program calls accepts a full distribution
+      rather than a variance, the forced null does not exist, part (A)'s premise is wrong, and the
+      record says so rather than salvaging.
+    - >-
+      If Stage 0 finds that MATZOV or the pinned estimator already computes the exact CBD
+      transform, the analytic arm demotes to a literature note confirming existing practice - a
+      good outcome and a cheap one.
+  confounders:
+    - >-
+      Matched variance is not matched anything else. The uniform arm has a different support
+      radius as well as a different fourth cumulant, so a difference there cannot be attributed to
+      the cumulant alone. Only the CBD-versus-Gaussian pair isolates the cumulant at fixed support
+      scale, and the uniform arm is reported as a direction indicator, not as an estimate.
+    - >-
+      Censoring in the primal arms is not law-independent - the arm with lighter tails censors
+      differently - so a naive dispersion estimate is biased by exactly the effect being measured.
+      The analysis must use a censoring-aware dispersion estimator and report the censoring map,
+      or report an interval that covers the censoring uncertainty.
+    - >-
+      The discrete Gaussian is itself a discretisation with its own cumulants, not a true Gaussian.
+      Its mu4 is not exactly 3 sigma^4 at small sigma, and the predicted ratio 0.866 must be
+      recomputed from the ACTUAL sampler's empirical moments rather than from the continuous
+      formula. This is a first-order correction to the record's own prediction and is flagged
+      rather than absorbed.
+    - >-
+      At the frequencies where the theta^4 term matters, the theta^6 term may matter too. The
+      closed form is exact and should be evaluated exactly rather than by truncated expansion; the
+      expansion appears in this record only to exhibit the sign and the 4-norm dependence.
+  interpretation_limits:
+    - >-
+      The analytic arm is exact for independent noise coordinates and says nothing about the
+      compression term, which is not independent. That boundary is the record's declared reach.
+    - >-
+      Stage 2 and Stage 3 are measured at n in [40, 60], an order of magnitude below FIPS 203
+      dimensions. A dispersion ratio measured there is a statement about there. The one quantity
+      that transfers without extrapolation is the Stage-1 closed form, which is evaluated at the
+      actual parameters because it requires no simulation.
+    - >-
+      A correction that makes the attack HARDER than modelled is not a security improvement for
+      ML-KEM in any operational sense; it is a statement about a model's error, and the honest
+      reading is that the model was not tight, in a direction that happens to favour the defender.
+    - >-
+      Claim tier: toy-tier for the measured arms under docs/claims-and-verification.md. The
+      analytic arm is a derivation, not a measurement, and is reported as such.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a dual vector w whose coordinates on the reduced-lattice block behave like independent
+        draws of size L/sqrt(d), the aggregate fourth-order correction to the log-advantage is
+        (eta/96)(2 pi/q)^4 sum_j w_j^4, whose expectation is (eta/32)(2 pi/q)^4 L^4/d, giving a
+        relative correction to the log-advantage of approximately 1/(2 eta d) at the operating
+        point where the Gaussian exponent is of order 1.
+      rigorous_support: >-
+        The identity ln phi_CBD(theta) = -eta theta^2/4 - eta theta^4/96 - O(theta^6) is exact and
+        elementary, and the aggregate correction is exactly (eta/96)(2 pi/q)^4 ||w||_4^4 with no
+        heuristic content. What is heuristic is the step E[||w||_4^4] = 3 L^4/d, which imitates the
+        standard fourth-moment identity for a vector with independent coordinates of equal
+        variance - the classical statement it borrows from is the Gaussian fourth-moment relation
+        E[X^4] = 3 (E[X^2])^2. Reduced dual vectors are NOT isotropic - a BKZ-reduced basis has a
+        strongly non-flat profile - so this is precisely where the assumption can fail, and it
+        fails in the direction of a LARGER correction if the vector's mass concentrates on few
+        coordinates.
+      validation_plan: >-
+        Sample: generate reduced dual vectors at n in [40, 80] with the same q-ary shape and the
+        same reduction quality target as the committed attack parameters, at least 10^4 vectors
+        across at least four dimensions, and measure the empirical ratio ||w||_4^4 d / ||w||_2^4
+        against the isotropic prediction of 3. Compare the empirical distribution of that ratio
+        against the prediction, and run the tail check on the most concentrated vector observed
+        (the largest ratio) rather than only on the mean, because the correction is driven by
+        concentration. Transfer assumption, stated explicitly: the measured ratio at n <= 80 is
+        extrapolated to the committed sieve dimensions only if it is flat in n across the sampled
+        band; if it drifts, the record reports the drift and refuses the extrapolation.
+    - id: H2
+      statement: >-
+        The recovery blocksize beta* is a monotone, locally affine function of log ||e|| in the
+        reachable band, so Var(beta*) = (d beta*/d log ||e||)^2 Var(log ||e||) to first order, and
+        a ratio of 0.75 in Var(||e||^2) between two matched-variance laws appears as a ratio of
+        sqrt(0.75) = 0.866 in the standard deviation of beta*.
+      rigorous_support: >-
+        Monotonicity of the uSVP success condition in the target vector's norm is standard and is
+        what every primal-attack success estimate rests on; the local affinity is the standard
+        delta-method step and imitates the classical first-order propagation-of-error argument.
+        What is unproved is the SIZE of the derivative and whether it is stable across the band, so
+        the record predicts the RATIO (in which the derivative cancels) rather than the absolute
+        dispersion, which is the only form of the claim that survives the unknown derivative.
+      validation_plan: >-
+        Sample: at each of at least three dimensions in [40, 60], at least 200 paired instances per
+        arm, recording beta* and the realised ||e|| for every instance. Compare the empirical
+        joint distribution of (||e||, beta*) against the assumed monotone relation by measuring the
+        rank correlation and the fitted local slope, and check that the slope is common to both
+        arms - a slope that differs between arms would mean the laws differ in more than dispersion
+        and the ratio prediction is void. Tail check: the shortest and longest ||e|| observed in
+        each arm must sit at the beta* extremes predicted by the fitted relation. Predicted
+        comparison distribution: the sampling distribution of a variance ratio, i.e. an F
+        distribution with the achieved degrees of freedom, against the point prediction 0.75.
+  target_complexity:
+    time_exponent: >-
+      No attack is proposed and no exponent is claimed. The correction this record computes is a
+      multiplicative factor on the dual distinguisher's advantage, which enters the attack cost as
+      an additive term in bits, not as a change of exponent. Stated plainly so it is not read as
+      exponent-moving work.
+    memory_exponent: >-
+      Unchanged from the modelled attack. This record moves no memory term.
+    best_known: >-
+      MODEL-RELATIVE. The relevant baseline is the dual and hybrid cost this program has quoted
+      under RC.MATZOV, whose advantage computation uses a noise model this record proposes to
+      correct. That baseline is a cost-model output, not a run; "the best known dual cost" at
+      FIPS 203 parameters is a number produced by an instrument, and the correction proposed here
+      applies to the instrument, not to any executed attack.
+    hidden_overhead: >-
+      The closed form is exact only under coordinate independence. The compression term violates
+      it and is handled by measurement, at a scale far below FIPS 203, so the ciphertext-side
+      statement carries the full extrapolation gap and is not folded into the analytic result.
+    tradeoff_note: >-
+      Not a time-memory tradeoff. The one tradeoff-like structure present is the block
+      decomposition - the correction is suppressed by 1/d where the attack spreads its probe over
+      many coordinates and is not suppressed where it concentrates on few - so an attacker who
+      shifts work from the lattice block to the enumeration block moves INTO the regime where the
+      model error is largest. That is a statement about where the model is weakest, not about where
+      the attack is fastest.
+  dominated_by: >-
+    n/a (no attack or complexity result claimed). Pareto check run against every row this program
+    holds on the relevant frontier - EV-MLKEM-020's eighteen attack cells across two cost models
+    and three parameter sets, EV-MLKEM-015's pinned-estimator figures, and the external points
+    recorded in the corpus (KN-LIT-110, KN-LIT-122) - and none of them computes the quantity this
+    record computes, because none of them carries a noise coordinate beyond the variance. Nothing
+    dominates a correction nobody else has evaluated; that is coverage, not merit. If Stage 0 finds
+    a published analysis using the exact transform, THAT analysis dominates this record's analytic
+    arm entirely and the record says so and demotes itself.
+  sota_delta: >-
+    Bounded in advance and small, disclosed rather than dressed up. The analytic arm can move a
+    quoted dual or hybrid cost by Delta bits, predicted to be under 0.01 bits on the
+    reduced-lattice block and open on the enumeration/FFT block; the measured arm produces a
+    dispersion ratio, not a cost. Against EV-MLKEM-020's smallest committed margin of 1.276377
+    bits, a correction under 0.01 bits is decision-irrelevant and the honest sota_delta is zero -
+    which is exactly why the localisation claim, where the correction is not suppressed, is the
+    part of this record worth testing first.
+  estimated_cost:
+    implementation: low
+    compute: medium
+  recommended_priority: medium
+  status: proposed
+  proposed_by: idea-generator
+  source_refs:
+    - RQ-MLKEM-003
+    - EV-MLKEM-020
+    - IDEA-20260816-bd7f26
+    - IDEA-20260828-5b7795
+  id_allocation_provenance: >-
+    ID supplied pre-minted and collision-checked by the dispatching session; not minted by this
+    subagent.

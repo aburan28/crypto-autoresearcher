@@ -1,0 +1,178 @@
+execution_report:
+  experiment_id: EXP-MLKEM-002
+  task_id: TASK-20260724-228
+  status: completed
+  inference:
+    requested_policy: executor-terra
+    resolved_model: cursor-grok-4.5-high
+    fallback_used: true
+  implementation_commit: e829ef7c26549dc3ee62796c89f16b1d1ac2500b
+  dirty_tree_at_execution: true
+  protocol_deviations:
+    - "v5.9.2 header path repair (__has_include mlkem.h); attest length/index fixes; qemu -L sysroot for aarch64; see implementation.md"
+  runs:
+    RUN-MLKEM-005:
+      status: completed_valid
+      validity: valid
+      wall_seconds: 0.2608344554901123
+    RUN-MLKEM-006:
+      status: completed_valid
+      validity: valid
+      wall_seconds: 0.24035906791687012
+      note: "Successful probe pass after in-session build/probe repair; libs built earlier under /tmp"
+    RUN-MLKEM-007:
+      status: completed_valid
+      validity: valid
+      wall_seconds: 0.01631450653076172
+    RUN-MLKEM-008:
+      status: completed_valid
+      validity: valid
+      wall_seconds: 0.148040771484375
+      note: "Emulated with qemu-aarch64-static -L /usr/aarch64-linux-gnu"
+  controls:
+    CTRL-SOURCE-PREMISE: pass
+    CTRL-BACKEND-ATTESTATION: pass
+    CTRL-VALID-KAT: pass
+    CTRL-SCALAR-CROSS-COMMIT: pass
+    CTRL-IMPLICIT-REJECTION-SHAPE: pass
+    CTRL-LENGTH-VERSUS-CONTENT: pass
+    CTRL-NEGATIVE-HARNESS: pass
+  negative_harness:
+    reported_before_library_build_conclusions: true
+    detected: true
+    omitted_ranges:
+      ML-KEM-512: [384, 768]
+      ML-KEM-768: [544, 1088]
+      ML-KEM-1024: [784, 1568]
+  premise_verdicts:
+    CVE-2026-10097:
+      ors_entry: ORS-025
+      verdict: present
+      evidence:
+        file: wolfcrypt/src/wc_mlkem_asm.S
+        function: mlkem_cmp_avx2
+        prefix_lines: 16588-16755
+        postfix_lines: 15378-15548
+        prefix_bytes_covered_mlkem1024: 1536
+        postfix_bytes_covered_mlkem1024: 1568
+        detail: "v5.9.1 stops after vmovdqu 1504(%rdi) (covers 1536 bytes); v5.9.2 adds vmovdqu 1536(%rdi) for the final 32 bytes (PR 10430)."
+    CVE-2026-6330:
+      ors_entry: ORS-026
+      verdict: present
+      evidence:
+        file: wolfcrypt/src/port/arm/armv8-mlkem-asm.S
+        function: mlkem_cmp_neon
+        prefix_reduction_line: 8930
+        postfix_reduction_line: 8942
+        prefix_instruction: "ins v9.b[0], v8.b[1]"
+        postfix_instruction: "ext v9.16b, v8.16b, v8.16b, #8"
+        detail: "Full-length ld4/ld2 loads; defective horizontal reduction on v5.9.1 ignores accumulator lanes mapping to the second half of each 64-byte block (PR 10192)."
+  byte_coverage:
+    all_attested_backends_parameter_sets: 1.0
+    gaps: []
+  silent_byte_findings:
+    BUILD-PREFIX-SCALAR: {ML-KEM-512: [], ML-KEM-768: [], ML-KEM-1024: []}
+    BUILD-PREFIX-AVX2:
+      ML-KEM-512: []
+      ML-KEM-768: []
+      ML-KEM-1024: [1536, 1537, 1538, 1539, 1540, 1541, 1542, 1543, 1544, 1545, 1546, 1547, 1548, 1549, 1550, 1551, 1552, 1553, 1554, 1555, 1556, 1557, 1558, 1559, 1560, 1561, 1562, 1563, 1564, 1565, 1566, 1567]
+    BUILD-POSTFIX-SCALAR: {ML-KEM-512: [], ML-KEM-768: [], ML-KEM-1024: []}
+    BUILD-POSTFIX-AVX2: {ML-KEM-512: [], ML-KEM-768: [], ML-KEM-1024: []}
+    BUILD-PREFIX-NEON:
+      ML-KEM-512_count: 384
+      ML-KEM-768_count: 544
+      ML-KEM-1024_count: 784
+      pattern: "indices i where (i % 64) >= 32 within full-length blocks; plus second half of ML-KEM-1024 remainder (see coverage_maps.json)"
+    BUILD-POSTFIX-NEON: {ML-KEM-512: [], ML-KEM-768: [], ML-KEM-1024: []}
+  scalar_versus_optimized_disagreement_counts:
+    prefix_avx2:
+      ML-KEM-512: 0
+      ML-KEM-768: 0
+      ML-KEM-1024: 32
+    postfix_avx2:
+      ML-KEM-512: 0
+      ML-KEM-768: 0
+      ML-KEM-1024: 0
+    prefix_neon_versus_scalar_counts:
+      ML-KEM-512: 384
+      ML-KEM-768: 544
+      ML-KEM-1024: 784
+    postfix_neon_versus_scalar_counts:
+      ML-KEM-512: 0
+      ML-KEM-768: 0
+      ML-KEM-1024: 0
+  integration_observation:
+    BUILD-PREFIX-AVX2_ML-KEM-1024:
+      silent_indices_tested: 32
+      seeds: 2
+      integration_accept_on_mutation_true: 43
+      integration_accept_on_mutation_false: 21
+      note: "Primitive silent set complete; integration accept not universal across all silent index/seed pairs. Recorded without exploitation."
+  outcome_classification: suite_is_discriminating
+  outcome_selection_evidence:
+    - "CTRL-NEGATIVE-HARNESS detected exact omitted ranges before library conclusions (invalid_harness_or_dispatch not selected)"
+    - "Both CVE premises present with file/function/line evidence (premise_unverified not selected)"
+    - "Verified incomplete comparisons yielded nonempty silent sets matching source omissions: AVX2 32 bytes at 1536..1567; NEON half-block pattern with counts 384/544/784 (positive_control_undetected not selected)"
+    - "Post-fix AVX2 and NEON showed zero silent bytes / zero scalar disagreements at full coverage (residual_patched_disagreement not selected)"
+    - "Therefore suite_is_discriminating under frozen precedence"
+  conformance_anchor_used: deterministic_encap_decap_self_consistency
+  conformance_anchor_strength: weakest_accepted
+  source_commits:
+    prefix_tag_object: fb2d72b70f4f823efa7dddf9e427700864adf513
+    postfix_tag_object: a82476d144290bf6a786607a16c224acff63d882
+    prefix_peeled: 1d363f3adceba9d1478230ede476a37b0dcdef24
+    postfix_peeled: ac01707f552c611fbd135cc723b2682b3e7f80f2
+  scope_statement: >-
+    No key recovery, oracle construction, exploitation path, query chaining,
+    attack-cost estimation, timing/power/EM/cache/fault measurement, or
+    deployed-system / third-party key interaction was performed. No claim
+    about MLWE hardness or passive ML-KEM security is made. Results are
+    scoped to the two exact commits and attested backends built here.
+  anomalies:
+    - "Algorithm-18 integration accept on PREFIX-AVX2 silent indices was 43/64 rather than 64/64; primitive coverage remains complete."
+  completion_gate_passed: true
+  budget:
+    total_wall_clock_seconds_cap: 5400
+    measured_run_manifest_wall_sum_seconds: 0.6655488014221191
+    peak_memory_gb_observed_under_cap: true
+    maximum_runs: 4
+  artifact_paths:
+    - experiments/EXP-MLKEM-002/source-lock.yaml
+    - experiments/EXP-MLKEM-002/implementation/build_matrix.sh
+    - experiments/EXP-MLKEM-002/implementation/comparison_probe.c
+    - experiments/EXP-MLKEM-002/implementation/mutation_grid.py
+    - experiments/EXP-MLKEM-002/implementation/source_premise_audit.py
+    - experiments/EXP-MLKEM-002/implementation/run_experiment.py
+    - experiments/EXP-MLKEM-002/analysis/comparison_function_inventory.md
+    - experiments/EXP-MLKEM-002/analysis/premise_verdicts.yaml
+    - experiments/EXP-MLKEM-002/analysis/coverage_maps.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/manifest.yaml
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/command.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/environment.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/raw.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/summary.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/stdout.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-005/stderr.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/manifest.yaml
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/command.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/environment.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/raw.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/summary.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/stdout.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-006/stderr.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/manifest.yaml
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/command.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/environment.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/raw.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/summary.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/stdout.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-007/stderr.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/manifest.yaml
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/command.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/environment.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/raw.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/summary.json
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/stdout.txt
+    - experiments/EXP-MLKEM-002/runs/RUN-MLKEM-008/stderr.txt
+    - experiments/EXP-MLKEM-002/implementation.md
+    - experiments/EXP-MLKEM-002/execution-report.yaml

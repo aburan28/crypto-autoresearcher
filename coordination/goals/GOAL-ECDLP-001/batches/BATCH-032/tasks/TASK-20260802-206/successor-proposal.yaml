@@ -1,0 +1,209 @@
+schema_version: "1.0"
+task_id: TASK-20260802-206
+record_kind: idea_proposal
+proposal_id: IDEA-20260802-206-01
+title: certificate_bearing_auxiliary_power_two_stage_recovery
+official_state_change: none
+breakthrough_claim: false
+closure_claim: false
+experiment_executed: false
+implementation_created: false
+
+research_question: "Does a fully typed auxiliary-power recovery construction realize the exact sqrt((N-1)/d)+sqrt(d) bound without hiding fiber, acquisition, certificate, memory, or failure costs?"
+
+named_premise_violation:
+  barrier_premise: "The input is an ordinary ECDLP instance containing only P and Q=[x]P."
+  changed_premise: "The instance additionally supplies A=[x^d mod N]P for public d | (N-1)."
+  relation_to_fixed_field_barrier: "No anomalous order, lower embedding degree, subfield, or within-class isogeny weakness is asserted."
+  relation_to_information_loss_barrier: "The complete d-element fiber is searched rather than omitted."
+
+mechanism:
+  source:
+    curve: "E/F_p"
+    subgroup: "G=<P>, prime order N"
+    scalar_orientation: "Q=[x]P"
+    nonzero_case: "x in F_N^*"
+  auxiliary_input:
+    divisor: "d | (N-1)"
+    group_element: "A=[x^d mod N]P"
+    type_warning: "z->z^d acts on F_N^* and is not assumed to be an efficiently computable point map."
+  target:
+    output: "x in F_N"
+    certificate: "x"
+    verifier:
+      - "Q == [x]P"
+      - "A == [x^d mod N]P"
+  exact_domains:
+    image_stage:
+      set: "im(z->z^d on F_N^*)"
+      cardinality: "(N-1)/d"
+    fiber_stage:
+      set: "f_d^(-1)(f_d(x))"
+      cardinality: d
+  proposed_reduction:
+    name: APR-206
+    description: "Construct typed meet-in-the-middle relations that exhaust both domains and recover x."
+    current_proof_state: open
+    required_time: "O(sqrt((N-1)/d)+sqrt(d)) group operations"
+    required_memory: "O(sqrt((N-1)/d)+sqrt(d)) group elements"
+    required_success: "1 for well-formed input under deterministic exhaustive coverage"
+    stopping_rule:
+      image_table_bound: "ceil(sqrt((N-1)/d))"
+      fiber_table_bound: "ceil(sqrt(d))"
+      failure: "Return invalid_auxiliary_input_or_failed_obligation if no verifier-accepted x is produced within both bounds."
+
+predictions:
+  - id: PR-206-01
+    statement: "A correct APR-206 derivation has two explicit search domains with exact sizes (N-1)/d and d."
+    falsification: "A required state lies outside those domains or a claimed collision does not yield a valid scalar equation."
+
+  - id: PR-206-02
+    statement: "For d=N^(delta+o(1)), complete online time has exponent tau=max((1-delta)/2,delta/2)."
+    falsification: "Any omitted operation, retry, or success factor raises the exponent to at least 1/2."
+
+  - id: PR-206-03
+    statement: "The cost curve is minimized near delta=1/2 and increases when delta moves toward either 0 or 1."
+    falsification: "A purported derivation improves monotonically as d approaches N while not paying the d-element fiber stage."
+
+  - id: PR-206-04
+    statement: "The recovered x is publicly verifiable in N^(o(1)) group operations."
+    falsification: "Verification requires an unavailable scalar, an untyped point operation, or work of exponent at least 1/2."
+
+  - id: PR-206-05
+    statement: "Destroying the correlation between Q and A removes the auxiliary-input advantage."
+    falsification: "The identical computation retains the claimed advantage for independent or permuted A."
+
+test_boundary:
+  included:
+    - prime_order_subgroup
+    - "d divides N-1"
+    - auxiliary_power_input_well_formed
+    - deterministic_table_based_two_stage_recovery
+    - exact_group_operation_and_memory_accounting
+    - scalar_certificate_verification
+  excluded:
+    - deriving_A_from_an_ordinary_ECDLP_instance_for_free
+    - fixed_field_isogeny_creation_of_A
+    - low_memory_random_walk_variant
+    - extension_field_transfer
+    - composite_order_subgroups
+    - any_empirical_performance_claim
+
+falsification_criteria:
+  candidate_algorithm:
+    - "APR-206 cannot be written with type-correct group operations from P, Q, A, and public scalars."
+    - "The purported meet-in-the-middle equality does not algebraically imply a recoverable constraint on x."
+    - "One stage has more than its stated exact cardinality."
+    - "The d-element fiber is sampled rather than exhaustively resolved and inverse success raises total time to exponent at least 1/2."
+    - "Certificate verification fails for a purported output."
+    - "Hidden preprocessing, memory, or data acquisition raises an asserted coordinate beyond its recorded value."
+  ordinary_ECDLP_escape:
+    - "No source of A is supplied."
+    - "Acquiring A has exponent a>=1/2."
+    - "The claimed source of A already reveals x or embeds equivalent ECDLP work."
+  balanced_one_quarter_row:
+    - "The target family lacks divisors d=N^(1/2+o(1))."
+    - "APR-206 adds an overhead of exponent at least 1/4 beyond either stage."
+
+controls:
+  - id: CTRL-206-01
+    kind: cardinality_preserving_null
+    construction: "Replace A=[x^d]P by a uniform independent group element with identical encoding and table dimensions."
+    expected_result: "No auxiliary advantage over the matched generic baseline."
+
+  - id: CTRL-206-02
+    kind: fiber_label_permutation
+    construction: "Permute A values across independent (P,Q) instances while preserving marginal distributions."
+    expected_result: "Certificate acceptance and claimed recovery advantage disappear."
+
+  - id: CTRL-206-03
+    kind: M_limit
+    construction: "Audit symbolic costs as d grows from N^(epsilon) through N^(1-epsilon)."
+    expected_result: "The total exponent follows max((1-delta)/2,delta/2), with a minimum at delta=1/2."
+
+  - id: CTRL-206-04
+    kind: inverse_success_restoration
+    construction: "Delete the exhaustive fiber stage and permit one root guess."
+    expected_result: "Success becomes 1/d and expected attempts are multiplied by d."
+
+  - id: CTRL-206-05
+    kind: scalar_orientation_and_types
+    construction: "Check every relation against Q=[x]P and A=[x^d mod N]P."
+    expected_result: "Any reversed scalar equation or scalar/point type confusion is rejected."
+
+  - id: CTRL-206-06
+    kind: matched_accounting
+    construction: "Compare in one vector of group operations, stored group elements, preprocessing, secret-dependent inputs, queries, verification, and retries."
+    expected_result: "The augmented-input row remains a time-memory tradeoff and does not become an ordinary-ECDLP claim."
+
+expected_cost:
+  asymptotic_regime: "d=N^(delta+o(1)), 0<delta<1"
+  per_attempt:
+    time: "N^((1-delta)/2+o(1)) + N^(delta/2+o(1))"
+    memory: "same exponent as time for the table construction"
+  success_probability: "1 conditional on APR-206"
+  inverse_success_multiplier: 1
+  total_time_exponent: "tau=max((1-delta)/2,delta/2)"
+  total_memory_exponent: tau
+  verification_exponent: "0"
+  preprocessing_exponent: "0"
+  data:
+    secret_dependent_group_elements: 1
+    bits: "Theta(log N)"
+  queries:
+    during_solve: 0
+    if_oracle_supplied: 1
+  amortization: "none; A is target-specific"
+  acquisition_boundary:
+    exponent: a
+    end_to_end_time_exponent: "max(a,tau)"
+    ordinary_input_gain_condition: "a<1/2 and max(a,tau)<1/2"
+
+pareto:
+  comparison_domain: auxiliary_power_ECDLP
+  matched_pollard:
+    time_exponent: "1/2"
+    memory_exponent: "0"
+    secret_dependent_aux_elements: 1
+  candidate:
+    time_exponent: tau
+    memory_exponent: tau
+    secret_dependent_aux_elements: 1
+  dominated_by: null
+  null_justification: "Matched Pollard has lower memory and higher time; no authorized augmented-input row is no worse in every coordinate."
+  sota_delta:
+    online_time: "-min(delta,1-delta)/2"
+    memory: "+tau"
+    preprocessing: "0"
+    data_elements: 0
+    balanced_delta_one_half:
+      online_time: "-1/4"
+      memory: "+1/4"
+  ordinary_ECDLP_sota_delta: not_established
+
+survival_assessment:
+  accounting: "survives symbolically with both stages, success probability, memory, data, queries, preprocessing, and verification charged"
+  proof: "conditional on open APR-206"
+  input_scope: augmented_only
+  concrete_family: open
+  experimental_evidence: none
+  conclusion: "Promising premise-changing theory route; insufficient for any official claim."
+
+minimal_discriminating_successor:
+  kind: proof_only
+  experiment_budget: 0
+  coordinator_option: "Commission a bounded theory handoff to reconstruct APR-206 line by line, followed by independent adversarial review before any implementation is considered."
+  required_deliverables:
+    - typed_algorithm_pseudocode
+    - algebraic_invariant_for_each_stage
+    - collision_to_scalar_recovery_proof
+    - exact_domain_cardinality_proof
+    - complete_time_memory_data_query_table
+    - explicit_auxiliary_input_acquisition_scope
+    - certificate_verifier
+    - independent_review_findings
+  completion_gate:
+    - PO-206-10_discharged_or_candidate_falsified
+    - no_untyped_scalar_point_operations
+    - no_omitted_inverse_success
+    - no_ordinary_ECDLP_claim_without_A_acquisition

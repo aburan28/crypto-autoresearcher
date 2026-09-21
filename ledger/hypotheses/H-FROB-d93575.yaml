@@ -1,0 +1,399 @@
+hypothesis:
+  id: H-FROB-d93575
+  question_id: RQ-FROB-7d8dd4
+  proposal_id: IDEA-20260914-e2e0cf
+  source_idea_id: IDEA-20260914-e2e0cf
+  recorded_at: '2026-09-14'
+
+  statement: >-
+    Let E/F_q be an ordinary subfield curve considered over F_{q^n} with p not
+    dividing n, let <G> be a prime-order subgroup of order N not contained in a
+    proper subfield, and let x^n - 1 = (x-1)*f_1*...*f_s over F_q. For each
+    partition P of {f_1,...,f_s} into m groups, let V_1,...,V_m be the
+    corresponding Frobenius-stable F_q-subspaces of F_{q^n}, let
+    B_j = {Q in <G>\{O} : x(Q) in V_j}, let p_m(P) be the exact fraction of
+    <G>\{O} expressible as Q_1 + ... + Q_m with Q_j in B_j, and let U(P) be the
+    exact number of relation columns of the union. Then, at fixed total slot
+    dimension sum_j dim V_j = n - 1, the combinatorial cost ratio
+    (U(P) + 1 + extra)/p_m(P) varies across P by at least a factor 4 in a cell
+    whose x^n - 1 splits completely, its minimum is attained at a partition with
+    m >= 2 and balanced slot dimensions, and the within-cell improvement factor
+    is at least four times larger there than in a matched cell whose x^n - 1 has
+    no non-trivial factorisation. Separately and independently, the direct sum
+    of the kernels ker f_j(pi) over all j is exactly ker Tr_{F_{q^n}/F_q}, of
+    dimension n - 1.
+
+  mechanism: >-
+    Carry F_{q^n} as an F_q[x]-module by x . u = u^q. With gcd(n, p) = 1 the
+    polynomial x^n - 1 is squarefree, the module is semisimple, and its
+    submodules are exactly ker g(pi) for g dividing x^n - 1, with
+    dim ker g(pi) = deg g. Frobenius-stable factor-base slots are therefore in
+    exact bijection with the divisor lattice, and a PARTITION of the irreducible
+    factors gives a direct sum decomposition whose slot dimensions sum to n - 1
+    (or n if (x-1) is included). Typed decomposition takes one summand from each
+    slot, so the slot count m IS the decomposition arity. Refining a partition
+    shrinks each |B_j| and hence U, while shrinking prod_j |B_j| and hence the
+    yield p_m; coarsening does the reverse. The ratio (U + 1 + extra)/p_m is the
+    quantity that decides the trade, and it is the quantity the sibling
+    implementation minimises exactly. The lattice therefore does not merely
+    permit good slot choices, it BOUNDS them: a cell whose x^n - 1 is
+    (x-1)*(irreducible of degree n-1) has no balanced multi-slot configuration
+    available at all, which is what makes the factorisation type, rather than
+    the field size, the independent structural variable.
+    SECOND, SEPARATE MECHANISM (the trace prediction). The F_q-linear trace is
+    the linearised polynomial h(pi) with h(x) = (x^n - 1)/(x - 1). Squarefreeness
+    makes every irreducible factor other than (x-1) a divisor of h, so semisimple
+    module theory predicts ker f_j(pi) contained in ker h(pi) = ker Tr for every
+    such j, and a dimension count then forces equality of the direct sum with
+    ker Tr. If this holds, a trace-zero condition on the x-coordinate is IMPLIED
+    BY rather than intersected WITH Frobenius stability, so its yield effect is
+    free and composes at zero cost. THIS IS A PREDICTION UNDER TEST. It is
+    re-derived and verified exactly inside EXP-FROB-91ee9c (control C5) and is
+    asserted nowhere before that verification returns.
+
+  assumptions:
+    - p does not divide n; otherwise x^n - 1 is not squarefree and the lattice description fails.
+    - <G> has prime order N, N does not divide #E(F_q), and pi acts on <G> as multiplication by a scalar mu with ord_N(mu) = n.
+    - All instances are self-generated toy curves; deployed Koblitz and sect-family parameters are never instances.
+    - Exact integer and rational arithmetic only; no floating point in any reported quantity.
+    - >-
+      The subspace condition is on the x-COORDINATE. ker Tr here is a subspace of
+      the coordinate field F_{q^n}, not the trace-zero subvariety of the group
+      E(F_{q^n}). These are different objects and are never identified.
+
+  proof_search_map:
+    bottleneck: >-
+      Whether the slot count m, at fixed total slot dimension, moves the
+      combinatorial relation-collection cost ratio (U + 1 + extra)/p_m enough to
+      be a real design axis, and whether the divisor lattice of x^n - 1 is what
+      bounds the achievable minimum. Everything downstream - any charged
+      pipeline, any comparison with rho - is wasted if the axis is flat.
+    baseline_embedding:
+      parameter_slice: >-
+        The coarsest partition, m = 1 with the single slot V = ker h(pi) of
+        dimension n - 1, is exactly the single-invariant-factor-base pipeline of
+        KN-LIT-796's reported construction. At m = 1 the partition effect is zero
+        by construction and the improvement factor I is exactly 1.
+      reproduction_check: >-
+        At m = 1 the instrument must reproduce U = |B|/(2n) signed Frobenius
+        orbit columns, p_1 = |B|/(N-1) exactly, and the ratio (U+1+extra)/p_1
+        computed from those two integers alone, with no tuple enumeration. This
+        is checked symbolically first and then against the enumerator's own
+        m = 1 output; a disagreement invalidates the instrument, not the
+        hypothesis.
+    observation_collision:
+      observable: >-
+        The pair (U(P), p_m(P)) and the derived ratio, per partition, per arm.
+      distinct_preimage_search: >-
+        Two distinct structures can present the same observable and must be
+        separated: (i) a matched-CARDINALITY random point set has the same |B|
+        and therefore the same U in the negation-only presentation, but no linear
+        structure - if it reproduces the object's ratio the ratio is measuring
+        cardinality, not structure; (ii) a matched-DIMENSION non-pi-stable
+        subspace has the same dimension but no Frobenius stability - if it
+        reproduces the object's ratio the ratio is measuring dimension, not
+        stability. Both are run as arms of the same enumeration, not as
+        afterthoughts.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          The divisor lattice of x^n - 1 as the exact index set of Frobenius-stable
+          slots, with partitions of the irreducible factors as the exact index set
+          of direct-sum slot configurations.
+        predicted_gain: >-
+          The achievable design space becomes finitely enumerable and exactly
+          comparable at fixed total dimension, so the slot count can be varied
+          alone. Predicted gain is DIAGNOSTIC RESOLUTION, not attack cost.
+      - transform: stronger_invariant
+        proposed_object: >-
+          ker Tr as the automatic ambient of every non-trivial factor kernel,
+          replacing "Frobenius stability AND trace zero" by "Frobenius stability".
+        predicted_gain: >-
+          If verified, one design constraint is removed at zero cost. If refuted,
+          the two conditions are genuinely independent and every record that
+          assumed otherwise must be corrected.
+    quantifier_order: >-
+      For every named parameter cell (q, n) in the frozen panel, for every
+      partition P of the irreducible factors of x^n - 1 other than (x-1), for
+      every eligible object curve selected by the frozen lexicographic rule, the
+      instrument enumerates ALL m-tuples and computes U(P) and p_m(P) exactly.
+      The existence claim is then: there EXISTS a partition P* attaining the
+      minimum ratio, and for the split cell that minimum is at least a factor 4
+      below the m = 1 value. The witness P* may depend on the cell and on the
+      curve; it may NOT depend on any measured outcome, on any hidden discrete
+      logarithm, or on any comparison with the control arms - the partition set
+      is fixed by the factorisation before any point is enumerated. No uniformity
+      in n, in q, or in the curve is claimed, and none may be inferred.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        An exact, exhaustively enumerated table of (U, p_m, ratio) over the full
+        partition lattice of the tested cells, with matched controls, plus an
+        exact verification or refutation of the ker Tr identity. Nothing about
+        solving cost, nothing about any n or q outside the panel, nothing about
+        any attack, and nothing about any deployed curve.
+      nearby_object_control: >-
+        The nearest object where the hoped-for conclusion must FAIL is the cell
+        whose x^n - 1 = (x-1)*(irreducible of degree n-1): the same n, the same
+        total dimension, the same construction, but no non-trivial partition
+        lattice. A method that reports the same improvement factor there has not
+        identified the load-bearing structure. The matched non-subfield null
+        curve is the second such object.
+    proof_obligations:
+      - responsibility: baseline
+        claim: The m = 1 configuration reproduces the single-invariant-base pipeline exactly, with I = 1.
+      - responsibility: correctness
+        claim: >-
+          Every enumerated tuple sum is verified by independent signed point
+          addition; every claimed membership x(Q) in V_j is verified by exact
+          F_q-linear algebra; every claimed order is verified independently.
+      - responsibility: size
+        claim: >-
+          |B_j| and prod_j |B_j| are bounded above by q^{d_j} and q^{n-1}
+          respectively, and the dominant stored structure is sized analytically
+          before the run and reconciled against measured peak RSS.
+      - responsibility: success_probability
+        claim: >-
+          p_m(P) is the exact rational (number of distinct representable nonzero
+          targets)/(N-1) over the WHOLE prime-order subgroup, obtained by
+          exhaustive tuple enumeration, never by sampling, in every cell of the
+          core panel.
+      - responsibility: interface
+        claim: >-
+          U is reported in two presentations that are never mixed: negation-only
+          (defined on every arm, the only cross-arm comparable one) and
+          Frobenius-plus-negation (defined only where the slot set is pi-stable,
+          null with a reason elsewhere).
+      - responsibility: scope
+        claim: >-
+          The measured ratio is the combinatorial half of relation collection.
+          The per-trial algebraic cost is NOT measured and its exponent depends
+          on d_reg, which is contested (KN-OPEN-d218ec, KN-LIT-71b758). No
+          ranking by solve cost is derivable from this hypothesis.
+      - responsibility: strictness
+        claim: >-
+          Any claimed improvement factor is an exact ratio of exact rationals
+          with both endpoints reported; a factor obtained after excluding any
+          achievable partition is not an improvement factor.
+    not_applicable_reason: null
+
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions: []
+  heuristic_assumptions_note: >-
+    Empty deliberately. This hypothesis makes no heuristic-conditional and no
+    asymptotic claim: every quantity is an exact finite count over an exhaustively
+    enumerated toy panel. The modelled sizing formula frozen in
+    EXP-FROB-91ee9c.preregistered_prediction is a PREDICTION UNDER TEST, not a
+    heuristic the conclusion rests on - if it disagrees with the measurement, the
+    measurement stands and the model is the thing that failed.
+
+  structural_ingredients:
+    - description: >-
+        Normal basis theorem: F_{q^n} is a free rank-one F_q[x]/(x^n - 1) module
+        under x . u = u^q, so Frobenius-stable F_q-subspaces correspond to
+        divisors of x^n - 1 and dim ker g(pi) = deg g when x^n - 1 is squarefree.
+      citation: Standard finite-field theory (normal bases; linearised polynomials)
+      provenance: recalled
+      verified_by: null
+      role: exact description of the achievable slot dimensions
+    - description: >-
+        The F_q-linear trace equals the linearised polynomial h(pi) with
+        h(x) = (x^n - 1)/(x - 1), so ker Tr = ker h(pi) as F_q-spaces.
+      citation: Standard finite-field theory (trace as a linearised polynomial)
+      provenance: recalled
+      verified_by: null
+      role: the identity the trace prediction rests on, verified exactly in-protocol
+    - description: >-
+        Typed and Frobenius-invariant factor bases for subfield curves, with a
+        reported 1/n reduction in the number of polynomial systems and an n^2
+        linear-algebra acceleration.
+      citation: KN-LIT-796 (Galbraith-Granger-Merz-Petit, ePrint 2020/1315)
+      provenance: internal
+      verified_by: TASK-20260906-e02284
+      role: prior construction being swept, not a cost result relied on here
+    - description: >-
+        Chained S_3 system size n(t-1) equations in n(t-2)+k*t variables at degree
+        3, with solving cost explicitly NOT established because it depends on the
+        contested d_reg.
+      citation: KN-TECH-b18366
+      provenance: internal
+      verified_by: TASK-20260914-7119f2-design-session
+      role: the omitted algebraic half, and the reason the omission is disclosed rather than estimated
+
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+
+  predictions:
+    - metric: >-
+        I(cell) = cost_ratio_neg(coarsest achievable partition at total dim n-1)
+        / min over achievable partitions of cost_ratio_neg, at extra = 0
+      direction: higher
+      minimum_effect: I >= 4 in FROB-SPLIT-q11n5, on at least one eligible object curve
+    - metric: I(FROB-SPLIT-q11n5) / I(FROB-NOLATTICE-q13n5)
+      direction: higher
+      minimum_effect: '>= 4'
+    - metric: slot count m at the argmin of cost_ratio_neg in FROB-SPLIT-q11n5
+      direction: different
+      minimum_effect: m >= 2, with the slot dimensions of the argmin as balanced as the lattice permits
+    - metric: spread max/min of cost_ratio_neg across matched control configurations
+      direction: lower
+      minimum_effect: strictly smaller than the object arm's spread in the same cell
+    - metric: dim(sum_j ker f_j(pi)) and set equality with ker Tr
+      direction: different
+      minimum_effect: dimension exactly n-1 and exact set equality in every completed cell
+    - metric: measured cost_ratio versus the frozen modelled cost_ratio
+      direction: different
+      minimum_effect: reported per partition as an exact ratio; no threshold, this is a cost-model accuracy deliverable
+
+  test_boundary:
+    instances:
+      - FROB-SPLIT-q11n5
+      - FROB-EQDEG-q19n5
+      - FROB-NOLATTICE-q13n5
+      - FROB-EXT-q13n7
+    parameters:
+      core_cells:
+        - {q: 11, n: 5, factorisation_of_x_n_minus_1: '(x-1) * five distinct linear factors, s = 4, d = 1', field_size: 161051}
+        - {q: 19, n: 5, factorisation_of_x_n_minus_1: '(x-1) * f1 * f2 with deg f_i = 2, s = 2, d = 2', field_size: 2476099}
+        - {q: 13, n: 5, factorisation_of_x_n_minus_1: '(x-1) * f with deg f = 4 irreducible, s = 1, d = 4', field_size: 371293}
+      extension_cell:
+        - {q: 13, n: 7, factorisation_of_x_n_minus_1: '(x-1) * f1 * f2 * f3 with deg f_i = 2, s = 3, d = 2', field_size: 62748517}
+      total_non_trivial_dimension: 'n - 1 (4 in every core cell, 6 in the extension cell)'
+      object_curves_per_cell: 'up to 2, by frozen lexicographic selection; 1 makes the cell partial and is reported as such'
+    implementation: Prospective exact implementation and independent checker per EXP-FROB-91ee9c
+    budget:
+      enforcement: advisory
+      wall_clock_seconds_per_run: null
+      total_cpu_hours: null
+      maximum_memory_gb: 8
+      maximum_runs: 1
+      maximum_workers: 1
+
+  falsification_conditions:
+    - >-
+      All three core cells complete with all controls passing, and the spread
+      max/min of cost_ratio_neg across achievable partitions at fixed total
+      dimension is below 2 on every eligible object curve in every core cell.
+      The slot-count axis is then flat over the tested cells.
+    - >-
+      I(FROB-SPLIT-q11n5) < 4 * I(FROB-NOLATTICE-q13n5) with both cells complete.
+      The improvement is then not attributable to the partition lattice.
+    - >-
+      Any matched control arm (non-pi-stable matched dimension, matched-cardinality
+      random set, or matched null curve) exhibits a spread at least as large as
+      the object arm in the same cell. The object-arm variation is then not shown
+      to be Frobenius-structural, exactly as EXP-FROB-b8cf21's null arm behaved
+      for Delta_rank.
+    - >-
+      In any completed cell, the direct sum of the non-trivial factor kernels is
+      not equal to ker Tr, or has dimension other than n - 1. The trace prediction
+      is then refuted and every future record must treat trace-zero and
+      Frobenius-stable as independent conditions.
+    - >-
+      The exactly enumerated achievable slot-dimension multisets do not match the
+      divisor lattice of x^n - 1. The module description itself is then wrong and
+      the hypothesis fails at its root.
+
+  interpretation_limits:
+    - Design approval is not evidence. Zero scientific runs exist for this hypothesis at intake.
+    - >-
+      No attack, no speedup, no exponent movement, no security consequence, and
+      no statement about any deployed curve. The quantity measured is a
+      combinatorial ratio over toy instances.
+    - >-
+      Ranking slot counts by END-TO-END solve cost requires d_reg, which is
+      contested: KN-OPEN-d218ec states the open surface in (n, m, t, k) and that
+      it is open even whether this program's d_reg statistic is Semaev's d_F4;
+      KN-LIT-71b758 separates the true from the fake first fall degree. The
+      chained-S_3 system size grows with the slot count (KN-TECH-b18366), so the
+      omitted algebraic half moves AGAINST the axis this hypothesis measures.
+      This hypothesis measures the combinatorial half only and must never be read
+      as a solve-cost ranking.
+    - >-
+      Cross-cell absolute ratios are not comparable (different q, N and cofactor);
+      only the dimensionless within-cell improvement factor is.
+    - >-
+      "Trace zero" here is a condition on the x-coordinate in F_{q^n}. It is not
+      the trace-zero subvariety of E(F_{q^n}), which is H-FROB-73df22's object.
+    - >-
+      Prior art reports that index calculus on subfield curves, while gaining more
+      from subfield structure than rho does, still loses outright at deployed
+      sizes. Nothing here contradicts that, and a successor that appears to is in
+      error until independently reviewed.
+
+  status: inconclusive_control_battery_curve_scope_gap
+  # Updated 2026-09-21 by DEC-20260921-3678fc (EV-FROB-2fe225), reviewing
+  # EXP-FROB-91ee9c run TASK-20260914-7119f2. success_criterion clause (6) /
+  # falsification_criterion clause (c) -- the C2/C3/C4-spread-vs-object-arm
+  # comparison -- is NOT EVALUABLE on this run's data: the full control
+  # battery ran only on each core cell's curve index 0, which is exactly the
+  # curve whose object arm is itself trivially flat (spread=1) in
+  # FROB-SPLIT-q11n5 and FROB-EQDEG-q19n5; the second eligible curve, where
+  # the object arm actually varies (I=2055/451, I=6152/861), never received
+  # the battery. The proves_too_much control PTM-2 shows the only reading
+  # that would instead call this "falsified" is broken (it would equally
+  # falsify FROB-NOLATTICE-q13n5's own designed, expected flatness). No
+  # scientific support/weaken/reject_scoped transition is made; per this
+  # experiment's own decision_branches.inconclusive, this is a scheduling/
+  # scope impediment, not a verdict. Concrete recheck: extend the C2/C3/C4
+  # battery to each core cell's second eligible curve (DEC-20260921-3678fc
+  # next_action NA-1). Prior status was `approved` (DEC-20260914-d04668);
+  # this update changes only the status field, per this task's write scope.
+  proposed_by: coordinator
+  approved_by: coordinator
+  approval_decision: DEC-20260914-d04668
+  novelty_status: unverified
+  dominated_by: >-
+    Unresolved. Not applicable as an attack result - this is a design-space
+    diagnostic. The complete time-memory-data frontier against Frobenius-class
+    rho, GHS and trace-zero methods remains unmeasured for these cells.
+  sota_delta:
+    established_time_exponent_gain: 0
+    established_memory_exponent_gain: 0
+    established_data_query_gain: 0
+    comparison_scope: >-
+      Finite exact diagnostic over four named toy cells; no attack improvement
+      measured and none claimed.
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    reasoning_effort: high
+    runtime: claude_code
+    resolved_model_id: null
+    model_verified: false
+    fallback_used: false
+    degraded_requirements: []
+    provenance_note: >-
+      Coordinator design session with no shell. No command was run, no model
+      identifier was resolved or probed, and no value in this record was measured
+      by this agent.
+
+  citations:
+    - ref: IDEA-20260914-e2e0cf
+      path: ledger/proposals/IDEA-20260914-e2e0cf.yaml
+      provenance: internal
+      verified_by: TASK-20260914-7119f2-design-session
+      claim: Source proposal, read as an unverified design direction and not as evidence.
+    - ref: KN-LIT-796
+      path: knowledge/literature/KN-LIT-796.md
+      provenance: internal
+      verified_by: TASK-20260914-7119f2-design-session
+      claim: >-
+        Program record of ePrint 2020/1315; its claims are relayed from the
+        abstract and are explicitly not independently verified there.
+    - ref: KN-TECH-b18366
+      path: knowledge/techniques/KN-TECH-b18366.md
+      provenance: internal
+      verified_by: TASK-20260914-7119f2-design-session
+      claim: Chained S_3 system size and the explicit statement that its solving cost is not established.
+    - ref: KN-OPEN-d218ec
+      path: knowledge/open-problems/KN-OPEN-d218ec.md
+      provenance: internal
+      verified_by: TASK-20260914-7119f2-design-session
+      claim: d_reg / Semaev Assumption 1 is open, including at the definitional level.
+    - ref: KN-LIT-71b758
+      path: knowledge/literature/KN-LIT-71b758.md
+      provenance: internal
+      verified_by: TASK-20260914-7119f2-design-session
+      claim: True versus fake first fall degree, with d_F <= d'_F proved in the source as recorded.

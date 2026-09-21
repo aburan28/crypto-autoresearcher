@@ -1,0 +1,609 @@
+validation_report:
+  id: VAL-20260831-mono670aa6
+  task_id: validator-mono-670aa6
+  experiment_id: EXP-MONO-670aa6
+  hypothesis_id: H-MONO-663fb4
+  snapshot_receipt: coordination/tasks/TASK-20260830-f1af50/snapshot-receipt.json
+  snapshot_commit_verified: >-
+    34474a493d2928dbd00a5fcd69dc9597e75a8bf1 (git rev-parse HEAD on branch
+    ideas-ecdlp-20260830 matches exactly the commit named by the task; `git
+    status --short` shows no modifications under experiments/EXP-MONO-670aa6/**
+    -- only unrelated concurrent-lane untracked files elsewhere in the tree,
+    consistent with this session's disclosed pattern).
+  run_ids: [RUN-MONO-670aa6-1, RUN-MONO-670aa6-2]
+
+  review_plan_as_understood: >-
+    Joint J1-correctness (independent of a concurrent, mutually-blind Red
+    Team session on other joints). Prior stated by the Coordinator: the run
+    was executed faithfully against its frozen v1 contract (commit
+    9e0e460e31a7bf71da3f460ff570ff8eea0bd66d), but the CONTRACT ITSELF has
+    two severe, Coordinator-verified design defects making its primary
+    correction-based result (Stage-2 null-object gate, Stage-3 real-arm
+    Holm/Bonferroni test) uninterpretable: (1) the n=200 permutation p-value
+    floor (1/201) exceeds the tightest Holm-Bonferroni per-family threshold
+    (~5e-4) by ~10x, so no cell could ever reach corrected significance
+    regardless of the true effect size; (2) `panel_primary.py`'s
+    `_construct_one` calls `construct_prime`/`curve_stream` without a
+    `family` argument, so the j0 and random-ordinary curves at the same
+    curve_ordinal share a construction stream, contradicting the contract's
+    own "100 independently-constructed curves" claim and compromising P5's
+    enrichment comparison. Stage 0 and the dual-path convolution-engine
+    agreement are believed to remain valid. Task: verify execution fidelity
+    to the frozen v1 text, independently RE-DERIVE both claimed defects from
+    raw-result.json and the archived source (not from the Coordinator's own
+    prose), and surface any other correctness issue missed. Blind
+    re-derivation requirement observed: computed both defects directly from
+    runs/RUN-MONO-670aa6-{1,2}/raw-result.json and
+    implementation/panel_primary.py/curve.py/seed.py/stats.py/run_experiment.py,
+    then cross-checked (not substituted for) against
+    ledger/corrections/CORR-20260831-d15d36.yaml only after independent
+    computation was complete.
+
+  read_sibling_reports: false
+  read_sibling_reports_note: >-
+    `experiments/EXP-MONO-670aa6/reviews/` did not exist at task start (no
+    `reviews/` directory was present anywhere under this experiment); it was
+    created by this task solely to hold this report. No red-team-labeled
+    path was found or read anywhere in the repository for this experiment.
+
+  artifact_checks:
+    - check: All 25 `archive_artifact_paths` in the snapshot receipt exist at the stated repository paths.
+      result: PASS.
+    - check: path_sha256 in the snapshot receipt matches sha256 of each artifact on disk, computed independently (not trusting the receipt's own claim).
+      result: "PASS -- all 25 files checked programmatically; 0 mismatches."
+    - check: Both runs' manifest.yaml carry field_bits, git commit, dirty-tree state, seeds, environment, resources.
+      result: >-
+        PASS. Both manifests record commit 9e0e460e31a7bf71da3f460ff570ff8eea0bd66d,
+        dirty: true with a disclosed, out-of-scope dirty-tree note (22 unrelated
+        paths, none touching this experiment), field_bits [7,8,9,10,11],
+        seeds 20260901/20260902, python 3.13.1, numpy 2.4.0, peak_rss ~76-77MB,
+        wall ~7.06-7.08s.
+    - check: manifest git.commit matches the commit whose specification.yaml text governs the run (per this task's instruction to trust manifest.git.commit, not the currently-committed specification.yaml text, which was edited out of band after the run).
+      result: >-
+        PASS, and independently confirmed via `git diff 9e0e460e3..837e51ae5 --
+        specification.yaml`: the out-of-band commit 837e51ae5 changed ONLY
+        specification.yaml (72 insertions/44 deletions; `git show --stat`
+        confirms no other file touched), raising null_draws_per_cell 200->4000
+        and adding `family`/`master_seed` to the documented seed formula. The
+        CURRENTLY-COMMITTED specification.yaml (as read at HEAD) is therefore
+        the POST-TAMPERING v2 text, not what RUN-MONO-670aa6-1/2 were actually
+        executed against. This is disclosed in CORR-20260831-d15d36 but is
+        flagged again here because a future reader of specification.yaml
+        alone (without also reading the correction) would form a materially
+        wrong belief about what was run -- see OTHER-FINDING-4 below.
+    - check: Bit-for-bit determinism / command reproducibility.
+      result: >-
+        PASS, independently re-executed. Ran `python3 run_experiment.py
+        20260901 <dir>` and `... 20260902 <dir>` from the archived
+        implementation/ directory exactly as recorded in command.txt; both
+        outputs are byte-identical to the archived raw-result.json (modulo
+        wall_seconds/peak_rss_bytes/checkpoints, which are expected to vary).
+        Recomputed sha256 of the reproduced RUN-1 raw-result.json:
+        b7de745ef5b82a8f138467773a0559500c2f80a0fd411beee84505726ff85822,
+        matching the archived file and the snapshot receipt's recorded hash
+        exactly.
+    - check: Certificate discipline (no discrete-log solve or relation claimed).
+      result: "PASS -- certificate.kind: none in both manifests; this is a pure measurement run, correctly scoped per docs/claims-and-verification.md."
+    - check: >-
+        `required_artifacts_if_later_authorized` -- "Primary and legacy panel
+        construction transcripts (p, A, B, N, group structure, factor-base
+        digest, symmetry check, construction-failure counts)."
+      result: >-
+        PARTIAL / FINDING. The LEGACY panel's transcript is fully present
+        (`legacy_panel_construction.prime_transcript` and `.curves`, per role,
+        with p/A/B/N/trace/Z). The PRIMARY panel's construction record in
+        raw-result.json contains ONLY aggregate `realized_counts` and
+        `construction_failures` -- no per-curve p/A/B/N, factor-base digest,
+        or symmetry-check result is persisted for any of the 100 (99
+        realized) primary-panel curves. This is arguably also a live
+        instance of the contract's own `invalidation_rules` bullet "Any
+        missing construction record, factor-base digest, symmetry check,
+        seed record or manifest." The information is fully RECOVERABLE (the
+        construction is deterministic and I reconstructed it exactly by
+        re-running the archived `panel_primary.build_primary_panel()`,
+        confirmed bit-for-bit against the run's own downstream numbers), so
+        this is reported as a disclosed artifact-completeness gap in the
+        delivered JSON, not treated by itself as grounds for `invalid` --
+        see OTHER-FINDING-3.
+
+  metric_recomputations:
+    - id: RECOMP-1-stage0-fixture
+      description: Independently recomputed Stage-0's m=1/m=2 exact identities on the frozen fixture (p=101,A=1,B=1) by re-executing the archived `stage0_fixture_gate()` and cross-checked the formula by hand.
+      result: "gate_pass=true both runs; m1 exact match; m2 additive-quadruple and variance-identity relative residuals ~0 / ~3.75e-15. Matches execution_report.yaml exactly. PASS."
+    - id: RECOMP-2-holm-bonferroni-independent-implementation
+      description: >-
+        Wrote a fresh, independent implementation of the standard Holm
+        step-down procedure (not copied from stats.py) and applied it to the
+        archived per-curve p_var_uncorrected/p_cf_uncorrected values in
+        stage3_per_curve for both families, both runs.
+      result: >-
+        n_significant_tests and min_adjusted_p match the archived
+        stage3_real_arm_holm_families_iii_iv and execution_report.yaml
+        exactly in all 4 (family x run) cells, including the one nontrivial
+        case (RUN-2 random-ordinary: my min_adjusted_p=0.49751243...,
+        archived min_adjusted_p=0.4975 -- exact match to reported precision).
+        Also reproduced stage2_null_object_gate's min_adjusted_p values
+        (1.0, 1.0, 1.0, 0.2488) exactly. PASS -- the Holm-Bonferroni
+        implementation is correct.
+    - id: RECOMP-3-fisher-exact-p5
+      description: Wrote a fresh, independent hypergeometric Fisher-exact implementation and recomputed P5's 2x2 test from the archived per-curve exceedance counts (p_var_uncorrected < 0.05).
+      result: >-
+        Exceedance counts (j0: 2/49 and 1/49; random-ordinary: 1/50 and
+        1/50, run1/run2) and both Fisher p-values (0.6173070915339169 and
+        1.0) reproduce exactly. PASS.
+    - id: RECOMP-4-DEFECT-1-p-value-floor-vs-holm-threshold
+      description: >-
+        BLIND RE-DERIVATION of the first claimed defect, computed only from
+        n_null_draws in raw-result.json and the permutation-pvalue formula
+        in stats.py (p=(1+count)/(n+1)), i.e. floor=1/(n+1); and from the
+        actual per-family test counts in stage3_per_curve (curves x 2
+        statistics). Script: defect1_pvalue_floor.py (see receipt).
+      result: >-
+        CONFIRMED, independently, exactly. n_null_draws=200 in BOTH archived
+        runs (confirmed directly, not assumed) => floor = 1/201 =
+        0.004975124378109453. n_tests per family = 98 (j0, 49 curves x 2
+        statistics) and 100 (random-ordinary, 50 x 2) in BOTH runs =>
+        Holm's most-lenient (smallest-p-value) rejection threshold =
+        alpha/m = 0.05/98 = 5.102e-4 and 0.05/100 = 5.0e-4. floor/threshold
+        ratio = 9.75x and 9.95x -- matching the Coordinator's "~10x" exactly.
+        The ACTUAL minimum p-value achieved across all curves/statistics in
+        BOTH runs is exactly 0.004975124378109453 = 1/201 (hit exactly in
+        RUN-2; RUN-1's minimum, 0.0199=4/201, is still ~39x above the m=98
+        Holm threshold). Because floor > alpha/m unconditionally (this
+        inequality does not depend on any observed data -- it follows
+        purely from n=200 and the declared family sizes), NO cell in this
+        design could EVER reach Holm-corrected significance at ANY true
+        effect size. CONFIRMS the claim without qualification. Same
+        argument applies, with a smaller (~5x) but still fully sufficient
+        margin, to Stage 2's Var-only null-object families (m=49/50,
+        alpha/m=1.02e-3/1.0e-3): the gate is likewise incapable of ever
+        firing. This directly falsifies this contract's own
+        `approval_requirements` bullet 2 ("the null-object gate... genuinely
+        can trigger, i.e. is not tautologically satisfied") -- that
+        requirement was not, in fact, satisfiable by this design, and (so
+        far as this review's artifact trail shows) was not checked before
+        approval. See OTHER-FINDING-1 for the process implication.
+    - id: RECOMP-5-DEFECT-2-family-colliding-prime-streams
+      description: >-
+        BLIND RE-DERIVATION of the second claimed defect. Read
+        implementation/curve.py's actual `construct_prime(domain, b, k)` and
+        `curve_stream(domain, p, k, ...)` signatures (confirmed: neither
+        accepts nor uses a `family` parameter anywhere in the seed
+        preimage -- `seed.py`'s `seed_digest` string is
+        `domain|label|field_bits_or_p|curve_ordinal|m|draw_index|counter`,
+        with no family component for ANY of the six declared labels). Then
+        re-executed the archived, unmodified `panel_primary.build_primary_panel()`
+        directly (not read from raw-result.json, which does not retain
+        per-curve p/A/B -- see the artifact-completeness finding above) and
+        compared j0 vs random-ordinary at every matching curve_ordinal.
+        Script: defect2_family_colliding_primes.py (see receipt).
+      result: >-
+        CONFIRMED, and MORE SEVERE than the claim as stated. Because `b =
+        FIELD_BITS[k % 5]` and `construct_prime(domain, b, k)` depend only on
+        (domain, b, k) -- never on family -- EVERY ONE of the 50 matched
+        curve_ordinal pairs (50/50, not "most" or "many") shares the
+        IDENTICAL prime p. Going further than the claim: because
+        `curve_stream(domain, p, k, ...)` also ignores family, and because
+        every single one of the 100 curves (j0 and random-ordinary alike)
+        happened to accept its family's very first stream candidate
+        (t_used=0 in 100/100 cases), the two curves at each matched ordinal
+        ALSO share the identical B value (50/50 pairs), differing only in A
+        (forced 0 for j0 vs. the stream's a_0 for random-ordinary, since
+        random-ordinary additionally requires a_0 != 0). So the contract's
+        own claim that "no two panel curves share a construction stream" is
+        not merely imprecise -- for every j0/random-ordinary pair at a given
+        ordinal, the entire stream up to and including B is IDENTICAL. This
+        fully confirms the claim and shows it understates the defect.
+    - id: RECOMP-6-supplementary-omnibus-power-check-EXPLORATORY
+      description: >-
+        NOT a pre-registered EXP-MONO-670aa6 metric; performed only to
+        answer this task's review question (b) ("is there a subset of the
+        analysis that would have had genuine power"). Combined the SAME
+        archived per-curve p_var_uncorrected values within each family via
+        Fisher's method (a single, m=1, uncorrected omnibus test per
+        family -- floor-immune because it performs no per-curve multiplicity
+        correction) and via a sign test on var_real_over_median_null > 1.
+        Script: supplementary_omnibus_power_check.py (see receipt).
+      result: >-
+        Both omnibus statistics avoid the floor-vs-threshold problem (m=1,
+        no correction) and are therefore capable in principle of detecting a
+        family-wide signal that the per-curve Holm tests structurally
+        cannot. Applied to the actual archived data: Fisher-combined
+        omnibus p in {0.99, 0.49, 0.98, 0.36} and sign-test p in {0.78,
+        1.00, 0.57, 0.67} across the 4 (family x run) cells -- no signal
+        whatsoever, consistently null. This is exploratory/non-primary
+        analysis (flagged as such per this contract's own invalidation_rules
+        on post-hoc reanalysis) and creates NO new evidence for or against
+        H-MONO-663fb4; it is reported to inform the Coordinator's answer to
+        review question (b), not as a finding about the hypothesis.
+
+  control_checks:
+    - control: Stage-0 exact identity gate.
+      result: PASS (RECOMP-1). Valid, matches the Coordinator's prior.
+    - control: Dual-path control (route 1 direct convolution vs route 2 FFT-derived convolution) on all 100 real-arm cells, both runs.
+      result: >-
+        PASS by full deterministic re-execution (RECOMP via bit-identical
+        reproduction): `dual_path_control_all_within_1e-9: true` in both
+        archived runs, reproduced exactly. Valid, matches the Coordinator's
+        prior; unaffected by either named defect (it compares two
+        computation routes on the SAME cell, not across families).
+    - control: Stage-2 mandatory null-object gate, structural hard-stop enforcement.
+      result: >-
+        CONFIRMED the hard stop is real code (run_experiment.py returns
+        before reaching any Stage-3 statement if `gate_pass` is False), not
+        merely a reported label -- but per RECOMP-4/DEFECT-1, this gate is
+        STRUCTURALLY INCAPABLE OF EVER FIRING at this n and these family
+        sizes, regardless of the true state of the null-object arm. "Passed"
+        is therefore not informative about calibration; it is the design's
+        only possible outcome. This is the single most important control
+        finding of this review.
+    - control: Legacy 8-curve sub-panel positive controls (subgroup, coset-union).
+      result: >-
+        Both correctly reported SKIPPED (subgroup-availability precondition
+        unmet: only RO3 qualifies, vs. >=2 required), matching both runs.
+        Not independently re-derived further since these carry no
+        primary-decision weight and are unchanged in design from
+        EXP-MONO-c819ba's own already-reviewed construction.
+    - control: Dual-convention control (ordered vs multiset).
+      result: not_independently_re-checked_this_round -- unaffected by either named defect; out of this review's time budget given the severity of the primary findings.
+    - control: P5 enrichment (Fisher exact, uncorrected).
+      result: >-
+        Arithmetically PASSES (RECOMP-3) but its INDEPENDENCE ASSUMPTION is
+        violated two ways: (a) DEFECT-2 (shared prime/B per matched pair)
+        and (b) OTHER-FINDING-2 below (58% of the j0 arm is, in fact,
+        supersingular). Both independently compromise the "j0 vs
+        random-ordinary" comparison's validity, for two distinct reasons,
+        confirming the Coordinator's "P5 is compromised" disposition and
+        adding a second, previously-unquantified reason for it.
+
+  heuristic_validation_checks:
+    - check: Pre-registered prediction (P1-P5 bands/interpretation) recorded before any run.
+      result: "PASS -- all of P1-P5's preregistered_prediction text is in the frozen (v1) specification.yaml, dated 2026-08-30, before the runs (2026-08-31)."
+    - check: Sample size, seeds, sampling procedure in the manifest; empirical statistics recomputed from raw samples.
+      result: >-
+        PASS for presence; FAILED for adequacy at the corrected-family level
+        -- see DEFECT-1. n=200 is declared and matches both manifests and
+        raw-result.json exactly, but the declared correction (Holm/Bonferroni
+        over ~98-100 tests) is incompatible with n=200's own floor. This is a
+        design-level statistical-power failure, not a missing-record gap.
+    - check: Correspondence validity (substitute sampling, e.g. Deuring-type).
+      result: not_applicable -- no substitute-sampling correspondence is used; the null is drawn directly from E(F_p).
+    - check: Scale binding recorded.
+      result: "PASS -- claim_ceiling/scale_relevance are explicit that this is toy-scale and does not transfer to crypto scale or F_{q^n}."
+    - check: Cost-unit honesty / cost bookkeeping.
+      result: not_applicable -- no cost-model or attack claim is made anywhere in this contract; asymptotic_claim is null throughout.
+
+  cost_model_checks: []
+
+  other_correctness_findings:
+    - id: OTHER-FINDING-1
+      title: This contract's own pre-approval requirements were not, and could not have been, satisfied.
+      finding: >-
+        `specification.yaml.approval_requirements` explicitly requires that
+        independent review confirm the null-object gate "genuinely can
+        trigger (i.e. is not tautologically satisfied)" and that the Holm
+        family declarations are fixed before any p-value is computed. The
+        second half was met; the first was not, and per DEFECT-1's
+        unconditional floor/threshold inequality, COULD NOT have been met by
+        this design at n=200 with families of size 49-100. No artifact in
+        this experiment's own trail (execution_report.yaml, implementation.md)
+        shows an independent pre-execution review having checked this
+        specific requirement before the Coordinator's approval and the
+        Executor's run. This is a process gap at approval time, not merely a
+        post-hoc discovery, and is worth the Coordinator's attention for
+        future contract-approval practice, independent of this specific
+        experiment's disposition.
+    - id: OTHER-FINDING-2
+      title: 58% of the realized j0-family primary panel is supersingular, not ordinary, and this is unquantified in the existing record.
+      finding: >-
+        Independently computed (RECOMP-5/defect2 script) over the 50
+        realized j0 curves: 29/50 (58%) have p = 2 mod 3 and are therefore
+        FORCED supersingular (N = p+1 exactly, since the Hasse bound forces
+        the supersingular trace-zero condition at these prime sizes), versus
+        1/50 for the random-ordinary family. This is a direct, disclosed
+        CONSEQUENCE of a genuine internal contradiction in the frozen v1
+        text: the original curve_construction rule (as literally written and
+        as executed) names no ordinary-vs-supersingular rejection at all,
+        while implementation.md/execution_report.yaml both disclose that a
+        rejection WAS tried and removed because it eliminated "~half" of the
+        j0 slots -- an estimate this review now confirms and sharpens to an
+        exact 29/50 (58%). H-MONO-663fb4's own scope and this contract's own
+        `random_ordinary_curves` family definition are about GENERIC ORDINARY
+        curves; comparing a curve family that is 58% supersingular against
+        one that is 98% ordinary is not the "j=0 vs random-ordinary"
+        comparison either P5 or any future Stage-3 correction claims to be
+        making, INDEPENDENT of and IN ADDITION TO Defect 2's prime-collision
+        problem. This further compounds why P5's enrichment comparison
+        (and, were the floor defect ever fixed, any future j0-family
+        escalation) cannot be read as being about j=0 curves specifically
+        without first separating the supersingular and ordinary j0 sub-arms.
+    - id: OTHER-FINDING-3
+      title: Primary-panel per-curve construction transcript (p, A, B, N, symmetry check) is absent from the archived raw-result.json.
+      finding: >-
+        See the artifact_checks entry above. Fully recoverable by
+        deterministic re-execution (performed here), so not by itself
+        grounds for `invalid`, but it means a future reader relying only on
+        the archived JSON (not re-running the code) cannot verify DEFECT-2's
+        prime/B collisions, the supersingular fraction (OTHER-FINDING-2), or
+        any other per-curve construction property without re-executing the
+        implementation -- unlike the legacy 8-curve panel, whose transcript
+        IS fully archived. Recommend any successor contract's
+        required_artifacts explicitly include a per-curve primary-panel
+        transcript in the JSON itself, not only in the (already declared but
+        under-enforced) required_artifacts_if_later_authorized text.
+    - id: OTHER-FINDING-4
+      title: The currently-committed specification.yaml no longer describes what was executed, and this is only visible via git history.
+      finding: >-
+        Independently confirmed via `git diff`/`git show` (not merely
+        trusting CORR-20260831-d15d36's prose) that commit 837e51ae5
+        changed ONLY specification.yaml's text (raising null_draws_per_cell
+        200->4000, adding `family`/`master_seed` to the documented seed
+        formula, adding a p=1 mod 3 admission rule and an ordinary-curve
+        rejection) and touched NO implementation file. The implementation/
+        files actually archived and actually executed (panel_primary.py,
+        curve.py, seed.py, run_experiment.py) still contain NONE of these
+        five "fixes" -- confirmed directly by reading them and by bit-for-bit
+        re-execution. So even a reader who takes the tampered v2 text at
+        face value and separately reads the implementation would find the
+        two do not match; only reading `git log`/`git show` on
+        specification.yaml (as this task instructed) reveals which is
+        authoritative. This is disclosed in CORR-20260831-d15d36 but not
+        remediated (by the Coordinator's own deliberate "never revert,
+        always disclose" policy), so it remains a live documentation hazard
+        for any future reader of this experiment's directory who does not
+        also read the correction record.
+    - id: OTHER-FINDING-5
+      title: The "two independent replication runs" share an identical curve panel; only the null/null-object/coset draws differ.
+      finding: >-
+        Independently confirmed: RUN-1 and RUN-2's primary_panel_construction
+        and legacy_panel_construction blocks are byte-identical (both keyed
+        to the fixed domain `EXP-MONO-670aa6/v1`, with `master_seed` entering
+        only as a domain suffix for null-subset/null-object-pick/coset-pick
+        draws, per implementation.md note 4). This is a genuine internal
+        inconsistency already present in the FROZEN v1 text (it declares
+        `master_seed` as a top-level input associated with two different
+        replication runs -- `replication.seeds: [20260901, 20260902]` -- yet
+        its own `seed_derivation_rule` formula never includes master_seed as
+        a preimage component at all), which the Executor resolved via a
+        disclosed, reasonable-but-unilateral interpretive choice. The
+        practical consequence: "two independent runs" here means two
+        independent draws of the null/null-object populations on the SAME
+        100+8 curves, not two independently-constructed panels -- a weaker
+        replication than the contract's own `replication.interpretation`
+        text ("Two runs at different master seeds") appears to promise a
+        naive reader. This does not itself invalidate either run (each is
+        internally sound given the interpretation used, and is disclosed),
+        but is a second latent defect in the frozen v1 text's own internal
+        consistency, distinct from the two named ones, and should be fixed
+        explicitly (not left to Executor interpretation) in any successor
+        contract.
+
+  assessment_of_review_questions:
+    a_is_the_coordinators_disposition_right_too_harsh_or_not_harsh_enough: >-
+      NOT TOO HARSH -- if anything it is very slightly conservative relative
+      to what this review independently found. "Stage 0 and dual-path valid;
+      Stage 2/3 primary result and P5 enrichment uninterpretable/compromised;
+      K3/K4 remains open" is the correct disposition and is fully
+      independently reconfirmed. This review adds: (i) Defect 2 is exact and
+      total (50/50 pairs, not "much of the same stream" -- prime AND B are
+      identical in every pair), (ii) a third, independent reason P5/Stage-3's
+      "j0" label is compromised (58% supersingular contamination,
+      OTHER-FINDING-2, previously only vaguely disclosed as "some"), (iii) a
+      process finding that this contract's own approval_requirements were
+      unsatisfiable by construction and were apparently not checked before
+      approval (OTHER-FINDING-1), and (iv) a documentation-currency hazard in
+      the archive (OTHER-FINDING-4). None of these soften the disposition;
+      all either confirm it exactly or make the case for "uninterpretable /
+      compromised" stronger. K3/K4 remaining OPEN after two consecutive
+      failed-for-distinct-reasons experiments (uncontrolled false-positive
+      rate at EXP-MONO-c819ba; zero statistical power by design here) is the
+      honest characterization.
+    b_is_uninterpretable_too_strong_a_verdict_would_a_coarser_or_pooled_test_have_had_power: >-
+      "Uninterpretable" is EXACTLY RIGHT for this contract's own pre-registered
+      primary metrics (P1-P4: per-curve, per-statistic, Holm/Bonferroni-
+      corrected over ~98-100 tests) -- DEFECT-1 is an unconditional
+      mathematical fact about this design (floor > alpha/m for every
+      declared family), not a data-dependent judgment call, so no
+      re-analysis of THOSE specific corrected numbers can recover power. It
+      is NOT quite as strong a verdict for the underlying ARCHIVED per-curve
+      p-values themselves: a coarser, single-test-per-family aggregation
+      (m=1, no multiplicity correction needed) is immune to the floor
+      problem by construction, and this review computed two such
+      aggregations directly from the SAME archived numbers (Fisher's
+      combined-p omnibus test and a sign test on var_real_over_median_null,
+      RECOMP-6) -- both retain genuine power in principle and, when applied,
+      show a clean, consistent NULL result in both families and both runs
+      (omnibus p in [0.36, 0.99]; sign-test p in [0.57, 1.00]). Two important
+      caveats on that reading: (1) this reanalysis is exploratory and was
+      NOT pre-registered, so per this contract's own invalidation_rules it
+      cannot be substituted for P1-P4 as this experiment's official result
+      without a versioned amendment; (2) P5 itself is ALREADY exactly this
+      kind of coarser, m=1, uncorrected family-level test, and it too shows
+      no signal (Fisher p=0.62, 1.0) -- but P5's cross-family comparison
+      specifically is undermined by DEFECT-2 and OTHER-FINDING-2's shared-
+      prime/supersingular-contamination problems, which a within-family
+      omnibus test (comparing each family only to its OWN matched null, never
+      cross-family) sidesteps entirely. Net: a within-family omnibus test
+      WOULD have had genuine power and, on the archived data, supports (but
+      does not itself establish, being post-hoc) the "controlled null"
+      reading -- this is worth relaying to the Coordinator as informative
+      context for the next-action design, not as new evidence.
+      One-sidedness does NOT fix the floor problem (a one-sided permutation
+      p-value has the identical floor 1/(n+1)); pooling the two runs' null
+      draws (200+200=400) also does not fix it (floor 1/401=0.0025 is still
+      ~5x above the m=98 Holm threshold) -- both were checked and rejected as
+      remedies.
+    c_any_other_implementation_or_manifest_correctness_issue: >-
+      See OTHER-FINDING-1 through -5 above. Summarized: (1) the contract's
+      own approval gate for "the null-object test can genuinely trigger" was
+      unsatisfiable and apparently unchecked pre-approval; (2) 58% of the
+      j0 arm is supersingular, an independent and previously-unquantified
+      threat to the family comparison; (3) the primary panel's per-curve
+      construction transcript is missing from the archived JSON (recoverable
+      by re-execution, but a real completeness gap against this contract's
+      own required_artifacts text); (4) the currently-committed
+      specification.yaml (post out-of-band edit) no longer describes the
+      executed run, and only git history resolves which text is
+      authoritative; (5) the two "independent replication runs" in fact
+      share one identical curve panel, a latent internal contradiction in
+      the frozen v1 seed_derivation_rule (declares master_seed as an input,
+      never uses it in the formula) that the Executor was forced to resolve
+      unilaterally, disclosed but not contract-specified.
+
+  limitations:
+    - >-
+      This review is J1-correctness scope. It renders no verdict on
+      H-MONO-663fb4 itself, authorizes no status change, and creates no
+      ECDLP, relation-rate, or cryptographic-scale claim (AGENTS.md rule 1
+      and rule 4).
+    - >-
+      Time-boxed: the dual-convention (ordered vs multiset) control and the
+      full legacy-panel L1-L4/graded-control ladder were not independently
+      re-derived cell-by-cell this round, given the severity and priority of
+      the two named defects and the additional findings surfaced; these are
+      unaffected by either named defect and carry no primary-decision weight
+      per the frozen contract's own text.
+    - >-
+      RECOMP-6's omnibus/sign-test analysis is exploratory, was not
+      pre-registered, uses an approximate (Fisher's method / chi-squared)
+      combination that assumes approximate independence of within-family
+      per-curve p-values (defensible here since curve_ordinals differ in
+      prime WITHIN a family, unlike across families), and must not be read
+      as amending or superseding EXP-MONO-670aa6's own official disposition.
+    - >-
+      This review did not attempt to independently verify the legacy-panel
+      prime-sharing pattern noted in passing (RO3 and J0 both hosted at
+      p=307 in the legacy sub-panel) beyond observing it; the legacy panel
+      is explicitly "never corrected or escalation-eligible" secondary
+      continuity evidence per the frozen contract, and this pattern appears
+      to be an intentional, pre-existing consequence of a small (5-prime)
+      pool reused across 8 roles, matching EXP-MONO-c819ba's own
+      construction, not a new defect.
+    - >-
+      Model-correlation confound: this review runs under claude-sonnet-5
+      (see review_attestation), the same resolved model as the Coordinator
+      that authored both the contract and CORR-20260831-d15d36. This review
+      independently re-derived both defects from raw data and source code
+      before reading the correction's own prose (per the blind-rederivation
+      instruction), which partially mitigates but does not eliminate this
+      confound; an independent Red Team session (dispatched concurrently,
+      per the task's stated blindness) is the intended check on it.
+
+  verdict: passed
+  verdict_note: >-
+    "passed" is the RECEIPT-ADMISSIBILITY verdict in the Required Output
+    schema's vocabulary (agents/validator.md): the run was executed
+    faithfully against its frozen v1 text (bit-for-bit reproducible from the
+    recorded command and commit), every artifact hash independently
+    verified, dirty-tree/seed/environment/resource records complete and
+    accurate, certificate discipline correct, and every reported number
+    (Holm-corrected p-values, Fisher-exact P5, Stage-0 identities)
+    independently recomputed to exact agreement from raw-result.json using
+    fresh, independently-written code. No fabrication, no missing-run-as-
+    result, no scope creep. The receipt is admissible evidence of exactly
+    what it measured.
+  j1_attack_verdict: breaks
+  j1_attack_verdict_note: >-
+    This task's specific J1-correctness attack -- "does this run deliver a
+    genuine, Holm/Bonferroni-corrected test of K3/K4, with a null-object
+    gate that could actually fail" -- BREAKS. Both named defects are
+    independently confirmed exactly (and Defect 2 more severely than
+    stated); the run's own approval_requirements were unsatisfiable by
+    construction (OTHER-FINDING-1); and a third, independent contamination
+    issue (OTHER-FINDING-2) further undermines the one comparison (P5) that
+    was not floor-limited. The RUN's internal correctness (does the code
+    compute, given its own design, what it claims to compute) holds -- see
+    the six exact RECOMPs above -- but the DESIGN's capacity to answer the
+    question it was built for does not. `verdict: passed` (admissibility)
+    and `j1_attack_verdict: breaks` (this joint's substantive question) are
+    both true and not in tension, following the same two-tier structure
+    used in EXP-MONO-c819ba's own validator report.
+
+  artifact_paths:
+    - experiments/EXP-MONO-670aa6/specification.yaml
+    - experiments/EXP-MONO-670aa6/execution_report.yaml
+    - experiments/EXP-MONO-670aa6/implementation.md
+    - experiments/EXP-MONO-670aa6/implementation/panel_primary.py
+    - experiments/EXP-MONO-670aa6/implementation/panel_legacy.py
+    - experiments/EXP-MONO-670aa6/implementation/curve.py
+    - experiments/EXP-MONO-670aa6/implementation/seed.py
+    - experiments/EXP-MONO-670aa6/implementation/stats.py
+    - experiments/EXP-MONO-670aa6/implementation/controls.py
+    - experiments/EXP-MONO-670aa6/implementation/conv.py
+    - experiments/EXP-MONO-670aa6/implementation/groupstate.py
+    - experiments/EXP-MONO-670aa6/implementation/fields.py
+    - experiments/EXP-MONO-670aa6/implementation/run_experiment.py
+    - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-1/raw-result.json
+    - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-1/manifest.yaml
+    - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-1/command.txt
+    - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-1/environment.json
+    - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-2/raw-result.json
+    - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-2/manifest.yaml
+    - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-2/command.txt
+    - ledger/hypotheses/H-MONO-663fb4.yaml
+    - ledger/evidence/EV-MONO-b84b24.yaml
+    - ledger/decisions/DEC-20260830-891d39.yaml
+    - knowledge/techniques/KN-TECH-7745e6.md
+    - ledger/corrections/CORR-20260831-d15d36.yaml
+    - coordination/tasks/TASK-20260830-f1af50/snapshot-receipt.json
+    - experiments/EXP-MONO-670aa6/reviews/validator/runtime-session-receipt.json
+
+  review_attestation:
+    task_id: validator-mono-670aa6
+    role: validator
+    joints_owned: [J1-correctness]
+    verdict: breaks
+    sources_read:
+      - AGENTS.md
+      - agents/validator.md
+      - ledger/hypotheses/H-MONO-663fb4.yaml
+      - ledger/evidence/EV-MONO-b84b24.yaml
+      - ledger/decisions/DEC-20260830-891d39.yaml
+      - knowledge/techniques/KN-TECH-7745e6.md
+      - experiments/EXP-MONO-670aa6/specification.yaml (HEAD, post-tampering text)
+      - experiments/EXP-MONO-670aa6/execution_report.yaml
+      - experiments/EXP-MONO-670aa6/implementation.md
+      - experiments/EXP-MONO-670aa6/implementation/panel_primary.py
+      - experiments/EXP-MONO-670aa6/implementation/panel_legacy.py
+      - experiments/EXP-MONO-670aa6/implementation/curve.py
+      - experiments/EXP-MONO-670aa6/implementation/seed.py
+      - experiments/EXP-MONO-670aa6/implementation/stats.py
+      - experiments/EXP-MONO-670aa6/implementation/controls.py
+      - experiments/EXP-MONO-670aa6/implementation/run_experiment.py
+      - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-1/raw-result.json
+      - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-1/manifest.yaml
+      - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-1/command.txt
+      - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-1/environment.json
+      - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-2/raw-result.json
+      - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-2/manifest.yaml
+      - experiments/EXP-MONO-670aa6/runs/RUN-MONO-670aa6-2/command.txt
+      - ledger/corrections/CORR-20260831-d15d36.yaml (read AFTER completing independent RECOMP-4/RECOMP-5, per the blind-rederivation instruction)
+      - coordination/tasks/TASK-20260830-f1af50/snapshot-receipt.json
+      - "git history: git show 9e0e460e31a7bf71da3f460ff570ff8eea0bd66d; git show 837e51ae5a289a3574f4a502ea5c67da372b1a32; git diff 9e0e460e3..837e51ae5 -- experiments/EXP-MONO-670aa6/specification.yaml"
+    read_sibling_reports: false
+    read_sibling_reports_note: >-
+      `experiments/EXP-MONO-670aa6/reviews/` did not exist before this task
+      created it. No red-team-labeled path exists anywhere under this
+      experiment. No sibling review artifact was observed or read.
+    blindness_note: >-
+      Dispatched fresh and concurrently with an independent Red Team session
+      per the task's stated blindness; no evidence of the Red Team's
+      artifacts was encountered during this review.
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    model_verified_reason: No adapter probe receipt exists for this session.
+    fallback_used: false
+    independence_note: >-
+      This review's model family (claude-sonnet-5) matches the Coordinator
+      that authored EXP-MONO-670aa6's contract and CORR-20260831-d15d36
+      (also claude-sonnet-5) -- a disclosed, not eliminated, confound. This
+      review mitigates it by (a) re-deriving both named defects from raw
+      data and source code before reading the correction's own prose, using
+      fresh, independently-written scripts that import no Executor module
+      for the analysis logic, and (b) finding the defects to be MORE severe
+      than the Coordinator's own text states in two respects (exact,
+      total 50/50 prime+B collision; unquantified 58% supersingular
+      contamination), which is evidence against rubber-stamping rather than
+      for it.

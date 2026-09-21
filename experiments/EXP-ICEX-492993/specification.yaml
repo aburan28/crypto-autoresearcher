@@ -1,0 +1,166 @@
+experiment:
+  id: EXP-ICEX-492993
+  hypothesis_id: H-ICEX-357d9d
+  version: 1
+  title: >-
+    Monomial-order spread of Semaev solving degree, operation count and fitted
+    scaling exponent, with a determinism forced-value check and a
+    presentation-sensitivity planted control
+  status: draft
+  objective: >-
+    Solve the lane's frozen Semaev instance set under degrevlex, a block order
+    and lex with an identical time cap, and report solving degree, field
+    operations and wall clock per order and instance, the cross-order spread read
+    against the WITHIN-ORDER instance-to-instance range, and the scaling exponent
+    fitted under each order with its confidence interval. Cells that do not
+    complete are reported as unmeasured with their censoring fraction, never as
+    evidence about difficulty. The budget exceeds the template floor because lex
+    is expected to be the expensive arm and a cap sized to a tool window would
+    censor exactly the order whose cost differs most.
+  inputs:
+    instance_set: the lane's smallest frozen Semaev instance set, hash recorded
+    orders: [degrevlex, block, lex]
+    instances_per_order: 5
+    timing_repetitions_per_cell: 5
+    engine_version: frozen at approval, recorded in every manifest
+    per_cell_time_cap_seconds: 7200, identical across orders
+  controls:
+  - >-
+    NAMED CONTROL C1, BIT-IDENTICAL RE-RUN, FORCED VALUE. The same instance, same
+    order, same engine version and same seed, run twice. Forced value - identical
+    solving degree and identical operation count. This replaces the source idea's
+    same-order variance null, which for a deterministic engine has variance zero
+    by construction and could bound nothing.
+  - >-
+    NAMED CONTROL C2, SYMMETRIC-PERMUTATION FORCED VALUE. A permutation of
+    variables in which the Semaev system is symmetric. Forced value - solving
+    degree and operation count unchanged, exactly.
+  - >-
+    NAMED CONTROL C3, PRESENTATION-SENSITIVITY PLANTED DEFECT. A declared
+    non-symmetric variable ordering under lex. Predicted direction and magnitude -
+    the operation count must change by at least a factor 2. Together with C2 this
+    is the demonstrated dynamic range - an instrument that moves on C2 or fails
+    to move on C3 cannot see presentation at all and no spread from it is
+    admissible.
+  - >-
+    NAMED BAND CONTROL C4, WITHIN-ORDER INSTANCE SPREAD. The interquartile range
+    of solving degree and operation count across instances WITHIN one order. This
+    is the comparison band for every cross-order difference.
+  - >-
+    NAMED NULL C5, RANDOM DENSE MATCHED-SHAPE SYSTEMS. The same three orders on
+    random dense systems with the same number of variables and the same degree
+    sequence. CURVE-FREE by construction. CONSEQUENCE PRE-STATED - if the
+    curve-free systems reproduce the cross-order spread, the spread is a property
+    of system shape and nothing from this experiment may be quoted as a statement
+    about Semaev structure, elliptic curves or the ECDLP.
+  - >-
+    NAMED CONTROL C6, CENSORING LEDGER. Every order-instance cell that hits the
+    time cap or the memory cap is recorded as unmeasured with its resource
+    reason, and the censoring fraction per order is reported beside every spread
+    and every fit.
+  independent_variables: [monomial_order, instance, variable_ordering, system_family]
+  metrics:
+    primary:
+    - solving_degree_integer_degrees_per_order_and_instance
+    - field_operations_count_per_order_and_instance
+    - fitted_scaling_exponent_dimensionless_per_order_with_95_percent_interval
+    secondary:
+    - wall_clock_seconds_per_order_and_instance
+    - peak_memory_bytes_per_order_and_instance
+    - within_order_instance_interquartile_ranges
+    - censoring_fraction_per_order
+    - determinism_and_permutation_control_readings_beside_their_forced_values
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: >-
+      The scaling exponent fitted to Semaev decomposition cost, in field
+      operations, against the declared size parameter, separately under each
+      monomial order that completes.
+    formula: >-
+      The fitted exponents agree across completing orders within the union of
+      their 95 percent confidence intervals. Cross-order differences in solving
+      degree and operation count may nevertheless be large and are reported
+      whether or not the exponents agree.
+    source: >-
+      H-ICEX-357d9d, HEUR-001. Order-independence of the ideal, which does NOT
+      imply order-independence of solver cost, is the reason this is an empirical
+      prediction rather than a corollary.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      The lane's smallest frozen instance set at toy prime-field scale. The lex
+      arm is expected to censor; the censoring fraction is reported and no
+      exponent is fitted over a censored cell. No transfer to medium scale or to
+      other instance sets is claimed.
+    correspondence: null
+  tail_checks:
+  - >-
+    The order with the HIGHEST cost is reported individually and checked for
+    timeout-induced censoring, which would bias its fit toward agreement with the
+    cheaper orders.
+  - >-
+    The single instance with the largest cross-order operation-count ratio is
+    reported with its parameters, so a summary spread does not hide one dominant
+    instance.
+  replication:
+    seeds: [1, 2, 3, 4, 5]
+    independent_instances: 5
+  budget:
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 80
+    maximum_memory_gb: 24
+    maximum_runs: 200
+  stopping_rules:
+  - >-
+    Stop a cell at 7200 s or at 24 GB and record it as unmeasured with its
+    resource reason. A stopped cell is an infrastructure event and is never
+    reported as a large degree or as a difficulty finding.
+  - >-
+    Stop the lex arm entirely if more than half its cells censor, and report the
+    comparison as unmakeable under lex rather than fitting an exponent to the
+    surviving half.
+  - >-
+    Stop the whole experiment if the determinism control fails, before any
+    cross-order number is interpreted.
+  invalidation_rules:
+  - >-
+    A cross-order difference read against a repeated-run band rather than against
+    the within-order instance spread is invalid_measurement.
+  - >-
+    Failure of the bit-identical re-run to reproduce degree and operations
+    exactly invalidates every cross-order comparison in the run.
+  - >-
+    Failure of the symmetric-permutation or non-symmetric-lex control to behave
+    as forced invalidates every spread in the run.
+  - >-
+    An exponent fitted over cells including a censored cell is
+    invalid_measurement.
+  - >-
+    A run whose monomial order or engine version is absent from its manifest is
+    invalid_measurement.
+  success_criterion: >-
+    The determinism and permutation controls hold at their forced values; the
+    non-symmetric lex control moves operations by at least a factor 2; at least
+    two orders complete with acceptable censoring; and their fitted exponents
+    agree within the union of their 95 percent intervals, so the lane's
+    convention is immaterial at this scope.
+  falsification_criterion: >-
+    Fitted exponents differing across completing orders beyond the union of their
+    intervals falsifies HEUR-001 within the tested scope, and every downstream
+    use of the lane's cost model must then name the order it belongs to. Only one
+    order completing is a REACH limit reported as such - the convention is forced
+    rather than chosen - and is not a result about order dependence. A control
+    failure voids the instrument rather than producing a result of either sign.
+  required_artifacts:
+  - the frozen instance set with its hash, and the exact systems solved
+  - solver instrumentation output giving the maximum degree reached, per cell
+  - field-operation counters and wall clock, per cell, reported separately
+  - monomial order, variable ordering and engine version in every manifest
+  - determinism, symmetric-permutation and non-symmetric-lex control outputs beside their forced values
+  - random dense curve-free arm outputs under the identical code path
+  - censoring ledger with per-cell resource reasons and per-order censoring fractions
+  - the three fits with residuals and 95 percent intervals
+  - matched rho and BSGS control readings on the same instances, per the RQ-SDEG-001 constraint
+  - per-run manifest, command, environment, git commit, stdout, stderr, validity status
+  assigned_to: executor
+  approved_by: null

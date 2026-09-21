@@ -1,0 +1,93 @@
+handoff:
+  id: TASK-20260808-e6022f
+  recorded_at: '2026-08-08'
+  from: coordinator
+  to: executor
+  authorized_by: "EXP-XOR-7267e4 (approved_by: coordinator, frozen_at: 2026-08-08)"
+  batch_id: BATCH-bd36fe
+  objective: >-
+    Implement and execute the frozen contract
+    experiments/EXP-XOR-7267e4/specification.yaml EXACTLY as written: the
+    charged-cost comparison (one field operation = one E.add of the frozen
+    harness.toycurve add) of oracle-guided MITM (Arm B) vs exhaustive search
+    (Arm A) vs the random-from-F_p MITM true-null (Arm D) over m=3,
+    p in {101,103,107,211}, b in {0.4,0.5}, seeds 1-5 = 120 arm-runs.
+  uncertainty_reduced: >-
+    (1) Whether C_B < C_D in every cell (the oracle's information is
+    load-bearing for the cost advantage, vs MITM structure alone); (2)
+    whether C_A > C_D > C_B holds at all, i.e. whether exhaustive is the
+    most expensive arm under the charged model; (3) R_D/R_B, the null arm's
+    information rate, the first direct measurement of how much of the
+    relation space a random query sees; (4) peak_rss_bytes reconciled
+    against the analytic |F|^2 table size, the first memory accounting in
+    this lane.
+  inputs:
+    - experiments/EXP-XOR-7267e4/specification.yaml (frozen, THE contract)
+    - ledger/hypotheses/H-XOR-a227dc.yaml
+    - experiments/EXP-SEMAEV-f48dd1/specification.yaml (the frozen predecessor
+      whose curve/factor-base/arm-A/B machinery must be reused unchanged; do
+      not reimplement from scratch, and DO reuse the same harness.toycurve)
+    - experiments/EXP-SEMAEV-f48dd1/implementation/full_grid.py (the only
+      sanctioned source of the oracle/MITM machinery, extended with Arm D per
+      the frozen spec)
+    - ledger/decisions/DEC-20260808-6a7ac4.yaml (successor mandate + scope)
+    - ledger/evidence/EV-ECDLP-65b004.yaml (the corrected n=8 discipline and
+      the fabricated-hash finding — NEVER fabricate or placeholder artifact
+      hashes in run records)
+  constraints:
+    - >-
+      Do not edit specification.yaml; it is frozen. Any change requires a
+      versioned protocol_amendment through the Coordinator, never an in-place
+      edit.
+    - >-
+      Do not use placeholder or fabricated hashes anywhere in run records,
+      manifests, or analysis (EV-ECDLP-65b004 disclosed a prior artifact
+      fabricated hashes; recompute real sha256 from the blob).
+    - >-
+      Yield denominator is |F|^m for every arm; candidates_verified is
+      secondary only. No "speedup" or cost-improvement claim outside the
+      declared charge model and speedup_definition in the spec.
+    - >-
+      Statistics at n=8 independent (p,b) groups, NEVER pseudo-replicated
+      cells together; report naive-n and corrected-n statistics separately.
+    - Respect the frozen parameter grid EXACTLY; no "extra primes",
+      "bonus seeds", or sub-experiments may be added without a Coordinator
+      decision.
+    - The implementation must be archived byte-for-byte under
+      CTRL-BLOB — the same sha256 must appear in the manifest.
+  deliverables:
+    - experiments/EXP-XOR-7267e4/implementation/<blob>.py
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-*/manifest.json
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-*/raw-results.json
+    - experiments/EXP-XOR-7267e4/runs/RUN-XOR-7267e4-*/analysis.yaml (per-cell
+      grid; naming per repo run convention)
+    - the implementation blob PRESERVED byte-for-byte in the run manifest
+      (CTRL-BLOB binding — manifest.sha256 equals archived blob sha256)
+  artifact_paths:
+    - experiments/EXP-XOR-7267e4/implementation/
+    - experiments/EXP-XOR-7267e4/runs/
+  archived_by: TASK-20260808-bd36fe-ledger
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 4
+    maximum_runs: 120
+  completion_gate:
+    - All 120 arm-runs complete within budget (60 min total wall) and each
+      terminated normally or as declared (timeout/truncation recorded as such,
+      never erased).
+    - Every control pass condition holds per cell (CTRL-QUERY-COUNT,
+      CTRL-PRNG-NO-COLLISION, CTRL-BLOB, CTRL-YIELD-REF); a tripped control
+      is recorded as invalid with its exact reason, never as evidence.
+    - raw-results.json + manifest.json + analysis.yaml exist per run dir;
+      every artifact hash is a REAL recomputed sha256 (no placeholders).
+    - analysis.yaml reports per-cell C_A/C_B/C_D / R_A,R_B,R_D / R_D/R_B
+      with both naive-n40 and corrected-n8 statistics, the C ranking verdict
+      per cell, and peak_rss_bytes vs |F|^2 reconciliation.
+    - No protocol change, no extra parameters, no "bonus" runs, and no
+      speedup/cost language outside the spec's charge_model definitions.

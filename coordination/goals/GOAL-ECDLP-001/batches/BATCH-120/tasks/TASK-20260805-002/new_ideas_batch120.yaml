@@ -1,0 +1,770 @@
+proposals:
+  # -----------------------------------------------------------------------
+  # IDEA-20260805-0cd03f
+  # BKK speedup propagates to relation collection: K* crossover reduction
+  # in the Corrigan-Gibbs-Kogan multi-target advice model
+  # -----------------------------------------------------------------------
+  - id: IDEA-20260805-0cd03f
+    goal_id: GOAL-ECDLP-001
+    direction: novel
+    status: proposed
+    added: '2026-08-05'
+    authored_by: TASK-20260805-002
+
+    title: >-
+      BKK speedup is multiplicative in the multi-target advice model: K* crossover
+      shrinks by [(m+1)/2]^2, making multi-target IC competitive at toy scale
+
+    class: composition
+
+    source_angles:
+      - ANGLE-1-multi-target-amortization
+      - KN-FIND-c7d31e (BKK speedup theorem)
+      - H-MTIC-001 (multi-target K* crossover, approved, no experiment yet run)
+
+    avoids_prior_work_note: >-
+      H-MTIC-001 measures K* for standard Semaev IC (no BKK). The BKK speedup
+      theorem was proved only in BATCH-119 (after H-MTIC-001 was specified).
+      This proposal asks the new question: does K* shift when BKK is used for
+      both relation collection AND per-target descent? The combination has never
+      been measured or analysed.
+
+    mechanism: >-
+      The BKK sparse check (KN-FIND-c7d31e) reduces each decomposition attempt
+      from B^{m-1} to (B/2)^{m-1} tuple tests while retaining a (m+1)/2 fraction
+      of genuine decompositions. Crucially, this speedup applies to BOTH channels
+      that enter the Corrigan-Gibbs-Kogan advice-model cost comparison:
+
+      (1) RELATION COLLECTION S_rel: Each relation is found by a decomposition
+          attempt on a known-log harvesting target. With BKK, each such attempt
+          costs 2^{-(m-1)} of the standard cost with yield retention gamma_m =
+          (m+1)/2^m. The effective per-relation cost is (standard cost) /
+          [(m+1)/2]. Therefore S_rel(BKK) ≈ S_rel(standard) × 2/(m+1).
+
+      (2) PER-TARGET DESCENT T_desc: Each target descent attempt is also a
+          decomposition trial. By the same theorem, T_desc(BKK) ≈ T_desc(standard)
+          × 2/(m+1).
+
+      In the advice model, K* = ceil(S_rel / (sqrt(N) - T_desc)) when T_desc <
+      sqrt(N). With BKK, both numerator and denominator change:
+          K*(BKK) = S_rel(BKK) / (sqrt(N) - T_desc(BKK))
+                  ≈ [S_rel(std) × 2/(m+1)] / [sqrt(N) - T_desc(std) × 2/(m+1)]
+
+      For instances where T_desc(std) << sqrt(N) (denominator dominated by
+      sqrt(N)):
+          K*(BKK) ≈ K*(std) × 2/(m+1)
+
+      For instances where T_desc(std) ≈ sqrt(N) (denominator near zero,
+      K*(std) near infinity): BKK reduces T_desc by factor 2/(m+1), pulling
+      T_desc(BKK) below sqrt(N) and making K*(BKK) FINITE on instances where
+      K*(std) was infinite. This is the critical new regime.
+
+      At m=5: (m+1)/2 = 3.0. K*(BKK) ≈ K*(std) / 3 for small-T_desc regime.
+      At m=4: (m+1)/2 = 2.5. K*(BKK) ≈ K*(std) / 2.5.
+
+      Combined with the fact that BKK was proved in BATCH-119 (not heuristic),
+      this is a PROVABLE reduction in the K* crossover.
+
+    predictions:
+      - metric: S_rel_ratio_BKK_vs_standard
+        direction: lower
+        minimum_effect: >-
+          Measured S_rel(BKK) / S_rel(standard) <= 1.1 × 2/(m+1) at each of
+          the three toy-curve sizes (16, 20, 24 bit), where m is the deployed
+          arity. If the ratio exceeds 1.5 × 2/(m+1), the BKK gain does not
+          propagate to relation collection as predicted; the mechanism is
+          refuted for this component.
+
+      - metric: K_star_BKK_vs_standard
+        direction: lower
+        minimum_effect: >-
+          K*(BKK) < K*(standard) × 0.5 on at least 2/3 of instances where
+          K*(standard) is finite. On instances where K*(standard) is infinite
+          and BKK pulls T_desc below sqrt(N), a finite K*(BKK) would be a
+          non-generic multi-target signal requiring independent review before
+          any promotion.
+
+      - metric: S_LA_unchanged
+        direction: same
+        minimum_effect: >-
+          S_LA is independent of BKK (linear algebra operates on the collected
+          relation matrix regardless of how relations were found). S_LA(BKK) =
+          S_LA(standard) within measurement noise. This is a consistency check;
+          if it fails, the harness is measuring something other than the algebra
+          step independently.
+
+    minimal_discriminating_test:
+      description: >-
+        Re-run the H-MTIC-001 protocol at 16-20 bit curves with BKK sparse
+        check enabled during relation collection (switch from full B^{m-1}
+        enumeration to (B/2)^{m-1} enumeration with the gamma_m accept
+        criterion from KN-FIND-c7d31e). Measure S_rel(BKK) vs S_rel(standard)
+        on the SAME three curves with the same seeds.
+        
+        Compute K*(BKK) = S_rel(BKK) / (sqrt(N) - T_desc(BKK)) for each
+        instance. Compare to K*(standard) from H-MTIC-001.
+        
+        For instances where T_desc(standard) > sqrt(N) (K*(standard) = inf):
+        does BKK bring T_desc(BKK) below sqrt(N)?
+        
+        The BKK sparse check implementation is already in harness/semaev.py
+        (experiments/EXP-BKK-*); this test re-uses that code in the MTIC
+        harness context.
+      estimated_cost: >-
+        ~3 hours wall clock at the same scale as H-MTIC-001 (16-24 bit curves).
+        The BKK check is already implemented; this is a protocol variant, not
+        a new implementation.
+      pass_criterion: >-
+        S_rel(BKK) / S_rel(standard) in [0.5 × 2/(m+1), 1.5 × 2/(m+1)] for
+        all three curve sizes. K*(BKK) < K*(standard) on at least 2/3 of
+        instances. These together confirm the mechanism.
+      fail_criterion: >-
+        S_rel(BKK) / S_rel(standard) > 0.9 on any curve, or K*(BKK) ≥
+        K*(standard) on a majority of instances. Either outcome means BKK gain
+        does not propagate through multi-target relation collection and the
+        combination offers no advantage beyond the single-target BKK speedup.
+
+    null_object_control:
+      description: >-
+        Replace the Semaev point-decomposition membership predicate with a
+        random-oracle predicate of identical cost structure: a (B/2)^{m-1}
+        hash lookup that accepts with probability (m+1)/2^m. Run the same
+        S_rel(BKK) measurement under this null predicate. If the null S_rel
+        ratio matches the BKK S_rel ratio, the reduction is purely statistical
+        (from the acceptance rate) and provides no ECDLP-structural insight.
+        
+        Expected null result: S_rel(null-BKK) / S_rel(null-standard) = 2/(m+1)
+        ± noise (same as the prediction, because the ratio IS purely from the
+        acceptance rate). The structural question is whether K*(null-BKK) is
+        also finite on the same instances as K*(BKK) — if null and BKK give
+        the same K* pattern, there is no elliptic-curve-specific signal.
+      expected_null_result: >-
+        The null K* crossover should be WORSE than the real K* because the
+        null has no factor-base log-table reuse (no valid relations). Real IC
+        has a genuine S_LA term that is target-independent; null IC has none.
+        Therefore K*(null-BKK) should be infinite for all instances. If
+        K*(null-BKK) is finite, the harness is not correctly separating
+        preprocessing from online cost.
+
+    pareto_frontier:
+      dominated_by: >-
+        Pollard rho at exponent 1/2 (for single-target ECDLP). This is a
+        constant-factor, multi-target regime improvement only.
+      sota_delta:
+        time_exponent: not_applicable
+        note: >-
+          BKK × multi-target amortization gives a combined constant factor of
+          (m+1)/2 × [1/K*(BKK)] per target, vs. sqrt(N) per target for rho.
+          At m=5 and K*(BKK) ~= 3, per-target cost at the crossover is ~
+          sqrt(N)/9. This is a constant (not asymptotic) improvement. No
+          exponent change is claimed.
+
+    proof_search_map:
+      bottleneck: >-
+        Whether K*(BKK) falls below K*(standard) by a factor of (m+1)/2,
+        and whether any instance with K*(standard) = infinity becomes finite
+        under BKK. The bottleneck is the T_desc comparison to sqrt(N): the
+        BKK theorem guarantees T_desc(BKK) = T_desc(standard) × 2/(m+1),
+        so the shift is unconditional IF the BKK speedup propagates to
+        descent (already proved by KN-FIND-c7d31e). The only question is
+        whether T_desc(standard) was so far above sqrt(N) that even the
+        2/(m+1) factor does not suffice.
+      baseline_embedding:
+        parameter_slice: >-
+          H-MTIC-001 specifies exactly B = ceil(sqrt(N)), m = 3, instances
+          at 16/20/24 bits, 50 descent targets per curve. BKK variant uses
+          the same instances and parameters, switching only the membership
+          test. Standard baseline is reproducible from H-MTIC-001's harness.
+        reproduction_check: >-
+          Before enabling BKK, reproduce K*(standard) to within 10% of the
+          H-MTIC-001 measurement (or produce that measurement for the first
+          time if EXP-MTIC-001 has not yet run). The BKK variant is only
+          meaningful if the standard is pinned.
+      observation_collision:
+        observable: >-
+          The ratio S_rel(BKK) / S_rel(standard) across three curve sizes.
+          If this ratio is NOT approximately 2/(m+1), either (a) relation
+          collection does not dominate standard S_rel (then LA dominates and
+          BKK doesn't propagate), or (b) the BKK gamma_m estimate is wrong
+          for the specific B/N regime (in which case re-check KN-FIND-c7d31e
+          under the actual B/N regime used).
+        distinct_preimage_search: >-
+          Check: for a single B and m, do S_rel(BKK) measurements with seeds
+          {1,2,3} agree to within 20%? Large variance across seeds = S_rel
+          is dominated by lucky/unlucky runs, and the ratio is not stable;
+          this makes the K* comparison uninformative.
+      quantifier_order: >-
+        For EVERY instance (curve size, seed) in the declared family,
+        first freeze S_rel(standard) from the standard-IC run; then run
+        BKK-IC on the SAME instance and measure S_rel(BKK). The K*(BKK)
+        comparison is per-instance, not averaged. The claim requires the
+        ratio to hold for at least 2/3 of instances, not just on average.
+      method_ceiling:
+        strongest_certifiable_claim: >-
+          At the tested toy scale (16-24 bit), BKK reduces K* by a factor
+          close to (m+1)/2. Asymptotic claim: K*(BKK) = K*(standard) ×
+          O(2/(m+1)) which is a constant-factor shift in the multi-target
+          breakeven, not an exponent change.
+        nearby_object_control: >-
+          Random-oracle null (described above). If K*(null-BKK) shifts by the
+          same factor as K*(real-BKK), the entire effect is from the
+          acceptance-rate change, not from EC structure.
+      proof_obligations:
+        - claim: S_rel(BKK) = S_rel(standard) × [2/(m+1)] × (1 ± epsilon)
+          responsibility: size
+        - claim: T_desc(BKK) = T_desc(standard) × [2/(m+1)] × (1 ± epsilon)
+          responsibility: runtime
+        - claim: K*(BKK) < K*(standard) × 0.5 on 2/3+ of instances
+          responsibility: success_probability
+        - claim: null K*(null-BKK) is infinite (no factor-base log table = no valid relations)
+          responsibility: correctness
+
+  # -----------------------------------------------------------------------
+  # IDEA-20260805-62ef74
+  # Comparison-oracle GGM is the exact oracle characterization of H-PSEUDO:
+  # sub-rho in GGM+C_t iff H-PSEUDO; closes the oracle-augmented model question
+  # -----------------------------------------------------------------------
+  - id: IDEA-20260805-62ef74
+    goal_id: GOAL-ECDLP-001
+    direction: novel
+    status: proposed
+    added: '2026-08-05'
+    authored_by: TASK-20260805-002
+
+    title: >-
+      Comparison-oracle GGM = exact oracle characterization of H-PSEUDO:
+      IC is sub-rho in GGM augmented with {x(P) < t?} if and only if H-PSEUDO holds
+
+    class: barrier
+
+    source_angles:
+      - ANGLE-5-optimistic-oracle
+      - KN-FIND-9d2f56 (Betti-Yield duality, H-PSEUDO is the exact sub-rho condition)
+      - H-GGM-001 (simulability test for augmented oracles, covers jet/EN/incidence/endo but NOT comparison)
+
+    avoids_prior_work_note: >-
+      H-GGM-001 classifies four specific oracle types (jet, elliptic-net,
+      incidence, endomorphism). The COMPARISON oracle C_t(P) = [x(P) < t?]
+      is a different oracle type: it provides a 1-bit ordering comparison on the
+      concrete x-coordinate of any handle P. This oracle is not in the H-GGM-001
+      study and has not been proposed in BATCH-047..119. The claim is that C_t
+      is the minimal oracle that enables index calculus in the strict GGM, and
+      sub-rho in GGM+C_t holds iff H-PSEUDO.
+
+    mechanism: >-
+      In Shoup's strict GGM, group elements are opaque handles accessible only
+      via the group-law oracle sigma(h1, h2) and equality tests eq(h1, h2). No
+      x-coordinate is accessible. The Shoup lower bound: every algorithm using
+      T queries with |S| distinct handles satisfies P[solve ECDLP] <= (T+|S|)^2
+      / (2N), so T = Omega(sqrt(N)) queries are required.
+
+      Add the COMPARISON ORACLE: C_t(h) = 1 if x(h) < t, else 0, for any
+      t in [0, p). This oracle is non-simulable in the standard GGM (it leaks
+      concrete x-coordinate information). In O(log p) adaptive C_t queries, the
+      exact x-coordinate of any handle can be recovered via binary search.
+
+      CLAIM (biconditionality of GGM+C_t and H-PSEUDO for IC):
+
+      DIRECTION A (→): H-PSEUDO ↔ (factor base F has yield above random
+      baseline) ↔ (the GGM+C_t IC algorithm with factor base F = {h: x(h) < B/p}
+      collects B^2/N relations per unit time instead of the heuristic B^2/N)
+      ↔ sub-rho IC feasible in GGM+C_t.
+
+      More carefully: with C_t, an IC algorithm can identify factor-base
+      membership in O(1) queries (just one C_{B/p} call). Relation collection
+      asks: does a random group element decompose into exactly m factor-base
+      elements? The rate is the Semaev S_m yield, which by KN-FIND-9d2f56
+      exceeds the heuristic floor iff H-PSEUDO. When yield is above-heuristic,
+      IC is sub-rho using a standard smoothness-counting argument (collect
+      ~B relations from ~B^2/N random points = sub-sqrt(N) queries when
+      yield >> B^2/N).
+
+      DIRECTION B (←): If no factor base F has above-heuristic yield (H-PSEUDO
+      fails for all F), then by the Betti-Yield duality (KN-FIND-9d2f56),
+      beta_1(C_R^F) >= Omega(sqrt(N)) for a positive fraction of targets R.
+      The comparison oracle C_t does not change the topological structure of
+      the Semaev complex over F; it only enables IDENTIFICATION of F-membership.
+      Since sub-rho IC requires a factor base with sub-sqrt(N) Betti number
+      (KN-FIND-9d2f56, Corollary), and C_t cannot create yield that does not
+      exist, sub-rho is blocked in GGM+C_t whenever H-PSEUDO fails.
+
+      ECCG CONNECTION: The ECCG security assumption (see IDEA-20260804-28c15f)
+      states that the sequence x([j]G) is computationally indistinguishable
+      from uniform. This sequence IS accessible via C_t queries (ask C_t(h_j)
+      for h_j = [j]G). So ECCG security implies that C_t-augmented IC gains no
+      useful correlation from the sequence x([j]G), which is EQUIVALENT to
+      H-PSEUDO (the character sum bound on the small-x indicator). The
+      comparison oracle characterization thus unifies H-PSEUDO and ECCG security
+      under one oracle-augmented model.
+
+      ORACLE MINIMALITY: Among single-query augmentations of the GGM that are
+      non-simulable (i.e., require concrete x-coordinate knowledge), C_t is the
+      MINIMAL one — every non-simulable oracle in the GGM context encodes some
+      function f(x(h)); C_t is a 1-bit threshold function, the coarsest
+      non-trivial such function. A weaker oracle (e.g., random 1-bit hash of
+      x(h)) would not identify factor-base membership. C_t is the weakest
+      oracle that enables IC, making the characterization tight.
+
+    predictions:
+      - metric: direction_B_immediate_from_KN-FIND-9d2f56
+        direction: confirmed
+        minimum_effect: >-
+          The Betti-Yield duality (KN-FIND-9d2f56 Corollary) directly implies
+          Direction B with no new computation: sub-rho complex requires H-PSEUDO,
+          and C_t cannot change the Semaev complex structure. This direction
+          should be verified as a 1-2 paragraph formal derivation, not an
+          experiment.
+
+      - metric: direction_A_requires_H-PSEUDO_to_be_established
+        direction: conditional
+        minimum_effect: >-
+          Direction A is a conditional: IF H-PSEUDO holds for some factor base F
+          (which is itself unproved), THEN GGM+C_t IC is sub-rho. The prediction
+          is that the reduction from H-PSEUDO to sub-rho GGM+C_t is valid — a
+          mathematical claim verifiable by reading the argument above.
+          Experimental test: at toy scale, verify that C_t-enabled IC with an
+          above-heuristic-yield factor base (found experimentally if it exists)
+          gives sub-rho relation collection.
+
+      - metric: oracle_minimality_verified
+        direction: confirmed
+        minimum_effect: >-
+          A strictly weaker 1-bit oracle g(h) that does not recover x-coordinate
+          information (e.g., g = random hash of x) does NOT enable IC at any
+          scale. This is a control: if g-IC is sub-rho, then IC does not need
+          the ordering structure of C_t, and the oracle is not tight. Expected
+          result: g-IC is not sub-rho, confirming C_t minimality.
+
+    minimal_discriminating_test:
+      description: >-
+        PART 1 (mathematical, cheap): Write out the formal direction-B proof from
+        KN-FIND-9d2f56. Verify that C_t-augmented IC's relation-collection rate
+        equals the Semaev S_m yield for F = {h: x(h) < B/p}, and that this yield
+        is bounded by the Betti-Yield constraint. No experiment needed for Part 1.
+
+        PART 2 (conditional experiment, only if H-PSEUDO evidence exists): At
+        p=1009, use an ABOVE-HEURISTIC-YIELD factor base (if one can be found
+        empirically) and measure the IC relation-collection rate. Compare to:
+        (a) Standard IC without C_t (uses same factor base, same yield, should
+            give same result — sanity check).
+        (b) GGM-simulated IC (only group-law operations, no x-coordinate access)
+            vs. C_t-enabled IC (binary search for x, then factor-base membership).
+        If Part 2 is infeasible (H-PSEUDO factor base not found), record this as
+        the expected outcome: H-PSEUDO is still unproved, so direction A cannot
+        be tested. This does not refute the theorem; it just says "conditional
+        on H-PSEUDO, sub-rho GGM+C_t IC follows."
+      estimated_cost: "Part 1: ~1 hour mathematical analysis. Part 2: ~2 hours at p=1009 if an above-heuristic factor base exists."
+      pass_criterion: >-
+        Part 1: formal direction-B derivation complete and peer-checkable.
+        Part 2 (if run): C_t-IC relation rate >= 1.5× heuristic baseline;
+        standard IC (same factor base) achieves the same rate in the concrete
+        model (confirming C_t adds nothing in concrete = C_t is always free).
+      fail_criterion: >-
+        Direction B breaks: C_t somehow provides ADDITIONAL yield beyond what
+        the Semaev complex allows. This would refute KN-FIND-9d2f56 (a proved
+        theorem), which would be a major finding requiring breakthrough review.
+
+    null_object_control:
+      description: >-
+        RANDOM-ORACLE COMPARISON: Replace the elliptic curve group law with a
+        random group (symmetric group S_N in its regular representation, or a
+        random bijection oracle). In the random-group GGM+C_t, does the "factor
+        base" {g: C_t(g)=1} have above-heuristic yield for random targets?
+        
+        Expected null result: for a random group, the "x-coordinate" is just
+        a random labeling, so C_t identifies a uniformly random subset of size
+        B. The Semaev-analog S_m yield is the heuristic B^m/N (no excess).
+        H-PSEUDO (above-heuristic yield) does NOT hold for the random group.
+        Therefore GGM+C_t IC is NOT sub-rho for the random group, confirming
+        that the sub-rho potential is specific to the EC algebraic structure —
+        not to C_t alone. This makes the ECDLP case interesting: H-PSEUDO is
+        an algebraic property of EC multiplication, not a generic property.
+      expected_null_result: >-
+        Null-group GGM+C_t IC: no sub-rho. This is the EXPECTED and DESIRED
+        null result. It confirms that C_t alone is not sufficient — the EC
+        algebraic structure (encoded in H-PSEUDO) is the additional ingredient.
+
+    pareto_frontier:
+      dominated_by: >-
+        Pollard rho at exponent 1/2 in the standard GGM. GGM+C_t = concrete
+        model for IC purposes. IC in the concrete model is sub-rho iff H-PSEUDO.
+        So GGM+C_t provides no advantage BEYOND what H-PSEUDO provides.
+        Currently dominated by rho (since H-PSEUDO is unproved).
+      sota_delta:
+        time_exponent: not_applicable
+        note: >-
+          This is a characterization theorem, not an attack. If H-PSEUDO holds
+          (unproved), GGM+C_t IC gives sub-rho with the same exponent as
+          concrete IC. The delta vs. sota is conditional on H-PSEUDO; current
+          sota is exponent 1/2 (rho). No claimed improvement.
+
+    proof_search_map:
+      bottleneck: >-
+        Direction A: the gap between "H-PSEUDO" (yield above random for some F)
+        and "GGM+C_t IC is sub-rho" requires verifying that C_t binary-search
+        to x-coordinate costs O(log p) queries, which is less than the sqrt(N)
+        total query budget. Since log p << sqrt(N), this overhead is negligible
+        and does not change the sub-rho condition. Bottleneck resolved by
+        inspection.
+      baseline_embedding:
+        parameter_slice: >-
+          KN-FIND-9d2f56 (proved theorem) is the exact baseline for direction B.
+          The parameter slice is: factor base size B = N^beta, beta in (0, 1/2),
+          arity m = 2 or 3, prime-order subgroup over F_p. This is exactly the
+          scope of KN-FIND-9d2f56.
+        reproduction_check: >-
+          KN-FIND-9d2f56 proof must be reproduced (symbolic, not re-proved) in
+          the direction-B argument. Specifically: the Betti-Yield duality must
+          be cited at the exact place where it rules out sub-rho Betti numbers
+          without H-PSEUDO.
+      observation_collision:
+        observable: >-
+          The oracle C_t in GGM: does adding C_t change the Semaev complex
+          beta_1? Answer: NO — the Semaev complex is defined by the algebraic
+          structure of S_m over F, not by the oracle model. C_t affects only
+          the COST of identifying F (O(log p) vs. known), not the complex itself.
+        distinct_preimage_search: >-
+          Check: is there any GGM+C_t algorithm that uses C_t in a non-IC way
+          to solve ECDLP sub-rho? For example, binary search on Q's x-coordinate
+          using the oracle? Answer: GGM+C_t allows binary-search to recover x(Q)
+          in O(log p) queries, but x(Q) does NOT give k (the scalar). So no
+          non-IC route exists from C_t alone.
+      constructive_transforms:
+        - transform: representation_reduction
+          proposed_object: >-
+            Replace the abstract IC factor-base identification step (which
+            costs O(1) in concrete model) by O(log p) C_t queries in GGM+C_t.
+            This maps GGM+C_t IC to concrete-model IC with overhead O(log p)
+            per relation.
+          predicted_gain: >-
+            O(log p) overhead per relation is negligible vs. sqrt(N) total
+            budget. The mapping is therefore bijective up to polylog, and
+            GGM+C_t IC is sub-rho iff concrete IC is sub-rho iff H-PSEUDO.
+      quantifier_order: >-
+        "GGM+C_t IC is sub-rho" means: THERE EXISTS an IC algorithm using C_t
+        that collects B relations in o(sqrt(N)) queries on input (G, Q). This
+        requires H-PSEUDO to hold for the chosen factor base F.
+
+        "H-PSEUDO" means: THERE EXISTS a factor base F with yield above the
+        heuristic B^m/N baseline.
+
+        The iff: both statements existentially quantify over the same factor
+        base F. The iff is: ∃F [yield(F) > heuristic] ↔ ∃F [GGM+C_t IC is
+        sub-rho using F]. The two existence witnesses are the same F.
+      method_ceiling:
+        strongest_certifiable_claim: >-
+          At the stated scope (prime-order subgroup, F_p, B = N^beta, IC-style
+          algorithms), GGM+C_t sub-rho iff H-PSEUDO. No claim about other
+          oracle augmentations or non-IC algorithms.
+        nearby_object_control: >-
+          Random group (null control above). In the random group, no F with
+          above-heuristic yield exists, so GGM+C_t is not sub-rho. The EC
+          case might have such F (H-PSEUDO is open). This makes the ECDLP
+          case the interesting one.
+      proof_obligations:
+        - claim: C_t(h) recovers x(h) in O(log p) binary-search queries
+          responsibility: runtime
+        - claim: Betti-Yield duality applies independent of oracle model
+          responsibility: correctness
+        - claim: >-
+            ExistsF [yield above heuristic] iff ExistsF [sub-rho GGM+C_t IC]:
+            a tight bijection on the same F
+          responsibility: success_probability
+        - claim: C_t is the MINIMAL non-simulable oracle for IC (no 0-bit
+            oracle enables IC)
+          responsibility: size
+
+  # -----------------------------------------------------------------------
+  # IDEA-20260805-58b638
+  # Doubling oracle closure via y-sign doubling tree: prime-field ECDLP
+  # is not sub-rho even with x([2]P) oracle, due to N-leaf doubling ambiguity
+  # -----------------------------------------------------------------------
+  - id: IDEA-20260805-58b638
+    goal_id: GOAL-ECDLP-001
+    direction: novel
+    status: proposed
+    added: '2026-08-05'
+    authored_by: TASK-20260805-002
+
+    title: >-
+      Doubling oracle x([2]P) does not enable sub-rho prime-field ECDLP:
+      y-sign ambiguity creates an N-leaf binary doubling tree (closure result)
+
+    class: barrier
+
+    source_angles:
+      - ANGLE-3-oracle-amplified-Semaev
+      - H-GGM-001 (oracle simulability for jet/EN/incidence/endo — doubling oracle not studied)
+      - KN-FIND-9d2f56 (Betti-Yield duality)
+
+    avoids_prior_work_note: >-
+      H-GGM-001 classifies four oracle types. The DOUBLING ORACLE — given P,
+      return x([2]P) — is a separate oracle not analysed in H-GGM-001. The task
+      prompt describes it as: "the oracle returns x([2]P) = x(2P)". This has NOT
+      appeared as a proposal in BATCH-047..119. The claim here is a CLOSURE:
+      even with this algebraic oracle, the prime-field ECDLP remains at exponent 1/2.
+
+    mechanism: >-
+      THE ORACLE: Let O_D be the oracle O_D(P) = x([2]P) for any query point P.
+      The attacker can make adaptive queries: construct any group element via
+      the standard GGM group law, then query O_D for its x-coordinate after
+      doubling.
+
+      ALGEBRAIC STRUCTURE OF DOUBLING: For E: y² = x³+ax+b over F_p, the
+      explicit duplication formula gives:
+          x([2]P) = (3x(P)² + a)² / (4y(P)²) - 2x(P)
+                  = (x(P)⁴ + 2ax(P)² + 4bx(P) + a² - 4ab) / (4(x(P)³+ax(P)+b))
+
+      Key: x([2]P) depends on x(P) BUT ALSO on y(P) through the (±y) sign.
+      More precisely: x([2]P) = (3x²+a)²/(2y)² - 2x. The sign of y DOES NOT
+      appear in x([2]P) because (2y)² = 4y² = 4(x³+ax+b) (only x(P) appears).
+
+      So x([2]P) is a RATIONAL FUNCTION of x(P) ALONE: x([2]P) = f(x(P)) where
+          f(x) = (x⁴ + 2ax² + 4bx + a² - 4ab) / (4(x³+ax+b))
+      [corrected: f(x) = ((3x²+a)² - 8b·x) / (4(x³+ax+b)), independent of y].
+
+      IMPLICATION FOR THE ORACLE: O_D(P) = f(x(P)). The oracle O_D is
+      SIMULABLE from the x-coordinate oracle x(·). But x(·) is itself
+      non-simulable in the strict GGM. So the doubling oracle is "one step
+      closer to the x-coordinate" than the standard GGM.
+
+      THE DOUBLING TREE ARGUMENT:
+      Start with Q = [k]G (the ECDLP target). We do NOT know x(Q) directly (strict GGM).
+      Query O_D(Q): we learn x([2]Q) = f(x(Q)).
+      From f(x(Q)) = c₁ (some constant), we can INVERT f to find x(Q): f is
+      a degree-4 / degree-3 rational map, so f⁻¹(c₁) has at most 4 preimage
+      x-values. Then x(Q) is one of ~4 values, and Q = [k]G corresponds to one
+      of ~4 or ~8 group elements (two points per x-coordinate via ±y).
+
+      Iterating: Query O_D([2]Q) = f(x([2]Q)), O_D([4]Q) = f(x([4]Q)), etc.
+      After t queries, we have t values f(x([2^i]Q)) for i=0,...,t-1. Each
+      gives ~4 candidate x([2^i]Q) values.
+
+      At depth t = log₂(N), the sequence x(Q), x([2]Q), ..., x([2^{t-1}]Q)
+      uniquely DETERMINES x(Q): it's a t-step doubling chain, and given all
+      t values, x(Q) is determined (the chain contracts uniquely when you
+      know the whole chain: [2^t]Q = [1]Q (since 2^t ≡ 1 mod N for some t
+      by the order of 2 modulo N), giving a cycle constraint).
+
+      BUT: from t O_D queries at specific points, you do NOT have the full
+      chain x(Q), x([2]Q), ..., x([2^{t-1}]Q) unless you construct [2^i]Q
+      yourself (via group-law doublings). But GGM already allows computing
+      [2^i]Q without O_D! So:
+
+          Step 1: compute [2]Q, [4]Q, ..., [2^t]Q via standard GGM doublings
+                  (no O_D needed for the handles).
+          Step 2: query O_D([2^{t-1}]Q) = x([2^t]Q) = x([1]Q) = x(Q) (since
+                  2^t ≡ 1 mod N for the smallest t with this property, which is
+                  ord_N(2) = O(log N) in the best case).
+          Step 3: from x(Q) (if obtained), x(Q) determines Q up to ±y, giving
+                  k up to ±1 (two candidates, easily checked).
+
+      WAIT — DOES 2^t ≡ 1 (mod N) for small t?
+      For a prime-order subgroup of order N (a 256-bit prime), ord_N(2) is
+      generically Omega(N^{1/2}) by the discrete logarithm hardness of 2 modulo N
+      (this is the DLP for base 2 in Z/N*, which is as hard as a general DLP in
+      the multiplicative group — expected order ~N by standard heuristics).
+      So the "cycle" from t = ord_N(2) queries requires Omega(N^{1/2}) doublings,
+      providing NO speedup over rho.
+
+      ALTERNATIVE: CAN O_D + O_D(P+Q) GIVE MORE? Adding the "sum doubling" oracle
+      O_D(P+Q) = x([2](P+Q)) for two known handles P, Q would allow more
+      combinations. But from x([2](P+Q)) = f(x(P+Q)) and the group law,
+      this is still one rational function of x(P+Q), which itself requires
+      x(P), x(Q), and the relative sign of y(P+Q) to determine. The sign
+      ambiguity persists at each level.
+
+      MAIN CLAIM: The doubling oracle O_D does NOT give sub-rho ECDLP for
+      prime-field curves because:
+        (A) O_D(P) = f(x(P)) is already simulable given x(P) (a simpler oracle).
+            So O_D does not add power BEYOND the x-coordinate oracle.
+        (B) The x-coordinate oracle itself does not give sub-rho ECDLP (knowing
+            x(Q) = x([k]G) identifies Q up to ±y, giving 2 candidates for k,
+            but we do NOT have x(Q) from O_D without a full cycle of doublings
+            which requires ord_N(2) queries = Omega(sqrt(N)) in expectation).
+        (C) The only way O_D enables sub-rho is if it can be composed to
+            yield x(Q) efficiently, but that requires ord_N(2) to be small —
+            which would be a different hard problem (DLP of 2 mod N) rather
+            than a new algorithmic insight.
+
+      STRENGTHENING THE GGM LOWER BOUND: This closure shows that the specific
+      algebraic oracle O_D (related to H-PSEUDO by "the doubling map is
+      algebraic") does NOT break the GGM barrier. The Weil bound (|sum e^{2πi k
+      x([j]G)/p}| ≤ 2 sqrt(p)) applies to character sums over the doubling
+      sequence, and by Shparlinski's results, O_D provides no additional
+      structural bias beyond what the GGM already accounts for.
+
+      NULL CONTRAST: If the problem were over F_{2^n} (binary fields), the
+      doubling oracle IS trivial (doubling is free in char 2: [2]P = P² in
+      the Frobenius sense), so the doubling sequence x(Q), x([2]Q), ...,
+      x([2^n]Q) is the Frobenius orbit of x(Q), and Berlekamp-style root-finding
+      on the Artin-Schreier polynomial associated to x(Q) DOES give k in O(n²)
+      time — a known sub-rho algorithm for char-2 curves. For prime fields,
+      this Frobenius shortcut does not exist, and the doubling oracle provides
+      no comparable speedup.
+
+    predictions:
+      - metric: O_D_simulability_from_x_oracle
+        direction: confirmed
+        minimum_effect: >-
+          O_D(P) = f(x(P)) where f is explicit rational function. Therefore
+          O_D is simulable from the x-coordinate oracle x(·) with overhead
+          O(1) arithmetic operations. Any attack using only O_D is dominated
+          by an attack using x(·), and x(·) does not itself give sub-rho (see
+          argument B above). This is a derived mathematical fact, not an
+          experiment.
+
+      - metric: ord_N_2_exceeds_sqrt_N_in_expectation
+        direction: higher
+        minimum_effect: >-
+          For a random 256-bit prime N, the multiplicative order of 2 modulo N
+          is >= N^{1/2} with probability >= 1 - 1/sqrt(N) (heuristic, but
+          standard under GRH). This means the "doubling cycle" approach
+          requires >= sqrt(N) doublings in expectation. Toy-scale test:
+          at p in {251, 509, 1009, 4093} (small primes with prime-order
+          EC groups), measure ord_N(2) mod N and check it exceeds sqrt(N).
+          If ord_N(2) < sqrt(N) for a measurable fraction of small primes,
+          the heuristic fails and the doubling-cycle approach deserves more
+          attention.
+      
+      - metric: char2_control_confirms_contrast
+        direction: higher
+        minimum_effect: >-
+          For E/F_{2^n} (binary field, NOT prime field), the doubling oracle
+          trivializes ECDLP (via the Frobenius orbit argument). Verify at
+          n=16: ord_{N'}(2) = n (where N' is the curve order over F_{2^16})
+          confirming the char-2 doubling oracle gives x(Q) in n steps. This
+          CONTROL establishes that the doubling oracle analysis is correct
+          and binary fields provide the contrast case.
+
+    minimal_discriminating_test:
+      description: >-
+        PART 1 (mathematical, minutes): Verify that x([2]P) = f(x(P)) for the
+        explicit duplication formula. Confirm f is independent of y(P) (check:
+        (3x²+a)²/(4y²) - 2x = (x⁴+2ax²+4bx+a²-4ab)/(4x³+4ax+4b) using
+        y² = x³+ax+b). This requires only symbolic algebra.
+        
+        PART 2 (toy numerical, ~30 min): At p=1009, for 5 random prime-order
+        curves, compute ord_N(2) = the smallest t such that 2^t ≡ 1 (mod N).
+        Check: is ord_N(2) >= N^{0.3} = 1009^{0.3} ≈ 10 for all curves?
+        (At p=1009, N ≈ 1009, so sqrt(N) ≈ 32; check ord_N(2) >= 32 on
+        at least 4/5 curves.)
+        
+        PART 3 (char-2 control, ~20 min): At F_{2^{16}}: find a random
+        prime-order curve, compute ord_{N'}(2) mod N'. Confirm ord_{N'}(2)
+        = n = 16 (Frobenius has exact order n in the multiplicative group
+        Z/N' for generic binary curves). This validates the char-2 contrast
+        and confirms the claim that prime-field is the hard case.
+      estimated_cost: "~1 hour total: Part 1 is symbolic, Parts 2-3 are short Python scripts."
+      pass_criterion: >-
+        Part 1: explicit rational formula verified. Part 2: ord_N(2) >= sqrt(N)
+        on >= 4/5 tested curves. Part 3: char-2 Frobenius order = n confirmed.
+        All three together: doubling oracle closure for prime-field ECDLP.
+      fail_criterion: >-
+        Part 2: ord_N(2) < sqrt(N)^{0.5} = N^{1/4} on a majority of tested
+        small-prime curves. This would suggest a structural reason why 2 has
+        small order mod N for EC-group-order primes, potentially reopening the
+        doubling-cycle approach. Would require further analysis.
+
+    null_object_control:
+      description: >-
+        CHAR-2 CONTRAST: The binary-field ECDLP with doubling oracle serves as
+        the null/positive control — we EXPECT the doubling oracle to help there
+        (Frobenius orbit gives x(Q) in n steps). Running the doubling-cycle
+        approach on E/F_{2^16} should find x(Q) in exactly n=16 steps. If this
+        does NOT work for binary fields, the oracle analysis is flawed.
+        
+        This is a "positive null control": an object where the mechanism SHOULD
+        work, confirming the instrument (doubling-cycle approach) is correctly
+        implemented. The prime-field case is then the contrast where the
+        mechanism fails (ord_N(2) >> n).
+      expected_null_result: >-
+        Binary field (positive control): doubling oracle gives x(Q) in n steps.
+        Prime field (target case): doubling oracle requires ord_N(2) steps,
+        which is >= sqrt(N) in expectation.
+
+    pareto_frontier:
+      dominated_by: >-
+        Pollard rho at exponent 1/2. The doubling oracle provides NO improvement
+        for prime-field ECDLP: the doubling sequence requires ord_N(2) = Omega(sqrt(N))
+        steps, matching rho's cost. This is a CLOSURE for the doubling oracle angle.
+      sota_delta:
+        time_exponent: 0
+        note: >-
+          No improvement: doubling oracle costs are the same as rho in expectation.
+          The closure result is: sota_delta = 0 (no change from current sota of
+          exponent 1/2). The binary-field contrast (where doubling oracle DOES give
+          sub-rho) quantifies the structural difference precisely.
+
+    proof_search_map:
+      bottleneck: >-
+        The key step is whether O_D(P) = f(x(P)) (a pure function of x(P),
+        independent of y(P)). If this algebraic fact holds (verifiable in
+        2 lines of algebra), the entire closure argument follows: O_D is
+        simulable from x(·), x(·) doesn't give sub-rho unless ord_N(2) is
+        small, and ord_N(2) is generically >= sqrt(N). The only thing to
+        check is the algebra.
+      baseline_embedding:
+        parameter_slice: >-
+          Weil bound on character sums: |Σ_{P in E(F_p)} e^{2πi f(x(P))/p}|
+          <= 4 sqrt(p) for any nondegenerate rational f. This is the standard
+          EC exponential sum bound (Shparlinski et al.). It applies to the
+          doubling oracle because O_D involves f(x(P)).
+        reproduction_check: >-
+          The explicit duplication formula x([2]P) = ((3x²+a)² - 8bx) /
+          (4(x³+ax+b)) must be verified by hand AND confirmed numerically at
+          p=1009 on 10 random points. This is a reproduction check on the
+          algebraic formula that the entire argument rests on.
+      observation_collision:
+        observable: >-
+          The sequence x(Q), x([2]Q), ..., x([2^t]Q) obtained via O_D-queries
+          after constructing [2^i]Q via GGM doublings. Does this sequence
+          uniquely determine x(Q) in fewer than sqrt(N) steps?
+        distinct_preimage_search: >-
+          For the cycle condition [2^t]Q = Q (i.e., 2^t ≡ 1 mod N): enumerate
+          small t and check if x([2^t]Q) = x(Q) via O_D. The first such t is
+          ord_N(2). If ord_N(2) is small (unexpectedly), this gives x(Q) in
+          ord_N(2) steps. The distinct preimage search: are there EC-group-order
+          primes N where ord_N(2) << sqrt(N)? Conjectured NO under GRH; test
+          empirically at toy scale.
+      constructive_transforms:
+        - transform: specialization_pack
+          proposed_object: >-
+            Restrict to curves where ord_N(2) < N^{1/3} (a special class). On
+            such curves, the doubling oracle gives x(Q) in N^{1/3} steps,
+            beating rho. The question is whether such curves exist with
+            cryptographic-strength parameters. Predicted answer: NO (such
+            primes have special structure, violating standard safe-prime
+            requirements).
+          predicted_gain: >-
+            On restricted curves: sub-rho by factor N^{1/6}. Not applicable to
+            standard NIST curves (P-256, etc.) where N is chosen to avoid
+            small ord_N(2).
+      quantifier_order: >-
+        The claim is FOR ALL prime-field ECDLP instances with prime group order
+        N satisfying ord_N(2) >= sqrt(N) (a generically true condition), the
+        doubling oracle does not give sub-rho. This is an asymptotic/generic
+        statement, not a proof for ALL N. Specifically excluded: specially
+        constructed N with small ord_N(2). Standard NIST curves satisfy the
+        condition by construction.
+      method_ceiling:
+        strongest_certifiable_claim: >-
+          For prime-order groups of order N where ord_N(2) >= sqrt(N) (includes
+          all NIST curves and random primes with probability 1-o(1) under GRH),
+          the doubling oracle O_D does not enable sub-rho ECDLP. Scope: oracle
+          model only; does not rule out other oracle types or non-oracle
+          algebraic approaches (e.g., H-PSEUDO-based IC).
+        nearby_object_control: >-
+          Binary-field ECDLP (char 2): Frobenius makes ord_N(2) = n (trivially
+          small), and the doubling oracle gives x(Q) in n = O(log N) steps.
+          This is the "nearby object where the method works" — confirming the
+          analysis is sound and that prime-field is genuinely different.
+      proof_obligations:
+        - claim: x([2]P) is a rational function of x(P) alone (y-independent)
+          responsibility: correctness
+        - claim: ord_N(2) >= N^{1/3} for all standard prime-field EC curves
+          responsibility: size
+        - claim: binary-field control shows doubling oracle gives x(Q) in n steps
+          responsibility: success_probability
+        - claim: O_D simulable from x-coordinate oracle with O(1) overhead
+          responsibility: runtime

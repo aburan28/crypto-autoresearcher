@@ -1,0 +1,684 @@
+# DUTY 3 -- sensitivity of HQC's published DFR bound to a failure of assumption A17.
+#
+# WHAT THIS FILE IS: a derivation, shown step by step, of how far SPEC Theorem 6.1
+# moves if the n_e inner-decoder failure events are NOT independent, together with
+# an explicit verdict on the direction (optimistic / pessimistic / undetermined).
+#
+# WHAT THIS FILE IS NOT: an experiment design. It contains no protocol, no
+# parameter selection, no trial count, no seed strategy, no success criterion, no
+# stopping rule and no measurement plan. Where published parameter sets appear
+# they are the specification's own three sets, used to EVALUATE a symbolic
+# formula; no parameter is selected here for any purpose. See `prohibitions`.
+#
+# NO SECURITY CLAIM ABOUT HQC IS MADE IN EITHER DIRECTION.
+
+task_id: TASK-20260802-15971b
+batch_id: BATCH-002
+goal_id: GOAL-HQC-001
+question_id: RQ-HQC-001
+role: executor
+produced: '2026-08-02'
+branch: claude/goal-target-hqc-launch-vndegi
+git_commit_at_start: 7f8a78d47bd35298cd140838381872d65bb2c0f1
+git_dirty_at_start: false
+
+inference:
+  requested_policy: executor-implementation
+  resolved_model_id: claude-opus-5
+  fallback_used: true
+  fallback_reason: >-
+    The policy aliases in orchestration/model-policies.yaml do not resolve under
+    this Claude Code harness. Subagent frontmatter in .claude/agents/ supports
+    only Claude models, so all subagents run `model: inherit` and execute on the
+    session model. executor-implementation was therefore served by claude-opus-5.
+    Recorded rather than silently substituted, per AGENTS.md "Model policy" and
+    CLAUDE.md "Model policy note".
+  model_verified: false
+  model_verified_note: >-
+    `python3 -m orchestration.adapter doctor --probe` was not run by this task;
+    the adapter is not the runtime here. The resolved model id is the harness's
+    own report, not a probe result.
+  reasoning_effort: null
+  independent_session: true
+  degraded_allowed: false
+  degraded_requirements: []
+
+claim_tier: toy
+certificate:
+  kind: none
+  why: >-
+    This task claims no solve and no factor-base relation. It performs symbolic
+    derivation and exact-arithmetic evaluation of published formulas. There is
+    nothing to certify, and that is stated explicitly rather than left blank.
+proof_status: derivation
+proof_refs:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-002/tasks/TASK-20260802-15971b/a17_characterization.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-002/tasks/TASK-20260802-15971b/proof_search_log.md
+
+# ---------------------------------------------------------------------------
+# THE VERDICT, stated before the derivation so it cannot be mis-summarised.
+# ---------------------------------------------------------------------------
+verdict:
+  direction: UNDETERMINED_WITHOUT_MEASUREMENT_OR_PROOF
+  one_line: >-
+    Two mechanisms of opposite sign are both demonstrably present; each one's
+    direction is derived below and is unambiguous in isolation; the sign of the
+    NET effect turns on a (delta_e + 1)-way joint failure moment on which both
+    primary sources are silent and which no published second-moment statistic
+    determines.
+  if_A17_fails_toward_positive_association: >-
+    The published DFR bound is OPTIMISTIC -- the true failure rate is higher
+    than the bound states -- by a factor A = mu_m / q^m, i.e. by log2(A) bits.
+    This is the security-relevant direction.
+  if_A17_fails_toward_negative_association: >-
+    The published DFR bound is PESSIMISTIC (conservative) -- the true failure
+    rate is lower than the bound states. Theorem 6.1 survives in this case, and
+    to leading order it survives under a condition strictly weaker than
+    independence (reading R3: mu_k <= q^k).
+  why_it_cannot_be_signed_from_the_sources: >-
+    The load-bearing quantity is mu_m, the probability that a SPECIFIC set of
+    m = delta_e + 1 inner blocks all fail simultaneously (derivation step 2).
+    mu_m is not determined by any first- or second-moment statistic. The
+    published evidence is exactly first- and second-moment in character: the
+    global weight tail of e' (SPEC Table 10; RMRS Tables 2, 3) and the weight
+    distribution inside ONE inner block (RMRS Remark 4.2, Fig. 4, support length
+    256). Neither constrains mu_m beyond its first moment. See derivation step 6.
+  is_this_a_good_outcome: >-
+    Yes, and it is stated as such rather than forced to a sign. An honest
+    "undetermined, and here is exactly which quantity determines it" is what
+    would justify a later measurement or a later proof; a signed answer that the
+    evidence does not support would not.
+  what_would_settle_it_without_measurement: >-
+    A proof that the coordinates of e-tilde on the true space are negatively
+    associated. By Lemma L2 (a17_characterization.md section 7) the inner-block
+    failure event is an INCREASING event in the block's error support, so
+    negative association of the coordinates would give negative association of
+    the F_j, hence mu_k <= q^k, hence the bound survives in the conservative
+    direction, by argument alone. Neither source proves this and this program
+    does not claim it.
+
+# ---------------------------------------------------------------------------
+# NOTATION (defined in a17_characterization.md section 1)
+# ---------------------------------------------------------------------------
+notation:
+  n_e: length of the external shortened Reed-Solomon code, in F256 symbols
+  n_2: length of the internal duplicated Reed-Muller code, in bits
+  delta_e: RS correction capacity; d_e = 2*delta_e + 1
+  m: delta_e + 1, the smallest number of symbol errors that defeats the outer decoder
+  F_j: indicator that inner block j decodes to the wrong symbol
+  S: sum of F_j over the n_e blocks
+  q: the TRUE per-block failure probability, P[F_j = 1]
+  p_i: the published UPPER BOUND on q (SPEC Prop 6.1.3 or 6.1.4; see A19). q <= p_i, q != p_i
+  mu_k: P[F_j1 = ... = F_jk = 1] for any k distinct blocks; well defined by Lemma L1 (exchangeability)
+  rho: Corr(F_i, F_j), the pairwise inter-block failure correlation
+  A: the multiplicative distortion of the DFR caused by dependence; A = mu_m / q^m to leading order
+  gamma: Var(weight of e-tilde) / (N * p_star * (1 - p_star)), the global-weight dispersion ratio
+
+# ---------------------------------------------------------------------------
+# THE DERIVATION. Steps shown; nothing asserted without its argument.
+# ---------------------------------------------------------------------------
+derivation:
+
+  - step: 1
+    title: Exact reduction of the DFR to the joint failure moments -- no independence used
+    label: derived_exact
+    statement: >-
+      Under A18 (the outer RS decoder fails iff more than delta_e of the n_e
+      symbols are wrong) the DFR is P[S >= m] with m = delta_e + 1. The F_j are
+      exchangeable by Lemma L1 (cyclic symmetry of the fixed-weight sampling and
+      of the ring product; a17_characterization.md section 3.2), so mu_k is well
+      defined, and Jordan's inclusion-exclusion formula gives EXACTLY:
+        P[S >= m] = SUM_{k=m}^{n_e} (-1)^(k-m) * C(k-1, m-1) * C(n_e, k) * mu_k.
+    note: >-
+      This identity uses NO independence assumption. Substituting mu_k = q^k
+      recovers the binomial tail exactly, which is Theorem 6.1's expression with
+      q in place of p_i. So the entire content of A17 is the substitution
+      mu_k -> q^k, and the entire sensitivity question is how mu_k differs from
+      q^k.
+    verification: >-
+      The identity was checked numerically to 1e-15 against a direct evaluation
+      on an 8-variable exchangeable law (a deterministic 3-point mixture of iid
+      Bernoulli, mixing values 0.1 / 0.4 / 0.9), for every m from 1 to 8. This is
+      a check of a combinatorial identity; it involves no HQC object, no
+      sampling, and no randomness.
+
+  - step: 2
+    title: Deep-tail regime -- the sensitivity collapses to ONE joint moment
+    label: derived_exact
+    statement: >-
+      At the published parameters the leading term l = m carries essentially the
+      whole tail, so to leading order
+        DFR_true      ~= C(n_e, m) * mu_m
+        DFR_indep     ~= C(n_e, m) * q^m
+      and the multiplicative distortion caused by dependence is
+        A = mu_m / q^m,   m = delta_e + 1.
+    measured_from_published_formulas:
+      leading_term_share_of_the_Theorem_6_1_tail:
+        HQC-1: 0.999006
+        HQC-3: 0.999880
+        HQC-5: 0.999245
+    consequence: >-
+      THE LOAD-BEARING QUANTITY IS NOT PAIRWISE CORRELATION. It is the
+      (delta_e + 1)-way co-failure probability: the probability that a specific
+      set of 16 (NIST-1), 17 (NIST-3) or 30 (NIST-5) inner blocks all fail at
+      once. Pairwise correlation enters only as a first-order proxy for it
+      (step 5), and that proxy is not a bound (step 6).
+
+  - step: 3
+    title: Direction, stated as a definition so the later verdict is unambiguous
+    label: derived_exact
+    statement: >-
+      A > 1  <=>  the true DFR exceeds the independent-model DFR
+                  <=>  the published bound is OPTIMISTIC by log2(A) bits
+                       (security-relevant direction: the true failure rate is
+                       higher than claimed).
+      A < 1  <=>  the published bound is PESSIMISTIC / conservative.
+      A = 1  <=>  independence; Theorem 6.1's transfer is exact.
+    caveat: >-
+      "Optimistic by log2(A) bits" is the movement of the DEPENDENCE FACTOR
+      alone. It must be netted against the bound's built-in conservatism before
+      any statement about the published number is warranted. That budget is
+      quantified in step 9 and is NOT small.
+
+  - step: 4
+    title: Two mechanisms, opposite signs, both demonstrably present
+    label: derived_under_named_model
+    mechanism_M_plus:
+      name: common-mode / latent-mixture (POSITIVE association)
+      model: >-
+        Let Theta be any latent variable summarising the global configuration of
+        e' (its weight, its algebraic structure). Conditional on Theta, the
+        blocks are iid Bernoulli(Q(Theta)) with E[Q] = q. Then mu_k = E[Q^k].
+      derivation: >-
+        A = E[Q^m] / q^m >= (E[Q])^m / q^m = 1 by Jensen's inequality, since
+        x -> x^m is convex on [0, infinity). Equality holds iff Q is degenerate.
+      direction: >-
+        STRICTLY OPTIMISTIC. ANY dispersion of the conditional per-block failure
+        probability -- any common mode at all -- moves the true DFR ABOVE the
+        independent-model value. There is no compensating regime.
+      why_it_is_present: >-
+        e' is a single random object shared by all n_e blocks; an unusually
+        adverse realisation of e' raises every block's failure probability at
+        once. Nothing in either source excludes this.
+      pairwise_form: rho = Var(Q) / (q * (1 - q))
+
+    mechanism_M_minus:
+      name: fixed-budget / negative association (NEGATIVE association)
+      model: >-
+        The components x, y, e have EXACTLY fixed weights (A1), so the total
+        weight of e' is constrained relative to a free binomial: extra weight in
+        one block is weight not available elsewhere, the sampling-without-
+        replacement structure.
+      derivation: >-
+        Conditional on the total weight, block weights are negatively correlated.
+        By Lemma L2 (a17_characterization.md section 7) the inner-block failure
+        event is INCREASING in the block's error support, so negative
+        association of the coordinates would transfer to the F_j, giving
+        mu_k <= q^k and hence A <= 1 to leading order.
+      direction: PESSIMISTIC (conservative). Theorem 6.1 survives.
+      why_it_is_present: >-
+        The fixed weights are a property of the sampler, not a modelling choice,
+        and the sources' own simulations show the resulting under-dispersion
+        (step 7).
+      status_of_the_transfer: >-
+        NOT PROVED. Negative association of the coordinates of
+        e' = x*r_2 - r_1*y + e is not established by either source and is not
+        claimed here. Lemma L2 makes the transfer AVAILABLE if negative
+        association were proved; it does not supply it.
+
+  - step: 5
+    title: First-order sensitivity coefficient, valid for BOTH signs
+    label: derived_under_named_model
+    model_class: >-
+      One-parameter exchangeable families whose k-way excess is generated by the
+      pairwise excess to first order. Verified to give the same coefficient for
+      (a) the latent-mixture family of step 4 and (b) a Gaussian-copula family
+      with small correlation r, where P[X_i <= z, X_j <= z] ~= q^2 + r*phi(z)^2.
+    derivation: >-
+      Write eps_2 = mu_2 - q^2 = rho * q * (1 - q). To first order in eps_2,
+        mu_m ~= q^m + C(m, 2) * eps_2 * q^(m-2),
+      so
+        A = mu_m / q^m ~= 1 + C(m, 2) * eps_2 / q^2
+                        = 1 + C(m, 2) * rho * (1 - q) / q
+                        = 1 + K * rho,
+      with the SENSITIVITY COEFFICIENT
+        K := C(delta_e + 1, 2) * (1 - q) / q.
+      The movement of the bound in bits is
+        Delta_bits = log2(1 + K * rho),  positive = optimistic.
+    conservatism_of_K: >-
+      K is evaluated below with q set to the PUBLISHED UPPER BOUND p_i
+      (Prop 6.1.4). Since the true q is smaller and K grows as 1/q, this
+      UNDERSTATES the true sensitivity. K as tabulated is therefore a
+      conservative (low) estimate of the sensitivity, not an optimistic one.
+
+  - step: 6
+    title: The first-order coefficient is a SCALE, not a BOUND -- and this is why the direction cannot be signed from published data
+    label: derived_exact
+    statement: >-
+      mu_m is NOT determined by mu_2. A joint law can have rho ~= 0 while mu_m
+      >> q^m, if the dependence lives in a rare configuration in which many
+      blocks fail together. Conversely a law with visible pairwise correlation
+      can have mu_m ~= q^m.
+    consequences:
+      - >-
+        K gives the SCALE at which inter-block association starts to matter. It
+        does not bound the movement, in either direction.
+      - >-
+        Any evidence that is first- or second-moment in character is
+        STRUCTURALLY INCAPABLE of settling the sign of A. All the evidence in
+        both primary sources is of exactly that character (step 7). This is not
+        a criticism of those simulations; they were run to support a different
+        assumption (A5) for a different functional, and they support it.
+      - >-
+        Within the first-order model of step 5 the movement is capped at
+        log2(1 + K) because rho <= 1: at most 17.70 / 21.23 / 20.09 bits at
+        HQC-1/3/5. A larger movement requires higher-order association, which is
+        precisely the regime the published statistics do not reach.
+
+  - step: 7
+    title: What the published data DO constrain -- extracted, and shown to be the wrong functional
+    label: derived_from_published_summary_statistics
+    extraction: >-
+      From SPEC Table 10 and RMRS Tables 2 and 3 (published quantiles of the
+      weight of e' at the 1e-3, 1e-4, 1e-5, 1e-6 upper tails, alongside the
+      binomial quantiles), under a Gaussian interpolation, the implied global
+      dispersion ratio gamma = Var(weight) / (N * p_star * (1 - p_star)) is:
+        SPEC Table 10  (HQC-1, N = 17664, p* = 0.3398): 0.735, 0.736, 0.733, 0.725
+        RMRS Table 2   (set I, N = 23746, p* = 0.2918): 0.631, 0.619, 0.613, 0.614
+        RMRS Table 3   (set II, N = 20480, p* = 0.3196): 0.676, 0.673, 0.674, 0.685
+      Stable across four tail depths in all three tables.
+    label_of_these_numbers: >-
+      DERIVED from published summary statistics under a Gaussian interpolation.
+      NOT measured by this task. The Gaussian interpolation is an approximation
+      and is the reason these are reported to two decimals and not more.
+    inference_to_block_weights: >-
+      Let W_j be block j's error weight and W their sum over the retained
+      n_e * n_2 coordinates. By exchangeability,
+        Var(W) = n_e*Var(W_1) + n_e*(n_e - 1)*Cov(W_1, W_2).
+      Taking Var(W_1) = n_2*p*(1-p) -- which is what RMRS Remark 4.2 and Fig. 4
+      report for a single block -- and Var(W) = gamma*N*p*(1-p), this gives the
+      closed form
+        Corr(W_i, W_j) = (gamma - 1) / (n_e - 1).
+      At HQC-1 (gamma = 0.735, n_e = 46) this is -0.0059. With the same gamma at
+      HQC-5 (n_e = 90; SPEC tabulates the quantiles only for HQC-1) it is -0.0030.
+    what_this_does_and_does_not_show:
+      does: >-
+        Block WEIGHTS carry a small NEGATIVE correlation, consistent with
+        mechanism M-minus and with the specification's own directional claim A6.
+      does_not_1: >-
+        It says nothing about Corr(F_i, F_j), let alone about mu_m. The map from
+        block weight to block FAILURE is the nonlinear ML decoding of a
+        [128,8,64] duplicated Reed-Muller code; sign is not automatically
+        preserved, and no source measures the failure-level quantity.
+      does_not_2: >-
+        It is a second-moment statistic and therefore cannot sign A (step 6).
+      the_scale_problem: >-
+        |-0.0059| is about THREE ORDERS OF MAGNITUDE LARGER than the rho that
+        moves the bound by one bit (step 8). So the association actually present
+        in the block weights is far above the scale that matters. The open
+        question is therefore entirely about SIGN and about transfer to the
+        failure indicators -- NOT about whether the effect is negligible. It is
+        not negligible on either reading.
+
+  - step: 8
+    title: Numeric evaluation of the sensitivity coefficient at the published parameter sets
+    label: mixed -- see per-field labels
+    not_a_parameter_selection: >-
+      These are the specification's own three parameter sets (SPEC Table 5) and
+      the specification's own published p_i values, used to evaluate the symbolic
+      formula of step 5. No parameter is chosen here, no scale is proposed, and
+      no trial count, seed or measurement appears anywhere.
+    per_set:
+      HQC-1:
+        security_level: NIST-1
+        n_e: 46
+        delta_e: 15
+        m: 16
+        source_of_parameters: SPEC Tables 3 and 5 (published)
+        log2_p_i_prop_6_1_4: -10.795
+        log2_p_i_label: recomputed by exact arithmetic from the published formula; SPEC Table 11 prints -10.79
+        K_sensitivity_coefficient: 2^17.701
+        K_decimal: 2.13e5
+        K_label: derived (step 5), evaluated with q = p_i, which UNDERSTATES K
+        rho_to_move_bound_1_bit: 4.69e-06
+        rho_to_move_bound_10_bits: 4.80e-03
+        max_movement_within_first_order_model_bits: 17.70
+      HQC-3:
+        security_level: NIST-3
+        n_e: 56
+        delta_e: 16
+        m: 17
+        log2_p_i_prop_6_1_4: -14.137
+        log2_p_i_label: recomputed; SPEC Table 11 prints -14.14
+        K_sensitivity_coefficient: 2^21.225
+        K_decimal: 2.45e6
+        rho_to_move_bound_1_bit: 4.08e-07
+        rho_to_move_bound_10_bits: 4.17e-04
+        max_movement_within_first_order_model_bits: 21.23
+      HQC-5:
+        security_level: NIST-5
+        n_e: 90
+        delta_e: 29
+        m: 30
+        delta_e_note: >-
+          delta_e = 29 follows from d_e = 59 = 90 - 32 + 1 (MDS) = 2*29 + 1.
+          BATCH-002-OPENING.md section 3 records that the BATCH-001
+          transcription's RS-S3 minimum distance 49 is the transcription's own
+          error, superseded by CORR-20260802-3ae664. Both derivations were
+          re-checked independently by this task and both give 59. This task does
+          not write the correction; it uses the corrected value.
+        log2_p_i_prop_6_1_4: -11.324
+        log2_p_i_label: recomputed; SPEC Table 11 prints -11.30
+        K_sensitivity_coefficient: 2^20.088
+        K_decimal: 1.12e6
+        rho_to_move_bound_1_bit: 8.97e-07
+        rho_to_move_bound_10_bits: 9.18e-04
+        max_movement_within_first_order_model_bits: 20.09
+
+  - step: 9
+    title: The slack budget -- what a dependence effect must clear before it moves the published claim
+    label: derived_from_published_measurements
+    statement: >-
+      SPEC Table 11 measures the inner bound's own conservatism directly: the
+      published p_i exceeds the OBSERVED inner DFR by 0.17 / 0.25 / 0.18 bits per
+      block at NIST-1/3/5. Because the stage-3 tail scales as p_i^m to leading
+      order, that per-block slack multiplies by m:
+        HQC-1: 16 * 0.17 = 2.72 bits
+        HQC-3: 17 * 0.25 = 4.25 bits
+        HQC-5: 30 * 0.18 = 5.40 bits
+      of built-in conservatism already present in Theorem 6.1's number.
+    consequence: >-
+      A dependence-induced amplification must exceed 2^2.72 / 2^4.25 / 2^5.40
+      before the published stage-3 number ceases to be an upper bound on the
+      model-space truth. At the first-order sensitivity of step 5 that
+      corresponds to rho of 2.62e-05 / 7.36e-06 / 3.70e-05.
+    why_this_is_recorded: >-
+      Stating the bar is part of not overclaiming the lead. Any future statement
+      about A17 that does not clear this budget has not moved the published
+      claim, and saying so now prevents a later record from reading a 1-bit
+      effect as a finding.
+    caveat: >-
+      The Table 11 "Observed DFR" is a simulation of Reed-Muller decoding under a
+      BINARY SYMMETRIC CHANNEL at p_star, i.e. on the MODEL space. It bounds the
+      slack against the model, not against the true space.
+
+  - step: 10
+    title: The competing item in the same trace, quantified because it is larger
+    label: derived_exact
+    statement: >-
+      A19 (which p_i Theorem 6.1 uses) is a TEXTUAL ambiguity of the same
+      sentence, and it moves the same bound by more:
+        HQC-1: 2^-132.89 (Prop 6.1.4) vs 2^-122.28 (Prop 6.1.3)  ->  10.61 bits
+        HQC-3: 2^-193.86              vs 2^-185.90               ->   7.96 bits
+        HQC-5: 2^-260.60              vs 2^-243.81               ->  16.79 bits
+      All four numbers per row recomputed here by exact arithmetic from the
+      published formulas at the published parameters.
+    consequence: >-
+      16.79 bits at NIST-5 for a cross-reference, and it is settled by reading
+      rather than by measuring. It also exceeds the step-9 slack budget at every
+      level. Recorded so the Coordinator can compare targets on value rather
+      than on novelty. Disposition is the Coordinator's.
+
+# ---------------------------------------------------------------------------
+# LOAD-BEARING TRACE (duty 4) -- summary; full table in a17_characterization.md 4
+# ---------------------------------------------------------------------------
+load_bearing_trace:
+  depends_on_A17:
+    - SPEC Theorem 6.1 / RMRS Theorem 4.3 -- ENTIRELY. A17 is the only route from p_i to a binomial tail, and neither source proves the theorem.
+    - SPEC Table 5's DFR column (< 2^-128 / 2^-192 / 2^-256) -- via Theorem 6.1, the only quantitative DFR the specification states.
+    - SPEC Theorem 6.3 (IND-CCA2) -- transitively and LINEARLY, through the additive term (q_RO + q_D) * delta.
+  does_not_depend_on_A17:
+    - Propositions 6.1.1, 6.1.2 and Equations (1), (2) -- exact per-coordinate laws, proved.
+    - Proposition 6.1.3 -- single block; uses A8, A9, A10, A11, A12.
+    - Proposition 6.1.4 -- single block; adds A13, A14, A15, A16.
+    - SPEC Table 11 / RMRS Table 4 -- single-block simulations.
+    - Definition 6.2.1 and the delta-correctness derivation itself -- these rest on A20; only the VALUE substituted for delta is A17's.
+    - SPEC 6.2.3's sampler correction -- multiplies delta by at most (tau^{omega_r}_max)^3.
+  is_Theorem_6_1_superseded: >-
+    NO. It is terminal; nothing downstream recomputes the concatenated DFR by
+    another route. The handoff's warning case -- "an assumption that only affects
+    an intermediate bound which Theorem 6.1 supersedes" -- does apply in this
+    trace, but to A9 and A10 (inside Prop 6.1.3, whose value IS superseded by
+    Prop 6.1.4 for every reported number), NOT to A17.
+
+# ---------------------------------------------------------------------------
+# NULL-OBJECT CHECK (duty 5) -- summary; full check in a17_characterization.md 5
+# ---------------------------------------------------------------------------
+null_object_check:
+  null_profile_declared_before_scoring:
+    N1: removing or negating it changes no reported number beyond reporting precision
+    N2: the result it supports is superseded downstream by a result that does not use it
+    N3: it is a true statement (a lemma, a construction fact, or a consequence of an assumption already made)
+    N4: its violation moves the terminal bound by o(1) bits across any violation magnitude the evidence leaves open
+  null_objects_present_in_the_same_trace:
+    - assumption: A10 (drop the weight-128 codeword; round 254 -> 255)
+      meets: [N1, N4]
+      measured_effect: log2(255/254) = 0.00567 bits on p_i; 0.091 / 0.096 / 0.170 bits on Theorem 6.1
+      verdict: conventional bookkeeping
+    - assumption: A2, A3, A4 (independence of x, y, r_1, r_2, e)
+      meets: [N3]
+      measured_effect: none -- true by construction of SampleFixedWeightVect$
+      verdict: not assumptions at all in the uniform-sampler model
+    - assumption: A23 (truncate l = n - n_1*n_2 trailing bits)
+      meets: [N3, N1]
+      measured_effect: definitional; l = 5 of n = 17669 at HQC-1
+      verdict: conventional bookkeeping
+    - assumption: A9 (union bound inside Prop 6.1.3)
+      meets: [N2]
+      measured_effect: superseded by Prop 6.1.4 for every reported value
+      verdict: superseded intermediate
+    - assumption: A16 (the min[C(n,omega), ...] cap in Prop 6.1.4)
+      meets: []
+      measured_effect: >-
+        cap ACTIVE in 219 of 289 summands (HQC-1) and 354 of 481 (HQC-3 and
+        HQC-5, which share d_i = 320); removing the cap moves p_i by 0.374 bits
+        at HQC-1 and 0.290 bits at HQC-5, i.e. about m*that = 6.0 bits (HQC-1)
+        and 8.7 bits (HQC-5) on Theorem 6.1. HQC-3 not computed for this row.
+      verdict: FAILS the null -- a genuine, unremarked, multi-bit assumption sitting in the same undifferentiated BATCH-001 list
+  discriminating_power_of_the_control: >-
+    The profile passes A10, A2-A4, A23 and A9 and FAILS A16. A null test that
+    classified everything as bookkeeping would be a rubber stamp; this one
+    separates, which is why its verdict on A17 is worth reading.
+  A17_scored:
+    N1: FAILS -- removing A17 does not perturb Theorem 6.1's value, it deletes the theorem's derivation; there is no residual expression.
+    N2: FAILS -- Theorem 6.1 is terminal.
+    N3: PARTIALLY MET -- on the model space A17 is a THEOREM following from A5 by block disjointness, and the identically-distributed half is provable outright on the true space (Lemma L1, cyclic exchangeability).
+    N4: FAILS DECISIVELY -- K = 2^17.70 / 2^21.23 / 2^20.09; rho ~= 5e-6 already moves the bound one bit.
+  what_the_control_found: >-
+    A17 is NOT conventional bookkeeping (N1, N2, N4 all fail decisively), and it
+    is ALSO NOT a second independent assumption (N3 partially fires). The correct
+    characterization is: A17 is a LOGICALLY REDUNDANT RESTATEMENT OF A5 at block
+    granularity, carrying an EVIDENTIAL gap that A5's own published support does
+    not cover.
+  correction_to_the_inherited_framing: >-
+    The BATCH-001 red-team report (TASK-20260802-73a352, O10) describes A17 as
+    "a second, independent use of an independence assumption, stacked on A5's
+    coordinate-level one". The word "use" is right; the implication of a second
+    independent ASSUMPTION is not -- assuming A5 and then assuming A17 is not
+    assuming two things. This matters operationally: anyone attacking A17 as an
+    independent proposition would be attacking A5 in disguise, would find A5
+    explicitly stated, explicitly hedged (H1-H3) and simulation-supported, and
+    might wrongly conclude the lead was weaker than advertised. The lead survives
+    the control -- in a different place.
+  the_evidential_null: >-
+    Applying the same control on the evidence axis: an assumption whose support
+    covers the functional it is used for would show a match between the measured
+    object and the used object. A5-as-used-by-Props-6.1.3/6.1.4 matches (one
+    block, RMRS Fig. 4 at support length 256). A5-as-used-by-A6 matches (the
+    scalar global weight, SPEC Table 10 / RMRS Tables 2-3). A17 consumes a THIRD
+    functional -- the n_e-fold joint law, specifically mu_m with m in {16, 17,
+    30} -- and NO table, figure or remark in either source examines two or more
+    blocks jointly. The structural tell is present and is in the source's own
+    words: RMRS Remark 4.2 hedges its single piece of block-level evidence as
+    covering "a SMALL PROPORTION of HQC bits", and A17's use lies outside that
+    stated scope. The source is more careful about its evidence than the
+    downstream use of that evidence is.
+
+# ---------------------------------------------------------------------------
+# HOW EVERY NUMBER IN THIS FILE IS LABELLED
+# ---------------------------------------------------------------------------
+number_provenance:
+  published: >-
+    Transcribed from SPEC Tables 3, 5, 9, 10, 11 or RMRS Tables 1-4 / Figure 6.
+    Examples: p_star = 0.3398/0.3618/0.3725; Table 11's observed inner DFRs
+    -10.96/-14.39/-11.48; n_e = 46/56/90.
+  recomputed: >-
+    Produced by this task by exact-rational / 400-digit-decimal evaluation of a
+    PUBLISHED formula at PUBLISHED parameters. Examples: log2 p_i = -10.795 /
+    -14.137 / -11.324; Theorem 6.1 = -132.89 / -193.86 / -260.60; the A19 gaps;
+    the A10 and A16 null-object effects; the leading-term shares.
+  derived: >-
+    Produced by the symbolic derivation in this file. Examples: K; the rho
+    thresholds; the slack budget; Corr(W_i, W_j) = (gamma - 1)/(n_e - 1).
+  derived_under_named_model: >-
+    Requires a model stated at the point of use. Examples: the first-order
+    A ~= 1 + K*rho (exchangeable one-parameter family, step 5); the gamma values
+    (Gaussian interpolation of published quantiles, step 7).
+  measured_by_this_task: NONE. This task measured nothing.
+  cross_check_against_the_BATCH_001_red_team: >-
+    That report's control C8 gives Theorem 6.1 as 2^-132.86 / 2^-193.88 /
+    2^-260.51; this task gets -132.89 / -193.86 / -260.60. Re-running with
+    SPEC's PUBLISHED four-digit p_star instead of the exact recomputed p_star
+    gives -132.856 / -193.878 / -260.512, matching the red team to the digits it
+    printed. The two computations AGREE; the difference is entirely the rounding
+    of p_star at the fourth decimal, which is itself worth 0.085 bits at HQC-5.
+
+# ---------------------------------------------------------------------------
+# WHAT THIS ANALYSIS CANNOT DO
+# ---------------------------------------------------------------------------
+limitations:
+  - The sign of A is not determined. That is the verdict, not a gap in the derivation.
+  - >-
+    Step 5's first-order coefficient is a scale, not a bound. A dependence
+    structure with rho ~= 0 and a rare many-blocks-fail-together configuration
+    can have mu_m >> q^m.
+  - >-
+    The gamma extraction in step 7 assumes a Gaussian interpolation of four
+    published quantiles and assumes the single-block weight variance equals the
+    binomial one (which is what RMRS Remark 4.2 reports, at a different block
+    length from the deployed ones: 256 vs 384/640).
+  - >-
+    Corr(W_i, W_j) is a block-WEIGHT quantity. The transfer to Corr(F_i, F_j),
+    and thence to mu_m, is not established, and Lemma L2 supplies only the
+    availability of such a transfer under negative association, not the
+    association itself.
+  - >-
+    Everything is scoped to SPEC sha256 174186cb... and RMRS sha256 cbb7dbd6...
+    Other artifacts that could bear on A17 and were NOT searched are listed by
+    name in proof_search_log.md section 8.
+  - >-
+    This is a statement about two documents, not about HQC. A17 being unproved
+    in the literature is not evidence that HQC's DFR is wrong.
+
+# ---------------------------------------------------------------------------
+# PROHIBITIONS -- positive confirmation, not silence
+# ---------------------------------------------------------------------------
+prohibitions:
+  experiment_designed: false
+  protocol_specified: false
+  parameters_selected_for_an_experiment: false
+  trial_count_stated: false
+  seed_strategy_stated: false
+  success_criterion_stated: false
+  stopping_rule_stated: false
+  measurement_plan_stated: false
+  decoding_trial_or_simulation_of_HQC_run: false
+  randomness_or_sampling_used: false
+  security_claim_about_HQC_made: false
+  writes_outside_task_directory: false
+  knowledge_dir_touched: false
+  ledger_dir_touched: false
+  sibling_task_directory_touched: false
+  state_mutating_git_command_run: false
+  bot_protection_circumvented: false
+  author_contacted: false
+  third_party_pdf_committed: false
+  hypothesis_created_or_status_transitioned: false
+  note_on_step_8: >-
+    Step 8 evaluates a symbolic formula at the specification's own three
+    published parameter sets. That is analysis of an already-obtained text. No
+    parameter is chosen, no reduced scale is proposed, and nothing in this file
+    states or implies how any future measurement would be run. If a reviewer
+    judges any line to cross into design, the correct disposition is to strike
+    that line: the derivation in steps 1-7 stands without step 8, which only
+    puts numbers on it.
+
+# ---------------------------------------------------------------------------
+# COMPLETION GATE, checked item by item
+# ---------------------------------------------------------------------------
+completion_gate:
+  - gate: A17 stated formally, with all distinguishable readings if ambiguous
+    met: true
+    how: >-
+      a17_characterization.md section 2.2 gives the primary formal statement over
+      an explicitly named probability space; section 2.1 separates the two spaces
+      the sources never separate; section 3 enumerates seven distinguishable
+      readings R1, R2, R3, R4, R5, R-tie, R-p, each self-contained, with a table
+      at 3.8 naming which the surrounding text supports (R2) and why the formula's
+      face value (R1) is contradicted by the theorem's own wording.
+  - gate: Both sources searched with the method and locations recorded
+    met: true
+    how: >-
+      proof_search_log.md. Both PDFs re-acquired and sha256-verified against the
+      recorded values before use. Every section of both documents enumerated
+      (sections 3 and 6), including sections with no bearing, marked n/a. All 4
+      SPEC and all 4 RMRS "Proof" tokens resolved; 0 appendices in either; SPEC
+      has 0 remarks and 0 footnotes; RMRS's 2-item bibliography exhausted by
+      back-reference page. Keyword sweeps with per-page counts (sections 4.1,
+      6.4); all 28 "independen" hits read in context and classified. The words
+      i.i.d., identically and correlat* are absent from the 51-page
+      specification entirely. Three nearest misses recorded with the reason each
+      falls short. Limitation of the text-layer method stated at section 0.3.
+  - gate: Sensitivity derived with the derivation shown, and the direction stated or explicitly declared undetermined
+    met: true
+    how: >-
+      Ten derivation steps above, each with its argument. Direction per mechanism
+      is derived and unambiguous (M+ strictly optimistic by Jensen; M- pessimistic
+      via Lemma L2 under negative association). The NET direction is EXPLICITLY
+      DECLARED UNDETERMINED WITHOUT MEASUREMENT OR PROOF, with the reason -- the
+      load-bearing quantity is a (delta_e+1)-way joint moment that no
+      second-moment statistic determines -- and with what would settle it.
+  - gate: Load-bearing trace naming which transcribed results depend on A17
+    met: true
+    how: >-
+      a17_characterization.md section 4 (full table) and load_bearing_trace above.
+      Theorem 6.1 depends entirely; Table 5's DFR column and Theorem 6.3 depend
+      transitively; Props 6.1.1-6.1.4, Table 11 and Def 6.2.1 do not. Theorem 6.1
+      is shown to be terminal, so A17 is NOT the "superseded intermediate" case
+      the handoff warned about -- A9 and A10 are.
+  - gate: Null-object check performed and reported
+    met: true
+    how: >-
+      null_object_check above and a17_characterization.md section 5. Null profile
+      N1-N4 declared BEFORE scoring; five named null objects in the same trace
+      scored with computed effects; the profile discriminates (it fails A16 at
+      about 6-9 bits). A17 fails N1, N2, N4 and PARTIALLY MEETS N3, and that
+      partial fire is reported rather than suppressed: it corrects the inherited
+      framing of A17 as a second independent assumption.
+  - gate: NO experiment design anywhere in the deliverables
+    met: true
+    how: >-
+      See prohibitions above, confirmed positively field by field. The one place
+      a reviewer might look hardest -- derivation step 8's numbers -- is the
+      specification's own three published parameter sets used to evaluate a
+      symbolic formula, and note_on_step_8 states the fallback disposition if a
+      reviewer disagrees.
+
+budget:
+  wall_clock_seconds_authorized: 3600
+  wall_clock_seconds_used_approx: 1500
+  memory_gb_authorized: 2
+  maximum_runs_authorized: 1
+  runs_executed: 0
+  runs_note: >-
+    No experiment run, no decoding trial, no measurement. The only computations
+    were deterministic exact-arithmetic evaluations of published formulas and one
+    deterministic check of a combinatorial identity.
+
+closing_note: >-
+  This task recorded observations and produced a derivation. It states no
+  conclusion about HQC, moves no claim tier, creates no hypothesis, designs no
+  experiment, and is not admissible toward the AGENTS.md rule 13 closure quorum.
+  Whether A17 is a good target, and whether A19 or X9 should be taken first, are
+  Coordinator decisions; section 6 of a17_characterization.md records the
+  comparison, not a decision.

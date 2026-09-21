@@ -1,0 +1,371 @@
+schema: crypto.autoresearch.validation_report.v1
+task_id: TASK-20260901-b064ff
+goal_id: GOAL-AES-003
+batch: BATCH-99945e
+role: validator
+producer_task: TASK-20260901-74271d
+snapshot_task: TASK-20260901-2f56b3
+package_snapshot_commit: b4dfdf9c7574a179d78f27d9454fb6e8326356cf
+verdict_under_test: >-
+  EV-AES-ec53f1 (scope-narrowed CONFIRMED-MISMATCH-ALIVE), five-arm hardening
+  battery of the red-team controls J1-J4 + proves-too-much GUARD from
+  TASK-20260901-31bac8 red_team_report.yaml.
+generated_utc: '2026-09-01T19:43:15Z'
+
+read_attestation:
+  read_in_full_this_session:
+    - coordination/goals/GOAL-AES-003/batches/BATCH-99945e/dispatch_queue.json (my task card TASK-20260901-b064ff, authoritative; producer card TASK-20260901-74271d)
+    - coordination/goals/GOAL-AES-003/batches/BATCH-99945e/archives/TASK-20260901-2f56b3/snapshot-receipt.json
+    - ledger/evidence/EV-AES-ec53f1.yaml
+    - ledger/proposals/IDEA-20260901-04606c.yaml (frozen definitions for the blind re-derivation; all 948 lines)
+    - coordination/goals/GOAL-AES-003/batches/BATCH-fe0bdc/tasks/TASK-20260901-31bac8/red_team_report.yaml (control definitions)
+    - producer package in full: PREREGISTRATION.md, RESULTS.json, budget_stamps.jsonl, src/BUILD.md, and all 23 run receipts under runs/
+  not_read_disclosed:
+    - >-
+      NO producer source code was opened: src/*.py, src/*.c were never read by
+      this validator. All re-derivations use fresh validator-written code built
+      from the frozen definitions (IDEA-20260901-04606c, PREREGISTRATION.md
+      pinned formulas) and standard FIPS-197. Byte-identity of the reused C
+      files was checked only against the sha256 values recorded in BUILD.md.
+    - >-
+      The BATCH-014 M1-FEISTEL-P30 receipt and EV-AES-dec938 are outside this
+      task's read_scope; the GUARD key's match to the committed M1 receipt is
+      therefore verified TRANSITIVELY (key == pinned campaign formula applied
+      to seed 531001, recomputed fresh; producer's receipt field
+      key_matches_committed_M1_receipt=true), not by direct byte comparison.
+      Disclosed as a scope limitation, not a failure.
+
+independent_rederivations:
+  - name: J1_census_extension_fresh_GF2
+    run: RUN V2 (runs/v2_fresh_derivation.py + v2_fresh_derivation.json)
+    derivation: >-
+      FRESH sparse GF(2) code written this session from the pinned definitions
+      in IDEA-20260901-04606c (M_r = SR.(MC.SR)^{r-1}, D_r =
+      (ISR.IMC)^{r-1}.ISR, object A_{r,S,j} = P_j (D_r M_r) Pi_A, rho =
+      rank(d|PW[A] -> (M_r d)|CW[S]); FIPS-197 SR/MC built from scratch; PW/CW
+      word geometry derived from the pinned column-major layout and checked
+      against the census convention block). Validator-chosen subset = ALL r in
+      1..16 (requirement was at least two r incl. r=16), all ten frozen cells.
+    values:
+      guards_DrMr_MrDr_I128: all 16 r-values True (fresh)
+      word_map_ranks: flat 32 x [j in A] on all 160 instances (fresh)
+      rho_r1_r10: equal to the PR-1 preregistered table of IDEA-20260901-04606c verbatim (0 mismatches, fresh)
+      rho_r11_r16_fresh:
+        C1: [8, 32, 32, 32, 32, 32]
+        C2: [8, 32, 32, 32, 32, 32]
+        C3: [8, 32, 32, 32, 32, 32]
+        C4: [8, 32, 32, 32, 32, 32]
+        C5: [8, 32, 32, 32, 32, 32]
+        C6: [8, 32, 32, 32, 32, 32]
+        C7: [8, 32, 32, 32, 32, 32]
+        C8: [16, 32, 32, 32, 32, 32]
+        C9: [16, 32, 32, 32, 32, 32]
+        C10: [32, 32, 32, 32, 32, 32]
+      agreement_with_producer: >-
+        rho_r11_r16_fresh equals the producer's runs/J1_census_ext.json per-cell
+        values AND the rho_r11_r16_data claimed in RESULTS.json, cell for cell;
+        r=16 included as required. The r=11 row reproduces the r=3/9 pattern as
+        the producer stated.
+    derivation_note: >-
+      During development this validator's first census implementation contained
+      three bugs (ShiftRows direction, M_r composition order, PW/CW bit-set
+      mapping); all were validator-owned, found by the guard/KAT checks failing
+      on fresh code, fixed, and re-run. The producer's artifacts were never
+      consulted while debugging (no producer code reuse).
+  - name: cipher_convention_pins_fresh_AES
+    run: RUN V2
+    derivation: >-
+      From-scratch FIPS-197 AES (S-box via GF(2^8) inversion + affine transform,
+      key schedule, enc/dec) written this session. FIPS-197 Appendix C.1 KAT
+      (key 000102...0f / pt 00112233...; spec constants, provenance recalled,
+      verified computationally): ciphertext 69c4e0d86a7b0430d8cdb78070b4c55a
+      REPRODUCED. BATCH-003 anchors recomputed fresh with the receipt's
+      key/plaintext (2b7e1516... / 00112233...): r=5 ciphertext
+      4167e8f8367c38cdb7bde2ade620a7a8 and r=10 ciphertext
+      8df4e9aac5c7573a27d8d055d6e4d64b BOTH MATCH the pins recorded in
+      runs/build_pins.json; rcon continuation rounds 11..16 = 6c,d8,ab,4d,9a,2f
+      confirmed as the canonical xtime continuation; identity-S-box roundtrip
+      holds r=1..16; basis-vector simulation of the affine cipher's linear part
+      (constant removed) equals the census M_r at r=6 and r=16.
+  - name: deterministic_law_fresh_keyed_smoke
+    run: RUN V2
+    derivation: >-
+      Fresh keyed trials under this validator's own cipher implementation,
+      single-threaded (producer used 8-thread C), fresh validator-chosen seed
+      46099 and fresh per-trial keys. Cells: (A={0},S={0}) at r=3,6,7,16 (600
+      trials each); degenerate (r=2,A={0},S={1}) 200 trials; structure-destroyed
+      (r=6,A={0,1,2,3},S={0}) 200 trials.
+    values:
+      identity_law: 600/600 at r=3,6,7,16; 200/200 on both control cells
+      W: whist [0,0,0,600,0] at r=3,6,7,16 (W=3 on 100%)
+      degenerate_r2_S1: 200/200 trivial swaps (rho=0), law still holds
+      structure_destroyed: W=0 on 200/200 (P(W>=1)=0), law still holds
+      trivial_r6: 0 (consistent with rho=32, E[T]=600*2^-32)
+      trivial_r3: 3 (in band; E[T]=600*2^-8 ~= 2.34)
+  - name: J4_frozen_table_fresh_redraw
+    run: RUN V3 (runs/v3_j4_table.py + v3_j4_table.json)
+    derivation: >-
+      Campaign splitmix64 convention PINNED INDEPENDENTLY via the key formula
+      kst = seed ^ 0xA5A5A5A5A5A5A5A5 (PREREGISTRATION.md): standard
+      post-increment splitmix64 with little-endian 8-byte outputs re-derives
+      ALL THREE recorded keys (J3 46063002 -> 34230a6244fc89337fec2f395058f207;
+      J4 46064001 -> 2da0b2856ae5843b8113466478c9f928; GUARD 531001 ->
+      bdf3823182ad657dab3d556b3886ba72). With that convention fixed, a fresh
+      Fisher-Yates draw at the PINNED pre-data seed 46064002 (canonical
+      backward loop i=15..1, j = next() mod (i+1), splitmix64 post-increment;
+      modulo bias as disclosed) reproduces the frozen table EXACTLY:
+      pi = 312a045c968b7efd (nibble-packed). Of 4 convention variants tested,
+      exactly one matches. The drawn pi lifts to SBOX[x]=pi[x>>4]<<4|pi[x&0x0f];
+      the lift was verified fresh: bijective on 256, exhaustively NON-affine
+      over GF(2) (256x256 test fails); pi itself is also non-affine on 4 bits;
+      inv_pi verified as the inverse.
+    redraw_after_data_check: >-
+      PASS. The table in the RUN 1 pinbij receipt, the RUN 1 independent Python
+      draw (draw_bij.json), and the RUN 2 arm receipt (J4_rbij_arm.json) are
+      byte-identical (pi and full 256-byte table), all at draw seed 46064002;
+      draw mtime 1788290700 precedes arm receipt mtime 1788290752 with a 52 s
+      gap covering the 45.79 s arm wall; this validator's independent redraw at
+      the pinned seed equals the frozen table. A redraw-after-data or a
+      hand-picked table would break at least one of these equalities.
+  - name: arm_recounts_from_raw_receipts
+    run: RUN V1 (runs/v1_recount_controls.py + v1_recount_controls.json)
+    derivation: fresh parsing/arithmetic over the raw run receipts, no producer analysis code
+    values:
+      J4: hits=2 (whist [1073741822,2,0,0,0] sums to 2^30), trivial=0, wword [1,0,0,1], zhist sums to 2^30, excess ratio 2/2^30 = 1.862645149230957e-09 (exact vs recorded)
+      J3: hits=2^30, T=0, whist [0,0,0,1073741824,0], wword [0,N,N,N], zhist bins 12..15 within 5 sigma of the binomial zero-byte model, excess ratio 1.0
+      J2: J2-R3 500/500 both laws with 1 trivial swap; J2-R7 500/500 both laws, 0 trivial; whist sums 500 per cell
+      J1_census: 160 instances = 10 cells x 16 r; all instance flags ok; digest sha256(J1_census_ext.json) = 40d5070a92607a8ccf547f75d222f7203685bc734a4f6b54bdd8bdbf4203edac == digest.txt == RESULTS.json
+      J1_keyed_r16: 500/500 identity law, 500/500 W=3, 0 trivial, whist [0,0,0,500,0]
+      GUARD: >-
+        per-trial recount of the 500-trial read: identity law holds 0/500, 0 trivial, W=0 on all 500; 512-stream aggregate whist [512,0,0,0,0] matches the C receipt (GUARD_c_stream_xchk.json) field by field (parity recounted); detcheck 4096 trials deterministic, 0 fixed points
+  - name: thread_seed_and_key_formulas
+    run: RUN V3
+    values:
+      thread_seed_formula: seed ^ armid*0x1234567891 ^ (t+1)*0x9E3779B97F4A7C15 reproduces all 8 J3, all 8 J4, and the 1 GUARD thread seeds exactly
+      key_formula: all three arm keys re-derived (see J4_frozen_table_fresh_redraw)
+
+controls_checked:
+  - control: preregistration_mtime_ordering
+    result: PASS
+    evidence: >-
+      Disk mtimes intact in this live worktree: PREREGISTRATION.md mtime
+      1788290389 (19:19:49Z) precedes the earliest run output
+      (build_pins_attempt1_fatal.json, 1788290677); equals the epoch recorded
+      in RESULTS.json (1788290389.8531976); budget stamps order
+      preregistration_written (1788290359) before RUN1 start (1788290673);
+      frozen-table draw (1788290700) precedes the J4 arm receipt (1788290752)
+      with a gap covering the arm's 45.79 s wall; J3 gap 55 s >= 48.72 s wall.
+  - control: comparator_excess_E_immutability
+    result: PASS
+    evidence: >-
+      Frozen comparator text (AES dead at r=6 under frozen excess_E = 2^30,
+      EV-AES-d33b1c OBS-B2-5, one-sided pooled 1.72x bound, not re-measured)
+      carried verbatim in PREREGISTRATION.md and RESULTS.json; no arm redefines
+      it; excess ratios recomputed by this validator against 2^30 match (J4
+      2/2^30; J3 1.0).
+  - control: reuse_disclosure
+    result: PASS_WITH_SCOPE_NOTE
+    evidence: >-
+      sha256 of the in-scope copies: src/affarm046.c =
+      c7d06faf...ce4a and src/rc8probe_feistel.c = 9b36c0e7...8566, matching
+      the values recorded in BUILD.md for the byte-identical lineage copies.
+      Equality with the lineage ORIGINALS (BATCH-fe0bdc / BATCH-014) is the
+      producer's claim; those directories are outside this validator's
+      read_scope. KAT pins (FIPS-197 C.1 + r5/r10 anchors) re-ran in the
+      producer's RUN 1 and the anchor values were independently recomputed by
+      this validator's fresh AES (match).
+  - control: snapshot_hash_binding
+    result: PASS_WITH_BOOKKEEPING_NOTE
+    evidence: >-
+      Commit b4dfdf9c7574a179d78f27d9454fb6e8326356cf is reachable from HEAD,
+      names both task IDs, and 40/40 evidence-bearing artifacts (PREREGISTRATION,
+      RESULTS, budget stamps, all 23 run receipts, all .py/.c sources, BUILD.md,
+      binaries) byte-match their commit blobs (git hash-object vs ls-tree).
+      NOTE: 7 derived __pycache__/*.pyc files are named in the snapshot
+      receipt's artifact inventory but are NOT hash-bound in the commit (the
+      repo .gitignore excludes __pycache__/). Both values named: 47 artifacts
+      in the receipt, 40 bound. Derived bytecode only; every .py source it was
+      compiled from IS bound. Bookkeeping note for the coordinator, not an
+      evidence-integrity failure.
+  - control: J4_frozen_table_discipline
+    result: PASS
+    evidence: >-
+      Seed 46064002 pinned in PREREGISTRATION.md pre-data; identical in the
+      pinbij receipt, draw_bij.json, and the arm receipt; triple byte-identity
+      of pi and the 256-byte table; independent validator redraw at the pinned
+      seed reproduces the table; nonlinearity gate re-checked exhaustively
+      (bijective, non-affine).
+  - control: GUARD_expectation_direction_and_key_lineage
+    result: PASS_WITH_SCOPE_NOTE
+    evidence: >-
+      PASS direction confirmed: the preregistered rule is holds < 50% => GUARD
+      PASS (the law must FAIL on the dead substitute); observed 0/500 < 250.
+      Key lineage: bdf3823182ad657dab3d556b3886ba72 is exactly the pinned
+      campaign key formula applied to seed 531001 (recomputed fresh). Direct
+      byte comparison with the committed M1-FEISTEL-P30 receipt (BATCH-014) is
+      outside this task's read_scope; producer's key_matches_committed_M1_receipt=true
+      verified transitively only. Disclosed.
+  - control: deviations_all_disclosed_and_corroborated
+    result: PASS
+    evidence: >-
+      Five deviations disclosed in RESULTS.json, each independently corroborated:
+      (1) RUN 1 attempt 1 fatal receipt preserved (overall_pass=false,
+      frozen_table_C_vs_python_byte_match=false; orchestrator bug, halted on its
+      own gate before any arm data, fixed within slot); (2) J4 subclass
+      interpretation, PREREGISTERED in section 1 pre-data; (3) rcon continuation
+      6c,d8,ab,4d,9a,2f verified canonical by fresh key schedule; (4) one trivial
+      swap at r=3 recorded, in-band vs E[T]=500*2^-8 ~= 1.95 with rho=8 frozen;
+      (5) J4 zhist shape recorded (zhist[0]/2^30 = 0.9393 concentration at Z=0,
+      consistent with the null reading; both W=1 hit events on words 0 and 3).
+  - control: budget_compliance
+    result: PASS
+    evidence: producer elapsed 744 s of 2700 s declared; 7 of 8 runs; not halted at stop; binding stop epoch 1788292852 honored
+
+discrepancies:
+  numerical: []
+  notes:
+    - >-
+      Zero numerical discrepancies: every recounted or re-derived value equals
+      the producer's receipt/RESULTS value (all four validator runs: 58 + 17 +
+      22 + 15 = 112 checks, 0 failures).
+    - >-
+      Non-numerical finding 1: snapshot receipt names 47 artifacts; commit
+      hash-binds 40 (7 gitignored .pyc excluded). See snapshot_hash_binding.
+    - >-
+      Non-numerical finding 2: GUARD M1-receipt byte comparison out of
+      read_scope (transitive verification only). See GUARD control.
+
+per_arm_verdicts:
+  J4:
+    verdict: SEALED_SUBCLASS_SCOPED
+    recounted: hits=2 at 2^30 trials (DEAD band <=8), trivial=0, whist [1073741822,2,0,0,0], excess ratio 1.8626e-9 vs frozen excess_E=2^30
+    rederived: >-
+      frozen table byte-identical across pinbij/arm/independent-Python;
+      independent fresh redraw at pinned seed 46064002 reproduces pi
+      312a045c968b7efd exactly; lift bijective and exhaustively non-affine.
+    reading: >-
+      DEAD within the preregistered band; the producer's DEAD reading and
+      sealed-at-J4 consequence label are supported by the recount and the
+      independent redraw, subject to the subclass scope below.
+  J3:
+    verdict: SEALED
+    recounted: hits=2^30, T=0, W=3 on 100% of 2^30 nontrivial trials, whist [0,0,0,2^30,0], excess ratio 1.0; zhist binomial-consistent within 5 sigma
+    rederived: >-
+      key 34230a62... re-derived from seed 46063002 by the pinned formula;
+      thread seeds verified; deterministic law additionally re-run fresh by
+      this validator at 1 thread, r=6, 600/600 identity law, W=3 on 100%
+      (the optional different-thread-count smoke, done with fresh code).
+  J2:
+    verdict: SEALED
+    recounted: J2-R3 500/500 identity law + 500/500 W=3 (1 trivial swap, in-band); J2-R7 500/500 + 500/500 (0 trivial)
+    rederived: >-
+      fresh keyed smoke at r=3 and r=7 in validator code: identity law 600/600 both, W=3 on 100%
+  J1:
+    verdict: SEALED
+    recounted: 160/160 instances flat; guards D_rM_r=M_rD_r=I_128 all r=1..16; lineage window rho == PR-1 (0 mismatches); r*_aff undefined; digest verified; keyed r=16 cell 500/500 both laws, 0 trivial
+    rederived: >-
+      fresh sparse GF(2) census over ALL r=1..16 (required minimum: two r incl.
+      r=16): guards, flat rank patterns, and the full rho table reproduced;
+      rho_r11_r16 matches the producer receipt and RESULTS claim cell for cell;
+      rcon continuation verified canonical; fresh keyed law smoke at r=16
+      (600/600 identity, W=3 100%).
+  GUARD:
+    verdict: SEALED_PASS_DIRECTION
+    recounted: identity law holds 0/500 (recounted per-trial), 0 trivial in read, W=0 on all 500; 512-stream aggregate exactly matches the C receipt; detcheck deterministic
+    rederived: dead-instance key re-derived from seed 531001 by the pinned campaign formula; PASS direction per the preregistered <50% rule
+
+battery_level_outcome:
+  validator_derived: ALL-SEALED
+  as_reported: ALL-SEALED
+  derivation: >-
+    Derived independently from the preregistered consequence map
+    (PREREGISTRATION.md section 6) applied to validator-recounted values:
+    J4 DEAD (2 <= 8), J3 band+law met, J2 both cells 500/500, J1 census flat +
+    keyed cell met, GUARD holds 0/500 < 50% => ALL-SEALED. Equals the
+    producer's reported outcome; no arm was killed or narrowed by the
+    validator's recounts.
+
+j4_scope_statement: >-
+  The J4 control as executed tested ONE additional nonlinear S-box at r=6: the
+  nibble-wise lift SBOX[x]=pi[x>>4]<<4|pi[x&0x0f] of a uniform random
+  permutation of 16 symbols (drawn at the pinned seed 46064002). This is a
+  strict subclass of the 256-byte bijections; the red-team control text had
+  referenced the O-3 recipe (uniform permutation over 256 bytes), while the
+  task card's frozen contract wording ('random bijection on 16 symbols') is
+  authoritative and is what was implemented. The deviation was PREREGISTERED
+  and disclosed before any run (PREREGISTRATION.md section 1; mtime-gated),
+  not post-hoc. Consequence for generality: the sealed DEAD reading
+  generalizes the r=6 single-factor contrast from {AES S-box} toward
+  {nonlinearity} ONLY within the nibble-wise-bijection nonlinear subclass
+  (n=1 additional nonlinear S-box at r=6). It says nothing about uniform
+  permutations over 256 bytes or other nonlinear bijection classes at r=6;
+  the coordinator/reviewer may re-scope the sealed reading accordingly or
+  order a 256-byte uniform-bijection arm. The reading's validity WITHIN the
+  tested subclass is not weakened by this scope statement: the table was
+  frozen pre-data, independently redrawn byte-identically by this validator,
+  and the arm result (2 hits at 2^30) sits deep inside the preregistered DEAD
+  band.
+
+power_and_scope_statement: >-
+  TOY TIER throughout. Evidence power of this battery: one 2^30
+  random-bijection arm and one 2^30 affine rerun (single seeds/keys each),
+  500-trial keyed bridge cells, a zero-cipher-compute census extension
+  (algebraic, convention-conditioned), one 500-trial r=16 keyed cell, and a
+  512-trial GUARD stream with a 500-trial read. The comparator (AES dead at
+  r=6) remains carried, not re-measured. Nothing here concerns full-round AES,
+  deployed ciphers, or any crypto-scale claim; no comparison to published
+  cryptanalysis in either direction (RQ-AES-003 R3). The validator assigns no
+  evidence strength, makes no status interpretation, and recommends no
+  promotion; the per-arm consequence labels are the preregistered outcome
+  names for the coordinator to consume.
+
+budget:
+  declared_wall_clock_seconds: 2700
+  start_utc: '2026-09-01T19:32:55Z'
+  start_epoch: 1788291175
+  finish_utc: '2026-09-01T19:43:15Z'
+  elapsed_seconds_approx: 620
+  maximum_runs: 4
+  runs_used: 4
+  run_log:
+    - 'V1: recounts of all five arms from raw receipts + controls (58 checks)'
+    - 'V2: fresh GF(2) census r=1..16 + fresh AES KATs/anchors + fresh keyed-law smoke (17 checks; 3 validator-owned implementation bugs found and fixed during development)'
+    - 'V3: J4 frozen-table fresh redraw, byte-identity triple, gates, key/thread-seed formulas (22 checks)'
+    - 'V4: cross-consistency, deviation corroboration, validator-derived battery outcome (15 checks)'
+  halted_at_stop: false
+
+independence_attestation: >-
+  Independent session under the review-adversarial policy. This validator did
+  not originate the claim, wrote all re-derivation code fresh this session
+  (runs/v1..v4 under this task's write_scope), and opened NO producer source
+  file (.py/.c) at any point. The red-team report was read as the control
+  definition input named by the task handoff; no sibling reviewer report
+  exists in this batch and none was read. One resolved model serves all roles
+  under inference amendment DEC-20260831-0d1eeb; this validation is
+  session/implementation independence, NOT model independence, and nothing
+  here counts toward any multi-model quorum.
+
+inference:
+  policy: review-adversarial
+  requested_policy: review-adversarial
+  resolved_model_id: fireworks-ai/accounts/fireworks/models/qwen3p8-max
+  resolved_model_note: ACTUAL model serving this session under inference amendment DEC-20260831-0d1eeb; no adapter probe was executed in this session
+  model_verified: false
+  fallback_used: true
+  fallback_reason: session-backend transport under inference amendment DEC-20260831-0d1eeb
+  degraded_requirements: []
+  amendment: DEC-20260831-0d1eeb
+  standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
+  independent_session: true
+
+parse_attestation: >-
+  The final version of this report was parsed WHOLE with python3
+  yaml.safe_load (strict parse, zero errors); stated here from inside it per
+  the task constraint. Two earlier draft versions failed strict parsing on
+  unquoted ': ' sequences in plain scalars (GUARD recount line; J2 rederived
+  line); both were converted to block scalars and the report re-parsed clean.
+  Every validator run receipt (v1_recount_controls.json,
+  v2_fresh_derivation.json, v3_j4_table.json, v4_crosscheck.json) was parsed
+  whole with json.load (attested by RUN V4 checks). Every producer JSON
+  receipt consumed by this validation was parsed whole with json.load in the
+  validator's own scripts.

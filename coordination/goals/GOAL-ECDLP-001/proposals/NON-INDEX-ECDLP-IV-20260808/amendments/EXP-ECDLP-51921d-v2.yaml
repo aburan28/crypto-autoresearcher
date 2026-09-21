@@ -1,0 +1,232 @@
+protocol_amendment:
+  experiment_id: EXP-ECDLP-51921d
+  version_from: 1
+  version_to: 2
+  filed_at: '2026-08-09'
+  filed_by: coordinator
+  status: draft_pending_independent_review
+  approved_by: null
+  approved_by_decision: null
+  affected_runs: []
+  confirmatory_status: preserved
+  scope_statement: >-
+    This amendment makes the Arm-A rho census executable without changing its
+    hypothesis, target families, seeds, success criterion, or claim boundary.
+    It adds an ordinary-rho arm, pins the implementation interface, and makes
+    all quotient and control costs explicit. It also fixes the run-unit and
+    subgroup-order notation that were ambiguous in version 1. It authorizes no
+    run until the independent protocol review, source-hash gate, and backend
+    gate all pass.
+  artifact_paths:
+    - protocol_inputs/implementation_boundary.yaml
+    - protocol_inputs/automorphism_census/instance_manifest.yaml
+    - protocol_inputs/automorphism_census/control_manifest.yaml
+    - protocol_inputs/automorphism_census/cost_schema.yaml
+    - artifacts/automorphism_census/instance_manifest.yaml
+    - artifacts/automorphism_census/source_manifest.json
+    - artifacts/automorphism_census/raw_receipts.jsonl
+    - artifacts/automorphism_census/automorphism_certificates.jsonl
+    - artifacts/automorphism_census/refusal_table.jsonl
+    - artifacts/automorphism_census/comparison_table.csv
+    - validation/automorphism_census_report.yaml
+  budget_reconciliation:
+    prior_maximum_runs: 12
+    corrected_maximum_runs: 24
+    reason: >-
+      The command's declared field-bit/seed cross-product is 3 x 8 = 24
+      instance cells; the prior maximum_runs value did not bind a run unit.
+    approval_required: true
+    execution_gate: >-
+      The corrected budget must be accepted in the Coordinator decision before
+      a successor queue can admit the Arm-A Executor.
+  changes:
+    - id: A1
+      field: implementation_and_command_binding
+      kind: addition_required_before_approval
+      prior_value: absent
+      corrected_value:
+        entrypoint: harness/run_ecdlp_endo_census_v2.py
+        supporting_modules:
+          - harness/rho.py
+          - harness/toycurve.py
+          - harness/isogeny_class.py
+          - harness/runner.py
+        implementation_version: ecdlp-endo-census-v2
+        generator_version: prime-field-generator-v2
+        subgroup_order_symbol: N_subgroup
+        frozen_input_files:
+          instance_manifest: protocol_inputs/automorphism_census/instance_manifest.yaml
+          control_manifest: protocol_inputs/automorphism_census/control_manifest.yaml
+          cost_schema: protocol_inputs/automorphism_census/cost_schema.yaml
+        command: >-
+          python3 -m harness.run_ecdlp_endo_census_v2
+          --field-bits 14,16,18
+          --seeds 101,103,107,109,113,127,131,137
+          --trials 12
+          --modes ordinary,negation,full
+          --max-steps 400000
+          --instance-manifest protocol_inputs/automorphism_census/instance_manifest.yaml
+          --control-manifest protocol_inputs/automorphism_census/control_manifest.yaml
+          --cost-schema protocol_inputs/automorphism_census/cost_schema.yaml
+          --out coordination/goals/GOAL-ECDLP-001/proposals/NON-INDEX-ECDLP-IV-20260808/artifacts/automorphism_census
+        run_unit: >-
+          One run is one (field_bits, seed) cell containing 12 deterministic
+          walks for each declared mode and control. The frozen cross-product
+          therefore contains 3 field sizes x 8 seeds = 24 run cells; modes,
+          controls, and trials are nested receipts, not hidden extra runs.
+        run_cardinality:
+          field_bits: [14, 16, 18]
+          seeds: [101, 103, 107, 109, 113, 127, 131, 137]
+          trials_per_cell: 12
+          instance_cells: 24
+          maximum_runs: 24
+          cardinality_check: >-
+            The pre-run instance manifest must contain exactly 24 rows in the
+            lexicographic order (field_bits, seed), and the Executor must fail
+            before a walk if its row count or command expansion differs.
+        retry_and_success_binding:
+          max_restarts_per_walk: 4
+          restart_seed: sha256(seed || field_bits || trial_index || restart_index)
+          success_definition: recovered_scalar_replays_to_Q_on_source_curve
+        implementation_status: planned_not_yet_built
+        dispatch_rule: >-
+          The command is a frozen interface requirement, not evidence that the
+          entrypoint exists. The Executor may not be dispatched until the
+          entrypoint and every supporting module exist, the three frozen input
+          files exist, all hashes are recorded in the source manifest, and the
+          pre-execution review and backend gate pass.
+    - id: A2
+      field: quotient_modes
+      kind: control_separation_repair
+      prior_value: >-
+        The existing corrected driver exposes plain and quotient modes, but
+        both modes canonicalize by negation.
+      corrected_value:
+        ordinary:
+          canonicalization: none
+          eigenvalue_multiplier: none
+        negation:
+          canonicalization: [identity, negation]
+          eigenvalue_multiplier: [-1]
+        full:
+          canonicalization: >-
+            identity, negation, and every verified F_p-defined automorphism
+            orbit element admitted by the curve certificate
+          eigenvalue_multiplier: >-
+            the corresponding verified scalar in Z/N, carried through every
+            representative change
+      execution_rule: >-
+        All three policies run on every row of the same instance and control
+        manifest. The ordinary policy must not call a canonicalizer; the
+        negation policy may call only the verified identity/negation pair; the
+        full policy must emit a refusal receipt when no admissible verified
+        automorphism exists.
+      acceptance_probe: >-
+        On a generic curve ordinary and negation must be distinct policies,
+        while the full policy must refuse rather than silently invent an
+        automorphism. On a special curve the full policy must emit a verified
+        field-of-definition, order, eigenvalue, and stabilizer certificate.
+    - id: A3
+      field: charged_cost_model
+      kind: addition_accounting_guard
+      corrected_value:
+        vector_schema:
+          units: integer operation/event counts; bytes for serialized_bytes;
+            milliseconds for wall_time_ms; peak_bytes for peak_memory_bytes
+          fields:
+            point_additions: int
+            point_doublings: int
+            scalar_precompute_ops: int
+            field_additions: int
+            field_multiplications: int
+            field_squarings: int
+            field_inversions: int
+            canonicalization_comparisons: int
+            automorphism_evaluations: int
+            fruitless_collisions: int
+            deterministic_restarts: int
+            certificate_replay_ops: int
+            serialized_bytes: int
+            peak_memory_bytes: int
+            wall_time_ms: int
+        normalization: >-
+          Each integer work component is reported both raw and divided by
+          sqrt(N_subgroup). No scalar conversion weight or combined score is
+          allowed unless a separately approved price table is supplied; the
+          comparison table therefore retains the full vector.
+        aggregation: >-
+          charged_vector = setup_vector + walk_vector + retry_vector +
+          certificate_vector. A failed attempt contributes its observed vector
+          and a deterministic restart contributes to deterministic_restarts;
+          omitted or zeroed costs invalidate the receipt.
+        matching_rule: >-
+          Every mode uses the same curve, subgroup, P, Q, deterministic seed,
+          trial index, retry budget, success criterion, and certificate replay.
+          A quotient gain is not comparable unless all receipts carry the same
+          vector fields and the same N_subgroup denominator.
+    - id: A4
+      field: null_controls
+      kind: addition_required_before_approval
+      corrected_value:
+        construction:
+          C-BASE: source curve and instance row as generated by the frozen manifest
+          C-NEG: same source curve, points, seeds, trials, and retry schedule as C-BASE
+          C-RAND: derive_seed(seed, "C-RAND", field_bits, row_index), then reject
+            until a same-order ordinary curve with a valid N_subgroup certificate
+            is found; record every rejected candidate and cap attempts at 64
+          C-RELABEL: apply the deterministic label permutation
+            perm = fisher_yates(range(point_label_count), derive_seed(seed,
+            "C-RELABEL", field_bits, row_index)) while preserving p, N_subgroup,
+            P, Q, walk transition count, and serialization length; do not expose
+            the candidate automorphism action to the relabeled walk
+          C-POS: generate the predeclared anomalous or small-embedding case and
+            exclude it from the primary ordinary-family table
+        matching_keys: [p, N_subgroup, P, Q, field_bits, seed, trial_index,
+          max_restarts_per_walk, success_definition]
+        required_receipts: >-
+          Every declared mode is run on every constructible control. If a
+          control cannot be constructed, emit refusal_table.jsonl with the
+          matching keys and reason before any result is compared.
+        expected_null: >-
+          C-RAND and C-RELABEL are null controls: they may not be used to tune
+          a threshold after observation, and a special-family advantage is
+          interpretable only when the matched controls have valid receipts and
+          show no corresponding policy-specific reduction. A null failure is
+          recorded as an artifact/interpretation warning, never silently dropped.
+        controls:
+          - C-BASE ordinary rho on the selected curve
+          - C-NEG negation-only rho on the selected curve
+          - C-RAND same-order random ordinary curve
+          - C-RELABEL matched relabeling with the candidate action destroyed
+          - C-POS excluded anomalous or small-embedding calibration
+      interpretation_guard: >-
+        A quotient signal that is absent from C-RAND and C-RELABEL but present
+        only in the special family remains an observation at toy scale; no
+        asymptotic or cryptographic claim is permitted.
+    - id: A5
+      field: required_artifacts
+      kind: addition_provenance_guard
+      corrected_value:
+        exact_paths:
+          instance_manifest: artifacts/automorphism_census/instance_manifest.yaml
+          source_manifest: artifacts/automorphism_census/source_manifest.json
+          raw_receipts: artifacts/automorphism_census/raw_receipts.jsonl
+          automorphism_certificates: artifacts/automorphism_census/automorphism_certificates.jsonl
+          refusal_table: artifacts/automorphism_census/refusal_table.jsonl
+          comparison_table: artifacts/automorphism_census/comparison_table.csv
+          validation_report: validation/automorphism_census_report.yaml
+        schema_requirements:
+          - source_manifest records sha256 for entrypoint and every imported module
+          - raw_receipts contains one row per mode/control/trial/restart outcome
+          - automorphism_certificates records field of definition, order, eigenvalue,
+            stabilizer, and subgroup action
+          - refusal_table records every rejected curve/control/unsupported action
+          - comparison_table retains raw and sqrt(N_subgroup)-normalized vectors
+          - validation_report separates observation, comparison, inference, and limit
+    - id: A6
+      field: post_observation_changes
+      kind: freeze_guard
+      corrected_value: >-
+        No mode, family, seed, control, retry limit, or cost term may be added,
+        removed, or retuned after the first planned run. Any future change is a
+        new versioned amendment and is exploratory_only for the affected cell.

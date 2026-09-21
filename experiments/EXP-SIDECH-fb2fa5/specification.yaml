@@ -1,0 +1,239 @@
+experiment:
+  id: EXP-SIDECH-fb2fa5
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-6bce56; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-6bce56
+  question_id: RQ-ECDSA-87625f
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Enumerate every scalar on toy curves under three addition-formula variants, recording exceptional-case
+    trigger vectors, and report exact firing rates and trigger-vector information with a complete-formula
+    forced-zero arm.
+  objective: 'The one uncertainty a run reduces: how often an incomplete addition formula''s exceptional
+    branch actually fires during scalar multiplication, and how much that branch pattern says about
+    the scalar, as exact numbers over a fully enumerated scalar space rather than as an intuition
+    about rare cases. Concretely: (i) does the complete-formula arm return exactly zero triggers and
+    exactly zero information over the entire enumeration, which is forced by construction and is simultaneously
+    the proof that the implementations are the formulas they are named as; (ii) does the shuffled-trigger
+    null return exactly zero information, which is the only check that a fibre distribution dominated
+    by one enormous all-zero fibre is not making the entropy computation manufacture a value; (iii)
+    given (i) and (ii), what is the firing rate per formula, how does it scale with the group order
+    across the tested curves, and what is I(k ; t) in bits. The run answers these and stops. It attacks
+    nothing, recovers nothing, and produces no cost estimate for any adversary.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A run can support at most: ''for these three formula implementations
+      at these conventions, on these toy curves with these base points, over the fully enumerated
+      scalar space, the exceptional-branch firing rates and the exact I(k ; t) values are as tabulated,
+      with the complete-formula arm at exactly zero and the shuffled null at exactly zero.'' What
+      does NOT follow: that an exceptional branch is observable on any device, since the observation
+      is assumed and this environment has no physical measurement capability; that any deployed implementation
+      uses these formulas or these conventions; that a nonzero rate is a vulnerability or that a zero
+      rate is a security property; that the fitted scaling extends to 256-bit curves, where only a
+      fit with residuals is offered; and anything at all about the security of ECDSA or any deployed
+      system.'
+  inputs:
+    procedure: 'STAGE 0 (cost: ~3 hours): implement affine-with-tests, Jacobian-with-doubling-detection
+      and complete formula variants over a small prime field, each emitting an exceptional-branch
+      bit by direct instrumentation, with the identity-handling convention fixed and written down.
+      STAGE 1 (cost: minutes CPU): reference-agreement control -- every variant''s scalar multiplication
+      result checked against an independent reference on 10000 random scalars per curve. STAGE 2 (cost:
+      minutes CPU): pilot at group order near 2^13 with one base point, all three variants, full enumeration;
+      check the complete-formula forced zero and the shuffled null before anything larger runs. STAGE
+      3 (cost: ~2-6 core-hours): full sweep over four toy curves with orders near 2^11, 2^13, 2^15
+      and 2^17, three base points each, all three variants, full enumeration at each. STAGE 4 (cost:
+      minutes): exact fibre counting and I(k ; t) in Fraction arithmetic, cross-checked in float to
+      1e-12. STAGE 5 (cost: minutes): fit the firing rate against group order, report the fit with
+      residuals and label it a fit. STAGE 6 (cost: minutes): emit the run record with the identity-handling
+      convention, the curve and base-point list, all seeds, and both null results.'
+    instrument: 'Python 3 standard library: fractions.Fraction for exact entropy, collections.Counter
+      keyed on the trigger vector itself so no hash collision is possible, itertools for enumeration.
+      Field and curve arithmetic from harness/toycurve.py, with the three formula variants written
+      for this experiment on top of it and the reference scalar multiplication taken from the existing
+      harness code for the agreement control. Run-record emission, seed recording and bounded execution
+      through harness/runner.py and src/crypto_autoresearcher/runner.py. numpy for the scaling fit
+      and residual reporting only. No Sage. No timing, cache or physical measurement enters any reported
+      metric.'
+    parameters: 'Four toy curves over prime fields with group orders near 2^11, 2^13, 2^15 and 2^17,
+      all constructible with harness/toycurve.py, each with three distinct base points of full order.
+      Formula variants: affine with explicit identity and inverse-point tests; Jacobian addition with
+      a projective-equality doubling-detection test; a complete formula variant. Scalar multiplication:
+      binary double-and-add, fixed, so that the recoding is held constant across formula variants
+      and the only moving part is the formula. Enumeration: all scalars in [1, N-1] at each (curve,
+      base point, variant). Reference-agreement control: 10000 random scalars per (curve, variant).
+      Arithmetic: Fraction exact plus float cross-check at 1e-12. Shuffled null: 100 permutations
+      per cell.'
+  controls:
+  - Complete-formula arm with forced zero rate and zero information, doubling as a correctness proof
+    of the implementation.
+  - Shuffled-trigger null preserving the marginal trigger distribution.
+  - 'Reference-agreement control: every scalar multiplication''s RESULT is checked against an independent
+    reference implementation, so a formula that silently computes the wrong point cannot be scored.'
+  - 'Base-point control: the enumeration is repeated for at least three distinct base points per curve,
+    since the rate is base-point dependent.'
+  - 'Exact-arithmetic control: information computed in Fraction and in float, agreement to 1e-12.'
+  - 'Cross-instrument control: the entropy machinery is the one used by the companion operation-word
+    proposal, and both are run on a shared synthetic fibre distribution with a known answer.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): Two nulls, both in the same invocation. (i) COMPLETE-FORMULA ARM: the
+    identical enumeration and the identical entropy machinery run against a complete addition formula,
+    for which the exception rate and I(k ; t) are exactly 0 over the entire enumerated space by construction.
+    This is simultaneously a null and a proof-of-correctness: a nonzero value here means the implementation
+    is not the formula it claims to be. (ii) SHUFFLED-TRIGGER NULL: the observed trigger vectors are
+    randomly permuted across scalars, breaking the association while preserving the marginal trigger-rate
+    distribution exactly, and I(k ; t) recomputed by the identical code; this must return exactly
+    0, since a permuted assignment is independent of the scalar. For the signal arm''s information
+    to mean anything both nulls must return exactly zero to numerical tolerance. The shuffled null
+    is essential because a highly skewed fibre distribution is where plug-in entropy computations
+    most easily manufacture a value.'
+  independent_variables:
+  - formula variant
+  - group order
+  - base point
+  - arm (signal, complete-formula, shuffled null)
+  metrics:
+    primary:
+    - fraction of scalars with at least one exceptional trigger
+    - mean triggers per scalar multiplication
+    - exact I(k ; t) in bits
+    - trigger-vector fibre-size distribution
+    secondary:
+    - complete-formula arm values
+    - shuffled-null information
+    - reference-agreement mismatch count
+    - fitted scaling exponent of the rate against group order with residuals
+    - Fraction versus float discrepancy
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The exceptional-branch firing rate per formula variant at each group order, and the
+      exact I(k ; t) computed from the trigger-vector fibres.
+    formula: 'Two exact predictions are pre-committed and both are derivations rather than hypotheses.
+      First, the complete-formula arm: a complete addition formula has no exceptional case on the
+      curve''s points, so the trigger vector is identically the all-zero word, the fibre over it is
+      the whole scalar space, and both the firing rate and I(k ; t) are exactly 0 at every curve and
+      every base point. Second, the shuffled null: permuting trigger vectors across scalars makes
+      t independent of k while preserving t''s marginal exactly, so I(k ; t) is exactly 0. A third,
+      weaker structural prediction is stated and tested rather than assumed: the firing rate for an
+      incomplete formula should DECREASE with group order, because the exceptional conditions require
+      coincidences among points whose probability falls as the group grows; the run fits the exponent
+      across four orders and reports residuals, and a flat or increasing rate falsifies that reasoning
+      while leaving the measured rates themselves intact and reportable.'
+    source: Pre-registered in the parent proposal IDEA-20260816-6bce56 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: Group orders from about 2^11 to 2^17, enumerated exhaustively, which is the range
+      where every scalar can be walked and the rate and information are exact rather than sampled.
+      Deployed curves are 256 bits, roughly 2^256 scalars, entirely out of reach for enumeration.
+      NO measured claim is made at deployed sizes. The only extrapolation offered is the fitted scaling
+      of the firing rate against group order across four points, reported with residuals and explicitly
+      labelled a fit; its validity additionally requires that small curves have typical group structure,
+      which they may not, and that caveat is stated rather than buried. The two forced-zero results
+      transfer unconditionally, since they follow from the formulas rather than from the parameters.
+    correspondence: null
+  tail_checks:
+  - Inspect every non-zero trigger vector individually, since they will be few and they carry all
+    the information.
+  - Inspect the scalars that trigger exceptions for a common structural feature, for example proximity
+    to the group order or to a small-order point.
+  - Inspect the largest curve specifically, where triggers may vanish entirely and the rate becomes
+    an upper bound rather than a measurement.
+  - Inspect base-point-to-base-point variation at the smallest curve, where group structure is least
+    typical.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Halt at the pilot if the complete-formula arm is nonzero or the shuffled null is nonzero; report
+    an implementation fault and run no sweep.
+  - Stop at group order 2^17; do not extend, since enumeration cost grows with the order and a partial
+    enumeration would not be exact.
+  - Halt if reference agreement finds any mismatch, and report the mismatch rather than any rate.
+  - Halt if total wall time exceeds 8 hours and report completed cells only, recording the halt as
+    a budget event and never as evidence about any formula.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The complete-formula arm returns exactly zero on both metrics at every cell,
+    the shuffled null returns exactly zero information, reference agreement finds no mismatch, and
+    exact firing rates with exact I(k ; t) values and a fitted scaling with residuals are produced
+    across all four curves and three base points.
+  falsification_criterion:
+  - Complete-formula arm nonzero on either metric at any cell.
+  - Shuffled null returns nonzero information.
+  - Any reference-agreement mismatch.
+  - I(k ; t) exceeds the marginal entropy of the trigger vector, which is impossible and indicates
+    a fibre-counting fault.
+  - Fraction and float computations disagree beyond 1e-12.
+  - Firing rates vary by orders of magnitude across base points at the same curve without an identified
+    structural cause, making the per-formula number meaningless as reported.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-6bce56
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - Where the identity check lives -- inside the formula or in a calling wrapper -- changes what the
+    trigger vector records, and the convention must be fixed by a Coordinator and applied identically
+    across variants before the run.
+  - Whether precomputation-table construction counts as part of the scalar multiplication for windowed
+    variants is unresolved; the contract currently fixes binary double-and-add to sidestep it, which
+    limits the result's reach.
+  - The claim that small toy curves have typical group structure is assumed, not argued, and it conditions
+    the fitted scaling.
+  - No bridge is specified from I(k ; t) to any recovery cost, so the number cannot yet be consumed
+    by a cost model in this program.

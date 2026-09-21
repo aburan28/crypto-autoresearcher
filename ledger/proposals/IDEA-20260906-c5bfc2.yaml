@@ -1,0 +1,817 @@
+idea:
+  id: IDEA-20260906-c5bfc2
+  question_id: RQ-MLKEM-003
+  added: '2026-09-06'
+  title: >-
+    ML-KEM's key-recovery security has a NON-LATTICE CEILING that no lattice
+    result can raise, and at ML-KEM-1024 the ceiling is within a couple of bits
+    of the committed lattice figure. Under FIPS 203 key generation the entire
+    secret key is a deterministic function of one 32-byte seed d, and the
+    published rho is the first half of G(d || k), so key recovery is a
+    single-block SHA3-512 preimage search of expected cost 2^255 Keccak-f[1600]
+    permutations. Track the SYMMETRIC CEILING as the object, express it in the
+    same gate units EV-MLKEM-020 already uses, and reduce the whole ML-KEM-1024
+    non-lattice margin to ONE uncounted number - the gate count of one
+    Keccak-f[1600] permutation
+  class: mechanism
+
+  claim: >-
+    (A) THE STRUCTURAL FACT, STATED SO IT CAN BE CHECKED. Under FIPS 203
+    conformant key generation, ML-KEM.KeyGen draws d uniformly from 32 bytes and
+    everything else is deterministic: K-PKE.KeyGen(d) computes (rho, sigma) =
+    G(d || k) with G = SHA3-512, expands the public matrix A from rho, samples s
+    and e from sigma, and publishes ek = ByteEncode12(t_hat) || rho. The
+    encapsulation key therefore PUBLISHES a 256-bit image of the 256-bit key
+    seed under a fixed public function. Recovering the entire decapsulation key
+    is exactly the problem: find d with G(d || k)[0:32] = rho. This is a
+    single-block preimage search: a 33-byte input absorbs into one SHA3-512
+    block (rate 72 bytes) and the 64-byte output needs no second squeeze, so one
+    trial is exactly ONE Keccak-f[1600] permutation plus a 32-byte comparison.
+    Expected trials 2^255; expected spurious preimages O(1), removed by one
+    re-derivation of t_hat.
+    (B) THE CONSEQUENCE, IN THIS PROGRAM'S OWN COMMITTED UNITS. Write g =
+    log2(gates per Keccak-f[1600] permutation in a declared gate basis). Then
+    the seed attack costs S = 255 + g gate-bits (average-trial convention) or
+    S = 256 + g (full-keyspace convention, which is the convention NIST's own
+    constants use: 143 - 128 = 15, 207 - 192 = 15, 272 - 256 = 16 implied gate
+    bits per trial). EV-MLKEM-020 commits primal_bdd under RC.MATZOV at
+    140.1994731076207 / 200.9587149140538 / 270.7236234535225 gate-bits against
+    cutoffs 143 / 207 / 272. Therefore, with ZERO lattice computation, three
+    forced thresholds fall out of the single number g, at ML-KEM-1024 only:
+    T1, THE ATTACK THRESHOLD. The seed search is cheaper than the committed
+    best-known lattice figure iff g < 15.7236234535225 (average convention) or
+    g < 14.7236234535225 (full-keyspace convention).
+    T2, THE CATEGORY THRESHOLD. ML-KEM-1024 meets its category-5 reference
+    against this attack iff g >= 16 (full-keyspace convention, i.e. iff one
+    Keccak-f[1600] costs at least as much as one AES-256 encryption in the same
+    basis). The ENTIRE non-lattice margin of ML-KEM-1024 over category 5 is
+    exactly g - 16 bits and depends on no lattice quantity whatsoever.
+    T3, THE MEMORY-CHARGE THRESHOLD. Under EV-MLKEM-020's own T x M^c charge
+    with log2 M = 180.924993, the seed attack (whose memory is O(1) words)
+    overtakes the lattice attack at c_seed = (g - 15.7236234535225) /
+    180.924993. That number is directly comparable with the committed
+    c* = 0.00705473, and the ORDER of c_seed and c* decides whether, as memory
+    is charged, ML-KEM-1024's lattice figure crosses the NIST cutoff before or
+    after it crosses a purely symmetric attack.
+    (C) WHAT DISCRIMINATES, AND BOTH OUTCOMES ARE USEFUL. EXPLANATION A,
+    NON-BINDING CEILING - the counted g exceeds 17 and the ceiling sits clear of
+    both the cutoff and the lattice figure; then ML-KEM-1024's margin is a
+    genuinely lattice-limited quantity, the lane's numerator work is well
+    targeted, and this record has supplied the upper bound that bounds it, which
+    is itself new information (the margin cannot exceed g - 16 bits no matter
+    how wrong core-SVP turns out to be). EXPLANATION B, BINDING CEILING - the
+    counted g falls below 17, or below 15.72; then either ML-KEM-1024's
+    category-5 claim fails against an attack containing no lattice at all, or
+    the cheapest known attack on ML-KEM-1024 under RC.MATZOV gate accounting is
+    not a lattice attack, and every proposal in this lane is optimising a
+    quantity that is not the minimum.
+    (D) THE SCOPE, WHICH IS NARROW AND SAID UP FRONT. The ceiling is 255 + g at
+    ALL THREE parameter sets, so at ML-KEM-512 and ML-KEM-768 it sits roughly
+    112 + g and 48 + g bits ABOVE their cutoffs and is not binding by any
+    reading. Only ML-KEM-1024 is in play, and it is in play only because its
+    committed margin is 1.276377 bits.
+    (E) WHAT IS NOT CLAIMED. No break. No claim that ML-KEM-1024 fails any
+    category - that depends on g, which this record does not know and does not
+    guess. No claim about FIPS 203's text beyond a recalled reading that Stage 0
+    must confirm against a conformant implementation. No status change to any
+    committed record.
+
+  mechanism: >-
+    STAGE 0, CONFIRM THE STRUCTURAL PREMISE OR STOP. Everything rests on one
+    reading of FIPS 203 that this program has never verified: that (rho, sigma)
+    = G(d || k) with G = SHA3-512, that rho is published verbatim inside ek, and
+    that d is 32 bytes. Primary NIST text is unreachable under this harness
+    (RQ-MLKEM-003 provenance block: proxy CONNECT 403). The substitute is a
+    CONFORMANT ARTIFACT rather than a document: take the FIPS 203 known-answer
+    test vectors or any implementation that passes them, evaluate SHA3-512 on
+    (d || k) for the KAT seeds, and check byte-for-byte that the first 32 output
+    bytes equal the rho embedded in the KAT public key. That check is exact,
+    cheap, and either passes or refutes the premise outright. If it refutes it -
+    for example if a conformant KeyGen draws rho independently rather than from
+    d - the record says so, the ceiling rises to 2^512, and the finding is that
+    ML-KEM has a 512-bit rather than a 256-bit key-recovery ceiling.
+    STAGE 1, COUNT g. Compile a bitsliced Keccak-f[1600] permutation to a fixed
+    declared basis - {AND, XOR, NOT} with NOT free, and separately {AND, XOR} -
+    and COUNT gates, not cycles. Report g with its basis. Count in the same
+    declared basis an AES-256 encryption core, so that the comparison implied by
+    T2 is made within one basis rather than across two. This is the whole
+    measurement, and it is a counting problem with an exact answer.
+    STAGE 2, THE THREE THRESHOLDS, CLOSED FORM. Evaluate T1, T2, T3 above at the
+    counted g under both trial conventions, and report the six signed numbers
+    plus c_seed against the committed c*. Nothing here is estimated; the inputs
+    are one counted number and six committed constants.
+    STAGE 3, THE PARETO ROW. Emit the seed attack as an explicit row on this
+    lane's frontier with all three axes filled: time 255 + g gate-bits, memory
+    O(1) words (single target), data one public key, parallelism embarrassing
+    (2^255 independent trials, no communication, no memory traffic). The lane
+    has never had a row with negligible memory at a competitive time, and the
+    absence of one is why every memory-charging argument in the lane so far
+    could only move the lattice attack against a cutoff, never against a rival
+    attack.
+    STAGE 4, THE QUANTUM ROW, EXPLICITLY DEFERRED AND SCOPED. Grover on the same
+    preimage gives about 2^128 Keccak-f[1600] evaluations against a category-5
+    quantum reference that is Grover on AES-256, so the quantum margin is again
+    a ratio of two symmetric circuits under a MAXDEPTH constraint. This record
+    does NOT compute it; it names IDEA-20260821-472aa2's depth-and-QRAM
+    accounting as the place it belongs, and records the structural point that
+    the quantum ceiling has the same shape as the classical one.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      THE crypto-kb MCP RETRIEVAL INDEX WAS UNAVAILABLE FOR THIS SESSION.
+      CRYPTO_KB_QDRANT_URL is ':memory:' and search_knowledge errors rather than
+      returning results (verified by the driving session and stated in this
+      session's binding brief), so THE SEMANTIC NOVELTY SCREEN COULD NOT BE RUN
+      and no citation in this record carries `kb` provenance.
+      What was actually done instead. Read in full - RQ-MLKEM-001,
+      RQ-MLKEM-003, agents/idea-generator.md, docs/inventor-protocol.md,
+      docs/target-result-profile.md, templates/research-records.md,
+      knowledge/open-problems/KN-OPEN-026.md, knowledge/open-problems/
+      KN-OPEN-016.md, IDEA-20260829-bc9cc5 (all 612 lines), and the supplied
+      90-row inventory of every proposal bound to an RQ-MLKEM question. Read in
+      part - IDEA-20260814-10e5e1 (lines 1-70), IDEA-20260805-690de8 (1-60),
+      IDEA-20260828-5b7795 (1-45), IDEA-20260829-cca84c (1-45), EV-MLKEM-020
+      (lines 440-519). Enumerated - all 32 ledger/hypotheses/H-MLKEM-*.yaml by
+      id, question_id and status, and all 34 staged EXP-MLKEM-* specifications
+      by id and title.
+      Greps run this session. `Keccak|preimage|SHA3-512|seed d|32-byte seed`
+      over ledger/proposals (case-insensitive): EVERY hit is the schema field
+      name `distinct_preimage_search` from proof_search_map, plus two ECDLP
+      records using the English word "seed" for a PRNG seed. No ML-KEM proposal
+      mentions Keccak, SHA3, or a preimage attack.
+      `seed|Keccak|preimage|SHA3|SHAKE` over knowledge/open-problems: four
+      files, none ML-KEM (KN-OPEN-015, -2c095b, -3f7a21, -5b3a08).
+      `2026/366|2026/279|ring-enhanced|Enhanced Hybrid Decoding` over knowledge:
+      KN-LIT-7663, KN-LIT-7667, KN-LIT-7c2620, GATHER-20260801B.
+      `primal_usvp|dual_hybrid|arora|ABLR21|argmin` over EV-MLKEM-020.
+      Web this session: three WebSearch queries (lattice sieving exponent 2026;
+      ML-KEM attack 2026 eprint; "Careful with the Ring"). NO WebFetch of a
+      primary source was performed for this record, and no FIPS 203 text was
+      read by any means.
+    results: >-
+      Relative to this repository the object is absent. Of the 33 proposals
+      filed against RQ-MLKEM-003 and the 42 against RQ-MLKEM-001, every one
+      tracks a lattice quantity, an estimator quantity, an implementation
+      quantity, or (uniquely, IDEA-20260829-bc9cc5) the AES reference
+      computation. None tracks a symmetric attack on ML-KEM itself, and the
+      grep above shows the word Keccak does not occur in the lane.
+      The two nearest records and why neither contains this. bc9cc5 makes the
+      REFERENCE computation an object and re-prices AES key search; it is
+      denominator work and explicitly declares "no attack, no algorithm". This
+      record puts a new attack on the NUMERATOR and uses NIST's implied
+      per-trial gate counts only as a comparison target. IDEA-20260828-faca4f
+      adds a third attack family (Arora-Ge / Groebner) to the priced set, which
+      is the same MOVE as this record but a different and purely lattice-side
+      family; the symmetric family it does not consider.
+      Relative to the outside world, this is very probably folklore in part.
+      "A scheme's security is capped by its key-generation seed" is a standard
+      design constraint, and NIST's own requirement that seeds match the
+      security level exists because of it. What I have NOT been able to check,
+      and what a reviewer with retrieval must check, is whether anyone has
+      published the QUANTITATIVE form at FIPS 203 parameters - specifically the
+      observation that ML-KEM-1024's non-lattice margin over category 5 reduces
+      to log2(gates(Keccak-f[1600]) / gates(AES-256)) and is therefore of order
+      one bit.
+    verdict: >-
+      UNVERIFIED, and it must stay unverified: the structural premise (FIPS 203
+      key derivation) is `recalled` and unread by this program, the external
+      literature check could not be run without the kb index, and the decisive
+      number g has not been counted. Claimed new RELATIVE TO THIS REPOSITORY
+      only: (i) the symmetric ceiling as a tracked object in this lane, (ii) its
+      expression in EV-MLKEM-020's committed gate units, (iii) the three forced
+      thresholds T1/T2/T3 on the single number g, and (iv) the first frontier
+      row in this lane with negligible memory.
+
+  object_first_candidate:
+    established_families_off_limits: >-
+      Declared off-limits as the primary lens for this record, because the lane
+      is heavily mined and variants arrive in new notation: primal uSVP and BDD
+      embeddings and their blocksize laws (IDEA-20260829-353361, -db9f2b,
+      -1ebebd); dual sieve plus FFT distinguishers and their score statistics
+      (IDEA-20260805-5a4409, -a102ec, -bb7668, IDEA-20260808-0eb075,
+      IDEA-20260816-ba5bd8, -725f05, IDEA-20260901-2f778b); sieve cost constants
+      and calibration (IDEA-20260807-8fbc86, IDEA-20260805-f7c912, -fc6361);
+      sieve memory and memory access pricing (IDEA-20260816-70e41d, -7bc28c,
+      IDEA-20260821-46c09f); the module/ring structure discount
+      (IDEA-20260816-b824af, -f4ce0b, -fdc8e8, -bd7f26); dimensions for free
+      (IDEA-20260821-374af4); the oracle-call schedule (IDEA-20260821-41cd67);
+      hybrid/MITM guessing splits (IDEA-20260901-67f498, -7eb9e1); algebraic
+      attacks (IDEA-20260828-661a28, -faca4f); the quantum resource triple
+      (IDEA-20260821-472aa2); and implementation side channels, which belong to
+      RQ-MLKEM-002 and are excluded by that question's own constraints.
+    tracked_object: >-
+      THE KEY SEED d, and specifically the pair (|d| in bits, cost of one
+      forward evaluation of the public map d -> rho) carried through the same
+      gate-charging operation the lattice attack is carried through. Not the
+      lattice, not the basis, not the estimator: the 256-bit object from which
+      the entire ML-KEM secret is regenerated, together with the single public
+      function that exposes it.
+    lossiness: >-
+      LOSSY, and provably so. The underlying state is the whole key: A (a k x k
+      matrix over R_q, about 12 * 256 * k^2 bits), s and e (2 * 256 * k CBD
+      coefficients), t_hat, and z. The projection retains 256 bits plus one
+      scalar cost. It discards A entirely, discards the CBD structure of s and
+      e, discards the module rank, discards q, and discards every geometric
+      property the whole rest of this lane measures. The map is many-to-one in
+      the strong sense that two schemes with completely different lattice
+      parameters and the same seed length and expansion cost are the SAME object
+      here - which is exactly why the object gives an attack that is blind to
+      every lattice improvement and to every cost-model dispute in this lane.
+      NOT A CHANGE OF COORDINATES: the discarded structure cannot be recovered
+      from the retained pair, since the retained pair does not even determine k.
+      THE COMPATIBILITY CONDITION, which is the part that makes the object work.
+      What is discarded must be discarded compatibly with the target's
+      operations. The operation here is FIPS 203 key generation itself, which is
+      by construction a deterministic function of d alone; every discarded
+      quantity is an OUTPUT of that function, not an input to it. So the
+      retained coordinate propagates deterministically through the entire
+      keygen: guess d, and everything discarded is regenerated exactly. That is
+      the strongest possible form of the compatibility condition, and it is
+      supplied by the standard rather than assumed.
+    propagation: >-
+      One step is one trial: one Keccak-f[1600] permutation on (d || k) and one
+      32-byte comparison against the published rho. Propagation is exactly
+      deterministic and the one-step cost is exactly countable - which is the
+      reason this object can be priced to the gate while the lattice objects in
+      this lane cannot. The cheap internal falsifier of the whole pipeline: on a
+      FIPS 203 KAT vector, the forward step applied to the KAT's own d must
+      reproduce the KAT's rho byte for byte. If it does not, Stage 0 has failed
+      and nothing downstream is reportable.
+    survival_score: >-
+      Survives the entire attack, end to end, at full FIPS 203 scale, with no
+      extrapolation and no toy instance - which no other object in this lane
+      does. It dissolves at exactly two boundaries, both named: (i) it says
+      nothing about IND-CCA advantage below full key recovery, since a
+      distinguisher need not recover d; (ii) it is generic in Keccak, so it is
+      silent about any structural attack on round-reduced Keccak-f[1600]
+      constrained-input constrained-output problems, and if such an attack
+      existed at full 24 rounds the ceiling would be lower still, not higher.
+      Both boundaries move the conclusion in the same direction, which is stated
+      so that the record cannot be read as conservative in the wrong direction.
+
+  null_object_control: >-
+    NULL-K, THE KAT REPRODUCTION NULL, AND IT IS LOAD-BEARING. Before any cost
+    is reported, the forward map must reproduce a FIPS 203 known-answer public
+    key's rho from that KAT's own d. OBJECT REMOVED: the search. OBJECT
+    PRESERVED: the derivation. CAN IT FAIL: yes, and if it fails the premise in
+    part (A) is refuted and the record's conclusion inverts (ceiling 2^512).
+    NULL-B, THE BASIS NULL. Count the SAME circuit in two declared bases and
+    report both. If g differs across bases by more than the T1-to-T2 gap of
+    about 1.3 bits, then no threshold verdict may be stated without naming a
+    basis, and the record must report the verdict as basis-conditional rather
+    than pick the favourable basis.
+    NULL-A, THE MATCHED-REFERENCE NULL. Count an AES-256 encryption core in the
+    identical basis with the identical counter. If the counted AES-256 figure
+    does not land near NIST's own implied 2^16 gates per trial (272 - 256), then
+    the counter and NIST's constant do not live in the same accounting, T2 is
+    uninterpretable, and the record reports that instead of a margin.
+    NULL-S, THE SCRAMBLED-SCHEME NULL. Apply the identical pipeline to a
+    hypothetical ML-KEM variant whose rho is NOT derived from d (independent
+    32-byte draw). The pipeline must return a ceiling of 2^512 rather than
+    2^256. If it returns 2^256 anyway, the pipeline is reading the seed length
+    rather than the derivation structure and is not measuring what it claims.
+    FORCED VALUES DECLARED BEFORE ANY MEASUREMENT, so that they cannot later be
+    reported as findings: (1) the ceiling is 255 + g gate-bits at ALL THREE
+    parameter sets, identical, because d is 32 bytes at all three; (2) it is
+    therefore non-binding at ML-KEM-512 and ML-KEM-768 by construction, and any
+    report suggesting otherwise is an arithmetic error; (3) charging memory can
+    only move the comparison in the seed attack's favour, since its memory is
+    O(1) and the sieve's is 2^180.924993 elements, so only the MAGNITUDE of
+    c_seed carries information, never its sign.
+
+  discriminated_from:
+    - >-
+      IDEA-20260829-bc9cc5 tracks the AES key-search REFERENCE COMPUTATION and
+      re-prices the denominator 143 / 207 / 272; it declares "no attack, no
+      algorithm, no complexity result claimed". This record adds a NUMERATOR row
+      - an attack on ML-KEM - and uses NIST's implied per-trial gate counts only
+      as the comparison target. The two are complementary and, notably, they
+      interact: if bc9cc5's amortised-search arm lowers the reference, T2 gets
+      HARDER for ML-KEM, not easier.
+    - >-
+      IDEA-20260828-faca4f prices a third attack family (Arora-Ge / Groebner)
+      that this RQ had never costed. Same move, different family: faca4f's
+      family is algebraic and lattice-adjacent and its cost depends on q, n and
+      the secret distribution; this record's family is symmetric and depends on
+      NONE of them, which is why it produces a ceiling rather than an estimate.
+    - >-
+      IDEA-20260821-472aa2 opens the quantum resource triple (coherent depth,
+      QRAM width, QRAM query count) behind ML-KEM's quantum category assignment
+      and uses depth-limited Grover AES-128 figures as a calibration key. This
+      record is classical, produces a classical ceiling, and explicitly defers
+      its own quantum row to that record's accounting rather than duplicating
+      it.
+    - >-
+      IDEA-20260805-1d76e9 and H-MLKEM-dc51f5 study MULTI-TARGET key recovery
+      via weak keys - selecting the luckiest secret from N keys by a norm order
+      statistic - and concluded the luckiest key is not lucky enough. That lane
+      selects among lattice instances; this record does not select at all and
+      does not care whether a key is weak, because the seed search cost is
+      independent of the secret's geometry.
+
+  citations:
+    - ref: EV-MLKEM-020 (committed evidence record, this repository)
+      provenance: internal
+      claim: >-
+        Committed observations, read this session: primal_bdd under RC.MATZOV
+        costs 140.1994731076207 / 200.9587149140538 / 270.7236234535225 log2 rop
+        at the three FIPS 203 parameter sets, "i.e. free-memory margins of
+        +2.800527 / +6.041285 / +1.276377 bits below the NIST classical cutoffs
+        143 / 207 / 272"; peak sieve database log2 M = 88.494071 / 131.657286 /
+        180.924993 Z_q elements; c* = 0.03164649 / 0.04588645 / 0.00705473
+        (Model A). H11 records the cutoffs as UNVERIFIABLE from primary text.
+        H12 records that the scope is primal_bdd under RC.MATZOV with "no
+        best-attack claim", and that VAL-CTRL-A found primal_bdd 140.199473
+        cheaper than primal_usvp 143.771733 and dual_hybrid 145.528285 at
+        Kyber-512.
+      verified_by: >-
+        idea-generator, 2026-09-06: partial read of ledger/evidence/
+        EV-MLKEM-020.yaml lines 440-519 plus a targeted grep of the whole file
+        for primal_usvp|dual_hybrid|arora|ABLR21|argmin. Not a full-file read.
+    - ref: RQ-MLKEM-003 (this repository)
+      provenance: internal
+      claim: >-
+        Decision target "whether ML-KEM's claimed categories hold under a
+        memory-charged concrete cost model, and in which direction the core-SVP
+        convention errs at its actual dimensions"; provenance block records
+        csrc.nist.gov and nist.gov as unreachable under this harness (proxy
+        CONNECT 403) and that no FIPS text has been read by this program.
+      verified_by: 'idea-generator, 2026-09-06: read in full'
+    - ref: >-
+        FIPS 203, ML-KEM.KeyGen / ML-KEM.KeyGen_internal / K-PKE.KeyGen -
+        specifically that d is a 32-byte seed, that (rho, sigma) = G(d || k)
+        with G = SHA3-512, and that ek_PKE = ByteEncode12(t_hat) || rho
+      provenance: recalled
+      claim: >-
+        The structural premise of this entire record, held from model knowledge
+        only. NO FIPS 203 TEXT HAS BEEN READ BY THIS PROGRAM OR BY THIS AGENT.
+        The specific details a reviewer must check are: the length of d (32
+        bytes); the presence of the rank byte k in the input to G, which is a
+        late change relative to the Kyber submission and affects only domain
+        separation, not the argument; that rho appears verbatim in ek; and that
+        no conformant KeyGen path bypasses d. Stage 0 replaces this citation
+        with an artifact check against FIPS 203 known-answer vectors.
+      verified_by: null
+    - ref: >-
+        FIPS 202 / Keccak-f[1600] parameters - 24 rounds, 1600-bit state, and
+        SHA3-512 rate 576 bits (72 bytes)
+      provenance: recalled
+      claim: >-
+        That a 33-byte input to SHA3-512 absorbs in a single block and that the
+        64-byte digest is produced without a second permutation, so one trial
+        costs exactly one Keccak-f[1600]. Recalled, not read. If the rate or
+        padding differ from this recollection the trial cost changes by a small
+        integer factor and every threshold shifts by log2 of that factor, which
+        Stage 1 measures directly rather than assuming.
+      verified_by: null
+    - ref: >-
+        Published gate counts for bitsliced Keccak-f[1600] and for AES
+        encryption cores in AND/XOR bases
+      provenance: recalled
+      claim: >-
+        That such counts exist in the literature and place Keccak-f[1600]
+        somewhere in the broad range 2^14 to 2^18 gates depending on basis and
+        on whether XORs are charged. NO SPECIFIC VALUE IS QUOTED HERE BECAUSE I
+        HAVE NOT READ ONE, and the entire point of Stage 1 is that this range
+        straddles both decision thresholds (15.72 and 17), so the record cannot
+        and does not predict the verdict.
+      verified_by: null
+    - ref: IDEA-20260829-bc9cc5 (this repository)
+      provenance: internal
+      claim: >-
+        Establishes the denominator as an object, records NIST's own alternative
+        metrics (bit operations, memory-access capped, depth capped, dollars)
+        from a fetched pqc-forum thread, and names a time-memory-tradeoff key
+        search as its nearby-object control. This record inherits its
+        basis-declaration discipline and its NULL-R style reproduction control.
+      verified_by: 'idea-generator, 2026-09-06: read in full (612 lines)'
+
+  assumptions:
+    - >-
+      FIPS 203 conformant key generation derives the whole key from a 32-byte d
+      and publishes rho = G(d || k)[0:32]. If Stage 0 refutes this, the record
+      reports the refutation and stops rather than salvaging.
+    - >-
+      RC.MATZOV's log2(rop) figures and the constants 143 / 207 / 272 live in
+      one comparable gate accounting. This is EV-MLKEM-020's own H6/H11 and is
+      recorded there as unverified; this record inherits the assumption
+      unchanged and does not launder it.
+    - >-
+      A gate count is meaningless without a declared basis, and no count in one
+      basis is compared with a count in another.
+    - >-
+      The comparison is single-target. Multi-target amortisation of the same
+      object is a separate record (IDEA-20260906-e5e51c) and is deliberately
+      excluded here so that this record's ceiling is the conservative one.
+    - >-
+      Keccak-f[1600] is treated as generic. No structural preimage attack on
+      full-round Keccak is assumed, and none is claimed to be impossible; a
+      structural attack would only lower the ceiling.
+
+  proof_search_map:
+    bottleneck: >-
+      The unexamined assumption, present in every security figure this lane
+      holds, that the cheapest attack on ML-KEM is a lattice attack. Removing it
+      requires exhibiting a non-lattice attack and pricing it in the same units;
+      that exhibition is this record.
+    baseline_embedding:
+      parameter_slice: >-
+        The seed attack at N = 1 target, full-keyspace convention, gate metric,
+        c = 0. In that slice the comparison must reduce to a two-number
+        inequality, 256 + g against 272, containing no lattice quantity at all.
+      reproduction_check: >-
+        Frozen fixture: the pipeline fed EV-MLKEM-020's committed triple and the
+        cutoffs must return the committed undercuts 2.800527 / 6.041285 /
+        1.276377 to all printed digits before it is allowed to add a new row.
+    observation_collision:
+      observable: >-
+        The reported bit-security of ML-KEM-1024, i.e. log2 of the cheapest
+        priced attack.
+      distinct_preimage_search: >-
+        COLLISION FOUND, AND IT IS THE CONTENT. The number 270.7 arises from (a)
+        a lattice attack with 2^180.9 elements of randomly accessed memory and
+        (b), if g is near 15.7, a symmetric search with O(1) memory. These are
+        distinguished by no quantity this lane currently reports, because the
+        lane reports a scalar. The separating condition is to report the triple
+        (time, memory, data) per attack, which is this record's Stage 3
+        deliverable.
+    constructive_transforms:
+      - transform: boundary_lift
+        proposed_object: >-
+          Enlarge the priced attack family from lattice attacks to
+          {lattice attacks} union {generic search on the key-derivation seed},
+          and prove a strict inward improvement on the reported minimum at
+          ML-KEM-1024 whenever g < 15.72, rather than merely showing the new
+          family is non-empty.
+        predicted_gain: >-
+          Either a strictly cheaper attack at ML-KEM-1024, or a proved upper
+          bound of g - 16 bits on the achievable non-lattice margin. One of the
+          two is forced.
+      - transform: stronger_invariant
+        proposed_object: >-
+          Carry (time, memory, data, parallel form) per attack instead of a
+          scalar cost, since the scalar cannot survive a change of metric and
+          the tuple can.
+        predicted_gain: >-
+          Makes T3 decidable and makes the memory-charging arguments of this
+          lane comparative rather than absolute.
+    quantifier_order: >-
+      THERE EXISTS an algorithm A and THERE EXISTS a constant g (the gate count
+      of one Keccak-f[1600] in a declared basis) such that FOR ALL FIPS
+      203-conformant ML-KEM key pairs, A recovers the decapsulation key in
+      expected 2^255 evaluations of A's one-step map, i.e. 255 + g gate-bits,
+      using O(1) memory. The witness g does NOT depend on the instance, the
+      parameter set, or the seed - which is what makes the statement a ceiling
+      rather than an average-case estimate. NOT claimed: any uniform statement
+      over non-conformant key generation, and nothing at all about IND-CCA
+      advantage short of key recovery.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "Under basis B, one Keccak-f[1600] costs 2^g gates; therefore every
+        FIPS 203 ML-KEM key is recoverable in 255 + g gate-bits with O(1)
+        memory, and ML-KEM-1024's margin over its category-5 reference is at
+        most g - 16 bits." Nothing about whether the lattice estimate is right,
+        nothing about ML-KEM-512 or ML-KEM-768 beyond non-bindingness, and
+        nothing about quantum adversaries.
+      nearby_object_control: >-
+        The nearby object where the hoped-for conclusion fails is a KEM
+        identical to ML-KEM except that rho is drawn independently of d (seed
+        length 512 bits). The method must return a ceiling of 2^512 there and
+        2^256 here. A method that returns the same ceiling for both is reading
+        "there is a seed" rather than "the public key exposes an image of the
+        seed", and has not identified the load-bearing structure. This control
+        is NULL-S and is constructible in one line of code.
+    proof_obligations:
+      - claim: rho is a deterministic 256-bit function of d, checked on FIPS 203 KAT vectors.
+        responsibility: correctness
+      - claim: One trial is exactly one Keccak-f[1600] permutation plus a comparison.
+        responsibility: runtime
+      - claim: Expected trials 2^255, expected spurious preimages O(1), each removed in one keygen.
+        responsibility: success_probability
+      - claim: Memory is O(1) words at N = 1 and the attack parallelises with no communication.
+        responsibility: memory
+      - claim: g is counted in a declared basis and the AES-256 control is counted in the same one.
+        responsibility: baseline
+      - claim: The ceiling is claimed only for FIPS 203-conformant key generation.
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        g, the counted gate count of one Keccak-f[1600] permutation in the
+        declared {AND, XOR, NOT-free} basis, expressed as log2
+      direction: different
+      minimum_effect: >-
+        The verdict changes at g = 15.7236234535225 (T1) and at g = 16 or 17
+        (T2, convention-dependent). Any counted g is a complete answer; the
+        record predicts no value and must not be read as predicting one.
+    - metric: >-
+        the ML-KEM-1024 non-lattice margin, defined as (256 + g) - 272 gate-bits
+      direction: lower
+      minimum_effect: >-
+        The claim bites if this is below 6.041285 bits, i.e. below the largest
+        committed margin in the lane, since it would then be the binding
+        constraint at ML-KEM-1024 under any lattice improvement of that size.
+        It is decisive if it is negative.
+    - metric: >-
+        c_seed = (g - 15.7236234535225) / 180.924993, the memory-charge exponent
+        at which the O(1)-memory seed attack overtakes the committed lattice
+        figure at ML-KEM-1024
+      direction: different
+      minimum_effect: >-
+        Report against the committed c* = 0.00705473. The two orderings
+        (c_seed < c* versus c_seed > c*) are different findings and the record
+        must state which before interpreting either.
+    - metric: >-
+        number of parameter sets at which the ceiling 255 + g falls below the
+        NIST cutoff
+      direction: higher
+      minimum_effect: >-
+        1 would be decisive and would be a category failure with no lattice
+        content. 0 is the expected and still-useful outcome, since it converts
+        the ceiling into a proved upper bound on the lane's achievable margin.
+
+  minimal_test:
+    design: >-
+      TWO STEPS, BOTH CHEAP, AND THEY ARE THE CHEAPEST VALID DISCRIMINATOR IN
+      THIS RECORD. Step 1 (minutes, no lattice compute): on FIPS 203
+      known-answer test vectors, compute SHA3-512(d || k) and check byte-for-
+      byte that its first 32 bytes equal the rho embedded in the KAT public key,
+      for every KAT seed at all three parameter sets. This either establishes
+      the structural premise at full FIPS 203 scale with an exact artifact
+      check, or refutes the record outright. Step 2 (hours, still no lattice
+      compute): compile Keccak-f[1600] and an AES-256 core to a declared gate
+      basis and COUNT, then evaluate T1, T2, T3 in closed form against
+      EV-MLKEM-020's committed constants. No BKZ run, no estimator run, no
+      dimension-512 measurement is required anywhere in this record - which
+      matters because this program has measured that a d=512 / beta=55 /
+      mpfr=100 cell ran at least 14448 s without completing.
+    controls:
+      - NULL-K, the KAT reproduction null - the derivation must reproduce a published rho from its own d.
+      - NULL-B, the basis null - the same circuit counted in two declared bases, both reported.
+      - NULL-A, the matched-reference null - AES-256 counted by the same counter, checked against NIST's implied 2^16.
+      - NULL-S, the scrambled-scheme null - a variant with independent rho must return a 2^512 ceiling.
+      - Forced-value declaration recorded before any number is produced.
+    required_metrics:
+      - g in each declared basis, with the counting convention stated
+      - counted AES-256 gates in the same basis, and its ratio to NIST's implied 2^16
+      - the ceiling 255 + g and 256 + g at all three parameter sets
+      - the three signed thresholds T1, T2, T3 with the convention used
+      - c_seed, reported beside the committed c* = 0.00705473
+      - the full (time, memory, data, parallel form) row for the seed attack
+      - KAT check outcome per parameter set, pass or fail, with the vector identifiers
+
+  falsification_conditions:
+    - >-
+      If the KAT check in Step 1 fails - if rho is not the first half of
+      G(d || k) for conformant key generation - then part (A) is false, the
+      ceiling is not 2^256, and the record is REFUTED at its premise. This is a
+      clean negative obtainable in minutes.
+    - >-
+      If the counted g exceeds 17 in every declared basis, then the ceiling
+      clears both the cutoff and the committed lattice figure at every parameter
+      set, the seed attack is not competitive, and the record's attack claim is
+      refuted. What survives is only the upper bound g - 16 on the achievable
+      margin, which must then be reported as the record's entire content rather
+      than dressed up as more.
+    - >-
+      If the AES-256 control does not land near NIST's implied 2^16 gates per
+      trial in the same basis, then the counter and the inherited constants are
+      not in one accounting, T2 is uninterpretable, and no threshold verdict may
+      be stated at all.
+    - >-
+      If a reviewer with retrieval finds this exact quantitative observation in
+      the published literature, the record is superseded as a novelty claim
+      while remaining valid as a lane-local calibration; it must then be
+      re-filed citing that source rather than silently retained.
+
+  confounders:
+    - >-
+      BASIS MISMATCH, the largest one. A count in {AND, XOR, NOT} is not a count
+      in {NAND} or in a Toffoli basis, and Keccak is XOR-heavy while AES is
+      AND-heavy, so the RATIO g - 16 is far more basis-sensitive than either
+      count alone. A basis choice can therefore manufacture either verdict, and
+      the record must report every basis it counted, not the favourable one.
+    - >-
+      NIST's constants may embed deliberate conservatism or rounding. A measured
+      ceiling slightly below 272 may reflect NIST's own margin rather than an
+      ML-KEM defect, and this record cannot distinguish those without primary
+      text that EV-MLKEM-020 records as unreadable.
+    - >-
+      RC.MATZOV's rop unit may not be a gate in the same sense as NIST's. This
+      is EV-MLKEM-020's H6, recorded there as never having had its PURPOSE
+      stated. Every comparison in part (B) inherits that defect, and it is
+      inherited on the same side for all three parameter sets, so it shifts the
+      thresholds uniformly rather than differentially.
+    - >-
+      Bitsliced counting measures a circuit, not a machine. Routing, clock
+      distribution and yield are all below the gate and are excluded on both
+      sides, which is the standard convention and is also the reason the
+      resulting numbers must not be read as buildability claims.
+    - >-
+      The average-trial versus full-keyspace convention is worth exactly one bit
+      and both thresholds sit within about 1.3 bits of each other, so a silent
+      convention switch could flip a verdict. Both conventions are reported.
+
+  interpretation_limits:
+    - >-
+      This is a statement about KEY RECOVERY under FIPS 203 conformant key
+      generation. It is not a statement about IND-CCA advantage, not a statement
+      about any specific implementation, and not a claim that any deployed
+      system is broken.
+    - >-
+      Claim tier under docs/claims-and-verification.md: the KAT check is an
+      exact artifact check at full standardized scale, and the gate counts are
+      exact for the circuits counted; but the COMPARISON against 143 / 207 / 272
+      and against RC.MATZOV rop is conditional on inherited constants this
+      program records as unverifiable, so no category verdict may be stated
+      unconditionally.
+    - >-
+      No lattice claim is made or implied. In particular nothing here bears on
+      whether core-SVP is conservative; the record's whole point is that it
+      supplies a bound that holds whatever the answer to that question is.
+    - >-
+      The ceiling is an upper bound on security, not a lower bound. Finding that
+      the ceiling is comfortably above the lattice figure does NOT license any
+      statement that ML-KEM-1024 is secure.
+    - >-
+      If Stage 0 cannot obtain FIPS 203 KAT vectors under this harness's network
+      policy, the record is BLOCKED, not weakened, and must say so rather than
+      proceed on the recalled premise.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        For a uniformly random d in {0,1}^256 and the fixed public function
+        F(d) = SHA3-512(d || k)[0:32], the number of trials needed to find some
+        d' with F(d') = rho, for a rho that is itself F of a uniform d, is
+        distributed as a geometric variable with mean 2^256, so expected trials
+        are 2^255 to hit the specific target and the expected number of
+        additional preimages of rho is 1 - o(1) by the Poisson limit for
+        balls-in-bins with 2^256 balls and 2^256 bins. Uniformity range: all
+        three FIPS 203 parameter sets, which differ only in the constant byte k.
+      rigorous_support: >-
+        The rigorous part is the counting: for ANY function F from a 256-bit
+        domain to a 256-bit codomain, exhaustive search terminates in at most
+        2^256 trials and the true d is found, so the ceiling 2^256 is
+        unconditional and needs no heuristic at all. The heuristic is only about
+        the CONSTANT (2^255 rather than 2^256) and about the count of spurious
+        preimages, and it imitates the classical random-function model for
+        Keccak-based hashes - the same model under which SHA3-512's own preimage
+        resistance is claimed. The record's thresholds are stated under both
+        conventions precisely so that the heuristic carries at most one bit.
+      validation_plan: >-
+        Sample at reduced output width, which is where this is checkable: define
+        F_w(d) = SHA3-512(d || k)[0:w] for w in {2, 3, 4, 5} bytes, enumerate the
+        full 2^{8w} image for 10^6 random d, and compare the empirical
+        distribution of preimage-set sizes against the Poisson(1) prediction by
+        a chi-square test over the counts 0, 1, 2, 3+, plus a tail check on the
+        largest observed preimage class against its Poisson tail probability.
+        Transfer assumption, stated explicitly: the result at w <= 5 bytes is
+        transferred to w = 32 bytes on the random-function model for Keccak and
+        on nothing else; the transfer is stated, not proved, and its failure
+        would move the constant, never the 2^256 ceiling.
+    - id: H2
+      statement: >-
+        The cost of one trial in a declared gate basis is exactly one
+        Keccak-f[1600] permutation plus a 32-byte comparison, uniformly over all
+        trials, with no amortisation available across trials beyond a fixed
+        additive saving S_pre for the shared padded-suffix portion of the input
+        block; that is, amortised gates per trial G(t) = 2^g - S_pre, with S_pre
+        bounded by the gate count of the theta and rho steps of round 1 acting
+        on the constant portion of the state.
+      rigorous_support: >-
+        Rigorous: G(t) <= 2^g, because shared work is computed once. Rigorous:
+        the input (d || k) occupies 33 of the 72 rate bytes, so 39 rate bytes
+        plus the entire 800-bit capacity are CONSTANT across all trials, and any
+        gate depending only on constant bits is shared - this is the same
+        subtree-amortisation accounting IDEA-20260829-bc9cc5 applies to AES's
+        key schedule, applied here to Keccak's absorb. NOT rigorous: the SIZE of
+        S_pre, which depends on Keccak's diffusion and is expected to be small
+        because theta mixes the whole state in round 1. That expectation is
+        stated so it cannot later be reported as a finding.
+      validation_plan: >-
+        Sample: instrument the counted circuit and mark every gate whose
+        transitive input cone contains no bit of d; count them. This is an exact
+        static count, not a statistical estimate, so the sample size is one
+        circuit. Compare S_pre against the round-1 theta gate count as an upper
+        bound the measurement must respect. Tail check: setting the variable
+        input to zero bits must collapse G to zero, a forced value the counter
+        must hit. Transfer: S_pre is a property of the counted implementation
+        and basis and transfers to no other implementation; the SAME
+        amortisation must be applied to the AES-256 control or the comparison is
+        biased, and bc9cc5's R2 arm is the place that symmetry is enforced.
+
+  target_complexity:
+    time_exponent: >-
+      2^255 evaluations of Keccak-f[1600], i.e. 255 + g gate-bits with
+      g = log2(gates per permutation); equivalently 2^{256}/N for N targets
+      (that variant is IDEA-20260906-e5e51c and is excluded here). The exponent
+      is in the SEED LENGTH, 256 bits, and is completely independent of n, k, q,
+      eta, the module rank, the ring, and every lattice quantity - which is the
+      whole point.
+    memory_exponent: >-
+      2^0 words. O(1) memory at a single target: one 32-byte target, one state,
+      one comparator. This is the first row on this lane's frontier with
+      negligible memory at a competitive time. Against it, EV-MLKEM-020's
+      committed lattice attack needs 2^180.924993 Z_q elements at ML-KEM-1024,
+      randomly accessed.
+    best_known: >-
+      This program's committed best-known figure at ML-KEM-1024 is primal_bdd
+      under RC.MATZOV at 270.7236234535225 log2 rop with 2^180.924993 elements
+      of memory (EV-MLKEM-020). The comparison is therefore 255 + g against
+      270.7236234535225 in gate-bits and 0 against 180.924993 in memory-bits.
+      Whether the new row DOMINATES the old one depends entirely on g and is
+      stated as a threshold, not as a claim.
+    hidden_overhead: >-
+      Honest disclosure, both directions. UNDERSTATED here: the 32-byte
+      comparison and the loop control are charged as O(1) and not counted; the
+      final verification keygen is charged once and not counted; routing, clock
+      and yield are below the gate on both sides. OVERSTATED here: no
+      amortisation across trials is claimed beyond H2's S_pre, and a bitsliced
+      implementation processing many trials in parallel words may beat the naive
+      per-trial count by a small factor. There is no o(1) term hiding a
+      superpolynomial overhead, unlike the lattice side, where EV-MLKEM-020
+      records the o(n) in 2^{0.2075 n + o(n)} as unbounded by anything this
+      program holds - the asymmetry favours the seed attack and is stated.
+    tradeoff_note: >-
+      Time-memory: at a single target there is nothing to trade, but the map
+      d -> rho is FIXED AND UNSALTED, so Hellman-style tables and the
+      Biryukov-Shamir TM^2D^2 = N^2 family apply in full, with precomputation
+      P = N/D for D targets. That is the multi-target record's subject and is
+      named here only so that the frontier row is not misread as a single point.
+      Parallelisation: embarrassing. 2^255 independent trials, no communication,
+      no shared memory, no synchronisation - identical in form to AES key
+      search, and structurally unlike the sieve, which is the single largest
+      qualitative difference between the two rows and the reason any
+      memory-aware or depth-aware metric moves the comparison toward this row.
+
+  dominated_by: >-
+    AT ML-KEM-512 AND ML-KEM-768: DOMINATED, decisively and by a wide margin.
+    EV-MLKEM-020's committed primal_bdd figures 140.1994731076207 and
+    200.9587149140538 are lower than 255 + g for any plausible g by roughly
+    115 + g and 54 + g bits respectively, and the lattice attack is also cheaper
+    on the data axis (one public key each). No memory charge closes a 115-bit
+    gap at c < 1/3. The seed attack is Pareto-dominated at those two parameter
+    sets and this record says so first.
+    AT ML-KEM-1024: UNDETERMINED, and that is the finding. The comparison is
+    (255 + g, 2^0 memory, 1 key) against (270.7236234535225, 2^180.924993
+    elements, 1 key). Neither dominates on all axes for any g in the plausible
+    range: the lattice row wins on time iff g > 15.72 and loses on memory
+    always. Pareto check performed against every row this program holds on the
+    relevant frontier - EV-MLKEM-020's eighteen enumeration-costed cells
+    (219.04 to 745.26 bits, all above the cutoffs), its RC.MATZOV primal_bdd /
+    primal_usvp / dual_hybrid triple at Kyber-512 (140.199473 / 143.771733 /
+    145.528285 from VAL-CTRL-A), EV-MLKEM-015's pinned-estimator figures, and
+    the external points recorded in the corpus (KN-LIT-110 MATZOV, KN-LIT-122
+    AGPS20, KN-LIT-7617 Carrier et al.). Not checked, and named as such: any
+    published attack figure this program has not filed, and Bernstein's
+    "clumping" gate-count reduction for Kyber-512, which IDEA-20260829-bc9cc5
+    records as a FAILED fetch and which is numerator work on the lattice side.
+  sota_delta: >-
+    At ML-KEM-512: -114.8 - g bits (worse), i.e. the seed attack is about 115
+    bits more expensive than the committed best known; delta is negative and
+    large and no reading rescues it.
+    At ML-KEM-768: -54.0 - g bits (worse).
+    At ML-KEM-1024: 15.7236234535225 - g bits, sign unknown until g is counted.
+    A counted g of 14 would make the seed attack 1.7 bits CHEAPER than the
+    committed best-known figure; a counted g of 18 would make it 2.3 bits more
+    expensive. On the memory axis the delta is +180.924993 bits in the seed
+    attack's favour at every parameter set, unconditionally.
+    Against the category reference the delta is g - 16 bits at ML-KEM-1024 and
+    is the entire non-lattice margin.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.35 overall, decomposed because the components have very different priors
+    and averaging them would hide the structure. P(the FIPS 203 premise survives
+    the KAT check) about 0.9 - I am confident in the recollection but I have not
+    read the standard. P(the arithmetic yields a ML-KEM-1024 non-lattice margin
+    below 6 bits, given the premise) about 0.8 - this follows from 256 being so
+    close to 272 - 16. P(the seed attack is actually CHEAPER than the committed
+    lattice figure, i.e. g < 15.72) about 0.3 - my recollection puts Keccak
+    somewhat above AES in gate count, which would put g above 16. P(this
+    quantitative observation is NOT already in the published literature) about
+    0.25 - the qualitative fact is folklore and someone has very likely written
+    the arithmetic down. The product of the last two, which is what "a new
+    cheapest attack, credited to this program" would require, is under 0.1; but
+    the record's PRIMARY deliverable is the ceiling and its threshold form,
+    which survives at about 0.7 conditional on the premise. I would rather state
+    a low number for the exciting reading than a high one for the safe reading.
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-09-06'
+  source_refs:
+    - RQ-MLKEM-003
+    - EV-MLKEM-020
+    - IDEA-20260829-bc9cc5
+    - IDEA-20260828-faca4f
+    - IDEA-20260821-472aa2
+  id_allocation_provenance: >-
+    ID supplied pre-minted and --check-ed free by the driving session
+    (tools/allocate_id.py). This subagent has no Bash access, minted nothing,
+    and allocated no identifier of any kind.

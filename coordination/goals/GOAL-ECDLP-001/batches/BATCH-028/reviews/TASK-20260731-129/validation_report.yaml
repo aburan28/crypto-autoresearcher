@@ -1,0 +1,358 @@
+validation_report:
+  id: VAL-20260801-129
+  task_id: TASK-20260731-129
+  run_ids:
+    - RUN-IT-001-bounded-toy
+  experiment_id: EXP-IT-001
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-028
+  hypothesis_id: H-IT-001
+  protocol_amendment_id: PA-IT-001-v3-rc27-b5-b8
+  snapshot_commit: a4561488d972895b1192cc4d0c99d86edc8a54f3
+  run_commit_claimed: 332c9b7f424da0dec33e08a321fdc4f9744ee475 (dirty=true, dirty_entry_count=4731)
+  independent_session: true
+  claim_ceiling: toy
+
+  summary: >-
+    Independent Validator pass over the snapshot-archived RUN-IT-001-bounded-toy
+    package (snapshot a4561488). The raw measurements are internally consistent
+    and the two failed positive controls are honestly recorded with correct
+    harness-void flags per the frozen v3 contract. HOWEVER the package is NOT
+    admissible as a completed_valid run: the required deliverable
+    HEUR_ISO_1_report.json is a truncated crash artifact (invalid JSON), the
+    driver crashed with EXIT:1 (stderr.log Traceback, undisclosed in every
+    declared record), and the durable snapshot is incomplete versus the run
+    manifest's own artifact_paths (command.txt, environment.json, stdout.log,
+    stderr.log, and the density-freeze file are unarchived).
+
+  artifact_checks:
+    - id: ART-1
+      check: Every artifact declared in manifest.json artifact_paths exists in the working tree and matches the snapshot
+      result: FAIL
+      evidence: >-
+        All 12 declared paths exist on disk, but 5 are not in the durable
+        snapshot a4561488 (verified by git ls-tree): command.txt,
+        environment.json, stdout.log, stderr.log (manifest.json lines 9-12),
+        and HEUR_ISO_1_report.freeze.json exists on disk but is NOT declared
+        in manifest.json artifact_paths at all. The 9 archived paths all match
+        the working tree (sha256 re-verified against snapshot_commit_receipt.json
+        source_path_sha256).
+    - id: ART-2
+      check: Required v3 deliverable HEUR_ISO_1_report.json is valid JSON with the frozen schema
+      result: FAIL
+      evidence: >-
+        File is 153 bytes, truncated mid-value at `"version": ` (line 5);
+        python json.load raises "Expecting value: line 5 column 14". It lacks
+        every field required by specification.v3.yaml lines 184-196
+        (rho_special_by_bits, density_universe_spec_hash,
+        density_universe_cardinality_by_bits, d, hops_max_by_bits,
+        F_hit_table_by_bits, ks_stat_by_bits, ks_pass_by_bits,
+        tail_pass_by_bits, rate_iso_1_pass, censored_fraction_by_bits,
+        frozen_before_path_search) and fails the reference_implementation_
+        obligation (spec lines 138-141: report must embed the evaluated F_hit
+        table before path search) and the density_freeze obligation (spec
+        lines 147-151). The identical truncated blob is archived in the
+        snapshot (sha256 f9d52c8ff76efaf1ca10c6b94f1b26d1feb60f4da210a853c5e21448ae8ebc69,
+        recorded in the snapshot receipt). A full-density-freeze variant
+        HEUR_ISO_1_report.freeze.json (4432 B, valid JSON) exists but is
+        undeclared and unarchived.
+    - id: ART-3
+      check: Manifest field consistency (claim_tier, contract, amendment, seeds, timing, git, environment)
+      result: PASS
+      evidence: >-
+        manifest.json: claim_tier=toy (line 21); contract_in_force matches raw
+        result approval block and dispatch queue (PA-IT-001-v3-rc27-b5-b8,
+        specification.v3.yaml, approval DEC-20260731-034 / TASK-124 /
+        8f02ab4b, amend freeze d65c5e21, batch open DEC-20260731-035,
+        do_not_execute v1/v2); seeds [2026073101,2026073102,2026073103] (line
+        114-118); wall_seconds 1758.8726117610931 (line 145) equals
+        summary.json line 39 and raw-result line 2071; git commit
+        332c9b7f424da0dec33e08a321fdc4f9744ee475 dirty=true (lines 49-95)
+        matches raw-result lines 1969-2016 and stdout.log line 2;
+        environment.json equals manifest.environment; command.txt equals
+        manifest.command; peak RSS 1369374720 B < 16 GB budget; wall 1758.9 s
+        < 7200 s budget; inference block records requested_policy
+        executor-implementation, resolved cursor-grok-4.5, fallback_used=true,
+        model_verified=false.
+
+  metric_recomputations:
+    - id: M-1
+      check: Run count and seed plan (n_unplanted target 20 vs observed 21; seeds; per-bits; indices)
+      result: PASS
+      evidence: >-
+        raw-result.json curve_results has 21 entries with unique indices 0..20
+        (verified programmatically). Per-bits: bits=20 -> indices 0-6 (7),
+        bits=24 -> 7-13 (7), bits=28 -> 14-20 (7); satisfies the spec input
+        rule ">=20 unplanted total, >=6 per bit size when feasible" (spec
+        lines 216-219). Seeds: every curve carries exactly one of the three
+        declared seeds (counts 2026073101:9, 2026073102:6, 2026073103:6) in a
+        cyclic assignment; no duplicated or missing curve indices; no
+        out-of-set seeds. n_unplanted=21 in manifest/raw/summary/execution
+        report. concrete_cost_table n=7 per bit agrees.
+    - id: M-2
+      check: summary.json values agree with raw-result.json and per-report JSONs
+      result: PASS
+      evidence: >-
+        summary.json n_unplanted=21 == raw 21 curve entries; rho_special_by_bits
+        {20:0.0,24:0.0,28:0.0} == raw density_by_bits rho_special for each bit;
+        rate_iso_1_fraction_R_ge_1=0.0 == 0/21 curves with R_xfer>=1.0 (all
+        R_xfer=0.0) == transfer_gate_report; planted_path_recovered=false ==
+        raw planted_path_control.planted_path_recovered ==
+        transfer_gate_report.planted_path_control; plant_detected=false == raw
+        CTRL_NULL_IT_PLANT.plant_detected == null report plant_detected;
+        n_unplanted_R_xfer_lt_0.7_with_cert=0 == transfer_gate_report line 913
+        (all 21 certificates kind=none -> 0 with cert); wall_seconds identical
+        across manifest/raw/summary; protocol_amendment_id consistent;
+        null_object_spec_hash 01a9a7ae0444d6875e7e8792f6ad585096c5fb33339362f4e0475aacf268ebca
+        consistent across manifest/raw/summary/null report.
+    - id: M-3
+      check: Matched rho/BSGS modeled baselines and rho calibration ratio
+      result: PASS
+      evidence: >-
+        Formulas match contract cost_ledger: matched_rho=0.886*sqrt(N),
+        matched_BSGS=2*ceil(sqrt(N)) (spec lines 242-244). Spot recompute
+        curve 0 (N_star=1047323): 0.886*sqrt(1047323)=906.72 matches
+        matched_rho 906.7217686302673; 2*ceil(1023.386)=2048 matches.
+        rho_calib_ratio = measured_proxy/matched_rho in 1.123-1.129 for all
+        curves, within the CTRL-NULL-IT-RHO +/-0.15 band (spec lines 507-510).
+        concrete_cost_table means recomputed and agree
+        (1887.4286/835.7017, 7333.4286/3248.3656, 26425.7143/11706.1979).
+
+  control_checks:
+    - id: C-1
+      check: CTRL-PLANTED-PATH-POS positive control (planted_path_recovered)
+      result: FAIL
+      evidence: >-
+        planted_path_recovered=false in manifest.json line 134, summary.json
+        line 20, raw-result planted_path_control lines 2017-2067, and
+        transfer_gate_report lines 914-964. Raw control block: start_special_j
+        5127, endpoint_j 5127, n_hops_planted=0, path_edges=[], best R_xfer
+        9.244742227613942 (>=0.7 so not a cheap reverse path). Per contract
+        this is falsification F2 (spec lines 642-646, 622-625): "Planted-path
+        positive control not recovered -> harness void; no generic-safety
+        claim." Executor's anomaly flag is correct. Honest note recorded
+        (F_p-rational isogenies preserve #E; detectors are class invariants).
+    - id: C-2
+      check: CTRL-NULL-IT-PLANT null-plant detection (plant_detected)
+      result: FAIL
+      evidence: >-
+        plant_detected=false in manifest/summary/raw CTRL_NULL_IT_PLANT
+        (raw lines 2-14) and null report lines 1-14. Detection predicate
+        (spec lines 486-496) honestly evaluates false: plant_injected=true,
+        C_path_honest=0, C_path_recomputed=0, C_path_reported=0, eps=0; clause
+        (4) "C_path_reported < C_path_recomputed" is false (0 < 0). Per spec
+        lines 497-499 failure => harness void for sub-rho claims. Executor's
+        anomaly flag is correct. Note the injection could not manifest because
+        the designated plant cell (index 0) also produced no path (all curves
+        censored, heur_edges_expanded=0).
+    - id: C-3
+      check: HEUR-ISO-1 density freeze (declared report vs freeze artifact)
+      result: FAIL
+      evidence: >-
+        The declared HEUR_ISO_1_report.json cannot be validated (truncated;
+        see ART-2). The undeclared HEUR_ISO_1_report.freeze.json matches
+        raw-result density_by_bits exactly: |U| 170913/2304074/50000,
+        rho_special 0.0/0.0/0.0, density_universe_spec_hash
+        e5ac6db4/947f550f/0b86a311, records_hash
+        c7e3e671/a805a66d/593dcb44, hops_max 9/11/13, p 2097169/33554467/
+        536870923, estimators exhaustive/exhaustive/sample_estimate,
+        sample_size_target 50000, seed_density 2026073199,
+        frozen_before_path_search=true. Data is self-consistent and
+        pre-registered relative to raw results, but the artifact carrying the
+        freeze is undeclared in the manifest and unarchived, so the freeze
+        obligation (spec lines 147-151, 390-394) is not certifiable from the
+        durable snapshot. KS/TAIL fields are empty in the freeze (pre-search)
+        and were never emitted to the declared report due to the crash.
+    - id: C-4
+      check: Null object NULL-IT-ISOGENY-TRANSFER (hash + null_gate_pass)
+      result: PASS
+      evidence: >-
+        null_object_spec_hash 01a9a7ae... consistent across manifest, raw,
+        summary, and null_it_isogeny_transfer_report. construction_id
+        NULL-IT-ISOGENY-TRANSFER-v2, neighbor_algorithm_id
+        NULL-IT-NEIGHBOR-v1 match spec lines 400-406. null_gate_pass=null on
+        all 21 curves because no certificate-bearing R_xfer<0.7 claim exists
+        (gate_rule spec lines 467-472 not triggered); null arm skipped
+        everywhere with reason "R_xfer>=0.7_or_no_certificate". Minor gap:
+        required_report_fields null_M/null_offsets (spec lines 519-533) are
+        absent - acceptable because the null arm never executed, but should be
+        explicitly recorded as not-applicable.
+
+  heuristic_validation_checks:
+    - id: H-1
+      check: Pre-registered F_hit / density freeze certifiable from declared artifact
+      result: FAIL
+      evidence: >-
+        Per validator.md heuristic checks 1-3: the theoretical prediction
+        (F_hit tree-ball CDF at frozen rho_special, d=3) is defined in
+        specification.v3.yaml lines 94-151 and the density values were frozen
+        before path search (freeze file frozen_before_path_search=true, and
+        raw density data is consistent), but the contract-mandated carrier
+        HEUR_ISO_1_report.json is corrupt and the freeze file is unarchived,
+        so pre-registration cannot be verified from the durable snapshot.
+        KS-ISO-1 / TAIL-ISO-1 / RATE-ISO-1 results were never written
+        (crash); n_uncensored H_min samples is 0 (all curves
+        H_min_censored=true), so KS/TAIL are not evaluable anyway.
+    - id: H-2
+      check: Scale binding and claim ceiling
+      result: PASS
+      evidence: >-
+        claim_tier=toy; field sizes 20/24/28-bit only; summary flags
+        observations_only=true and no_support_reject_conclusion=true;
+        execution report note "Observations only; no support/reject/
+        heuristic-validation conclusion by Executor". No crypto-scale or
+        asymptotic claim is made. AGENTS rule 7 respected.
+
+  cost_model_checks:
+    - id: COST-1
+      check: Cost-unit honesty and bookkeeping
+      result: PASS (with observation)
+      evidence: >-
+        transfer_gate_report declares cost_ledger_unit=group_op_equivalent
+        (line 4), matched_rho_formula 0.886*sqrt(N), matched_bsgs_formula
+        2*ceil(sqrt(N)), R_xfer_aggregation rule; every cost component is
+        labeled measured/modeled; concrete_cost_table declares
+        optimistic_assumptions (c_iso=4*ell may understate, min C_special,
+        MOV 1:1, tree-ball model), o1_polylog_disclosure, affected_vs_safe_
+        scope, and peak_rss_bytes_run alongside per-bit means.
+        OBSERVATION: all unplanted curves report R_xfer=0.0 with
+        heur_edges_expanded=0, so the censorship_lower_bound C_path=
+        C_search_exhausted=0 is degenerate (a hops_max BFS on a 3-regular
+        graph cannot expand 0 edges); R_xfer=0.0 must not be read as a
+        measured transfer cost. RATE-ISO-1 fails trivially (0/21 >= 1.0);
+        no F1 trigger (no certificate-bearing R_xfer<0.7).
+
+  defects:
+    - id: D-1
+      severity: blocking
+      artifact: experiments/EXP-IT-001/results/HEUR_ISO_1_report.json
+      description: >-
+        Required v3 deliverable is truncated, invalid JSON (153 bytes; ends at
+        `"version": `). Missing all schema-required fields (spec v3 lines
+        184-196), the pre-registered F_hit table (lines 138-141), and the
+        density freeze (lines 147-151). Identical corrupt blob archived in the
+        snapshot (sha256 f9d52c8f...). This is a crash artifact: stderr.log
+        records "TypeError: Object of type Integer is not JSON serializable
+        when serializing dict item 'version'" followed by "EXIT:1" from
+        run_bounded_toy.sage.py line 746 (json.dump of heur_report).
+      required_action: >-
+        Executor: fix the Sage Integer -> int serialization at
+        run_bounded_toy.sage.py line 746 (heur_report['version']) and either
+        regenerate HEUR_ISO_1_report.json with the frozen schema (freeze data
+        survives in HEUR_ISO_1_report.freeze.json) or re-run the driver, then
+        re-snapshot.
+    - id: D-2
+      severity: blocking
+      artifact: experiments/EXP-IT-001/runs/RUN-IT-001-bounded-toy/stderr.log
+      description: >-
+        Undisclosed crash: the driver exited 1 (EXIT:1) with the TypeError
+        traceback above. The manifest (protocol_deviations=[], anomalies list
+        only the two control flags), execution_report.yaml (anomalies only the
+        two control flags; validity_status completed_valid), and the dispatch
+        queue note ("completed_valid with 8/8 declared artifacts") all present
+        the run as completed_valid with no mention of the crash. This violates
+        AGENTS.md rule 5 and the artifact policy (validity status must be
+        honest). Additionally the stderr.log timestamps (23:13:35Z-23:17:32Z)
+        fall AFTER the recorded finished_at 23:13:16Z / wall_seconds 1758.87 s
+        (29m19s from 22:43:57Z), indicating either an undisclosed post-DONE
+        crash phase or conflation of a stalled attempt's logs with the fresh
+        run ("fresh_executor_after_stall": true). Provenance must be
+        disambiguated.
+      required_action: >-
+        Executor: record the crash honestly (failed_infrastructure or a clean
+        re-run), disclose it in anomalies, and separate/relabel logs by
+        invocation. Coordinator: re-assess the validity_status claim.
+    - id: D-3
+      severity: blocking
+      artifact: snapshot commit a4561488d972895b1192cc4d0c99d86edc8a54f3
+      description: >-
+        Durable snapshot incomplete versus the run manifest's own declaration:
+        manifest.json artifact_paths lists 12 paths; the snapshot archives 9.
+        Missing from the snapshot: command.txt, environment.json, stdout.log,
+        stderr.log. Working-tree-only logs are not durable receipts
+        (validator.md prohibitions; AGENTS.md durable-research-commits rule:
+        a missing artifact blocks downstream review and is an
+        evidence-integrity failure).
+      required_action: >-
+        Coordinator/archival task: re-archive the complete declared artifact
+        set (including the four run-dir support files and
+        HEUR_ISO_1_report.freeze.json) in a new snapshot before review
+        continues.
+    - id: D-4
+      severity: blocking
+      artifact: experiments/EXP-IT-001/results/HEUR_ISO_1_report.freeze.json
+      description: >-
+        The only surviving record of the pre-registered density freeze (written
+        by the run, stdout.log line 12) is not declared in manifest.json
+        artifact_paths and not in the snapshot. The freeze obligation
+        (spec lines 147-151, 390-394) therefore cannot be certified from the
+        durable snapshot even though the freeze data itself is internally
+        consistent with raw-result density_by_bits.
+      required_action: >-
+        Executor: declare and archive the freeze file (or fold its content
+        into the regenerated HEUR_ISO_1_report.json per spec) and re-snapshot.
+
+  limitations:
+    - id: L-1
+      scope: interpretation
+      text: >-
+        The failed positive controls void any sub-rho / transfer-gate
+        interpretation per the frozen contract (F2, spec lines 622-625;
+        CTRL-NULL-IT-PLANT failure, spec lines 497-499). The executor's two
+        anomaly flags are correct and consistent with the evidence; no
+        sub-rho claim is made anywhere (all R_xfer=0.0, no certificates,
+        observations_only=true).
+    - id: L-2
+      scope: data quality
+      text: >-
+        All 21 unplanted curves are H_min_censored with heur_edges_expanded=0;
+        the censorship_lower_bound (C_path=0) is degenerate, so R_xfer=0.0
+        carries no measured transfer content and RATE-ISO-1 fails trivially
+        (0/21). KS/TAIL-ISO-1 are not evaluable (zero uncensored H_min
+        samples).
+    - id: L-3
+      scope: completeness
+      text: >-
+        null_it_isogeny_transfer_report.json omits null_M/null_offsets from
+        the spec's required_report_fields (spec lines 519-533); acceptable
+        since the null arm never executed (all skipped), but should be
+        recorded as not-applicable.
+    - id: L-4
+      scope: honesty
+      text: >-
+        Certificate discipline is respected: no solve/relation is claimed; all
+        certificates are kind=none with verified=false, which docs/
+        claims-and-verification.md explicitly allows for pure measurement
+        runs when stated (it is stated in manifest line 128-130 and
+        raw-result lines 28-31).
+
+  control_integrity_judgement: >-
+    The two positive-control failures (CTRL-PLANTED-PATH-POS
+    planted_path_recovered=false; CTRL-NULL-IT-PLANT plant_detected=false)
+    are honestly measured, self-consistent across all records, and correctly
+    flagged by the Executor as "harness void for sub-rho claims per contract".
+    Per the frozen contract they void the sub-rho interpretation (F2 and the
+    CTRL-NULL-IT-PLANT success criterion), and no sub-rho claim is advanced.
+    The control failures by themselves would permit the package to stand as
+    observations-only evidence; they are NOT the reason for the NOT_ADMISSIBLE
+    verdict. The verdict is driven by D-1..D-4 (corrupt required artifact,
+    undisclosed driver crash with EXIT:1, incomplete durable snapshot, and
+    unarchived density freeze).
+
+  verdict: NOT_ADMISSIBLE
+  verdict_note: >-
+    NOT_ADMISSIBLE as a completed_valid run package. The raw observations and
+    control flags are internally consistent and honestly labeled where
+    recorded, but (1) the required HEUR_ISO_1_report.json deliverable is a
+    truncated crash artifact, (2) the driver crash (EXIT:1) is undisclosed in
+    every declared record that claims completed_valid, (3) the durable
+    snapshot is missing 4 of 12 manifest-declared paths plus the unarchived
+    freeze file, and (4) the density-freeze artifact is undeclared. Route back
+    to the Executor per defects D-1..D-4; the run may be re-admissible after a
+    clean re-run (or honest failed_infrastructure reclassification) and a
+    complete re-snapshot. Do NOT treat this as mathematical evidence for or
+    against H-IT-001 (AGENTS.md rule 5).
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/reviews/TASK-20260731-129/validation_report.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-028/reviews/TASK-20260731-129/receipt.json

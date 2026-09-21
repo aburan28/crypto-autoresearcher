@@ -1,0 +1,221 @@
+hypothesis:
+  id: H-MLKEM-232843
+  question_id: RQ-MLKEM-001
+
+  statement: >-
+    CLAIM TIER: control. This is a generator-power result against a named
+    defect class with a forced closed-form signature; a null (every conforming
+    build reads the forced table) is not a correctness proof for any
+    implementation. NO ATTACK, NO KEY RECOVERY, NO SECURITY CLAIM. One
+    conjunct, falsifiable per row and per gate.
+    (C1, THE FORCED SIGNATURE TABLE) For a conforming FIPS 203
+    implementation, for each byte index i of dk = dk_PKE || ek || H(ek) || z
+    (768k + 96 bytes total), mutating byte i and recording the 2-bit signature
+    (a_i = output changes on a valid ciphertext, r_i = output changes on an
+    invalid ciphertext) is forced to: dk_PKE region (384k bytes) -> (1,0);
+    ek copy (32 bytes) -> (1,0); H(ek) region (32 bytes) -> (1,0); z region
+    (32 bytes) -> (0,1), UNIQUELY. z is the unique (0,1) region and its
+    cardinality is EXACTLY 32 at every parameter set (ML-KEM-512/768/1024).
+    A z-region reading (0,0) identifies a static-implicit-rejection defect
+    (a real class); an H(ek)-region reading (0,0) identifies a build that
+    ignores the stored hash; a (0,1)-count other than 32 identifies a
+    field-offset error.
+
+  mechanism: >-
+    GOAL-MLKEM-002's incumbent gate mutates the CIPHERTEXT, and its silent
+    set under key-material-handling defects in H(ek) or z is empty by
+    construction: (K-bar, r) = G(m' || h) consumes H(ek), and implicit
+    rejection consumes z only as J(z || c), so a ciphertext-only mutation
+    generator can never touch either field's defect surface. This is a
+    DIFFERENT defect mechanism class from re-encryption comparison
+    completeness (the defective object is key-material handling, not
+    comparison completeness), and the theorem-level content is that the
+    forced table -- in particular z's unique (0,1) signature and its
+    cardinality of exactly 32 -- follows from FIPS 203's own definition of
+    dk and the decapsulation algorithm, not from any tested implementation,
+    so the census is a closed-form known-answer check.
+
+  assumptions:
+    - >-
+      Instrument adequacy is admitted ONLY under the interposition discipline
+      already committed elsewhere in this program (GNU ld --wrap,
+      linux/amd64), not dlopen and not a call-site macro (EV-MLKEM-010); a
+      result under any other interposition mechanism does not discharge this
+      hypothesis.
+    - >-
+      The harness observes the returned shared secret itself, not a status
+      code or other side channel; F9-c-style confounds (observing something
+      other than the shared secret) invalidate every row simultaneously and
+      must be ruled out before any row is trusted.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Purely empirical/derivational: C1 is a closed-form byte-signature
+      census forced by FIPS 203's own dk layout and decapsulation algorithm,
+      with no open bottleneck, quantifier structure, or novel construction to
+      search for. The derivation is elementary case analysis over the four
+      dk regions.
+
+  rerandomization: null
+
+  asymptotic_claim: null
+
+  heuristic_assumptions:
+    - id: HEUR-MLKEM-232843-1
+      formal_statement: >-
+        A single-byte mutation of dk propagates deterministically to exactly
+        the 2-bit (a, r) signature forced by which of the four dk regions
+        that byte falls in, independent of the specific byte value mutated
+        (only its region matters).
+      random_model_justification: >-
+        Not a distributional claim; the support is structural determinism of
+        the decapsulation algorithm given a fixed dk layout, so no random
+        model is invoked. The heuristic is that no implementation-specific
+        data-dependent branch inside a region changes the FORCED signature
+        for that region across byte values, which is checkable directly by
+        varying the mutated value within a region.
+      supporting_results: []
+      validation_experiment_ids: [EXP-MLKEM-25c548]
+      falsification_condition: >-
+        Two different byte values mutated within the same dk region produce
+        different (a, r) signatures for that region -- the region-level
+        determinism assumption is wrong and the forced table must be
+        re-derived per-byte rather than per-region.
+
+  structural_ingredients:
+    - description: >-
+        FIPS 203's dk layout (dk = dk_PKE || ek || H(ek) || z,
+        768k + 96 bytes) and decapsulation algorithm's use of H(ek) inside
+        (K-bar, r) = G(m' || h) and z inside J(z || c) on implicit rejection.
+      citation: >-
+        inputs/MLKEM-DUAL-SOURCES-20260802/fips203, independently re-derived
+        by the idea-catalogue red-team pass
+        (ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/REDTEAM.md section 4c,
+        item 2).
+      role: forces the four-row signature table that C1 asserts
+    - description: >-
+        The byte-complete differential conformance / per-index silent-set
+        practice already established for the ciphertext-mutation generator.
+      citation: knowledge/findings/KN-FIND-001.md; ledger/evidence/EV-MLKEM-005.yaml
+      role: >-
+        supplies the nearest-neighbour instrument this hypothesis
+        distinguishes itself from (comparison truncation vs. key-field
+        integrity)
+    - description: baseline-invisible synthetic control practice (KN-TECH-054).
+      citation: knowledge/techniques/KN-TECH-054.md
+      role: >-
+        supplies the "invisible to the incumbent generator by construction"
+        standard the z-constant positive control must meet
+
+  reduction_chain:
+    core_problem: >-
+      Determine whether a byte-level key-mutation generator can decide, by a
+      forced closed-form signature, whether a conforming ML-KEM decapsulation
+      implementation correctly handles the H(ek) and z fields of dk.
+    corollaries: []
+
+  predictions:
+    - metric: >-
+        (a, r) signature distribution over all 768k + 96 byte indices of dk,
+        for a conforming implementation at each of the three parameter sets
+      direction: different
+      minimum_effect: >-
+        EXACTLY the forced 4-row table: (1,0) for dk_PKE, ek copy and H(ek);
+        (0,1) for z and no other region; zero tolerance, per-byte exact
+        match.
+    - metric: cardinality of the (0,1)-signature region
+      direction: different
+      minimum_effect: EXACTLY 32 at every one of the three parameter sets.
+    - metric: >-
+        z-constant synthetic-build positive control: (0,1) count under the
+        incumbent ciphertext-only generator
+      direction: lower
+      minimum_effect: >-
+        EXACTLY 0 (the incumbent ciphertext generator produces the empty set
+        on this build) -- the control that KN-TECH-054 requires and that the
+        baseline provably cannot see.
+    - metric: >-
+        z-constant synthetic-build positive control: (0,1) count under this
+        hypothesis's key-mutation generator
+      direction: higher
+      minimum_effect: EXACTLY 32 of 32 z-region indices at (0,0), zero at (0,1).
+    - metric: >-
+        dk_PKE secret-byte flip reachability check (gate c): both paths'
+        reachability under a flipped dk_PKE secret byte
+      direction: different
+      minimum_effect: EXACTLY (1,0) at that index.
+
+  test_boundary:
+    instances:
+      - >-
+        A reference FIPS 203 conforming implementation, byte-mutated one dk
+        index at a time (768k + 96 indices per parameter set, 2400 at
+        k = 3), decapsulating one valid and one invalid ciphertext per
+        mutation.
+      - >-
+        A synthetic z-constant build (implicit-rejection value overwritten
+        by a constant) as the positive control.
+      - >-
+        NOT IN SCOPE: any production/vendor implementation by name, any
+        timing measurement, any chosen-plaintext attack, any claim about a
+        deployed build.
+    parameters:
+      parameter_sets: [ML-KEM-512, ML-KEM-768, ML-KEM-1024]
+      dk_byte_counts: [800, 1184, 1568]
+      z_region_size_bytes: 32
+    implementation: >-
+      The existing byte-complete differential harness plus a key-mutation
+      generator, under the GNU ld --wrap interposition discipline already
+      committed for this instrument class.
+    budget: {}
+
+  falsification_conditions:
+    - >-
+      F8-a: the conforming build's (0,1) count is not exactly 32 -- either
+      the instrument is broken (its own gate (b) fails) or a genuine defect
+      is present; escalate and do not publish either way without
+      distinguishing which.
+    - >-
+      F8-b: the z-constant control is not detected (the incumbent
+      ciphertext-only generator finds a nonempty silent set on it, or this
+      hypothesis's key-mutation generator fails to flag it) -- the generator
+      is inadequate for its own positive control and the class is
+      undecidable by it.
+    - >-
+      F8-c: every region reads (1,1) -- the harness is observing something
+      other than the returned shared secret (e.g. a status code), the
+      confounder ORS's defensive-gate design names explicitly, and no row is
+      trustworthy until this is ruled out.
+
+  interpretation_limits:
+    - >-
+      A clean pass on any real implementation license exactly one sentence:
+      "this build's byte-level (a, r) signature over dk matches the forced
+      table, on the tested mutation set, under ld --wrap interposition." It
+      licenses no claim that the implementation is otherwise correct, secure,
+      or free of any other defect class.
+    - >-
+      No production implementation is named in this hypothesis and none is
+      asserted to be defective; discovering a defect in a named
+      implementation, should the experiment stage reach one, is a separate
+      escalation outside this record's scope.
+    - >-
+      Does not touch and does not contradict GOAL-MLKEM-005's proven
+      convexity ceiling G <= log2 M; this hypothesis concerns
+      implementation-level key-field integrity, unrelated to best-of-M
+      ciphertext selection against a shared reduced basis.
+
+  status: proposed
+  proposed_by: idea-generator
+
+  source_refs:
+    - ledger/proposals/IDEA-20260807-1f5f89.yaml
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/M3.md
+    - ideas/catalogue-20260806-mlkem-aes-ssi-ssqi/REDTEAM.md
+    - knowledge/findings/KN-FIND-001.md
+    - knowledge/techniques/KN-TECH-054.md
+    - ledger/evidence/EV-MLKEM-005.yaml
+    - ledger/evidence/EV-MLKEM-010.yaml
+    - ledger/goals/GOAL-MLKEM-002.yaml
+    - ledger/goals/GOAL-MLKEM-005.yaml
+    - ledger/questions/RQ-MLKEM-001.yaml

@@ -1,0 +1,236 @@
+idea:
+  id: IDEA-20260816-6fae7b
+  question_id: RQ-FHE-001
+  added: '2026-08-16'
+  title: Noise models treat the noise as independent of the message, but modulus switching rounds
+    a message-scaled quantity; measure the decryption-noise variance conditioned on the plaintext,
+    exhaustively over every plaintext at a tiny plaintext modulus, and report the spread across plaintext
+    classes.
+  class: mechanism
+  claim: '(A) A levelled scheme''s noise analysis is written as if the noise were a random variable
+    independent of the plaintext being carried, so that one variance suffices for all messages. Modulus
+    switching, however, rounds a quantity that contains the scaled message, and the rounding residual
+    is a deterministic function of that message; likewise the cross terms in a homomorphic product
+    are message-weighted. The claim is that the conditional variance of the decryption noise given
+    the plaintext, Var(e | m), is therefore not constant in m, that it is exactly measurable at a
+    plaintext modulus small enough to enumerate every message, and that the spread across plaintext
+    classes, defined as the ratio of the largest to the smallest conditional variance, is the statistic
+    that says how far the message-independence idealisation is from the implementation. (B) The claim
+    is further that the spread should be attributable: running the same measurement with modulus switching
+    disabled, with multiplication disabled, and with both, isolates which operation carries the message
+    dependence, so the outcome is a mechanism and not just a number. (C) NOT CLAIMED: that message-dependent
+    noise is exploitable, that it constitutes a leak, that any bound is invalidated by it, or that
+    a scheme should be changed. In particular no claim is made that an adversary who sees noise can
+    learn the message, because in the tested setting the message is the thing being encrypted and
+    the noise is not released; the object here is a modelling idealisation, not a channel.'
+  mechanism: STAGE 1 fixes a plaintext modulus t small enough and a ring degree small enough that
+    the entire plaintext space is enumerable (t=2, N=8 gives 256 messages; t=3, N=8 gives 6561). STAGE
+    2 for each plaintext, over many encryption randomness seeds and a fixed secret, records the exact
+    decryption noise polynomial after a fixed circuit and computes its conditional variance. STAGE
+    3 forms the spread across plaintext classes and tests the null hypothesis of constancy with a
+    Levene-style statistic computed directly, with the reference distribution obtained by permuting
+    plaintext labels rather than assumed. STAGE 4 attributes the spread by rerunning with modulus
+    switching disabled, with multiplication replaced by addition, and with both, so each operation's
+    marginal contribution is read off. STAGE 5 groups plaintexts by Hamming weight and by value to
+    see whether the dependence is on a coarse feature, which is what would make it predictable. Refutation
+    is a spread indistinguishable from the label-permuted reference in every configuration, which
+    would say the message-independence idealisation is exact enough to be unmeasurable at these parameters
+    and is a clean closure of the framing.
+  novelty_status: unverified
+  novelty_screen:
+    method: Ran grep -ril 'independence assumption' and 'variance model' and 'modulus switch' over
+      ledger/proposals/ and ledger/hypotheses/; grep -rl 'RQ-FHE-001' ledger/proposals/; ls experiments/
+      | grep -i fhe; read RQ-FHE-001, KN-TECH-082, and the nearest hits.
+    results: '''variance model'' hits IDEA-20260808-e7ba81 (RQ-FNDSA-001, sampler exactness as spiked
+      covariance), H-MLKEM-007, and KN-LIT-7664; none concerns a conditional variance given a message
+      and none is FHE. ''modulus switch'' hits IDEA-20260808-0eb075, IDEA-20260816-00b29e, IDEA-20260805-574cd0,
+      IDEA-20260805-2b94fe and H-MLKEM-0c0a6e, all in KEM or NTRU contexts where modulus switching
+      or compression is a ciphertext-size device rather than a level-management step, and none conditions
+      any statistic on the plaintext. ''independence assumption'' hits six proposals (IDEA-20260801-020,
+      IDEA-20260726-012, IDEA-20260813-a46301, IDEA-20260813-8aa6ea, IDEA-20260816-ddc377, IDEA-20260811-332ce9),
+      none FHE and none about noise-message independence. The only RQ-FHE-001 proposal is the parameter
+      census IDEA-20260807-a06996. No experiments/EXP-FHE-* exists.'
+    verdict: 'UNVERIFIED. Nothing is asserted about the external literature, where message-dependent
+      noise in levelled schemes is very plausibly known and analysed. What is claimed new is internal:
+      no ledger record conditions a noise statistic on the plaintext for any scheme, and the construction
+      here (exhaustive plaintext enumeration, conditional variance, label-permutation reference distribution,
+      and per-operation attribution arms) is assembled entirely from standard practice plus this program''s
+      null-object rule.'
+  object_first_candidate:
+    tracked_object: The conditional variance Var(e | m) of the exact decryption noise polynomial given
+      the plaintext m, as a function over the fully enumerated plaintext space, summarised by the
+      spread (largest over smallest) and by its dependence on coarse plaintext features.
+    lossiness: 'Genuinely lossy. The full object is the conditional distribution of an N-dimensional
+      integer noise vector given each of the enumerated messages; the tracked object retains one scalar
+      per message, and the summary retains one scalar overall. Discarded: the shape of each conditional
+      distribution, its higher moments, the per-coefficient structure, and all dependence on the secret.
+      What survives propagates because the modelling idealisation being audited is stated at exactly
+      this level: a single variance is used for all messages, so the retained coordinate is the coordinate
+      in which the idealisation is written. It is not a coordinate change, since the conditional variances
+      cannot reconstruct the noise vectors and the operation of interest, whether a single number
+      suffices, is answerable from the retained scalars alone.'
+    propagation: One modulus switch maps the noise to noise divided by the switching factor plus a
+      rounding residual that is a deterministic function of the scaled message, so Var(e | m) picks
+      up a message-determined additive term. One multiplication maps the noise to a message-weighted
+      combination of the factors' noises, so Var(e | m1, m2) picks up terms proportional to |m1|^2
+      and |m2|^2. Addition contributes nothing message-dependent. The predicted attribution is therefore
+      explicit and each arm tests one term of it.
+    survival_score: The message dependence is expected to be strongest immediately after the operation
+      that creates it and to be diluted by subsequent fresh noise; concretely, expected to be measurable
+      for one to three levels after a modulus switch and to fall below the label-permutation reference
+      thereafter. It dissolves once accumulated message-independent noise dominates, and locating
+      that dilution depth is the concrete output.
+  null_object_control: 'Null arm: the identical conditional-variance computation with plaintext labels
+    randomly permuted across the recorded noise vectors, repeated 1000 times to build the reference
+    distribution of the spread statistic under exact message-independence at the same sample count
+    and the same class sizes. This is the only correct reference, because with finitely many seeds
+    per plaintext the observed spread is strictly greater than one even under perfect independence.
+    For the signal arm to mean anything the observed spread must exceed the 99th percentile of the
+    permutation reference. A second null replaces the message-carrying encryptions by encryptions
+    of a fixed message with the label assigned arbitrarily, which must sit inside the reference distribution;
+    if it does not, the pipeline is leaking label information and no result is usable.'
+  discriminated_from:
+  - Entry 2 of this bucket measures cross-covariance between factor and product noise vectors; this
+    conditions a within-vector variance on the plaintext, a different pairing, a different null (label
+    permutation rather than pairing shuffle) and a different mechanism (rounding residual rather than
+    a cross term).
+  - Entry 3 measures the covariance spectrum of one noise vector without reference to the message;
+    this is explicitly about message dependence and would report nothing if the spectrum were perfectly
+    flat.
+  - Entry 5 counts information about the SECRET in a RELEASED error; here nothing is released, the
+    noise is not visible to anyone, and the object is a modelling idealisation rather than a channel.
+    That distinction is stated in the claim precisely to prevent the two being conflated.
+  - IDEA-20260805-574cd0 and IDEA-20260808-0eb075 treat modulus switching or compression in KEM contexts
+    as a ciphertext-size device; no conditional statistic on the message appears in either.
+  - 'A chosen-plaintext attack: no adversary, no oracle, no queries, and no secret-dependent quantity
+    is targeted; the enumeration is over messages the experimenter chooses and already knows.'
+  assumptions:
+  - The full plaintext space at t=2, N=8 is enumerable and enough randomness seeds per plaintext are
+    affordable to estimate a conditional variance with usable precision.
+  - The exact decryption noise polynomial is recoverable without floating-point contamination, which
+    the entry-1 instrument establishes.
+  - A single fixed secret suffices for the base measurement, with a secret-averaged arm as a check;
+    conditional variances are otherwise defined per secret.
+  - The label-permutation reference distribution is the right null for the spread statistic at unequal
+    or equal class sizes, which is checked by the fixed-message second null.
+  predictions:
+  - metric: spread of Var(e|m) across plaintext classes, after one modulus switch
+    direction: higher
+    minimum_effect: exceeds the 99th percentile of the 1000-fold label-permutation reference
+  - metric: spread with modulus switching disabled and only addition performed
+    direction: different
+    minimum_effect: inside the permutation reference, a predicted absence
+  - metric: correlation between Var(e|m) and plaintext Hamming weight
+    direction: higher
+    minimum_effect: Spearman correlation of at least 0.3 in magnitude, if the dependence is on a coarse
+      feature; a null result here with a positive spread would mean the dependence is on fine structure
+      and is reported as such
+  - metric: dilution depth, i.e. levels after the modulus switch at which the spread returns inside
+      the reference
+    direction: lower
+    minimum_effect: 'refusal to pre-commit: this depends on the relative sizes of the rounding residual
+      and the fresh relinearization noise, both of which are outputs of the same run, so a pre-committed
+      depth would prejudge them'
+  minimal_test:
+    design: 'At N=8, t=2, one 30-bit prime chain of two levels, a fixed uniform ternary secret: enumerate
+      all 256 plaintexts, and for each, run 4096 independent encryption randomness seeds through encrypt
+      then modulus-switch, recording the exact decryption noise polynomial and its sample variance.
+      Form the spread across the 256 classes. Build the reference by permuting the 256 labels across
+      the pooled 1048576 noise vectors 1000 times and recomputing the spread each time. Compare. Then
+      rerun with modulus switching replaced by an identity step. Minutes to a core-hour. This discriminates
+      because the entire mechanism claim is that the rounding residual carries the message: if the
+      spread is inside the reference with modulus switching present, the mechanism is refuted at these
+      parameters and the closure names the obstruction with a number; if it is outside with switching
+      and inside without, the attribution is complete in one run.'
+    controls:
+    - Label-permutation reference distribution at matched class sizes and sample counts, in the same
+      invocation.
+    - Fixed-message second null, where all encryptions carry the same message and labels are assigned
+      arbitrarily.
+    - 'Operation-attribution arms: switching disabled, multiplication replaced by addition, and both.'
+    - Secret-averaged arm over 32 secrets, to check that the base measurement's single secret is not
+      special.
+    - Seed-count sweep at 1024 and 4096 per plaintext, exposing the reference distribution's dependence
+      on sample count.
+    required_metrics:
+    - conditional variance Var(e|m) for every enumerated plaintext
+    - spread, defined as the largest over the smallest conditional variance
+    - the 1st, 50th and 99th percentiles of the label-permutation reference for the spread
+    - the same statistics for each attribution arm and for the fixed-message null
+    - Spearman correlation of Var(e|m) with plaintext Hamming weight and with plaintext integer value
+    - seeds per plaintext and total sample count
+  falsification_conditions:
+  - The spread is inside the permutation reference in every configuration including the one with modulus
+    switching, refuting the stated mechanism at these parameters.
+  - The fixed-message second null falls outside the reference, meaning the pipeline leaks label information
+    and no result is usable.
+  - The spread with switching disabled is as large as with switching enabled, so the attribution fails
+    and the mechanism named is wrong even if an effect exists.
+  - The spread is not reproducible across independent seedings.
+  - The permutation reference does not narrow as seeds per plaintext increase, indicating an error
+    in the reference construction.
+  confounders:
+  - A single fixed secret can produce a secret-specific pattern that looks like message dependence;
+    the secret-averaged arm bounds this.
+  - At t=2 and N=8 the plaintext space is small and highly structured, so plaintext classes are not
+    exchangeable in the way the permutation reference presumes; the fixed-message null partially checks
+    this.
+  - Unequal effective sample sizes across classes would inflate the spread; equal seeds per plaintext
+    is enforced but rejection sampling could break it.
+  - The rounding rule at the switch (round to nearest versus floor) changes the residual's message
+    dependence entirely and must be declared.
+  - Variance is a second moment and a message dependence living in the mean would be invisible; the
+    mean is therefore also reported.
+  interpretation_limits:
+  - Nothing is released to anyone in this setting, so a measured message dependence is not a leak
+    and must not be described as one.
+  - A spread measured at t=2, N=8 says nothing quantitative about a scheme at a large plaintext modulus
+    and large ring degree.
+  - The result concerns one rounding rule and one circuit and does not generalise across switching
+    conventions.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Cost is O(M * R * N^2) for M plaintexts and R seeds,
+      plus O(P * M) for P permutations of the reference.
+    memory_exponent: No attack memory exponent is claimed. O(M * R * N) to hold the noise vectors,
+      which is the binding constraint at 4096 seeds.
+    best_known: The incumbent is the message-independence idealisation as written in whichever noise
+      analysis the Coordinator transcribes. This proposal offers no replacement idealisation and no
+      improved bound; it measures the idealisation's residual.
+    hidden_overhead: The permutation reference is the hidden cost, both in compute (1000 recomputations
+      over a million vectors) and in the human work of arguing that plaintext classes are exchangeable
+      enough for permutation to be the right null at a structured plaintext space.
+  dominated_by: 'n/a (no result claimed). Checked: the contract emits no attack cost along time, memory
+    or data/queries, and no FHE experiment directory exists in this repository, so there is no internal
+    or external frontier row it can be placed against.'
+  sota_delta: no attack; conceptual/measurement contribution only. The output is a variance ratio
+    against a permutation reference.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  honest_prior_of_survival: 'That the conditional variances and the permutation reference can be computed
+    reproducibly: 0.9. That the spread exceeds the 99th percentile of the reference with modulus switching
+    present: 0.65, because the rounding residual is a real deterministic message-dependent term but
+    may be small next to the accumulated error at even one level. That the attribution arms separate
+    cleanly, i.e. the effect vanishes with switching disabled: 0.55. That the dependence tracks a
+    coarse feature like Hamming weight, making it predictable: 0.35. That anything here transfers
+    to deployed plaintext moduli: 0.1, and no transfer is claimed.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FHE-001
+  - KN-OPEN-026
+  - KN-TECH-082
+  - IDEA-20260807-a06996
+  - IDEA-20260805-574cd0
+  - docs/inventor-protocol.md
+  - AGENTS.md
+  - harness/runner.py
+  - templates/research-records.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FHEX-484181

@@ -1,0 +1,86 @@
+design_v4_operations:
+  task_id: TASK-20260801-059
+  base_document: >-
+    coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/TASK-20260801-051/design_proposal.v2.yaml#/design_proposal_v2
+  value_document: >-
+    coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/tasks/TASK-20260801-055/design_proposal.v3-amendment.yaml#/design_proposal_v3_amendment
+  operation_semantics: >-
+    Start with a deep copy of base_document. Apply operations in listed order.
+    `replace` requires target_path to exist and replaces its entire value.
+    `add` requires target_path not to exist and adds its entire value.
+    `value_from` is resolved from value_document before any operation. Any
+    precondition failure is invalid_integrity. No other merge rule applies.
+  execution_authorized: false
+
+  operations:
+  - op: replace
+    target_path: /statistics
+    value_from: /statistics_replacement
+  - op: replace
+    target_path: /controls/gross_plant
+    value_from: /gross_plant_replacement
+  - op: replace
+    target_path: /controls/matched_plant
+    value_from: /matched_plant_replacement
+  - op: add
+    target_path: /calibration_validation_predicate
+    value_from: /calibration_validation_predicate
+  - op: add
+    target_path: /source_gate
+    value_from: /source_gate_replacement
+  - op: replace
+    target_path: /mutually_exclusive_branches/2
+    literal_value:
+      id: revise_without_source
+      precedence: 3
+      when: >-
+        calibration_validation_predicate.literal_pass is false OR gross_plant.pass
+        is false OR matched_plant.mandatory_pass is false.
+      disposition: revise instrument; source remains unrun
+
+  canonical_plant_streams:
+    encoding: >-
+      UTF-8 bytes of a JSON array with no whitespace, using decimal integers and
+      ASCII strings only. SHA256 digest bytes interpreted big-endian supply the
+      stream. Floats and locale-dependent formatting are forbidden.
+    delta_encoding:
+      denominator: 1000
+      numerators: [5, 10, 20]
+    tuple_fields_in_order:
+    - EXP-SMTH-002
+    - v4
+    - arm_ascii
+    - bits_integer
+    - fixture_integer_0_through_3
+    - delta_numerator_integer_or_0
+    - item_index_integer
+    arms:
+      base: matched-base
+      candidates: matched-candidates
+      selection: matched-selection
+      gross: gross-truncation
+    selection_rank: >-
+      Ascending (SHA256(canonical tuple with arm matched-selection), edge_index).
+    candidate_generation: >-
+      NULL-K512-ADD vertex labels use arm matched-candidates and item_index equal
+      to candidate-array index followed by vertex index under a separately
+      length-prefixed integer pair. Candidate_global_index is array_index*n+edge_index.
+    stream_collision_rule: >-
+      Every canonical tuple and SHA256 must be unique; any duplicate is
+      invalid_integrity before factorization.
+
+  effective_contract_checks:
+  - /statistics contains no undefined coordinate names.
+  - /controls/gross_plant and /controls/matched_plant contain mechanical pass predicates.
+  - /calibration_validation_predicate exists exactly once.
+  - /source_gate exists exactly once and requires both plants.
+  - branch index 2 is the sole revise_without_source branch.
+  - factorization subtotal remains 79536128.
+
+  claim_boundary:
+    dominated_by: Pollard-rho generic exact ECDLP
+    sota_delta:
+      time_exponent: 0.0
+      memory_exponent: 0.0
+      data_exponent: 0.0
+      solved_instances: 0

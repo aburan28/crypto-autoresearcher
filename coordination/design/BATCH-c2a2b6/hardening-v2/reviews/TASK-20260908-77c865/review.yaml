@@ -1,0 +1,295 @@
+red_team_report:
+  task_id: TASK-20260908-77c865
+  scope:
+    experiment_id: EXP-ECDLP-ac7e8b
+    joint_owned: lifecycle_and_cost_custody
+    review_question: >-
+      Whether the prospective v2.1 registry, terminal-authority, rank-state,
+      and shared-cost definitions make the specified lifecycle and cost-custody
+      mutations mechanically observable before any implementation or execution.
+    boundary: >-
+      This is a source-definition review of the committed packet. It assesses
+      only the named prospective acceptance rules and does not assess an
+      implementation, runtime, fixture, receipt, experiment result, or
+      cryptanalytic claim.
+  source_snapshot_commit:
+    review_packet: 0c319e0c1c95aeee4cc3b0d763fc382d780c2480
+    plan_declared_technical_source_snapshot: 9c61f35aea
+    technical_source_comparison: >-
+      The three permitted technical sources have no name-status diff between
+      the plan-declared snapshot and the committed review packet.
+  sources_read:
+    - path: ledger/handoffs/TASK-20260908-77c865.yaml
+      git_blob: e1aef36351ca21cf94c6ef2c698a1313938de66f
+      purpose: Declared task authority, scope, and zero-run boundary.
+    - path: coordination/design/BATCH-c2a2b6/hardening-v2/lifecycle-v2_1-review-plan.yaml
+      git_blob: ae728ca13b284f8eeb9b585824822fdd38c69232
+      purpose: Assigned joint, blind-review boundary, mutation set, and outcome rule.
+    - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_1_lifecycle_custody.yaml
+      git_blob: ccf8fae94453421a6f781bc2cb4bbce1d70e417e
+      sha256_declared_by_plan: e3c5cc9f212c70fc87156f243c13919e68dbd96955b47092cc59ae5eff391eb8
+      purpose: Prospective lifecycle and cost-custody repair under review.
+    - path: experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+      git_blob: a938bf834af944b9f472c49e8486fcced46abde9
+      purpose: Predecessor lifecycle, cost, output, and future-gate definitions.
+    - path: coordination/design/BATCH-28dddb/protocol-appendix.yaml
+      git_blob: 977db527806b0cdc54bec3807906a5361d252ba2
+      purpose: Sealed schedule, component topology, resource, watchdog, and output context.
+  worked_attacks:
+    - joint: hidden_sibling_resume
+      construction: >-
+        After a checkpoint, launch two child segments from the same sealed
+        attempt and parent. First use the same successor capability twice;
+        then try one recorded and one unrecorded child directory beneath the
+        sealed root.
+      source_mechanism: >-
+        v2.1 root_segment_registry.checkpoint_successor_rule requires one
+        domain-separated single-use capability and rejects multiple consumers,
+        unknown capabilities, a wrong predecessor, and a second child. Its
+        final_reconciliation enumerates registry entries, launched segment
+        directories, and receipt hashes under the sealed root, and requires one
+        linear path to the named final head.
+      result: holds_within_declared_sealed_root
+      reasoning: >-
+        The two recorded children trigger multiple-consumer or non-linear-path
+        rejection. A directory under the declared root without a matching
+        registry entry violates no-omitted-launch reconciliation. The definition
+        therefore makes the listed logical mutation observable in its declared
+        custody corpus.
+      residual_limit: >-
+        The text does not itself attest that every operating-system process can
+        write only within that corpus. A process that leaves no declared launch,
+        directory, or receipt is an external trusted-supervisor/storage-custody
+        problem, not a source-only acceptance result.
+    - joint: duplicate_successor_capability_consumption
+      construction: >-
+        Consume a checkpoint capability for one child, then attach a second
+        child to the same parent with the same capability hash under a different
+        segment ID.
+      source_mechanism: >-
+        The checkpoint rule rejects zero or multiple consumers and a second
+        child after consumption; the registry identity includes both the
+        successor and consumed capability hashes.
+      result: holds_within_declared_registry
+      reasoning: >-
+        With both children represented in the registry or sealed-root output,
+        the duplicate is directly rejected. This is a prospective schema rule,
+        not an observed implementation control pass.
+      residual_limit: >-
+        As with the preceding attack, enforcement still needs a later
+        implementation to bind process launch to the append-only registry.
+    - joint: terminal_timeout_authority
+      construction: >-
+        Reuse the hash of a genuine Coordinator timeout disposition that names
+        root A as the authority for a final TIMEOUT_CENSORED receipt on root B.
+        Keep terminal_authority_kind, authority_record_id,
+        authority_record_sha256, and causal_event_sha256 syntactically valid.
+      source_mechanism: >-
+        v2.1 requires a Coordinator decision or approved amendment explicitly
+        authorizing the timeout, but its listed final-receipt authority fields
+        carry only authority kind, record ID, record hash, causal-event hash,
+        and no-goal-transition assertion.
+      result: breaks
+      reasoning: >-
+        No required canonical authority payload binds the authorization to the
+        experiment, campaign, sealed attempt, root ordinal, final receipt hash,
+        terminal code, or admissible time/order. The validator rule requires a
+        cited Coordinator authority but specifies no equality check between the
+        cited authority's target and the final receipt's target. A valid but
+        differently scoped authority can consequently be replayed without
+        violating a stated field-level reconciliation rule.
+    - joint: rank_owner_swap_and_accepted_row_omission
+      construction: >-
+        Have a different process continue the rank update while reusing the
+        sealed rank_owner_id and process_incarnation_id. Separately, execute a
+        valid EC component but omit its component receipt from the final output,
+        or render its slot omitted, while retaining a valid root final receipt
+        and a rank inventory consistent with the remaining RELATION_VALID rows.
+      source_mechanism: >-
+        v2.1 seals logical owner and process-incarnation labels, requires a
+        handover receipt for an owner change, and reconstructs the rank
+        inventory from RELATION_VALID EC receipts. The predecessor fixes thirty
+        components per job and permits explicitly reasoned omitted rows after a
+        gate failure.
+      result: breaks
+      reasoning: >-
+        The rank row has no required launch hash, authenticated process/cgroup
+        identity, or uniqueness rule linking process_incarnation_id to a
+        registry launch. A different process can therefore present the sealed
+        labels without a logical owner-field change and evade the stated
+        handover check. Also, the coverage rule begins with the set of
+        RELATION_VALID EC receipts; it does not state a validator reconciliation
+        from every sealed component slot to exactly one receipt status, nor a
+        rule that an omitted EC slot must cite a preceding terminal causal event.
+        The proposed missing or reclassified valid component never enters the
+        reconstructed set, so the final rank inventory can remain internally
+        consistent while incomplete.
+    - joint: duplicate_shared_cpu_io_provenance
+      construction: >-
+        Charge a single process's cumulative CPU or IO counter over two
+        partially overlapping source intervals. Give each sampled interval a
+        distinct raw-trace hash, source_interval_id, vector ID, and object ID,
+        with individually valid allocations summing to one.
+      source_mechanism: >-
+        v2.1 rejects duplicate provenance identities and requires each additive
+        CPU/IO coordinate to have one raw-trace provenance identity and one
+        object. It also requires reconciliation to the declared cgroup/process
+        observation.
+      result: breaks
+      reasoning: >-
+        Distinct counter snapshots for overlapping intervals are not the same
+        raw-trace identity, so the stated duplicate-identity rejection does not
+        apply. The packet requires unioning wall intervals but does not require
+        CPU or IO source intervals for the same counter/process to be a
+        disjoint partition, nor does it prescribe canonical differencing of
+        cumulative counters. Both vectors can reconcile to real observations
+        while their overlap is charged twice.
+    - joint: overlapping_wall_interval_double_count
+      construction: >-
+        Record the same physical monotonic-clock interval under distinct
+        provenance labels, or record concurrent worker and supervisor intervals
+        in separate wall_interval_set_id values, then add their per-provenance
+        unions to the reported campaign wall time.
+      source_mechanism: >-
+        v2.1 says validators union wall intervals by provenance, and the
+        predecessor says active intervals are merged by union rather than
+        summing overlaps.
+      result: breaks
+      reasoning: >-
+        The sources do not define a common clock-domain identity, a mandatory
+        start/end representation for every wall_interval_set_id, a binding from
+        provenance to a registry launch, or a final aggregation rule that takes
+        one union across all active intervals in the reporting scope. Unioning
+        separately by provenance is compatible with summing overlapping sets
+        afterward. The literal same-provenance mutation is caught, but an alias
+        or cross-process overlap is not mechanically distinguished.
+  findings:
+    - severity: required_correction
+      joint: terminal_timeout_authority
+      statement: >-
+        Timeout authority is hash-cited but not target-bound. The present rule
+        cannot mechanically reject replay of a genuine Coordinator authority
+        across roots or attempts.
+      narrow_effect: >-
+        This concerns custody and lifecycle disposition only. It says nothing
+        about the experiment, its mathematics, or any timeout observation.
+    - severity: required_correction
+      joint: rank_state_custody
+      statement: >-
+        Logical rank ownership and accepted-row coverage lack cross-references
+        to authenticated launches and to every sealed component slot. A label
+        reuse or omitted/reclassified EC component can evade the stated
+        reconstruction.
+      narrow_effect: >-
+        This prevents a custody review from accepting complete rank/resource
+        accounting on the supplied definitions alone; it is not a rank result.
+    - severity: required_correction
+      joint: shared_cost_cpu_io
+      statement: >-
+        Unique raw-trace identifiers do not prevent an overlapping pair of
+        distinct cumulative CPU/IO observations from charging the same work
+        twice.
+      narrow_effect: >-
+        This is an accounting-definition defect and does not establish any
+        measured cost or asymptotic conclusion.
+    - severity: required_correction
+      joint: shared_cost_wall
+      statement: >-
+        Per-provenance interval union lacks a stated global reporting-scope
+        union and common-clock binding, allowing a doubly counted overlap under
+        distinct provenance identities.
+      narrow_effect: >-
+        This is a prospective cost-custody defect, not evidence about a solver
+        or ECDLP security.
+  verdict:
+    outcome: breaks
+    joint_scope: lifecycle_and_cost_custody
+    rationale: >-
+      v2.1 makes the literal registered sibling and exact duplicate-capability
+      constructions observable inside the declared sealed-root corpus. It does
+      not yet make semantically equivalent authority replay, actual owner
+      substitution, component-slot omission, overlapping cumulative CPU/IO, or
+      cross-provenance wall-overlap constructions mechanically observable.
+    narrowest_supported_statement: >-
+      The v2.1 packet improves prospective custody definitions but requires the
+      listed additional bindings before a source-only review can hold that the
+      six lifecycle/cost classes are fully rejected.
+  required_corrections:
+    - joint: terminal_timeout_authority
+      correction: >-
+        Define a canonical, hash-bound authority target containing
+        experiment_id, campaign_id, attempt_id, root_ordinal,
+        terminal_code, causal-event digest, and final-receipt digest or a
+        predeclared final-identity commitment. Require an exact target match,
+        Coordinator role verification, and authorization ordering before
+        accepting TIMEOUT_CENSORED.
+    - joint: rank_owner_and_component_coverage
+      correction: >-
+        Bind rank_owner_id and process_incarnation_id to an immutable registry
+        launch record and trusted process/cgroup identity. Require every sealed
+        component/phase slot to have exactly one receipt status; permit omitted
+        only with a hash-bound, preceding terminal causal event. Reconstruct
+        rank inputs from that complete slot inventory and independently validate
+        each candidate's EC relation status.
+    - joint: shared_cpu_io
+      correction: >-
+        Specify a canonical counter-source identity and interval endpoints for
+        each CPU/IO coordinate. For each source counter, require a disjoint
+        partition or canonical cumulative-counter differencing, reject interval
+        overlap, and reconcile the aggregate once to the source counter range.
+    - joint: shared_wall
+      correction: >-
+        Require every wall interval to carry a common monotonic clock-domain
+        binding and launch/process provenance. Define the reported campaign or
+        stage wall value as the union over all active intervals in that named
+        scope, while retaining per-process intervals only as attributed
+        diagnostics.
+    - joint: implementation_admission
+      correction: >-
+        Add copied-data, non-scientific controls for cross-root timeout-authority
+        replay, process-label reuse, omission/reclassification of a sealed EC
+        component, partially overlapping cumulative CPU/IO intervals, and
+        identical/cross-process wall intervals under distinct provenance IDs.
+  limitations:
+    - >-
+      No implementation, fixture, control, validator, runtime, process launch,
+      artifact, or scientific run was inspected or executed.
+    - >-
+      The review read no sibling report. The earlier lifecycle report named by
+      the plan was excluded under the declared blindness boundary.
+    - >-
+      The two holds are conditional on the later implementation faithfully
+      enumerating every declared sealed-root artifact; this report does not
+      attest such enforcement.
+    - >-
+      No external literature, baseline comparison, mathematical mechanism, or
+      cryptanalytic interpretation was used or assessed.
+  scientific_runs: []
+  nonapproval_nonclaim:
+    implementation_approved: false
+    execution_approved: false
+    hypothesis_or_goal_transition_approved: false
+    scientific_or_cryptanalytic_claim: >-
+      None. This report is a prospective source-custody objection only and
+      establishes no observation, result, cost measurement, security claim, or
+      conclusion about EXP-ECDLP-ac7e8b or ECDLP.
+  review_attestation:
+    task_id: TASK-20260908-77c865
+    independent_session: true
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    joints_owned:
+      - hidden_sibling_resume
+      - duplicate_successor_capability_consumption
+      - terminal_timeout_authority
+      - rank_owner_swap_and_accepted_row_omission
+      - duplicate_shared_cpu_io_provenance
+      - overlapping_wall_interval_double_count
+    sources_actually_read:
+      - ledger/handoffs/TASK-20260908-77c865.yaml
+      - coordination/design/BATCH-c2a2b6/hardening-v2/lifecycle-v2_1-review-plan.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v2_1_lifecycle_custody.yaml
+      - experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+      - coordination/design/BATCH-28dddb/protocol-appendix.yaml
+    read_sibling_reports: false
+    verdict: breaks

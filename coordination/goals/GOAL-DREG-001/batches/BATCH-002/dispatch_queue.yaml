@@ -1,0 +1,107 @@
+dispatch_queue:
+  goal_id: GOAL-DREG-001
+  batch_id: BATCH-002
+  question_id: RQ-DREG-001
+  title: >-
+    Decisive full-column d_reg measurement: D6-at-n=12 (now valid) + gap(n)=d_reg-d_ff
+    ladder n=12,15,18 (>=3 seeds), null-controlled, toward the H-DREG-001 decision
+  status: queued
+  max_concurrent: 3
+  admissibility_rule: >-
+    ONLY full-column exact rank, graded pivot-degree Hilbert function, or q->s
+    collapse is evidence. Subset-column corank is INVALID for the sem arm (h012
+    finding iv). A timeout/OOM is failed_infrastructure (AGENTS rule 5), never
+    evidence. Sage must run with TMPDIR/SAGE_TMP on /Volumes/Volume (root disk full).
+  tasks:
+    - id: TASK-20260721-DREG-N12D6-P1
+      role: executor
+      status: queued
+      review_required: true
+      depends_on: []
+      write_scope: [experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/]
+      objective: >-
+        On the block-m4ri full-column-rank instrument, measure the D=6 rank DEFICIT
+        (sr_pred - full_rank) at n=12 for BOTH the sem and T11 support-matched null
+        arms (D6 < d_reg(12)=7, so the null baseline is valid -- no D6 repair needed).
+        Additionally measure the gap(n)=d_reg-d_ff ladder at n=12,15,18 with >=3
+        seeds/random targets R each, recording d_ff via ic_first_fall_fast (max_D=6)
+        and the per-degree full-column rank/quotient. Emit immutable run receipts.
+      artifact_paths:
+        - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/manifest.yaml
+        - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/raw-result.json
+      attention_contract:
+        decisive_evidence: >-
+          n=12 D6 full-column deficit sem vs null (both arms, same cell), and the
+          gap(n) ladder direction across n=12,15,18 with per-seed spread.
+        inconclusive_decision: >-
+          If any decisive cell is only reachable below full row rank (d_reg not
+          attained) at every n, report d_reg(sem) vs d_reg(null) as unevaluable for
+          that cell and fall back to the graded-HF / q->s route already validated at n<=9.
+        local_ambiguity_rule: prefer more seeds at a reached n over one unreached larger n
+        peripheral_exclusions: [D>=7 dense cells that OOM; n=21/24 (memory wall, defer)]
+        rerank_trigger: first committed full-column d_reg datum at n>=12
+      resource_estimate:
+        wall_clock_seconds: 7200
+        maximum_memory_gb: 40
+        maximum_runs: 12
+        dominant_cost: GF(2) full-column rank of the degree-6 Macaulay matrix at n=12 (nb=24)
+        complexity_hypothesis: >-
+          #cols ~ sum_{j<=6} C(24,j) ~ 1.9e5; block-Wiedemann/m4ri sparse rank tractable,
+          dense is not. Front-end build via semaev_tree at n=12 is cheap.
+        stop_rule: >-
+          stop a cell at wall/mem cap and record failed_infrastructure; never treat a
+          cap as evidence.
+        dominant_stage_id: rank
+        stages:
+          - id: build
+            purpose: boolean chained Semaev + Weil descent, sem and null arms, >=3 seeds
+            wall_clock_seconds: 600
+            maximum_memory_gb: 4
+            parallel_shards: 1
+            dominant_operation: weil_descend_to_F2
+            stop_rule: skip a seed with no decomposable R after 400 tries
+          - id: rank
+            purpose: degree-6 full-column GF(2) rank, both arms, per seed
+            wall_clock_seconds: 6600
+            maximum_memory_gb: 40
+            parallel_shards: 1
+            dominant_operation: block-m4ri / block-Wiedemann rank
+            stop_rule: cap -> failed_infrastructure
+    - id: TASK-20260721-DREG-N12D6-SNAP-C1
+      role: coordinator
+      status: queued
+      kind: snapshot
+      depends_on: [TASK-20260721-DREG-N12D6-P1]
+      write_scope: [experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/]
+      objective: Archive the producer's exact run artifacts (isolated snapshot commit) before any review.
+    - id: TASK-20260721-DREG-N12D6-VAL-R1
+      role: validator
+      status: queued
+      depends_on: [TASK-20260721-DREG-N12D6-SNAP-C1]
+      write_scope: [coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/VAL-N12D6.md]
+      objective: >-
+        Independently reproduce every rank via a distinct engine; confirm FULL-column
+        (not subset) ranks; recompute sr_pred; confirm null control (rank==sr_pred for
+        D<d_reg); verify seeds/receipts and reproducibility bindings.
+    - id: TASK-20260721-DREG-N12D6-RT-R1
+      role: red-team
+      status: queued
+      depends_on: [TASK-20260721-DREG-N12D6-SNAP-C1]
+      write_scope: [coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/RT-N12D6.md]
+      objective: >-
+        Challenge interpretation and baseline: is any d_reg(sem)-vs-null inference
+        built only on cells where d_reg is actually attained (not a fixed-degree
+        corank)? Is the cost baseline (rho 2^{n/2}, first-fall) honest? Cheapest
+        falsification of the weaken/KILL direction.
+    - id: TASK-20260721-DREG-N12D6-LEDGER-C2
+      role: coordinator
+      status: queued
+      kind: ledger
+      depends_on: [TASK-20260721-DREG-N12D6-VAL-R1, TASK-20260721-DREG-N12D6-RT-R1]
+      write_scope: [coordination/goals/GOAL-DREG-001/batches/BATCH-002/decision.yaml, ledger/goals/GOAL-DREG-001.yaml]
+      objective: >-
+        Commit the exact review reports, the evidence, and the goal-scoped decision on
+        H-DREG-001's degree axis (support | weaken | reject_scoped), scoped to the
+        reached cells; update GOAL-DREG-001 with the batch, verified commit, and the
+        single next action; rerank. Official shared-ledger EV/DEC minting + H-DREG-001
+        status flip is deferred to the Coordinator-of-record / merge (isolation).

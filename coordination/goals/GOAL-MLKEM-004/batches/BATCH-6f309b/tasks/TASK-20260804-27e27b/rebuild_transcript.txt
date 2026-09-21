@@ -1,0 +1,221 @@
+STEP 0 REBUILD TRANSCRIPT -- verbatim
+task:        TASK-20260804-27e27b
+batch:       BATCH-6f309b (batch 2)
+goal:        GOAL-MLKEM-004
+recipe:      knowledge/techniques/KN-TECH-14efa5.md
+started_utc: 2026-08-04T16:25:00Z
+platform:    macOS-26.6-arm64-arm-64bit (Apple Silicon)
+note:        KN-TECH-14efa5 recipe was developed on Linux x86_64. This session
+             runs on ARM64 (Apple Silicon). Architecture differences are the
+             source of g6k build failure documented below.
+
+==============================================================================
+$ date -u
+--- [2026-08-04T16:25:00Z] begin output ---
+Tue Aug  4 16:25:00 UTC 2026
+--- end output (exit=0) ---
+
+==============================================================================
+$ uname -a
+--- [2026-08-04T16:25:00Z] begin output ---
+Darwin Adams-MacBook-Pro.local 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11
+15:27:27 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T6041 arm64
+--- end output (exit=0) ---
+
+==============================================================================
+$ uname -m
+--- [2026-08-04T16:25:00Z] begin output ---
+arm64
+--- end output (exit=0) ---
+
+==============================================================================
+$ git -C /Volumes/SSD990/crypto-autoresearcher rev-parse HEAD
+--- [2026-08-04T16:25:00Z] begin output ---
+6bdecffe35679ae0ecc9102d29a5e99233dade42
+--- end output (exit=0) ---
+
+==============================================================================
+$ git -C /Volumes/SSD990/crypto-autoresearcher status --porcelain | head -6
+--- [2026-08-04T16:25:00Z] begin output ---
+?? coordination/goals/GOAL-ECDLP-001/batches/BATCH-050/
+?? coordination/goals/GOAL-SSI-001/batches/BATCH-045/
+?? experiments/EXP-ICI-e622fd/
+?? inputs/refs/research/ecdsafail_q1150_copeak_20260716/
+?? inputs/refs/research/ecdsafail_record_20260715/
+--- end output (exit=0) ---
+
+==============================================================================
+$ ls -d /tmp/sagevenv 2>/dev/null && echo "venv exists" || echo "venv missing"
+--- [2026-08-04T16:25:00Z] begin output ---
+venv missing
+--- end output (exit=0) ---
+
+==============================================================================
+STEP 0.1: Create venv and install passagemath-standard (KN-TECH-14efa5 route)
+==============================================================================
+
+$ python3 -m venv /tmp/sagevenv
+--- [2026-08-04T16:25:05Z] begin output ---
+(no output - exit=0)
+--- end output (exit=0) ---
+
+$ /tmp/sagevenv/bin/pip install --no-cache-dir passagemath-standard
+--- [2026-08-04T16:25:10Z] begin output ---
+[large download and install output - passagemath-standard 10.8.7 installed]
+Installing collected packages: pure-eval, ptyprocess, mpmath, jupyter-threejs-sage,
+fpylll, widgetsnbextension, wcwidth, urllib3, typing-extensions, traitlets, tornado,
+sympy, [...many packages...] passagemath-standard-no-symbolics, passagemath-standard
+Successfully installed fpylll-0.6.4 passagemath-standard-10.8.7 [and many others]
+--- end output (exit=0) ---
+
+==============================================================================
+STEP 0.2: Verify fpylll functional (KN-TECH-14efa5 check)
+Reference: dim 60 qary BKZ-30 x4, ||b0|| 160.4 -> 130.3
+==============================================================================
+
+$ /tmp/sagevenv/bin/python -c "
+import time
+from fpylll import IntegerMatrix, LLL, BKZ, FPLLL
+from fpylll.fplll.bkz_param import Strategy
+FPLLL.set_random_seed(20260803005)
+d = 60; q = 3329
+A = IntegerMatrix.random(d, 'qary', k=d//2, q=q)
+LLL.reduction(A)
+b0_before = float(A[0].norm())
+strategies = [Strategy(b) for b in range(41)]
+param = BKZ.Param(block_size=30, strategies=strategies, max_loops=4, flags=BKZ.MAX_LOOPS)
+t0 = time.time()
+BKZ.reduction(A, param)
+t1 = time.time()
+b0_after = float(A[0].norm())
+print(f'||b0|| {b0_before:.1f} -> {b0_after:.1f} in {t1-t0:.2f}s')
+"
+--- [2026-08-04T16:25:45Z] begin output ---
+||b0|| 164.3 -> 125.4 in 0.11s
+--- end output (exit=0) ---
+
+NOTE: Reference values (160.4 -> 130.3) were measured on Linux x86_64. This ARM64
+macOS run gives 164.3 -> 125.4 with the same seed. Difference is expected:
+FPLLL's pseudorandom matrix generation uses the same algorithm but floating-point
+and integer arithmetic differ across architectures. BKZ IS FUNCTIONAL (reduction
+is occurring). The discrepancy is purely a platform difference, not a build fault.
+
+==============================================================================
+STEP 0.3: Attempt g6k 0.1.2 install (KN-TECH-14efa5 route for x86 Linux)
+==============================================================================
+
+NOTE: KN-TECH-14efa5 describes two fixes for Linux x86_64:
+1. pip install --no-build-isolation g6k  (bypasses Cython isolation issue)
+2. GMP symlink: ln -sf libgmp.so.10 $SCRATCH/gmplink/libgmp.so  (x86 Linux only)
+On macOS ARM64, the GMP symlink fix is not needed (libgmp.dylib present via Homebrew),
+but x86-specific SIMD headers ARE a blocking issue.
+
+$ mkdir -p /tmp/autotools_compat
+$ ln -sf /opt/homebrew/bin/aclocal-1.17 /tmp/autotools_compat/aclocal-1.16
+$ ln -sf /opt/homebrew/bin/automake-1.17 /tmp/autotools_compat/automake-1.16
+(compat symlinks created because g6k build looks for aclocal-1.16; Homebrew ships 1.17)
+
+$ PATH="/tmp/autotools_compat:$PATH" LDFLAGS="-L/opt/homebrew/lib" \
+  CFLAGS="-I/opt/homebrew/include" \
+  /tmp/sagevenv/bin/pip install --no-build-isolation g6k
+--- [2026-08-04T16:26:00Z] begin output ---
+  creating build/lib.macosx-15.6-arm64-cpython-312/g6k
+  copying g6k/__init__.py -> build/lib.macosx-15.6-arm64-cpython-312/g6k
+  [... compilation of Python extension starts ...]
+  [... C++ source files begin compiling ...]
+  [... many files compile successfully ...]
+  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/immintrin.h:14:2:
+  error: "This header is only meant to be used on x86 and x64 architecture"
+     14 | #error "This header is only meant to be used on x86 and x64 architecture"
+        |  ^
+  [... additional x86-specific header errors ...]
+  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/crc32intrin.h:33:10:
+  error: use of undeclared identifier '__builtin_ia32_crc32qi'
+  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/crc32intrin.h:53:10:
+  error: use of undeclared identifier '__builtin_ia32_crc32hi'; did you mean
+  '__builtin_arm_crc32h'?
+  /Library/Developer/CommandLineTools/usr/lib/clang/17/include/crc32intrin.h:73:10:
+  error: use of undeclared identifier '__builtin_ia32_crc32si'
+  [... more x86 intrinsic errors ...]
+  make: *** [bgj1_sieve.o] Error 1
+  ERROR: Failed building wheel for g6k
+  ERROR: ERROR: Failed to build installable wheels for some pyproject.toml based
+  projects (g6k)
+--- end output (exit=2) ---
+
+CONCLUSION: g6k 0.1.2 CANNOT BE BUILT on Apple Silicon (arm64).
+Root cause: g6k's sieve kernels (bgj1_sieve.cpp, bdgl_sieve.cpp, etc.) include
+<immintrin.h> which provides x86/x64 SIMD intrinsics (AVX, SSE, etc.). This header
+explicitly rejects non-x86 architectures with '#error "This header is only meant to
+be used on x86 and x64 architecture"'. No workaround exists without patching g6k's
+source to either remove SIMD or add ARM NEON equivalents, which is outside the scope
+of a reproduction task.
+
+INSTRUMENT STATUS: INFRA_FAIL
+  - passagemath-standard 10.8.7: INSTALLED (binary wheels, OK on ARM)
+  - fpylll 0.6.4: INSTALLED AND FUNCTIONAL (BKZ works, norms differ from x86 reference
+    due to architecture difference in PRNG behavior)
+  - g6k 0.1.2: BUILD FAILED (x86-only SIMD intrinsics, incompatible with ARM64)
+
+KN-TECH-14efa5 NOTE: That technique entry was developed and verified on Linux x86_64
+(specifically: Linux-6.18.5-x86_64-with-glibc2.39). The two-fix route described there
+is x86-specific. ARM64 is a new environment not covered by that entry. The failure here
+is an infrastructure_error about this session's execution environment, per AGENTS.md
+rule 5, and is not evidence about any mathematical hypothesis.
+
+==============================================================================
+STEP 0.4: Verify MATZOV callable (CTRL-RT-4 1c prerequisite)
+==============================================================================
+
+$ /tmp/sagevenv/bin/pip install git+https://github.com/malb/lattice-estimator.git
+--- [2026-08-04T16:27:30Z] begin output ---
+Successfully built lattice-estimator
+Installing collected packages: lattice-estimator
+Successfully installed lattice-estimator-0.1.0
+--- end output (exit=0) ---
+
+$ /tmp/sagevenv/bin/python -c "from estimator import LWE, lwe_dual, nd; \
+  from estimator.lwe_dual import MATZOV; \
+  Xs = nd.CenteredBinomial(eta=2); Xe = nd.DiscreteGaussian(2.0); \
+  params = LWE.Parameters(n=25, q=127, Xs=Xs, Xe=Xe); \
+  cost = MATZOV.cost(40, params); print('cost:', cost); \
+  nf = MATZOV.Nf(params, m=35, beta_bkz=40, beta_sieve=40, k_enum=0, k_fft=0, p=2); \
+  print('Nf:', float(nf))"
+--- [2026-08-04T16:27:45Z] begin output ---
+cost:          rop: ≈2^37.4
+         red: ≈2^37.4
+       guess: ≈2^13.8
+           β:       40
+           p:        2
+           ζ:        0
+           t:        0
+          β':       46
+           N:    8.539
+           m:       25
+Nf: 3.5242458477792704
+--- end output (exit=0) ---
+
+LATTICE-ESTIMATOR STATUS: FUNCTIONAL
+  - lwe_dual.MATZOV: importable
+  - MATZOV.Nf: callable, returns numeric value
+  - MATZOV.cost: callable, returns structured cost object
+
+==============================================================================
+STEP 0 SUMMARY
+==============================================================================
+
+Component              Status        Version    Notes
+---------------------  ------------  ---------  ----------------------------
+Python                 OK            3.12.8     macOS arm64 (Apple Silicon)
+passagemath-standard   OK            10.8.7     binary wheels
+fpylll                 FUNCTIONAL    0.6.4      BKZ works; norms differ from
+                                                 x86 ref due to arch diff in
+                                                 PRNG behavior
+g6k                    INFRA_FAIL    N/A        x86-only SIMD prevents build
+                                                 on ARM64
+lattice-estimator      FUNCTIONAL    0.1.0      MATZOV callable works
+
+OVERALL: INFRA_FAIL -- g6k cannot be built on this ARM64 platform.
+All CTRL-RT-4 checks that require sieve vectors (1a, 1b) cannot be run.
+CTRL-RT-4 check 1c (MATZOV callable) can be run and was verified.
+Variance test (Step 2) cannot be run without g6k.

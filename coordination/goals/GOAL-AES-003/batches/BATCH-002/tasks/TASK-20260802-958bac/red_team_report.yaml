@@ -1,0 +1,1003 @@
+red_team_report:
+  id: RT-20260802-958bac
+  id_note: >-
+    Derived from this task id rather than allocated with tools/allocate_id.py.
+    This is a review artifact, not a ledger record, and it mints no ledger
+    identifier. Recorded so no reader assumes a scan-allocated RT-NNN.
+  task_id: TASK-20260802-958bac
+  role: red-team
+  goal_id: GOAL-AES-003
+  batch_id: BATCH-002
+  question_id: RQ-AES-003
+  produced_utc: "2026-08-02T19:32:49Z"
+
+  status: >-
+    ANALYSIS ONLY, UNCOMMITTED. No heavy compute was run: a validator was
+    re-executing measurements concurrently and CPU was not competed for. Every
+    number in this report is either read from the snapshot-bound artifacts or
+    computed by arithmetic on histograms and counts already present in them
+    (the two arithmetic passes are named in `what_i_recomputed`). This report
+    assigns NO official state, NO evidence strength, and recommends NO
+    promotion. It declares no hypothesis supported, rejected or closed.
+
+  reviewed_snapshot:
+    commit: c1ff4665
+    receipt: coordination/goals/GOAL-AES-003/batches/BATCH-002/archives/TASK-20260802-f92a96/snapshot-receipt.json
+    declared_paths: 134
+    integrity_check_i_ran: >-
+      Recomputed SHA-256 for all 134 declared paths against
+      `path_sha256`. 134/134 present; 133/134 match. The single mismatch is
+      snapshot-receipt.json's own entry, which the receipt itself explains in
+      `path_sha256_note`: "The receipt's own digest is its content BEFORE this
+      map was filled; the dispatcher verifies content, and a file cannot
+      contain its own final hash." That is a correct and self-disclosed
+      limitation, not a defect. The only working-tree paths outside the
+      snapshot are two untracked compiled binaries (`TASK-20260802-142a4b/cnt`,
+      `TASK-20260802-9dcca8/sq_null`); no artifact I relied on is
+      working-tree-only.
+    protocol_deviations_read: coordination/goals/GOAL-AES-003/batches/BATCH-002/archives/TASK-20260802-f92a96/PROTOCOL-DEVIATIONS.md
+
+  what_i_recomputed:
+    - >-
+      From TASK-20260802-142a4b/RESULTS.json `raw_rows[].occ_hist`, for all five
+      completed full-coset arms: sum_b b*gh[b], sum_b gh[b]*C(b,2), and
+      (sum_b gh[b]*b^2 - N)/2. All five give sum_b b*gh[b] = 4294967296 = 2^32,
+      sum_b gh[b] = 2^32, and reproduce the reported `n` exactly, including
+      547608330240 and 0.
+    - >-
+      2^24 * C(256,2) = 16777216 * 32640 = 547608330240. The r=4 critical-index
+      prediction is arithmetically exactly the predicted occupancy histogram.
+    - >-
+      One-sided 95% Poisson upper bounds for TASK-20260802-e4fa63: obs 6 vs
+      exp 4.0 -> 2.96x; obs 7 vs exp 8.0 -> 1.64x; POOLED r=6 obs 13 vs exp
+      12.0 -> 1.72x; A4 obs 4 vs exp 4.0 -> 2.29x; A1 obs 125 vs exp 8.0 ->
+      18.13x. The producer's own reported bounds reproduce; the pooled r=6
+      figure of 1.72x is mine and is not in the package.
+  what_i_did_not_check:
+    - Any measurement was re-executed. No arm was re-run. The validator owns re-execution.
+    - >-
+      BATCH-001's 69.39 s r=6 and ~25 s exhaustive-search numbers. They are
+      carried forward as BATCH-001 measurements by every BATCH-002 artifact and
+      were not re-measured in this batch (PROTOCOL-DEVIATIONS.md D-2). I did
+      not re-derive them and I do not certify them here.
+    - >-
+      The BATCH-001 derivation document itself beyond the two clauses quoted in
+      full below. My reading of "fact 2" is taken from the clause the producer
+      quotes and from the producer's preregistered R4-P4, both quoted in full.
+    - Adapter model probe. None exists in this harness; see the inference block.
+
+  claim_under_review: >-
+    The four surviving BATCH-002 producer claims: (RANK 1) a single false hint
+    byte empties the candidate set, refuting hypothesis B; (RANK 4) the
+    derivation's asserted no-zero-entry hypothesis is measured false at r=5 and
+    correct-but-overstated at r=4; (RANK 4) the exact r=4 prediction
+    547608330240 was returned to the digit; (RANK 3) the r=5 yoyo excess
+    replicates at 15.63x in a third implementation with a structure-destroyed
+    control at 1.00x. RANK 2's gate is self-reported NOT MET and carries no
+    claim to attack.
+
+  # ---------------------------------------------------------------
+  objections:
+
+    - id: RT-OBJ-1
+      severity: HIGH
+      target: "RANK 4, defect D-DERIV-1 (TASK-20260802-142a4b/RESULTS.json)"
+      title: >-
+        M0 cannot test whether fact 2 is load-bearing, because under M0 fact 2
+        does not fail at any j0. The measured arms refute the derivation's
+        literal wording, not its load-bearing content, and the arm that would
+        have tested the content was dropped.
+      the_inference_attacked: >-
+        The defect record asserts, verbatim: "The derivation explicitly asserts
+        that the mixing layer having no zero entry is a hypothesis of the r=5
+        mod-8 result. It is not. Measured: a mixing layer WITH a zero entry
+        preserves n_5 = 0 mod 8. The derivation is therefore WRONG on a point
+        it explicitly asserted."
+      why_it_does_not_follow: >-
+        The producer's own preregistration, section 3.3 R4-P4, states in full:
+        "R4-P4 (r=5, `M1`, fact 2 destroyed). For `M1` at `j0 = 0`, column 0 has
+        `g_0 == 0` identically: every `i` is covered by a zero of `M` or of
+        `v_0`, so fact 2 of section 3.5 fails outright -- pairs differing only
+        in column 0 all satisfy the condition. Prediction: `n_5 mod 8 = 0`
+        anyway, and `n_5 >= 547608330240`, `max_occ >= 256` (uint16 counters
+        required)." Read against the quoted fact 2 -- "MC has no zero entry,
+        and v_col[t] != 0, so g_col = 0 with a != a' is impossible: it would
+        force f_{col,t} = 0 for all four t, i.e. a = a'." -- and against the
+        producer's own r=5 condition "g_col(a,a')[i] = M[i][t] * f_{col,t}(a,a'),
+        t = (col - j0 - i) mod 4", M0's single zero at (0,0) relaxes exactly ONE
+        of the four i-constraints, and only for the single column col = j0. The
+        other three i still force f = 0 and hence a = a'. So under M0, for every
+        j0, fact 2's CONCLUSION still holds; only its stated PREMISE is false.
+        M1 was constructed precisely to make the conclusion fail, and M1 was not
+        run. The measured arms therefore falsify the sentence "MC has no zero
+        entry" as a necessary condition and establish nothing about whether the
+        exclusion fact 2 performs is load-bearing. That distinction is the whole
+        content of D-DERIV-1.
+      what_is_correctly_established: >-
+        That the literal no-zero-entry wording is not necessary. That is a real
+        and correctly measured result and I do not dispute it. It is a strictly
+        weaker proposition than "the derivation is WRONG on a point it
+        explicitly asserted" as applied to fact 2's function.
+      cheapest_falsifier: >-
+        M1_r5_j0, already frozen in params.json with an exact command form in
+        commands.txt, one uint16 two-window pass, ~680 s uncontended by
+        calibration against M0_r4_j0_CRIT's 681 s. Status: NOT RUN (named in
+        `dropped_work_named.rank4_arms_not_run`).
+
+    - id: RT-OBJ-2
+      severity: HIGH
+      target: "RANK 4, the supersession request against EV-AES-005 boundaries"
+      title: >-
+        A sufficient-condition clause is being superseded as if it were a
+        necessity claim, and the replacement hypothesis is universally quantified
+        over a class of which exactly one member was measured.
+      full_quote_of_the_clause_being_superseded: >-
+        EV-AES-005 boundaries, quoted in full including the clause that qualifies
+        it: "THE MATERIAL SCOPING CORRECTION, AND IT CHANGES WHAT THESE RESULTS
+        ARE ABOUT. The r=4 bijection and the r=5 mod-8 forcing are NOT
+        AES-SPECIFIC. They follow from round GEOMETRY alone: any bijective S-box,
+        any column-preserving mixing layer with no zero in the relevant entries,
+        ShiftRows-style row rotations, and a full diagonal coset."
+      objection: >-
+        Two things follow from the full quote that do not follow from the
+        fragment. First, the clause is "no zero in THE RELEVANT ENTRIES", not
+        "no zero entry": it is already j0-relativised, and the producer's r=4
+        finding -- "only the four entries M[(-c-j0) mod 4][c], c = 0..3, are
+        load-bearing, and which four depends on j0" -- CONFIRMS that clause
+        rather than overstating it. The overstatement lives in the BATCH-001
+        preregistration's fact 2, not in EV-AES-005's boundary. Second, the
+        clause is phrased as a SUFFICIENT condition: "They follow from round
+        GEOMETRY alone: any ... layer with no zero in the relevant entries ...".
+        Exhibiting an object outside a sufficient class for which the conclusion
+        still holds shows the class is not maximal; it does not make the
+        statement false. The producer nevertheless writes "supersedes: The
+        scoping clause 'any column-preserving mixing layer with NO ZERO IN THE
+        RELEVANT ENTRIES' in EV-AES-005 boundaries, AS APPLIED TO THE r=5 MOD-8
+        PROPERTY. On this evidence the correct hypothesis for r=5 is merely a
+        non-singular column-preserving mixing layer."
+      internal_inconsistency_in_the_same_record: >-
+        The same defect block's `residual_uncertainty` states, in full: "M0
+        carries ONE zero entry. Layers with many zeros were not tested: the M1
+        arm, whose zero pattern makes fact 2 fail outright for a whole column
+        rather than merely being unnecessary, did not run. The claim recorded
+        here is that a zero entry does not destroy the r=5 property, not that no
+        mixing layer can." That sentence and the `supersedes` sentence cannot
+        both be the record's claim. "The correct hypothesis for r=5 is merely a
+        non-singular column-preserving mixing layer" quantifies over every
+        non-singular column-preserving M; the evidence is one M, one zero
+        position, two j0, one key, one base.
+      consequence_for_the_ledger: >-
+        The batch objective anticipates minting CORR records. A CORR that
+        replaces a true sufficient-condition clause with a universal claim
+        supported by one matrix would write an unearned generalisation into the
+        ledger. The narrowest correction the evidence supports is stated in
+        `narrowest_supported_statement` below.
+      cheapest_falsifier: M1_r5_j0 (as in RT-OBJ-1), plus one further zero position.
+
+    - id: RT-OBJ-3
+      severity: MEDIUM
+      target: "RANK 4, instrument-integrity accounting (cnt.c)"
+      title: >-
+        Two of the three "exactness checks per run" are the same check. I read
+        the code; the n-vs-n_alt identity is algebraically implied by counter
+        integrity and cannot detect any error in the map being counted.
+      code_read: coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-142a4b/cnt.c
+      what_the_code_does: >-
+        Both quantities are computed from the SAME global histogram gh[]:
+        "for(uint64_t b=0;b<HBINS;b++){npairs+=(unsigned __int128)gh[b]*((uint64_t)b*(b-1)/2);S2+=(unsigned __int128)gh[b]*b*b;}"
+        then "unsigned __int128 alt=(S2-(unsigned __int128)N)/2;". Hence
+        npairs = (S2 - sum_b gh[b]*b)/2 and alt = (S2 - N)/2, so `agree` holds
+        if and only if sum_b gh[b]*b == N. That is precisely the per-window
+        counter-integrity test the same file already performs:
+        "if(wsum!=inw) overflow_suspect=1;   // exact detector: counter wrap or lost update".
+        Per-window equality implies the global equality, so `agree` is implied by
+        `counter_integrity_ok` and adds nothing.
+      what_the_package_says: >-
+        RESULTS.json `instrument.exactness_checks_per_run` lists three items, and
+        `certificate.basis` calls them "Exactness checks in place of a
+        certificate". The instrument block also calls it "the independent
+        cross-check n_alt = (sum m^2 - N)/2". CREDIT WHERE DUE: the
+        PREREGISTRATION is more careful and says, in full, "V3 `n` from
+        `sum_v C(m_v,2)` disagrees with the independent identity
+        `n = (sum_v m_v^2 - N)/2` ON THE SAME HISTOGRAM, or `N != 2^32`" -- the
+        "on the same histogram" clause is the compliant qualifier and it is
+        present. The word "independent" in RESULTS.json's instrument block is not
+        so qualified.
+      why_it_matters: >-
+        The exactness battery validates counter bookkeeping only. Nothing in it
+        validates the encryption, the coset enumeration, the projection index
+        convention, or the matrix loading. The claim tier of RANK 4 rests on
+        those, not on the counters. The real checks on the map are the FIPS-197
+        pin, the ref.py cross-check, and the r=4 exact hit (see RT-OBJ-4).
+      cheapest_repair: Wording only. Report two exactness checks, not three, or state that agree is implied by counter integrity.
+
+    - id: RT-OBJ-4
+      severity: MEDIUM
+      target: "RANK 4, the exact hit 547608330240"
+      title: >-
+        The hit is one structural prediction, not two, and prediction and
+        measurement share the object model. It is nonetheless the strongest
+        single reading in the batch, and I say why.
+      the_double_counting: >-
+        RESULTS.json states: "The prediction at the critical index was an exact
+        40-bit integer (predicted 547608330240) together with an exact occupancy
+        histogram (predicted 2^24 buckets of occupancy exactly 256 and all others
+        empty)". n is a deterministic function of the histogram
+        (n = sum_v C(m_v,2)); I confirmed 2^24 * C(256,2) = 547608330240
+        exactly. So the two are one prediction -- "the r=4 map at the critical
+        j0 has image size 2^24 with all fibres of size 256" -- reported as two.
+        The evidential weight is that of one sharp structural prediction, which
+        is still high.
+      shared_source_of_error_audit: >-
+        The prediction and the measurement share the object model: the C1 round
+        convention, the D_0 coset layout, the definition of pi_{j0}, and the
+        column-vs-row indexing of MAT. cnt.c's own header states the source of
+        those conventions in full: "count5.c was read for its conventions (byte
+        order, coset layout, projection index convention, the (sum m^2 - N)/2
+        cross-check); no code was copied." So the conventions are inherited from
+        BATCH-001 by eye, not independently derived, and ref.py's pin (which I
+        read) validates the block cipher, not the coset or the projection.
+      why_the_hit_nevertheless_discriminates: >-
+        This is the honest counter to my own objection and I record it. A
+        misalignment between MAT's indexing, ShiftRows and proj() would relabel
+        which j0 is critical. The package measured BOTH j0 = 0 (predicted
+        destroyed, got 547608330240) AND j0 = 1 (predicted intact, got exactly 0
+        with max occupancy 1 over 2^32 buckets) under the same matrix, key and
+        base. A relabelling would have swapped those two readings. The paired
+        arms therefore do pin the relative alignment of the three conventions,
+        which a single arm would not have. The residual shared-source risk is
+        confined to a convention error that is invariant under the j0 relabelling
+        -- i.e. that BATCH-001's object and cnt.c's object are BOTH some third
+        object -- and that risk is untouched by any arm in this task.
+      cheapest_falsifier: >-
+        The cross-instrument anchor: run cnt.c with AES_MC on a (key, base, r,
+        j0) for which BATCH-001's count5 published an EXACT n, and require the
+        exact integer to match. This is strictly stronger than the preregistered
+        CTRL_AESMC arms, which only predicted n = 0 and n mod 8 = 0. Status: NOT
+        RUN in any form. CTRL_AESMC_r4_j0 was started and killed ~90 s in (D-6);
+        CTRL_AESMC_r5_j0 never started. Cost ~490-680 s uncontended.
+
+    - id: RT-OBJ-5
+      severity: MEDIUM
+      target: "RANK 4, the attribution control the producer's own preregistration required"
+      title: >-
+        The preregistration names CTRL_AESMC as the arm that licenses attributing
+        the M0 readings to the matrix rather than the engine, and it was traded
+        away for a replicate.
+      full_quote: >-
+        PREREGISTRATION section 3.3: "R4-P5 (engine controls, same software
+        engine, `AES_MC`). `r=4, j0=0`: `n = 0`, `max_occ = 1`. `r=5, j0=0`:
+        `n mod 8 = 0`. These show the custom-matrix engine reproduces the AES
+        readings, so any difference under `M0`/`M1` is attributable to the matrix
+        and not to the engine."
+      what_happened: >-
+        budget_stamps.jsonl, segment 2: "killed CTRL_AESMC_r4_j0 ~90 s in; no
+        output produced, recorded as abandoned, not measured. Budget re-allocated
+        to M0_r5_j1 because the r=5 survival reading rests on a single 0 mod 8
+        arm, which has probability 1/8 under the destroyed-property alternative,
+        so replication outranks the engine control."
+      assessment_both_ways: >-
+        The trade was reasoned, stamped in advance of the outcome, and disclosed;
+        the producer did not hide it. And I record honestly that CTRL_AESMC is a
+        WEAKER engine control than the preregistration implies: in cnt.c the
+        matrix enters only through the T[] tables built at startup
+        ("for(int j=0;j<4;j++) for(int x=0;x<256;x++){ uint32_t w=0; for(int
+        i=0;i<4;i++) w|=(uint32_t)gmul(MAT[i][j],SBOX[x])<<(8*i); T[j][x]=w; }"),
+        and proj(), the coset enumeration and the counting loop are byte-identical
+        across matrices. So an AES_MC arm exercises the same code paths as an M0
+        arm modulo table contents, and cannot separate "engine" from "matrix" in
+        any interesting way. Its real value is the one in RT-OBJ-4: object
+        identity with BATCH-001. That value is not what the preregistration
+        claimed for it, and the substitute the producer offers --
+        "M0_r4_j1_NONCRIT returned n = 0 ... and M0_r4_j0_CRIT returned an exact
+        large non-zero value ... which is the property the missing control was
+        meant to establish. It is a mitigation, not the control itself, and is
+        labelled as such" -- is correctly labelled and is a genuine dynamic-range
+        mitigation, but it is not an anchor to BATCH-001's object.
+      status: NOT RUN.
+
+    - id: RT-OBJ-6
+      severity: MEDIUM
+      target: "RANK 1, finding F3"
+      title: >-
+        "A single false hint byte is enough to empty the candidate set"
+        generalises over WHICH byte, and only one of the three hint slots was
+        ever the singly-corrupted one. I read the code.
+      code_read: coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-9dcca8/sq_null.c
+      what_the_code_does: >-
+        Both wrong-hint modes select the corrupted slots by a prefix test, not by
+        a choice of slot: attack6n has
+        "hint[d][t] = (t<nwrong) ? hrk[rounds][DIAGP[d][t]] : rk[rounds][DIAGP[d][t]];"
+        and attack7n has
+        "hint[d][t] = (t<nwrong) ? hk6p[DIAGP[d][t]] : k6p[DIAGP[d][t]];".
+        So nwrong=1 always corrupts slot t=0 and only slot t=0; nwrong=2 always
+        corrupts t=0 and t=1. Slots t=1 and t=2 were never individually the sole
+        corrupted byte, across all 7 partial trials and 28 diagonals.
+      why_it_is_not_fatal: >-
+        The three hint bytes enter the fold through distinct non-zero inverse-
+        MixColumns coefficients (worker6 folds u0,u1,u2 through per-coefficient
+        multiplication tables), so there is no structural reason to expect slot
+        t=0 to be privileged. I expect the rotated arms to reproduce {0: n}. But
+        that is my expectation, not a measurement, and F3's wording claims the
+        general statement.
+      cheapest_falsifier: >-
+        Add a slot-rotation parameter (a one-line change to the two prefix tests)
+        and run nwrong=1 with the corrupted slot at t=1 and at t=2. Cost per run
+        94-103 s at r=6 uncontended by the package's own segment-2 timings;
+        two runs, under 5 minutes total. Status: NOT RUN.
+
+    - id: RT-OBJ-7
+      severity: MEDIUM
+      target: "RANK 1, the Pareto record for r=6"
+      title: >-
+        `dominated_by` was checked on the time axis only. The data/query axis is
+        not in the record, and on that axis the domination is far larger than the
+        time comparison shows.
+      what_the_record_says_in_full: >-
+        "The r=6 key recovery WORKS AND IS DOMINATED. It requires 12 hint bytes
+        and, by BATCH-001's own measured numbers, costs 69.39 s against roughly
+        25 s for exhaustive search over the same hinted residual." with
+        "dominated_by": "exhaustive search over the hinted residual" and
+        "sota_delta": "NEGATIVE".
+      the_omitted_axis: >-
+        RESULTS.json records "structures_per_trial": 2 and
+        "texts_per_structure": 4294967296, i.e. 2^33 CHOSEN-plaintext oracle
+        queries per trial, and worker6 confirms the enumeration (b0,b1,b2,b3 over
+        256^4 per structure). The baseline it is compared to -- exhaustive search
+        over a 2^32 residual given 12 known key bytes -- needs a handful of known
+        pairs, not 2^33 chosen ones. The transport cost of those 2^33 queries is
+        charged at zero because the process is its own oracle
+        (_mm_aesenc_si128 inline in worker6). Memory is likewise not in the
+        comparison. The conclusion does not change -- the construction is
+        dominated either way -- but the recorded comparison understates by how
+        much, and a successor tempted to argue the 69.39 vs 25 s gap is closeable
+        must still carry 2^33 chosen-plaintext queries against O(1).
+      status_of_the_conclusion: Unchanged. This is an incompleteness in the Pareto record, not an overclaim.
+
+    - id: RT-OBJ-8
+      severity: LOW-MEDIUM
+      target: "RANK 3, post-hoc arms A2b and A3b"
+      title: >-
+        The disclosure is exemplary and A3b is anti-flattering; A2b is in the
+        flattering direction for the death-round statement and the reported r=6
+        bound is the tightest of two arms rather than the pooled one.
+      the_disclosure_in_full: >-
+        "Two arms were added that the preregistration did not list: A3b (a second
+        measured PRP null at 2^33) and A2b (a second r=6 arm at 2^33)." ...
+        "when": "launched at 2026-08-02T17:33Z, AFTER the five preregistered arms
+        had completed and after A1 had already been read" ... "handling":
+        "recorded here rather than absorbed. Both are reported with their own
+        seeds and keys; the pooled measured null and the r=6 statement both use
+        them, and both readings are individually reported so a reviewer can
+        recompute with A3/A2 alone. Neither addition changes the r=5 verdict: A1
+        against the A3-only null gives p = 2.19e-31, against the pooled null
+        p = 1.03e-45."
+      my_assessment_A3b: >-
+        A DISCLOSED NON-ISSUE, and the direction is checkable from the numbers.
+        A3 alone: 5 hits over 8589934591 nontrivial trials. Adding A3b (7 hits)
+        RAISES the pooled null rate to 6.98e-10 from 5.82e-10, which LOWERS the
+        r=5 excess factor against the measured null. A post-hoc arm that makes
+        the headline weaker is not p-hacking. This one is fine and I say so.
+      my_assessment_A2b: >-
+        A2b runs the other way and should be treated as post-hoc. A2 alone reads
+        6 vs 4.0 = 1.50x; A2b reads 7 vs 8.0 = 0.875x; pooled 13 vs 12.0 = 1.08x.
+        A deader r=6 sharpens the r=5-versus-r=6 contrast that carries the
+        death-round statement. The mitigation is real: A2 alone already read no
+        signal (p = 0.13 against the measured null), so the qualitative statement
+        is unchanged with or without A2b, and both arms are reported individually.
+      the_bound_selection: >-
+        `death_round.power_caveat` states in full: "The r=6 arms read no usable
+        signal, and that is a bound, not a proof of absence. Their tightest
+        one-sided 95% upper bound on the r=6 excess factor is 1.64x (observed
+        counts [6, 7] against analytic expectations [4.0, 8.0]), so an r=6 excess
+        smaller than that is NOT excluded by this session." The word "tightest"
+        is honest and both counts are given, so a reviewer can recompute. I did:
+        1.64x is the A2b-alone bound; A2-alone gives 2.96x; the POOLED bound over
+        both arms is 1.72x. The pooled figure is the one a reader should quote,
+        and it is not in the package.
+      cheapest_repair: Report the pooled 1.72x alongside, or state that 1.64x is a per-arm minimum.
+
+    - id: RT-OBJ-9
+      severity: LOW-MEDIUM
+      target: "RANK 4, the independence claim of the instrument"
+      title: >-
+        Deviation D-2 removed the very design feature the preregistration named
+        as what makes cnt.c a different instrument, and RESULTS.json does not
+        note that.
+      preregistration_says_in_full: >-
+        "Instrument: `cnt.c`, written for this task. It is **not** BATCH-001's
+        `count5.c`: threads partition the *input* space and use atomic counter
+        increments (count5 partitioned the *value* space and re-encrypted the
+        whole coset in every thread), and it carries a software T-table engine
+        with a **configurable** GF(2^8) mixing matrix, which `count5.c` does not
+        have."
+      what_changed: >-
+        D-2, in full: "The counting kernel was changed once during the task,
+        BEFORE any result was recorded. Version 1 partitioned the input space and
+        used atomic counter increments. Version 2 (used for every recorded
+        measurement) partitions the VALUE space, each thread scanning the whole
+        input space and incrementing only its own slice, with plain non-atomic
+        increments and therefore no data races. No measurement from version 1
+        exists..."
+      objection: >-
+        After D-2 the shipped kernel is, by the preregistration's own description
+        of count5.c, the SAME kernel design as count5.c: value-partitioned, whole
+        coset re-scanned per thread. The surviving material difference is the
+        configurable mixing matrix, which is real and is what the task needed.
+        No code was copied and I make no allegation that it was. But the
+        "materially different instrument" framing in RESULTS.json
+        ("cnt.c differs materially") is narrower after D-2 than before it, and
+        RESULTS.json does not record that the change consumed one of the two
+        stated differences. This matters only for how much INDEPENDENT
+        instrument corroboration RANK 4 supplies against BATCH-001, which is the
+        question RT-OBJ-4 turns on.
+      cheapest_repair: One sentence in a successor record. No measurement needed.
+
+    - id: RT-OBJ-10
+      severity: MEDIUM
+      target: "Campaign-standing null-object gap, carried from BATCH-001 and NOT closed by BATCH-002"
+      title: >-
+        Every "random permutation" null in this batch is still 10-round AES. The
+        null-object control docs/inventor-protocol.md section 3 asks for -- a
+        random function or random bijection of the same shape -- was still not
+        run anywhere in BATCH-002.
+      evidence: >-
+        RANK 2's only new null arm N1 is "PRP surrogate (10-round AES-128)".
+        RANK 3's A3/A3b are "full 10-round AES-128 under an independent key, and
+        its exact inverse, as the permutation surrogate". RANK 3 states the gap
+        itself, in full: "Per DEC-20260802-9bda5c ruling 3, the r=4 and r=5
+        properties of this campaign are NOT AES-S-box-specific; this session
+        measured the yoyo object on real AES-128 only and ran no random-S-box
+        arm, so it contributes no new evidence on that relabelling in either
+        direction."
+      why_it_still_matters: >-
+        BATCH-001's validator did run uniformly random bijective S-boxes for the
+        r=4/r=5 properties (120/120), which is why the relabelling is carried
+        forward unhedged and I do not re-litigate it. The yoyo statistic of RANK
+        3 has no such component null: its 15.63x excess has a structure-destroyed
+        control but no random-S-box control. A property of the AES round function
+        that persisted to 10 rounds would be invisible to A3, A3b and N1
+        simultaneously.
+      what_the_parameter_should_do_and_does: >-
+        CREDIT: RANK 3 does satisfy the decay test. The parameter that should
+        destroy the signal is the round count, and it does: 15.63x and 15.00x at
+        r=5, 1.50x and 0.875x at r=6, 0.625x and 0.875x at r=10. A flat quantity
+        would have been the artifact tell; this one decays monotonically in the
+        right place. The structure-destroyed control reads 1.00x. This is a
+        properly built null battery on the axes it covers.
+      cheapest_falsifier: >-
+        One recompile of probe.c with a uniformly random bijective S-box at
+        r=5, A={0}, S={0}, 2^32 trials. By arms_meta.json timings that is one run
+        of roughly 190-250 s. Status: NOT RUN.
+
+    - id: RT-OBJ-11
+      severity: LOW
+      target: "Batch cost accounting"
+      title: >-
+        Producer wall-clock consumed is about 15300 s against a declared 9600 s,
+        and the second segments re-declared full fresh budgets rather than a
+        remainder.
+      arithmetic: >-
+        The dispatch queue's budget_note declares "3000 + 3000 + 3600 producers,
+        900 snapshot, 4800 + 3600 review, 1800 ledger = 20700 s" against the
+        GOAL-AES-003 ceiling of 30400 s. Measured from the artifacts:
+        TASK-20260802-9dcca8 segment 1 declared 3000 s plus segment 2 declared
+        2700 s = 5700 s; TASK-20260802-142a4b segment 1 declared 3000 s plus
+        segment 2 declared 3000 s (budget_stamps.jsonl segment 2 C2_START:
+        "declared_wall_clock_seconds": 3000) = 6000 s;
+        TASK-20260802-e4fa63 3600 s, single segment, halted_on_budget false.
+        Total 15300 s against 9600 s declared for producers.
+      why_it_is_reported_not_alleged: >-
+        The overrun is the direct consequence of a Coordinator-acknowledged
+        scheduling defect. PROTOCOL-DEVIATIONS.md D-1 states in full: "Three
+        producers were dispatched concurrently onto a 4-core machine. Load
+        average reached 12. ... `GOAL-AES-003.yaml` states that
+        `max_concurrent: 3` is a cap ACROSS all three active AES campaigns, not
+        three each, and that if honouring it would require running degraded, the
+        batch WAITS. That instruction was not honoured. This is a Coordinator
+        scheduling defect, not a producer defect." The producers halted on their
+        stamps correctly and named their dropped work. My objection is only that
+        no artifact in the snapshot re-states the batch total against the goal
+        ceiling after resumption, so the ceiling is being consumed without a
+        recorded running balance.
+      cheapest_repair: Arithmetic in the ledger archive receipt. No compute.
+
+    - id: RT-OBJ-12
+      severity: LOW
+      target: "Internal consistency of the snapshot"
+      title: >-
+        PROTOCOL-DEVIATIONS.md D-6 and snapshot-receipt.json describe
+        TASK-20260802-142a4b differently, at the same commit.
+      the_two_texts: >-
+        D-6 states in full: "This is `resource_exhaustion` and it is NOT
+        mathematical evidence in either direction. Nothing is asserted about the
+        zero-entry mixing layer, and nothing new is asserted about the null
+        residue distribution." and "REPAIR: rank 2+4 is to be resumed ALONE,
+        after rank 1's resumed segment finishes, with the frozen parameters in
+        its `params.json` and the successor order it specified". The receipt at
+        the same commit states: "TASK-20260802-142a4b": "TERMINAL, two segments;
+        segment 1 produced ZERO numbers under coordinator-caused contention (D-1,
+        D-6). Segment 2: the derivation's no-zero-entry hypothesis is WRONG at
+        r=5 ..."
+      objection: >-
+        D-6 was evidently written before segment 2 and was not amended; it is
+        immutable and correctly so. But a reader who follows the instruction
+        "Read PROTOCOL-DEVIATIONS.md there first" will read a statement that
+        nothing is asserted about the zero-entry mixing layer and then encounter
+        the assertion. The receipt is the later document and governs. This is a
+        reading-order hazard, not a data defect, and is worth one line in the
+        ledger archive.
+
+  # ---------------------------------------------------------------
+  required_controls:
+    - id: RC-1
+      control: M1_r5_j0 (the mixing layer for which derivation fact 2 fails outright)
+      what_it_would_settle: >-
+        Whether fact 2 is load-bearing at all, as opposed to whether its literal
+        wording is necessary. This is the ONLY arm in the design that tests the
+        proposition D-DERIV-1 claims to have refuted.
+      preregistered_prediction: "n_5 mod 8 = 0 anyway, n_5 >= 547608330240, max_occ >= 256 (R4-P4)"
+      cost: one uint16 two-window full-coset pass, ~680 s uncontended
+      status: NOT RUN (named in dropped_work_named)
+      claim_that_survives_only_because_it_was_not_run: "D-DERIV-1 and the EV-AES-005 supersession request"
+
+    - id: RC-2
+      control: >-
+        Cross-instrument exact anchor: cnt.c with AES_MC on a (key, base, r, j0)
+        for which BATCH-001's count5 published an exact n, requiring exact
+        integer agreement.
+      what_it_would_settle: >-
+        That cnt.c's object is BATCH-001's object. Nothing currently ties them
+        except conventions read off count5.c by eye (cnt.c header, quoted in
+        RT-OBJ-4).
+      cost: ~490-680 s uncontended
+      status: NOT RUN in any form; the weaker CTRL_AESMC arms were killed (D-6) or never started
+
+    - id: RC-3
+      control: M0_r5_j2_ALTKEY (third r=5 arm, independent key and base)
+      what_it_would_settle: >-
+        Independence of the r=5 replication. The producer states the limitation
+        itself, in full: "The r=5 arms that completed share the SAME key and the
+        SAME base and differ only in the projection index j0. They are therefore
+        not fully independent trials, and the 8^-t figure above should be read
+        with that in mind."
+      cost: one uint8 single-window pass, ~550 s uncontended
+      status: NOT RUN
+
+    - id: RC-4
+      control: nwrong=1 with the corrupted hint slot rotated to t=1 and t=2
+      what_it_would_settle: F3's generalisation over which hint byte is false
+      cost: two r=6 runs, 94-103 s each
+      status: NOT RUN
+
+    - id: RC-5
+      control: >-
+        Component null for the yoyo statistic: probe.c recompiled with a
+        uniformly random bijective S-box, r=5, A={0}, S={0}, 2^32 trials.
+      what_it_would_settle: >-
+        Whether the 15.63x excess is a property of AES's S-box or of round
+        geometry, which is the same question BATCH-001's validator settled for
+        the r=4/r=5 properties and which is open for the yoyo statistic.
+      cost: one recompile plus ~190-250 s
+      status: NOT RUN
+
+    - id: RC-6
+      control: RANK 2 arms N2-N5
+      what_it_would_settle: >-
+        Nothing about the r=5 result, by the producer's own preregistered R2-P3.
+        I ENDORSE that assessment rather than demanding the gate be met for its
+        own sake: the deterministic refutation of forcing is complete, and the
+        producer preregistered "the distribution characterisation adds nothing
+        of consequence" BEFORE measuring, which is the right way to make that
+        claim non-deflationary. The gate is self-reported NOT MET and no claim
+        rests on it. This control is listed for completeness, at lowest priority.
+      status: NOT RUN
+
+  counterexample_or_mutation: >-
+    The single cheapest discriminating mutation in the batch is M1_r5_j0. It is
+    already fully specified: matrix hex 00030101010203000101000303000102 (det
+    0x14, rank 4, inverse verified), key 6fe52e2e9b3ea04085c370f9bc609245, base
+    e35f00e7631cdd862e59d126e72b8fc9, r=5, j0=0, uint16 counters, two windows.
+    Under the producer's own analytic model it must return n_5 mod 8 = 0 with
+    n_5 >= 547608330240 and max_occ >= 256. If it returns a non-zero residue mod
+    8, the analytic argument that fact 2 is dispensable is false, D-DERIV-1 is
+    withdrawn, and the EV-AES-005 boundary clause stands as written. If it
+    returns 0 mod 8 with the predicted large-n signature, D-DERIV-1 is earned
+    rather than inferred, and the supersession request becomes supportable at a
+    scope wider than one zero position. Either outcome is a result. Neither
+    requires new code.
+
+  # ---------------------------------------------------------------
+  baseline_comparison:
+    r6_construction:
+      claimed_cost: 69.39 s (BATCH-001 measurement, carried forward, NOT re-measured in BATCH-002)
+      baseline: exhaustive search over the hinted residual, ~25 s (BATCH-001 measurement)
+      time_axis: DOMINATED, sota_delta NEGATIVE, correctly recorded
+      data_axis: >-
+        NOT IN THE RECORD. 2^33 chosen-plaintext oracle queries per trial
+        (2 structures x 2^32 texts, confirmed against worker6's enumeration)
+        against O(1) known pairs for the baseline. Oracle transport charged at
+        zero because the process is its own oracle.
+      memory_axis: NOT IN THE RECORD.
+      verdict: >-
+        The `dominated_by` field is not fabricated and its direction is correct;
+        it is incomplete on two of three axes, and completing it makes the
+        domination larger, not smaller.
+    r7_construction:
+      status: >-
+        Not a key recovery and correctly so labelled. RESULTS.json states in
+        full: "The r=7 run is NOT a key recovery and carries no certificate: the
+        true last round key K7 is supplied as input in BATCH-001 and in every arm
+        here." I confirmed against the code: attack7n copies rk[rounds] into
+        every job (memcpy(J[t].k7,rk[rounds],16)) and the object_under_test block
+        lists "in attack7n the last round key K7 handed to the attack is always
+        the TRUE one" among what did not change.
+      baseline: none applicable; there is nothing to compare because nothing is recovered.
+    r5_yoyo_statistic:
+      claimed: 15.63x excess at r=5 over an analytic null of 8.0, p_exact 1.03e-45 against the measured null
+      baselines_present: >-
+        analytic Poisson null; measured PRP null (2 arms, 10-round AES);
+        structure-destroyed control at 1.00x; r=6 and r=10 decay arms.
+      baselines_absent: random-bijective-S-box component null; random-function null of the same shape.
+      dominated_by_status: >-
+        No attack cost is claimed for the yoyo statistic in BATCH-002, so no
+        `dominated_by` is owed on it. The false-positive-rate terminology
+        correction the producer carries forward is correct and I verified the
+        arithmetic form it uses ("A test with no false negatives and
+        false-positive rate p has distinguishing advantage ~1-p, which is close
+        to 1, not to p"), including that it declines to apply the 1-p form to the
+        single-trial test.
+    rank1_filter_result:
+      cheaper_alternative_that_would_make_it_moot: >-
+        None. The wrong-hint null is the cheapest way to separate "isolates the
+        correct byte" from "isolates a byte", and BATCH-001's red team named it
+        as the cheapest unrun control in that batch. It is now run, at 11
+        all-wrong trials against 8 required and 7 partial trials. On its own
+        terms this is the batch's cleanest piece of work.
+
+  # ---------------------------------------------------------------
+  heuristic_challenges:
+    - id: HC-1
+      heuristic: "Under the destroyed-property alternative the r=5 residue is uniform on {0..7}, so t arms cost 8^-t."
+      challenge: >-
+        The uniformity of the residue under the destroyed alternative is itself
+        an unstated modelling assumption, and the package contains data bearing
+        on it: `residue_histogram_all_arms_to_date` over 13 pooled null arms
+        reads {0:3, 1:1, 2:2, 3:0, 4:3, 5:0, 6:1, 7:3}, i.e. residue 0 appears
+        3/13 empirically, not 1/8. The producer does not lean on this and states
+        the pooling limitation in full: "The pooled arms are also NOT
+        exchangeable: they span at least four different null families ... so the
+        pooled histogram is a summary of heterogeneous objects, not a sample from
+        one null." I raise it only to say that the 1/64 figure is an
+        order-of-magnitude, not a calibrated probability, and the record should
+        not be read as if it were the latter.
+      status_in_package: The 1/64 figure is explicitly called "suggestive, not decisive". Correctly hedged.
+    - id: HC-2
+      heuristic: "The r=4 exact hit transfers belief to the r=5 reading because the same model produced both."
+      full_quote: >-
+        "What makes the reading strong is not the r=5 arms in isolation but the
+        r=4 pair below: the same analytic model that predicts r=5 survival also
+        predicted, before measurement, an EXACT 40-bit integer and an EXACT
+        occupancy histogram at one j0 and an exact zero at another j0 under the
+        SAME matrix, and both hit. A model that got those two right by accident
+        is far less likely than a 1-in-8 residue coincidence."
+      challenge: >-
+        This is a real argument and I do not dismiss it. But the r=4 and r=5
+        parts of the model are different arguments: the r=4 prediction follows
+        from the explicit criticality condition "n_4 = 0 iff the four entries
+        M[(-c-j0) mod 4][c], c = 0..3, are all non-zero", while the r=5 claim
+        rests on a counting argument about the k=1..4 classes that the r=4
+        prediction never exercises. Confirming one does not confirm the other; it
+        confirms that the author has the object's geometry right, which is a
+        different and lesser thing. M1_r5_j0 is precisely the arm that would test
+        the r=5 half of the model, and the same passage's confidence is what
+        makes skipping it costly.
+    - id: HC-3
+      heuristic: "The producer's live reminder of the 1-in-8 coincidence."
+      note: >-
+        CREDIT, recorded because it is unusual and should be. The producer
+        volunteered against its own headline: "The one random-permutation null
+        arm that completed in this task (N1, 10-round AES surrogate) itself read
+        n mod 8 = 0. That is the expected 1/8 coincidence, it is exactly the
+        caution the BATCH-001 validator recorded, and it is reported here rather
+        than buried because it bears directly on how much a small number of
+        0-readings is worth." I have no objection to make to this and I note it
+        so a reader of my objections does not mistake the package for one that
+        hid its weaknesses.
+
+  cost_model_challenges:
+    - RT-OBJ-7 (r=6 Pareto axes: data and memory not compared; oracle transport at zero)
+    - RT-OBJ-11 (producer wall clock 15300 s measured against 9600 s declared; no running balance against the 30400 s goal ceiling)
+    - id: CM-3
+      challenge: >-
+        The RANK 4 per-number cost is understated by the counting kernel's own
+        redundancy and this is not carried into any successor estimate. cnt.c
+        gives every thread the full input range ("uint64_t lo=0, hi=1ull<<32;
+        // every thread: full input scan"), so a 4-thread two-window run performs
+        4 x 2 x 2^32 = 2^35 encryptions to produce one number. The 681 s figure
+        for M0_r4_j0_CRIT is therefore a 2^35-encryption cost, not a
+        2^32-encryption cost, and any successor planning M1 (also uint16, two
+        windows) should budget the same 2^35, not scale from the 490 s uint8
+        single-window arms. The producer identified the redundancy under
+        contention (D-3) but did not carry it into the successor cost note.
+    - id: CM-4
+      challenge: >-
+        RANK 3 reports "peak_memory": "not separately instrumented ... Recorded
+        as not measured rather than estimated." That is the correct handling of a
+        missing number under AGENTS rule 5 and I raise no objection. I note only
+        that no memory axis exists for any BATCH-002 claim, so no `dominated_by`
+        in this batch can be said to have been checked on memory.
+
+  reduction_and_scope_challenges:
+    - id: SC-1
+      challenge: Scope inflation audit on "key recovery" language.
+      finding: >-
+        NONE FOUND. I grepped every JSON and MD artifact under the BATCH-002 task
+        and archive trees for "key recovery", "key-recovery", "distinguisher",
+        "breaks AES" and "attack on AES". Every occurrence outside the raw run
+        JSONs is in TASK-20260802-9dcca8, and every one carries its qualifier in
+        the same sentence. Quoted in full so the qualifier is not lost:
+        "The r=6 key recovery WORKS AND IS DOMINATED. It requires 12 hint bytes
+        and, by BATCH-001's own measured numbers, costs 69.39 s against roughly
+        25 s for exhaustive search over the same hinted residual." and "The r=7
+        run is NOT a key recovery and carries no certificate: the true last round
+        key K7 is supplied as input in BATCH-001 and in every arm here." The
+        occurrences in the run JSONs are the field "K7_given": "TRUE key's K7",
+        which is a disclosure, not a claim. RANK 1's F4 also states its own
+        limit: "This says nothing about whether the constructions are USEFUL: r=6
+        remains dominated (see carried_forward) and r=7 remains not a key
+        recovery." I find no language sliding from "the filter isolates
+        correctly" toward "this is a key-recovery result".
+    - id: SC-2
+      challenge: What RANK 1 does NOT establish, stated positively.
+      finding: >-
+        It establishes a property of the FILTER: on this target key, at 11
+        all-wrong and 7 partial trials, a false hint byte yields no survivor
+        rather than a wrong survivor. It does NOT establish (a) that the
+        construction recovers key material on net -- the r=6 mode is handed 3 of
+        4 last-round-key bytes per diagonal, 12 of 16, and searches the 4th, so
+        it consumes 96 bits of key material to output 32 (sq_null.c: "This mode
+        is given K6[p0],K6[p1],K6[p2] as a hint and searches (K6[p3], K5') = 2^16
+        per (d,r)"); (b) anything about a second target key, which is named as
+        NOT RUN and outside the frozen preregistration; (c) anything about
+        near-miss hints other than 1-of-3 and 2-of-3 at slot prefix positions,
+        which F4's `limits_of_this_statement` already says; (d) any cost
+        statement, since segment-1 times are contended and segment-2 times were
+        not taken under BATCH-001's protocol, both of which the record states.
+        The producer states (b), (c) and (d) itself. (a) is stated in the
+        carried-forward block but is not restated next to F3/F4, which is where a
+        casual reader forms the impression.
+    - id: SC-3
+      challenge: RQ-AES-003 R3 and DEC-20260731-019 ruling 3 compliance.
+      finding: >-
+        I found no comparison to published cryptanalysis in either direction in
+        any BATCH-002 artifact, and no recollection of the literature used either
+        to promote or to dismiss. RANK 3 states the constraint symmetrically:
+        "The measured death round is reported AS MEASURED BY THIS CAMPAIGN only,
+        with no comparison to any published death round in either direction."
+        I make no such comparison in this report either, and I explicitly decline
+        to say whether any of these readings is or is not known, because I hold
+        no verified citation and an unverified recollection may be used neither
+        to promote NOR to dismiss.
+    - id: SC-4
+      challenge: Premature-closure audit, symmetric with the overclaiming audit.
+      finding: >-
+        I recommend abandoning NOTHING. RANK 2's gate is NOT MET, and that is a
+        budget outcome under a Coordinator-caused contention event, not a
+        statement about the problem; treating it as a dead lane would be exactly
+        the fatigue-report-as-closure failure. The RANK 4 line is the opposite of
+        saturated: the two arms that would decide it (M1_r5_j0, M0_r5_j2_ALTKEY)
+        are specified, frozen and affordable at roughly 1200 s combined. RANK 3's
+        r=6 arms read no signal, and the producer's own statement of that is the
+        correct one and I endorse it verbatim: "'Death at r=6' here means 'no
+        excess detectable at these trial counts with this statistic', never 'no
+        excess exists'." An r=6 excess below 1.72x pooled is not excluded by this
+        session.
+
+  proof_architecture_challenges:
+    - id: PA-1
+      challenge: >-
+        Quantifier order in D-DERIV-1. The measured statement is "there exists a
+        non-singular column-preserving M with a zero entry and there exist two j0
+        such that n_5 = 0 mod 8". The recorded statement is "for all non-singular
+        column-preserving M, n_5 = 0 mod 8" ("the correct hypothesis for r=5 is
+        merely a non-singular column-preserving mixing layer"). The analytic
+        argument in section 3.3 is the thing that would license the universal
+        form, and it is correctly labelled ANALYSIS not measurement
+        ("analytic_reading_of_the_derivation_LABELLED_ANALYSIS_NOT_MEASUREMENT").
+        The defect record's own status line, "RECORDED ON MEASURED EVIDENCE",
+        attaches the measured label to the universal statement. That is the
+        quantifier slip.
+    - id: PA-2
+      challenge: >-
+        Method ceiling. The analytic argument's own reach should be stated: it
+        shows fact 2 is dispensable for the mod-8 conclusion because the k=1
+        class contributes a multiple of 2^24. It does NOT show anything about mod
+        16, and the package correctly declines to: "The BATCH-001 validator's
+        refinement was that the derivation forces mod 8 and NOT mod 16, so both
+        residues 0 and 8 must be attainable. Both occur here, under a zero-entry
+        mixing layer, which is a small independent consistency check on that
+        refinement rather than a new claim." That is the right handling and I
+        record it as passing.
+    - id: PA-3
+      challenge: >-
+        Nearby-object control. The nearest object to M0 that should break the
+        argument if the argument is wrong is M1, and it is unrun (RC-1). The
+        nearest object that should break it if the argument is RIGHT is a
+        singular M, which is excluded by construction and correctly so. The
+        design had the right nearby object and lost it to budget.
+
+  # ---------------------------------------------------------------
+  corroboration_only:
+    - claim: "The r=5 mod-8 property survives a zero-entry mixing layer (D-DERIV-1's positive half)."
+      basis: >-
+        Two arms from one producing session, one instrument, one key, one base,
+        one matrix, two j0. No independent session, implementation or key has
+        reproduced it. The producing session's own analytic model supplies the
+        rest of the belief.
+    - claim: "n_4 = 547608330240 at the critical j0."
+      basis: >-
+        One arm, one instrument, one session. The prediction was preregistered in
+        the same session by the same author from the same object model. The
+        arithmetic identity 2^24 * C(256,2) = 547608330240 I verified
+        independently, but that verifies the internal consistency of the
+        prediction, not the measurement.
+    - claim: "The measured PRP null agrees with the analytic null (RANK 3)."
+      basis: >-
+        Two arms, one instrument, one session, and both arms are 10-round AES,
+        i.e. the same surrogate family whose adequacy is the open question in
+        RT-OBJ-10.
+    - not_corroboration_only: >-
+        RANK 1's true-hint arms are NOT in this category: they reproduce
+        BATCH-001's certified bytes exactly on a different binary
+        ("r=7 survivors 8034b976 in both runs, identical to BATCH-001
+        attack7_out.json; r=6 survivors fd,41,fd,7a matching attack6b_out.json
+        rk_last"), which is a genuine cross-batch anchor. RANK 4 has no
+        equivalent anchor, and that asymmetry is the substance of RT-OBJ-4 and
+        RC-2.
+
+  # ---------------------------------------------------------------
+  the_one_that_would_hurt_most:
+    finding: >-
+      If M1_r5_j0 comes back with n_5 mod 8 != 0.
+    why_it_hurts_most: >-
+      It would falsify the analytic argument that fact 2 is dispensable -- the
+      argument that is the entire reason D-DERIV-1 is stated as a defect in the
+      derivation rather than as a curiosity about one matrix -- and it would do
+      so while leaving the r=4 exact hit intact, which is worse than it sounds:
+      it would show that an author can get the object's geometry exactly right at
+      r=4 and still be wrong about the r=5 counting argument, which is precisely
+      the transfer of belief the package leans on in HC-2. The r=5 mod-8 property
+      of AES-shaped SPNs would be untouched; what would be destroyed is the
+      claim that the derivation is WRONG about a hypothesis, and with it the
+      supersession request against EV-AES-005. Because the batch objective
+      anticipates minting CORR records from this batch's ledger commit, the
+      failure mode is not a missing result but a FALSE CORRECTION written into
+      the ledger and inherited by every successor. A missing result is recoverable
+      by running an arm; a wrong correction propagates.
+    probability_i_assign: >-
+      NONE. I hold no calibrated basis for one and will not manufacture a number.
+      I note only that the producer's analytic argument is explicit, checkable
+      and was frozen before measurement, which is the strongest form an untested
+      argument can take, and that it remains untested.
+
+  # ---------------------------------------------------------------
+  narrowest_supported_statement:
+    rank1: >-
+      On one target key (2b7e151628aed2a6abf7158809cf4f3c), with the hinted r=6
+      and r=7 constructions as implemented in sq_null.c, across 11 all-wrong
+      trials (44 diagonals) and 7 partial trials (28 diagonals) in which the
+      corrupted hint bytes occupied slot prefix positions t<nwrong, the survivor
+      count was 0 on every measured diagonal, and across 4 true-hint trials (16
+      diagonals) it was exactly 1 and equal to the correct byte. Hypothesis B --
+      that uniqueness is structural and indifferent to hint correctness -- is
+      refuted at these trial counts. This is a statement about the filter. It is
+      not a cost result, not a key-recovery result at r=7, and at r=6 it concerns
+      a construction that is dominated on time and, once the data axis is added,
+      dominated by more than the recorded time gap.
+    rank4_r4: >-
+      For M0 (single zero at entry (0,0), det 0x1d, rank 4, inverse verified), at
+      one key and base, n_4 = 547608330240 with occupancy histogram
+      {0: 4278190080, 256: 16777216} at j0 = 0 and n_4 = 0 with max occupancy 1
+      at j0 = 1, both exactly as preregistered. The derivation's "no zero
+      entries" condition at r=4 is sufficient and not necessary, and only the
+      four entries M[(-c-j0) mod 4][c] are load-bearing. EV-AES-005's boundary
+      clause, which already says "no zero in the RELEVANT entries", is confirmed
+      by this rather than superseded.
+    rank4_r5: >-
+      For the same M0, key, base and j0 in {0, 1}, n_5 = 0 mod 8 in 2 of 2 arms
+      (n_5 = 2147411968 and 2147031240; mod 16 residues 0 and 8). Therefore the
+      literal condition "the mixing layer has no zero entry" is NOT necessary for
+      n_5 = 0 mod 8 on this object. NOT supported by measurement: that fact 2 is
+      dispensable (M0 does not make fact 2 fail at any j0), that the result
+      extends to layers with several zeros (M1 unrun), or that the correct
+      hypothesis is "any non-singular column-preserving layer" (one member of
+      that class measured). The analytic argument for the wider statement is
+      explicit, preregistered and unfalsified, and should be recorded as an
+      argument awaiting its test, not as measured evidence.
+    rank3: >-
+      In a third independent implementation, at r=5 with A={0}, S={0}: 125 hits
+      against an analytic expectation of 8.0 over 2^33 trials (15.63x) and 60
+      against 4.0 over 2^32 (15.00x) on an independent key; the measured 10-round
+      AES PRP null agrees with the analytic null (12 hits over 2^34 against 16.0,
+      inside the 99% Poisson interval [6,27]); the structure-destroyed control
+      reads 1.00x, with a one-sided 95% upper bound of 2.29x, so it excludes an
+      excess above roughly 2.3x rather than establishing zero excess; r=6 reads no
+      signal with a POOLED one-sided 95% upper bound of 1.72x (the package quotes
+      the per-arm minimum 1.64x). No random-S-box or random-bijection component
+      null was run for this statistic.
+    rank2: >-
+      No new claim. One null arm of at least three completed; the gate is
+      self-reported NOT MET; the deterministic refutation of forcing stands from
+      BATCH-001 and is not re-litigated. The producer's preregistered answer that
+      the distribution characterisation adds nothing of consequence is, in my
+      reading, correct.
+
+  scope_limits:
+    - Nothing in this report asserts anything about full-round or deployed AES.
+    - >-
+      No comparison to published cryptanalysis is made in either direction, and
+      no recollection of the literature is used to promote or to dismiss any
+      candidate (RQ-AES-003 R3; DEC-20260731-019 ruling 3).
+    - >-
+      Every conclusion above is scoped to the tested rounds, matrices, keys,
+      bases, projections, trial counts, instruments and budgets named in the
+      snapshot at c1ff4665. Toy tier throughout; no claim in this batch is at
+      cryptographic scale and none is presented as such.
+    - >-
+      I assign no official state and no evidence strength, and I recommend no
+      promotion. Those are the Validator's and Coordinator's.
+    - >-
+      I recommend closing no line. Every gap I name is an unrun affordable arm,
+      not an obstruction.
+
+  next_concrete_action: >-
+    Run M1_r5_j0 alone on an idle machine with the frozen parameters already in
+    TASK-20260802-142a4b/params.json and the command form in commands.txt
+    (./cnt soft 5 0 6fe52e2e9b3ea04085c370f9bc609245
+    e35f00e7631cdd862e59d126e72b8fc9 00030101010203000101000303000102 16 1 4),
+    budgeting ~700 s for a 2^35-encryption two-window uint16 pass. Report n_5,
+    n_5 mod 8, n_5 mod 16, max_occ and the occupancy histogram against the
+    preregistered R4-P4 prediction (n_5 mod 8 = 0, n_5 >= 547608330240,
+    max_occ >= 256). Until it returns, D-DERIV-1's universal form and the
+    EV-AES-005 supersession request should be held at the narrowest statement in
+    `narrowest_supported_statement.rank4_r5`, and any CORR minted in this batch
+    should correct the BATCH-001 preregistration's fact 2 wording only, not
+    EV-AES-005's "no zero in the relevant entries" boundary clause.
+
+  artifact_paths:
+    - coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-958bac/red_team_report.yaml
+
+  commit_discipline:
+    committed_by_me: false
+    reason: >-
+      CORR-20260802-009 binds this batch: review artifacts are left uncommitted
+      and the ledger archive task TASK-20260802-c90b58 stages them, so that the
+      archive commit introduces the content it binds. BATCH-001's ledger archive
+      is published but not official because the red-team report rode an earlier
+      commit. I ran no `git add` and made no commit. Nothing outside
+      coordination/goals/GOAL-AES-003/batches/BATCH-002/tasks/TASK-20260802-958bac/
+      was written.
+
+  inference:
+    policy: review-adversarial
+    requested_policy: review-adversarial
+    resolved_model: claude-opus-5
+    fallback_used: true
+    fallback_note: >-
+      orchestration/model-policies.yaml routes review-adversarial to a GPT-5.6
+      family policy alias that this harness cannot resolve; subagent frontmatter
+      in .claude/agents/ supports only Claude models. Recorded as a fallback, not
+      silently substituted.
+    model_verified: false
+    model_verified_reason: no adapter probe exists in this harness and none was run
+    standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
+    independence_statement: >-
+      THIS SESSION SUPPLIES SESSION INDEPENDENCE BUT NOT MODEL INDEPENDENCE.
+      It is a distinct session from the three producers, the snapshot
+      coordinator and the concurrent validator, and it read only the
+      snapshot-bound artifacts at c1ff4665. It resolves to the same model family
+      as those sessions, so any failure mode common to the model is shared and
+      this review cannot detect it. Under CLAUDE.md rule 8 this attestation is
+      not a distinct resolved model for quorum purposes and must not be counted
+      as one.

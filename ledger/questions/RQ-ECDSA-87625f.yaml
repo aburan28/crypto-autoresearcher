@@ -1,0 +1,149 @@
+research_question:
+  id: RQ-ECDSA-87625f
+  title: >-
+    Where does ECDSA nonce-leakage key recovery actually stop at deployed
+    curve sizes once memory is charged — and is the published lattice-versus-
+    Fourier frontier a single Pareto frontier or two incomparable ones?
+  scope:
+    scheme: "ECDSA on deployed curves (secp256k1, P-256, P-384), with 112/128/160-bit curves as the calibration ladder"
+    family: >-
+      hidden number problem from partial nonce leakage; lattice attacks with
+      a predicate, and Fourier/Bleichenbacher analysis
+    assumption: >-
+      Not the hardness of ECDLP. The object is the LEAKAGE MODEL: given l bits
+      of nonce information per signature (or an error-prone fraction of a
+      bit), how many signatures, how much time, and how much MEMORY does key
+      recovery take at a given curve size.
+    standardization_status: >-
+      Deployed at very large scale. Every real-world ECDSA key compromise on
+      record has come from nonce generation rather than from the group.
+    targets:
+      - >-
+          Reproduction, with a verified certificate, of a published record
+          instance at a rung this harness can actually reach — establishing
+          that the pipeline recovers keys before any claim is made about where
+          it stops.
+      - >-
+          The memory-charged Pareto frontier: (samples, wall time, peak
+          memory) for lattice-with-predicate against Fourier/Bleichenbacher at
+          each leakage level and curve size, assembled into ONE comparison.
+          The published numbers exist but are reported per-paper and have not
+          been placed on a common frontier.
+      - >-
+          The location of the 1-bit-leakage boundary at 256 bits. Published
+          lattice records reach 1-bit and sub-1-bit leakage at 160 bits and
+          2-bit at 256 bits; deployed ECDSA is at 256. Whether the gap is a
+          resource gap or a structural one is the question.
+      - >-
+          What the erroneous-leakage regime costs, since real side channels
+          produce probabilistic rather than exact bits, and the error rate is
+          the parameter most likely to be quietly assumed away.
+    methods:
+      - >-
+          Certificate-first: every claimed recovery is checked by confirming
+          the recovered scalar reproduces the public key. This is cheap,
+          independent of the solver, and makes a claimed solve trivially
+          falsifiable per docs/claims-and-verification.md.
+      - >-
+          Reproduction against published instances before any new claim,
+          using the authors' released instances where available as a matched
+          baseline rather than a re-implementation of unknown fidelity.
+      - >-
+          Memory charged as a first-class axis, not a footnote. A published
+          instance requiring on the order of 2 TB of RAM and GPUs is not
+          comparable to a Fourier attack that streams, and a frontier that
+          reports only time and sample count hides the entire difference.
+      - >-
+          Pareto honesty per docs/inventor-protocol.md: dominated_by and a
+          quantitative sota_delta on every deliverable, with dominated_by set
+          to null only after every row of the published frontier has been
+          checked across time, memory and sample count.
+    claim_tier_ceiling: >-
+      CRYPTO TIER IS REACHABLE FOR RECOVERY CLAIMS AND ONLY FOR THOSE. A key
+      recovered on a 256-bit deployed curve carries a certificate that is
+      checkable in microseconds, so a solve at that size is a crypto-tier
+      claim about the LEAKAGE MODEL. It is NOT a break of ECDSA and NOT a
+      statement about ECDLP: every result is conditional on the assumed
+      leakage, and the leakage assumption must be stated in the same sentence
+      as the result, every time.
+  motivation: >-
+    ECDSA's failures in the field have not been failures of the elliptic
+    curve. They have been failures of the nonce, and the question of how much
+    nonce information is enough has a published frontier that has moved
+    substantially and recently: predicate-augmented lattice reduction broke
+    the "lattice barrier" (Albrecht-Heninger, Eurocrypt 2021); sieving with a
+    predicate produced the first single-bit lattice attack, on a 112-bit curve,
+    and pushed 2-bit leakage to 256 bits and 3-bit to 384 (Xu-Dai-Wu-Lin,
+    TCHES 2023); and a lattice-dimension tradeoff then reached 1-bit and
+    sub-1-bit leakage at 160 bits (Gao-Wang-Hu-He, Asiacrypt 2024), explicitly
+    closing distance to the Fourier-based attacks that had owned the
+    low-leakage regime since Bleichenbacher. What has NOT happened is the
+    boring part: nobody has put the two families on one frontier with memory
+    charged. The published resource figures make clear why that matters — a
+    1-bit recovery at 160 bits is quoted at roughly 2^25 samples, 824 minutes
+    and 1939 GiB, against a variant at 2^36 samples, 279 minutes and 850 GiB.
+    Those are different machines, not different rows of one table, and a
+    defender reading "1-bit leakage is broken" cannot tell from the literature
+    what it would cost against their 256-bit key. This program is unusually
+    well set up to do that specific unglamorous thing: it already insists on
+    memory beside time, on matched baselines, and on certificates, and here the
+    certificate is a single scalar multiplication. It is also the rare lane
+    where a crypto-scale certified solve is genuinely within reach, which is
+    the standard docs/target-result-profile.md sets and this program rarely
+    meets.
+  decision_target: >-
+    Whether the lattice and Fourier families form one memory-charged Pareto
+    frontier or two incomparable regimes, and where the recoverability
+    boundary sits at deployed 256-bit curves as a function of leaked bits,
+    error rate, sample count and memory.
+  provenance: >-
+    OBTAINED BY SEARCH-TOOL EXCERPT ON 2026-08-04, NOT FILED AS KN-LIT. Seen
+    in excerpt: "Attacking ECDSA with Nonce Leakage by Lattice Sieving:
+    Bridging the Gap with Fourier Analysis-based Attacks" (eprint 2024/296,
+    Asiacrypt 2024) and its released code and stored instances at
+    github.com/JinghuiWW/ecdsa-leakage-attack; "Improved Attacks on (EC)DSA
+    with Nonce Leakage by Lattice Sieving with Predicate" (TCHES 2023(2)
+    568-586). Albrecht-Heninger's predicate lattice work is referred to
+    through those citations and was NOT itself read. The resource figures
+    quoted above (secp160r1, 1-bit, 2^25 expected samples, 824 min, 1939 GiB;
+    and 2^36 / 279 min / 850 GiB) come from a repository README table read in
+    excerpt and are RESEARCH TARGETS TO BE RE-READ, as are the record
+    attributions per curve size and leakage level. The corpus already holds
+    the foundational layer independently: KN-LIT-043 (Boneh-Venkatesan, HNP),
+    KN-LIT-044 (Nguyen-Shparlinski, partial nonces), KN-LIT-045
+    (Howgrave-Graham-Smart), and KN-TECH-019 (the HNP-plus-lattice pipeline).
+  constraints:
+    - >-
+      THIS QUESTION SAYS NOTHING ABOUT PLAIN ECDLP AND MAY NOT BE CITED AS IF
+      IT DID. KN-TECH-019 already records that the HNP pipeline is not a plain
+      ECDLP attack, and KN-OPEN-011 owns the separate question of whether
+      lattice/HNP technique transfers; that question stays with the ECDLP
+      program (GOAL-ECDLP-001, GOAL-PATH-001) and is not answered here in
+      either direction.
+    - >-
+      Distinct from RQ-ALECF-001, which concerns imported Autolab quantum
+      point-addition circuit scores on secp256k1. Same curve, unrelated
+      object.
+    - >-
+      Every claimed recovery carries a certificate that the run wrapper
+      re-verifies independently: the recovered scalar must reproduce the
+      public key. An uncertified recovery is not evidence.
+    - >-
+      Peak memory is reported for every measured point, and no comparison
+      between the lattice and Fourier families is admissible without it.
+    - >-
+      The leakage assumption is stated with every result. "Recovered a
+      256-bit key" without "given l bits per signature from an assumed side
+      channel at error rate e" is a misreport, not a summary.
+    - >-
+      Published figures are unverified until reproduced. Where a rung cannot
+      be reached within budget, the published number is cited as a published
+      number and the frontier records it as unreproduced rather than
+      absorbing it.
+    - >-
+      Every technical figure in this record was read from a search excerpt and
+      is UNVERIFIED. No experiment may be designed until the primary sources
+      are filed as KN-LIT entries.
+  status: active
+  owner: coordinator
+  created_at: '2026-08-04'

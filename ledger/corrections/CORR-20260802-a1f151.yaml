@@ -1,0 +1,138 @@
+correction:
+  id: CORR-20260802-a1f151
+  recorded_at: '2026-08-02'
+  record_type: claim
+  record_type_note: >-
+    claim is the closest permitted token, as in CORR-20260724-001. The corrected
+    artifact is a goal record's provenance binding, and the record additionally
+    documents a systemic defect in the archive-receipt discipline.
+
+  corrected_record: ledger/goals/GOAL-HAWK-001.yaml
+  field: latest_verified_commit
+  goal_id: GOAL-HAWK-001
+  raised_by: >-
+    A broken-ref scan run at the start of the index-calculus harness launch, per
+    /launch-research-harness step 1 (flag integrity issues, broken refs).
+
+  prior_value: PENDING_TASK-20260802-008_LEDGER_COMMIT
+  corrected_value: 7c3cce2c
+  corrected_value_note: >-
+    The squash-merge commit of PR #105 on main, which is the commit that actually
+    introduces ledger/evidence/EV-HAWK-001.yaml into main's history.
+
+  defect_1_my_unfilled_placeholder:
+    what: >-
+      GOAL-HAWK-001.latest_verified_commit was set to the literal string
+      PENDING_TASK-20260802-008_LEDGER_COMMIT when BATCH-001 opened, and was
+      NEVER FILLED after TASK-20260802-008's ledger archive committed. The
+      placeholder shipped to main in PR #105.
+    whose: >-
+      THIS SESSION'S. It is a straightforward omission, not a merge artifact, and
+      it is recorded here rather than quietly overwritten.
+
+  defect_2_systemic_squash_merge_breaks_archive_receipts:
+    statement: >-
+      THE ARCHIVE-RECEIPT DISCIPLINE ASSUMES BRANCH COMMITS SURVIVE THE MERGE.
+      THEY DO NOT WHEN A PULL REQUEST IS SQUASH-MERGED, AND THIS REPOSITORY
+      SQUASH-MERGES.
+    mechanism: >-
+      docs/dynamic-subagent-dispatch.md requires that "the dispatcher checks Git
+      and rejects the result unless that commit is reachable from HEAD, has the
+      expected parent, changes exactly the declared paths, and matches the
+      recorded hashes." Every archive receipt therefore records a branch commit
+      sha. A squash merge replaces the entire branch with ONE NEW COMMIT with a
+      different sha and a different parent, so every recorded sha becomes
+      unreachable from main and every recorded parent becomes wrong. The receipts
+      are not falsified - they were true when written - but they STOP VERIFYING
+      the moment the branch merges.
+    measured_facts:
+      method: >-
+        git merge-base --is-ancestor <sha> origin/main for each BATCH-001 archive
+        commit, and git log origin/main -1 -- <path> to find the commit that
+        actually introduces each record on main.
+      pr_105_landed_as: >-
+        A SINGLE SQUASH COMMIT 7c3cce2c "research: GOAL-HAWK-001 launch and
+        BATCH-001 close (EV-HAWK-001, DEC-20260802-005) (#105)".
+      batch001_receipt_commits_reachable_from_main:
+        57950abf: false
+        3a39803c: false
+        6647e52b: false
+      consequence_for_this_goal: >-
+        ALL THREE BATCH-001 ARCHIVE RECEIPTS NOW RECORD COMMITS UNREACHABLE FROM
+        MAIN. Their path_sha256 values still match the file contents, so the
+        BINDING TO CONTENT SURVIVES; what is destroyed is the binding to a
+        verifiable commit.
+    likely_explains_other_broken_refs: >-
+      A scan of every ledger/goals/GOAL-*.yaml found FIVE with a
+      latest_verified_commit that does not resolve in this repository:
+      GOAL-HAWK-001 (this one, a placeholder), GOAL-ICLIFT-001 (prose, not a
+      sha), and THREE REAL SHAS THAT DO NOT EXIST - GOAL-FIND-001 80238727042d,
+      GOAL-MLKEM-001 e487652127433e4cb1f0c1de173dfa197ca23c1f, and GOAL-PATH-001
+      9f80eebbef2df9a521a9cce8da66391cfcb63e73. All three of those goals' work
+      reached main through merge commits or squashes. THIS RECORD DOES NOT CLAIM
+      TO HAVE DIAGNOSED THOSE THREE - it observes that the mechanism above
+      produces exactly this symptom and that they exhibit it.
+    why_it_matters_for_goal_path_001: >-
+      GOAL-PATH-001 is the prioritization goal that GOAL-ICEX-001,
+      GOAL-MONO-001 and GOAL-RELN-001 all defer to. Its provenance binding does
+      not resolve, so a driver resuming the index-calculus chain cannot verify
+      the checkpoint it is building on. THIS IS A BLOCKER FOR THAT CHAIN AND IS
+      REPORTED, NOT REPAIRED HERE - repairing another goal's binding is that
+      goal's Coordinator's call.
+    what_would_fix_it_generally:
+      alternatives:
+        - >-
+          Record the MERGE-COMMIT sha on main, not the branch sha, once a PR
+          lands - which requires a post-merge rebinding step the lifecycle does
+          not currently have.
+        - >-
+          Or use merge commits rather than squash for research branches, so
+          branch history survives.
+        - >-
+          Or bind receipts to CONTENT ONLY (the path_sha256 map, which does
+          survive) and drop the commit-reachability check.
+      note: >-
+        These are alternatives, not a recommendation. Choosing between them is a
+        harness-design decision for the Coordinator and is deliberately not made
+        here.
+
+  what_is_and_is_not_wrong:
+    receipts_were_true_when_written: >-
+      Each BATCH-001 receipt was verified at write time against the commit it
+      names, and the declared-equals-committed check passed for each. The defect
+      is that the reference class is not durable across a squash merge.
+    content_binding_survives: >-
+      Every path_sha256 in those receipts still matches the file bytes on main.
+      A reviewer can still verify WHAT was archived; they cannot verify WHICH
+      COMMIT archived it.
+    no_research_claim_is_affected: >-
+      EV-HAWK-001's observations, DEC-20260802-007's disposition and the
+      knowledge entries are untouched. No hypothesis status, claim tier or
+      cryptanalytic statement depends on the commit binding.
+    changes_no_hypothesis_status: true
+    is_not_a_cryptanalytic_result: true
+
+  open_items:
+    - id: OI-1
+      item: >-
+        GOAL-FIND-001, GOAL-MLKEM-001 and GOAL-PATH-001 carry
+        latest_verified_commit values that do not resolve. Each needs its own
+        Coordinator to rebind or supersede. NOT DONE HERE.
+    - id: OI-2
+      item: >-
+        GOAL-ICLIFT-001's latest_verified_commit is prose - "TASK-20260724-236
+        (filled in the BATCH-001 ledger archive receipt)" - rather than a sha. A
+        schema check that rejected non-sha values would have caught it and the
+        HAWK placeholder at write time. tools/validate_ledger.py does not
+        currently check this field's form.
+    - id: OI-3
+      item: >-
+        The general fix for squash-merge receipt breakage is a harness-design
+        decision. Three alternatives are stated above; none is chosen.
+
+  recorded_by: orchestrator
+  authority_note: >-
+    Written from claude/algebraic-number-theory-kb-zpmu0c by the session that
+    created the defective placeholder and ran the scan. It corrects only its own
+    goal's field, changes no status, edits no immutable record body, and makes no
+    decision about the three other affected goals.

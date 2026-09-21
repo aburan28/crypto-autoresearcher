@@ -1,0 +1,133 @@
+idea:
+  id: IDEA-20260808-63427b
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  title: ML-DSA verification is an l-infinity predicate but its MSIS/SelfTargetMSIS cost is
+    estimated on an l-2 bound; the sieve returns a POOL of 2^{0.2075 beta} vectors and an
+    attacker minimises l-infinity over it — compute the net, memory-charged, in bits.
+  class: measurement
+  claim: 'RECALLED FIPS 204 verification: ||z||_inf < gamma_1 - beta_c, hint weight <= omega.
+    The forgery problem is therefore l-infinity-MSIS in dimension N = 256(k+l+1). Published
+    estimates convert to l-2 with a sqrt(N)-type factor. CLAIM: two opposing corrections apply
+    — (i) sieve output directions are approximately uniform on the sphere, so ||v||_inf ~
+    ||v||_2 sqrt(2 ln N / N), which RELAXES the required l-2 norm by sqrt(2 ln N) relative
+    to the worst-case conversion; (ii) the sieve pool of M = 2^{0.2075 beta} vectors permits
+    minimising the max coordinate, replacing sqrt(2 ln N) by sqrt(2 ln(2N/ln M)) — a further
+    factor which at beta = 400, N = 2048 is 4.08/2.92 = 1.40. The net, expressed as Delta
+    beta and then core-SVP bits under one named cost model with the pool''s memory charged,
+    is either > 15 bits (the published MSIS margin is materially misestimated) or < 3 bits
+    (the l-2 relaxation is tight and MSIS estimation can stop worrying about the norm).'
+  mechanism: 'A vector of l-2 norm L with i.i.d.-Gaussian direction in dimension N has max
+    coordinate concentrating at L sqrt(2 ln N / N), far below the worst case L. The sieve,
+    however, does not return one vector but a saturated ball containing 2^{0.2075 beta} vectors
+    of comparable length and near-independent directions; taking the pool minimum of the max-coordinate
+    statistic gives the extreme-value improvement sqrt(2 ln(2N/ln M)). Both corrections favour
+    the attacker relative to the worst-case conversion, and both are absent from a bound stated
+    purely in l-2. The pool correction is not free: it requires the pool to be STORED, so
+    the memory exponent 2^{0.2075 beta} is load-bearing here and must appear in the same table.'
+  why_not_a_renamed_known_approach: 'Nearest known: the FIPS 204/Dilithium remark that the
+    l-2 relaxation is conservative — a direction, not a number, and one that does not cover
+    the pool term because the pool is an attacker resource, not defender slack. Nearest corpus:
+    IDEA-20260805-591f9d treats zeta (the permitted infinity norm) as the input; IDEA-20260801-008
+    audits full cost at a fixed norm model. Neither models the direction distribution of the
+    returned vector or the pool.'
+  predictions:
+  - observable: Empirical distribution of ||v||_inf/||v||_2 for sieve-pool vectors at reduced
+      N in {100, 200, 400}, and its pool minimum.
+    metric: Median against sqrt(2 ln N / N); pool minimum against sqrt(2 ln(2N/ln M)/N).
+    predicted: Median within 5 percent and pool minimum within 10 percent of the predictions.
+      A median far from 1 means sieve directions are biased toward the reduced basis' short
+      directions and falsifies correction (i).
+  - observable: Delta beta between l-2-estimated and l-infinity-estimated MSIS at ML-DSA-44/65/87,
+      and which of MLWE/MSIS/SelfTargetMSIS binds before and after.
+    metric: Delta beta in core-SVP bits, and the argmin over the three problems.
+    predicted: Delta beta > 0, of order 10-40. A change of argmin at any parameter set is
+      the high-information outcome; no change anywhere closes the lane.
+  minimal_test: (1) Read FIPS 204 verification conditions and (k,l,gamma_1,beta_c,omega).
+    (2) Sample BKZ-reduced bases at N in {100,200,400} with a pinned library; record ||v||_inf/||v||_2
+    across the pool. (3) Evaluate the closed-form conversion with and without the pool term
+    at the true FIPS 204 dimensions. (4) Report a three-row table (MLWE, MSIS, SelfTargetMSIS)
+    per parameter set under matched, memory-charged accounting.
+  controls:
+  - RANDOM-DIRECTION NULL: the same statistic for uniformly random directions; the difference
+      between sieve output and the null is the finding.
+  - POOL-SIZE DECAY: the pool gain must grow like sqrt(ln M); measure at M, M/4, M/16. A gain
+      insensitive to M is an artifact.
+  - BASELINE REPRODUCTION of the published MSIS block size at the l-2 bound before any corrected
+    figure is reported.
+  confounders:
+  - Sieve pool vectors are pairwise reduced and NOT independent, so the extreme-value argument
+    overstates the gain; measure an effective pool size rather than assuming M.
+  - The MSIS solution must be short across k+l+1 polynomial blocks jointly; block structure
+    may induce coordinate dependence.
+  - The pool gain requires storing 2^{0.2075 beta} vectors (2^{83} entries at beta = 400);
+    if that memory is unavailable the gain is unavailable, and the memory-capped row must
+    be shown.
+  falsification_conditions:
+  - Sieve direction ratio departs materially from the sphere prediction — correction (i) is
+    void.
+  - Delta beta < 3 bits at all parameter sets — the l-2 relaxation is tight; lane closed.
+  - The pool gain vanishes once correlation is charged — correction (ii) is void and only
+    (i) survives.
+  interpretation_limits: The direction measurement is TOY (N <= 400 against N ~ 2048-4096).
+    The conversion arithmetic is exact at true parameters but consumes the measured direction
+    law, so the composite is a MODEL READOUT. This changes an ESTIMATE, not an attack.
+  assumptions:
+  - FIPS 204 verification conditions are l-infinity as recalled; published MSIS estimates
+    use an l-2 bound. Both to be read from primary text.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: For a BKZ-beta-reduced basis in dimension N, the direction of a sieve-pool
+      vector of given l-2 norm is uniform on S^{N-1} to within a stated total variation distance,
+      uniformly for beta/N in a stated interval.
+    rigorous_ingredient: The sieve saturates the ball of radius sqrt(4/3) gh(L), and lattice-point
+      counts in a ball follow the Gaussian heuristic, which is directional uniformity at leading
+      order.
+    distribution_imitated: The Haar measure on the sphere, whose max-coordinate law gives
+      the sqrt(2 ln N / N) concentration.
+    validation_route: Measure the max-coordinate CDF of sieve output at N in {100,200,400}
+      against the Haar prediction by Kolmogorov distance. TOY SCALE, labelled.
+    tail_checks: The statistic of interest is a minimum over the pool of a maximum, so compare
+      the LOWER tail of the max-coordinate law specifically; per KN-FIND-031 do not report
+      a quantile below 1/(pool size).
+  target_complexity:
+    time_exponent: 'Shift Delta beta in the existing MSIS attack: 2^{0.292 beta} -> 2^{0.292(beta
+      - Delta beta)}. A bit-level correction, offered as an estimate-correctness building
+      block for C1.'
+    memory_exponent: '2^{0.2075 beta}, and load-bearing: half the effect is BOUGHT with memory.
+      The table reports the l-infinity gain as a function of memory budget.'
+    best_known_baseline: Published ML-DSA MSIS/SelfTargetMSIS block sizes at the l-2 relaxation.
+    hidden_overhead_disclosure: The pool-correlation charge is unmodelled and is the most
+      likely source of over-claim; the sieve's o(beta) is unchanged and cancels.
+    time_memory_tradeoff: The pool gain scales as sqrt(ln M), so a memory-capped attacker
+      loses little of THIS gain — an asymmetry that belongs in the table.
+  sota_delta: Zero attack improvement. A signed, memory-charged correction to the MSIS/SelfTargetMSIS
+    margin at all three parameter sets, possibly changing which assumption binds.
+  dominated_by: 'n/a (no attack-cost result claimed). Estimate-axis check against IDEA-20260801-008,
+    IDEA-20260805-5194f9 and -591f9d: none models the norm conversion or the pool.'
+  estimated_cost: 'Implementation: medium (needs a reduction library to sample pools). Compute:
+    low-medium, hours at N <= 400.'
+  recommended_priority: medium
+  honest_prior_of_survival: P(the direction heuristic holds) ~ 0.7. P(Delta beta > 15 bits)
+    ~ 0.35. P(the argmin over the three problems changes somewhere) ~ 0.2.
+  novelty_status: unverified
+  novelty_screen: 'Read: EXISTING_PROPOSALS.txt (RQ-MLDSA-001 rows), EXISTING_HYPOTHESES.txt,
+    CATALOGUE_TITLES.txt, KNOWLEDGE_BARRIERS.txt (KN-TECH-043/044), GOAL-MLDSA-001.yaml. WEB
+    NOT SCREENED. External risk: l-infinity-SIS has its own literature and part of this may
+    be known there.'
+  discriminated_from: IDEA-20260805-591f9d takes zeta as given; this concerns the CONVERSION
+    from that infinity bound to the l-2 quantity the estimator consumes, plus the pool term.
+    Distinct from L1b-01, which trades hash queries against decodings at a FIXED norm.
+  lossy_projection_test: 'PASSES. Tracked object: the pair (||v||_2, ||v||_inf) of a candidate
+    forgery — a two-number projection whose fibre is codimension 2, discarding all direction
+    and sign content. Discarded compatibly: the verifier''s accept predicate is a function
+    of ||.||_inf alone and the reduction''s output guarantee is a function of ||.||_2 alone,
+    so the retained pair is exactly the interface and propagates deterministically.'
+  source_refs:
+  - GOAL-MLDSA-001.yaml and RQ-MLDSA-001 (corpus, read).
+  - KN-TECH-043, KN-TECH-044 (corpus, titles) — sieve family and memory charging.
+  - KN-FIND-031 (corpus, via KNOWLEDGE_BARRIERS.txt) — the 1/N survival-function floor governing
+    the tail-reporting rule.

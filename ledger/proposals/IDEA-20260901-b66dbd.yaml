@@ -1,0 +1,500 @@
+idea:
+  id: IDEA-20260901-b66dbd
+  question_id: RQ-MLDSA-ffa0f5
+  goal_id: GOAL-MLDSA-002
+  added: '2026-09-01'
+  proposed_by: idea-generator
+  status: proposed
+  title: >-
+    This program's own census (IDEA-20260805-031ce2, H-MLDSA-2d4123) rules the
+    LowBits/r0 signing-only check SELF-ENFORCING -- omit it and verification fails --
+    but that verdict holds ONLY for FIPS 204's spec (Algorithm 7/8). The REFERENCE
+    implementation everyone deploys computes hints from Decompose (MakeHint_ref on
+    (w1,w0)), and ePrint 2025/195, READ IN FULL this session, proves (Assumption 2,
+    Remark 9) that an r0-omitting reference signer's signatures ALWAYS verify. The
+    detectability verdict inverts between the two conforming-looking implementations,
+    and a verifying non-conforming signature is exhibitable at the real parameter sets
+    with a microsecond certificate -- exactly GOAL-MLDSA-002's first object.
+  class: control
+  claim: >-
+    (A) THE CORPUS VERDICT THIS RECORD OVERTURNS FOR ONE IMPLEMENTATION, STATED
+    PRECISELY. IDEA-20260805-031ce2 cell (b) and H-MLDSA-2d4123 P3 both classify the
+    LowBits check ||LowBits(w - <<c s2>>)||_inf >= gamma2 - beta (Algorithm 7 Line 23,
+    second disjunct; "the r0 predicate") as SELF-ENFORCING: a signer that omits it
+    emits, on the violating attempts, signatures for which HighBits(w - <<c s2>>) !=
+    HighBits(w) = w1, so the verifier's recomputed challenge c-tilde' misses c-tilde
+    and VERIFICATION FAILS. Both records derive this from FIPS 204's Algorithm 8
+    verification and MakeHint/UseHint, i.e. from the SPECIFICATION. That derivation is
+    correct FOR THE SPEC and this record does not dispute it.
+    (B) THE OBJECT: THE SPEC-VERSUS-REFERENCE HINT DIVERGENCE. FIPS 204's reference
+    implementation (pq-crystals/dilithium, cited by the standard as the reference code)
+    does NOT compute the hint the spec's MakeHint computes once the r0 condition is
+    removed. It uses an alternative decomposition -- Decompose then MakeHint_ref on the
+    pair (w1, w0) -- described in the specification's Section 5.1 and formalized in
+    ePrint 2025/195 as Sig_Ref / F-Sig_Ref. ePrint 2025/195's Assumption 2 states
+    verbatim: "The signature made by F-Sig_Ref will always be accepted by the Dilithium
+    verification algorithm Ver." Remark 9 states the attack on F-Sig_Ref "will be more
+    difficult to detect, as all the signatures produced will be accepted by the
+    verification algorithm." SO: an r0-omitting REFERENCE signer's output VERIFIES,
+    while an r0-omitting SPEC signer's output FAILS. The census verdict "self-enforcing"
+    is IMPLEMENTATION-DEPENDENT, and for the implementation the standard points at, the
+    r0 check is exactly the silent, unobservable non-conformance the census assigned to
+    only the ct0 check.
+    (C) THE MEASURABLE DELIVERABLE, WHICH IS A CONFORMANCE OBSERVATION AND NOT A BREAK.
+    Build two verifier-equivalent signers at the real ML-DSA-44/65/87 parameters: a
+    conforming reference signer, and an r0-omitting reference signer (F-Sig_Ref: delete
+    the ||r0||_inf >= gamma2 - beta disjunct of Line 23, keep MakeHint_ref). EXHIBIT a
+    signature the r0-omitting signer emits on a violating attempt and show it VERIFIES
+    under an independently written FIPS 204 Algorithm 8 verifier that shares no code with
+    the signer. Then run the same two-signer comparison under the SPEC hint (MakeHint):
+    the spec's r0-omitting signer's violating signatures must FAIL, reproducing the
+    census. The deliverable is the pair of verify-rates (spec: fails; reference: verifies)
+    plus the exhibited certificate, which is precisely what GOAL-MLDSA-002's first
+    completion criterion asks for: "an exhibited signature that violates the condition and
+    still verifies under an independent verifier."
+    (D) WHAT THE OMISSION LEAKS, COSTED NOT ASSERTED, AND HANDED OFF WHERE IT BECOMES A
+    BREAK. Each violating F-Sig_Ref signature is, by ePrint 2025/195 Proposition 4/5, a
+    BOUNDED LINEAR INEQUALITY on one coefficient of s2: for the position (i,j) where
+    (w1 - w1')_i^[j] = +1, (c*s2)_i^[j] >= gamma2 - r0,i^[j] >= 0 (and the mirror for -1).
+    This record MEASURES that per-signature leak channel -- the fraction of emitted
+    signatures that carry an inequality (2025/195 reports ~3.6% at level 2) and the
+    inequality's exact form -- as a conformance quantity. It does NOT recover s2. The
+    downstream s2-recovery (collect ~11085 inequalities/polynomial, drive the polytope
+    dimension to 0, solve an LP; ~1.25M-4M signatures) is ePrint 2025/195's published
+    result and is a KEY RECOVERY, i.e. a BREAK, realized BY A FAULT -- which belongs to
+    GOAL-MLDSA-001's fault-injection lane, not here. This record stops at the conformance
+    finding and the leak-channel measurement and states the hand-off explicitly.
+    (E) WHAT IS NOT CLAIMED. Not a break, not a forgery, not key recovery. t0 is not
+    invoked. No statement is made about MLWE, MSIS or SelfTargetMSIS. The finding is that
+    a security-relevant signing check has an UNDETECTABLE omission in the reference
+    implementation -- the same defect shape GOAL-MLKEM-002 was built around on the KEM
+    side (a step outside verifier observation) -- and that this program's own census
+    mislabels it because the census read only the spec.
+  mechanism: >-
+    STAGE 0, THE PRIMARY-TEXT AND SOURCE GATE. Re-read, under a run record, (i) FIPS 204
+    Algorithm 7 Line 23 and Algorithm 8, and (ii) the specification's Section 5.1
+    alternative hint computation (MakeHint_ref via Decompose on (w1, w0)); and re-render
+    ePrint 2025/195 (this idea-generator session rendered its 22-page PDF and read
+    Algorithms 3/4/5/6, Propositions 4/5, Remark 9, Assumption 2, and the experimental
+    Tables 3-9). Confirm from primary text that the reference hint computation differs
+    from MakeHint exactly as 2025/195 states, since the whole record turns on that
+    difference. If the spec and the reference impl compute the SAME hint after r0 removal,
+    the object collapses and the census verdict stands for both -- a clean negative.
+    STAGE 1, THE TWO IMPLEMENTATIONS, VERIFIER-EQUIVALENT ON CONFORMING INPUT. Implement
+    in pure-Python-on-SHAKE both signing paths -- MakeHint (spec) and MakeHint_ref (Sec
+    5.1) -- and one INDEPENDENT verifier from Algorithm 8 that imports no signer function.
+    CONTROL C0 (must pass first): a conforming spec signer and a conforming reference
+    signer must BOTH verify 500/500 at every parameter set. If either conforming arm ever
+    fails, the implementation is wrong and nothing is reported.
+    STAGE 2, THE OMISSION ARMS. Build the r0-omitting variant of each signer (delete the
+    second disjunct of Line 23). Emit signatures until violating attempts occur (the r0
+    check fires at ~0.57 per attempt at ML-DSA-44 per IDEA-20260805-031ce2's rate, so
+    violations are common and cheap -- unlike ct0). Record, for each signer, the fraction
+    of emitted signatures that verify under the independent verifier. PREDICTED: spec
+    r0-omitting verifies at a rate well below 1 (031ce2/H-MLDSA-2d4123's self-enforcement);
+    reference r0-omitting verifies at rate ~1 (2025/195 Assumption 2).
+    STAGE 3, THE EXHIBIT. Freeze one reference-r0-omitting signature that violates
+    ||r0||_inf >= gamma2 - beta and verifies, re-verify it under a SECOND independent
+    verifier (RQ-MLDSA-ffa0f5's certificate-first requirement), and record its seed. This
+    is the exhibited verifying non-conforming signature.
+    STAGE 4, THE LEAK CHANNEL, MEASURED NOT SOLVED. For the reference-r0-omitting stream,
+    measure the fraction of emitted signatures for which w1 != w1' (i.e. that carry a
+    2025/195-style inequality on s2), and confirm the inequality (c*s2)_i^[j] >= gamma2 -
+    r0,i^[j] >= 0 holds against the TRUE s2 from the keypair on those signatures. Report
+    the per-signature leak rate with a confidence interval. STOP. Do NOT build the polytope
+    or solve for s2; that is 2025/195's fault-attack result and GOAL-MLDSA-001's lane.
+    STAGE 5, THE NULL. Run the independent-t0-style null in the shape this object needs:
+    a conforming reference signer against a conforming reference signer under different
+    seeds (forced verify-rate agreement, both 500/500), and a t0-resampled control
+    confirming the exhibited signature's verification does NOT depend on the true key's t0
+    (the reference verifier uses only (A, t1), so t0 is not consulted -- a structural
+    check that the detectability finding is about the hint computation, not about t0).
+  novelty_status: unverified
+  novelty_screen:
+    corpus: >-
+      Read this session in full or in large part: RQ-MLDSA-ffa0f5, GOAL-MLDSA-002,
+      IDEA-20260805-031ce2 (the three-cell census, cell (b) r0 self-enforcing),
+      H-MLDSA-2d4123 (P3 census, r0 self-enforcing, all derived from the SPEC),
+      IDEA-20260808-4f83f6 (LowBits as a "public function of (z,c,pk)" via w-cs2=Az-ct --
+      note this is the SPEC identity and inherits the spec's MakeHint), IDEA-20260821-60ba98
+      (TV(D_conf,D_omit)=p_R identity; explicitly notes 2025/195 realizes the omission BY
+      a fault), IDEA-20260821-6109f8 (bounded-noise t0 observation), H-MLDSA-2ae88d and
+      IDEA-20260805-630606 (hint-entropy t0 floor), IDEA-20260829-a2b5d7 (skDecode
+      non-bijection), IDEA-20260829-9b19cc (message-representative injectivity),
+      IDEA-20260828-8f3496 (ACVP). NONE of the eighteen-plus ffa0f5 records distinguishes
+      the SPEC hint (MakeHint) from the REFERENCE-implementation hint (MakeHint_ref via
+      Decompose) for the r0 check; all of them analyze Algorithm 7/8 as written and
+      therefore inherit the spec's self-enforcement. The spec-vs-reference divergence that
+      inverts the detectability verdict is the object none of them holds.
+    web: >-
+      This session fetched and READ IN FULL the rendered 22-page PDF of ePrint 2025/195
+      (Azevedo-Oliveira, Calle Viera, Cogliati, Goubin, "Finding a Polytope: A Practical
+      Fault Attack Against Dilithium", PKC 2025): Algorithms 3 (Sig), 5 (F-Sig), 6
+      (Sig_Ref), Assumption 2 ("F-Sig_Ref will always be accepted by Ver"), Remark 9
+      ("more difficult to detect"), Propositions 4/5 (the s2 inequalities), and Tables 3-9
+      (experimental signature counts: ~1.25M level 2, 3.5M level 3, 4M level 5; ~3.6% of
+      signatures exploitable). The corpus previously held this paper only as an abstract
+      excerpt in RQ-MLDSA-ffa0f5.provenance and IDEA-20260821-60ba98's screen; its body was
+      not read before this session.
+    verdict: >-
+      UNVERIFIED. The spec-vs-reference hint divergence and the resulting detectability
+      inversion are read from 2025/195's body and from the FIPS 204 Section 5.1 alternative
+      hint (relayed via 2025/195), and must be re-verified by the executing session against
+      both primary texts under a run record. The conformance measurement is novel relative
+      to this corpus (no record distinguishes the two hint computations); externally,
+      2025/195 itself makes the detectability observation, so the CONFORMANCE FRAMING (as
+      opposed to the fault attack) is this record's contribution and the underlying fact is
+      the paper's, which is why the label is unverified rather than a novelty claim.
+  object_first_candidate:
+    tracked_object: >-
+      The verifier's accept/reject decision on an r0-omitting signer's violating signature,
+      tracked as a function of WHICH hint computation the signer used -- spec MakeHint
+      versus reference MakeHint_ref-on-Decompose. The tracked object is a single bit
+      (verifies or not) and its dependence on one implementation choice the census held
+      fixed at the spec.
+    established_families_off_limits: >-
+      Off-limits as the primary lens: (1) t0 recovery and its signature-count floor (630606,
+      H-MLDSA-2ae88d, 6109f8, 65739b -- the OTHER ffa0f5 object); (2) fault injection and
+      any s2/s1 recovery (that is GOAL-MLDSA-001's lane and 2025/195's fault result); (3)
+      the TV=p_R distributional identity (60ba98); (4) skDecode/message-representative
+      decoder bijectivity (a2b5d7, 9b19cc); (5) any statement about the hard problems. The
+      lens is the elementary geometry of MakeHint vs MakeHint_ref and the verifier's UseHint.
+    genuinely_new_or_repackaging: >-
+      The detectability fact is 2025/195's (repackaging of a published observation). What is
+      not a repackaging: this program's census actively asserts the OPPOSITE verdict
+      (r0 self-enforcing) because it read only the spec, so the CONTRIBUTION is the corrected
+      conformance census -- the r0 check is self-enforcing under the spec and silent under
+      the reference implementation -- exhibited at the real parameters with a certificate,
+      which neither 2025/195 (a fault paper) nor the corpus states as a conformance result.
+    concretely_testable: >-
+      Yes and cheaply. One-step propagation is one signing attempt under each hint rule; the
+      observable is the verify bit, and violations of the r0 check are common (~0.57/attempt),
+      so a few hundred signatures per arm settle the verify-rate. No 10^8-signature campaign
+      is needed because the r0 check, unlike ct0, fires at a per-cent-plus rate.
+    survival_score: >-
+      The object survives to the verifier's decision -- it IS the last step. It dissolves the
+      moment one asks to RECOVER s2, which crosses into a break and into 2025/195's fault
+      lane; the record names that boundary and stops at the conformance bit and the leak-rate.
+  null_object_control: >-
+    (1) CONFORMING-PAIR NULL, run and committed FIRST: a conforming spec signer and a
+    conforming reference signer must each verify 500/500 at every parameter set; if either
+    fails, the implementation is wrong and no arm is readable. (2) SPEC-OMISSION CONTROL,
+    the census reproduction: the spec r0-omitting signer's violating signatures must FAIL
+    verification at a rate reproducing 031ce2/H-MLDSA-2d4123's self-enforcement; this is the
+    positive control that the instrument can see a failing non-conforming signature. (3)
+    t0-INDEPENDENCE NULL: resample t0 independently of the key and confirm the exhibited
+    reference-omitting signature still verifies (the reference verifier consults only (A,t1),
+    not t0), so the detectability finding is about the hint computation and not a t0 artefact.
+    (4) INDEPENDENT-VERIFIER CONTROL: the exhibited signature is re-verified by a second
+    verifier sharing no code with the first, per RQ-MLDSA-ffa0f5's certificate clause.
+  discriminated_from:
+    - >-
+      IDEA-20260805-031ce2 and H-MLDSA-2d4123 census the four predicates from FIPS 204's
+      SPEC (Algorithm 7/8, MakeHint) and rule the r0 check self-enforcing. This record
+      shows that verdict is implementation-dependent and INVERTS for the reference hint
+      (MakeHint_ref via Decompose, Sec 5.1), which the census never considered. It consumes
+      031ce2's self-enforcement result as the spec-arm positive control, not as a competitor.
+    - >-
+      IDEA-20260808-4f83f6 classifies LowBits as "a public function of (z,c,pk)" via
+      w-cs2=Az-ct. That identity holds in the SPEC and inherits the spec's MakeHint; it does
+      not touch the reference implementation's alternative hint, and its detectability
+      conclusion is therefore the spec one. This record is the reference-implementation
+      counterpart of that predicate's detectability, which 4f83f6 does not form.
+    - >-
+      IDEA-20260821-60ba98 proves TV(D_conf, D_omit) = p_R and notes 2025/195 "realises the
+      omission BY a fault and this proposal does not". This record likewise studies the
+      omission itself, but its object is the verifier's ACCEPT BIT under two hint rules, not
+      the distributional distance; 60ba98's identity says nothing about whether the emitted
+      signature verifies, which is exactly this record's deliverable.
+    - >-
+      ePrint 2025/195 is a FAULT ATTACK recovering s2/s1 (a break) and belongs to
+      GOAL-MLDSA-001's fault lane. This record does NOT recover any secret and injects no
+      fault; it extracts the CONFORMANCE finding (the reference r0-omission is verifier-
+      undetectable) and the per-signature leak RATE, and hands the recovery back to the
+      fault lane. The scope boundary is stated, not assumed.
+  citations:
+    - ref: "ePrint 2025/195 -- Azevedo-Oliveira, Calle Viera, Cogliati, Goubin, \"Finding a Polytope: A Practical Fault Attack Against Dilithium\", PKC 2025"
+      provenance: retrieved
+      claim: >-
+        Full 22-page PDF rendered and read this session. Assumption 2 (verbatim): "The
+        signature made by F-Sig_Ref will always be accepted by the Dilithium verification
+        algorithm Ver." Remark 9: the attack on F-Sig_Ref is "more difficult to detect, as
+        all the signatures produced will be accepted by the verification algorithm."
+        Algorithm 6 (Sig_Ref) computes hints via Decompose and MakeHint_ref on (w1,w0),
+        Section 5.1, NOT equivalent to the spec's MakeHint once the r0 condition is removed
+        (paper's own statement, page 13-14). Proposition 4/5: each rejected/violating
+        signature gives (c*s2)_i^[j] >= gamma2 - r0,i^[j] >= 0. Tables 3-9: ~1.25M/3.5M/4M
+        signatures at levels 2/3/5, ~3.6% exploitable. The attack recovers s2 then s1;
+        second attack (skip z-norm) recovers s1 directly without t0.
+      verified_by: "idea-generator subagent, PDF render read 2026-09-01; re-verification against primary text required before any number enters evidence."
+    - ref: "FIPS 204 (KN-LIT-4dadec) Section 5.1 alternative hint computation and Algorithm 7 Line 23, Algorithm 8; pq-crystals/dilithium reference implementation"
+      provenance: recalled
+      claim: >-
+        The reference implementation computes hints via Decompose on (w1,w0) and MakeHint_ref
+        rather than the spec's MakeHint, so removing the r0 disjunct produces signatures that
+        still verify. Relayed via ePrint 2025/195 Section 5.1 and Remark 9; the FIPS 204 body
+        Section 5.1 was NOT independently rendered this session and is a Stage-0 gate.
+      verified_by: null
+    - ref: "IDEA-20260805-031ce2 and H-MLDSA-2d4123 (this ledger)"
+      provenance: internal
+      claim: >-
+        Both classify the r0 (LowBits) check as self-enforcing (omission -> verification
+        fails), derived from FIPS 204 Algorithm 7/8 with MakeHint, i.e. the spec. This record
+        uses that as the spec-arm control and shows it does not transfer to the reference hint.
+      verified_by: "idea-generator subagent, read in full 2026-09-01."
+  assumptions:
+    - >-
+      The reference implementation's hint computation differs from the spec's MakeHint exactly
+      as ePrint 2025/195 states. This is the load-bearing assumption and Stage 0 verifies it
+      against FIPS 204 Section 5.1 and the reference code; if they are equivalent after r0
+      removal, the object collapses and the census verdict holds for both -- a clean negative.
+    - >-
+      A conforming reference signer and a conforming spec signer both verify under one
+      Algorithm 8 verifier. Control C0 checks this; if not, the implementations are wrong.
+    - >-
+      The r0 check fires often enough (per-attempt rate ~0.57 at ML-DSA-44 per 031ce2) that
+      violating signatures are cheap to produce, so no large-sample campaign is needed. This
+      is the property that distinguishes the r0 object from the ct0 object.
+    - >-
+      The per-signature leak is measured against the TRUE s2 from the keypair as a conformance
+      quantity only; no s2 is recovered and no lattice/LP is solved.
+  proof_search_map:
+    bottleneck: >-
+      The single step where the reference implementation's hint (MakeHint_ref on Decompose)
+      diverges from the spec's MakeHint for a signature that violates the r0 check. Whether
+      that divergence makes the violating signature verify is the whole finding; every
+      downstream statement (detectability, leak rate, exhibit) is downstream of it.
+    baseline_embedding:
+      parameter_slice: >-
+        The SPEC r0-omitting signer at ML-DSA-44 is the slice where 031ce2/H-MLDSA-2d4123's
+        self-enforcement is the known answer; the record must reproduce it (violating spec
+        signatures fail) before departing from it for the reference hint.
+      reproduction_check: >-
+        Exact, not resemblance: at ML-DSA-44 the spec r0-omitting signer's violating
+        signatures must fail the independent verifier at a materially non-zero rate, and the
+        conforming arms must verify 500/500. A frozen fixture records both before the
+        reference arm is read.
+    observation_collision:
+      observable: "The verifier's accept bit on a signature that violates ||r0||_inf >= gamma2 - beta."
+      distinct_preimage_search: >-
+        Two distinct ground truths give "accept": (i) a conforming signature (r0 within bound),
+        and (ii) a reference-implementation r0-violating signature (accepted per Assumption 2).
+        These are observationally identical to a verifier, which is exactly the defect: the
+        verifier cannot separate a conforming reference signer from an r0-omitting one. The
+        separating condition is the SIGNER's internal r0 value, which the transcript hides;
+        the record exhibits the separation by holding the true (w, s2) from an instrumented
+        signer, not by the transcript alone.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the observable (accept) fixed and vary the forgotten structure (which hint
+          rule the signer used); the intrinsic invariant separating a conforming from an
+          r0-omitting reference signature is the internal r0 magnitude, invisible to the
+          verifier. This is the algebraic content of the detectability claim.
+        predicted_gain: >-
+          Establishes that the reference verifier is non-identifying for the r0 predicate,
+          independently of how often the omission is exercised; a conformance statement, no
+          attack.
+      - transform: representation_reduction
+        proposed_object: >-
+          Move from "does a fault-skipped test leak the key" to "does an r0-omitting
+          reference signer's output verify", an exact accept/reject question decidable on a
+          single signature at the real parameters.
+        predicted_gain: >-
+          Converts a fault-attack narrative into a conformance measurement that costs
+          hundreds of signatures, not millions, and produces a certificate.
+    quantifier_order: >-
+      FOR the reference implementation's hint rule and FOR EACH parameter set, THERE EXISTS a
+      signature that violates ||r0||_inf >= gamma2 - beta and verifies under Algorithm 8; and
+      FOR the spec's hint rule, no such violating signature verifies (on the self-enforcing
+      attempts). The claim is about the two named hint rules, NOT a universal statement over
+      all implementations; an implementation that computes yet another hint is outside it.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "Under the reference implementation's hint computation, an r0-omitting signer emits
+        signatures that violate the signing-only LowBits check and verify under an independent
+        FIPS 204 verifier; under the spec's MakeHint, they do not; and each such reference
+        signature carries a bounded linear inequality on one coefficient of s2 at a measured
+        rate." It cannot certify s2 recovery (that is the fault attack), cannot certify
+        anything about MLWE/MSIS/SelfTargetMSIS, and asserts no break.
+      nearby_object_control: >-
+        The SPEC r0-omitting signer is the nearby object where the hoped-for conclusion
+        (verifies) FAILS -- same predicate omitted, different hint rule, and the census's
+        self-enforcement is recovered there. A method reporting "verifies" for the spec arm
+        has not isolated the hint divergence as the load-bearing structure.
+    proof_obligations:
+      - claim: "Conforming spec and reference signers both verify 500/500."
+        responsibility: baseline
+      - claim: "The spec r0-omitting signer's violating signatures fail verification (census reproduction)."
+        responsibility: baseline
+      - claim: "The reference r0-omitting signer's violating signatures verify, and one is exhibited and re-verified independently."
+        responsibility: correctness
+      - claim: "The reference implementation's hint computation differs from the spec's MakeHint after r0 removal, per FIPS 204 Sec 5.1."
+        responsibility: interface
+      - claim: "Each verifying violating reference signature satisfies (c*s2)_i^[j] >= gamma2 - r0,i^[j] >= 0 against the true s2."
+        responsibility: correctness
+      - claim: "No s2 is recovered; the leak is measured as a rate, and the recovery is handed to the fault lane."
+        responsibility: scope
+      - claim: "No statement bears on MLWE/MSIS/SelfTargetMSIS."
+        responsibility: scope
+  predictions:
+    - metric: "verify-rate of the reference r0-omitting signer's violating signatures, independent verifier, per parameter set"
+      direction: higher
+      minimum_effect: >-
+        near 1.0 (2025/195 Assumption 2); pre-registered acceptance band [0.98, 1.0]. A rate
+        materially below 1 falsifies the reference-implementation detectability claim and
+        would mean the spec and reference hints do not diverge as 2025/195 states.
+    - metric: "verify-rate of the SPEC r0-omitting signer's violating signatures (census reproduction)"
+      direction: lower
+      minimum_effect: >-
+        materially below the conforming 1.0; pre-registered at most 0.95, reproducing
+        031ce2/H-MLDSA-2d4123 self-enforcement. A measured 1.0 here would contradict the
+        corpus census and be the single most interesting outcome, demanding independent review.
+    - metric: "exhibited verifying non-conforming reference signature, re-verified by a second implementation"
+      direction: different
+      minimum_effect: "exactly one certificate that violates ||r0||_inf >= gamma2 - beta and verifies under two independent verifiers, with its seed; this is GOAL-MLDSA-002's first-criterion object."
+    - metric: "per-signature leak rate: fraction of reference r0-omitting emissions carrying a valid s2-inequality"
+      direction: different
+      minimum_effect: >-
+        of order the 3.6% 2025/195 reports at level 2, with a Clopper-Pearson interval; every
+        such inequality must hold against the true s2 or the leak-channel identification is wrong.
+    - metric: "NULL: conforming-pair verify-rate agreement and t0-independence of the exhibit"
+      direction: different
+      minimum_effect: "both conforming arms 500/500; the exhibited signature verifies identically whether or not t0 is resampled, since the reference verifier consults only (A,t1)."
+  minimal_test:
+    design: >-
+      Pure-Python-on-SHAKE ML-DSA at the real parameter sets; hundreds of signatures per arm,
+      minutes of compute. Stage 0 (primary-text/source gate) plus Stages 1-3 (two hint rules,
+      omission arms, the exhibit) are the minimal test. THIS DISCRIMINATES because the two hint
+      rules give OPPOSITE forced verify-rates (spec fails, reference verifies), the conforming
+      controls are forced to 500/500, and the exhibit is a binary certificate. Stage 4 (leak
+      rate) and Stage 5 (nulls) are small additions gated on the exhibit succeeding. The r0
+      check fires at a per-cent-plus rate, so no large campaign is needed and the whole test
+      fits the campaign budget comfortably.
+    controls:
+      - "Conforming-pair null (spec and reference), forced 500/500, committed first."
+      - "Spec-omission positive control, forced to fail (census reproduction)."
+      - "t0-independence null on the exhibited signature."
+      - "Second independent verifier for the exhibited certificate."
+      - "Instrumented signer recording the true r0 and s2, so the leak inequality is checkable."
+    required_metrics:
+      - "verify-rate per signer variant (conforming/omitting) per hint rule (spec/reference) per parameter set"
+      - "the exhibited verifying non-conforming reference signature, its seed, and its two-verifier outcome"
+      - "per-signature s2-inequality leak rate with interval, checked against the true s2"
+      - "the FIPS 204 Sec 5.1 hint text and the reference-code hint, quoted, establishing the divergence"
+      - "conforming-pair and t0-independence null outcomes"
+  falsification_conditions:
+    - "Stage 0 finds the reference hint is equivalent to the spec's MakeHint after r0 removal: the object collapses, the census verdict holds for both implementations, and that is the clean negative deliverable."
+    - "The reference r0-omitting signer's violating signatures do NOT verify: 2025/195's Assumption 2 does not reproduce here and the detectability inversion is refuted; report which of {the hint divergence, the implementation} is wrong."
+    - "The spec r0-omitting arm verifies its violating signatures: contradicts the corpus census and demands independent review before anything is stated."
+    - "A conforming arm fails 500/500: the implementation is wrong and nothing is reported."
+    - "The exhibited signature fails the second verifier: no certificate, and the exhibit claim is withdrawn."
+    - "The measured s2-inequalities do not hold against the true s2: the leak-channel identification is wrong and only the verify-rate finding survives."
+  confounders:
+    - "IMPLEMENTATION SELF-CONFIRMATION: a verifier written by the same hand as the signer tests nothing. The independent-verifier control is the main threat to validity, exactly as in 031ce2."
+    - "The two hint rules must be implemented from primary text, not ported from each other; a shared Decompose/MakeHint helper would make the divergence invisible. Each is written from its own source."
+    - "The reference-hint detail is relayed via 2025/195 until FIPS 204 Sec 5.1 and the reference code are read directly; Stage 0 is the gate and its failure is a labelling outcome."
+    - "A conformance census is comfortable and reads as rigour; the spec-omission positive control exists so a 'reference verifies' finding costs a demonstrated ability to see a failing signature."
+  interpretation_limits:
+    - "NOT A BREAK, NOT A FORGERY, NOT KEY RECOVERY. Every signature is emitted by a party holding the key; no s2 is recovered; no fault is injected. The s2-recovery consequence is 2025/195's fault result and GOAL-MLDSA-001's lane."
+    - "The detectability finding is about two NAMED hint computations (spec MakeHint, reference MakeHint_ref); it is not a universal statement about all implementations."
+    - "Under RQ-MLDSA-ffa0f5's claim_tier_ceiling nothing here is evidence about MLWE/MSIS/SelfTargetMSIS in any direction; the per-signature leak is a conformance quantity, and its downstream security meaning is costed by 2025/195, not asserted here."
+    - "This corrects the corpus census's r0 verdict for the reference implementation only; it does not change any hypothesis status, which is the Coordinator's authority. IDEA-20260805-031ce2 and H-MLDSA-2d4123 remain correct for the spec."
+    - "Crypto tier is reachable: the verify-rates, the exhibit, and the leak rate are all measured at the real FIPS 204 parameter sets with microsecond certificates."
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        NONE LOAD-BEARING FOR THE DETECTABILITY FINDING. Whether an r0-omitting reference
+        signature verifies is a deterministic function of the hint rule and the signature,
+        decided per signature by running Algorithm 8; no distribution is assumed. This entry
+        records that the headline (spec fails, reference verifies) is a conformance fact, and
+        its only residual assumptions are evidentiary: correct transcription of FIPS 204 Sec
+        5.1 and correct independent verifiers.
+      rigorous_support: >-
+        The MakeHint/UseHint correctness identity (FIPS 204) is exact; the reference impl's
+        alternative decomposition changes which perturbations UseHint recovers, and 2025/195
+        proves (Assumption 2) the reference r0-omitting signature is always accepted. No random
+        model is used; the classical statement imitated is none.
+      validation_plan: >-
+        Directly measured at the real parameters by the verify-rate arms; the spec-omission
+        control confirms the instrument can see a failing signature, and the reference arm
+        confirms the accept. NULL: conforming pairs verify 500/500. No sampling of a rare event
+        is required because the r0 check fires at a per-cent-plus rate.
+    - id: H2
+      statement: >-
+        For a conforming hedged reference signer, the fraction of emitted signatures carrying a
+        2025/195-style s2-inequality (i.e. with w1 != w1' after r0 omission) is of order 3.6% at
+        ML-DSA-44 and each such inequality (c*s2)_i^[j] >= gamma2 - r0,i^[j] >= 0 holds against
+        the true s2. LOAD-BEARING ONLY FOR THE LEAK-RATE MEASUREMENT, not for the detectability
+        finding.
+      rigorous_support: >-
+        The inequality is 2025/195 Proposition 4/5, proved from the definition of r0 and the
+        HighBits displacement; it is exact given w1 != w1'. The RATE (3.6%) is 2025/195's
+        experimental figure over 1.25M signatures on 100 KAT keys and is the quantity this
+        record re-measures. The classical statement imitated is that r0 is near-uniform on its
+        range, so the boundary-crossing rate is a geometric fraction of gamma2.
+      validation_plan: >-
+        Measure the empirical fraction over 10^4 emissions per parameter set from an
+        instrumented signer that records the true (w1, w1', r0, s2); compare against 2025/195's
+        ~3.6% (level 2) with a Clopper-Pearson interval, and check every inequality against the
+        true s2. TAIL CHECK on the signatures closest to the r0 boundary, which are the ones
+        that carry the tightest inequalities. Sampled parameters recorded; the level-3/5 rates
+        are measured separately, not extrapolated.
+  target_complexity:
+    time_exponent: >-
+      No attack exponent; no hard problem touched. The relevant cost is the measurement's:
+      hundreds of signatures per arm for the verify-rate, 10^4 per parameter set for the leak
+      rate, minutes on one core in pure Python. The s2-recovery cost (~1.25M-4M signatures, an
+      LP per polynomial) is 2025/195's and is DECLARED OUT OF SCOPE, not attempted.
+    memory_exponent: >-
+      Negligible: one signature and a handful of counters at a time; the leak measurement holds
+      a 256(k+l)-length inequality tally.
+    best_known: >-
+      In-corpus: 031ce2 and H-MLDSA-2d4123 rule r0 self-enforcing (from the spec); this record
+      shows that is spec-only. External: 2025/195 owns the detectability observation and the
+      s2-recovery; this record extracts the conformance half at the real parameters with a
+      certificate, which 2025/195 (a fault paper) does not frame as conformance.
+    hidden_overhead: >-
+      The reference-hint divergence is relayed via 2025/195 until FIPS 204 Sec 5.1 and the
+      reference code are read directly; the whole finding is gated on that Stage-0 read, and if
+      the two hints turn out equivalent the object collapses. That risk is stated, not hidden.
+    tradeoff_note: >-
+      No time-memory tradeoff. The trade is that the record buys a decisive conformance
+      certificate for hundreds of signatures by refusing to recover s2, which would cost
+      millions and cross into a break and into the fault lane.
+  dominated_by: >-
+    n/a (no attack, no key recovery, no Pareto point on any attack axis). Rows checked before
+    writing, on the conformance/detectability axis for the ML-DSA r0 signing-only check: (i)
+    IDEA-20260805-031ce2 and H-MLDSA-2d4123, which rule r0 self-enforcing from the spec and do
+    not consider the reference hint -- this record corrects them for one implementation rather
+    than being dominated; (ii) IDEA-20260808-4f83f6, which classifies LowBits detectability from
+    the spec identity; (iii) IDEA-20260821-60ba98, which measures the TV distance but not the
+    verify bit; (iv) 2025/195 itself, a fault attack on the DATA axis (millions of signatures)
+    that recovers s2 -- a different, stronger, and out-of-lane result that does not dominate a
+    conformance certificate obtained in hundreds of signatures without recovering anything. No
+    row states the spec-vs-reference detectability inversion as a conformance finding.
+  sota_delta: >-
+    No attack; conformance and measurement contribution only. Replaces the corpus census's
+    unqualified "the r0 check is self-enforcing" with: it is self-enforcing under FIPS 204's
+    spec (MakeHint) and SILENT under the reference implementation (MakeHint_ref via Decompose),
+    with an exhibited verifying non-conforming signature at each parameter set and a measured
+    per-signature s2-inequality leak rate (~3.6% at level 2). Query cost: hundreds of signatures
+    for the certificate, 10^4 per set for the leak rate, against the ~1.25M-4M a full s2
+    recovery needs. No exponent moves and no assumption is touched.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  source_refs:
+    - RQ-MLDSA-ffa0f5
+    - GOAL-MLDSA-002
+    - IDEA-20260805-031ce2
+    - H-MLDSA-2d4123
+    - IDEA-20260808-4f83f6
+    - IDEA-20260821-60ba98
+    - knowledge/literature/KN-LIT-4dadec.md
+  id_allocation_provenance: >-
+    Allocated by the orchestrating session on 2026-09-01 via
+    `python3 tools/allocate_id.py --next idea --date 20260901` and confirmed
+    free with `--check` before filing; the generator wrote the record under a
+    placeholder and never minted an identifier.

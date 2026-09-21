@@ -1,0 +1,77 @@
+protocol_amendment:
+  id: PA-ICI-e622fd-v2-rc51
+  experiment_id: EXP-ICI-e622fd
+  hypothesis_id: H-ICI-063e91
+  goal_id: GOAL-ECDLP-001
+  batch: BATCH-051
+  review_cycle_id: RC-51
+  authoring_task: TASK-20260804-016
+  amendment_type: repair_overlay
+  from_version: 1
+  to_version: 2
+  supersedes_overlay: null
+  closes_review: RT-20260804-f60dbf
+
+  rationale_for_amendment: >-
+    RT-20260804-f60dbf (pre-exec review REVISE) identified BLOCK-1: prime-order
+    curves have no F_p-rational 2-isogenies (trace t is odd for N prime and p
+    odd, so x^2-tx+p mod 2 = x^2+x+1 is irreducible over GF(2); no Galois-stable
+    2-torsion exists). Naively applying Vélu would yield phi^{-1}(F) = empty,
+    giving augmentation_ratio = 1 for all cells — a false falsification.
+
+  changes:
+    - id: C-1
+      subject: Replace degree-2 isogenies with Elkies ell-isogenies
+      from: >-
+        "phi: E -> E' is a random ordinary 2-isogeny within the same isogeny class"
+      to: >-
+        phi: E -> E' is an ordinary ell-isogeny for the smallest odd prime ell >= 3
+        satisfying the Elkies condition for curve E: the ell-division polynomial
+        modular polynomial Phi_ell(j(E), Y) has a root Y0 in F_p (equivalently,
+        the trace t satisfies t^2 - 4p ≡ QR mod ell, the Elkies splitting case).
+        If no ell <= 23 satisfies the Elkies condition for a given curve, skip
+        that curve and draw a fresh one (record skipped count).
+
+    - id: C-2
+      subject: Fix factor-base formula
+      from: "x-coordinate < p/B with B a denominator"
+      to: >-
+        Factor base F = { P in E(F_p) : x(P) < floor(B_fraction * p) }.
+        Expected size |F| ≈ B_fraction * N (approximately half of x-values
+        in [0, B_fraction*p) lift to curve points, and N ≈ p for prime-order
+        curves). Exact |F| is measured and recorded per cell.
+
+    - id: C-3
+      subject: Fix random-bijection control
+      from: "psi is a RANDOM bijection of E(F_p) to itself"
+      to: >-
+        psi = [k] for random k drawn uniformly from (Z/N)* \ {1}. This is
+        an F_p-rational bijection of E(F_p) requiring no explicit permutation
+        table. psi^{-1}(F) = { P in E(F_p) : [k]P in F } = [k^{-1}] F.
+
+    - id: C-4
+      subject: Add stopping rule for Elkies skip failure
+      from: "(no rule for empty isogeny)"
+      to: >-
+        If the Elkies skip rate exceeds 50% of generated curves at any bit size,
+        record as INFRASTRUCTURE_SIGNAL (Elkies condition rare at these parameters)
+        and reduce bit sizes to {16, 18, 20} for that cell.
+
+    - id: C-5
+      subject: Add inconclusive outcome definition
+      from: "(gap between 0 and 6 successes unlabeled)"
+      to: >-
+        If 3 <= number_of_success_cells < 6: record as inconclusive.
+        If < 3 success cells: falsification_criterion met.
+        If >= 6 success cells: success_criterion met.
+
+  predictions_preserved:
+    - >-
+      augmentation_ratio for Elkies ell-isogeny preimages > 1.05 at >= 6/9 cells
+    - >-
+      negation control ratio = 1.0 (still expected; x-coordinate invariant under [-1])
+    - >-
+      [k]-map control ratio ≈ 2 - B_fraction (random bijection baseline)
+
+  claim_ceiling: toy (unchanged)
+  no_hypothesis_status_change: true

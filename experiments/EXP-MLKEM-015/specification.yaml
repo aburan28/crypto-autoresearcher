@@ -1,0 +1,98 @@
+experiment:
+  id: EXP-MLKEM-015
+  hypothesis_id: H-MLKEM-014
+  goal_id: GOAL-MLKEM-003
+  version: 1
+  title: >-
+    Matched Kyber dual-vs-primal cost reconciliation under MATZOV / ADPS16 /
+    GJ21 with official core-SVP control
+  status: approved
+  frozen: true
+  approved_by: coordinator
+  approved_at: '2026-07-31'
+  claim_tier: medium
+  objective: >-
+    Reproduce official Kyber Round-3 core-SVP estimates and independently
+    recompute primal and dual_hybrid costs for Kyber-512/768/1024 under named
+    lattice-estimator cost models, then measure the gaps to NIST classical
+    cutoffs and to Carrier / MATZOV-2022 published dual claims — without any
+    key recovery, oracle, or deployed-system interaction.
+
+  source_refs:
+    proposal: ledger/proposals/IDEA-20260731-001.yaml
+    hypothesis: ledger/hypotheses/H-MLKEM-014.yaml
+    literature: [KN-LIT-109, KN-LIT-110, KN-LIT-111, KN-LIT-7617, KN-LIT-7618]
+    open_problem: KN-OPEN-016
+
+  inputs:
+    schemes: [Kyber512, Kyber768, Kyber1024]
+    nist_classical_cutoffs: {Kyber512: 143, Kyber768: 207, Kyber1024: 272}
+    carrier_claimed_dual_log2: {Kyber512: 139.5, Kyber768: 195.1, Kyber1024: 259.7}
+    matzov2022_claimed_dual_log2: {Kyber512: 137.5, Kyber768: 193.5, Kyber1024: 257.8}
+    lattice_estimator_commit: 3e48ef421ec256afddb3e7d2249a77eab6e9ba12
+    pq_crystals_security_estimates_commit: 75c26949a902ca297b181375bfb7cfaf22cce784
+
+  controls:
+    - id: CTRL-OFFICIAL-CORESVP
+      description: pq-crystals Kyber.py MLWE_summarize_attacks classical column
+    - id: CTRL-MATCHED-COST-MODEL
+      description: dual vs primal compared only within the same RC.* object
+    - id: CTRL-PARAM-IDENTITY
+      description: schemes.Kyber* used for every estimator call
+
+  independent_variables:
+    - scheme
+    - attack ∈ {primal_usvp, primal_bdd, dual_hybrid}
+    - red_cost_model ∈ {MATZOV, ADPS16, GJ21}
+    - fft ∈ {false, true} for dual_hybrid
+
+  metrics:
+    primary:
+      - log2_rop
+      - dual_fft_MATZOV_minus_primal_bdd_MATZOV
+      - carrier_claimed_minus_dual_fft_MATZOV
+      - NIST_minus_primal_bdd_MATZOV
+      - abs_ADPS16_primal_minus_Kyber_py
+    secondary:
+      - beta
+      - best_MATZOV_attack
+
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: dual_fft_MATZOV_minus_primal_bdd_MATZOV
+    formula: "≥ 0 for each Kyber set"
+    source: H-MLKEM-014 statement conjunct (1)
+  scale_relevance:
+    tier: medium
+    justification: >-
+      Estimates use full standardized Kyber dimensions as LWE parameters; they
+      remain cost-model estimates, not cryptanalytic solves. No result may be
+      phrased as a FIPS-203 break.
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds: []
+    independent_instances: 1
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 1
+    maximum_memory_gb: 8
+    maximum_runs: 3
+  stopping_rules:
+    - One valid RUN producing results.json for all three schemes is sufficient.
+  invalidation_rules:
+    - Estimator commit differs from source-lock.
+    - Cross-model dual-vs-primal comparison presented as matched.
+    - Any claim of key recovery or certificate without a solve.
+  success_criterion: >-
+    All four H-MLKEM-014 conjuncts hold on the recorded numbers.
+  falsification_criterion: >-
+    Any H-MLKEM-014 falsification_condition triggers.
+  required_artifacts:
+    - experiments/EXP-MLKEM-015/source-lock.yaml
+    - experiments/EXP-MLKEM-015/specification.yaml
+    - experiments/EXP-MLKEM-015/runs/RUN-MLKEM-015-001/results.json
+    - experiments/EXP-MLKEM-015/runs/RUN-MLKEM-015-001/summary.md
+    - experiments/EXP-MLKEM-015/runs/RUN-MLKEM-015-001/kyber_official_security_estimates.txt
+    - experiments/EXP-MLKEM-015/execution-report.yaml
+  assigned_to: executor

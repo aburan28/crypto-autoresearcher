@@ -1,0 +1,4936 @@
+{
+ "schema": "crypto.autoresearch.task_results.v1_freeform",
+ "task_id": "TASK-20260803-e55757",
+ "title": "RANK 2: independent re-execution of the 27 RC-8 S-box draws",
+ "goal_id": "GOAL-AES-003",
+ "batch": "BATCH-007",
+ "role": "executor",
+ "generated_utc": "2026-08-03T19:52:44Z",
+ "inference": {
+  "policy": "executor-implementation",
+  "requested_policy": "executor-implementation",
+  "resolved_model": "claude-opus-5",
+  "fallback_used": true,
+  "model_verified": false,
+  "model_verified_reason": "no adapter probe is available in this harness; the resolved model is reported from the runtime identity, not from a probe",
+  "standing_basis": "0137a051eb5828789eb267fa83c8278086578d4c"
+ },
+ "claim_tier": "toy",
+ "claim_tier_basis": "Reduced-round AES-128 permutation, r=5, one machine, 2^30 trials per draw, 27 drawn bijective S-boxes. Nothing here is a statement about full-round or deployed AES and no comparison to published cryptanalysis is made in either direction (RQ-AES-003 R3). A timeout or a killed process is resource exhaustion, never negative evidence.",
+ "certificate": {
+  "kind": "none",
+  "basis": "pure measurement run; no discrete-log solve and no factor-base relation is claimed"
+ },
+ "WHAT_THIS_REPLICATES": {
+  "target": "BATCH-006 TASK-20260803-0764fc, RANK 2 (RC-8): 27 random bijective S-box draws measured at r=5, 2^30 trials, arm seed 631001.",
+  "target_result": {
+   "ALIVE": 25,
+   "n": 27,
+   "clopper_pearson_95_lower_bound": 0.784700038857546
+  },
+  "why": "That bound rested on one implementation in one session. The BATCH-006 validator intended to re-execute it, hit ~10.6 h against a 4800 s budget, and named the omission (EV-AES-9794e1 unresolved_confounds[0]).",
+  "same_objects": "The SAME 27 S-box seeds 20260803701..20260803727, the same arm seed 631001, armid 1, 2 threads, log2N 30, rounds 5, amask 1, smask 1. The draw, key derivation, per-thread split and trial stream are deterministic functions of these, so a correct implementation must reproduce the counts integer for integer. This is bit-exact replication on the same sample, NOT an independent resampling; replicating different draws would answer a different question.",
+  "sampling_noise_is_not_an_available_explanation": "Because the sample is not redrawn, a count disagreement cannot be charged to sampling. It would be an instrument fault in one of the two implementations, or a real divergence."
+ },
+ "INSTRUMENT": {
+  "name": "rc8probe",
+  "written_for_this_task": true,
+  "source": "rc8probe.c",
+  "source_sha256": "0109d7b6ac0e8e62092cbb64f2c454bfd0c5f1ffdba17f410de6b9a124df52b0",
+  "measuring_binary": "rc8probe_native",
+  "measuring_binary_sha256": "f344b0997793b13c28e8b9e7712dc5b80519ecd0d7135f98557edf4bcf141179",
+  "build_commands": [
+   "gcc -O3 -pthread -o rc8probe rc8probe.c",
+   "gcc -O3 -march=native -funroll-loops -pthread -o rc8probe_native rc8probe.c"
+  ],
+  "build_exit_status": 0,
+  "which_binary_produced_the_reported_numbers": "rc8probe_native",
+  "why_two_binaries": "rc8probe (-O3) was built and pinned first; rc8probe_native (-O3 -march=native -funroll-loops) measured ~6% faster on the 2^24 benchmark and was re-pinned against FIPS-197 C.1 before being used. Both pins are recorded. Every reported count comes from rc8probe_native.",
+  "deliberate_differences_from_BATCH004_yoyo_sbox_v2": [
+   "No T-tables: state is 16 bytes and SubBytes / ShiftRows / MixColumns / AddRoundKey are four separate byte-level steps with small GF(2^8) multiply tables (mul2, mul3, mul9, mul11, mul13, mul14). yoyo_sbox_v2 fuses SB+SR+MC into four 32-bit T-tables.",
+   "Direct inverse cipher (ARK, InvShiftRows, InvSubBytes, InvMixColumns in straight reversed order, forward round keys only). yoyo_sbox_v2 uses the equivalent inverse cipher with InvMixColumns-transformed round keys and U-tables.",
+   "AES S-box built from log/antilog tables over generator 0x03 with the affine map as a byte-rotation identity. yoyo_sbox_v2 finds the GF(2^8) inverse by an O(256^2) product search.",
+   "Word-oriented key expansion with explicit RotWord/SubWord/Rcon over 44 4-byte words, rather than the fused byte loop."
+  ],
+  "deliberately_reproduced_because_they_define_the_object": [
+   "splitmix64",
+   "Fisher-Yates over 0..255 with rejection sampling",
+   "the plaintext / active-word draw and its rejection condition",
+   "the trivial-swap exclusion",
+   "PW[j][row]=4*((j+row)%4)+row and CW[j][row]=4*((j-row) mod 4)+row",
+   "key derivation kst = seed ^ 0xA5A5A5A5A5A5A5A5 then two splitmix64 draws",
+   "thread seeding seed ^ armid*0x1234567891 ^ (t+1)*0x9E3779B97F4A7C15",
+   "the per-thread trial split N/nthr with the remainder on thread 0"
+  ],
+  "provenance_of_the_conventions": "Read from BATCH-006's yoyo_sbox_v2.c.readonly_copy, which the card permits in order to learn what object is measured. The code is newly written."
+ },
+ "PINS_AND_VALIDITY_CHECKS": {
+  "P1_fips197_c1_known_answer_vector": {
+   "ran": true,
+   "command": "./rc8probe_native pin aes 60600002",
+   "exit_status": 0,
+   "key": "000102030405060708090a0b0c0d0e0f",
+   "plaintext": "00112233445566778899aabbccddeeff",
+   "expected_ciphertext": "69c4e0d86a7b0430d8cdb78070b4c55a",
+   "computed_ciphertext": "69c4e0d86a7b0430d8cdb78070b4c55a",
+   "encrypt_match": true,
+   "decrypt_match": true,
+   "note": "run BEFORE any measurement; the same enc_r/dec_r are used to measure"
+  },
+  "P2_bijectivity_and_P3_roundtrip_and_P4_sbox_identity": {
+   "ran": true,
+   "per_seed": {
+    "20260803701": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803702": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803703": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803704": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803705": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803706": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803707": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803708": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803709": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803710": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803711": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803712": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803713": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803714": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803715": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803716": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803717": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803718": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803719": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803720": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803721": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803722": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803723": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803724": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803725": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803726": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    },
+    "20260803727": {
+     "bijective": true,
+     "roundtrip_checks": 5120,
+     "roundtrip_failures": 0,
+     "pin_pass": true,
+     "sbox_table_identical_to_BATCH006": true
+    }
+   },
+   "all_27_bijective": true,
+   "all_27_roundtrip_clean": true,
+   "roundtrip_checks_per_draw": 5120,
+   "all_27_tables_identical_to_BATCH006_archived_tables": true,
+   "meaning": "P4 establishes independently of any count that the two implementations draw the SAME S-box from each seed, so a count disagreement could not be blamed on drawing a different object."
+  },
+  "P5_cross_implementation_anchor_at_2^24": {
+   "ran": true,
+   "commands": [
+    "./rc8probe arm ANCHOR-N24 rand:20260803701 5 1 1 24 631001 1 2",
+    "../../../BATCH-006/tasks/TASK-20260803-0764fc/yoyo_sbox_v2 arm ANCHOR-N24 rand:20260803701 5 1 1 24 631001 1 2"
+   ],
+   "exit_statuses": [
+    0,
+    0
+   ],
+   "result": "EXACT agreement on trivial_swaps_excluded, nontrivial_trials, W_ge1_nontrivial (=2), W_ge1_by_word ([0,0,2,0]), whist, key_hex (c17835e6ca6233347781f4ba00d26ee4), thread_seeds and sbox_first8.",
+   "note": "The archived binary was run ONLY as a check on my own code before measuring. No reported number comes from it."
+  },
+  "P6_per_arm_pin_gate": {
+   "ran": true,
+   "description": "Every `arm` invocation re-verifies dec_r(enc_r(x))==x under the S-box it is about to measure, 64 random (key,plaintext) pairs at every r in 1..10 = 640 checks, and refuses to measure on failure (exit 5). No arm exited 5.",
+   "note": "The FIPS-197 C.1 vector is applicable only to the AES S-box and is never faked for a drawn S-box."
+  },
+  "estimator_selftest_before_touching_my_data": {
+   "recompute_BATCH006_bound_from_k25_n27": 0.7847000388575458,
+   "BATCH006_reported_value": 0.784700038857546,
+   "agrees_to_1e-12": true,
+   "recompute_k27_n27_as_arithmetic_check_only": 0.8949807698236557,
+   "poisson_tail_ge_9_lambda_1": 1.1252025979690206e-06,
+   "BATCH006_poisson_tail_for_X9": 1.1252025979846536e-06,
+   "poisson_tail_ge_6_lambda_1": 0.0005941848175816923,
+   "BATCH006_poisson_tail_for_X6": 0.0005941848175816666
+  },
+  "estimator_selftest_meaning": "My Clopper-Pearson bisection recomputes BATCH-006's published bound 0.784700038857546 from k=25,n=27 to within 1e-12, and my upward-summed Poisson tail reproduces BATCH-006's published tails for X=9 and X=6. The estimator is therefore not a source of any difference in the bound."
+ },
+ "THE_CRITERION": {
+  "statement": "ALIVE iff X/v >= 5 AND P(K >= X | lambda = v) < 1e-6.",
+  "source": "BATCH-004 TASK-20260803-367b1b/PREREGISTRATION.md, 'Decision rule (frozen)', lines 236-237.",
+  "governing_record": "CORR-20260803-2cefa6",
+  "only_one_reading_reported": true,
+  "why_only_one": "CORR-20260803-2cefa6 records that this is the ONLY criterion this campaign ever froze, and that BATCH-005's looser 'at least 5x' form presents itself in its own text as a QUOTATION of this rule while dropping the Poisson conjunct. A defective restatement does not create a rule. No second reading, no 'not DEAD' reading and no pooled bound is computed or reported here: reporting two readings side by side is how this campaign came to claim a 0.90 bound it had not earned.",
+  "v_definition": "v = nontrivial_trials * 4 / 2^32, the matched analytic null",
+  "bound_estimator": "one-sided 95% Clopper-Pearson lower bound on ALIVE/n, solving sum_{j=k}^{n} C(n,j) p^j (1-p)^(n-j) = 0.05 by bisection; for k=n it is 0.05^(1/n)"
+ },
+ "PER_DRAW": {
+  "B01-RAND-20260803701": {
+   "arm": "B01-RAND-20260803701",
+   "sbox_seed": 20260803701,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 20,
+    "W_ge1_by_word": [
+     4,
+     7,
+     6,
+     3
+    ],
+    "whist": [
+     1073741804,
+     20,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     146,
+     75,
+     34,
+     190,
+     77,
+     83,
+     213,
+     21
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 20,
+    "W_ge1_by_word": [
+     4,
+     7,
+     6,
+     3
+    ],
+    "whist": [
+     1073741804,
+     20,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 20,
+     "batch006": 20,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      4,
+      7,
+      6,
+      3
+     ],
+     "batch006": [
+      4,
+      7,
+      6,
+      3
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741804,
+      20,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741804,
+      20,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      146,
+      75,
+      34,
+      190,
+      77,
+      83,
+      213,
+      21
+     ],
+     "batch006": [
+      146,
+      75,
+      34,
+      190,
+      77,
+      83,
+      213,
+      21
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 20.0,
+   "poisson_tail_P_K_ge_X_given_v": 1.587527601073263e-19,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B02-RAND-20260803702": {
+   "arm": "B02-RAND-20260803702",
+   "sbox_seed": 20260803702,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 13,
+    "W_ge1_by_word": [
+     4,
+     2,
+     3,
+     4
+    ],
+    "whist": [
+     1073741811,
+     13,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     128,
+     17,
+     131,
+     135,
+     15,
+     65,
+     3,
+     122
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 13,
+    "W_ge1_by_word": [
+     4,
+     2,
+     3,
+     4
+    ],
+    "whist": [
+     1073741811,
+     13,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 13,
+     "batch006": 13,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      4,
+      2,
+      3,
+      4
+     ],
+     "batch006": [
+      4,
+      2,
+      3,
+      4
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741811,
+      13,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741811,
+      13,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      128,
+      17,
+      131,
+      135,
+      15,
+      65,
+      3,
+      122
+     ],
+     "batch006": [
+      128,
+      17,
+      131,
+      135,
+      15,
+      65,
+      3,
+      122
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 13.0,
+   "poisson_tail_P_K_ge_X_given_v": 6.359777327134155e-11,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B03-RAND-20260803703": {
+   "arm": "B03-RAND-20260803703",
+   "sbox_seed": 20260803703,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 12,
+    "W_ge1_by_word": [
+     3,
+     4,
+     4,
+     1
+    ],
+    "whist": [
+     1073741812,
+     12,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     157,
+     3,
+     160,
+     129,
+     202,
+     181,
+     159,
+     141
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 12,
+    "W_ge1_by_word": [
+     3,
+     4,
+     4,
+     1
+    ],
+    "whist": [
+     1073741812,
+     12,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 12,
+     "batch006": 12,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      3,
+      4,
+      4,
+      1
+     ],
+     "batch006": [
+      3,
+      4,
+      4,
+      1
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741812,
+      12,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741812,
+      12,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      157,
+      3,
+      160,
+      129,
+      202,
+      181,
+      159,
+      141
+     ],
+     "batch006": [
+      157,
+      3,
+      160,
+      129,
+      202,
+      181,
+      159,
+      141
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 12.0,
+   "poisson_tail_P_K_ge_X_given_v": 8.316107426882347e-10,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B04-RAND-20260803704": {
+   "arm": "B04-RAND-20260803704",
+   "sbox_seed": 20260803704,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 13,
+    "W_ge1_by_word": [
+     5,
+     3,
+     2,
+     3
+    ],
+    "whist": [
+     1073741811,
+     13,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     20,
+     196,
+     186,
+     175,
+     230,
+     58,
+     100,
+     38
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 13,
+    "W_ge1_by_word": [
+     5,
+     3,
+     2,
+     3
+    ],
+    "whist": [
+     1073741811,
+     13,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 13,
+     "batch006": 13,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      5,
+      3,
+      2,
+      3
+     ],
+     "batch006": [
+      5,
+      3,
+      2,
+      3
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741811,
+      13,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741811,
+      13,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      20,
+      196,
+      186,
+      175,
+      230,
+      58,
+      100,
+      38
+     ],
+     "batch006": [
+      20,
+      196,
+      186,
+      175,
+      230,
+      58,
+      100,
+      38
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 13.0,
+   "poisson_tail_P_K_ge_X_given_v": 6.359777327134155e-11,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B05-RAND-20260803705": {
+   "arm": "B05-RAND-20260803705",
+   "sbox_seed": 20260803705,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 14,
+    "W_ge1_by_word": [
+     5,
+     5,
+     3,
+     1
+    ],
+    "whist": [
+     1073741810,
+     14,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     192,
+     236,
+     235,
+     147,
+     27,
+     130,
+     184,
+     100
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 14,
+    "W_ge1_by_word": [
+     5,
+     5,
+     3,
+     1
+    ],
+    "whist": [
+     1073741810,
+     14,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 14,
+     "batch006": 14,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      5,
+      5,
+      3,
+      1
+     ],
+     "batch006": [
+      5,
+      5,
+      3,
+      1
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741810,
+      14,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741810,
+      14,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      192,
+      236,
+      235,
+      147,
+      27,
+      130,
+      184,
+      100
+     ],
+     "batch006": [
+      192,
+      236,
+      235,
+      147,
+      27,
+      130,
+      184,
+      100
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 14.0,
+   "poisson_tail_P_K_ge_X_given_v": 4.519852546965104e-12,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B06-RAND-20260803706": {
+   "arm": "B06-RAND-20260803706",
+   "sbox_seed": 20260803706,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 21,
+    "W_ge1_by_word": [
+     7,
+     8,
+     2,
+     4
+    ],
+    "whist": [
+     1073741803,
+     21,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     61,
+     196,
+     146,
+     104,
+     79,
+     150,
+     68,
+     239
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 21,
+    "W_ge1_by_word": [
+     7,
+     8,
+     2,
+     4
+    ],
+    "whist": [
+     1073741803,
+     21,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 21,
+     "batch006": 21,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      7,
+      8,
+      2,
+      4
+     ],
+     "batch006": [
+      7,
+      8,
+      2,
+      4
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741803,
+      21,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741803,
+      21,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      61,
+      196,
+      146,
+      104,
+      79,
+      150,
+      68,
+      239
+     ],
+     "batch006": [
+      61,
+      196,
+      146,
+      104,
+      79,
+      150,
+      68,
+      239
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 21.0,
+   "poisson_tail_P_K_ge_X_given_v": 7.542625077205284e-21,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B07-RAND-20260803707": {
+   "arm": "B07-RAND-20260803707",
+   "sbox_seed": 20260803707,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741823,
+    "trivial_swaps_excluded": 1,
+    "W_ge1_nontrivial": 11,
+    "W_ge1_by_word": [
+     3,
+     1,
+     3,
+     4
+    ],
+    "whist": [
+     1073741812,
+     11,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     14,
+     10,
+     44,
+     223,
+     194,
+     122,
+     200,
+     5
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741823,
+    "trivial_swaps_excluded": 1,
+    "W_ge1_nontrivial": 11,
+    "W_ge1_by_word": [
+     3,
+     1,
+     3,
+     4
+    ],
+    "whist": [
+     1073741812,
+     11,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 1,
+     "batch006": 1,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741823,
+     "batch006": 1073741823,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 11,
+     "batch006": 11,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      3,
+      1,
+      3,
+      4
+     ],
+     "batch006": [
+      3,
+      1,
+      3,
+      4
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741812,
+      11,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741812,
+      11,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      14,
+      10,
+      44,
+      223,
+      194,
+      122,
+      200,
+      5
+     ],
+     "batch006": [
+      14,
+      10,
+      44,
+      223,
+      194,
+      122,
+      200,
+      5
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 0.9999999990686774,
+   "X_over_v_measured_over_modeled": 11.000000010244548,
+   "poisson_tail_P_K_ge_X_given_v": 1.0047766281275576e-08,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B08-RAND-20260803708": {
+   "arm": "B08-RAND-20260803708",
+   "sbox_seed": 20260803708,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 25,
+    "W_ge1_by_word": [
+     8,
+     8,
+     4,
+     5
+    ],
+    "whist": [
+     1073741799,
+     25,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     179,
+     243,
+     177,
+     134,
+     2,
+     249,
+     112,
+     4
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 25,
+    "W_ge1_by_word": [
+     8,
+     8,
+     4,
+     5
+    ],
+    "whist": [
+     1073741799,
+     25,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 25,
+     "batch006": 25,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      8,
+      8,
+      4,
+      5
+     ],
+     "batch006": [
+      8,
+      8,
+      4,
+      5
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741799,
+      25,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741799,
+      25,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      179,
+      243,
+      177,
+      134,
+      2,
+      249,
+      112,
+      4
+     ],
+     "batch006": [
+      179,
+      243,
+      177,
+      134,
+      2,
+      249,
+      112,
+      4
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 25.0,
+   "poisson_tail_P_K_ge_X_given_v": 2.4664231717319462e-26,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B09-RAND-20260803709": {
+   "arm": "B09-RAND-20260803709",
+   "sbox_seed": 20260803709,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741823,
+    "trivial_swaps_excluded": 1,
+    "W_ge1_nontrivial": 14,
+    "W_ge1_by_word": [
+     4,
+     1,
+     4,
+     5
+    ],
+    "whist": [
+     1073741809,
+     14,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     38,
+     41,
+     71,
+     171,
+     167,
+     68,
+     197,
+     46
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741823,
+    "trivial_swaps_excluded": 1,
+    "W_ge1_nontrivial": 14,
+    "W_ge1_by_word": [
+     4,
+     1,
+     4,
+     5
+    ],
+    "whist": [
+     1073741809,
+     14,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 1,
+     "batch006": 1,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741823,
+     "batch006": 1073741823,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 14,
+     "batch006": 14,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      4,
+      1,
+      4,
+      5
+     ],
+     "batch006": [
+      4,
+      1,
+      4,
+      5
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741809,
+      14,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741809,
+      14,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      38,
+      41,
+      71,
+      171,
+      167,
+      68,
+      197,
+      46
+     ],
+     "batch006": [
+      38,
+      41,
+      71,
+      171,
+      167,
+      68,
+      197,
+      46
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 0.9999999990686774,
+   "X_over_v_measured_over_modeled": 14.000000013038516,
+   "poisson_tail_P_K_ge_X_given_v": 4.519852491944505e-12,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B10-RAND-20260803710": {
+   "arm": "B10-RAND-20260803710",
+   "sbox_seed": 20260803710,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 17,
+    "W_ge1_by_word": [
+     4,
+     7,
+     4,
+     2
+    ],
+    "whist": [
+     1073741807,
+     17,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     195,
+     250,
+     185,
+     29,
+     69,
+     72,
+     7,
+     159
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 17,
+    "W_ge1_by_word": [
+     4,
+     7,
+     4,
+     2
+    ],
+    "whist": [
+     1073741807,
+     17,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 17,
+     "batch006": 17,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      4,
+      7,
+      4,
+      2
+     ],
+     "batch006": [
+      4,
+      7,
+      4,
+      2
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741807,
+      17,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741807,
+      17,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      195,
+      250,
+      185,
+      29,
+      69,
+      72,
+      7,
+      159
+     ],
+     "batch006": [
+      195,
+      250,
+      185,
+      29,
+      69,
+      72,
+      7,
+      159
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 17.0,
+   "poisson_tail_P_K_ge_X_given_v": 1.0949201303781815e-15,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B11-RAND-20260803711": {
+   "arm": "B11-RAND-20260803711",
+   "sbox_seed": 20260803711,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 6,
+    "W_ge1_by_word": [
+     3,
+     1,
+     2,
+     0
+    ],
+    "whist": [
+     1073741818,
+     6,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     53,
+     150,
+     56,
+     27,
+     58,
+     52,
+     78,
+     117
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 6,
+    "W_ge1_by_word": [
+     3,
+     1,
+     2,
+     0
+    ],
+    "whist": [
+     1073741818,
+     6,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 6,
+     "batch006": 6,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      3,
+      1,
+      2,
+      0
+     ],
+     "batch006": [
+      3,
+      1,
+      2,
+      0
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741818,
+      6,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741818,
+      6,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      53,
+      150,
+      56,
+      27,
+      58,
+      52,
+      78,
+      117
+     ],
+     "batch006": [
+      53,
+      150,
+      56,
+      27,
+      58,
+      52,
+      78,
+      117
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 6.0,
+   "poisson_tail_P_K_ge_X_given_v": 0.0005941848175816923,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": false,
+   "STRICT_BATCH004_CLASSIFICATION": "NOT_ALIVE"
+  },
+  "B12-RAND-20260803712": {
+   "arm": "B12-RAND-20260803712",
+   "sbox_seed": 20260803712,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741823,
+    "trivial_swaps_excluded": 1,
+    "W_ge1_nontrivial": 14,
+    "W_ge1_by_word": [
+     5,
+     3,
+     2,
+     4
+    ],
+    "whist": [
+     1073741809,
+     14,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     77,
+     197,
+     150,
+     209,
+     240,
+     37,
+     75,
+     253
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741823,
+    "trivial_swaps_excluded": 1,
+    "W_ge1_nontrivial": 14,
+    "W_ge1_by_word": [
+     5,
+     3,
+     2,
+     4
+    ],
+    "whist": [
+     1073741809,
+     14,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 1,
+     "batch006": 1,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741823,
+     "batch006": 1073741823,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 14,
+     "batch006": 14,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      5,
+      3,
+      2,
+      4
+     ],
+     "batch006": [
+      5,
+      3,
+      2,
+      4
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741809,
+      14,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741809,
+      14,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      77,
+      197,
+      150,
+      209,
+      240,
+      37,
+      75,
+      253
+     ],
+     "batch006": [
+      77,
+      197,
+      150,
+      209,
+      240,
+      37,
+      75,
+      253
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 0.9999999990686774,
+   "X_over_v_measured_over_modeled": 14.000000013038516,
+   "poisson_tail_P_K_ge_X_given_v": 4.519852491944505e-12,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B13-RAND-20260803713": {
+   "arm": "B13-RAND-20260803713",
+   "sbox_seed": 20260803713,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 12,
+    "W_ge1_by_word": [
+     2,
+     5,
+     3,
+     2
+    ],
+    "whist": [
+     1073741812,
+     12,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     108,
+     138,
+     167,
+     4,
+     160,
+     88,
+     191,
+     192
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 12,
+    "W_ge1_by_word": [
+     2,
+     5,
+     3,
+     2
+    ],
+    "whist": [
+     1073741812,
+     12,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 12,
+     "batch006": 12,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      2,
+      5,
+      3,
+      2
+     ],
+     "batch006": [
+      2,
+      5,
+      3,
+      2
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741812,
+      12,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741812,
+      12,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      108,
+      138,
+      167,
+      4,
+      160,
+      88,
+      191,
+      192
+     ],
+     "batch006": [
+      108,
+      138,
+      167,
+      4,
+      160,
+      88,
+      191,
+      192
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 12.0,
+   "poisson_tail_P_K_ge_X_given_v": 8.316107426882347e-10,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B14-RAND-20260803714": {
+   "arm": "B14-RAND-20260803714",
+   "sbox_seed": 20260803714,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 22,
+    "W_ge1_by_word": [
+     7,
+     4,
+     4,
+     7
+    ],
+    "whist": [
+     1073741802,
+     22,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     82,
+     187,
+     64,
+     19,
+     158,
+     128,
+     196,
+     176
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 22,
+    "W_ge1_by_word": [
+     7,
+     4,
+     4,
+     7
+    ],
+    "whist": [
+     1073741802,
+     22,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 22,
+     "batch006": 22,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      7,
+      4,
+      4,
+      7
+     ],
+     "batch006": [
+      7,
+      4,
+      4,
+      7
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741802,
+      22,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741802,
+      22,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      82,
+      187,
+      64,
+      19,
+      158,
+      128,
+      196,
+      176
+     ],
+     "batch006": [
+      82,
+      187,
+      64,
+      19,
+      158,
+      128,
+      196,
+      176
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 22.0,
+   "poisson_tail_P_K_ge_X_given_v": 3.4214245672332647e-22,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B15-RAND-20260803715": {
+   "arm": "B15-RAND-20260803715",
+   "sbox_seed": 20260803715,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 18,
+    "W_ge1_by_word": [
+     4,
+     6,
+     4,
+     4
+    ],
+    "whist": [
+     1073741806,
+     18,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     37,
+     131,
+     140,
+     158,
+     44,
+     80,
+     214,
+     34
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 18,
+    "W_ge1_by_word": [
+     4,
+     6,
+     4,
+     4
+    ],
+    "whist": [
+     1073741806,
+     18,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 18,
+     "batch006": 18,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      4,
+      6,
+      4,
+      4
+     ],
+     "batch006": [
+      4,
+      6,
+      4,
+      4
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741806,
+      18,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741806,
+      18,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      37,
+      131,
+      140,
+      158,
+      44,
+      80,
+      214,
+      34
+     ],
+     "batch006": [
+      37,
+      131,
+      140,
+      158,
+      44,
+      80,
+      214,
+      34
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 18.0,
+   "poisson_tail_P_K_ge_X_given_v": 6.064280677215578e-17,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B16-RAND-20260803716": {
+   "arm": "B16-RAND-20260803716",
+   "sbox_seed": 20260803716,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 13,
+    "W_ge1_by_word": [
+     4,
+     3,
+     2,
+     4
+    ],
+    "whist": [
+     1073741811,
+     13,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     142,
+     131,
+     218,
+     63,
+     223,
+     92,
+     1,
+     214
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 13,
+    "W_ge1_by_word": [
+     4,
+     3,
+     2,
+     4
+    ],
+    "whist": [
+     1073741811,
+     13,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 13,
+     "batch006": 13,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      4,
+      3,
+      2,
+      4
+     ],
+     "batch006": [
+      4,
+      3,
+      2,
+      4
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741811,
+      13,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741811,
+      13,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      142,
+      131,
+      218,
+      63,
+      223,
+      92,
+      1,
+      214
+     ],
+     "batch006": [
+      142,
+      131,
+      218,
+      63,
+      223,
+      92,
+      1,
+      214
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 13.0,
+   "poisson_tail_P_K_ge_X_given_v": 6.359777327134155e-11,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B17-RAND-20260803717": {
+   "arm": "B17-RAND-20260803717",
+   "sbox_seed": 20260803717,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 16,
+    "W_ge1_by_word": [
+     3,
+     6,
+     6,
+     1
+    ],
+    "whist": [
+     1073741808,
+     16,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     155,
+     246,
+     213,
+     170,
+     167,
+     222,
+     214,
+     197
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 16,
+    "W_ge1_by_word": [
+     3,
+     6,
+     6,
+     1
+    ],
+    "whist": [
+     1073741808,
+     16,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 16,
+     "batch006": 16,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      3,
+      6,
+      6,
+      1
+     ],
+     "batch006": [
+      3,
+      6,
+      6,
+      1
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741808,
+      16,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741808,
+      16,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      155,
+      246,
+      213,
+      170,
+      167,
+      222,
+      214,
+      197
+     ],
+     "batch006": [
+      155,
+      246,
+      213,
+      170,
+      167,
+      222,
+      214,
+      197
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 16.0,
+   "poisson_tail_P_K_ge_X_given_v": 1.867763463168067e-14,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B18-RAND-20260803718": {
+   "arm": "B18-RAND-20260803718",
+   "sbox_seed": 20260803718,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 14,
+    "W_ge1_by_word": [
+     6,
+     5,
+     1,
+     2
+    ],
+    "whist": [
+     1073741810,
+     14,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     152,
+     103,
+     64,
+     168,
+     130,
+     75,
+     160,
+     7
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 14,
+    "W_ge1_by_word": [
+     6,
+     5,
+     1,
+     2
+    ],
+    "whist": [
+     1073741810,
+     14,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 14,
+     "batch006": 14,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      6,
+      5,
+      1,
+      2
+     ],
+     "batch006": [
+      6,
+      5,
+      1,
+      2
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741810,
+      14,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741810,
+      14,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      152,
+      103,
+      64,
+      168,
+      130,
+      75,
+      160,
+      7
+     ],
+     "batch006": [
+      152,
+      103,
+      64,
+      168,
+      130,
+      75,
+      160,
+      7
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 14.0,
+   "poisson_tail_P_K_ge_X_given_v": 4.519852546965104e-12,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B19-RAND-20260803719": {
+   "arm": "B19-RAND-20260803719",
+   "sbox_seed": 20260803719,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741823,
+    "trivial_swaps_excluded": 1,
+    "W_ge1_nontrivial": 18,
+    "W_ge1_by_word": [
+     5,
+     3,
+     5,
+     5
+    ],
+    "whist": [
+     1073741805,
+     18,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     179,
+     82,
+     131,
+     24,
+     39,
+     146,
+     246,
+     16
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741823,
+    "trivial_swaps_excluded": 1,
+    "W_ge1_nontrivial": 18,
+    "W_ge1_by_word": [
+     5,
+     3,
+     5,
+     5
+    ],
+    "whist": [
+     1073741805,
+     18,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 1,
+     "batch006": 1,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741823,
+     "batch006": 1073741823,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 18,
+     "batch006": 18,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      5,
+      3,
+      5,
+      5
+     ],
+     "batch006": [
+      5,
+      3,
+      5,
+      5
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741805,
+      18,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741805,
+      18,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      179,
+      82,
+      131,
+      24,
+      39,
+      146,
+      246,
+      16
+     ],
+     "batch006": [
+      179,
+      82,
+      131,
+      24,
+      39,
+      146,
+      246,
+      16
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 0.9999999990686774,
+   "X_over_v_measured_over_modeled": 18.000000016763806,
+   "poisson_tail_P_K_ge_X_given_v": 6.064280580890996e-17,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B20-RAND-20260803720": {
+   "arm": "B20-RAND-20260803720",
+   "sbox_seed": 20260803720,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 16,
+    "W_ge1_by_word": [
+     5,
+     3,
+     4,
+     4
+    ],
+    "whist": [
+     1073741808,
+     16,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     211,
+     153,
+     210,
+     180,
+     204,
+     40,
+     230,
+     241
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 16,
+    "W_ge1_by_word": [
+     5,
+     3,
+     4,
+     4
+    ],
+    "whist": [
+     1073741808,
+     16,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 16,
+     "batch006": 16,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      5,
+      3,
+      4,
+      4
+     ],
+     "batch006": [
+      5,
+      3,
+      4,
+      4
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741808,
+      16,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741808,
+      16,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      211,
+      153,
+      210,
+      180,
+      204,
+      40,
+      230,
+      241
+     ],
+     "batch006": [
+      211,
+      153,
+      210,
+      180,
+      204,
+      40,
+      230,
+      241
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 16.0,
+   "poisson_tail_P_K_ge_X_given_v": 1.867763463168067e-14,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B21-RAND-20260803721": {
+   "arm": "B21-RAND-20260803721",
+   "sbox_seed": 20260803721,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 13,
+    "W_ge1_by_word": [
+     2,
+     2,
+     3,
+     6
+    ],
+    "whist": [
+     1073741811,
+     13,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     64,
+     184,
+     241,
+     59,
+     20,
+     150,
+     78,
+     72
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 13,
+    "W_ge1_by_word": [
+     2,
+     2,
+     3,
+     6
+    ],
+    "whist": [
+     1073741811,
+     13,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 13,
+     "batch006": 13,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      2,
+      2,
+      3,
+      6
+     ],
+     "batch006": [
+      2,
+      2,
+      3,
+      6
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741811,
+      13,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741811,
+      13,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      64,
+      184,
+      241,
+      59,
+      20,
+      150,
+      78,
+      72
+     ],
+     "batch006": [
+      64,
+      184,
+      241,
+      59,
+      20,
+      150,
+      78,
+      72
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 13.0,
+   "poisson_tail_P_K_ge_X_given_v": 6.359777327134155e-11,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B22-RAND-20260803722": {
+   "arm": "B22-RAND-20260803722",
+   "sbox_seed": 20260803722,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741823,
+    "trivial_swaps_excluded": 1,
+    "W_ge1_nontrivial": 17,
+    "W_ge1_by_word": [
+     3,
+     5,
+     3,
+     6
+    ],
+    "whist": [
+     1073741806,
+     17,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     152,
+     21,
+     58,
+     96,
+     67,
+     209,
+     125,
+     138
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741823,
+    "trivial_swaps_excluded": 1,
+    "W_ge1_nontrivial": 17,
+    "W_ge1_by_word": [
+     3,
+     5,
+     3,
+     6
+    ],
+    "whist": [
+     1073741806,
+     17,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 1,
+     "batch006": 1,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741823,
+     "batch006": 1073741823,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 17,
+     "batch006": 17,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      3,
+      5,
+      3,
+      6
+     ],
+     "batch006": [
+      3,
+      5,
+      3,
+      6
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741806,
+      17,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741806,
+      17,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      152,
+      21,
+      58,
+      96,
+      67,
+      209,
+      125,
+      138
+     ],
+     "batch006": [
+      152,
+      21,
+      58,
+      96,
+      67,
+      209,
+      125,
+      138
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 0.9999999990686774,
+   "X_over_v_measured_over_modeled": 17.000000015832484,
+   "poisson_tail_P_K_ge_X_given_v": 1.0949201140030025e-15,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B23-RAND-20260803723": {
+   "arm": "B23-RAND-20260803723",
+   "sbox_seed": 20260803723,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741821,
+    "trivial_swaps_excluded": 3,
+    "W_ge1_nontrivial": 24,
+    "W_ge1_by_word": [
+     5,
+     2,
+     9,
+     8
+    ],
+    "whist": [
+     1073741797,
+     24,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     241,
+     108,
+     218,
+     62,
+     129,
+     101,
+     181,
+     193
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741821,
+    "trivial_swaps_excluded": 3,
+    "W_ge1_nontrivial": 24,
+    "W_ge1_by_word": [
+     5,
+     2,
+     9,
+     8
+    ],
+    "whist": [
+     1073741797,
+     24,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 3,
+     "batch006": 3,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741821,
+     "batch006": 1073741821,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 24,
+     "batch006": 24,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      5,
+      2,
+      9,
+      8
+     ],
+     "batch006": [
+      5,
+      2,
+      9,
+      8
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741797,
+      24,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741797,
+      24,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      241,
+      108,
+      218,
+      62,
+      129,
+      101,
+      181,
+      193
+     ],
+     "batch006": [
+      241,
+      108,
+      218,
+      62,
+      129,
+      101,
+      181,
+      193
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 0.9999999972060323,
+   "X_over_v_measured_over_modeled": 24.000000067055225,
+   "poisson_tail_P_K_ge_X_given_v": 6.175893089284515e-25,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B24-RAND-20260803724": {
+   "arm": "B24-RAND-20260803724",
+   "sbox_seed": 20260803724,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 12,
+    "W_ge1_by_word": [
+     5,
+     3,
+     2,
+     2
+    ],
+    "whist": [
+     1073741812,
+     12,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     75,
+     1,
+     138,
+     205,
+     32,
+     80,
+     219,
+     168
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 12,
+    "W_ge1_by_word": [
+     5,
+     3,
+     2,
+     2
+    ],
+    "whist": [
+     1073741812,
+     12,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 12,
+     "batch006": 12,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      5,
+      3,
+      2,
+      2
+     ],
+     "batch006": [
+      5,
+      3,
+      2,
+      2
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741812,
+      12,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741812,
+      12,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      75,
+      1,
+      138,
+      205,
+      32,
+      80,
+      219,
+      168
+     ],
+     "batch006": [
+      75,
+      1,
+      138,
+      205,
+      32,
+      80,
+      219,
+      168
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 12.0,
+   "poisson_tail_P_K_ge_X_given_v": 8.316107426882347e-10,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B25-RAND-20260803725": {
+   "arm": "B25-RAND-20260803725",
+   "sbox_seed": 20260803725,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 9,
+    "W_ge1_by_word": [
+     0,
+     2,
+     2,
+     5
+    ],
+    "whist": [
+     1073741815,
+     9,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     151,
+     233,
+     10,
+     246,
+     234,
+     12,
+     145,
+     80
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 9,
+    "W_ge1_by_word": [
+     0,
+     2,
+     2,
+     5
+    ],
+    "whist": [
+     1073741815,
+     9,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 9,
+     "batch006": 9,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      0,
+      2,
+      2,
+      5
+     ],
+     "batch006": [
+      0,
+      2,
+      2,
+      5
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741815,
+      9,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741815,
+      9,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      151,
+      233,
+      10,
+      246,
+      234,
+      12,
+      145,
+      80
+     ],
+     "batch006": [
+      151,
+      233,
+      10,
+      246,
+      234,
+      12,
+      145,
+      80
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 9.0,
+   "poisson_tail_P_K_ge_X_given_v": 1.1252025979690206e-06,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": false,
+   "STRICT_BATCH004_CLASSIFICATION": "NOT_ALIVE"
+  },
+  "B26-RAND-20260803726": {
+   "arm": "B26-RAND-20260803726",
+   "sbox_seed": 20260803726,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 13,
+    "W_ge1_by_word": [
+     3,
+     4,
+     4,
+     2
+    ],
+    "whist": [
+     1073741811,
+     13,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     136,
+     181,
+     27,
+     216,
+     234,
+     10,
+     122,
+     183
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 13,
+    "W_ge1_by_word": [
+     3,
+     4,
+     4,
+     2
+    ],
+    "whist": [
+     1073741811,
+     13,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 13,
+     "batch006": 13,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      3,
+      4,
+      4,
+      2
+     ],
+     "batch006": [
+      3,
+      4,
+      4,
+      2
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741811,
+      13,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741811,
+      13,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      136,
+      181,
+      27,
+      216,
+      234,
+      10,
+      122,
+      183
+     ],
+     "batch006": [
+      136,
+      181,
+      27,
+      216,
+      234,
+      10,
+      122,
+      183
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 13.0,
+   "poisson_tail_P_K_ge_X_given_v": 6.359777327134155e-11,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  },
+  "B27-RAND-20260803727": {
+   "arm": "B27-RAND-20260803727",
+   "sbox_seed": 20260803727,
+   "status_this_task": "COMPLETED",
+   "mine": {
+    "trials": 1073741824,
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 21,
+    "W_ge1_by_word": [
+     6,
+     4,
+     5,
+     6
+    ],
+    "whist": [
+     1073741803,
+     21,
+     0,
+     0,
+     0
+    ],
+    "key_hex": "c17835e6ca6233347781f4ba00d26ee4",
+    "thread_seeds": [
+     11400714758317778013,
+     4354685486758568034
+    ],
+    "sbox_first8": [
+     205,
+     194,
+     123,
+     188,
+     94,
+     220,
+     63,
+     242
+    ],
+    "rounds": 5,
+    "amask": 1,
+    "smask": 1,
+    "seed": 631001,
+    "arm_id": 1,
+    "threads": 2
+   },
+   "batch006": {
+    "nontrivial_trials": 1073741824,
+    "trivial_swaps_excluded": 0,
+    "W_ge1_nontrivial": 21,
+    "W_ge1_by_word": [
+     6,
+     4,
+     5,
+     6
+    ],
+    "whist": [
+     1073741803,
+     21,
+     0,
+     0,
+     0
+    ]
+   },
+   "per_field_agreement": {
+    "trivial_swaps_excluded": {
+     "mine": 0,
+     "batch006": 0,
+     "agree": true
+    },
+    "nontrivial_trials": {
+     "mine": 1073741824,
+     "batch006": 1073741824,
+     "agree": true
+    },
+    "W_ge1_nontrivial": {
+     "mine": 21,
+     "batch006": 21,
+     "agree": true
+    },
+    "W_ge1_by_word": {
+     "mine": [
+      6,
+      4,
+      5,
+      6
+     ],
+     "batch006": [
+      6,
+      4,
+      5,
+      6
+     ],
+     "agree": true
+    },
+    "whist": {
+     "mine": [
+      1073741803,
+      21,
+      0,
+      0,
+      0
+     ],
+     "batch006": [
+      1073741803,
+      21,
+      0,
+      0,
+      0
+     ],
+     "agree": true
+    },
+    "key_hex": {
+     "mine": "c17835e6ca6233347781f4ba00d26ee4",
+     "batch006": "c17835e6ca6233347781f4ba00d26ee4",
+     "agree": true
+    },
+    "thread_seeds": {
+     "mine": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "batch006": [
+      11400714758317778013,
+      4354685486758568034
+     ],
+     "agree": true
+    },
+    "sbox_first8": {
+     "mine": [
+      205,
+      194,
+      123,
+      188,
+      94,
+      220,
+      63,
+      242
+     ],
+     "batch006": [
+      205,
+      194,
+      123,
+      188,
+      94,
+      220,
+      63,
+      242
+     ],
+     "agree": true
+    }
+   },
+   "AGREEMENT": "EXACT_AGREEMENT",
+   "disagreeing_fields": [],
+   "null_modeled_v": 1.0,
+   "X_over_v_measured_over_modeled": 21.0,
+   "poisson_tail_P_K_ge_X_given_v": 7.542625077205284e-21,
+   "criterion_conjunct_1_ratio_ge_5": true,
+   "criterion_conjunct_2_tail_lt_1e-6": true,
+   "STRICT_BATCH004_CLASSIFICATION": "ALIVE"
+  }
+ },
+ "PER_DRAW_AGREEMENT_SUMMARY": {
+  "stated_draw_by_draw_in": "PER_DRAW[<arm>].AGREEMENT and .per_field_agreement",
+  "fields_compared": [
+   "trivial_swaps_excluded",
+   "nontrivial_trials",
+   "W_ge1_nontrivial",
+   "W_ge1_by_word",
+   "whist",
+   "key_hex",
+   "thread_seeds",
+   "sbox_first8"
+  ],
+  "draws_completed": [
+   "B01-RAND-20260803701",
+   "B02-RAND-20260803702",
+   "B03-RAND-20260803703",
+   "B04-RAND-20260803704",
+   "B05-RAND-20260803705",
+   "B06-RAND-20260803706",
+   "B07-RAND-20260803707",
+   "B08-RAND-20260803708",
+   "B09-RAND-20260803709",
+   "B10-RAND-20260803710",
+   "B11-RAND-20260803711",
+   "B12-RAND-20260803712",
+   "B13-RAND-20260803713",
+   "B14-RAND-20260803714",
+   "B15-RAND-20260803715",
+   "B16-RAND-20260803716",
+   "B17-RAND-20260803717",
+   "B18-RAND-20260803718",
+   "B19-RAND-20260803719",
+   "B20-RAND-20260803720",
+   "B21-RAND-20260803721",
+   "B22-RAND-20260803722",
+   "B23-RAND-20260803723",
+   "B24-RAND-20260803724",
+   "B25-RAND-20260803725",
+   "B26-RAND-20260803726",
+   "B27-RAND-20260803727"
+  ],
+  "draws_in_exact_agreement": [
+   "B01-RAND-20260803701",
+   "B02-RAND-20260803702",
+   "B03-RAND-20260803703",
+   "B04-RAND-20260803704",
+   "B05-RAND-20260803705",
+   "B06-RAND-20260803706",
+   "B07-RAND-20260803707",
+   "B08-RAND-20260803708",
+   "B09-RAND-20260803709",
+   "B10-RAND-20260803710",
+   "B11-RAND-20260803711",
+   "B12-RAND-20260803712",
+   "B13-RAND-20260803713",
+   "B14-RAND-20260803714",
+   "B15-RAND-20260803715",
+   "B16-RAND-20260803716",
+   "B17-RAND-20260803717",
+   "B18-RAND-20260803718",
+   "B19-RAND-20260803719",
+   "B20-RAND-20260803720",
+   "B21-RAND-20260803721",
+   "B22-RAND-20260803722",
+   "B23-RAND-20260803723",
+   "B24-RAND-20260803724",
+   "B25-RAND-20260803725",
+   "B26-RAND-20260803726",
+   "B27-RAND-20260803727"
+  ],
+  "draws_in_disagreement": [],
+  "n_completed": 27,
+  "n_exact_agreement": 27,
+  "n_disagreement": 0,
+  "draws_not_completed": [],
+  "aggregate_is_not_the_deliverable": "The per-draw verdicts above are the deliverable. This block is an index into them, not a substitute: aggregate agreement can hide compensating errors."
+ },
+ "RESULT": {
+  "ALIVE_count_strict_BATCH004": 25,
+  "n_draws_measured_by_this_task": 27,
+  "alive_arms": [
+   "B01-RAND-20260803701",
+   "B02-RAND-20260803702",
+   "B03-RAND-20260803703",
+   "B04-RAND-20260803704",
+   "B05-RAND-20260803705",
+   "B06-RAND-20260803706",
+   "B07-RAND-20260803707",
+   "B08-RAND-20260803708",
+   "B09-RAND-20260803709",
+   "B10-RAND-20260803710",
+   "B12-RAND-20260803712",
+   "B13-RAND-20260803713",
+   "B14-RAND-20260803714",
+   "B15-RAND-20260803715",
+   "B16-RAND-20260803716",
+   "B17-RAND-20260803717",
+   "B18-RAND-20260803718",
+   "B19-RAND-20260803719",
+   "B20-RAND-20260803720",
+   "B21-RAND-20260803721",
+   "B22-RAND-20260803722",
+   "B23-RAND-20260803723",
+   "B24-RAND-20260803724",
+   "B26-RAND-20260803726",
+   "B27-RAND-20260803727"
+  ],
+  "not_alive_arms": [
+   "B11-RAND-20260803711",
+   "B25-RAND-20260803725"
+  ],
+  "clopper_pearson_95_lower_bound_on_the_preserving_fraction": 0.7847000388575458,
+  "bound_scope": "p = fraction of bijective S-boxes that are ALIVE under the strict BATCH-004 rule at THIS round count (r=5), THIS key block (arm seed 631001), THIS exposure (2^30 trials) and THIS liveness rule. Unpooled, over the draws this task actually measured.",
+  "BATCH006_bound": 0.784700038857546,
+  "BATCH006_ALIVE": 25,
+  "BATCH006_n": 27,
+  "bound_differs_from_BATCH006": false,
+  "not_reconciled_by_adopting_the_other_implementations_numbers": true
+ },
+ "BUDGET": {
+  "declared_wall_clock_seconds": 5400,
+  "declared_memory_gb": 8,
+  "maximum_runs": 35,
+  "max_threads": 2,
+  "start_utc": "2026-08-03T18:28:57Z",
+  "start_epoch": 1785781737,
+  "binding_stop_utc": "2026-08-03T19:58:57Z",
+  "binding_stop_epoch": 1785787137,
+  "stamps_file": "budget_stamps.jsonl",
+  "arm_timings": [
+   "B01-RAND-20260803701 exit=0 wall=168.11 cmd=./rc8probe_native arm B01-RAND-20260803701 rand:20260803701 5 1 1 30 631001 1 2",
+   "B02-RAND-20260803702 exit=0 wall=167.42 cmd=./rc8probe_native arm B02-RAND-20260803702 rand:20260803702 5 1 1 30 631001 1 2",
+   "B03-RAND-20260803703 exit=0 wall=169.64 cmd=./rc8probe_native arm B03-RAND-20260803703 rand:20260803703 5 1 1 30 631001 1 2",
+   "B04-RAND-20260803704 exit=0 wall=167.21 cmd=./rc8probe_native arm B04-RAND-20260803704 rand:20260803704 5 1 1 30 631001 1 2",
+   "B05-RAND-20260803705 exit=0 wall=166.78 cmd=./rc8probe_native arm B05-RAND-20260803705 rand:20260803705 5 1 1 30 631001 1 2",
+   "B06-RAND-20260803706 exit=0 wall=168.32 cmd=./rc8probe_native arm B06-RAND-20260803706 rand:20260803706 5 1 1 30 631001 1 2",
+   "B07-RAND-20260803707 exit=0 wall=169.61 cmd=./rc8probe_native arm B07-RAND-20260803707 rand:20260803707 5 1 1 30 631001 1 2",
+   "B08-RAND-20260803708 exit=0 wall=170.55 cmd=./rc8probe_native arm B08-RAND-20260803708 rand:20260803708 5 1 1 30 631001 1 2",
+   "B09-RAND-20260803709 exit=0 wall=167.38 cmd=./rc8probe_native arm B09-RAND-20260803709 rand:20260803709 5 1 1 30 631001 1 2",
+   "B10-RAND-20260803710 exit=0 wall=167.42 cmd=./rc8probe_native arm B10-RAND-20260803710 rand:20260803710 5 1 1 30 631001 1 2",
+   "B11-RAND-20260803711 exit=0 wall=167.97 cmd=./rc8probe_native arm B11-RAND-20260803711 rand:20260803711 5 1 1 30 631001 1 2",
+   "B12-RAND-20260803712 exit=0 wall=167.62 cmd=./rc8probe_native arm B12-RAND-20260803712 rand:20260803712 5 1 1 30 631001 1 2",
+   "B13-RAND-20260803713 exit=0 wall=168.95 cmd=./rc8probe_native arm B13-RAND-20260803713 rand:20260803713 5 1 1 30 631001 1 2",
+   "B14-RAND-20260803714 exit=0 wall=166.15 cmd=./rc8probe_native arm B14-RAND-20260803714 rand:20260803714 5 1 1 30 631001 1 2",
+   "B15-RAND-20260803715 exit=0 wall=166.92 cmd=./rc8probe_native arm B15-RAND-20260803715 rand:20260803715 5 1 1 30 631001 1 2",
+   "B16-RAND-20260803716 exit=0 wall=166.51 cmd=./rc8probe_native arm B16-RAND-20260803716 rand:20260803716 5 1 1 30 631001 1 2",
+   "B17-RAND-20260803717 exit=0 wall=167.00 cmd=./rc8probe_native arm B17-RAND-20260803717 rand:20260803717 5 1 1 30 631001 1 2",
+   "B18-RAND-20260803718 exit=0 wall=167.43 cmd=./rc8probe_native arm B18-RAND-20260803718 rand:20260803718 5 1 1 30 631001 1 2",
+   "B19-RAND-20260803719 exit=0 wall=163.79 cmd=./rc8probe_native arm B19-RAND-20260803719 rand:20260803719 5 1 1 30 631001 1 2",
+   "B20-RAND-20260803720 exit=0 wall=177.00 cmd=./rc8probe_native arm B20-RAND-20260803720 rand:20260803720 5 1 1 30 631001 1 2",
+   "B21-RAND-20260803721 exit=0 wall=165.41 cmd=./rc8probe_native arm B21-RAND-20260803721 rand:20260803721 5 1 1 30 631001 1 2",
+   "B22-RAND-20260803722 exit=0 wall=165.49 cmd=./rc8probe_native arm B22-RAND-20260803722 rand:20260803722 5 1 1 30 631001 1 2",
+   "B23-RAND-20260803723 exit=0 wall=166.41 cmd=./rc8probe_native arm B23-RAND-20260803723 rand:20260803723 5 1 1 30 631001 1 2",
+   "B24-RAND-20260803724 exit=0 wall=169.05 cmd=./rc8probe_native arm B24-RAND-20260803724 rand:20260803724 5 1 1 30 631001 1 2",
+   "B25-RAND-20260803725 exit=0 wall=169.15 cmd=./rc8probe_native arm B25-RAND-20260803725 rand:20260803725 5 1 1 30 631001 1 2",
+   "B26-RAND-20260803726 exit=0 wall=167.14 cmd=./rc8probe_native arm B26-RAND-20260803726 rand:20260803726 5 1 1 30 631001 1 2",
+   "B27-RAND-20260803727 exit=0 wall=165.87 cmd=./rc8probe_native arm B27-RAND-20260803727 rand:20260803727 5 1 1 30 631001 1 2",
+   "DRIVER_EXIT 2026-08-03T19:51:51Z epoch=1785786711 stop=1785787137"
+  ],
+  "dropped_on_budget_lines": [],
+  "commands_executed_for_arms": [
+   "./rc8probe_native arm B01-RAND-20260803701 rand:20260803701 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B02-RAND-20260803702 rand:20260803702 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B03-RAND-20260803703 rand:20260803703 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B04-RAND-20260803704 rand:20260803704 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B05-RAND-20260803705 rand:20260803705 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B06-RAND-20260803706 rand:20260803706 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B07-RAND-20260803707 rand:20260803707 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B08-RAND-20260803708 rand:20260803708 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B09-RAND-20260803709 rand:20260803709 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B10-RAND-20260803710 rand:20260803710 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B11-RAND-20260803711 rand:20260803711 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B12-RAND-20260803712 rand:20260803712 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B13-RAND-20260803713 rand:20260803713 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B14-RAND-20260803714 rand:20260803714 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B15-RAND-20260803715 rand:20260803715 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B16-RAND-20260803716 rand:20260803716 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B17-RAND-20260803717 rand:20260803717 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B18-RAND-20260803718 rand:20260803718 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B19-RAND-20260803719 rand:20260803719 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B20-RAND-20260803720 rand:20260803720 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B21-RAND-20260803721 rand:20260803721 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B22-RAND-20260803722 rand:20260803722 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B23-RAND-20260803723 rand:20260803723 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B24-RAND-20260803724 rand:20260803724 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B25-RAND-20260803725 rand:20260803725 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B26-RAND-20260803726 rand:20260803726 5 1 1 30 631001 1 2",
+   "./rc8probe_native arm B27-RAND-20260803727 rand:20260803727 5 1 1 30 631001 1 2"
+  ]
+ },
+ "ENVIRONMENT": {
+  "python": "3.11.15 (main, Mar  3 2026, 09:26:23) [GCC 13.3.0]",
+  "platform": "Linux-6.18.5-x86_64-with-glibc2.39",
+  "machine": "x86_64",
+  "processor": "x86_64",
+  "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "libc": "ldd (Ubuntu GLIBC 2.39-0ubuntu8.7) 2.39",
+  "nproc": "4",
+  "git_commit": "e451574b7eb3cad9f9d242ddf7e6452cc1e62b46",
+  "git_dirty": "",
+  "meminfo_total": "MemTotal:       16461176 kB",
+  "cpu_model": "Intel(R) Xeon(R) Processor @ 2.10GHz"
+ },
+ "GIT": {
+  "commit_at_task_start": "2d102750307c284f5ce489923bd92f5c7cbaf247",
+  "commit_at_environment_capture": "e451574b7eb3cad9f9d242ddf7e6452cc1e62b46",
+  "commit_at_results_write": "e451574b7eb3cad9f9d242ddf7e6452cc1e62b46",
+  "note": "HEAD moved during this task because another agent was committing in the shared worktree. This task committed nothing; its directory is gitignored on purpose. All three observed commits are recorded rather than one being presented as 'the' revision.",
+  "dirty_tree_at_environment_capture": "(clean)"
+ },
+ "SELF_CHECK": {
+  "json_load_run_on_own_RESULTS_json": true,
+  "json_load_succeeded": true,
+  "reloaded_top_level_keys": [
+   "BUDGET",
+   "ENVIRONMENT",
+   "GIT",
+   "INSTRUMENT",
+   "PER_DRAW",
+   "PER_DRAW_AGREEMENT_SUMMARY",
+   "PINS_AND_VALIDITY_CHECKS",
+   "RESULT",
+   "THE_CRITERION",
+   "WHAT_THIS_REPLICATES",
+   "batch",
+   "certificate",
+   "claim_tier",
+   "claim_tier_basis",
+   "generated_utc",
+   "goal_id",
+   "inference",
+   "role",
+   "schema",
+   "task_id",
+   "title"
+  ],
+  "bytes": 103332,
+  "json_load_rerun_after_final_edit": true
+ },
+ "FINDING": {
+  "headline": "THE 27 RC-8 DRAWS REPLICATE EXACTLY ON A SECOND, INDEPENDENTLY WRITTEN INSTRUMENT. All 27 completed. All 27 agree with BATCH-006 integer for integer on W_ge1_nontrivial, trivial_swaps_excluded, W_ge1_by_word and the full whist, and on key_hex, thread_seeds and sbox_first8. ALIVE = 25 of 27 under the strict frozen BATCH-004 criterion, and the one-sided 95% Clopper-Pearson lower bound recomputes to 0.7847000388575458.",
+  "bound_this_task": 0.7847000388575458,
+  "bound_BATCH006": 0.784700038857546,
+  "difference": 2.220446049250313e-16,
+  "bound_agrees_to_double_precision": true,
+  "the_two_NOT_ALIVE_draws": [
+   "B11-RAND-20260803711",
+   "B25-RAND-20260803725"
+  ],
+  "what_this_does_and_does_not_settle": [
+   "SETTLED: the 0.7847 bound is no longer a one-implementation, one-session number. A second instrument, written for this task with no T-tables, a different inverse cipher, a different AES S-box construction and a different key-expansion loop, returns the same integers on the same 27 objects. The unresolved confound EV-AES-9794e1 unresolved_confounds[0] -- 'the 27 RC-8 arms were not independently re-executed' -- is addressed by this run.",
+   "NOT SETTLED: this is IMPLEMENTATION and SESSION independence, not MODEL independence. Both this task and BATCH-006 resolved to claude-opus-5 under standing basis 0137a051eb5828789eb267fa83c8278086578d4c with fallback_used true. Nothing here contributes a distinct resolved model to any closure quorum.",
+   "NOT SETTLED: exact agreement was the PREREGISTERED prediction and is a check on the two implementations, not new evidence about S-boxes. The sample was not redrawn, so the 27 draws bound the preserving fraction exactly as much as they did before; what changed is that the instrument reading them is no longer single.",
+   "OUT OF SCOPE: nothing here speaks to full-round or deployed AES, and no comparison to published cryptanalysis is made in either direction."
+  ],
+  "if_the_bound_had_differed": "It did not. Had it differed, the registered protocol was to report the difference as the finding and not reconcile it by adopting BATCH-006's numbers; PREREGISTRATION.md records that ladder in advance."
+ },
+ "PROTOCOL_DEVIATIONS_AND_INCIDENTS": [
+  {
+   "item": "Two binaries built",
+   "detail": "rc8probe (-O3) was pinned first; rc8probe_native (-O3 -march=native -funroll-loops) benchmarked ~6% faster at 2^24 and was re-pinned against FIPS-197 C.1 before use. All 27 reported arms come from rc8probe_native. Both pin outputs are retained (runs/pin_aes.json, runs/pin_aes_native.json).",
+   "classification": "protocol note, not a deviation"
+  },
+  {
+   "item": "Background launcher reported exit 1",
+   "detail": "The tool wrapper that launched driver.sh returned exit code 1 while the detached driver.sh ran normally to completion (DRIVER_EXIT recorded, 27 arms, all exit=0). The exit status belonged to the launching shell, not to any measurement.",
+   "classification": "infrastructure_note, no measurement affected"
+  },
+  {
+   "item": "b27_guarded.sh armed but never needed",
+   "detail": "A guarded fallback was armed to run B27 under the preregistered 300 s reserve in case driver.sh's more conservative padded guard (EST=200, RESERVE=330) dropped it. The driver ran B27 itself and no arm was dropped, so the fallback never fired. Its wait loop matched its own launching command line and kept polling; it performed no measurement. runs/dropped.txt was never created, which is the record that no arm was dropped on budget.",
+   "classification": "protocol note, no measurement affected"
+  },
+  {
+   "item": "A pkill -f in a cleanup command matched its own shell",
+   "detail": "An attempt to terminate the idle b27_guarded.sh fallback used `pkill -f b27_guarded.sh`, whose pattern matched the invoking shell's own command line and terminated it (exit 144) before the finalisation step ran. The step was re-run. No measurement was in flight and no run artifact was touched.",
+   "classification": "infrastructure_note, no measurement affected"
+  },
+  {
+   "item": "git HEAD moved during the task",
+   "detail": "HEAD was 2d102750307c284f5ce489923bd92f5c7cbaf247 at start and e451574b7eb3cad9f9d242ddf7e6452cc1e62b46 at environment capture, because another agent was committing in the shared worktree. This task committed nothing.",
+   "classification": "recorded, not a deviation"
+  }
+ ],
+ "CHECKS_THAT_DID_NOT_RUN": [
+  {
+   "check": "adapter probe of the resolved model",
+   "reason": "no adapter is available in this harness; model_verified is false accordingly (CLAUDE.md model policy note)"
+  },
+  {
+   "check": "pooled bound across BATCH-004/005 draws",
+   "reason": "DELIBERATELY NOT COMPUTED. Reporting more than one bound reading is the failure CORR-20260803-2cefa6 records; exactly one reading is reported"
+  },
+  {
+   "check": "a second, looser liveness reading",
+   "reason": "DELIBERATELY NOT COMPUTED, same reason"
+  },
+  {
+   "check": "DEAD-vs-INDETERMINATE subclassification of the two NOT_ALIVE draws",
+   "reason": "not needed for the bound, which depends only on the ALIVE count, and reporting it invites the two-readings error. Their raw counts, ratios and Poisson tails are given in full so a reviewer can classify them independently"
+  },
+  {
+   "check": "independent re-execution at a second key block or round count",
+   "reason": "out of scope for this card and not attempted; no budget was spent on it"
+  }
+ ],
+ "ABSENCE_CLAIMS": {
+  "claims_made": [],
+  "note": "This artifact asserts no claim of the form 'X has never been measured in this repository'. Where it describes what BATCH-006 did or did not do it cites that batch's own artifacts, read directly. Paths read for this task: AGENTS.md, CLAUDE.md, ledger/evidence/EV-AES-9794e1.yaml, ledger/corrections/CORR-20260803-2cefa6.yaml, coordination/goals/GOAL-AES-003/batches/BATCH-007/dispatch_queue.json, coordination/goals/GOAL-AES-003/batches/BATCH-006/tasks/TASK-20260803-0764fc/ (RESULTS.json, driver.sh, yoyo_sbox_v2.c.readonly_copy, runs/, sboxes/), coordination/goals/GOAL-AES-003/batches/BATCH-004/tasks/TASK-20260803-367b1b/PREREGISTRATION.md (CORR-20260803-c92db5)."
+ },
+ "COMPLETION_GATE": {
+  "all_27_draws_attempted": true,
+  "all_27_completed": true,
+  "arms_not_completed": [],
+  "arms_dropped_on_budget": [],
+  "strict_criterion_applied_and_no_second_reading_reported": true,
+  "per_draw_agreement_stated_draw_by_draw_not_in_aggregate": true,
+  "halted_on_budget": false,
+  "halted_on_budget_detail": "The run finished inside the declared budget. driver.sh exited at 2026-08-03T19:51:51Z against a computed binding stop of 2026-08-03T19:58:57Z. No work was dropped and runs/dropped.txt was never created.",
+  "maximum_runs_declared": 35,
+  "runs_executed": "27 measuring arms + 2 AES pins (one per binary) + 27 per-draw pins + 2 anchor runs at 2^24",
+  "raw_data_and_summaries_agree": "every number in RESULT and PER_DRAW is recomputed from runs/*.json by build_results.py at write time"
+ }
+}

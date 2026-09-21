@@ -1,0 +1,461 @@
+schema: crypto.autoresearch.red_team_report.v1
+task_id: TASK-20260901-6efcd8
+batch_id: BATCH-2f12ac
+goal_id: GOAL-AES-003
+role: red-team
+claim_under_attack: >-
+  S0-CARRIER-ALIVE (producer TASK-20260901-7e0b71, package snapshot 162597e93,
+  frozen spec ledger/proposals/IDEA-20260901-363851.yaml): 'at t=1 (full AES
+  S-box, r=5, seed 531001), hit trials concentrate in the low-wt(e) tail of the
+  candidate carrier e = (q0^q1)^(p0^p1): 14 hits at byte wt(e) 11-16 (bit
+  40-68) vs the miss distribution peaked at wt(e)=16 (1008566583 of
+  1073741810 misses); exact one-sided p_small <= 0.05; so the carrier is alive
+  at t=1 and the ramp may be spent'.
+verdict: verdict-must-narrow
+verdict_summary: >-
+  The arithmetic and the gates survive: I re-derived p_small and p_large in
+  fresh code (two independent exact-integer DP codings) and they match the
+  committed rationals digit-for-digit (p_small =
+  6.802657658796063e-59); Gate 0's field-by-field receipt identity
+  (non-perturbation) is not attacked. But the evidential link between the
+  statistic and the interpretation is BROKEN at joint (a): 10 of the 14 hits
+  vanish on a PW word outside the probe support, and for those hits wt(e) <= 12
+  is a THEOREM of the instrument's definitions plus the amask=1 probe geometry,
+  holding for ANY round function (AES, identity, or an ideal random
+  permutation); they sit at the TOP of that forced envelope (11-12 of max 12,
+  Z=4 on 13/14 hits, i.e. zero extra cancellations). The remaining 4 hits
+  vanish on the active word and sit exactly at the miss peak wt(e)=16 -- their
+  subclass p_small is EXACTLY 1.0. The proves-too-much control fires: the same
+  raw statistic reads p_small = 3.9458e-05 on the known-dead r=6 reference arm
+  (3 hits, one of them an inactive-word hit at wt(e)=12). The reading therefore
+  survives only as a scope-narrowed restatement (below); the carrier language
+  must be removed from what Stage 0 certifies, and the carrier statistic must
+  be redefined (mask-conditioned) or carry the mask decomposition as a
+  co-primary BEFORE Stage 1 spends anything -- otherwise Stage 1's
+  Holm-adjusted 'CARRIER-CONFIRMED' is reachable by theorem at any interior
+  point with hits.
+
+joints:
+  - id: J-A
+    name: TAUTOLOGY -- low wt(e) on hits as a deterministic consequence of W>=1
+    coordinator_prior_point: (a)
+    status: BROKEN (decisive against the interpretive link; the observation itself stands)
+    derivation: >-
+      From src/affarm046e.c lines 353-422 (the committed instrument, read in
+      full this session): p1 is re-drawn only at the amask words, so with
+      amask=1 the input pair difference d = p0^p1 is supported exactly on PW
+      word 0 = {0,5,10,15} (the swap diagonal; PW[j][row] =
+      4*(((j+row)%4+4)%4)+row, lines 316-322). W counts PW words j on which
+      the OUTPUT pair difference q0^q1 vanishes (lines 389-393). e is computed
+      per raw byte as e_i = (q0[i]^q1[i]) ^ (p0[i]^p1[i]) (lines 400-404),
+      matching the frozen spec's carrier_statistic.quantity (IDEA-20260901-363851
+      lines 250-256). The PW words partition the 16 bytes, and PW[0] is
+      disjoint from PW[1], PW[2], PW[3]. Therefore: a hit whose vanishing word
+      j is in {1,2,3} (vanishing_word_mask in {2,4,8}) has e = 0 on all four
+      bytes of PW[j], hence wt(e) <= 12, DETERMINISTICALLY. This implication
+      uses only (i) the trial-map support of d and (ii) the definitions of W
+      and e; it holds for ANY encryption/decryption map, including an ideal
+      random bijection. It is not a property of AES. Symmetrically, a hit
+      vanishing on the ACTIVE word (mask 1) has e = d on the diagonal (at
+      least one nonzero byte) and no forced zeros, so wt(e) is unconstrained.
+    evidence_from_package: >-
+      runs/R4_gate0_j5.json hit_e_detail: 10/14 hits have vanishing_word_mask
+      in {2,4,8} and ALL ten have wt_e_byte <= 12 (structural_bound_check
+      verified per-hit in my fresh-code run); 4/14 hits have mask 1 and ALL
+      four have wt_e_byte = 16 (the miss peak; ewhist_miss mass at 16 is
+      1008566583/1073741810 = 93.9%). The per-hit identity wt(e) = 12 -
+      diag_cancel - (Z-4) holds for every inactive-word hit and wt(e) = wt(d)
+      + 12 - (Z-4) with inferred wt(d)=4 for every active-word hit
+      (all_identities_hold: true in my recomputation). 13/14 hits have Z = 4:
+      EXACTLY the forced four zero bytes and no more -- the mechanism's
+      predicted 'accidentally affine-compatible' deep cancellations (e near 0)
+      are absent. F_miss(<=12) = 435/1073741810 = 4.05e-7 (runs/R4_gate0_j5.json
+      ewhist_miss), so once any inactive-word hit exists the exchangeability
+      null is not merely false but DETERMINISTICALLY false; the p-value
+      quantifies a logical implication of the definitions, not an AES property.
+      The hit-vs-miss test shares q0^q1 as a common input to both the label
+      (W>=1) and the statistic (wt(e)): the instrument measures its own
+      definitions at exactly this joint.
+    residual_signal_disclosed: >-
+      The only deviation from the geometric null in the data: 3/10
+      inactive-word hits sit at wt(e)=11 (one byte below the forced ceiling)
+      vs a naive mask-conditional null expectation of ~0.61 (per-byte
+      cancellation ~1/256 model, computed in my fresh-code run). This is
+      UNADJUDICATED residual, not carrier evidence: n=10, the naive null is
+      not validated for word-vanishing-conditioned trials, and one byte below
+      the ceiling is not the deep small-e attraction the mechanism predicts.
+      It is the candidate target for a correctly-conditioned successor
+      statistic. Recorded per rule 8, not silently discarded.
+    cheapest_falsification_control: >-
+      ZERO new cipher runs: mask-conditioned restatement of the already-
+      committed per-hit data (executed in this report's fresh-code run,
+      seconds of analysis): split hits by vanishing_word_mask; test the
+      active-word subclass against F_miss (done: p_small = exactly 1.0, a
+      perfect null); test the inactive-word subclass WITHIN its forced
+      envelope against a mask-conditional null (done: hits sit at the ceiling
+      11-12 of max 12). For all future arms the instrument already logs the
+      mask (hit_e_detail), so the control is to preregister the
+      mask-conditioned statistic (or the mask decomposition as co-primary)
+      before Stage 1 runs. Cost: 0 runs, seconds of exact analysis.
+  - id: J-B
+    name: TINY SAMPLE -- n_hits = 14, seat identity with the committed receipt
+    coordinator_prior_point: (b)
+    status: WEAKENED (numerically robust, evidentially structural)
+    objection: >-
+      The low-tail concentration is carried entirely by the 10 structurally-
+      forced hits; removing them leaves the 4 unconstrained (active-word) hits
+      at wt(e)=16 with subclass p_small = EXACTLY 1.0 (T=64 is the maximum
+      possible sum of 4 draws from a 0..16 support; computed fresh-code). The
+      question posed -- 'how much of the p-value survives without the four
+      wt(e)=16 hits?' -- inverts the honest direction: without the four
+      wt-16 hits p_small only gets smaller (8.85e-68 for the ten alone,
+      computed fresh-code); the four wt-16 hits DILUTE the significance, they
+      do not drive it. The significance is therefore 100% carried by the
+      definition-forced subclass, not by statistical evidence. Additionally,
+      the 14 hits are not a fresh sample: runs/R4_gate0_cmp.json records
+      all_14_hit_indices_identical = true against the committed
+      L1-AES-R5-P30 receipt -- the Stage-0 carrier dataset is a deterministic
+      function of the one previously-committed seed 531001 stream. The only
+      new measurement in Stage 0 is the wt(e)/Z/mask values OF those same 14
+      committed trials.
+    cheapest_falsification_control: >-
+      The second-seed J5-2 arm at seed 531002 (~19 hits expected, EV-AES-5478a0
+      OBS-B16-3), already preregistered as Stage 1a R1 (IDEA-20260901-363851
+      stages_and_budget.stage_1a): 1 run, ~27 min handoff baseline (measured
+      94-155 s per 2^30 arm on this machine per RESULTS.json
+      elapsed_time_note). Must carry the mask decomposition as co-primary, or
+      it re-measures the same theorem.
+  - id: J-C
+    name: SINGLE SEED 531001
+    coordinator_prior_point: (c)
+    status: "SURVIVES AS DISCLOSED WEAKNESS (owned by the spec: F2 branch; OBS-B16-3 seed variance 14 vs 19 on record)"
+    objection: >-
+      Everything in the Stage-0 carrier reading is conditional on one seed.
+      Seed 531002's ~19 hits have UNKNOWN mask composition: if they are
+      dominated by active-word vanishings (mask 1), the descriptive
+      concentration disappears entirely (all weights at 16) even though the
+      excess persists. The sealed lineage already records comparator-side seed
+      variance (14 vs 19 hits, EV-AES-5478a0 OBS-B16-3, cited via
+      EV-AES-ec53f1 unresolved_confounds and IDEA-20260901-363851 assumptions),
+      so seed-correlation of the mask composition is a live, unmeasured
+      possibility.
+    cheapest_falsification_control: >-
+      Same J5-2 arm as J-B: 1 run (~27 min baseline / ~2 min measured on this
+      hardware). Report per-seed mask composition and per-seed
+      subclass-conditioned statistics, never pooled (the spec's own
+      seed-variance control, IDEA-20260901-363851 controls).
+  - id: J-D
+    name: "CARRIER IS ALIVE language -- one-t-point correlation is not a causal claim"
+    coordinator_prior_point: (d)
+    status: BROKEN AS STATED
+    objection: >-
+      'The carrier is alive' asserts the excess IS CARRIED BY e. Stage 0
+      measured a one-point hit-vs-miss correlation at t=1 whose dominant part
+      is definition-forced (J-A); the ramp decay -- the joint (excess, carrier)
+      curve that is the only designed discharge of the causal reading
+      (IDEA-20260901-363851 claim C2, mechanism) -- is unmeasured by
+      construction in Stage 0. Even granting the correlation wholesale, a
+      single t-point cannot distinguish 'excess rides on e' from 'hits are
+      word-vanishing events, which by definition have small wt(e)'. Worse,
+      within the one point measured, the correctly-conditioned reading is
+      null-to-absent (active subclass p_small = 1.0; inactive subclass at the
+      forced ceiling; Z=4 on 13/14).
+    cheapest_falsification_control: >-
+      Not dischargeable in Stage 0 by design; Stage 1a/1b's joint curve is the
+      discharge (~2 producer batches, ~4-4.5 h handoff baseline). But that
+      spend is gated on the J-A redefinition: under GRADUAL, interior points
+      have >= 100 hits and will almost surely contain inactive-word hits, so
+      the UNCONDITIONAL statistic's rejection there is theorem-guaranteed and
+      Holm-adjusted 'CARRIER-CONFIRMED' would be reached without measuring
+      anything about e. Cost if gated correctly: Stage 1 as specified; cost if
+      not: Stage 1 buys a theorem.
+  - id: J-E
+    name: EXTRA JOINT -- the miss reference distribution is itself geometry-dominated
+    coordinator_prior_point: beyond the prior's four (floor, not ceiling)
+    status: COMPOUNDS J-A
+    objection: >-
+      The reference side of the test is also explained without AES-specific
+      carrier physics: the r=5 miss wt(e) distribution fits a Poisson(lambda =
+      1/16) zero-byte model to within ~6% over the first three bins
+      (fresh-code fit: observed/Poisson ratios 0.9999, 1.0037, 0.9458 for
+      0,1,2 zero bytes; mild deficit in the deep tail, ratios 0.67/0.37 at
+      4/5 zeros). Both sides of the hit-vs-miss comparison are read through
+      the same geometric lens (probe support on PW[0], W-conditioning, random
+      byte behavior); the exchangeability test between them measures the
+      geometry. AES shows up in the hit EVENTS themselves (the sealed excess,
+      14 vs analytic null 1.0 -- not re-adjudicated here), not in the shape
+      contrast the carrier statistic consumes.
+    cheapest_falsification_control: >-
+      Zero runs: the Poisson fit above (seconds of analysis). A genuine
+      carrier signature must be defined RELATIVE TO this geometric baseline --
+      i.e. extra zero bytes of e beyond the forced envelope, at a rate above
+      the mask-conditional null -- which is exactly what the J-A successor
+      statistic is.
+  - id: J-F
+    name: EXTRA JOINT -- Z = 4 uniformity contradicts the mechanism's predicted signature at t=1
+    coordinator_prior_point: beyond the prior's four (floor, not ceiling)
+    status: ADVERSE TO THE MECHANISM WITHIN TESTED SCOPE
+    objection: >-
+      The carrier mechanism (IDEA-20260901-363851 mechanism: 'the nonlinear
+      trial map SHADOWS the identity law on the trials that hit', i.e. e
+      small because the composed S-box action is accidentally
+      affine-compatible) predicts anomalously DEEP cancellations of e on hit
+      trials. Observed (runs/R4_gate0_j5.json hit_e_detail): 13/14 hits have
+      Z = 4, i.e. EXACTLY the four zero bytes forced by the vanishing word and
+      none beyond; the one exception has Z = 5 (one extra byte). Within the
+      only subclass where the mechanism could have shown extra attraction
+      (inactive-word hits), the weights sit at the forced ceiling. The t=1
+      data point AWAY from the stated mechanism as far as the definitions
+      allow; they are consistent with 'word-vanishing events with otherwise
+      random-looking residual bytes', not with 'identity law shadowing'.
+    cheapest_falsification_control: >-
+      Zero runs: already in the committed per-hit data. Future arms: keep the
+      Z field logged (it is), and preregister 'extra zero bytes beyond the
+      forced envelope vs mask-conditional null' as the carrier signature.
+
+proves_too_much:
+  control_executed: true
+  known_dead_arm_result: >-
+    The r=6 known-dead reference arm (runs/R5_r6_reference.json; committed
+    dead, in dead band, tripwire not fired -- RESULTS.json
+    r6_known_dead_reference) carries 3 hits with hit_e_detail weights
+    {16, 16, 12} and masks {1, 1, 2}. Applying the SAME raw statistic
+    (one-sided exact exchangeability against the arm's own F_miss,
+    ewhist_miss in the same file): T_obs = 44, p_small =
+    48846757153333590096581/1237940028909086762428530661 =
+    3.945809652538577e-05 <= 0.05 (fresh-code exact DP). The statistic FIRES on the
+    known-dead arm, driven by a single inactive-word hit at wt(e)=12 -- the
+    same structural mechanism as the live arm. The frozen spec's own power
+    floor (n_hits >= 5, never test below; IDEA-20260901-363851
+    carrier_statistic.test_statistic) is the ONLY thing preventing a formal
+    'carrier-alive' reading on a dead arm here; the statistic itself does not
+    know the arm is dead. This is the proves-too-much verdict: the statistic
+    fires wherever inactive-word hits exist, a property orthogonal to
+    aliveness.
+  structural_guarantee: >-
+    Stronger than the single instance: for ANY round function (including an
+    ideal random permutation) at ANY seat of this instrument, if the hit set
+    contains a preponderance of inactive-word vanishings, the unconditional
+    statistic rejects toward small-e -- because the implication
+    'inactive-word hit => wt(e) <= 12' is a theorem (J-A) and F_miss(<=12) is
+    ~4e-7 at these seats. Under GRADUAL interior points (>= 100 hits at 2^30)
+    inactive-word hits will almost surely be present, so Stage 1's
+    Holm-adjusted CARRIER-CONFIRMED branch is reachable by theorem. The
+    statistic proves too much by construction, not by accident of this seed.
+  random_assignment_engagement: >-
+    The task asks whether the statistic would fire for a purely random
+    assignment of 14 'hits' drawn from the miss distribution. Answer: NO --
+    and that is precisely the point. My fresh-code run verifies the exact
+    test is exactly calibrated under its stated null (p at maximum T = 1;
+    the committed p_small rational reproduced digit-for-digit by two
+    independent DP codings), so random labels give uniform p-values and the
+    test correctly detects that the ACTUAL labels are not exchangeable. But
+    non-exchangeability here is DETERMINISTICALLY forced by the instrument's
+    definitions (J-A): any dataset satisfying the implication rejects, and
+    the implication holds for any cipher. The test as constructed detects
+    label-statistic dependence; it CANNOT distinguish AES-origin dependence
+    from definition-origin dependence, because both live in the same
+    direction of the same one-sided test. The exchangeability test therefore
+    cannot detect the tautology in (a); the null it rejects is a null no
+    instrument of this geometry could ever satisfy, alive or dead. This is
+    why the known-dead arm fires too.
+
+scope_attack:
+  what_p_small_certifies: >-
+    p_small <= 0.05 with n_hits = 14 certifies exactly one thing: under the
+    model 'conditional on the hit count, the 14 hit labels are an
+    exchangeable random subset of trials with respect to wt(e), drawn iid
+    from this run's empirical miss distribution', the probability of a
+    weight-sum <= 181 is 6.8027e-59 (recomputed fresh-code, exact rational
+    match). That model is the test's H0. It certifies H0 is false.
+  what_it_does_not_certify: >-
+    It does NOT certify: (i) that H0 was a valid model for this instrument
+    -- it never was, since the hit event (W>=1) and the statistic (wt(e))
+    share q0^q1 and the probe support fixes supp(d) = PW[0], making H0
+    deterministically false whenever an inactive-word hit exists, for any
+    round function; (ii) that e CARRIES the excess (a causal/mechanism
+    claim needing the ramp decay, unmeasured); (iii) reproduction at any
+    second seed; (iv) anything about interior ramp points; (v) anything
+    beyond toy tier (64/128-bit probe geometry, one probe cell, r=5, the
+    frozen position family); (vi) anything about full-round or deployed AES.
+    The decision-rule label S0-CARRIER-ALIVE fired on true arithmetic --
+    Gate 0 pass AND p_small <= 0.05 -- but the rule's evidential premise
+    (that p_small is a test of the carrier reading) is voided by J-A; the
+    label asserts more than the statistic can carry in this geometry. The
+    sealed verdict's carrier wording ('named candidate, unmeasured',
+    EV-AES-ec53f1 OBS-FE0-4) is, in substance, NOT converted to a measured
+    carrier by this package: what was measured at t=1 is the instrument's
+    definitions, with a null correctly-conditioned reading.
+
+scope_narrowed_restatement: >-
+  CANDIDATE LEDGER WORDING. Stage 0 at t=1 (sbox=AES k=16, r=5, amask=1,
+  smask=1, 2^30, seed 531001, armid 1, 2 threads; toy tier): the logging-ON
+  instrument reproduced the committed L1-AES-R5-P30 receipt field-by-field
+  (14 hits, identical (thread, in-thread index) pairs; non-perturbation
+  proven; runs/R4_gate0_cmp.json). The first per-trial wt(e) measurement
+  under a nonlinear S-box reads: hit weights {11 x3, 12 x7, 16 x4}
+  (T_obs=181) against a miss distribution with 93.9% mass at wt(e)=16
+  (F_miss(<=12)=4.05e-7); exact one-sided exchangeability p_small =
+  6.8027e-59 (re-derived independently, exact rational match). DECOMPOSITION
+  (red team, this report): 10/14 hits vanish on a PW word outside the probe
+  support (masks 2/4/8); for those, wt(e) <= 12 is a deterministic
+  consequence of the definitions of W and e plus the amask=1 geometry,
+  holding for any round function; they occupy the TOP of the forced envelope
+  (11-12 of max 12; Z=4 on 13/14 hits, no extra cancellations). 4/14 hits
+  vanish on the active word (mask 1) and sit at wt(e)=16, the miss peak
+  (subclass p_small = exactly 1.0). Mask composition 10/14 inactive is
+  unremarkable under word symmetry (Bin(14, 3/4) CDF at 10 = 0.479). The
+  same raw statistic reads p_small = 3.95e-5 on the known-dead r=6 reference
+  arm (3 hits, one inactive-word hit at wt(e)=12; arm in dead band, tripwire
+  not fired). HENCE: the preregistered decision-rule arm S0-CARRIER-ALIVE
+  fired mechanically, but the measured hit-vs-miss wt(e) separation at t=1
+  is dominated by a definitional implication of the instrument; the carrier
+  interpretation (the r=5 excess is carried by small-e trials; the nonlinear
+  map shadows the identity law on hitting trials) is NEITHER ESTABLISHED NOR
+  FALSIFIED at t=1 -- the correctly-conditioned (mask-stratified) statistic
+  is unmeasured, and within the forced envelope the t=1 data show no extra
+  small-e attraction (one unadjudicated 1-byte residual: 3/10 inactive hits
+  at wt(e)=11 vs naive expectation ~0.6). The r=6 e-reference (miss mean
+  wt(e) essentially unchanged r=5 -> r=6) is report-only. Nothing beyond toy
+  tier, this probe cell, this seed, this family; no published-frontier
+  comparison in either direction.
+
+boundary_statement: >-
+  Future observations that would FALSIFY the carrier reading (and what would
+  genuinely support it). FALSIFIERS: (1) Stage-1 SHAPE-ONLY per the frozen
+  rule F1(b): excess present at >= 2 adequately-powered interior points with
+  no Holm-adjusted separation -- carrier clause falsified along the ramp.
+  (2) Persistence of the t=1 correctly-conditioned pattern: if at seed
+  531002 and at adequately-powered interior points the active-word hits
+  continue to match F_miss and the inactive-word hits continue to sit at the
+  forced ceiling with Z = forced-only, the carrier reading dies an F1-class
+  death EVEN IF the unconditional statistic keeps 'firing' (which it will,
+  by theorem). (3) Seed 531002 mask-composition flip: if the descriptive
+  concentration disappears (hits dominated by mask 1), F2 weakening fires.
+  (4) A preregistered mask-conditional statistic (extra zero bytes of e
+  beyond the forced envelope, vs a mask-conditional null) showing no excess
+  attraction at >= 2 adequately-powered points: carrier falsified within the
+  tested scope. SUPPORT (what would actually convert e to a measured
+  carrier): hits exhibiting zero bytes of e WELL BEYOND the forced
+  vanishing-word envelope -- inactive-word hits with Z >> 4, or active-word
+  hits with wt(e) << 16 -- at rates above a mask-conditional null, decaying
+  jointly with the excess along the ramp. That signature is ABSENT at t=1
+  (Z=4 on 13/14). Any in-block conflict with committed endpoints remains
+  F3/F5 instrument indictment per the frozen spec, never a mathematical
+  result.
+
+pareto_note:
+  dominated_by: >-
+    null, checked row by row across time, memory, and data/queries against
+    the committed record set in my read scope. EV-AES-ec53f1 names e
+    named-unmeasured and lists the J5 control as cheapest discharge but does
+    not analyze the W/e definitional overlap (OBS-FE0-4 read this session,
+    lines 102-119). EV-AES-b2910a and EV-AES-048545 were screened by grep
+    only this session (not read in full; no objection here depends on them)
+    and contain no mask/wt(e) overlap analysis. IDEA-20260901-363851's own
+    obstruction resource_check (i) anticipates a deterministic-signature case
+    for wt(e) concentrated at ONE VALUE across all trials; this finding is a
+    sharper, different variant -- wt(e) ON HITS is determined by the
+    vanishing-word mask, not by the dose -- and is not dominated by it. No
+    committed record performs the mask decomposition; nothing dominates; null
+    written honestly.
+  sota_delta: >-
+    No published-frontier comparison in either direction (R3; toy tier,
+    task constraint). Evidential delta of this report: converts 'carrier
+    alive at t=1 (p = 6.8e-59), ramp may be spent' into 'statistic fired;
+    the fired concentration is 10/14 definition-forced and 4/14 null;
+    carrier interpretation unsupported at t=1; proves-too-much control
+    fires the statistic on the known-dead arm' -- at a cost of zero new
+    cipher runs (one fresh-code exact-arithmetic analysis, seconds), and it
+    gates the entire Stage 1 spend (~4-4.5 h, 2 producer batches) behind a
+    statistic redefinition that costs one preregistration edit.
+  cheapest_controls_rollup:
+    - {joint: J-A, control: 'mask-conditioned restatement of committed per-hit data', cost: '0 runs, seconds'}
+    - {joint: J-B, control: 'second-seed J5-2 arm (531002) with mask decomposition as co-primary', cost: '1 run, ~27 min baseline / ~2 min measured on this hardware'}
+    - {joint: J-C, control: 'same J5-2 arm, per-seed reporting never pooled', cost: '1 run (shared with J-B)'}
+    - {joint: J-D, control: 'Stage 1 joint curve, gated on the J-A statistic redefinition', cost: '~2 producer batches, ~4-4.5 h baseline'}
+    - {joint: J-E, control: 'Poisson geometric-baseline fit of F_miss', cost: '0 runs, seconds (executed here)'}
+    - {joint: J-F, control: 'Z-field audit of committed per-hit data; preregister extra-zero-byte signature', cost: '0 runs (executed here)'}
+
+recommendation_to_coordinator: >-
+  Red team changes no status and assigns no strength. For the Coordinator's
+  composition: (i) record that S0-CARRIER-ALIVE fired mechanically under the
+  frozen rule and that its arithmetic was independently re-derived exactly;
+  (ii) record the J-A finding that the rule's evidential premise is void for
+  the carrier interpretation in this geometry (the statistic is tautological
+  for inactive-word hits; this is closer in kind to an F4 instrument
+  indictment than to a mathematical result about e, though it sits at the
+  statistic level, not the stream level); (iii) do not spend Stage 1 on the
+  carrier question under the unconditional statistic alone -- require a
+  preregistered mask-conditioned carrier statistic (or the mask
+  decomposition as co-primary, with the extra-zero-byte signature of the
+  boundary statement as the carrier direction) before dispatch; (iv) the
+  sealed verdict's carrier clause stays, in substance, named-unmeasured:
+  this package measured the instrument's definitions at t=1, with a
+  correctly-conditioned reading that is null-to-absent, plus one
+  unadjudicated 1-byte residual worth a preregistered successor statistic.
+  The ramp-shape question (C3) is untouched by this report and survives as
+  specified.
+
+procedure_deviations: []
+
+attestation:
+  read_list: >-
+    Read this session, in the declared read_scope: dispatch_queue.json (full,
+    incl. coordinator_prior); ledger/proposals/IDEA-20260901-363851.yaml
+    (full, 860 lines); producer package: RESULTS.json (full),
+    runs/R4_gate0_j5.json (full), runs/R5_r6_reference.json (full),
+    runs/decision_analysis.json (full), runs/R4_gate0_cmp.json (full),
+    src/affarm046e.c (lines 280-480 read in full, incl. the complete trial
+    worker; geometry/trial-stream sections grepped), PREREGISTRATION.md
+    (structure + test section grepped; verbatim test confirmed identical to
+    the frozen spec); ledger/evidence/EV-AES-ec53f1.yaml (lines 100-209,
+    incl. OBS-FE0-4/5, tested_parameters, transfer_assumptions,
+    unresolved_confounds); archives/TASK-20260901-13dfed/snapshot-receipt.json
+    (full). Screened by grep only, not read in full: EV-AES-b2910a.yaml,
+    EV-AES-048545.yaml (no objection depends on them). NOT read (blindness
+    within the round): coordination/goals/GOAL-AES-003/batches/BATCH-2f12ac/
+    tasks/TASK-20260901-91adc1/ and any validator artifact -- the validator
+    ran concurrently; this report attests it read nothing from that
+    directory.
+  fabrication_statement: >-
+    No command, output, timing, statistic, or run is fabricated (rule 9).
+    Every number cited is either quoted from a named committed artifact
+    above or recomputed this session by fresh code
+    (/Volumes/SSD990/llm/tmp/opencode/rt-6efcd8/rt_analysis.py, outside the
+    repository; not an artifact; exact integer arithmetic, two independent DP
+    codings, committed rationals matched digit-for-digit). No producer code
+    was reused.
+  budget:
+    declared_wall_clock_seconds: 2700
+    start_epoch: 1788295092
+    elapsed_seconds_approx: 420
+    halted_at_stop: false
+    runs_maximum: 2
+    runs_used: 1 (one fresh-code exact-arithmetic analysis; one run held in reserve, unspent)
+  no_status_change: true
+  no_artifact_edits_outside_write_scope: true
+  no_commits: true
+  toy_tier_attestation: >-
+    Toy tier throughout; 64/128-bit toy probe geometry; nothing about
+    deployed AES; no comparison to published cryptanalysis in either
+    direction.
+  yaml_parse_attestation: >-
+    This file was parsed WHOLE with python3 yaml.safe_load after writing and
+    before task completion; this attestation is inside the file as required.
+
+inference:
+  policy: review-adversarial
+  requested_policy: review-adversarial
+  resolved_model_id: fireworks-ai/accounts/fireworks/models/qwen3p8-max
+  model_verified: false
+  fallback_used: true
+  fallback_reason: >-
+    session-backend transport under inference amendment DEC-20260831-0d1eeb
+    (standing basis below); independent red-team session.
+  degraded_requirements: []
+  amendment: DEC-20260831-0d1eeb
+  standing_basis: 0137a051eb5828789eb267fa83c8278086578d4c
+  note: >-
+    One resolved model serves all roles under the amendment; nothing here
+    counts toward any multi-model quorum.

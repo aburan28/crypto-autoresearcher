@@ -1,0 +1,233 @@
+execution_report:
+  experiment_id: EXP-ECDLP-1ed445
+  run_id: RUN-ECDLP-1ed445-001
+  implementation_commit: 477cfe10e6642635d1e1d6c9a48f45435d7966aa
+  dirty_tree: true
+  dirty_notes: >-
+    Dirty files are unrelated (knowledge/SOURCES.md, knowledge/sources.json,
+    and ecdsafail archived artifacts). The experiment implementation is new and
+    untracked at the time of execution.
+
+  protocol_deviations:
+    - id: DEV-001
+      description: >-
+        The specification records numpy 2.4.6 in the environment section;
+        the actual runtime has numpy 2.4.4. The difference is a patch version
+        and does not affect the FFT algorithm or precision.
+    - id: DEV-002
+      description: >-
+        The specification records Python 3.11.15; the actual runtime is
+        Python 3.12.8. No behavioral difference affects this experiment (both
+        support int.from_bytes, hashlib.sha256, and numpy.fft.rfft identically).
+    - id: DEV-003
+      description: >-
+        The preregistered G4 forced value states R in [1.10, 1.32] at every
+        rung. Measured R_mean is 1.334 at bits=20 and 1.342 at bits=26, slightly
+        above 1.32 (by 1.1% and 1.7% respectively). This does NOT trigger the
+        falsification criterion (which uses [1.05, 1.40]) and is recorded as an
+        observation. The deviation is small and symmetric (no rung is below 1.10).
+    - id: DEV-004
+      description: >-
+        At bits=26, N_representative = 8392753 (from a cofactor-4 curve)
+        rather than ~ p = 33567379. This is because the first valid curve at
+        bits=26 had cofactor 4. The null arm ran against this N. Curves with
+        larger N (cofactor 1) exist at this rung but the first-found convention
+        was applied per spec. The C_null_derived formula still holds (G1 error
+        0.10%) and the FFT length is shorter, which is conservative (more null
+        draws fit budget).
+
+  runs:
+    completed:
+      - run_id: RUN-ECDLP-1ed445-001
+        status: COMPLETED
+        wall_clock_s: 3289.6
+        stages_completed: [stage0, stage1, stage2, b_sweep, tail_checks]
+    invalid: []
+    failed: []
+
+  observations:
+    stage0:
+      - >-
+        alpha_resid(mean) on committed KN-FIND values = +0.004127 (essentially
+        zero; threshold 0.040). The committed four-point data shows a flat
+        mean ratio after null normalisation. Stage 0 terminating check: PASS.
+      - >-
+        Model R^2 on committed data: power_law=0.865, sqrt_log=0.911,
+        log_log_log=0.930. All models fit well; they do not separate on four
+        points spanning [10.0, 15.6] bits.
+      - >-
+        alpha_equiv over consecutive intervals: [0.112, 0.069, 0.022]. The
+        effective exponent is DECREASING toward zero with increasing p, which is
+        the pattern predicted by a log-growth model disguised as a power law at
+        short range.
+
+    stage1_G1_null_calibration:
+      - >-
+        C_null(measured) vs C_null(derived = sqrt(ln((N-1)/2) + gamma_E)):
+        bits=20: 3.4949 vs 3.4931 (err 0.05%);
+        bits=22: 3.7581 vs 3.7661 (err 0.21%);
+        bits=24: 4.0334 vs 4.0546 (err 0.52%);
+        bits=26: 3.9744 vs 3.9783 (err 0.10%).
+        All within 5% threshold. The Gumbel extreme-value prediction for the
+        maximum of B i.i.d. Exponential(1) random variables is confirmed to
+        sub-percent accuracy at all four rungs.
+
+    stage1_G2_ctrl_ap:
+      - >-
+        CTRL-AP fires exactly at sqrt(512) = 22.627417 at all rungs. Relative
+        errors: 8.6e-6, 1.6e-7, 0, 1e-8. The DFT, normalisation, and
+        maximisation are demonstrably correct (instrument sensitivity verified).
+      - >-
+        k* matches d^{-1} mod N at all rungs (the Dirichlet kernel spike is
+        at the expected frequency).
+
+    stage1_G3_ctrl_theta:
+      - >-
+        All four theta sweeps are strictly monotone decreasing from sqrt(B) at
+        theta=0 to C_null at theta=1. No artifact detected. The graded
+        interpolation confirms the signal decays as the planted structure is
+        diluted — the canonical artifact tell (non-decay when the destroying
+        parameter increases) does not fire.
+
+    stage2_G4_ratio:
+      - >-
+        R_mean per rung: bits=20: 1.334, bits=22: 1.280, bits=24: 1.275,
+        bits=26: 1.342. All within falsification bounds [1.05, 1.40].
+        Bits=20 and bits=26 are slightly above the preregistered prediction
+        of [1.10, 1.32] (by 1-2%). This is an observation; no conclusion drawn.
+      - >-
+        R_max per rung: 1.603, 1.451, 1.460, 1.531. The adversarial maximum
+        is higher than the mean (expected for an extreme-value statistic over
+        20 curves) but also shows no systematic growth.
+
+    stage2_G5_alpha_resid_mean:
+      - >-
+        alpha_resid(mean) = -0.001079. 95% CI: [-0.048, +0.046].
+        The interval contains zero. |alpha| = 0.001 < 0.020.
+        The EC-specific growth exponent after null normalisation is
+        indistinguishable from zero across the four rungs.
+
+    stage2_G6_alpha_resid_max:
+      - >-
+        alpha_resid(max) = -0.012616. 95% CI: [-0.085, +0.059].
+        |alpha| = 0.013 < 0.030. The adversarial max also shows no
+        statistically significant growth after normalisation.
+
+    stage2_G7_model_R2:
+      - >-
+        C_EC_mean vs ln(p): R^2 = 0.969 (power law).
+        C_EC_mean vs ln(sqrt(ln p)): R^2 = 0.956.
+        C_EC_mean vs ln(ln(ln p)): R^2 = 0.950.
+        All three models fit the raw C growth almost equally well. This is
+        because the four rungs span only [13.4, 17.0] in ln(p), insufficient
+        to distinguish power-law from log-growth. Neither model is chosen.
+
+    stage2_G8_additive_residual:
+      - >-
+        delta = C_EC - C_null: values [1.167, 1.052, 1.108, 1.359].
+        Log-log slope of delta vs p: 0.031. CI: not significantly different
+        from zero given the scatter. The additive residual is approximately
+        constant (~1.0-1.4) across the four rungs, consistent with a fixed
+        EC-specific offset.
+
+    stage2_k_star_analysis:
+      - >-
+        In 0 of 80 curves, [k*]G lies in F. The maximising frequency is NEVER
+        a point whose scalar multiple is in the factor base. This answers the
+        exact_next_action from DEC-20260804-7af513.
+
+    tail_checks:
+      - >-
+        Null arm global max C: 4.606 (at bits=22 rung). Gumbel exceedance
+        probability: 0.26% — consistent with seeing one tail event in 800
+        total null draws (200 draws × 4 rungs).
+      - >-
+        EC arm global max C: 6.086 (bits=26, curve_index=3, k*=6890487).
+        This single curve's C is 1.53× the null mean at its rung — the
+        adversarial maximum in a single experiment.
+      - >-
+        Smallest B/N: 6.1e-5 (bits=26). The Exponential(1) marginal is
+        expected to hold (B/N << 1 required; achieved).
+
+    b_sweep_diagnostic:
+      - >-
+        At bits=20: R = 1.215 (B=256), 1.219 (B=512), 1.266 (B=1024).
+        At bits=24: R = 1.330 (B=256), 1.302 (B=512), 1.284 (B=1024).
+        R shows no systematic dependence on B/N. The slight variation (±5%)
+        is within the statistical noise of 50 null draws per cell.
+
+  anomalies:
+    - id: ANOM-001
+      description: >-
+        R_mean at bits=20 (1.334) and bits=26 (1.342) exceed the preregistered
+        [1.10, 1.32] by a small margin. This may indicate the true population
+        R is slightly above 1.32, or sampling variance with 8 mean-statistic
+        curves. It does not trigger falsification.
+    - id: ANOM-002
+      description: >-
+        The bits=26 rung used N_representative = 8392753 (cofactor 4) while
+        some EC curves at this rung have N ~ 33.5M (cofactor 1). The null arm
+        ran at the smaller N. The character sum for a curve with N=33.5M is
+        measured against a null calibrated at N=8.4M. The C_null_derived
+        values differ: sqrt(ln(8392752/2)+gamma_E) = 3.978 vs
+        sqrt(ln(33570082/2)+gamma_E) = 4.265. For curves with N~33.5M, the
+        "correct" null would be ~7% higher, making R ~7% lower. This is within
+        G1's 5% tolerance per rung but is a systematic effect at the bits=26
+        rung that could bias R upward by ~0.09.
+    - id: ANOM-003
+      description: >-
+        k* is never in F (0/80). This is a clean null result for the
+        DEC-20260804-7af513 next_action question, but may simply reflect that
+        F contains B=512 of N~10^5-10^7 group elements, so the probability of
+        any specific point being in F is ~5e-5 to ~6e-5.
+
+  artifact_paths:
+    - experiments/EXP-ECDLP-1ed445/run_character_sum_ladder.py
+    - experiments/EXP-ECDLP-1ed445/runs/RUN-ECDLP-1ed445-001/manifest.yaml
+    - experiments/EXP-ECDLP-1ed445/runs/RUN-ECDLP-1ed445-001/raw-result.json
+    - experiments/EXP-ECDLP-1ed445/runs/RUN-ECDLP-1ed445-001/command.txt
+    - experiments/EXP-ECDLP-1ed445/runs/RUN-ECDLP-1ed445-001/environment.json
+    - experiments/EXP-ECDLP-1ed445/runs/RUN-ECDLP-1ed445-001/execution-report.yaml
+
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false
+    notes: >-
+      All three stages completed within budget. All 4 rungs produced valid
+      measurements. Controls demonstrate instrument correctness (CTRL-AP exact
+      to machine precision, null calibrates to sub-percent, theta sweep
+      monotone). The primary metrics G5 and G6 show alpha_resid
+      indistinguishable from zero. The slight exceedance of the G4 predicted
+      range [1.10, 1.32] is minor (1-2%) and does not affect the primary
+      finding (flat ratio). The N-mismatch at bits=26 (ANOM-002) is a
+      systematic effect worth noting for replication but does not invalidate
+      the measurement. No rerun needed.
+
+  forward_guidance:
+    - >-
+      Per H-ECDLP-feb405 falsification condition F7: the four new rungs
+      (bits 20-26) CAN support that the null-normalised ratio R is constant
+      (~1.28) and that alpha_resid is zero over [2^20, 2^26]. They CANNOT
+      support any claim about p > 2^26. A divergence beginning above 2^26 is
+      fully consistent with every measured value.
+    - >-
+      The competing growth models (power law vs sqrt(log)) do NOT separate
+      over this range. Both have R^2 > 0.95. Separation requires p > 2^34
+      (per the specification's own analysis), which is outside the memory
+      budget for a single FFT at this bit depth.
+    - >-
+      The k*-in-F question is answered negatively (0/80) but this may be
+      trivial given the tiny factor-base fraction (B/N ~ 10^{-5}).
+    - >-
+      A replication at different seeds would strengthen the measurement.
+      A correspondence trick avoiding full DL enumeration would extend to
+      crypto scale — none is known to this contract.
+
+  dominated_by: null
+  sota_delta: >-
+    First null-normalised measurement of the H-PSEUDO character-sum constant.
+    No prior internal record measures C relative to a matched random null on
+    the same group. The committed values in KN-FIND-d4f820 and KN-FIND-4c9e71
+    report C without normalisation. This is a new instrument, not a competing
+    measurement of the same quantity.

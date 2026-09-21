@@ -1,0 +1,325 @@
+idea:
+  id: IDEA-20260816-0d490e
+  question_id: RQ-SIMSPK-f6a6c0
+  added: '2026-08-16'
+  title: 'A solver timeout is a censored observation, not a bound, and the censoring here is informative
+    rather than random: constants whose optimal-trail search times out are systematically the ones
+    with better bounds, so a naive ranking orders constants by what the solver found easy. Measure
+    that bias against known censoring on ground truth and give the ranking an interval-censored estimator.'
+  class: tooling
+  claim: '(A) RQ-SIMSPK-f6a6c0''s fourth constraint already forbids reporting no trail found within
+    budget as no trail exists, and treats it as a rule 3 violation. This proposal accepts that and
+    identifies the subtler failure the constraint does not cover: even when every timeout is correctly
+    labelled, EXCLUDING censored cells from a ranking is itself a bias, because censoring is not missing
+    at random. A constant whose optimal trail is heavy forces the search deeper before it can prove
+    optimality, so heavier-bound constants time out preferentially, and dropping them ranks the remainder
+    by a criterion correlated with the very quantity being ranked. (B) The claim is that this bias
+    has a measurable magnitude and a known SIGN, and that both are obtainable without any new cryptanalysis:
+    take a regime where the search completes for every constant, so the true ranking is known exactly,
+    then impose synthetic censoring calibrated to the censoring rate actually observed at larger scale,
+    and measure how far the censored-and-dropped ranking departs from the truth. The departure is
+    a Kendall tau against ground truth and a signed rank displacement, both exactly computable because
+    the ground truth is in hand. (C) The claim is that the correct estimator is not exclusion but
+    interval treatment: a censored cell yields the interval [budget-implied lower bound, infinity),
+    and a partial order can be computed on intervals in which only pairs that are separated with certainty
+    are ordered, giving a ranking with explicit incomparabilities instead of a total order built on
+    deletions. The deliverable is that partial order plus the number of pairs it declines to order.
+    (D) NOT CLAIMED: that any specific bias magnitude will be found; that interval treatment recovers
+    the true total order, since it deliberately does not; that any constant''s bound is anything other
+    than what was measured; and no attack, distinguisher or security consequence.'
+  mechanism: 'STAGE A, ground-truth regime: choose the largest word size and round-count range at
+    which optimal trail search completes for EVERY constant with certainty, which at pure-Python scale
+    means exhaustive dynamic programming rather than branch and bound. Record the exact optimal weight
+    per constant per round, with no censoring anywhere. STAGE B, censoring model: from the branch-and-bound
+    arm at larger word size, measure the actual censoring rate as a function of the cell''s eventual
+    bound where known, or of a cheap proxy where not, giving an empirical censoring propensity rather
+    than an assumed one. STAGE C, synthetic censoring on ground truth: apply that propensity to the
+    STAGE A data, marking cells censored, so that the truth and the censored observation of it are
+    both in hand for the same constants. STAGE D, measure the bias: compute the ranking three ways,
+    by exclusion of censored constants, by imputation at the lower bound, and by the interval partial
+    order, and compare each against the known truth using Kendall tau, mean signed rank displacement,
+    and the displacement of the extreme deciles specifically, since the tails are what a campaign
+    quotes. STAGE E, sign check: verify directly that censoring propensity correlates positively with
+    true weight, which is the mechanism the whole entry rests on, and report the correlation coefficient;
+    a null or negative correlation refutes the mechanism and is the cleanest possible falsification.
+    STAGE F, budget-doubling arm: rerun a subsample of the branch-and-bound cells at twice the budget
+    and report how many decensor and how far the ranking moves, giving a direct measurement of how
+    far from budget-stable the campaign''s real rankings are.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -ril SIMSPK over ledger/proposals, ledger/hypotheses and experiments, returning nothing;
+      grep -ril 'censor' over ledger/proposals with the hit list enumerated and the title blocks of
+      IDEA-20260815-ad4b55, IDEA-20260807-291968 and IDEA-20260805-c8524f inspected; grep -ril 'timeout'
+      over ledger/proposals cross-referenced by area; read AGENTS.md rule 3 as summarized in CLAUDE.md
+      and RQ-SIMSPK-f6a6c0's fourth constraint verbatim; read GOAL-SIMSPK-001's fourth completion
+      criterion, which requires every solver timeout recorded as a budget outcome and never as a bound;
+      read docs/inventor-protocol.md sections 3 and 4.
+    results: 'No prior proposal under this question. The ''censor'' hits are numerous and lie in other
+      areas: IDEA-20260815-ad4b55 concerns monomial-order spread in Groebner solving degree, IDEA-20260807-291968
+      and IDEA-20260805-c8524f sit in the ECDLP and AES areas respectively. None treats censoring
+      as an estimation problem with a measurable bias, and none constructs an interval-censored ranking.
+      The program''s existing discipline, encoded in AGENTS.md rule 3, RQ-SIMSPK-f6a6c0''s fourth
+      constraint and GOAL-SIMSPK-001''s fourth completion criterion, is entirely about LABELLING a
+      timeout correctly, which is necessary and is not the same thing as handling the correctly-labelled
+      timeouts without bias. The blacklist item on auditing this program''s cost model, machine variance
+      and single-machine timing is adjacent and is discriminated against below: this entry measures
+      a statistical bias in a ranking, not a cost model or a machine.'
+    verdict: 'UNVERIFIED. No claim is made about what any external publication contains. Assembled
+      from known parts: informative censoring and its bias are standard survival-analysis concerns;
+      interval-censored partial orders are standard order theory; imposing synthetic censoring on
+      known ground truth to measure an estimator''s bias is standard simulation practice. Claimed
+      new only in combination and only locally: applying this to optimal-trail search over a cipher
+      parameter space, where the censoring propensity is itself measured from the campaign''s own
+      branch-and-bound arm rather than assumed, and where the deliverable is a partial order with
+      an explicit count of pairs it declines to order rather than a total order built on deletions.'
+  object_first_candidate:
+    tracked_object: 'The pair (bound, censoring indicator) for each cell of the constant-by-round
+      grid: a partially observed quantity that is either an exact optimal weight or a half-open interval
+      [w_lo, infinity) together with the budget that produced it. What is followed through the computation
+      is that interval-valued observation, and the derived object is the partial order it induces
+      on constants, in which two constants are ordered only when their intervals are disjoint.'
+    lossiness: 'This entry must be honest about a discipline the protocol demands: my tracked object
+      DISCARDS NOTHING relative to the raw solver log. It is not a new lossy projection and I am not
+      claiming one. It is the incumbent pipeline''s object that is lossy, and lossy incompatibly with
+      the operation it feeds: the incumbent projects the interval to its lower endpoint or drops the
+      cell entirely, discarding the censoring indicator, and that discarded bit is correlated with
+      the quantity being ranked, so the projection destroys exactly what the ranking needs. Under
+      docs/inventor-protocol.md section 2 this makes the entry a change of coordinates plus a retained
+      bit rather than a new object, and it is filed as tooling and control for that reason. Its value
+      is not novelty of object; it is that the retained bit is the one that decides whether every
+      ranking in this goal means what it says.'
+    propagation: 'The target operation is doubling the per-cell budget B. Under it, cells decensor:
+      an interval [w_lo(B), infinity) either collapses to an exact value or tightens to [w_lo(2B),
+      infinity) with w_lo(2B) at least w_lo(B). The partial order therefore refines monotonically
+      as B grows, gaining comparabilities and never losing them, which is the property that makes
+      it a sound estimator: nothing reported at budget B is contradicted at budget 2B, only sharpened.
+      The naive exclusion ranking has no such property, and can and does reverse under budget doubling,
+      which is precisely what STAGE F measures.'
+    survival_score: 'The concrete number is the budget-stability radius: the smallest budget B* such
+      that Kendall tau between the partial orders at B and 2B exceeds 0.99 on the comparable pairs,
+      meaning further budget buys refinement rather than revision. Alongside it, the comparability
+      fraction: the proportion of constant pairs the partial order actually orders at budget B, which
+      starts near zero and rises with B. A campaign quoting a ranking below B* is quoting something
+      that will change; a campaign quoting a partial order with 4 percent comparability has ranked
+      almost nothing and should say so. Both numbers are reported per measure per word size and neither
+      exists in this corpus today.'
+  null_object_control: 'The null object is a set of cells with a NON-informative censoring pattern
+    of the same rate: censoring indicators drawn uniformly at random over the ground-truth grid, independent
+    of the true weight, at exactly the rate observed in the real branch-and-bound arm. The identical
+    exclusion, imputation and interval estimators run against it in the same invocation. What the
+    null must show for the signal arm to mean anything: under uniform censoring the exclusion ranking''s
+    Kendall tau against ground truth must be materially higher than under the real censoring propensity,
+    and its mean signed rank displacement must be approximately zero rather than systematically signed.
+    If the two censoring patterns produce indistinguishable bias, then the censoring here is effectively
+    non-informative, the mechanism in claim (A) is refuted, and the correct conclusion is that exclusion
+    is acceptable, which is a genuinely useful negative result that would save the campaign the interval
+    machinery entirely. A second control is a zero-censoring arm, where all three estimators must
+    agree exactly with ground truth and with each other; disagreement there is an implementation fault.'
+  discriminated_from:
+  - AGENTS.md rule 3 and RQ-SIMSPK-f6a6c0's fourth constraint, which forbid reporting a timeout as
+    a bound. This entry assumes full compliance with both and addresses what remains after correct
+    labelling, namely that correctly-labelled timeouts still bias a ranking when excluded. The rule
+    prevents a false statement; this measures a bias that survives the rule.
+  - The blacklisted lane auditing this program's cost model, machine variance and single-machine timing,
+    which has 15-plus proposals under RQ-INSTR-f8faa0. That lane asks whether measured times are trustworthy
+    on this hardware. This entry takes any timing as given and asks a statistical question about ranking
+    under partial observation; it would apply unchanged on perfectly reproducible hardware.
+  - 'IDEA-20260815-ad4b55, which measures solving-degree spread across monomial orders before fitting
+    a scaling law. Same instinct of characterizing an instrument before trusting its output, different
+    failure mode entirely: that entry addresses disagreement between instrument settings, this one
+    addresses selective non-observation within one setting.'
+  - The resolution-profiling contract, which asks whether a measure has enough distinct values to
+    rank. That is a property of the measure's value distribution on complete data; this is a property
+    of which data are observed. A measure can have excellent resolution and a badly censored ranking,
+    or the reverse.
+  - Reporting a censoring rate alongside a ranking, which is good practice and which GOAL-SIMSPK-001
+    already requires. A rate tells a reader that censoring occurred; it does not tell them which direction
+    the ranking moved or by how much, which is the number this entry produces.
+  assumptions:
+  - 'There exists a regime, specifically exhaustive dynamic programming at small word size, in which
+    optimal trail weights are computed with certainty for every constant, providing genuine ground
+    truth. This is checked by construction rather than assumed: the exhaustive method has no budget
+    parameter.'
+  - The censoring propensity measured in the branch-and-bound arm can be applied to the ground-truth
+    regime as a synthetic censoring model. This is a modelling assumption and a strong one, since
+    the two regimes differ in word size; it is stated plainly and its sensitivity is tested by applying
+    the propensity at half and double its measured strength.
+  - A cell's censoring is determined by the search's difficulty rather than by machine noise; the
+    same cell rerun under the same budget censors identically. This is checked by rerunning a subsample
+    and requiring identical censoring indicators.
+  - Branch-and-bound lower bounds at timeout are sound, that is w_lo is genuinely a lower bound on
+    the optimum. Without this the interval estimator is not merely biased but wrong, and it is checked
+    at the ground-truth word size where the true optimum is known.
+  - Orbit representatives are used consistently across arms where the quotient contract has run; otherwise
+    the raw grid is used with the distortion named.
+  predictions:
+  - metric: correlation between censoring propensity and true optimal weight, at the ground-truth
+      word size with synthetic censoring calibrated from the real arm
+    direction: higher
+    minimum_effect: 'forced sign rather than magnitude: strictly positive. A null or negative correlation
+      refutes the mechanism in claim (A) and is the cleanest falsification available; no magnitude
+      is pre-committed because the campaign has never measured a censoring propensity.'
+  - metric: Kendall tau against ground truth of the exclusion ranking under real-propensity censoring,
+      minus the same under uniform-rate censoring
+    direction: lower
+    minimum_effect: 0
+  - metric: mean signed rank displacement of the exclusion ranking under real-propensity censoring
+    direction: different
+    minimum_effect: 'forced sign: nonzero and signed in the direction that favours constants with
+      lighter true weights, since those complete and are retained. A displacement statistically indistinguishable
+      from zero refutes the entry''s premise.'
+  - metric: comparability fraction of the interval partial order at the campaign's actual per-cell
+      budget
+    direction: different
+    minimum_effect: 'explicit refusal to pre-commit: it depends entirely on the observed censoring
+      rate and bound tightness, neither of which the campaign has measured. What is pre-committed
+      is that the fraction is reported with every partial order and that a partial order ordering
+      under 10 percent of pairs is described as ordering almost nothing rather than as a ranking.'
+  - metric: Kendall tau between the interval partial orders at budget B and 2B, on pairs comparable
+      at B
+    direction: higher
+    minimum_effect: 0.99
+  minimal_test:
+    design: 'The entire mechanism can be tested with no branch-and-bound arm at all, using only a
+      censoring model, and that is the right minimal test because the object under study is an estimator.
+      Fix word size n = 8, compute exact optimal differential trail weights for all 512 constants
+      at round counts 1 through 6 by exhaustive dynamic programming, which has no budget parameter
+      and is therefore ground truth by construction. Now impose synthetic censoring three ways in
+      the same invocation: uniform at rate p, weight-correlated at the same rate p using a logistic
+      propensity in the true weight, and zero. For each, compute the three estimators, exclusion,
+      lower-bound imputation, and interval partial order, and score each against the known truth by
+      Kendall tau, mean signed rank displacement, and top-decile and bottom-decile displacement. Sweep
+      p over 0.1, 0.25 and 0.5. Total cost is the exhaustive search, tens of minutes, plus milliseconds
+      of arithmetic. The discriminating output is the gap between the uniform and weight-correlated
+      arms at matched p: if it is near zero at every p, censoring here is effectively non-informative
+      and exclusion is fine, which retires the entry cheaply; if it grows with p, the campaign now
+      knows the sign and magnitude of a bias in every ranking it will produce.'
+    controls:
+    - Uniform-rate censoring null at matched rate, isolating what censoring costs when it carries
+      no information about the true value.
+    - Zero-censoring arm, where all three estimators must agree exactly with each other and with ground
+      truth; disagreement is an implementation fault.
+    - 'Determinism check: a subsample of cells rerun under the same budget must produce identical
+      censoring indicators, confirming censoring reflects search difficulty rather than machine noise.'
+    - 'Lower-bound soundness check at the ground-truth word size: every branch-and-bound w_lo must
+      be at most the known true optimum, with any violation halting the run.'
+    - 'Propensity-strength sensitivity: the measured censoring propensity applied at half and double
+      strength, so the conclusion is not an artifact of one calibration.'
+    required_metrics:
+    - correlation between censoring propensity and true optimal weight
+    - Kendall tau against ground truth for each of three estimators under each censoring pattern and
+      rate
+    - mean signed rank displacement and top-decile and bottom-decile displacement per estimator per
+      pattern
+    - comparability fraction of the interval partial order at each budget
+    - budget-stability radius B*, the smallest budget with tau between B and 2B above 0.99
+    - count of cells decensored under budget doubling, and the induced rank movement
+    - lower-bound soundness violations, an exact integer that must be zero
+    - wall-clock seconds and peak resident memory per stage
+  falsification_conditions:
+  - Correlation between censoring propensity and true weight statistically indistinguishable from
+    zero, which refutes the informative-censoring mechanism and means exclusion is acceptable.
+  - The gap between real-propensity and uniform censoring in Kendall tau against ground truth being
+    within resampling noise at every rate, the same refutation from a different angle.
+  - Mean signed rank displacement of the exclusion ranking indistinguishable from zero, refuting the
+    directional part of the claim.
+  - Any lower-bound soundness violation, meaning a branch-and-bound w_lo exceeds the known true optimum,
+    which invalidates the interval estimator entirely and is a defect in the search rather than in
+    this entry.
+  - The zero-censoring arm producing disagreement among the three estimators, which is an implementation
+    fault halting the run.
+  - Non-deterministic censoring indicators on the rerun subsample, meaning censoring reflects machine
+    noise, which would move the whole question into the blacklisted machine-variance lane and out
+    of this entry's scope.
+  confounders:
+  - Applying a censoring propensity measured at word size 16 to ground truth computed at word size
+    8 assumes the propensity transfers, which it may not; the half-strength and double-strength sensitivity
+    arms bound the consequence but do not remove the assumption, and it is named in every conclusion.
+  - Exhaustive dynamic programming and branch-and-bound may not compute the same quantity if their
+    search spaces differ subtly, in which case ground truth is not ground truth for the censored arm;
+    the two are cross-checked on every cell at the ground-truth word size.
+  - Kendall tau against ground truth is itself tie-sensitive, and the integer weights here produce
+    heavy ties, so tau-b is used and tie counts are reported, exactly as in the rank-correlation contract.
+  - A partial order with very low comparability can show excellent tau on the pairs it does order
+    while being nearly useless; comparability fraction and tau are always reported together and neither
+    is quoted alone.
+  - The choice of logistic propensity shape in the synthetic censoring is a modelling choice; an alternative
+    threshold propensity is run as a robustness arm so the conclusion does not rest on one functional
+    form.
+  interpretation_limits:
+  - A measured bias magnitude is scoped to the ground-truth word size, the censoring rates tested,
+    and the propensity model used. It quantifies a risk in the campaign's rankings; it does not correct
+    any specific published ranking.
+  - The interval partial order deliberately does not produce a total order. Reporting it as a ranking
+    with unordered pairs suppressed would reintroduce exactly the bias it exists to avoid.
+  - Nothing here says any constant is strong, weak, optimal or anomalous, and nothing here is a security,
+    attack or distinguisher claim of any kind.
+  - A budget-stability radius is a statement about a solver on this machine at these parameters, not
+    about any cipher, and it does not transfer across word size, measure or implementation.
+  - A finding that censoring is non-informative is scoped to the tested regime and does not license
+    dropping censored cells at scales where the propensity was never measured.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. This entry's own arithmetic is O(N^2) in the number
+      of constants for the pairwise partial order and Kendall tau, about 130000 pair comparisons at
+      512 constants, milliseconds; the cost is inherited from the exhaustive ground-truth search,
+      which is O(r 2^{2n}) per constant and is the dominant line.
+    memory_exponent: No attack memory exponent is claimed. Storage is one interval per cell, 512 constants
+      by 6 rounds by two endpoints, plus a pairwise comparability bitmap of about 130000 bits, well
+      under one mebibyte.
+    best_known: 'The incumbent is the campaign''s own intended practice: label timeouts correctly,
+      as AGENTS.md rule 3 and GOAL-SIMSPK-001''s fourth criterion require, and then rank the constants
+      whose searches completed. That incumbent is correct in its labelling and unmeasured in its bias.
+      There is no competing estimator in this corpus and no algorithmic frontier is contested.'
+    hidden_overhead: 'Hidden in the lower-order terms: every cell must carry its budget and its lower
+      bound, not just a completed-or-not flag, and retrofitting that onto a search that already ran
+      is more expensive than instrumenting it from the start, so this contract''s real cost is a requirement
+      it imposes on the trail-search contracts rather than compute it consumes. Hidden in the human
+      cost: reporting a partial order with low comparability honestly, rather than filling the gaps
+      to produce the total order a reader expects.'
+  dominated_by: 'n/a (no result claimed). A real Pareto check was performed across time, memory and
+    data/queries: no attack, distinguisher or query-bounded procedure is produced, so no frontier
+    row exists on any axis. Among estimators, the interval partial order dominates exclusion on soundness
+    at every censoring rate, since it never asserts an ordering that greater budget would reverse,
+    and is dominated by exclusion on completeness, since it declines to order pairs exclusion happily
+    orders; the comparability fraction is exactly the price and is reported as a number.'
+  sota_delta: no attack; conceptual/measurement contribution only. The quantitative deliverables are
+    the correlation between censoring propensity and true weight, the Kendall tau gap between real-propensity
+    and uniform censoring at matched rates, the mean signed rank displacement of the exclusion ranking
+    with its sign, the comparability fraction of the partial order, and the budget-stability radius
+    B*. No time, memory or data complexity is compared against any cryptanalytic frontier because
+    none is produced.
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  honest_prior_of_survival: 'Part (A), that censoring in optimal-trail search is informative rather
+    than random: 0.75, because a heavier optimum generally forces a deeper search before optimality
+    can be certified, which is structural rather than incidental; the residual reflects the real possibility
+    that censoring is dominated by constant-specific search-space shape uncorrelated with the optimum,
+    which the correlation measurement settles directly. Part (B), that the bias magnitude is measurable
+    on ground truth with synthetic censoring: 0.9, since it requires only an exhaustive regime, which
+    exists at small word size by construction. Part (C), that the interval partial order is implementable
+    and sound given sound lower bounds: 0.85, with the residual sitting entirely in whether branch-and-bound
+    lower bounds are genuinely sound, which is checked. That the measured bias is large enough to
+    change any conclusion this campaign would draw: 0.45, and a small measured bias is a fully satisfactory
+    result that licenses the cheaper exclusion estimator with a number rather than a hope.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-SIMSPK-f6a6c0
+  - GOAL-SIMSPK-001
+  - KN-TECH-056
+  - IDEA-20260815-ad4b55
+  - KN-LIT-5292
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/runner.py
+  - templates/research-records.md
+  - tools/allocate_id.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-SIMSPK-fd009b

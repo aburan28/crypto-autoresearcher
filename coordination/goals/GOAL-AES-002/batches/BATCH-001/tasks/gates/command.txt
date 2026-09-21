@@ -1,0 +1,19 @@
+# GATE 1  (deterministic, no randomness, byte-identically reproducible)
+python3 gate1_recomputation.py gate1_raw_result.json > gate1_stdout.log 2> gate1_stderr.log
+
+# GATE 2  build + FIPS-197 known-answer pinning (must pass before any measurement)
+gcc -O3 -march=native -o gate2 gate2_invariance.c
+./gate2 0 0 1 0 0 k                      # -> AES128 69c4e0d86a7b0430d8cdb78070b4c55a
+                                         #    AES256 8ea2b7ca516745bfeafc49904b496089
+
+# GATE 2  main run: N = 524288 keys per configuration, 4 shards over 4 cores
+for s in 0 1 2 3; do ./gate2 524288 $s 4 20260801002 0 > g2_shard$s.json 2> g2_shard$s.err & done
+
+# GATE 2  independent-generator cross-check: AES-CTR key stream, independent seed
+for s in 0 1; do ./gate2 32768 $s 2 20260801777 1 > g2ctr_shard$s.json 2> g2ctr_shard$s.err & done
+
+# GATE 2  summarisation
+python3 gate2_summarize.py 'g2_shard*.json'    gate2_main_summary.json
+python3 gate2_summarize.py 'g2ctr_shard*.json' gate2_ctr_crosscheck_summary.json
+
+# argv: N  shard  nshards  seed  keygen(0=splitmix64,1=AES-CTR)  [k=known-answer mode]

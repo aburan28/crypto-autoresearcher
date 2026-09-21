@@ -1,0 +1,82 @@
+seed_register:
+  schema: crypto.autoresearch.ecdlp.seed-register.v5
+  primary_groups:
+    - {group_id: G01, role: train, seed: 101, field_bits: 12}
+    - {group_id: G02, role: train, seed: 103, field_bits: 12}
+    - {group_id: G03, role: train, seed: 107, field_bits: 13}
+    - {group_id: G04, role: train, seed: 109, field_bits: 13}
+    - {group_id: G05, role: train, seed: 113, field_bits: 14}
+    - {group_id: G06, role: train, seed: 127, field_bits: 14}
+    - {group_id: G07, role: train, seed: 131, field_bits: 15}
+    - {group_id: G08, role: train, seed: 137, field_bits: 15}
+    - {group_id: G09, role: held_out, seed: 139, field_bits: 12}
+    - {group_id: G10, role: held_out, seed: 149, field_bits: 12}
+    - {group_id: G11, role: held_out, seed: 151, field_bits: 13}
+    - {group_id: G12, role: held_out, seed: 157, field_bits: 13}
+    - {group_id: G13, role: held_out, seed: 163, field_bits: 14}
+    - {group_id: G14, role: held_out, seed: 167, field_bits: 14}
+    - {group_id: G15, role: held_out, seed: 173, field_bits: 15}
+    - {group_id: G16, role: held_out, seed: 179, field_bits: 15}
+  calibration_policy:
+    max_attempts_per_row: 256
+    terminal_no_candidate: calibration_unavailable_and_package_invalid
+    terminal_misdetected: calibration_detector_mismatch_and_package_invalid
+    receipt_required_fields: [calibration_id, attempt_count, candidate_hashes, rejection_reasons, terminal_outcome, detector_observation]
+    replacement_policy: no_replacement_after_registration_or_outcome
+  calibration_rows:
+    - {calibration_id: CAL-A01, family: anomalous, seed: 181, field_bits: 12, expected_detector: anomalous, max_attempts: 256, terminal_no_candidate: calibration_unavailable_and_package_invalid, terminal_misdetected: calibration_detector_mismatch_and_package_invalid, primary_disposition: excluded}
+    - {calibration_id: CAL-A02, family: anomalous, seed: 191, field_bits: 12, expected_detector: anomalous, max_attempts: 256, terminal_no_candidate: calibration_unavailable_and_package_invalid, terminal_misdetected: calibration_detector_mismatch_and_package_invalid, primary_disposition: excluded}
+    - {calibration_id: CAL-A03, family: anomalous, seed: 193, field_bits: 13, expected_detector: anomalous, max_attempts: 256, terminal_no_candidate: calibration_unavailable_and_package_invalid, terminal_misdetected: calibration_detector_mismatch_and_package_invalid, primary_disposition: excluded}
+    - {calibration_id: CAL-A04, family: anomalous, seed: 197, field_bits: 14, expected_detector: anomalous, max_attempts: 256, terminal_no_candidate: calibration_unavailable_and_package_invalid, terminal_misdetected: calibration_detector_mismatch_and_package_invalid, primary_disposition: excluded}
+    - {calibration_id: CAL-K01, family: low_embedding, seed: 199, field_bits: 12, expected_detector: low_embedding, max_attempts: 256, terminal_no_candidate: calibration_unavailable_and_package_invalid, terminal_misdetected: calibration_detector_mismatch_and_package_invalid, primary_disposition: excluded}
+    - {calibration_id: CAL-K02, family: low_embedding, seed: 211, field_bits: 12, expected_detector: low_embedding, max_attempts: 256, terminal_no_candidate: calibration_unavailable_and_package_invalid, terminal_misdetected: calibration_detector_mismatch_and_package_invalid, primary_disposition: excluded}
+    - {calibration_id: CAL-K03, family: low_embedding, seed: 223, field_bits: 13, expected_detector: low_embedding, max_attempts: 256, terminal_no_candidate: calibration_unavailable_and_package_invalid, terminal_misdetected: calibration_detector_mismatch_and_package_invalid, primary_disposition: excluded}
+    - {calibration_id: CAL-K04, family: low_embedding, seed: 227, field_bits: 14, expected_detector: low_embedding, max_attempts: 256, terminal_no_candidate: calibration_unavailable_and_package_invalid, terminal_misdetected: calibration_detector_mismatch_and_package_invalid, primary_disposition: excluded}
+  generation:
+    serialization: domain_separated_length_prefixed_big_endian_u32_fields
+    primary_pair_id: group_id
+    pair_token_derivation: >-
+      pair_token_preimage = u32_be(len("PAIR-ID-v1")) ||
+      UTF8("PAIR-ID-v1") || u32_be(seed) || u32_be(len(group_id)) ||
+      UTF8(group_id) || u32_be(field_bits); pair_token is the lowercase
+      hexadecimal SHA256 digest of those exact bytes.
+    target_derivation: >-
+      target_derivation_preimage = u32_be(len("PAIR-TARGET-v1")) ||
+      UTF8("PAIR-TARGET-v1") || pair_token_raw_32_bytes ||
+      u32_be(subgroup_order); target_derivation_digest is SHA256 of that
+      exact preimage and target_x =
+      1 + int(target_derivation_digest, big-endian) mod (subgroup_order-1).
+      The manifest must retain both preimages, both digests, subgroup_order,
+      and target_x and the validator must recompute them byte-for-byte.
+    source_random_pairing: same_p_seed_order_and_pair_token; distinct_control_stream_only
+    frozen_target_vectors:
+      - seed: 101
+        group_id: G01
+        field_bits: 12
+        subgroup_order: 1009
+        pair_token_preimage_hex: 0000000a504149522d49442d763100000065000000034730310000000c
+        pair_token_hex: 29656248d40cabdee13daa128018083de383dd650e9c3e6eaa32783b9f145594
+        target_derivation_preimage_hex: 0000000e504149522d5441524745542d763129656248d40cabdee13daa128018083de383dd650e9c3e6eaa32783b9f145594000003f1
+        target_derivation_digest_hex: 62c5111c589fe9db1e506d910863593bd202486c7564b88fcf6368779f698b1c
+        target_x: 237
+    calibration_generation: >-
+      For each registered calibration row, iterate attempts from zero through
+      255 with the exact same prime/candidate function. Record every candidate
+      hash and rejection reason. On a matching candidate, emit the detector
+      observation and terminal_outcome=accepted_expected_detector. If no
+      candidate matches after attempt index 255, emit terminal_outcome=
+      calibration_unavailable_and_package_invalid. If a candidate is emitted
+      but the detector label differs from expected_detector, emit
+      terminal_outcome=calibration_detector_mismatch_and_package_invalid.
+      Never replace a row after registration or any terminal outcome.
+  allocation_rule: >-
+    Group role, field_bits, seeds, calibration family, expected detector, and
+    primary disposition are fixed before candidate generation. No group or
+    calibration row may be replaced after a walk outcome is observed.
+  run_count:
+    primary_groups: 16
+    train_groups: 8
+    held_out_groups: 8
+    primary_variants_per_group: 6
+    calibration_variants: 8
+    maximum_runs: 104

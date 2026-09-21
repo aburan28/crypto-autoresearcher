@@ -1,0 +1,220 @@
+# ECDLP-IDEA-104 — Lorentzian relation-measure sampler
+
+## Status and claim labels
+
+- Class: `algorithm`
+- Risk band: `conservative`
+- State: `rejected_support_exchange_no_go`
+- Evidence scale: no run; any future sampling preflight is `toy`
+- Cost claims: `heuristic` and `model-bound`
+- Novelty: `novelty-unverified`
+- Breakthrough claim: **none**; Lorentzianity, rapid mixing, a valid relation, or a
+  recovered toy scalar is not an ECDLP break.
+
+## Falsifiable hypothesis
+
+For a target-independent factor base `F` of size `B=N^beta` and fixed relation arity
+`m`, there is a nonnegative homogeneous generating polynomial whose support consists
+exactly of signed factor-base multisets summing to a supplied `R`, and whose coefficients
+can be queried without enumerating relations. The polynomial is Lorentzian uniformly in
+ordinary prime-field curves and masked targets. Its down-up walk can therefore sample
+exact source tuples after mixing in sub-rho total work. Repeating this sampler yields
+`B+sigma` full-rank relation rows, all factor logs, and blind target descents with complete
+time and memory exponents below `1/2`.
+
+## Mechanism-new operation
+
+The proposed operation is **prove the exact elliptic relation-support measure Lorentzian, then use
+its approximate-exchange down-up walk with an implicit exact conditional-weight oracle to
+sample source tuples**. This is not random tuple scanning, a large-prime graph, a toric
+Markov basis, post-hoc resampling, or a generic MCMC wrapper around a membership solver.
+The candidate is rejected: target-conditioned elliptic relation support has no general
+M-convex exchange closure, and Lorentzian negative-dependence/mixing results begin only
+after both that support property and measure-oracle access are supplied. Constructing the
+exact conditional weights from public curve data is the occupied source-counting or
+membership task, so a sampler that assumes the oracle exchanges rather than removes the
+recorded obstruction.
+A supplied warm start that already names a supported factor-base tuple is a forbidden
+decomposition oracle, not an initialization algorithm; initialization must construct a
+chain state from public `E,F,R` data without first finding a witness.
+
+## Assumptions
+
+1. `E(F_p)` has public prime-order subgroup `<P>` of order `N=p^(1+o(1))`, target
+   `Q=[x]P`, fixed arity `m`, and target-independent factor base
+   `F={F_1,...,F_B}` with `B=N^beta`.
+2. A coefficient of the generating polynomial is positive if and only if its signed
+   multiset is an exact relation for `R`; multiplicity and sign conventions are public.
+3. Lorentzianity survives target conditioning, sign handling, repeated atoms, and every
+   masked blind target used by the descent.
+4. Conditional weights and down-up transitions are evaluated exactly or with a proved
+   error bound preserving exact witness output, without enumerating `F^m`.
+5. A public initialization algorithm produces the first chain state from `E,F,R` without
+   receiving a supported tuple, source witness, or target-specific advice.
+6. Initialization, rejected moves, mixing diagnostics, coefficient-oracle construction,
+   relation density, rank, factor logs, descent, verification, and memory are charged.
+7. Scaling claims are toy, heuristic, model-bound, and novelty-unverified.
+
+## Semantic fingerprint
+
+`exact_elliptic_relation_measure | Lorentzian_generating_polynomial | approximate_exchange | implicit_conditional_weight_oracle | down_up_exact_source_sampler | blind_descent`
+
+The mechanism survives only if the coefficient oracle is strictly cheaper than the
+occupied membership problem and the sampled support yields source labels rather than an
+aggregate count.
+
+## Five closest ledger entries
+
+1. `ledger/FINDING-PF-IC-001.md` — imported `ECFG-NR-1471`, where coordinate-matched
+   large-prime occupancy gives no advantage over a hash-like control.
+2. `ledger/FINDING-PF-IC-001.md` — imported `ECFG-RT-1472`, the restricted occupancy
+   theorem requiring enrichment or an implicit deck before a graph can cross rho.
+3. `ledger/FINDING-PF-IC-001.md` — imported `P1472`, which states the exact hash-like
+   two-large-prime exponent boundary.
+4. `ledger/FINDING-PF-IC-001.md` — imported `P1476`, the conditional `m`-ary support and
+   query-exponent gate that any sampler must satisfy.
+5. `ledger/FINDING-PF-IC-001.md` — imported `ECFG-NR-1477`, where materialized serial
+   state polynomials fail to give complete five-term source membership.
+
+## Closest primary literature
+
+- Brändén and Huh, [Lorentzian polynomials](https://arxiv.org/abs/1902.03719),
+  develop Lorentzian polynomials, their M-convex supports, and negative-dependence
+  properties; they do not prove elliptic relation fibers Lorentzian.
+- Anari, Liu, Oveis Gharan, Vinzant, and Vuong,
+  [Log-Concave Polynomials IV: Approximate Exchange, Tight Mixing Times, and Near-Optimal Sampling of Forests](https://arxiv.org/abs/2004.07220),
+  prove tight down-up mixing for measures generated by log-concave polynomials, assuming
+  access to the measure; they do not construct the ECDLP coefficient oracle.
+- Semaev,
+  [Summation polynomials and the discrete logarithm problem](https://eprint.iacr.org/2004/031),
+  supplies the exact relation predicate and full index-calculus obligation.
+
+No checked source establishes Lorentzianity or an implicit exact conditional-weight
+oracle for prime-field elliptic relation support. Novelty remains unverified.
+
+## Complete factor-base-to-target-descent path
+
+1. Freeze `E,P,N,F,B,m`, signed-multiset variables, coefficient normalization, target
+   conditioning, transition kernel, error policy, and exhaustive tiny relation support.
+2. Construct the target-parametric generating polynomial or a proved equivalent oracle;
+   certify exact support and Lorentzianity without using source tuples as advice.
+3. For known random outputs `R_j=[r_j]P`, run the public witness-free initializer and then
+   the frozen down-up chain, charge initialization, burn-in, and rejected moves, emit exact
+   signed tuples, and verify each sum.
+4. Preserve every miss, repeat, dependence, and failed diagnostic; collect exactly
+   `B+sigma` independently verified rows whose coefficient matrix reaches rank `B`.
+5. Solve all factor-base logarithms modulo `N` and independently verify every calibrated
+   point logarithm on `E`.
+6. Freeze the measure/oracle and run the identical chain for masked blind targets
+   `Q+[t]P`, with masks and chain randomness fixed before outcomes are known.
+7. Substitute factor logs, unmask all candidates, retain the full ambiguity set, and
+   accept only a scalar satisfying `[x]P=Q`.
+
+## Full rho/BSGS cost model
+
+Pollard rho has time exponent `1/2` and constant state; BSGS has time and memory
+exponents `1/2`. Let `B=N^beta`. Let polynomial/oracle setup take `N^(a+o(1))` time and
+`N^(a_m+o(1))` memory. Let the required public witness-free initialization algorithm take
+`N^(i+o(1))` time and `N^(i_m+o(1))` memory per chain; a supplied supported warm state is
+a forbidden decomposition oracle and is not assigned exponent zero. Let one exact
+conditional-weight query take `N^(c+o(1))` time and `N^(c_m+o(1))` memory, and let the
+complete number of down-up steps, including burn-in, rejected moves, thinning, and
+independent resets, have exponent `tau`. Let `w_m` be the peak-memory exponent for the
+entire live chain state and mixing diagnostics. Let exact source tuples emitted per
+accepted sample have exponent `o`, and let residual scalar ambiguity per emitted target
+source have exponent `u`; writing these lists costs their full time and storage. Let
+reciprocal usable-relation and target densities be `N^delta` and `N^delta_t`. Let sparse
+linear algebra take `N^(ell+o(1))` time and `N^(ell_m+o(1))` memory, with `ell>=2beta`
+absent proved structure. Let verification of one emitted source or scalar candidate take
+`N^(v+o(1))` time and `N^(v_m+o(1))` working memory.
+
+Put `kappa=max(i,tau+c)`: initialization and the full transition sequence are sequential
+phases, while the `N^tau` transitions each invoke the `N^c` conditional-weight query.
+
+The complete time exponent is
+
+`lambda=max(a,beta+delta+kappa+o+v,ell,delta_t+kappa+o+u+v)`,
+
+and the complete peak-memory exponent is
+
+`mu=max(a_m,i_m,c_m,w_m,ell_m,beta+o,o+u,v_m)`.
+
+All initialization work, coefficient queries, burn-in, autocorrelation, rejected
+transitions, independent-chain resets, misses, duplicate rows, source and candidate
+output, and verification are explicit. A rapid-mixing theorem with an explicit `B^m`
+coefficient table, membership oracle, or supplied supported warm state receives no
+speedup credit.
+Any measure or oracle construction that depends on the supplied output `R` belongs in
+`i` or `c` on every query, not in the one-time target-independent exponent `a`.
+
+## Likely fatal obstruction
+
+The target slice of an elliptic `m`-sum relation hypergraph need not be M-convex or
+Lorentzian: exchange of one source atom can destroy the fixed target sum. Even if a
+related polynomial is Lorentzian, evaluating its conditional coefficients can be exactly
+the source-counting or membership problem. Rapid mixing then samples only after the hard
+work has been paid. Constructing a supported initial state can itself be the same witness
+problem; receiving one for free is a decomposition oracle. Rank and blind target density
+can still restore rho.
+
+## Proof track
+
+Prove Lorentzianity of the exact signed target-conditioned polynomial, construct both a
+public witness-free initializer and a sub-rho exact conditional-weight oracle, prove
+mixing bounds for all masked targets, and then derive relation rank, factor-log recovery,
+blind descent, and `lambda,mu<1/2`.
+
+## Disproof track
+
+Exhibit a violated M-convex exchange, a Hessian with more than one positive eigenvalue,
+or a masked target whose support is disconnected under the proposed walk; reduce a
+public initialization or conditional coefficient query to occupied membership/counting;
+or establish a complete time, output, or memory lower bound at least `N^(1/2-o(1))`.
+
+## Positive and negative controls
+
+- Positive control: matroid-base and spanning-tree measures with independently known
+  Lorentzian polynomials and down-up mixing.
+- Positive instrumentation control: exhaustive toy relation supports with exact
+  Hessian/exchange checks and known sampled frequencies.
+- Negative control: random `m`-uniform target hypergraphs with matched support density.
+- Mechanism controls: explicit large-prime tables, uniform tuple scans, toric Markov
+  walks, and an oracle backed by exhaustive relation enumeration.
+- Leakage control: permute factor labels and reject coefficients derived from factor logs
+  or initialization from a supplied supported tuple.
+- Baseline control: matched Pollard-rho and memory-matched BSGS.
+
+## Quantitative promotion and falsification gates
+
+No run is admissible before a theorem proves exact support, Lorentzianity, connected
+down-up dynamics, a public witness-free initializer, and a nonenumerative
+conditional-weight oracle with symbolic
+`lambda,mu<=0.45`. A future toy preflight would require exhaustive truth through 18 bits,
+20 curves at each of four increasing sizes, total-variation error at most `0.01`, effective
+sample size at least `1,000`, at least `B+sigma` verified rows of rank `B`, `100` blind
+descents at each of the two largest sizes, zero wrong sources, and upper 95% bounds
+`lambda,mu<=0.45` under the complete formulas above. Falsify on one reproducible exchange
+violation, disconnected support, initialization from a supplied witness, oracle
+dependence on enumerated sources, or lower 95% complete exponent at least `0.50`.
+
+## Artifact plan
+
+- Theorem gate: `ideas/artifacts/ECDLP-IDEA-104/lorentzian_oracle_gate.md`
+- Measure specification: `ideas/artifacts/ECDLP-IDEA-104/relation_measure.yaml`
+- Prospective exact checker: `ideas/artifacts/ECDLP-IDEA-104/check_lorentzian.py`
+- Prospective sampler: `ideas/artifacts/ECDLP-IDEA-104/down_up_sampler.py`
+- Independent source verifier: `ideas/artifacts/ECDLP-IDEA-104/verify_sources.py`
+- Prospective receipts: `ideas/artifacts/ECDLP-IDEA-104/runs/<run-id>/`
+
+## Interpretation boundary
+
+This rejected support-exchange no-go record is toy, heuristic, model-bound, and
+novelty-unverified. Negative dependence, a spectral gap, rapid mixing, a valid relation,
+or a toy scalar does not show a better-than-rho algorithm. Without a new operation that
+proves target-slice exchange and constructs nonenumerative exact conditional weights, the
+proposal is a membership-oracle substitution; all source output, rank, and blind descent
+remain load-bearing.
+
+## Exactly one next executable action
+
+1. Write `ideas/artifacts/ECDLP-IDEA-104/lorentzian_oracle_gate.md` proving either exact Lorentzian support plus a public witness-free initializer and nonenumerative conditional-weight oracle for the signed elliptic relation measure, or a concrete initialization, exchange, or oracle obstruction.

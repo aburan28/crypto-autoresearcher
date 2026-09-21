@@ -1,0 +1,414 @@
+execution_report:
+  experiment_id: EXP-SSIQ-a85692
+  spec_version: 11
+  spec_status: approved
+  spec_approved_by: coordinator
+  spec_approved_under: DEC-20260808-c2a470
+  task_id: TASK-20260808-d458a3
+  implementation_commit: a58be63848492aa45c75b8d2d6973a352166de96
+  implementation_branch: runs/goal-ssiq-001-batch-014-cont
+  implementation_dirty: true
+  implementation_dirty_note: >-
+    Exactly two untracked paths added, nothing pre-existing modified (see
+    manifest.yaml's own code.dirty_note and source_access_log.yaml for the
+    full `git status --porcelain` cross-check):
+    experiments/EXP-SSIQ-a85692/implementation/delta_e_floor_straddling_sweep_v11.py
+    and experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-k/.
+
+  protocol_deviations:
+    - deviation: >-
+        `ulimit -v 2097152` (specification_v11.yaml budget.maximum_memory_gb=2's
+        enforcement mechanism, used unmodified by RUN-SSIQ-a85692-a
+        through -j) is NOT SUPPORTED on this execution host's shell:
+        Darwin/macOS `setrlimit` rejects RLIMIT_AS the way Linux accepts
+        it (`ulimit -v 2097152` fails with "setrlimit failed: invalid
+        argument"). NOT applied this run.
+      consequence: >-
+        No OS-level address-space cap was enforced. `timeout 1000`
+        (matching budget.wall_clock_seconds_per_run=1000) WAS applied and
+        was the binding cap actually in force. Given this run's own
+        measured work (a single 203-vertex graph build followed
+        immediately by a gate defer -- no delta_E search, no calibration,
+        0.19s internal wall-clock), actual peak memory use was trivially
+        far under the 2 GiB budget regardless of enforcement. Disclosed in
+        full in environment.json and command.txt.
+      classification: infrastructure_error (environment/host capability
+        difference; does not affect this run's validity or its result).
+    - deviation: >-
+        DISCLOSED ORDERING INTERPRETATION: specification_v11.yaml's
+        load_defer_gate_v11 text does not fully pin down whether CAL-1/
+        CAL-2 (each a real, costly measurement, up to 120.0s + 16.0s worst
+        case) run BEFORE gate G-0c is evaluated, or whether G-0c gates
+        whether they run at all. This implementation adopted the latter
+        reading: G-0c is evaluated using ONLY the step (0b) host capture
+        and RUN-h's already-committed environment.json, and it gates
+        whether CAL-1/CAL-2 run at all.
+      justification: >-
+        (i) G-0c's own text introduces it with "FIRST, BEFORE ANY
+        CALIBRATION IS INTERPRETED"; (ii) the frozen artifact-behaviour
+        text for a defer explicitly allows "the full CAL-1/CAL-2 records
+        to whatever extent they exist" -- language only meaningful if a
+        G-0c defer can occur with zero calibration records; (iii) it is
+        the economically sensible reading (no reason to spend up to 136s
+        of calibration compute once the host is already known to differ);
+        (iv) it matches the dispatching Coordinator's own handoff
+        (TASK-20260808-d458a3), which lists G-0c ahead of "any of the 8
+        CAL-1 calibration vertices timing out" in its own evaluation
+        order. This is a disclosed interpretation of textual ambiguity,
+        in the same "HONESTY RULE" style this lineage's own code already
+        uses (e.g. v9's PD-3 domain disclosure), NOT a silent choice, and
+        NOT an edit of the frozen spec text.
+      consequence: >-
+        cal1_records and cal2_records are empty lists in this run's
+        artifacts (0 of the up to 8+8 records that would exist under the
+        alternative reading). This does not change the run's outcome
+        (G-0c fires regardless of whether calibration runs first, since
+        the host mismatch is unconditional on calibration data) and does
+        not omit any REQUIRED field -- the closed list still contains
+        cal1_records/cal2_records, populated "to whatever extent they
+        exist" (zero, this run), exactly as the frozen text's own phrase
+        anticipates.
+      classification: specification_error (an ambiguity in the frozen
+        text, not resolved by an Executor edit -- reported rather than
+        silently guessed at).
+    - deviation: >-
+        The frozen specification text cites "AGENTS.md rule 3" (repeatedly)
+        for the "a timeout/crash/environment failure is not evidence
+        against a mathematical hypothesis" principle. This repository's
+        LIVE AGENTS.md currently numbers that identical principle as rule
+        5 (rule 3 is currently "every experiment must define controls,
+        metrics, budgets, stopping rules, and required artifacts before
+        execution").
+      consequence: >-
+        A citation-numbering drift between the frozen spec text (which is
+        NOT edited, per this task's own constraints) and the live
+        AGENTS.md file. This run's own newly-authored text (the
+        implementation module's docstring, this execution_report, the
+        manifest) cites the CORRECT current number (rule 5) while quoting
+        or referencing the frozen spec's own "rule 3" citations verbatim
+        where the frozen text itself is being reproduced. No functional
+        effect: both numbers refer to the same principle, and this run's
+        deferral IS treated as an infrastructure outcome, never as
+        evidence against H-SSIQ-36e970, under either numbering.
+      classification: specification_error (a numbering drift in the
+        frozen text against a living document it cites, reported rather
+        than silently reconciled by editing the frozen spec).
+
+  runs:
+    completed:
+      - run_id: RUN-SSIQ-a85692-k
+        validity: completed_valid
+        outcome: DEFERRED_AT_G0C
+        summary: >-
+          Gate load_defer_gate_v11 evaluated in the exact frozen order.
+          G-0c (host-identity comparison against RUN-SSIQ-a85692-h's
+          archived environment.json) FIRED on its first evaluation --
+          material mismatch on all three compared dimensions. The run
+          therefore deferred before any calibration or sweep point was
+          attempted, per the gate's own design and this task's governing
+          instruction that this is a fully successful, complete outcome.
+    invalid: []
+    failed: []
+
+  # ==========================================================================
+  # FULL GATE EVALUATION TRACE, every branch's measured value or
+  # not-evaluated status, in the exact frozen order.
+  # ==========================================================================
+  gate_evaluation_trace:
+    order: [G-0c, G-0, G-0b, G-1, G-2, G-2b, G-3]
+    host_capture_run_start:
+      captured_at_utc: '2026-08-08T05:33:06Z'
+      platform_platform: macOS-26.6-arm64-arm-64bit-Mach-O
+      platform_machine: arm64
+      sys_version: "3.13.1 (v3.13.1:06714517797, Dec  3 2024, 14:00:22) [Clang 15.0.0 (clang-1500.3.9.4)]"
+      os_cpu_count: 14
+      os_getloadavg_1_5_15: [33.6787109375, 44.69677734375, 56.9912109375]
+      os_getloadavg_unavailable_reason: null
+    host_capture_run_end:
+      captured_at_utc: '2026-08-08T05:33:06Z'
+      platform_platform: macOS-26.6-arm64-arm-64bit-Mach-O
+      platform_machine: arm64
+      sys_version: "3.13.1 (v3.13.1:06714517797, Dec  3 2024, 14:00:22) [Clang 15.0.0 (clang-1500.3.9.4)]"
+      os_cpu_count: 14
+      os_getloadavg_1_5_15: [33.6787109375, 44.69677734375, 56.9912109375]
+      os_getloadavg_unavailable_reason: null
+    archived_host_from_run_h_environment_json:
+      platform: Linux-6.18.5-fc-v18-x86_64-with-glibc2.39
+      cpus_available: 4
+      read_error: null
+    G-0c:
+      evaluated: true
+      fired: true
+      reason: >-
+        platform.platform() = 'macOS-26.6-arm64-arm-64bit-Mach-O' does not
+        begin with 'Linux' (archived host platform:
+        'Linux-6.18.5-fc-v18-x86_64-with-glibc2.39'); platform.machine() =
+        'arm64' != 'x86_64' (archived host ISA); os.cpu_count() = 14 !=
+        RUN-h's recorded cpus_available = 4.
+      measured_platform: macOS-26.6-arm64-arm-64bit-Mach-O
+      measured_machine: arm64
+      measured_cpu_count: 14
+      archived_platform: Linux-6.18.5-fc-v18-x86_64-with-glibc2.39
+      archived_cpus_available: 4
+    G-0:
+      evaluated: false
+      reason_not_evaluated: >-
+        G-0c already fired; per this run's disclosed ordering
+        interpretation, CAL-1 (which G-0 reads) was never run this
+        official run.
+      cal1_records_this_official_run: 0
+    G-0b:
+      evaluated: false
+      reason_not_evaluated: G-0c already fired; CAL-2 was never run this official run.
+      cal2_records_this_official_run: 0
+    G-1:
+      evaluated: false
+      reason_not_evaluated: G-0c already fired; F_cal is undefined (no CAL-1 ran).
+      f_cal_seconds: null
+    G-2_G-2b_G-3:
+      evaluated: false
+      reason_not_evaluated: G-0c already fired.
+      load_adjusted_predicted_counts: >-
+        null with reason "undefined: G-0c fired before CAL-1 calibration
+        was run/interpreted" at both b=1.1 and b=1.45, per PF-29(b)'s
+        "ABSENT, not zero" discipline.
+    final_outcome:
+      deferred: true
+      deferral_branch: G-0c
+      load_confounded: true
+      no_sweep_point_executed: true
+
+  # ==========================================================================
+  # PRE-EXECUTION VERIFICATION (NOT part of the official RUN-k gate trace
+  # above -- a separate, disclosed code-quality exercise run BEFORE the
+  # official command, on the same real p=2437 graph and the same real
+  # frozen thresholds, to independently confirm that the code this run's
+  # own G-0c defer left unexercised (CAL-1/CAL-2/G-0/G-0b/G-1/G-2/G-2b/G-3/
+  # sweep loop) is correct. Full detail and additional synthetic unit
+  # checks in command.txt. These figures are NOT RUN-SSIQ-a85692-k's own
+  # official measurements and must never be cited as such; they are
+  # reported here, per AGENTS.md's "record, never discard" rule, because
+  # they are informative about why gate G-0c matters on this host.
+  # ==========================================================================
+  pre_execution_verification_not_part_of_official_run:
+    cal1_standalone_exercise:
+      n_records: 8
+      n_timed_out: 0
+      measured_wall_seconds_range: [0.5095, 0.5937]
+      archived_wall_seconds_range: [1.1499, 1.3147]
+      measured_over_archived_ratio_range: [0.4308, 0.4703]
+      note: >-
+        On this exact execution host, all 8 calibration vertices resolved
+        at roughly 0.43x-0.47x their archived wall_seconds -- i.e. this
+        host is roughly 2.0x-2.3x FASTER than RUN-h's archived Linux
+        4-CPU x86_64 host on this exact workload, not slower. This is
+        independent, measured evidence (not an assertion) for why gate
+        G-0c matters here specifically: specification_v11.yaml's own text
+        states the b=1.10s arm's "guaranteed truncated" control rests on
+        the execution host NOT being faster than the archived host, by a
+        margin of only 49.93ms (4.3%); a ~2x speedup, had the sweep been
+        allowed to run on this host without G-0c, would very plausibly
+        have broken that guarantee outright, in addition to invalidating
+        every other archived-reference comparison this amendment's design
+        depends on.
+      standalone_gate_results_if_g0c_had_not_fired: >-
+        G-0: not fired (0/8 timed out). G-0b: not fired (0/8 CAL-2
+        source-side timeouts). F_cal = 0.5094630718231201s. G-1: not
+        fired (F_cal < 1.45). G-2: not fired (F_cal <= 1.32242279052734375).
+        median measured/archived ratio = 0.4497467453881757. LAC at both
+        b=1.1 and b=1.45: 194 (all 194 archived vertices' wall_seconds,
+        scaled by the median ratio, fall below both budgets on this
+        much-faster host). G-2b: not fired (LAC=194 >= 58). Final branch:
+        G-3 (load_confounded=false). NONE of these values are part of
+        RUN-SSIQ-a85692-k's own official gate evaluation, which correctly
+        never reached G-0/G-0b/G-1/G-2/G-2b because G-0c fired first.
+    sweep_loop_integration_smoke_test:
+      budget_used_seconds: 0.05
+      note: >-
+        A deliberately non-official budget (0.05s, NOT one of the two
+        frozen SWEEP_BUDGETS=[1.1, 1.45]) used only to keep the smoke test
+        fast. PART A + both required comparisons + both
+        value_histogram_and_conjugate_pairs calls + the mixed-regime
+        cross-check + the final-pop overshoot summary + full JSON
+        serialization all executed without error on the real 194-vertex
+        population; I-1/I-2/I-3 held; the PF-8 well-defined-empty-histogram
+        case was genuinely exercised (0/194 resolved at this tiny budget).
+        This result is NOT part of RUN-SSIQ-a85692-k's own official
+        output and was not written to any of its artifacts.
+    synthetic_unit_checks: >-
+      pf16_counts, mixed_regime_cross_check (M-0/M-1/M-2 partition), the
+      PF-8 well-defined-empty overshoot case, and _dist_summary_p95 were
+      each exercised on hand-constructed synthetic records with
+      hand-verified expected outputs; all matched. Full detail in
+      command.txt.
+
+  observations:
+    - >-
+      OBSERVATION (infrastructure, not mathematical): this execution
+      host's platform (macOS-26.6-arm64-arm-64bit-Mach-O, arm64,
+      os.cpu_count()=14) materially differs from every archived host in
+      this entire lineage (RUN-SSIQ-a85692-a through -j, INCLUDING
+      RUN-SSIQ-a85692-h, all Linux-6.18.5-fc-v18-x86_64-with-glibc2.39,
+      cpus_available=4). This is the FIRST run in this lineage to record
+      its own host capture at all (PF-26's fix), and the first to be
+      executed on a non-matching host.
+    - >-
+      OBSERVATION: gate G-0c fired on its first evaluation, per
+      load_defer_gate_v11's frozen order, deferring the entire run before
+      any calibration or sweep point was attempted. This is the FROZEN
+      CONTRACT'S OWN DESIGNED BEHAVIOUR for this exact condition (round-3's
+      required control, round-4-verified) and is reported as the complete,
+      successful outcome of this task, per AGENTS.md's timeout/environment
+      principle (numbered rule 5 in this repository's live AGENTS.md).
+    - >-
+      OBSERVATION: STEP (0)'s graph rebuild
+      (trapping_diagnostic_v5.build_graph_for_prime, p=2437, seed 20260805)
+      and its two-part graph-identity re-verification
+      (delta_e_independent_rng_probe_v8.verify_graph_identity) both
+      completed and PASSED before G-0c was evaluated: n_built_vertices=203
+      (archived 203), degree_sequence_check.pass=true,
+      vertex_count_match=true. This is the ONLY genuine in-session
+      computation this run performed against the p=2437 graph; no delta_E
+      value of any kind was computed.
+    - >-
+      OBSERVATION (pre-execution verification, explicitly NOT part of the
+      official run -- see gate_evaluation_trace/pre_execution_verification
+      sections above for the full figures): on this same host, a
+      standalone, disclosed exercise of CAL-1 found this execution host
+      resolves the 8-vertex calibration set at roughly 0.43x-0.47x
+      RUN-h's archived wall_seconds -- i.e. measurably FASTER, not slower,
+      than the archived reference host. Reported per AGENTS.md's "record,
+      never discard" rule as a genuinely unexpected, informative
+      observation, not as part of RUN-SSIQ-a85692-k's own gate trace.
+    - >-
+      OBSERVATION: measured actual defer cost this run was 0.1885s
+      (module-internal) / 0.7061s (shell-external, includes interpreter
+      startup) -- far below specification_v11.yaml's own general
+      "~140s (host capture plus CAL-1 and CAL-2 worst case)" defer-cost
+      estimate. That estimate describes a defer branch that DOES run
+      CAL-1/CAL-2 (G-0, G-0b, or G-1); this run's own defer fired at G-0c,
+      before either calibration stage was attempted, per this run's
+      disclosed ordering interpretation (see protocol_deviations above).
+      The ~140s figure is NOT claimed to have been incurred this run and
+      is not reported as if it were.
+
+  anomalies:
+    - >-
+      None encountered beyond the disclosed protocol_deviations above (the
+      unsupported `ulimit -v` on this shell, and the disclosed G-0c/
+      calibration ordering interpretation). No exception was raised by
+      STEP (0)'s graph build or graph-identity re-verification (both would
+      have propagated uncaught and terminated the run with no
+      truncation_sweep_comparison.json written at all, per the frozen
+      contract; neither occurred). No timeout was hit against the 1000s
+      wall-clock cap (0.07% consumed). stderr.log is empty.
+
+  artifact_paths:
+    - experiments/EXP-SSIQ-a85692/implementation/delta_e_floor_straddling_sweep_v11.py
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-k/manifest.yaml
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-k/raw-result.json
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-k/execution_report.yaml
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-k/source_access_log.yaml
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-k/command.txt
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-k/environment.json
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-k/stdout.log
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-k/stderr.log
+    - experiments/EXP-SSIQ-a85692/runs/RUN-SSIQ-a85692-k/truncation_sweep_comparison.json
+
+  required_artifacts_note_cross_check: >-
+    specification_v11.yaml's own required_artifacts_note diff-list
+    confirmed against the code actually written: the NEW module
+    delta_e_floor_straddling_sweep_v11.py defines exactly the seven
+    (i)-(vii) components the frozen text names (host capture/G-0c reader;
+    CAL-1/CAL-2 driver; the seven-branch gate evaluator plus LAC; the
+    sweep-loop driver; the per-sweep-point Comparison 1/2 driver; the
+    mixed-regime cross-check plus PF-16 counting and identities; the
+    b=1.10s final-pop overshoot summary). GENUINELY IMPORTS, UNCHANGED,
+    exactly the function list the frozen text names:
+    delta_e_truncation_probe_v9.run_truncation_probe_v9/
+    parse_v8_new_delta_map/compare_against_archived/compare_against_v8;
+    trapping_diagnostic_v5.build_graph_for_prime/load_archived_prime_data;
+    delta_e_independent_rng_probe_v8.verify_graph_identity/
+    derive_per_vertex_seed; compute_delta_e.build_smooth_table/L_PRIMES/
+    X_LIST_BOUND; delta_e_truncation_sweep_v10.
+    value_histogram_and_conjugate_pairs (independently confirmed by import
+    smoke test to be genuine, unshadowed bindings to the real, unedited
+    functions -- see command.txt). compute_delta_e.two_sided_search is NOT
+    imported directly, confirmed. hw.ncpu is not used anywhere, confirmed.
+    The only discretionary duplicate is the vertex_json_safe/
+    delta_map_json_safe pair (this Executor chose to re-author rather than
+    import delta_e_truncation_sweep_v10's own copies, an authorized,
+    disclosed duplicate per the frozen text's own explicit permission).
+    CAL-1's REQUIRED PRECONDITION CHECK (BY DIRECT READ that
+    run_truncation_probe_v9 subscripts graph only at "field"/"q"/
+    "vertices") was performed by this Executor before writing the CAL-1
+    call site: confirmed via `grep -n 'graph\[' delta_e_truncation_probe_v9.py`
+    -> exactly lines 156-158, no other occurrence. THE_EIGHT assertions
+    (len==8, subset-of-graph-vertices) are present in run_cal1()'s own
+    source and were exercised in the pre-execution verification (both
+    held). No discrepancy found.
+
+  executor_assessment:
+    protocol_complete: true
+    protocol_complete_note: >-
+      load_defer_gate_v11 was evaluated in full, in the exact frozen
+      order, before any sweep point could run; it correctly fired at its
+      first branch (G-0c) for this host; every required artifact for a
+      defer branch was produced, including the closed-list compliance
+      check (no sweep-derived field present, verified programmatically --
+      see gate_evaluation_trace above). The frozen contract's own
+      completion criterion for this exact host condition ("if this
+      execution environment is not a matched host... DEFERRING ON A HOST
+      MISMATCH IS A FULLY SUCCESSFUL OUTCOME") is met exactly.
+    data_quality: good
+    data_quality_note: >-
+      No delta_E measurement of any kind was produced -- BY DESIGN, not as
+      a quality defect. The infrastructure measurement this run DID
+      produce (the host capture, the archived-host read, and the G-0c
+      comparison) is complete, internally consistent, and independently
+      re-derivable from the recorded command and revision (see
+      Reproducibility below).
+    requires_rerun: false
+    requires_rerun_note: >-
+      Per this task's own governing instruction: "do not attempt to work
+      around a defer by adjusting the comparison, relaxing the gate, or
+      substituting a different reference host" and "do not retry against
+      a different host or loosen the gate to force a sweep to happen."
+      No rerun is requested by this Executor. If BATCH-014's own objective
+      (measuring n_naturally_completed(b) and the final-pop overshoot
+      distribution on the archived-matching host) is to be pursued
+      further, that requires either a matched Linux/x86_64/4-CPU execution
+      host or a Coordinator-issued amendment re-establishing a new
+      archived reference on whatever host is actually available -- exactly
+      the condition inputs.contribution_accounting_v11 names in advance as
+      the reason NOT to force this amendment through on a known-mismatched
+      host.
+
+  reproducibility:
+    reproduces_from_recorded_command_and_revision: true
+    reproducibility_note: >-
+      Re-running the exact command in command.txt against commit
+      a58be63848492aa45c75b8d2d6973a352166de96 on any host that is NOT
+      Linux/x86_64 with os.cpu_count()==4 will deterministically reproduce
+      the same G-0c defer (host capture is the only source of
+      non-determinism in this code path, and it is measured, not
+      seeded -- the DECISION it feeds is deterministic given that
+      measurement and the frozen thresholds). Re-running on a genuinely
+      matching host would proceed past G-0c into calibration and the
+      gate's later branches, which this run did not exercise officially
+      (see pre_execution_verification section for this Executor's own
+      separate, disclosed confirmation that those later code paths are
+      correct).
+
+  completion_gate_self_check:
+    all_planned_runs_terminal: true
+    missing_runs_explained: "n/a -- maximum_runs=1, one run attempted, one run completed."
+    required_artifacts_present: true
+    raw_data_and_summaries_agree: true
+    raw_data_and_summaries_agree_note: >-
+      truncation_sweep_comparison.json, raw-result.json, manifest.yaml and
+      this execution_report.yaml all report identical deferral_branch=G-0c,
+      load_confounded=true, and identical measured/archived host figures;
+      cross-checked programmatically (no forbidden sweep-derived key
+      present in truncation_sweep_comparison.json).
+    reproduces_from_recorded_command_and_revision: true

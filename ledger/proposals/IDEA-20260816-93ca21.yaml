@@ -1,0 +1,234 @@
+idea:
+  id: IDEA-20260816-93ca21
+  question_id: RQ-FHE-001
+  added: '2026-08-16'
+  title: 'Before any measured-versus-modelled noise claim can be believed, the phrase ''the model''
+    must name one object: implement two standard noise recursions, the worst-case infinity-norm one
+    and the variance-plus-tail one, run both over the identical recorded ciphertext trace, and measure
+    how far apart they are.'
+  class: tooling
+  claim: '(A) Statements of the form ''the noise model is loose by a factor of X'' are only meaningful
+    relative to a named recursion, and at least two families are in routine use: a worst-case recursion
+    propagating infinity-norm bounds through each operation, and a variance recursion propagating
+    second moments and converting to a magnitude only at the end via a tail factor. The claim is that
+    these two, implemented from the same operation set and run over the identical recorded ciphertext
+    trace, disagree by a measurable and level-dependent factor D_L, and that D_L must be measured
+    before any other proposal in this bucket can interpret its own numbers, because a measured gap
+    between measurement and model that is smaller than D_L is a statement about which model was chosen
+    and nothing else. (B) The claim is that D_L is cheap to obtain, requires no ciphertext at all
+    beyond a recorded trace of magnitudes and messages, and yields a reusable calibration artifact:
+    a table of D_L per operation type and per parameter point that every later contract in this lane
+    cites. (C) NOT CLAIMED: that either recursion is correct or incorrect, that one is preferable,
+    that a large D_L indicates an error in either, or anything about parameter sets or security. Two
+    bounds derived under different conventions are entitled to differ; the deliverable is the size
+    of the difference, not a verdict on either. In particular a large D_L does not mean the looser
+    model is wrong, since a worst-case bound is meant to be loose.'
+  mechanism: 'STAGE 1 defines the operation set once: fresh encryption, addition, multiplication,
+    relinearization, modulus switching. STAGE 2 implements recursion W, which propagates an infinity-norm
+    bound through each operation using stated worst-case constants, and recursion V, which propagates
+    a variance through each operation and converts to a magnitude at the read-out point using a stated
+    tail factor and a stated failure probability. Both take only scalars and messages as input and
+    never see a ciphertext, which is what makes the comparison a pure model comparison. STAGE 3 records
+    a trace from an actual toy evaluation: at each step, the operation type, the message magnitudes
+    and the true noise magnitude. STAGE 4 replays that trace through W and through V, producing two
+    bound sequences, and forms D_L as their ratio at each level. STAGE 5 varies the tail factor and
+    the failure probability in V across their plausible ranges, so D_L is reported as a band rather
+    than a point, because a single choice of tail factor would silently fix the answer. STAGE 6 runs
+    the null: a synthetic trace whose operation sequence is the same but whose message magnitudes
+    are constant, isolating how much of D_L is message-driven. Refutation is D_L within 1.2 across
+    all levels and all tail-factor choices, which would mean the two families agree closely enough
+    that model choice is not a confound, and that is a genuinely useful measured statement.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Ran grep -rl 'RQ-FHE-001' ledger/proposals/; grep -ril 'cost model' over knowledge/techniques/
+      and ledger/proposals/; grep -ril 'noise growth' over ledger/ and knowledge/; ls experiments/
+      | grep -i fhe; read KN-TECH-040 references inside KN-OPEN-016 and KN-OPEN-026, plus RQ-FHE-001's
+      constraints on pinning cost models.
+    results: 'The corpus already holds the exactly analogous discipline on the attack side: KN-TECH-040
+      is the cost-model zoo entry, and KN-OPEN-026 states plainly that figures are model-relative
+      and that cross-model comparison is meaningless, calling that KN-TECH-040''s standing warning.
+      KN-OPEN-016 records KN-FIND-015 and EV-MLKEM-015 as an internal measurement made under a pinned
+      estimator cost model precisely so the comparison would be well posed. RQ-FHE-001''s own constraints
+      require an estimator commit, cost model and memory model to be recorded for any estimator-derived
+      number. Nothing in ledger/proposals/ applies that discipline to FHE NOISE models rather than
+      to attack cost models, and no record anywhere implements two noise recursions to compare them.
+      The only RQ-FHE-001 proposal, IDEA-20260807-a06996, is a parameter census. No experiments/EXP-FHE-*
+      exists.'
+    verdict: 'UNVERIFIED. No claim is made about the external literature, where comparing noise-analysis
+      conventions is very plausibly routine. What is claimed new is internal and is really a transfer:
+      the program''s own standing rule that cost figures are model-relative (KN-TECH-040 as cited
+      by KN-OPEN-026) has never been applied to FHE noise models, and this contract instantiates it
+      there. Every part is assembled from existing material: two textbook recursions, a recorded trace,
+      and the program''s insistence that a comparison name its convention.'
+  object_first_candidate:
+    tracked_object: The ratio D_L = W_L / V_L between the worst-case-recursion bound and the variance-recursion
+      bound at each step of a recorded evaluation trace, as a band over the plausible range of tail
+      factors and failure probabilities.
+    lossiness: 'Genuinely lossy, and in an unusual direction: the object discards the ciphertexts
+      entirely and retains only a scalar per step. The recursions take message magnitudes and operation
+      types as input and never see a ring element, so everything about the actual noise, its coefficients,
+      its correlations and its distribution is discarded before the tracked object is formed. What
+      survives propagates because both recursions are, by construction, functions of exactly the retained
+      data: that is what a bound recursion is. The projection is therefore exact for the operation
+      being tracked, which is the comparison of two models, and it is a lossy projection of the underlying
+      computation, not a coordinate change on it, since no ciphertext can be recovered from a trace
+      of magnitudes.'
+    propagation: One operation advances both bounds by their own rules. Under multiplication W multiplies
+      bounds and adds a term proportional to the message bound, while V adds variances weighted by
+      message second moments; the two therefore diverge fastest under multiplication and least under
+      addition, where both are essentially additive. Modulus switching divides both and adds a rounding
+      term whose treatment differs between the conventions. D_L is therefore predicted to grow with
+      the number of multiplications and to be nearly flat across additions, and that pattern is the
+      first thing the measurement checks.
+    survival_score: 'D_L is defined for as long as the trace runs and does not dissolve, since both
+      recursions are total functions of the trace. What has limited survival is its usefulness as
+      a calibration constant: if D_L varies by more than the band width across parameter points, it
+      cannot be quoted as a single number and must be quoted as a function, which is stated as an
+      outcome rather than a caveat.'
+  null_object_control: 'Null arm: a synthetic trace with the identical operation sequence but constant
+    message magnitudes, run through both recursions in the same invocation. Since the predicted divergence
+    mechanism is message-weighted, the null must show a substantially SMALLER D_L growth than the
+    real trace for the message-driven explanation to hold. A second null replaces the operation sequence
+    by additions only, where both recursions are additive and D_L must be nearly flat; if D_L grows
+    under additions alone, the divergence is an artifact of the constants rather than of the operations,
+    and that is a distinct reportable outcome. Both nulls are executable in the same invocation because
+    neither requires a ciphertext.'
+  discriminated_from:
+  - KN-TECH-040 and its use in KN-OPEN-026 concern lattice ATTACK cost models and the meaninglessness
+    of cross-model bit comparisons; this applies the same discipline to FHE NOISE recursions, which
+    are a different object with different inputs and no adversary.
+  - Entry 1 of this bucket measures the ratio of true noise to ONE model bound; this measures the
+    ratio between TWO model bounds with no true noise involved at all, and exists precisely so entry
+    1's number can be interpreted.
+  - KN-FIND-015 and EV-MLKEM-015 pin an estimator cost model to make a dual-versus-primal comparison
+    well posed; that is an attack comparison under one pinned model, whereas this deliberately runs
+    two models to measure their disagreement.
+  - IDEA-20260807-a06996 (RQ-FHE-001) censuses shipped parameters and implements no recursion.
+  - 'A library benchmark or a performance comparison: no ciphertext is evaluated in the comparison
+    itself, no time is measured, and the output is a dimensionless ratio between two arithmetic recursions.'
+  assumptions:
+  - Both recursion families can be transcribed faithfully from stated sources, with their constants;
+    the transcriptions are the experiment's main risk and are cross-reviewed rather than assumed.
+  - A trace of operation types and message magnitudes is sufficient input for both recursions, which
+    is true by construction for bound recursions but must be asserted for the specific transcriptions
+    used.
+  - The plausible range of tail factors and failure probabilities in the variance recursion can be
+    enumerated, so the band is honest rather than selected.
+  - Traces from toy evaluations have the same operation structure as larger ones, which is what makes
+    D_L reusable; this is an assumption about circuit shape and is declared.
+  predictions:
+  - metric: D_L after 4 multiplications, at the centre of the tail-factor band
+    direction: higher
+    minimum_effect: 4x, i.e. the two recursions differ by at least two binary orders after four multiplications
+  - metric: growth of D_L under an additions-only trace
+    direction: different
+    minimum_effect: within 1.2x across the whole trace, a predicted near-absence
+  - metric: width of the D_L band induced by the plausible tail-factor range
+    direction: higher
+    minimum_effect: at least 2x, i.e. the choice of tail factor alone moves the answer by a binary
+      order and no single number can be quoted
+  - metric: D_L growth on the constant-message null trace relative to the real trace
+    direction: lower
+    minimum_effect: 'refusal to pre-commit a ratio: how much of the divergence is message-driven is
+      exactly what the null measures, and pre-committing it would assume the result'
+  minimal_test:
+    design: 'Transcribe both recursions for the five-operation set, with all constants written down
+      explicitly and each transcription reviewed against its source by a second pass. Record one trace
+      from a depth-6 toy evaluation at N=32: operation type, message magnitudes and true noise magnitude
+      at every step. Replay the trace through W and through V at five tail factors spanning the plausible
+      range and three failure probabilities. Emit D_L at every step as a band. Run the constant-message
+      null trace and the additions-only null trace through the identical replay. Seconds of compute,
+      hours of careful transcription. This discriminates fully: either the two recursions differ by
+      enough that model choice dominates any measured-versus-modelled claim, in which case every other
+      contract in this lane must name its recursion and cite this table, or they agree within 1.2x,
+      in which case model choice is not a confound and that is a reusable licence.'
+    controls:
+    - Constant-message null trace, isolating the message-driven part of the divergence.
+    - Additions-only null trace, where both recursions are additive and D_L must be flat.
+    - Tail-factor and failure-probability sweep, so the band is reported rather than a point.
+    - Second-pass transcription review of both recursions by an independent implementation of at least
+      the multiplication rule.
+    - Degenerate trace of length zero, where both recursions must return the same fresh-encryption
+      bound by construction.
+    required_metrics:
+    - W_L, the worst-case recursion bound at each step
+    - V_L, the variance recursion bound at each step, per tail factor and failure probability
+    - D_L = W_L / V_L at each step, reported as a band
+    - D_L on the constant-message and additions-only null traces
+    - per-operation-type marginal contribution to log D
+    - the transcribed constants of both recursions, recorded verbatim
+  falsification_conditions:
+  - D_L stays within 1.2x across all levels and all tail-factor choices, meaning model choice is not
+    a confound.
+  - D_L grows under the additions-only null, meaning the divergence is a constants artifact rather
+    than an operation effect.
+  - The degenerate zero-length trace gives different bounds from the two recursions, meaning the fresh-encryption
+    bounds were not aligned and the comparison is invalid.
+  - The independent implementation of the multiplication rule disagrees with the first, meaning a
+    transcription is wrong.
+  - The band induced by the tail-factor range exceeds the measured D_L itself, meaning the comparison
+    has no resolution and must be re-posed at a fixed tail factor.
+  confounders:
+  - Transcription error in either recursion produces a spurious D_L and is the dominant risk; the
+    independent second implementation covers only one rule.
+  - The variance recursion's tail factor and failure probability are free parameters whose choice
+    can produce almost any D_L, which is why the band is mandatory.
+  - Fresh-encryption bounds must be aligned between the two conventions or the whole trace is offset;
+    the degenerate control checks this.
+  - The trace's message magnitudes come from one toy evaluation and a different circuit gives different
+    D_L.
+  - Both recursions may descend from a common source, in which case they are not independent conventions
+    and the comparison understates the true spread across the field.
+  interpretation_limits:
+  - A large D_L is not evidence that either recursion is wrong; a worst-case bound is supposed to
+    be loose and the run says nothing about correctness.
+  - D_L is a property of the two transcriptions used and a third convention could sit outside the
+    measured band.
+  - Nothing about any parameter set, library or security level follows; no ciphertext is even involved
+    in the comparison.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Replaying a trace through both recursions is linear
+      in trace length.
+    memory_exponent: No attack memory exponent is claimed. Linear in trace length.
+    best_known: The incumbent is the widespread practice of saying 'the noise model' without naming
+      a recursion. This proposal beats no attack and produces no bound; it makes the phrase referential
+      by measuring the spread between two referents.
+    hidden_overhead: 'All of the cost is human and it is transcription: getting the constants right,
+      aligning the fresh-encryption bounds, and enumerating the tail-factor range honestly. The compute
+      is seconds, which is exactly why the human cost is the whole risk.'
+  dominated_by: 'n/a (no result claimed). Checked: no attack cost is produced along time, memory or
+    data/queries, and no FHE experiment directory exists in this repository, so there is no frontier
+    row on any axis for this to be placed against.'
+  sota_delta: no attack; conceptual/measurement contribution only. The output is a dimensionless ratio
+    between two model conventions.
+  estimated_cost:
+    implementation: low
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'That both recursions can be transcribed and replayed and that D_L is
+    computable: 0.9. That D_L exceeds 4x after four multiplications: 0.7, since worst-case and variance
+    conventions diverge fast under multiplication, though aligned constants could narrow it. That
+    the additions-only null stays flat as predicted: 0.8. That the tail-factor band is at least 2x
+    wide, forcing a band rather than a number: 0.75. That the resulting table is actually cited by
+    later contracts rather than ignored: 0.4, which is an honest assessment of how calibration artifacts
+    fare.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FHE-001
+  - KN-TECH-040
+  - KN-OPEN-016
+  - KN-OPEN-026
+  - KN-FIND-015
+  - EV-MLKEM-015
+  - KN-TECH-082
+  - IDEA-20260807-a06996
+  - docs/inventor-protocol.md
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FHEX-847eff

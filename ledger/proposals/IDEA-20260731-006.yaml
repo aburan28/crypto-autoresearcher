@@ -1,0 +1,363 @@
+idea:
+  id: IDEA-20260731-006
+  title: "The faest_em_* Even-Mansour OWF matched baseline: is the best EM attack matched at the claimed category, and does the AES-based permutation add a structural shortcut?"
+  class: measurement
+  claim: >-
+    For the faest_em_128f / faest_em_128s variants (spec v2.0, category-1,
+    Even-Mansour one-way function with a 2n-bit key, n = 128 state bits), once
+    the EM OWF definition is pinned from the primary sources, the derived
+    best attack cost on the EM OWF at the deployed parameter set — from the
+    classic Even-Mansour toolkit: slidex time-data tradeoff T*D = 2^n,
+    meet-in-the-middle key recovery 2^n at D = 1, the DKS memoryless variant
+    at D = 2^{n/2}, Grover 2^n over the 2n-bit key space, and the
+    Alagic-Bai-Katz quantum setting q_E * q_P^2 ~ 2^n — is >= the claimed
+    category (2^128 for n = 128), and the AES-based public permutation
+    instantiating P does not admit a structural inversion shortcut below the
+    generic EM baseline (no algebraic / low-degree, fixed-key, or
+    key-schedule-related shortcut). Equivalently: the EM OWF's matched
+    baseline is established at >= 2^n at the deployed set, and the EM
+    variants' claimed category is backed by it. This is a baseline-
+    establishment + barrier lane: the existing records (IDEA-20260731-019, IDEA-20260731-002..003)
+    explicitly state that the EM OWF's matched baseline is NOT established
+    in-repo; a derived attack cost below 2^n (e.g., a single-block definition
+    making any-preimage inversion cost ~1 P-evaluation, or an
+    AES-instantiation shortcut) is a scoped structural finding.
+  mechanism: >-
+    Exact attack objects: (1) the faest_em_* Even-Mansour one-way function
+    f(k1, k2) = EM_{k1,k2}(x) at its deployed definition — input/output
+    widths, the (k1, k2) key split, the public permutation P, the fixed
+    public input(s) x, and any output expansion or domain separation — and
+    (2) the public permutation P itself (AES-based per the faest_em design;
+    the exact instantiation, e.g. AES with a fixed public key or an
+    AES-derived permutation, must be pinned from spec v2.0 and a pinned
+    faest-ref commit, owf.c/h and aes.c/h per the KN-LIT-7619 layout). The
+    mechanism: Even-Mansour with a 2n-bit key and an n-bit permutation has
+    the classical key-recovery tradeoff T*D = 2^n with D known pairs (the
+    Slidex attack matching the T = Omega(2^n / D) lower bound; KN-LIT-4930,
+    with a memoryless variant at D = 2^{n/2}), which at the OWF game's single
+    fixed input (D effectively 1) gives T = 2^n for a two-block (2n-bit-
+    output) definition: guess k1, derive k2 := y1 XOR P(x1 XOR k1), verify
+    against the second block. The claimed category for faest_em_128* is 128;
+    the EM baseline sits at 2^n = 2^128 — matched at the boundary with zero
+    slack, so the EM variants' security depends on the VOLEitH/FS layer being
+    tight AND on there being no shortcut in P. The structural-shortcut
+    question is the empirical content: P = AES-with-fixed-key has low
+    algebraic degree (7 per S-box layer vs n-1 for a random permutation), a
+    fixed-key structure with differential/linear and possibly
+    key-schedule-reuse properties, and AES itself is the iterated-EM /
+    key-alternating abstraction with a concrete key schedule (KN-LIT-7134),
+    so P is not an ideal permutation oracle; whether any of this enables EM
+    OWF inversion below 2^n is the object under test. Quantum side: Grover
+    search over the 2^{2n}-bit key space with the f-as-oracle costs ~2^n
+    sequential OWF evaluations under the MAXDEPTH convention; the fixed-x OWF
+    game has no period structure for Simon-style attacks (the EM period
+    attacks of KN-LIT-7574/6096 require chosen-plaintext oracle access to
+    the keyed cipher, which the OWF game does not provide — the period lives
+    in the plaintext input, not the key input); the Alagic-Bai-Katz
+    q_E * q_P^2 ~ 2^n setting (KN-LIT-5810) concerns the cipher-security game
+    and its mapping to the OWF game is an explicit derivation item. The
+    toy-scale component compares the EM-with-AES-shaped-P inversion cost
+    against the EM-with-random-P null at growing toy sizes and measures the
+    algebraic / differential profile of the toy P.
+  novelty_status: adaptation
+  assumptions:
+    - >-
+      The exact EM OWF definition (state size n, output width, key split, the
+      permutation P, fixed inputs) is UNVERIFIED: the spec v2.0 PDF body text
+      was not extractable in the sources task (KN-LIT-7637 limit) and
+      faest-ref was not fetched locally (KN-LIT-7619 limit). Pinning the
+      definition from spec v2.0 text and/or a pinned faest-ref commit
+      (owf.c/h, aes.c/h) is a hard completion gate (RSF-5), mirroring RSF-4's
+      mode-pinning for IDEA-20260731-003.
+    - >-
+      The EM variants use a 2n-bit-key OWF (per KN-LIT-7637 landing page and
+      the 001..003 records — reported, to be pinned from the spec). The
+      single-block vs two-block output structure is unknown and changes the
+      baseline catastrophically; the pinning decides it.
+    - >-
+      The public permutation P is AES-based (per the faest_em design intent
+      recorded in KN-LIT-7637/7619); the exact instantiation is UNVERIFIED.
+    - >-
+      RSF-1 data-budget caveat, adapted: the OWF game gives the adversary one
+      evaluation of f at the fixed public input; the number of n-bit blocks
+      inside f(k) provides the internal constraints, and the DKS data D is
+      effectively 1.
+    - >-
+      The EM variants share the VOLEitH/FS layer with the AES variants; the
+      EM-specific object of this record is the OWF baseline, not that layer
+      (IDEA-20260731-019/002 objects).
+  predictions:
+    - metric: derived_em_owf_inversion_cost_log2
+      direction: higher
+      minimum_effect: >-
+        The derived inversion cost at the deployed set under the pinned
+        definition is >= n (>= 128 for faest_em_128*), i.e., the EM baseline
+        is matched at the boundary. The falsification direction is a derived
+        cost < n — e.g., ~1 P-evaluation for a single-block any-preimage
+        definition, or a shortcut in the AES-based P — a scoped structural
+        finding.
+    - metric: aes_pi_inversion_cost_ratio_to_random_pi
+      direction: higher
+      minimum_effect: >-
+        At the largest tested toy size, the measured inversion cost of
+        EM-with-AES-shaped-P divided by EM-with-random-P is >= 1/2. A ratio
+        materially below 1/2 at a non-tiny toy size is the structural-
+        shortcut signal (toy-tier until re-derived at the deployed scale).
+    - metric: grover_charged_cost_log2
+      direction: higher
+      minimum_effect: >-
+        The charged Grover cost over the 2^{2n}-bit key space (2^n OWF
+        evaluations, each charged at its AES-equivalent cost, under MAXDEPTH)
+        is >= 128 at the deployed set. A charged value < 128 would indicate a
+        modeling error or a smaller-than-assumed key space — a
+        parameter-level finding, re-checked against the pinned definition.
+  minimal_test:
+    design: >-
+      Three components. (1) DEFINITION PINNING (derivation artifact): from
+      spec v2.0 (the OWF section) and a pinned faest-ref commit (owf.c/h,
+      aes.c/h per the KN-LIT-7619 layout), fix the exact EM OWF: input and
+      output widths, the (k1, k2) key split, the permutation P (exact
+      AES-based instantiation), the fixed public input(s) x, and any output
+      expansion or domain separation; emit the definition spec. This is a
+      hard completion gate before any baseline number is reported. (2)
+      BASELINE DERIVATION (derivation artifact): from the pinned definition,
+      derive the matched baseline per attack class — slidex T*D = 2^n
+      (KN-LIT-4930), MITM 2^n at D = 1, DKS memoryless at D = 2^{n/2},
+      Grover 2^n charged under MAXDEPTH, and the Alagic-Bai-Katz
+      q_E * q_P^2 ~ 2^n mapping to the OWF game (KN-LIT-5810) — with every
+      step checkable and every unverified piece labeled. (3) TOY STRUCTURAL
+      MEASUREMENT (run): at toy sizes n = 8..32 state bits, build
+      EM-with-AES-shaped-P (toy AES-like permutation: toy S-box + toy rounds,
+      same shape as the pinned P at toy scale) and EM-with-random-P (null
+      object); measure the inversion cost (MITM/slidex search in
+      AES-equivalent operations), the ANF algebraic-degree profile of P's
+      output bits, the differential uniformity, and the fixed-point count;
+      compare the ratio across sizes. Scale control: doubling n must double
+      the inversion-cost exponent (2^n growth).
+    controls:
+      - >-
+        Unstructured control: generic EM with a random permutation at the same
+        toy sizes must saturate the T*D = 2^n prediction exactly (harness
+        calibration before any AES-shaped measurement is interpreted).
+      - >-
+        Null-object control (inventor-protocol §3): the EM-with-random-P
+        measurement is the null for every AES-shaped-P measurement. Any
+        deviation of the AES-vs-random ratio from ~1 is the AES-specific
+        signal; a ratio of ~1 everywhere records a controlled null (no
+        structural shortcut in the tested envelope).
+      - >-
+        Scale/decay controls: (a) inversion cost must grow as 2^n when n
+        doubles (the canonical growth check; a cost that fails to grow is a
+        harness artifact); (b) the AES-vs-random ratio must not shrink with n
+        (a shrinking ratio = a shortcut that grows with scale — the
+        quantity that should stay constant must stay constant).
+    required_metrics:
+      - pinned OWF definition: widths, key split, P instantiation, fixed inputs (derivation artifact)
+      - derived per-class baselines: slidex/MITM/memoryless/Grover/ABK-mapping (derivation artifact)
+      - measured inversion cost (AES-equivalents) and memory per toy size per P-family (AES-shaped vs random)
+      - ANF degree profile, differential uniformity, fixed-point count of the toy P
+      - inversion-cost ratio (AES-P / random-P) per toy size and its trend in n
+      - charged deployed-set comparison vs the claimed category
+  falsification_conditions:
+    - >-
+      A derived inversion cost < 2^n at the deployed set under the pinned
+      definition (single-block any-preimage structure, or an AES-P shortcut)
+      — a parameter-level / structural finding, re-derived from the pinned
+      sources before any claim; it feeds the forgery model for the EM
+      variants.
+    - >-
+      A toy measurement with inversion-cost ratio (AES-P / random-P) < 1/2 at
+      the largest tested toy size, not reproduced by the unstructured
+      control — a structural-shortcut signal, toy-tier: re-derived at the
+      deployed scale before any claim about FAEST (AGENTS.md rule 7,
+      claim_tier_ceiling of RQ-FAEST-001).
+    - >-
+      The unstructured control failing to saturate T*D = 2^n at toy sizes, or
+      the scale control failing (inversion cost not growing as 2^n) — harness
+      artifact; the test is invalid, not the scheme.
+    - >-
+      A charged Grover cost < 128 under the convention — re-check the charged
+      model and the pinned key-space size; if it stands, a parameter-level
+      finding.
+  confounders:
+    - >-
+      Unread OWF definition: a single-block vs two-block definition changes
+      the baseline catastrophically (any-preimage ~1 P-evaluation vs 2^n
+      MITM); the pinning (component 1) is the hard gate, and no baseline
+      number is reported before it.
+    - >-
+      The exact P instantiation (AES-with-fixed-key vs other AES-derived
+      forms) determines the toy P shape; pinning from faest-ref owf.c/h is
+      required before the toy build.
+    - >-
+      Toy-size structural metrics (ANF degree, differential uniformity, fixed
+      points) do not transfer to the deployed scale (exponential-size
+      phenomena); only the ratio-vs-n trend and the derived baselines are
+      interpretable.
+    - >-
+      Quantum model choice (Grover vs Alagic-Bai-Katz q_E * q_P^2 vs
+      Simon/period) changes the charged quantum baseline; the model mapping
+      to the fixed-x OWF game is a derivation item, not an assumption.
+    - >-
+      The EM variants share the VOLEitH/FS layer with the AES variants; a
+      finding on the OWF link must not be conflated with a finding on that
+      layer (IDEA-20260731-019/002 objects).
+  interpretation_limits:
+    - >-
+      Confirmation establishes the matched baseline for the EM OWF at the
+      deployed set and closes the OWF link for the EM variants (a scoped
+      barrier statement for exactly this assumption, at exactly the pinned
+      definition and parameter set); it is not a statement about the whole
+      chain and not an attack.
+    - >-
+      A structural-shortcut signal at toy scale is toy-tier (AGENTS.md rule
+      7); it requires crypto-scale confirmation or a labeled derivation,
+      never an extrapolation (claim_tier_ceiling of RQ-FAEST-001).
+    - >-
+      The baseline derivation is a derivation artifact: checkable, but not
+      "proved" unless routed to an external referee
+      (docs/claims-and-verification.md).
+    - >-
+      This record creates no hypothesis, experiment, evidence, or decision
+      record; it is a proposal whose minimal test, if approved, would be
+      specified and executed under later tasks.
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The pinned EM OWF definition makes the inversion problem match its
+        claimed hardness: the output carries >= 2n bits (or the preimage
+        structure is otherwise non-trivial), so any-preimage inversion is not
+        a ~1-evaluation triviality and the baseline is the 2^n-class.
+      rigorous_support: >-
+        The security of the two-key EM construction is the T*D = 2^n bound
+        with random P (KN-LIT-4930); the deployed definition is UNVERIFIED
+        until pinned.
+      validation_plan: >-
+        Pin the definition from spec v2.0 + faest-ref owf.c/h; if the
+        definition is single-block with n-bit output, the assumption fails
+        and the falsification (prediction P1) fires directly in the
+        derivation, before any run.
+    - id: H2
+      statement: >-
+        The AES-based public permutation P behaves like a random permutation
+        for EM inversion purposes at the deployed scale: its lower algebraic
+        degree (7 per S-box layer), differential/linear profile, and
+        fixed-key structure do not enable an inversion shortcut below 2^n.
+      rigorous_support: >-
+        The EM security proofs treat P as an ideal random permutation
+        (KN-LIT-4930 lower bound; KN-LIT-5810 quantum bounds); AES's own
+        algebraic structure is analyzed in KN-LIT-2288 (security implications
+        open) and its key-alternating structure is the iterated-EM
+        abstraction of KN-LIT-7134 — the deviation of a concrete P from ideal
+        is exactly the assumption under test.
+      validation_plan: >-
+        Toy structural measurement (ANF degree profile, differential
+        uniformity, fixed points) plus the AES-P vs random-P inversion-cost
+        ratio with the scale control; a ratio < 1/2 at the largest toy size
+        falsifies the assumption at toy tier.
+    - id: H3
+      statement: >-
+        The fixed-x OWF game has no period structure exploitable by
+        Simon-style quantum attacks: the EM period of x -> EM_k(x) XOR P(x)
+        lives in the plaintext input, and with x fixed the key-to-output map
+        has no known period.
+      rigorous_support: >-
+        The EM period attacks (KN-LIT-7574, KN-LIT-6096) require
+        chosen-plaintext oracle access to the keyed cipher under the hidden
+        key, which the OWF game does not provide; the model mapping is a
+        derivation item, not an assumption.
+      validation_plan: >-
+        Derive the model mapping from the pinned definition; toy check:
+        exhaustive search for a period in the key-to-output map at toy n
+        (must find none for the definition to be period-free).
+    - id: H4
+      statement: >-
+        The deployed category-1 claimed security for faest_em_128* is 128
+        bits, and the EM OWF baseline must support it under the same
+        convention as the AES variants.
+      rigorous_support: >-
+        Placeholder — UNVERIFIED: spec v2.0 security/parameter tables have
+        not been read by this program (KN-LIT-7637 limit).
+      validation_plan: >-
+        Read spec v2.0 parameter/security tables; re-run the baseline
+        derivation with the pinned numbers; any input change that moves the
+        baseline is recorded as a parameter-sensitivity finding.
+  matched_baseline:
+    parameter_set: >-
+      faest_em_128f / faest_em_128s (spec v2.0, category-1, Even-Mansour
+      variants). The exact OWF definition (state size n, 2n-bit key per
+      KN-LIT-7637 and the 001..003 records), the public permutation P, and
+      the fixed inputs are UNVERIFIED placeholders (spec PDF body text not
+      extractable in the sources task, KN-LIT-7637 limit; faest-ref not
+      fetched locally, KN-LIT-7619 limit); pinned from spec v2.0 and a pinned
+      faest-ref commit before any experiment (RQ-FAEST-001 constraint).
+    convention: >-
+      Serial classical cost in AES-128-equivalent evaluations (one AES-128
+      encryption = 1 unit; one evaluation of the AES-based permutation P is
+      charged at its AES-call count once pinned); hash calls converted at the
+      deployed hash's per-call AES count; memory in bits charged separately;
+      data charged; quantum baselines stated separately under a depth-limited
+      (MAXDEPTH) convention. Identical convention on both sides of every
+      comparison (KN-TECH-040).
+    aes_key_recovery: >-
+      Classical AES-128 comparator: 2^126.1 time, full 10-round single-key
+      known-plaintext biclique (Bogdanov-Khovratovich-Rechberger; KN-LIT-2701,
+      archived). RSF-1 caveat: the OWF game is one-pair; biclique is
+      published at ~2^88 chosen plaintexts (UNVERIFIED in-repo detail) and is
+      a comparative lower bound on the one-pair cost. EM OWF side — the
+      matched baseline this idea establishes, derived from the construction
+      (per this task's brief; UNVERIFIED pieces labeled): for a two-block
+      2n-bit-output definition: MITM/slidex key recovery T*D = 2^n with D
+      effectively 1, i.e. ~2^n P-evaluations (2^128 for n = 128) with
+      negligible memory (k2 derived online), or the DKS memoryless variant at
+      D = 2^{n/2} (KN-LIT-4930); for a single-block n-bit-output definition:
+      any-preimage inversion cost ~1 P-evaluation (a structural finding, not
+      a baseline). Quantum: Grover ~2^n charged OWF evaluations over the
+      2^{2n}-bit key space (charged form UNVERIFIED until the definition is
+      pinned); Alagic-Bai-Katz q_E * q_P^2 ~ 2^n in the classical-E /
+      quantum-P setting (KN-LIT-5810, archived; abstract garbled in places —
+      substance: q_E * q_P^2 ~ 2^n characterizes that setting); Simon/period
+      attacks (KN-LIT-7574/6096) mapped out of the OWF game by assumption H3.
+      All EM-specific numbers beyond the archived DKS/ABK bounds are
+      UNVERIFIED derivations to be completed from the pinned definition.
+    voleith_fs_soundness: >-
+      The EM variants share the VOLEitH/Fiat-Shamir layer with the AES
+      variants: the generic multi-round transcript forgery 2^{kappa} *
+      eps_cc^{-tau} * C_transcript (deployed (kappa, tau, eps_cc) UNVERIFIED
+      placeholders; the object of IDEA-20260731-002). The EM-specific
+      question is the OWF baseline above, which this idea establishes; no
+      structural attack on the faest_em_* OWF is published to this program's
+      knowledge (prior-art grep of knowledge/ and ledger/ found no
+      FAEST-EM record; the 001..003 records explicitly declared the EM
+      baseline unestablished in-repo).
+  target_complexity:
+    time_exponent: >-
+      n/a — no attack claimed. The measured quantity is the EM OWF inversion
+      exponent at the deployed n: expected n (= 128) from the DKS T*D = 2^n
+      bound (KN-LIT-4930) under the pinned definition; the falsification is a
+      derived cost < n.
+    memory_exponent: >-
+      The DKS memoryless variant at D = 2^{n/2} (KN-LIT-4930) trades memory
+      against data; the MITM at D = 1 needs negligible memory (k2 derived
+      online); memory is charged in bits under the convention.
+    best_known: >-
+      For the EM OWF: T*D = 2^n slidex (KN-LIT-4930); q_E * q_P^2 ~ 2^n
+      quantum setting (KN-LIT-5810); Grover 2^n over the 2n-bit key space
+      (charged form UNVERIFIED). Comparator: 2^126.1 AES-128 biclique
+      (KN-LIT-2701).
+    hidden_overhead: >-
+      The pinned definition's output width and preimage structure are the
+      dominant unknowns — a single-block definition would make any-preimage
+      inversion cost ~1 P-evaluation (a structural finding, not a hidden
+      overhead); the per-evaluation charge of P in AES-equivalents is the
+      disclosed constant once pinned.
+    tradeoff_note: >-
+      The T*D = 2^n time-data tradeoff (DKS, KN-LIT-4930); the OWF game's
+      single fixed input fixes D effectively at 1, so T = 2^n (MITM) is the
+      natural operating point; parallel foragers divide wall time by P with
+      the serial convention stated, exactly as the AES baseline is stated
+      serially.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high

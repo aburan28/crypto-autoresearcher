@@ -1,0 +1,165 @@
+repair_report:
+  task_id: TASK-20260811-b09b6d
+  batch_id: BATCH-570832
+  goal_context: GOAL-DREG-001
+  recorded_at: '2026-08-11'
+  status: implementation_complete_parent_validated_with_known_limitations
+  scope: administrative_integrity_repair
+  scientific_effect: none
+  scientific_batch_consumed: false
+  goal_head_changed: false
+  hypothesis_status_changed: false
+  experiment_status_changed: false
+  persistent_kb_index_mutated: false
+
+  provenance:
+    runtime: native_codex
+    requested_policy: coordinator-orchestration-code
+    provider: openai
+    resolved_model_id: not_exposed_by_session
+    session_id: not_exposed_by_session
+    model_verified: false
+    fallback_used: false
+    degraded_used: false
+    amazon_bedrock_used: false
+    command_capability_used: false
+    note: >-
+      The bound Coordinator role prohibits command execution. Filesystem reads
+      and all writes were performed through the approved read and apply-patch
+      surfaces; no command output is claimed. The parent control-plane session
+      must run the frozen validation commands before marking this producer
+      completed or admitting its snapshot task.
+
+  immutable_sources:
+    - path: experiments/EXP-DREG-001/specification.yaml
+      sha256: 44fe37a126e5998054cb9788e1208b13d15ee87448c78737bddd1666e2cf5c8b
+      preserved_byte_for_byte: true
+    - path: ledger/evidence/EV-GOAL-DREG-001-B003.yaml
+      sha256: 6449908fec5b00eb2366a32d52f9a1c507b02111d5679c68f33c083736867524
+      preserved_byte_for_byte: true
+    - path: ledger/decisions/DEC-GOAL-DREG-001-B003.yaml
+      sha256: c7047d97f5ee7e6519e4c00d4623d101fb00b83d0094063a4b1f0c95ae22ef11
+      preserved_byte_for_byte: true
+
+  replacements:
+    - source_path: experiments/EXP-DREG-001/specification.yaml
+      replacement_path: ledger/corrections/schema-supersessions/20260811/experiments__EXP-DREG-001__specification.v2.yaml
+      replacement_sha256: fa056f97306ad46e21077c46794dfab371a85f695551b13c51acaa1e6de486b2
+      record_id: EXP-DREG-001
+      replacement_id: null
+      changes:
+        - Quote or fold all six legacy colon-space plain scalars so the archived specification parses as YAML without changing their string content.
+      scientific_content_preserved: true
+    - source_path: ledger/evidence/EV-GOAL-DREG-001-B003.yaml
+      replacement_path: ledger/corrections/schema-supersessions/20260811/ledger__evidence__EV-GOAL-DREG-001-B003.v2.yaml
+      replacement_sha256: 46ab4032c6af699b993a4cffb7d314dbff8281aad4f07eeae9720c9e1c9791a6
+      predecessor_id: EV-GOAL-DREG-001-B003
+      replacement_id: EV-DREG-7597cb
+      changes:
+        - Replace the noncanonical identifier with the preallocated canonical identifier.
+        - Add proof_status empirical_only.
+        - Add proof_refs to the existing raw result, column audit, and Validator report.
+      observations_preserved: true
+      toy_only_boundary_preserved: true
+    - source_path: ledger/decisions/DEC-GOAL-DREG-001-B003.yaml
+      replacement_path: ledger/corrections/schema-supersessions/20260811/ledger__decisions__DEC-GOAL-DREG-001-B003.v2.yaml
+      replacement_sha256: 731520f185b37714573f9560d4d81c4a310681949b23ad53a5185b7156005120
+      predecessor_id: DEC-GOAL-DREG-001-B003
+      replacement_id: DEC-20260811-e77b9d
+      changes:
+        - Replace the noncanonical identifier with the preallocated canonical identifier.
+        - Point evidence_refs at EV-DREG-7597cb.
+        - Normalize knowledge_promotion to promoted empty list, not_warranted reason, and deferred_candidates.
+      historical_decision_preserved: weaken
+      knowledge_promoted: []
+
+  registry:
+    path: tools/schema_supersession_registry.yaml
+    entries_appended: 3
+    bindings_frozen_after_replacement_bytes: true
+    source_and_replacement_hashes_recorded: true
+
+  knowledge_corpus:
+    helper: kb/src/crypto_kb/ingest/schema_supersession.py
+    integration: kb/src/crypto_kb/ingest/repo_corpus.py
+    tests: kb/tests/unit/test_repo_corpus.py
+    behavior:
+      - Verify registry schema and required fields before staging.
+      - Match each registry kind to the validator's source and redirect discovery shapes.
+      - Confine every registered path to the repository root.
+      - Verify source and replacement existence and both SHA-256 bindings.
+      - Fail closed on malformed registry data, hash drift, replacement parse failure, or replacement-ID mismatch.
+      - Stage replacement bytes under the replacement record identifier while retaining source and replacement provenance.
+      - Skip redirect aliases so the canonical target is not duplicated.
+      - Discover ledger/decisions/DEC-*.yaml in addition to legacy root decisions.
+
+    known_limitations:
+      - >-
+        Supersession provenance is persisted in staged SourceMetadata sidecars
+        and their metadata hashes, but the existing SourceMetadata payload,
+        SearchResult, and formatting contracts do not expose supersedes or
+        verification_artifacts through Qdrant, search_knowledge, or get_context.
+        Legacy replacement identifiers therefore are not exact-query aliases.
+        Fixing that requires a separately frozen scope covering models.py,
+        pipeline.py, formatting.py, and integration tests.
+      - >-
+        Current repository staging discovers 65 of 76 registered schema
+        supersessions. Eleven modern nested records (typed hypotheses,
+        proposals, and goal checkpoints, including the sole redirect and its
+        target) remain outside the existing staging rules. This repair adds
+        only the explicitly authorized typed-decision rule.
+      - >-
+        No persistent index was populated or mutated, and this session has no
+        callable search_knowledge MCP tool. Consequently no live retrieval or
+        current-index acceptance claim is made.
+
+  validation:
+    state: passed_parent_command_session_with_disclosed_scope_limitations
+    performed_by: parent_native_codex_control_session
+    baseline_updated: false
+    persistent_index_mutated: false
+    commands:
+      - command: python3 -m unittest tools.test_schema_supersession tools.test_research_dispatch
+        status: pass
+        output: 43 tests passed
+      - command: PYTHONPATH=kb/src python3 -m pytest kb/tests/unit/test_repo_corpus.py -q
+        status: pass
+        output: 13 tests passed
+      - command: PYTHONPATH=kb/src python3 -m pytest kb/tests/unit -q
+        status: pass
+        output: 106 tests passed
+      - command: PYTHONPATH=kb/src python3 -m pytest kb/tests/integration -q
+        status: pass
+        output: 64 tests passed, 1 skipped
+      - command: PYTHONPATH=kb/src python3 -c full RULES iter_staged dry pass
+        status: pass
+        output: >-
+          staged_documents=9658; verified_supersessions=65; DREG_IDS=
+          decision:DEC-20260811-e77b9d,evidence:EV-DREG-7597cb,
+          experiment:EXP-DREG-001
+      - command: python3 tools/validate_ledger.py
+        status: pass
+        output: >-
+          OK: validated 5689 records, no new violations; 1210 grandfathered
+          errors suppressed; 76 archived schema records routed; baseline not
+          updated.
+      - command: git diff --check
+        status: pass
+        output: clean
+      - command: independently recompute all three immutable-source and replacement SHA-256 values
+        status: pass
+        output: exact match to registry and this report
+    completion_boundary: >-
+      The eight-path producer implementation passes its declared schema,
+      unit, integration, dry-staging, ledger, hash, and diff checks and may be
+      snapshot for independent validation. The independent Validator must not
+      accept retrieval readiness: it must assess the disclosed payload,
+      modern-record coverage, live-index, and missing search_knowledge limits
+      and issue revise unless a separately frozen successor closes them.
+
+  future_records_not_created:
+    administrative_evidence_id: EV-DREG-7e15fb
+    administrative_decision_id: DEC-20260811-4c5952
+    validator_task_id: TASK-20260811-2f8874
+    disposition_task_id: TASK-20260811-ae06a9
+    ledger_archive_task_id: TASK-20260811-8f6e8c

@@ -1,0 +1,667 @@
+idea:
+  id: IDEA-20260904-b40e6d
+  added: '2026-09-04'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-SATIC-1ae57a
+  title: >-
+    A four-tier null ladder for the CNF-XOR pdp model - if a shape-matched
+    random Boolean system with the same ml-variable backdoor costs the same, the
+    reported SAT advantage is a property of the MODEL SHAPE and contains no
+    elliptic-curve content at all
+
+  class: control
+
+  claim: >-
+    SCOPE: symmetrized S_{m+1} pdp over F_{2^n} Weil-descended to F_2 and its
+    non-symmetrized counterpart from src/semaev_tree.py; m = 3; l in 6..8;
+    CNF-XOR encoding; core-variable branching order. CLAIM TIER toy. NO ATTACK,
+    NO EXPONENT, NO PRIME-FIELD TRANSFER.
+
+    CLAIM: on UNSATISFIABLE instances the solving cost of the real pdp system
+    and of a shape-matched random Boolean system are the SAME to within 5%, on
+    both axes separately (leaf count and seconds per leaf), at every tested
+    cell. Formally, define the four null tiers
+
+      N0  SHAPE-MATCHED RANDOM. Same ml core variables, same partition into m
+          blocks of l, same number of parity equations n, same multiset of
+          monomial supports (each equation's monomial degree profile and
+          block-incidence profile copied from the real system), independent
+          uniform GF(2) coefficients, random constant terms. No curve, no field
+          extension, no Semaev polynomial anywhere in its construction.
+      N1  COEFFICIENT-SCRAMBLED SEMAEV. The real descended system's monomial
+          supports kept exactly, but the n x (#monomials) GF(2) coefficient
+          matrix replaced by a uniformly random matrix of the same rank. This
+          destroys the arithmetic of the Weil descent while preserving the
+          support geometry exactly.
+      N2  BLOCK-PERMUTED SEMAEV. The real system with the roles of the variable
+          blocks permuted, in the sense H-DREG-152cff already defines for the
+          Macaulay column set. Same sizes, different incidence.
+      N3  WRONG-CONSTANT SEMAEV. The real construction with the curve constant
+          B replaced by a value for which the polynomial is not the summation
+          polynomial of any curve in the family (e.g. B set so the curve is
+          singular, or B drawn independently of the curve used to generate R).
+          Every monomial, every coefficient rule and every descent step is
+          unchanged; only the arithmetic identity linking the system to a curve
+          is broken.
+
+    PREDICTED OUTCOME AND ITS MEANING, WRITTEN BEFORE THE RUN:
+      P-NULL (predicted, probability ~0.8): all four tiers agree with the real
+        system within 5% on UNSAT leaf count and within 20% on seconds per leaf.
+        MEANING: the reported SAT-over-Grobner advantage is a property of the
+        MODEL SHAPE -- an ml-variable unit-propagation backdoor over a
+        block-structured monomial support -- and contains no elliptic-curve
+        content. Every sentence in this program that attributes the advantage to
+        "the structure of summation polynomials" is then wrong, and the finding
+        transfers to any Weil-descended system with the same shape, which is a
+        far broader and more useful statement than the curve-specific one.
+      P-STRUCTURE (probability ~0.15): the real system costs measurably LESS
+        than N0 and N1 (>= 10% fewer leaves). MEANING: there is exploitable
+        curve-specific structure, it is localised by which tiers move and which
+        do not, and it becomes the highest-value object in this RQ. If N1 moves
+        but N2/N3 do not, the structure is in the descent coefficients; if N3
+        moves, it is in the curve identity itself.
+      P-BROKEN (probability ~0.05): a null costs measurably LESS than the real
+        system. MEANING: instrument failure or a mis-specified null (most likely
+        a rank or support mismatch), and NO result is reported in either
+        direction until it is diagnosed.
+
+    THE ASYMMETRY THAT MAKES THIS WORTH RUNNING FIRST: P-NULL is the cheapest
+    available way to close a large family of future proposals, and P-STRUCTURE
+    is the only outcome in this whole RQ that would justify further
+    curve-specific work. Both are decision-relevant; neither is a null result in
+    the pejorative sense.
+
+  mechanism: >-
+    WHY THE NULL IS THE RIGHT INSTRUMENT HERE, AND WHY IT MUST BE A LADDER.
+    docs/inventor-protocol.md section 3 requires a null object before belief,
+    and H-DREG-152cff already records the exact failure this guards against in
+    this program: the Macaulay column count of the Semaev system is determined
+    by block incidence alone, so it is IDENTICAL for the real system and for
+    every member of the ensemble sharing its supports, and citing it as evidence
+    of Semaev-specific structure is an error. The conflict count of a CNF-XOR
+    solve is at risk of exactly the same collapse, for the same reason: it is
+    plausibly a function of (ml, block partition, monomial degree profile) and
+    of nothing else.
+
+    A single null cannot localise a signal, only detect one. The ladder is
+    constructed so that consecutive tiers differ in exactly one ingredient:
+    N0 -> N1 restores the true supports; N1 -> N2 restores the true coefficients
+    but permutes incidence; N2 -> N3 restores incidence but breaks the curve
+    identity; N3 -> real restores the curve identity. Whichever step moves the
+    metric names the ingredient responsible. Constructing them at matched RANK
+    is essential and is the step most likely to be botched: a random GF(2)
+    system with n equations may have rank < n, and a rank deficit alone changes
+    the number of satisfying assignments and hence the SAT/UNSAT balance, which
+    would masquerade as structure.
+
+    THE LOSSY-PROJECTION TEST. The tracked object is the SUPPORT-INCIDENCE
+    TENSOR: for each equation, the multiset of (degree, block-occupancy vector)
+    pairs of its monomials -- i.e. for each monomial, how many of its factors
+    come from block 1, block 2, ..., block m, with the identity of the variables
+    and the GF(2) coefficients discarded. It is genuinely lossy: the fibre over
+    a given tensor is the whole ensemble of systems with those supports, of size
+    at least 2^{sum_i |supp f_i|}, which is astronomically larger than one
+    point. What it discards -- variable identity within a block, and all
+    coefficients -- is discarded COMPATIBLY with the operations the target
+    performs, because unit propagation's ability to fire on a clause depends
+    only on how many of its literals are determined, and under a block branching
+    order "how many are determined" is a function of the block-occupancy vector
+    and the current depth alone. So the retained part propagates deterministically
+    under decide/propagate/backtrack, which is the compatibility the test
+    demands. The projection that FAILS the test, and is therefore not the
+    object: "the descended system itself", which loses nothing and is a change
+    of coordinates on the curve data.
+
+    WHY THE FIBRE MATTERS: if the cost is constant on the fibre, the four tiers
+    must agree, which is P-NULL. If the cost varies over the fibre, some
+    coefficient-level content is load-bearing, which is P-STRUCTURE. The
+    experiment is exactly a measurement of whether the cost is a function of the
+    projection or of more.
+
+  novelty_status: unverified
+
+  citations:
+    - ref: SRC-SATIC-TRIMOSKA-2019
+      provenance: internal
+      claim: >-
+        The paper reports no null-object control of any kind: every reported
+        instance is a genuine pdp instance on a binary Koblitz curve
+        (section 6). Claim C6's headline factor is therefore uncontrolled for
+        model shape. Also supplies Table 1's exact variable/clause counts, which
+        the nulls must match.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04; read
+        paper_fulltext.md sections 3, 4, 6 and Tables 1-4 in full.
+    - ref: H-DREG-152cff
+      provenance: internal
+      claim: >-
+        Records, for the SAME boolean chained Semaev family from
+        src/semaev_tree.py, that the Macaulay column count is constant across
+        every system sharing the block incidence pattern and therefore "cannot
+        distinguish the sem from a matched random system"; and supplies the
+        block-permuted and full-support controls this ladder reuses as N2.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04; read the
+        record in full.
+    - ref: KN-TECH-056
+      provenance: internal
+      claim: >-
+        Controls before belief - any apparent signal is an artifact until a null
+        object of the same shape says otherwise; a matched null returning the
+        same numbers is recorded as a controlled null, not a finding.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04, via
+        docs/inventor-protocol.md section 3.
+    - ref: KN-TECH-071
+      provenance: internal
+      claim: >-
+        The XSL episode - a headline complexity derived from an unvalidated
+        model of solver behaviour on a structured system. The controlled-null
+        question is precisely the one XSL never asked.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04.
+    - ref: EXP-ALBIN-007
+      provenance: internal
+      claim: >-
+        Provides a reusable CNF-XOR encoder for descended Boolean systems that
+        is agnostic to where the polynomials came from, so the same encoder can
+        be pointed at a null system with no modification - which is the property
+        that makes this control cheap.
+      verified_by: >-
+        idea-generator, RQ-SATIC-1ae57a ideation session 2026-09-04; read the
+        script.
+
+  assumptions:
+    - >-
+      A "shape-matched" null is well defined only once the matched quantities
+      are enumerated. Here they are: ml core variables; the block partition into
+      m blocks of size l; the number of parity equations n; the per-equation
+      multiset of (degree, block-occupancy) pairs; the total number of distinct
+      substituted monomials; the rank of the coefficient matrix; and the
+      satisfiability status. Anything not on this list is deliberately NOT
+      matched, and the list is frozen before construction.
+    - >-
+      Satisfiability of a null must be CONTROLLED, not accidental. SAT nulls are
+      built by planting a uniformly random core assignment and setting the
+      constant terms to make it a solution; UNSAT nulls are built by rejection
+      (drawing until a complete solver reports UNSAT at a cell small enough that
+      it terminates) or, at larger cells, by planting a solution outside the
+      admissible region. Both constructions are declared and their bias
+      discussed.
+    - >-
+      The real system's UNSAT status is itself only established by a TERMINATED
+      complete search. A timeout is an infrastructure outcome and never
+      establishes unsatisfiability (AGENTS.md rule 3), so UNSAT cells are
+      restricted to l where termination is achieved within budget.
+
+  proof_search_map:
+    bottleneck: >-
+      The attribution step, not a computation: deciding whether the observed pdp
+      solving cost is a function of the model's shape or of the curve. Every
+      downstream claim in this RQ -- transfer to other parameter ranges, transfer
+      to other solvers, any statement about summation polynomials -- changes
+      truth value depending on the answer, and no amount of further solver
+      benchmarking can settle it.
+    baseline_embedding:
+      parameter_slice: >-
+        m = 3, l = 6, n = 19 -- the exact cell for which the frozen source gives
+        the CNF-XOR model's variable and clause counts (767 variables, 2364 cnf
+        clauses, 52 xor clauses, Table 1). The N0 null is required to reproduce
+        those three integers to within 2% by construction; if it cannot, the
+        null is not shape-matched and the ladder does not start.
+      reproduction_check: >-
+        A frozen fixture comparing, for the real system and for N0 at
+        (m,l,n) = (3,6,19): #core variables (18), #substituted monomial
+        variables, #cnf clauses, #xor clauses, per-equation degree histogram,
+        and block-occupancy histogram. Exact-integer match on the first two and
+        <= 2% on the rest, checked BEFORE any solve. This is a structural
+        identity check, not a similar-looking plot.
+    observation_collision:
+      observable: >-
+        The pair (UNSAT leaf count, seconds per leaf) at a cell.
+      distinct_preimage_search: >-
+        THE ENTIRE EXPERIMENT IS A DIRECTED SEARCH FOR A COLLISION, with the
+        two preimages chosen to sit on opposite sides of the conclusion: the
+        real pdp system (which the source's narrative says is special) and N0
+        (which has no curve in it at all). A collision is the PREDICTED outcome
+        and is a direct falsifier of identifiability for every claim of the form
+        "the cost reveals Semaev structure". The reverse search -- two systems
+        with the same observable but different shapes -- is covered by N2, whose
+        incidence differs; if N2 collides with the real system too, the
+        observable is responding to block SIZES only and even the shape
+        attribution is under-determined.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          Hold the support-incidence tensor fixed and vary the forgotten
+          structure -- coefficients (N1), incidence (N2), curve identity (N3),
+          and everything at once (N0). The intrinsic invariant proposed to
+          distinguish the resulting systems is, under P-NULL, NONE.
+        predicted_gain: >-
+          Under P-NULL the gain is a prohibition, which is the useful kind: no
+          future record may read curve content out of a CNF-XOR solving cost.
+          Under P-STRUCTURE the gain is a localisation: the single rung of the
+          ladder that moves names the ingredient, and that ingredient becomes a
+          new tracked object with its own propagation rule.
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace "a pdp instance" by its support-incidence tensor plus a rank,
+          as the object whose cost is predicted. Under P-NULL, cost becomes a
+          function of a small combinatorial datum computable without building
+          the curve at all.
+        predicted_gain: >-
+          Encoding: exact by construction. Completeness and soundness: checked
+          by the fixture above. Transfer: DECLARED UNMET for m >= 4 (untested)
+          and for prime fields. Cost loss: the tensor is computable in O(#terms)
+          from the descended system and free from the closed form of
+          H-DREG-152cff at t = 3.
+    quantifier_order: >-
+      CLAIMED: FORALL cells (m, l, n) in the declared boundary and FORALL tiers
+      T in {N0, N1, N2, N3}, the ratio cost(real)/cost(T) lies in [0.95, 1.05]
+      on the leaf axis. The witness (the ratio band) may NOT depend on the tier
+      or the cell. The WEAKER order -- for each cell there exists SOME null that
+      matches -- is trivially satisfiable by tuning the null and is explicitly
+      NOT claimed; that is why the four tiers are frozen before construction and
+      why the shape-matched quantity list is frozen with them.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At most: a toy-tier statement that at the tested cells the solving cost
+        is (or is not) constant on the support-matched fibre. It CANNOT certify
+        that no curve-specific structure exists -- only that none is visible to
+        this observable at these parameters with these nulls. A null that agrees
+        is a controlled null, never a proof of absence.
+      nearby_object_control: >-
+        The nearby object on which the hoped-for conclusion must FAIL: a system
+        built with the same ml core variables but a DELIBERATELY exploitable
+        structure -- the descended Semaev system plus l redundant linear
+        relations c_{1,j} = c_{2,j}. The real system and N0 must both be
+        distinguishable from THAT object by the same observable, by a predicted
+        factor ~2^l. A ladder that cannot separate the real system from a
+        transparently easier one has no resolving power and its agreement with
+        N0 means nothing.
+    proof_obligations:
+      - claim: >-
+          The four nulls match the frozen shape list exactly, verified by the
+          fixture before any solve.
+        responsibility: baseline
+      - claim: >-
+          The coefficient matrices of the real system and of N1 have equal rank.
+        responsibility: correctness
+      - claim: >-
+          The nulls' satisfiability status is controlled by construction and
+          reported, never inferred from a timeout.
+        responsibility: correctness
+      - claim: >-
+          The resolving-power control separates the real system from the
+          deliberately-easy system by >= 10x.
+        responsibility: strictness
+      - claim: >-
+          Seed-to-seed spread within each tier is reported BEFORE the between-
+          tier difference, so a difference smaller than the spread is not
+          reported as a signal.
+        responsibility: success_probability
+      - claim: >-
+          Nothing transfers to m >= 4, to prime fields, or to non-subspace
+          factor bases.
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: >-
+        leaf_ratio_real_over_N0 on UNSAT instances, m = 3, l in {6,7,8},
+        >= 10 instances and >= 5 seeds per cell
+      direction: different
+      minimum_effect: >-
+        In [0.95, 1.05] under P-NULL. A value <= 0.90 is P-STRUCTURE and is the
+        highest-value outcome available in this RQ. A value >= 1.10 is
+        P-BROKEN-or-structure-in-the-wrong-direction and triggers diagnosis
+        before any interpretation.
+    - metric: leaf_ratio_real_over_N1, real_over_N2, real_over_N3
+      direction: different
+      minimum_effect: >-
+        Each in [0.95, 1.05]. The DISCRIMINATING pattern is which of the four
+        leaves the band: N1 alone moving localises the effect to descent
+        coefficients; N2 alone moving localises it to block incidence; N3 alone
+        moving localises it to the curve identity; N0 alone moving means the
+        effect is in the supports and the other tiers were mis-built.
+    - metric: >-
+        seconds_per_leaf ratio real over each tier, same solver, same machine,
+        same session, pinned version and commit
+      direction: different
+      minimum_effect: >-
+        In [0.8, 1.25]. This axis is separated from the leaf axis deliberately:
+        a null can match on leaves and differ on per-leaf cost (different clause
+        counts) and that would be an encoding artifact, not structure.
+    - metric: >-
+        resolving_power = leaf_ratio (real) over (real plus l redundant linear
+        relations)
+      direction: higher
+      minimum_effect: >-
+        >= 10. Below 10 the instrument cannot see structure of the size being
+        looked for and NO agreement result may be reported.
+    - metric: >-
+        within_tier_seed_spread = max/min leaf count over >= 5 seeds inside one
+        tier at one cell
+      direction: lower
+      minimum_effect: >-
+        <= 1.03, and reported before any between-tier comparison. If the
+        within-tier spread exceeds the between-tier difference, the experiment
+        has no power and says so.
+    - metric: >-
+        sat_instance_leaf_distribution: Kolmogorov-Smirnov distance between the
+        real and N0 distributions of (SAT leaf count / UNSAT leaf count) over
+        >= 20 planted instances
+      direction: lower
+      minimum_effect: >-
+        KS distance <= 0.3 at the 0.05 level. A larger distance means the real
+        system's solutions are found at non-uniform positions in the enumeration
+        while the null's are uniform -- a curve-structure signal invisible on
+        the UNSAT axis and worth more than the UNSAT comparison if it appears.
+
+  minimal_test:
+    design: >-
+      This experiment is designed to be the GATE on IDEA-20260904-3c7a91,
+      IDEA-20260904-7fd218 and IDEA-20260904-e12b5a, and it shares their
+      encoder, so its marginal cost is small.
+
+      STAGE 0 (zero compute). Freeze the shape-matched quantity list and the
+      four null constructions in the experiment contract. Build all four nulls
+      at (m,l,n) = (3,6,19) and run the structural fixture: exact match on core
+      variable count and monomial-variable count, <= 2% on clause counts and
+      histograms. Nulls that fail the fixture are rebuilt or the tier is dropped
+      with a stated reason; no tier is silently adjusted after seeing solving
+      data.
+
+      STAGE 1 (resolving power). Run the deliberately-easy control (real system
+      plus l redundant linear relations) and confirm the leaf count collapses by
+      >= 10x. If it does not, stop: the instrument cannot detect the effect
+      being tested and no null agreement may be reported.
+
+      STAGE 2 (the comparison). m = 3; l in {6, 7, 8}; n in {3l-1, 4l}; tiers
+      {real, N0, N1, N2, N3}; 10 UNSAT and 10 planted-SAT instances per (cell,
+      tier); >= 5 seeds. Same encoder, same solver binary, same machine, same
+      session, interleaved run order to defuse machine drift. Record the metrics
+      listed below. Every SAT answer on the REAL arm carries a decomposition
+      certificate re-verified by independent curve arithmetic; SAT answers on
+      null arms carry an assignment-satisfies-all-equations check instead, since
+      there is no curve to certify against, and that difference in certificate
+      strength is recorded rather than glossed.
+
+      STAGE 3 (reporting). Report per-tier medians with seed spread, then
+      ratios, then the localisation pattern. SAT and UNSAT reported separately
+      throughout; no pooled averages.
+    controls:
+      - >-
+        RESOLVING-POWER CONTROL (stage 1) - the deliberately-easy system. This
+        control can fail and its failure voids the experiment.
+      - >-
+        RANK CONTROL - the coefficient matrix rank of every tier is measured and
+        reported; a tier whose rank differs from the real system's is rebuilt.
+      - >-
+        INTERLEAVING CONTROL - runs ordered so that tier is not confounded with
+        time on the machine; the same cell is re-run at the end of the session
+        and the drift reported.
+      - >-
+        ENCODER CONTROL - both the symmetrized model and the direct model of
+        src/semaev_tree.py are encoded and both reported; a conclusion holding
+        for one only is a statement about the encoding.
+      - >-
+        SEED CONTROL - >= 5 seeds per tier per cell, spread reported first.
+    required_metrics:
+      - instrumented_leaf_count
+      - solver_reported_conflicts
+      - conflict_depth_histogram
+      - seconds_per_leaf (with pinned solver version, commit, hardware, seed)
+      - coefficient_matrix_rank
+      - n_core_vars, n_monomial_vars, n_cnf_clauses, n_xor_clauses
+      - per_equation_degree_and_block_occupancy_histogram
+      - termination_reason (completed | timeout | memory_abort | crash)
+      - certificate_verified (real arm) / assignment_check_passed (null arms)
+      - tier, cell, seed, instance_kind (planted_sat | random_unsat)
+
+  falsification_conditions:
+    - >-
+      F1. Any leaf ratio outside [0.95, 1.05] with a within-tier spread smaller
+      than the deviation. P-NULL is false at that cell; the record names the
+      cell, the tier and the size of the deviation, and the localisation pattern
+      becomes the deliverable.
+    - >-
+      F2. The resolving-power control fails (< 10x collapse). Instrument
+      failure; NO agreement or disagreement may be reported.
+    - >-
+      F3. A null tier fails the stage-0 structural fixture and cannot be
+      rebuilt. That tier is dropped with a written reason and the ladder is
+      reported with a hole, never silently completed.
+    - >-
+      F4. Within-tier seed spread exceeds the between-tier difference. The
+      experiment has no power at that cell and says so.
+    - >-
+      F5. The KS test on the SAT-position distribution rejects at 0.05 while the
+      UNSAT leaf counts agree. P-NULL is then false in a way the primary metric
+      could not see, and the SAT-position distribution becomes the object.
+    - >-
+      F6 (PRE-REGISTERED NEGATIVE). If everything agrees, the deliverable is a
+      CONTROLLED NULL recorded with its numbers, its power (the resolving-power
+      factor), and the explicit prohibition it licenses -- not a sentence saying
+      "no difference found". A null with no stated power is not a result.
+
+  confounders:
+    - >-
+      RANK MISMATCH is the most likely way to fake a signal: a random GF(2)
+      system of n equations has rank < n with probability ~2^{-(#cols-n)}, and
+      any rank deficit changes the solution count and hence the UNSAT search.
+      Rank is therefore matched and reported, not assumed.
+    - >-
+      SATISFIABILITY IMBALANCE. If the nulls are more often satisfiable than the
+      real system, pooled statistics move for reasons that have nothing to do
+      with structure. SAT and UNSAT are reported separately and the instance
+      counts per status are reported.
+    - >-
+      CLAUSE-COUNT MISMATCH inflates seconds-per-leaf without touching leaves.
+      This is why the two axes are separated and why the clause counts are part
+      of the frozen fixture.
+    - >-
+      The nulls are drawn from a distribution this program chose. A null that
+      happens to be harder than a uniformly random member of the fibre would
+      manufacture a P-STRUCTURE reading. Mitigated by >= 5 seeds per tier and by
+      reporting the full within-tier distribution, not a single draw.
+    - >-
+      N3 (wrong constant) may accidentally produce a system with a different
+      number of solutions, since the constant term shifts the affine part. Its
+      solution count is measured at small l where enumeration is possible and
+      reported.
+    - >-
+      The real system's Weil-descent coefficients are not uniformly random over
+      GF(2): the char-2 Frobenius makes squared products F_2-bilinear, so the
+      degree histogram is highly non-generic (H-DREG-152cff step 2). N0 copies
+      that histogram deliberately; a naive uniform-random-MQ null would NOT and
+      would be a mis-specified control. This is stated so that a future reader
+      does not "simplify" the null.
+
+  interpretation_limits:
+    - >-
+      CLAIM TIER toy; l <= 8, m = 3, fields <= 2^{32}. No downstream citation
+      may raise it.
+    - >-
+      AGREEMENT IS NOT ABSENCE. A controlled null says the observable does not
+      distinguish, at these parameters, with this power. It does not say no
+      curve-specific structure exists, and the record must not be cited that
+      way.
+    - >-
+      DISAGREEMENT IS NOT AN ATTACK. P-STRUCTURE would establish that a
+      curve-specific ingredient changes solving cost by a measured factor; it
+      would not by itself change any exponent, and any cost statement still
+      requires the accounting of IDEA-20260904-96c4f3 and a matched rho baseline
+      from RQ-ICEX-001.
+    - >-
+      This record makes no claim about WDSat, which has not been fetched or
+      built in this repository, and no claim about any number in
+      SRC-SATIC-TRIMOSKA-2019, which are the authors' own and are not reproduced
+      here.
+    - >-
+      Complementary to, and deliberately non-overlapping with, GOAL-DREG-001:
+      that lane measures Macaulay column sets and ranks of the SAME family and
+      has already established that ITS observable is fibre-constant. This record
+      asks the same question of a DIFFERENT observable (solving cost) and cites
+      the DREG result as the reason to expect the same answer, not as evidence
+      for it.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        FIBRE-CONSTANCY OF SOLVING COST. Let F(S) be the support-incidence
+        tensor of a descended Boolean system S at (m, l, n). Then for every S'
+        with F(S') = F(S) and rank(S') = rank(S), the expected UNSAT leaf count
+        of a complete core-variable-ordered DPLL search satisfies
+        E[N(S')] = E[N(S)] (1 + O(2^{-l})), uniformly over n in
+        [m(l-1), 6l] and over the choice of coefficients.
+      rigorous_support: >-
+        RIGOROUS INGREDIENT: Proposition 1 of SRC-SATIC-TRIMOSKA-2019 fixes the
+        tree height at exactly ml for EVERY member of the fibre, since the
+        backdoor property depends only on the substitution structure and not on
+        coefficients; so the leaf count of every fibre member is bounded above
+        by the same 2^{ml} and the only freedom is above-leaf pruning.
+        CLASSICAL DISTRIBUTION IMITATED: the standard random-CNF/random-XOR
+        heuristic that a parity constraint over undetermined variables is
+        satisfied by a uniformly random completion with probability exactly 1/2
+        independently of its coefficients -- i.e. the assumption that the
+        descended system's coefficients behave, with respect to
+        propagation-triggered conflict, like uniformly random GF(2)
+        coefficients of the same support. The rigorous half is the height; the
+        distributional half is the conflict rate. H-DREG-152cff is the nearest
+        internal precedent: it establishes fibre-constancy rigorously for a
+        DIFFERENT observable (Macaulay columns) on the same family.
+      validation_plan: >-
+        SAMPLE: UNSAT leaf counts over >= 5 independent draws from each of the
+        four null tiers, at m = 3, l in {6,7,8}, n in {3l-1, 4l}; that is
+        4 tiers x 3 l-values x 2 n-values x 5 seeds x 10 instances = 1200 solves
+        plus 600 on the real arm. SHORTCUT FOR LARGER PARAMETERS: at l >= 9 a
+        complete UNSAT search is out of budget, so H1 is probed instead by
+        PROPAGATION-ONLY SAMPLING -- draw 10^6 uniformly random depth-d core
+        prefixes per system, run unit propagation without search, and compare
+        the empirical conflict rate curve r(d) across tiers. This reaches l = 11
+        and m = 4 at O(10^6) propagations per system instead of O(2^{ml}).
+        COMPARISON DISTRIBUTION: r(d) is compared tier-against-tier by
+        two-sample KS at each d, and against the geometric prediction
+        2^{-(ml-d)}. TAIL CHECKS: the SHALLOWEST conflict depth observed in each
+        tier's 10^6 samples is compared across tiers; a real system whose
+        shallowest conflict is systematically shallower than every null's is the
+        tail signature of curve structure, and it is checked even when the
+        means agree. SAMPLED PARAMETERS RECORDED: (m, l, n, tier, seed,
+        curve_id, rank). TRANSFER ASSUMPTIONS, STATED: (i) the
+        propagation-only conflict rate on uniform prefixes stands in for the
+        rate on solver-visited prefixes -- a different distribution, not
+        modelled; (ii) results at l <= 8 are assumed to indicate behaviour at
+        l = 9..11 only through the propagation-only probe, never by
+        extrapolating leaf counts.
+    - id: H2
+      statement: >-
+        NULL FAITHFULNESS. Conditioned on matching the frozen shape list and the
+        rank, a uniformly drawn member of the fibre has UNSAT leaf count whose
+        distribution has coefficient of variation <= 0.03 at l >= 6, so 5 draws
+        estimate the fibre mean to within 1.5%.
+      rigorous_support: >-
+        RIGOROUS INGREDIENT: the leaf count is bounded in [c 2^{ml}/m!,
+        2^{ml}/m!] for some c <= 1 by the backdoor property, so the random
+        variable has bounded support and its coefficient of variation is at most
+        (1-c)/2. CLASSICAL STATEMENT IMITATED: concentration of a sum of many
+        weakly dependent indicator variables (one per leaf) around its mean --
+        the ordinary heuristic that leaf-level conflicts across a 2^{ml}-leaf
+        tree are close to independent. NOT PROVED; the dependence induced by
+        shared monomial variables is real and unmodelled, and that gap is the
+        reason the within-tier spread is measured and reported BEFORE any
+        between-tier claim.
+      validation_plan: >-
+        SAMPLE: 20 independent draws from N0 at m = 3, l = 6, n = 19 -- the
+        cheapest cell -- and report the empirical coefficient of variation
+        directly. COMPARISON: against the assumed <= 0.03 and against the
+        real arm's own seed-to-seed spread. TAIL CHECK: report min and max of
+        the 20, not only the CV; a heavy upper tail would mean 5 draws are
+        insufficient and the design is revised upward before stage 2 runs.
+        SCALE AND TRANSFER: measured at l = 6 only; the assumption that the CV
+        does not grow with l is an extrapolation and is labelled as one, with
+        the l = 7 CV measured from the 5 stage-2 seeds as a check.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT IS CLAIMED OR MOVED. This is a control experiment; its output
+      is a ratio with error bars, not an algorithm. Under P-NULL the honest
+      statement is: "the CNF-XOR pdp solving cost is a constant factor
+      1.00 +- 0.05 of the cost of a curve-free Boolean system of the same
+      shape", i.e. the curve contributes a factor bounded by 1.05 and the
+      exponent contribution of elliptic-curve structure to this step is exactly
+      zero over the tested cells. Under P-STRUCTURE the deliverable is a
+      measured constant factor, still not an exponent.
+    memory_exponent: >-
+      Poly in (l, n) for every arm; the nulls are the same size as the real
+      system by construction. Peak RSS is recorded per run as an instrument
+      check, and a memory abort is an infrastructure outcome, never evidence.
+    best_known: >-
+      There is no prior null-controlled measurement of this quantity anywhere
+      this agent could find: SRC-SATIC-TRIMOSKA-2019 runs no null, and the only
+      adjacent internal precedent, H-DREG-152cff, controls a different
+      observable. The relevant "best known" is therefore the UNCONTROLLED claim
+      C6 of the source, whose factor is stated against Grobner rather than
+      against a matched null.
+    hidden_overhead: >-
+      Nothing hides in an o(1) here because nothing asymptotic is claimed. What
+      DOES hide is statistical power: a 5% band at 5 seeds detects only effects
+      larger than roughly twice the within-tier spread, so structure contributing
+      less than about a 10% cost change is invisible to this design, and the
+      record must say so rather than reporting "no difference".
+    tradeoff_note: >-
+      Not applicable: no algorithm, no tunable. The one design tradeoff is
+      seeds-per-tier against cells-covered; the design spends seeds first
+      because an unmeasured spread makes every ratio uninterpretable.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+
+  recommended_priority: high
+
+  implementation_notes: >-
+    Marginal cost over IDEA-20260904-3c7a91 is small because the encoder,
+    instrumentation and solver binding are shared. What is NEW here and does not
+    exist anywhere in the repository: the four null generators, the
+    support-incidence tensor extractor, the rank matcher, and the structural
+    fixture. None requires Sage beyond what src/semaev_tree.py already uses; N0
+    requires no Sage at all, which makes it runnable in environments where
+    `import sage` fails (a real constraint recorded in H-DREG-152cff's
+    implementation notes). Estimated: ~400 lines of new code, and compute
+    dominated by the l = 8 UNSAT arm (predicted ~2.8e6 leaves per instance,
+    x 10 instances x 5 seeds x 5 tiers x 2 n-values).
+
+  dominated_by: >-
+    n/a (no result claimed) - this record proposes a control, not an algorithm
+    or a cost, so there is no Pareto row it could occupy. For completeness, the
+    algorithms it measures ARE dominated: see the frontier stated in
+    IDEA-20260904-96c4f3 (poly-memory (m-1)-fold enumeration at
+    2^{(m-1)l}/(m-1)! operations for the pdp step; Pollard rho / van
+    Oorschot-Wiener at ~2^{n/2} for the ECDLP). Checked against the pdp rows
+    this program records - Grobner F4, generic CDCL, the Galbraith-Gebregiyorgis
+    CNF model, KN-FIND-2a8b7e and KN-FIND-8f2c90 - and none of them is a
+    null-controlled measurement, so none dominates this record's actual
+    deliverable.
+
+  sota_delta: >-
+    Quantitatively: converts claim C6's uncontrolled "up to 300x faster than
+    Magma's F4" into a controlled statement of the form "the curve contributes a
+    factor R = X +- Y to CNF-XOR pdp solving cost, measured against four
+    explicit null tiers at power P". Under P-NULL, R = 1.00 +- 0.05 and the
+    sota_delta on every attack axis is exactly zero, with the deliverable being
+    a prohibition plus an obstruction measurement. Under P-STRUCTURE, R < 0.9
+    and the deliverable is a localised ingredient. Either way the number is
+    stated with error bars, which is what the current literature record for this
+    question lacks.
+
+  honest_prior_of_survival: >-
+    About 0.8 on P-NULL, driven mainly by the internal precedent that the
+    nearest observable on the same family (Macaulay columns, H-DREG-152cff) is
+    provably fibre-constant, and by the source's own reported near-exact match
+    of UNSAT conflict counts to 2^{ml}/m! across six values of l -- a quantity
+    with no room left for curve content. About 0.15 on P-STRUCTURE, most likely
+    showing up in the SAT-position distribution rather than the UNSAT leaf
+    count. About 0.05 on P-BROKEN. Roughly 0.9 that the resolving-power control
+    passes, since the redundant-linear-relation construction is transparent.

@@ -1,0 +1,63 @@
+{
+  "task_id": "TASK-20260907-7afa98",
+  "purpose": "Disclosure of the seven joints deliverables.md #5 assigns to the re-deriver, plus every implementation freedom exercised, per quantity.md #9 and prohibitions.md #4 ('any language, any libraries, any standard mix64, any RNG'). None of this was read from anywhere; it documents choices made while implementing quantity.md from scratch.",
+
+  "joint_1_cap_applied_in_both_places": {
+    "claim": "cap = ceil(8*W) is applied both to the exact basin-assignment predicate (dist(x) <= cap) and to pool-construction walk termination (a walk reaching cap steps without a DP terminates capped, crediting no S_d/h_d).",
+    "how_verified": "dist(x) is computed EXACTLY for every point via full functional-graph enumeration (see joint_2), independent of cap; cap is applied only afterward, once, to classify each point into ASSIGNED/CYCLE MASS/CAPPED MASS, and again, independently, in pool_construct() where a random start point's fate is looked up from the same exact dist/root arrays and classified capped iff dist==-1 or dist>cap. The two applications share one 'cap' integer computed once per (N,a) cell via Decimal ceil(8*W)."
+  },
+
+  "joint_2_residual_accounting": {
+    "claim": "The three classes are disjoint and exhaustive and the accounting identity sum_d b(d) + cycle_mass + capped_mass == N holds exactly, with b(d) >= 1 for every DP.",
+    "how_verified": "Checked programmatically, exactly (integer arithmetic, no tolerance), at all 200 computed cells. accounting_identity_holds == true at all 200; min_basin_size >= 1 at all 200 (minimum observed value across all cells and DPs was exactly 1, never 0). No defect of this kind was found.",
+    "why_the_identity_is_close_to_a_tautology_here": "dist(x) is computed once, exhaustively, over all N points into exactly {-1 (unreachable), 0..cap (assigned), >cap (capped)}, and basin_counts is built by bincount over the assigned subset's root values, so the identity is a direct consequence of a correct partition of the dist array rather than an independent recomputation. It was still checked explicitly per cell, and is exactly the kind of self-check the packet asks for."
+  },
+
+  "joint_3_universe_asymmetry": {
+    "claim": "cov_static ranges over the pool's T selected entries; share_top ranges over ALL n_dps DPs of the exact partition, independent of the pool.",
+    "how_verified": "share_top(k) is computed from sizes_all_dps, an array over every DP found by the DP predicate on all N points (independent of pool construction). cov_static is computed only from the T pool entries surviving weight-selection. The two arrays are built from different index sets (dp_nodes vs sel_dp_ids) and never conflated in the code."
+  },
+
+  "joint_4_weight_and_tiebreak": {
+    "claim": "Selection is by weight_d = S_d + 4*W*h_d, never true basin size; ties at the T-th largest weight are broken by an ascending per-entry pseudorandom key bound to pool-insertion order.",
+    "how_verified": "weight_d is computed from Decimal(S_d) + 4*W_decimal*Decimal(h_d) (W taken to 80 significant digits), not from any basin-size array. Insertion order = the order in which pool_construct() first discovers each distinct DP. Tie-break keys are one bulk array of length r*T drawn once per (N,a,seed) from a PRNG seeded deterministically from the integer seed (see rng_conventions below), indexed by insertion order, and used as an ascending secondary sort key alongside descending weight.",
+    "why_decimal_not_float_for_weight": "At a in {1/16, 1/4} in this grid, W is an exact integer, so weight_d is exactly S_d + 4*W*h_d in integer arithmetic; a naive float64 computation risks manufacturing or hiding exact ties. Decimal at 80-digit precision was used uniformly so that reported ties (n_tied_at_Tth_weight, range 1-9 across the 200 cells) reflect real coincidences in (S_d, h_d) rather than floating-point artifacts."
+  },
+
+  "joint_5_T_at_smaller_scale": {
+    "claim": "T = 64 at N = 2^20 (frozen table), not round(2^20^(1/3)) = 102.",
+    "how_verified": "T_TABLE = {2**20: 64, 2**24: 256} is a literal lookup table copied from quantity.md #10, never computed from a formula. All derived quantities (T_sel, cap, W) were cross-checked against quantity.md's own printed decimal table before the production run and matched to the digits shown (see validation note below)."
+  },
+
+  "joint_6_null_object_universe": {
+    "claim": "NULL-ORACLE-RAND draws its subset from all DPs of the same enumerated partition, not from the pool.",
+    "how_verified": "Both NULL-ORACLE-RAND variants (uniform and size-biased) sample index sets from range(n_dps) against sizes_all_dps (the full-partition array). NULL-RANDSEL and NULL-SHUF, by contrast, correctly draw from the r*T pool array (pool_sizes_arr), per quantity.md #12's own separate specification for that arm."
+  },
+
+  "joint_7_verdicts_resampling_free": {
+    "claim": "k_25, k_5, and the sign of mean_margin are computed exactly and do not depend on the bootstrap.",
+    "how_verified": "k_25/k_5/verdict_25/verdict_5/mean_margin_sign are computed directly from the array of 25 (or 5) per-seed margins via exact comparison (margin >= 0) and exact mean sign; the percentile-bootstrap CI is computed afterward, in a separate function, and is not read by any verdict computation."
+  },
+
+  "rng_and_convention_disclosures_licensed_by_quantity_md_section_9_and_prohibitions_md_section_4": {
+    "mix64": "splitmix64 finalizer (Stafford 'mix13' variant): z^=z>>30; z*=0xbf58476d1ce4e5b9; z^=z>>27; z*=0x94d049bb133111eb; z^=z>>31; all mod 2^64. A standard, publicly documented avalanche mixer, chosen because quantity.md #1 explicitly says 'any standard one; yours need not match anyone else's'.",
+    "restart_rng / tiebreak_rng / null_uniform_rng / null_sizebiased_rng / null_randsel_rng / null_shuf_rng": "Each is a numpy Generator (PCG64) seeded by the low 8 bytes of sha256(f'{seed}|{tag}|{N}|{a.numerator}|{a.denominator}'), where tag in {restart, tiebreak, null_uniform, null_sizebiased, null_randsel, null_shuf}. This is a deterministic, reproducible, but otherwise arbitrary convention for randomness that quantity.md never specifies a seed formula for (unlike the bootstrap, which quantity.md #11 does specify exactly). This choice is disclosed, not concealed, and is not expected to match any other implementation's realization, per the same license quantity.md #9 gives to mix64 and to the tie-break key stream.",
+    "size_biased_sampling_without_replacement": "Implemented via the Efraimidis-Spirakis exponential-key method in the log domain (key_i = log(u_i)/w_i, take the T_sel largest), a standard exact algorithm for weighted sampling without replacement. Not specified by quantity.md beyond 'drawing the T_sel-subset with probability proportional to basin size'; quantity.md #12 itself says of this arm only 'report it; nothing depends on it'.",
+    "bootstrap_n_bits": "quantity.md #11's rng formula uses a symbol 'n_bits' that is not spelled out. Taken to mean log2(N) (20 or 24 for this grid), the only reading consistent with N always being written as a power of two throughout quantity.md. This affects only the bootstrap RNG seed, and the bootstrap is explicitly declared non-verdict-bearing ('it routes, it does not decide', quantity.md #11; joint_7 above)."
+  },
+
+  "derived_field_not_literally_named_in_deliverables_md": {
+    "margin_null_shuf": "deliverables.md's per-cell table lists cov_static_shuf for NULL-SHUF but does not separately name a 'margin_null_shuf'. quantity.md #7 defines margin = share_top_Tsel - cov_static uniformly, and quantity.md #12 frames every other null arm as a substitution into that same formula. We additionally report margin_null_shuf = share_top_Tsel - cov_static_shuf as the direct, mechanical application of the already-stated margin formula with cov_static_shuf substituted for cov_static, and used it to compute mean_margin_null_shuf / n_seeds_margin_null_nonneg_shuf at the per-(N,a) level (which deliverables.md #3 does ask for, 'for each null arm', without listing NULL-SHUF's field name either). This is disclosed as an extension by direct formula reuse, not as an invented convention resolving an ambiguity -- no other value was possible once cov_static_shuf existed and quantity.md's own margin formula was applied unchanged. cov_static_shuf itself (the literally required field) is also reported per cell, unmodified."
+  },
+
+  "rho_ORACLE_interpretation": {
+    "quantity_md_text": "'the smallest T_sel/T at which share_top(T_sel) reaches cov_static' (quantity.md #12, DECAY readings)",
+    "reading_adopted": "share_top(k) is already defined in quantity.md #7 as a function of an integer k (the count of top-ranked DPs by exact basin size). rho_ORACLE was computed by treating k as a free variable, finding the smallest integer k in [0, n_dps] with share_top(k) >= cov_static (using the cell's own already-computed cov_static, via exact integer comparison against the cumulative basin-size sum, never float comparison), and reporting k/T. This is the direct extension of an already-stated function to a free argument, not an invented formula; no alternative reading was identified.",
+    "well_definedness_check": "Since cov_static is itself an exact sum of basin sizes over a subset of DPs, and share_top(n_dps) equals the sum over ALL DPs (a superset), share_top(n_dps) >= cov_static always, so the search always terminates within k <= n_dps at every one of the 200 cells; no cell required clipping or produced an undefined value."
+  },
+
+  "packet_completeness_finding": {
+    "verdict": "The packet was found COMPLETE. Every field deliverables.md requires was computable from quantity.md's definitions and parameters alone, using only implementation freedoms quantity.md #9 and prohibitions.md #4 explicitly license (mix64 choice; RNG/seed choice for restarts, tie-break keys, and the four control-arm draws; the direct, unmodified extension of the already-stated share_top(k) and margin() formulas noted above). No defensible-but-arbitrary convention had to be invented to resolve an actual ambiguity in a load-bearing formula; the two load-bearing formulas the packet itself flags as historically dangerous (cap = ceil(8*W), applied in exactly the two places quantity.md #3 names; and the accounting identity of quantity.md #4) were both implemented exactly as specified and checked to hold at every one of the 200 cells with zero exceptions.",
+    "validation_performed_before_the_production_run": "(a) The core algorithm (exact forward-orbit distance to first DP, computed via reverse-graph multi-source BFS, which is exact because every node has out-degree exactly 1) was cross-checked against a brute-force O(N x path length) reference implementation on 40 random tiny synthetic instances (N in {8,16,32,64,128}); all 40 matched exactly, including which specific DP each reachable point mapped to. (b) W, cap, and dp_threshold, computed via Decimal at 80 significant digits from the exact rational a*N/T, were checked against quantity.md #10's own printed table for all 8 (N,a) combinations and matched to every printed digit."
+  }
+}

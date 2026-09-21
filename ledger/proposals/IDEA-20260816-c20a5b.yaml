@@ -1,0 +1,248 @@
+idea:
+  id: IDEA-20260816-c20a5b
+  question_id: RQ-MDFIVE-6870c1
+  added: '2026-08-16'
+  title: Build a scaled-down MD5-shaped hash with a 32-bit chaining state whose true collision and
+    preimage costs are both exhaustively verifiable, and measure how the attacker's gain over the
+    generic bound in each setting evolves as the round count is increased one round at a time.
+  class: measurement
+  claim: '(A) The central obstacle to studying the asymmetry directly is that on real MD5 neither
+    true cost is measurable: collisions are found by methods whose cost is measured but whose optimality
+    is unknown, and preimages are not found at all. A scaled-down analogue removes that obstacle.
+    Define mini-MD5 with four 8-bit state words, a 32-bit chaining value, eight 8-bit message words
+    per block, MD5''s schedule pattern reduced proportionally, MD5''s rotation constants reduced modulo
+    8, and a round count r that is a free parameter. At this size the generic collision bound is 2^16
+    and the generic preimage bound is 2^32, and both are directly measurable by search rather than
+    assumed. (B) The claim under test concerns two gain curves. Define G_coll(r) as log2 of the generic
+    collision bound minus log2 of the measured cost of the best collision method run here, and G_pre(r)
+    similarly for preimages. The claim is that G_coll(r) is substantially positive at small r and
+    decays slowly as r grows, while G_pre(r) is near zero at every r above a small threshold, and
+    that the two curves separate at a round count well below the full analogue''s round count. (C)
+    The claim further requires that both curves collapse to zero on the null primitive, since a gain
+    that persists when the step function is replaced by a random bijection is an artefact of the measurement
+    rather than a property of the structure. (D) EXPLICITLY NOT CLAIMED: nothing about full MD5''s
+    preimage cost, no extrapolation of either gain curve to 128 bits, no claim that the best method
+    run here is the best method that exists at this size, and no security consequence for anything.
+    A gain curve measured on a 32-bit-state analogue is a statement about that analogue and about
+    the specific methods executed against it, and the transfer to full MD5 is an explicitly unproven
+    assumption named in the scale justification.'
+  mechanism: 'STAGE 1 defines mini-MD5 precisely and validates it: at a 32-bit chaining value the
+    full codomain is enumerable, so the true preimage cost of a random target can be measured by exhaustive
+    search over message space rather than estimated. STAGE 2 measures baselines: generic collision
+    cost by birthday search and generic preimage cost by exhaustive search, both with wall-clock and
+    evaluation counts, giving the denominators the gain curves need. STAGE 3 runs the collision arm:
+    a message-modification search that forces conditions using free words, and reports evaluations
+    to first collision. STAGE 4 runs the preimage arm: a meet-in-the-middle split search over the
+    reduced schedule with the neutral-word bipartition computed rather than guessed, and reports evaluations
+    to first preimage. STAGE 5 sweeps r from 1 to the full round count, plotting both gains. STAGE
+    6 repeats every stage on the null primitive. Refutation is unusually clean at this size: if G_pre(r)
+    equals G_coll(r) within noise at every r, the asymmetry does not reproduce in the analogue and
+    the analogue is either the wrong model or the asymmetry is a large-state phenomenon, and the record
+    says which alternatives remain open.'
+  novelty_status: unverified
+  novelty_screen:
+    method: grep -rl MDFIVE over ledger/proposals/, ledger/hypotheses/ and experiments/, empty. grep
+      -ril md5 and md4 over ledger/proposals/, empty. Read RQ-MDFIVE-6870c1 in full, including its
+      constraint that a failed search is a budget outcome and never evidence that no structure exists.
+      Read docs/inventor-protocol.md section 6 on the validation ladder, whose step 2 requires running
+      a pipeline on the smallest scaled-down instance where the baseline parameter space is fully
+      enumerable. Read knowledge/techniques/KN-TECH-066.
+    results: No existing proposal touches MD5 or any hash-function analogue. docs/inventor-protocol.md
+      section 6 step 2 explicitly prescribes this move and names it as the step this program most
+      often skips, so the record is implementing a required protocol step rather than inventing a
+      method. The scaled-down analogue mentioned as an opening in this bucket's brief is realised
+      here with the size fixed by exhaustibility rather than by convenience. KN-TECH-066 provides
+      the collision-arm method family. No repository record defines a gain curve of this form for
+      any primitive.
+    verdict: 'UNVERIFIED. Scaled-down hash analogues and gain-over-generic-bound accounting are both
+      standard moves, and the protocol requires the former; these are assembled parts. What is claimed
+      new here is the specific pairing: measuring both gains on one analogue with both generic baselines
+      actually executed rather than assumed, sweeping round count, and requiring both curves to vanish
+      on a random-bijection null. Nothing is asserted about the published literature.'
+  object_first_candidate:
+    tracked_object: The pair of gain curves (G_coll(r), G_pre(r)), each defined as log2 of an executed
+      generic baseline minus log2 of an executed method cost, indexed by round count.
+    lossiness: 'Lossy. Each gain compresses an entire attack execution, with all its intermediate
+      states, path choices and failures, into one number, and enormously many different executions
+      share a gain value. The retained part propagates in the round-count parameter: increasing r
+      by one adds a fixed block of steps to the analogue, and each gain responds by a computable amount
+      that can be measured rather than derived. The honest limit, stated rather than hidden: a gain
+      is only as meaningful as the method that produced it, so G is a joint statement about the analogue
+      and the method, and improving the method moves the curve without changing the primitive. That
+      is why the record reports method identity alongside every gain value and forbids reading G as
+      a property of the analogue alone.'
+    propagation: The tracked operation is adding one round. Adding a round appends a fixed number
+      of steps, reuses each message word once more, and therefore reduces remaining freedom on the
+      collision side while lengthening the span a meet-in-the-middle split must cover on the preimage
+      side. Both effects are computable in advance from the schedule, which gives the run a predicted
+      direction for each curve before any search is executed, and a mismatch between predicted direction
+      and measured direction is itself a reportable finding.
+    survival_score: The collision gain is expected to survive several rounds and decay; the preimage
+      gain is expected to vanish almost immediately. The concrete deliverable is the round index at
+      which each gain first falls below one bit, reported with its uncertainty, and the record states
+      that beyond the full analogue's round count nothing is measured and nothing is extrapolated.
+  null_object_control: The null primitive replaces mini-MD5's step function with a random bijection
+    on the 32-bit state keyed by the message word, keeping the schedule, the block structure, the
+    padding and the Merkle-Damgard mode identical. Every stage runs against it in the same invocation.
+    The null must show both gains within noise of zero at every r, because a random bijection offers
+    nothing for message modification to force and nothing for a split to exploit. For the signal arm
+    to mean anything, the null gains must be below one bit at every r; a null showing positive gain
+    means the gain is produced by the search harness or by the baseline measurement and no signal-arm
+    number may be reported.
+  discriminated_from:
+  - 'The symbolic records in this batch, which compute schedule statistics and freedom counts with
+    no execution: this one executes complete attack pipelines and measures costs, and would report
+    a gain even for a primitive whose schedule statistics were unremarkable.'
+  - 'docs/inventor-protocol.md section 6 step 2 as a protocol requirement: the protocol prescribes
+    running a pipeline on a scaled-down instance; it does not define mini-MD5, does not fix the size
+    by exhaustibility, and does not define a two-setting gain curve.'
+  - 'Generic complexity accounting from output length alone: that predicts 2^16 and 2^32 here and
+    is the baseline this record measures against rather than a competitor to it.'
+  - 'The blacklisted RQ-INSTR-f8faa0 cost-model audit family: those audit how this program converts
+    work into cost. Here both the baseline and the method cost are counted in primitive evaluations,
+    a machine-independent unit, precisely so that no timing model enters the gain.'
+  - 'Wesolowski-style exponent decomposition owned by RQ-SSIQ-9702af: that is an asymmetric-primitive
+    complexity decomposition with no hash function, no message schedule and no gain-over-generic-bound
+    measurement.'
+  assumptions:
+  - A 32-bit chaining value is large enough for the birthday and exhaustive baselines to be measurable
+    rather than degenerate, and small enough for exhaustive preimage search to be executed; both are
+    checked before the sweep.
+  - Reducing MD5's rotation constants modulo 8 and its schedule proportionally preserves enough of
+    the design to make the analogue informative; this is the analogue's central design assumption
+    and it is not verified by the run.
+  - Evaluation counts rather than wall-clock times are the correct cost unit, so that no machine-variance
+    question enters the gain at all.
+  - The collision-arm and preimage-arm methods are of comparable engineering quality, without which
+    the gain difference measures effort rather than structure; the record reports engineering effort
+    per arm as a declared quantity.
+  predictions:
+  - metric: G_coll at r = 2, in bits below the 2^16 generic collision baseline
+    direction: higher
+    minimum_effect: 4.0
+  - metric: G_pre at every r >= 2, in bits below the 2^32 generic preimage baseline
+    direction: lower
+    minimum_effect: 2.0
+  - metric: round index at which G_coll first falls below 1 bit
+    direction: different
+    minimum_effect: 'explicit refusal to pre-commit: this depends on the analogue''s reduced rotation
+      constants, which have never been measured here, and any stated index would be invented'
+  - metric: both gains on the random-bijection null at every r
+    direction: lower
+    minimum_effect: 1.0
+  minimal_test:
+    design: 'The cheapest discriminating version fixes r = 2 and r = 3 only and skips the full sweep.
+      At those round counts, measure the exhaustive preimage baseline exactly (2^32 evaluations, which
+      is minutes in vectorised numpy or seconds in C), the birthday collision baseline by direct search,
+      then run the two attack arms and record evaluations to first success. The single comparison
+      G_coll(2) against G_pre(2) already discriminates: a collision gain of several bits alongside
+      a preimage gain within noise of zero reproduces the asymmetry in a fully verifiable setting
+      and licenses the full sweep, while equal gains close the analogue reading immediately and save
+      the rest of the budget. The null arm at the same two round counts doubles the cost and is mandatory,
+      since without it a positive collision gain could be a harness artefact.'
+    controls:
+    - Random-bijection null primitive with identical schedule, mode and padding, all stages rerun
+      in the same invocation.
+    - Exhaustive preimage baseline actually executed rather than assumed at 2^32, giving a measured
+      denominator.
+    - Birthday collision baseline actually executed rather than assumed at 2^16.
+    - A schedule-shuffled analogue, isolating whether the collision gain depends on the reduced MD5
+      schedule or on the step function.
+    - An equal-effort audit in which both arms are given the same declared implementation budget in
+      lines and hours, recorded in the manifest.
+    required_metrics:
+    - measured generic collision baseline in evaluations
+    - measured generic preimage baseline in evaluations
+    - evaluations to first collision per r
+    - evaluations to first preimage per r
+    - G_coll(r) and G_pre(r) with uncertainty
+    - the same six quantities for the null and the schedule-shuffled control
+    - declared implementation effort per arm
+  falsification_conditions:
+  - G_coll(r) and G_pre(r) agree within 2 bits at every r, so the asymmetry does not reproduce in
+    the analogue.
+  - The null primitive shows either gain above 1 bit, invalidating the measurement.
+  - The measured generic baselines differ from 2^16 and 2^32 by more than a factor of 4, indicating
+    the analogue is degenerate.
+  - G_coll is above 4 bits at r = 2 only because the collision arm exploits a property absent from
+    full MD5's design, identified by the schedule-shuffled control reproducing the same gain.
+  - The equal-effort audit shows the two arms received effort differing by more than a factor of 2,
+    making the gain difference an effort artefact.
+  confounders:
+  - Unequal engineering effort between the collision and preimage arms, the single most likely way
+    to manufacture the predicted result.
+  - Degeneracy of the reduced rotation constants, which modulo 8 may collapse to values that trivialise
+    or destroy diffusion.
+  - Small-state effects at 32 bits, where birthday and exhaustive costs are close enough that both
+    arms operate in an unusual regime.
+  - Padding and length encoding at reduced block size consuming a disproportionate share of message
+    freedom.
+  - Selection of the best method per arm after seeing results, prevented by declaring both methods
+    before the run.
+  interpretation_limits:
+  - Every number is scoped to the analogue and to the executed methods; no gain may be extrapolated
+    to full MD5 or to any other size.
+  - A gain is a joint property of the primitive and the method, so a low preimage gain is a statement
+    about the executed split search and never a statement that no better method exists, in line with
+    the anchor question's constraint that a failed search is a budget outcome.
+  - The analogue's design assumptions, particularly the reduced rotation constants, are unverified
+    and would change every number if changed.
+  - Equal gains would not show the asymmetry is unreal; they would show it does not reproduce at this
+    size under these methods, which is a different and weaker statement.
+  target_complexity:
+    time_exponent: No attack exponent is claimed for MD5 or any deployed primitive. Within the analogue,
+      the run reports measured exponents relative to a 32-bit chaining value, valid only there.
+    memory_exponent: Within the analogue only, the preimage arm's split search reports its table size
+      in entries; no memory exponent is claimed for MD5.
+    best_known: The incumbents are the two generic bounds, 2^16 for collisions and 2^32 for preimages
+      at this state size, and both are measured in the run rather than quoted. For full MD5 the incumbents
+      named in RQ-MDFIVE-6870c1 are the UNVERIFIED 2^123.4 preimage figure and the seconds-scale collision
+      figure; this record does not compete with either and does not attempt to.
+    hidden_overhead: 'The stated compute is the exhaustive 2^32 baseline, which is the visible cost
+      and the smallest one. The hidden cost is engineering symmetry between the two attack arms: a
+      collision arm written with care and a preimage arm written quickly will produce exactly the
+      predicted asymmetry for entirely uninteresting reasons, and no amount of sampling detects it.
+      The equal-effort audit is therefore load-bearing and is itself unenforceable without honest
+      self-reporting. A second hidden term is the analogue''s design: reducing rotation constants
+      modulo 8 is a choice that can trivialise diffusion, and discovering that after the arms are
+      written costs the whole run. Third, certificate re-verification by a second independent implementation
+      doubles the implementation cost and is not optional.'
+  dominated_by: n/a (no result claimed) for full MD5, after checking both frontier rows this program
+    holds for it. Within the analogue, the collision arm is dominated by nothing measured here only
+    if it beats the executed birthday baseline, and the run reports the comparison in both directions
+    including the case where the birthday baseline wins, which is a real possible outcome at this
+    state size and is not treated as a failure.
+  sota_delta: no attack; conceptual/measurement contribution only for full MD5. Within the analogue
+    the delta is stated as the measured bit gap between each executed method and its executed generic
+    baseline, with uncertainty, and carries no implication outside the analogue.
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: medium
+  honest_prior_of_survival: 'Split by part. That mini-MD5 can be defined and both generic baselines
+    executed at 2^16 and 2^32: about 0.85, the main risk being degeneracy of the reduced rotation
+    constants. That the collision arm achieves at least 4 bits of gain at r = 2: about 0.6, since
+    message modification at low round counts is well understood in principle even if this implementation
+    is modest. That the preimage arm''s gain stays within 2 bits of zero: about 0.55, with real uncertainty
+    because at 32 bits a split search may pick up several bits for reasons peculiar to the small state.
+    That both gains vanish on the null: about 0.8. That the equal-effort audit passes, which is the
+    part most likely to fail honestly: about 0.4. Joint survival: about 0.12.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-MDFIVE-6870c1
+  - GOAL-MD5-001
+  - KN-TECH-066
+  - KN-TECH-056
+  - KN-TECH-080
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-MDFIVE-b8d369

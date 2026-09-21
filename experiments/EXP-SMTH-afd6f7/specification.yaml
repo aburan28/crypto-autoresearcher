@@ -1,0 +1,301 @@
+experiment:
+  id: EXP-SMTH-afd6f7
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  hypothesis_id: H-SMTH-001
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-d5007d
+  title: >-
+    Review-required potential future replacement: reproducible toy ENC-B
+    Semaev-invariant smoothness instrument with explicit construction,
+    factorization, RSS, and comparison rules
+  review_context:
+    reviewed_contract: EXP-SMTH-92d322
+    review_artifact: coordination/goals/GOAL-ECDLP-001/batches/BATCH-c259e0/reviews/TASK-20260804-9514c9/protocol_review.yaml
+    review_verdict: REVISE
+    purpose: >-
+      This is a new, unfrozen design draft intended to address the five
+      amendment-required gaps. Every rule below is declared pre-run design, not
+      an assertion that an implementation exists, that a run occurred, or that
+      any rule is correct.
+  replacement_status: >-
+    This draft supersedes neither EXP-SMTH-92d322 nor any other contract. It is
+    only a potential future replacement if separately reviewed, approved,
+    frozen, archived, and explicitly authorized by the user. Existing
+    experiments and their artifacts remain immutable.
+  predecessor_implementation_constraint:
+    source: experiments/EXP-SMTH-71b1b0/specification.yaml
+    statement: >-
+      Preserve strict i<j enumeration, a measured null on the exact ENC-B
+      support, complete-factorization verification, and a bounded working set.
+      The predecessor's frozen state and authorization defect are not evidence.
+  objective: >-
+    If a later approval and execution authorization are granted, construct two
+    declared toy prime-field cells and compare the fully factorized ENC-B
+    integers from all strict factor-base pairs with a measured uniform-integer
+    null on the identical support. This draft is only an instrument-design
+    proposal.
+  what_this_is_not:
+    - Not a discrete-logarithm computation, relation collection, claw search, or ECDLP attack.
+    - Not an ECDLP cost, runtime, asymptotic, exponent, cryptographic-scale, or deployed-scheme claim.
+    - Not approval, freezing, execution authorization, a run, an observed output, or evidence.
+  claim_ceiling: >-
+    Toy only. Any future execution would be limited to bits in {16,20}, one
+    deterministic ordinary curve per bit size, an ordered 512-x-coordinate
+    factor base, m=4, S_3, INT-1/ENC-B, the specified solver and resource
+    budget. A single run cannot support or reject an ECDLP attack claim, and no
+    outcome may establish an ECDLP cost, exponent, crypto-scale, or
+    deployed-scheme conclusion.
+
+  inputs:
+    field_bits: [16, 20]
+    arity_m: 4
+    factor_base_size: 512
+    pair_count: 130816
+    pair_count_derivation: "C(512,2) = 512*511/2 = 130816"
+    master_seed: 4403196
+    domain: EXP-SMTH-afd6f7/v1
+    seed_encoding: >-
+      ASCII bytes of domain || "|" || label || "|" || decimal(bits) || "|" ||
+      decimal(counter), hashed with SHA-256; digest integers use big-endian
+      unsigned interpretation.
+
+  declared_deterministic_construction:
+    design_status: declared_only_not_implemented_or_observed
+    prime:
+      candidate_stream: >-
+        Let h = int(SHA256(seed_encoding("prime", bits, 0))). Let L=2^(bits-1)
+        and U=2^bits. Set c0 = L + 1 + 2*(h mod 2^(bits-2)). For k=0,1,...,
+        test c_k=c0+2k while c_k<U, in that order.
+      primality_test: >-
+        A candidate is prime exactly when it is greater than 1, is not divisible
+        by 2, and has no odd divisor d in 3,5,...,floor(sqrt(c_k)). This is the
+        declared deterministic trial-division predicate, not a probabilistic
+        test.
+      rejection_and_terminal_rule: >-
+        Reject every composite c_k and continue to k+1. The first prime is p.
+        If c_k reaches or exceeds U without a prime, terminate that bit-size cell
+        as CONSTRUCTION_FAILURE; do not wrap, reseed, choose a nearby size, or
+        use an alternate candidate stream.
+    curve:
+      candidate_stream: >-
+        For t=0,...,65535, set a_t=int(SHA256(seed_encoding("curve-a",bits,t)))
+        mod p and b_t=int(SHA256(seed_encoding("curve-b",bits,t))) mod p.
+      eligibility: >-
+        First reject if Delta_t=(4*a_t^3+27*b_t^2) mod p equals 0. For a
+        nonsingular candidate, compute #E_t(F_p)=1+sum_{x=0}^{p-1}
+        (1+chi(x^3+a_t*x+b_t mod p)), where chi(0)=0, chi(y)=1 when
+        y^((p-1)/2) mod p=1, and chi(y)=-1 otherwise. Accept exactly when
+        #E_t(F_p) mod p is not 1; this is the declared ordinary-curve test.
+      rejection_and_terminal_rule: >-
+        Reject a singular or nonordinary candidate in increasing t order. The
+        first eligible (a_t,b_t) is the curve. If t=65535 is rejected, terminate
+        the cell as CONSTRUCTION_FAILURE; no fallback curve is permitted.
+    factor_base:
+      enumeration: >-
+        Scan x=0,1,...,p-1 in increasing integer order. Let r=(x^3+a*x+b) mod
+        p. Retain x exactly when r=0 or r^((p-1)/2) mod p=1, which declares that
+        at least one affine F_p point has that x-coordinate.
+      ordering_and_duplicates: >-
+        Append retained x values in scan order until 512 values are present.
+        Because each x is scanned once, duplicates are impossible; any duplicate
+        detected in the emitted list is an integrity failure. The ordered list
+        itself, not a point-sign choice, is the factor base.
+      terminal_rule: >-
+        If the full scan yields fewer than 512 retained x-coordinates, terminate
+        the cell as CONSTRUCTION_FAILURE. Do not reuse x values, use extension
+        field points, or alter the curve.
+      required_commitment: >-
+        Record SHA-256 of canonical UTF-8 decimal x values, one value followed by
+        "\n" per line, and record p, a, b, #E(F_p), and the complete ordered list.
+
+  measured_quantity:
+    polynomial_and_invariant:
+      definition: >-
+        For each 0 <= i < j < 512, let x=x_i and y=x_j. Compute in F_p:
+        c2=(x-y)^2 mod p;
+        c1=(-2*((x+y)*(x*y+a)+2*b)) mod p;
+        c0=((x*y-a)^2-4*b*(x+y)) mod p.
+        Define S_3(x,y,Z)=c2*Z^2+c1*Z+c0.
+      root_multiset: >-
+        Mathematically, R_ij is the two-root multiset of S_3 in an algebraic
+        closure of F_p, including multiplicity. It is not enumerated. Vieta's
+        invariant is e1=-c1*c2^(-1) mod p and e2=c0*c2^(-1) mod p.
+      canonical_representatives: >-
+        lift(q) is the unique integer in {0,...,p-1} congruent to q mod p.
+        Set E1=lift(e1) and E2=lift(e2).
+      int_1_enc_b: >-
+        INT-1 is the ordered invariant pair (E1,E2). ENC-B maps it exactly to
+        N_ij=E1*p+E2+1. Thus 1 <= N_ij <= p^2, and the declared null support is
+        exactly [1,p^2].
+      exceptional_cases:
+        repeated_root: >-
+          A zero discriminant is not an exception: R_ij retains multiplicity and
+          the same Vieta formula is used.
+        nonsplit_root: >-
+          Roots outside F_p are not an exception: e1 and e2 remain in F_p and
+          are computed from coefficients without root extraction.
+        zero_leading_coefficient: >-
+          c2=0 is an integrity failure. It must terminate the package as
+          invalid_measurement; it cannot be skipped or encoded. The declared
+          distinct ordered factor base and i<j make it unreachable if the
+          construction is implemented correctly.
+        inverse_or_range_failure: >-
+          Any modular-inverse failure, noncanonical representative, or N outside
+          [1,p^2] is invalid_measurement. No replacement encoding or dropped pair
+          is permitted.
+
+  arms_and_controls:
+    treatment: >-
+      Exhaustively enumerate strict i<j pairs in lexicographic loop order and
+      emit one N_ij per pair.
+    measured_null: >-
+      For each bit size, emit 130816 independent uniform integers on [1,p^2].
+      A draw uses 2*bits SHA-256-derived bits and rejection sampling: discard a
+      value r >= floor(2^(2*bits)/(p^2))*p^2; otherwise emit r mod p^2 + 1.
+      The null stream label is "null" and its counter advances once per digest.
+    ordering_control: >-
+      Generate, factor, independently verify, and hash-commit the complete null
+      arm before generating or factoring any treatment integer. Absence of this
+      commitment is invalid_measurement.
+    pair_control: >-
+      The treatment generator is exactly for i in range(512), for j in
+      range(i+1,512). Require exactly 130816 records, lexicographic ordering,
+      and no i>=j record.
+    comparability_policy: >-
+      Cross-domain comparison to EXP-SMTH-92d322, EXP-SMTH-71b1b0, or any other
+      predecessor is forbidden. A shared numerical seed does not imply stream,
+      curve, factor-base, null, or output equivalence. Such a comparison may be
+      made only by a separately registered comparator contract that names both
+      domains, streams, artifacts, comparison statistic, expected relation, and
+      failure disposition.
+
+  complete_factorization_design:
+    design_status: declared_only_not_implemented_or_observed
+    solver:
+      identity: Python sympy.factorint
+      required_version: "1.14.0"
+      call_configuration: >-
+        factorint(n, limit=None, use_trial_division=True, use_rho=True,
+        use_pm1=True, use_ecm=True, verbose=False, visual=False, multiple=False).
+      worker_model: >-
+        One single-process worker only; maximum_workers is 1. A per-integer
+        watchdog permits 10 wall-clock seconds. On watchdog expiry, terminate
+        the worker, record status incomplete_timeout with no factors accepted,
+        and halt the package as failed_infrastructure_or_budget. No retry,
+        resume, alternate solver, or partial-result substitution is allowed.
+    completion_rule: >-
+      Accept a record only when the solver returns a finite map of integer prime
+      factors to positive integer exponents, every exponent is positive, and the
+      independently recomputed product equals N exactly. A partial factorization
+      is incomplete, is retained in raw output, and makes CTRL-FACT fail.
+    raw_record_schema:
+      fields:
+        - arm: "treatment | null"
+        - ordinal: nonnegative integer
+        - pair: "[i,j] for treatment; null for null"
+        - input_n: decimal integer string
+        - status: "complete | incomplete_timeout | incomplete_solver_error | verification_failed"
+        - factors: "ascending [{prime: decimal-string, exponent: positive-integer}]"
+        - solver_wall_seconds: nonnegative decimal string
+        - product_decimal: decimal integer string or null
+        - verification: "{prime_checks: boolean, product_matches: boolean, verifier: deterministic_mr_2_3_5_7_11_13_17}"
+        - error_class: string or null
+      canonicalization: >-
+        Serialize JSON objects with sorted keys, UTF-8, no insignificant
+        whitespace, factors in strictly increasing numeric prime order, and one
+        newline per record.
+    independent_product_verifier: >-
+      The verifier must not call factorint or reuse its returned completeness
+      flag. Parse the recorded factors; test each claimed prime with deterministic
+      Miller-Rabin bases [2,3,5,7,11,13,17], valid here because N<=p^2<2^40;
+      multiply prime^exponent using arbitrary-precision integers; and require
+      equality to input_n. Any verifier error or mismatch is
+      invalid_measurement.
+
+  rss_preflight_design:
+    design_status: declared_only_not_implemented_or_observed
+    cap_bytes: 4294967296
+    source: >-
+      Linux /proc/self/status field VmRSS, parsed as its decimal KiB value
+      multiplied by 1024, from the sole factorization worker process. Record
+      VmHWM from the same file at package termination as a diagnostic only.
+    probes:
+      baseline_after_setup_before_first_record: 0
+      record_ordinals: [6541, 13082, 26164]
+      completion_fractions: ["ceil(0.05*130816)", "ceil(0.10*130816)", "ceil(0.20*130816)"]
+    forecast_and_margin: >-
+      At probe t in {6541,13082,26164}, with baseline r0 and observed VmRSS r_t,
+      compute F_t=r0+(r_t-r0)*130816/t. The numerical uncertainty margin is
+      M=0.05*4294967296=214748364.8 bytes. A probe passes only if
+      r_t<=0.75*cap=3221225472 bytes and F_t+M<=0.80*cap=3435973836.8 bytes.
+    failure_disposition: >-
+      On absent/unparseable source, missed probe, current-RSS failure, or
+      forecast failure, halt at that record boundary before further work and
+      record failed_infrastructure_or_budget with the source value and forecast.
+      It is not a mathematical, smoothness, or ECDLP result.
+
+  metrics:
+    primary:
+      - Two-sample KS distance between treatment and measured-null z values, with z=ln(max(1,LPF(N)))/ln(p^2).
+      - Absolute treatment-minus-null fraction with LPF(N)>=sqrt(p^2).
+    secondary:
+      - Complete-factorization count and independent verification count per arm.
+      - Pair count, factor-base digest, null digest, p/a/b, and RSS probe records.
+  replication:
+    planned_runs: 1
+    interpretation: >-
+      One future run is a design-validation attempt only. It cannot by itself
+      support, reject, or validate an ECDLP attack or HEUR-DS-1 beyond the
+      explicitly scoped toy instrument observation.
+  budget:
+    maximum_runs: 1
+    maximum_wall_seconds: 5400
+    maximum_cpu_seconds: 21600
+    maximum_peak_rss_bytes: 4294967296
+    maximum_total_disk_bytes: 17179869184
+    maximum_workers: 1
+    no_network: true
+  stopping_rules:
+    - Do not execute unless this new contract is separately approved, frozen, archived, and user-authorized.
+    - Stop before treatment if the complete null arm and its digest are absent.
+    - Stop on any construction, factorization-verification, RSS-probe, or budget failure.
+  invalidation_rules:
+    - Any execution while frozen is false, execution_authorized is false, or evidence_eligible is false.
+    - Any missing declared construction record, raw record, or independent factor-product verification.
+    - Any cross-domain predecessor comparison without a separately registered comparator.
+  success_criterion: >-
+    This draft has no current success outcome because it is not authorized for
+    execution. If a later, separately approved and frozen successor is
+    executed, its only positive disposition is a complete toy-scale instrument
+    readout in both declared cells with the null-before-treatment commitment,
+    exact pair count, complete independently verified factorizations, and all
+    declared RSS probes passing. That disposition establishes no ECDLP attack,
+    cost, exponent, cryptographic-scale, or deployed-scheme claim.
+  outcomes:
+    no_execution_authorization: >-
+      This is the only current disposition: review_required draft; no run,
+      evidence, or mathematical inference.
+    future_complete_toy_instrument_readout: >-
+      Only after separate approval, freezing, authorization, and valid execution;
+      scoped toy-only and never an ECDLP attack claim.
+    infrastructure_or_integrity_failure: >-
+      Inconclusive infrastructure signal, never evidence against H-SMTH-001 or
+      any ECDLP proposition.
+  required_artifacts_if_later_authorized:
+    - Frozen approved specification and freeze receipt binding its SHA-256.
+    - Construction transcript for each bit size and factor-base digest.
+    - Null-before-treatment commitment, raw records matching the declared schema, and verifier report.
+    - RSS probe log, manifest, environment, command, stdout, stderr, and execution report.
+    - Snapshot archive followed by independent validation/review.
+  approval_requirements:
+    - Independent review confirms that each of GAP-1 through GAP-5 is specified, reproducible, and internally consistent.
+    - Coordinator separately approves and freezes a future contract without editing this draft.
+    - User separately authorizes execution after receiving the approved frozen package.
+  approval_status: >-
+    Pending review and user authorization to review/freeze only. No approved_by
+    field is present because this draft is not approved.

@@ -1,0 +1,91 @@
+idea:
+  id: IDEA-20260731-010
+  question_id: RQ-ECDLP-002
+  title: Shared-factor-base multi-target amortization — when T ECDLP instances on one curve clear rho
+    after one relation matrix
+  class: composition
+  claim: 'On a fixed prime-field curve with prime-order subgroup order N, collecting one factor-base relation
+    matrix of size B and solving it once, then descending T independent targets, has charged cost C =
+    C_rel(B,m) + C_LA(B) + T * C_desc(B,m). Against T independent rho runs costing T*0.886 sqrt(N), the
+    break-even target count is T* >= (C_rel+C_LA)/(0.886 sqrt(N) - C_desc) when C_desc < 0.886 sqrt(N).
+    The claim: under HEUR-MT-1 (descent cost comparable to single-relation decomposition), measured T*
+    on toy curves with admissible (beta,m) from IDEA-20260727-003 is finite and grows at most like N^{1/2
+    - beta}, and for m=5, beta=1/5 the measured amortized per-target exponent falls below 1/2 for T >=
+    N^{0.1} on at least one bit size. Falsified if amortized per-target cost stays >= matched single-target
+    rho for all T up to the budgeted maximum (T_max = 256) at all tested sizes.'
+  mechanism: 'Index calculus naturally amortizes linear algebra and relation collection across many logs
+    in the same group — the classical multi-target advantage. Prime-field ECDLP practice often quotes
+    single-target cost and under-credits amortization, or over-credits it without charging descent. This
+    composition forces full-path accounting: one matrix, T descents, matched against T rho. It is the
+    multi-target dual of the free-oracle floor and is distinct from IDEA-20260727-002 (yield-charged single-target
+    descent).'
+  novelty_status: unverified
+  novelty_screen:
+    screened_on: '2026-07-31'
+    corpus_paths_grepped:
+    - ledger/proposals
+    - knowledge/INDEX.md
+    grep_results:
+    - KN-LIT-013 preprocessing DLP is related but concerns non-uniform advice, not same-curve multi-target
+      IC amortization.
+    - No IDEA-20260727-* titled shared-factor-base multi-target amortization.
+    literature_verified: []
+    conclusion: Known classical amortization, newly installed as a falsifiable charged ledger experiment;
+      novelty_status unverified / adaptation.
+  assumptions:
+  - All T targets lie in the same prime-order subgroup on the same curve.
+  - Relation matrix reaches rank B-1 before descent credits are counted.
+  predictions:
+  - metric: amortized_per_target_ops
+    direction: lower
+    minimum_effect: For m=5,beta=1/5, amortized cost/target < 0.886 sqrt(N) at some T<=256 on >=1 bit
+      size
+  minimal_test:
+    design: At 16–24 bits, run an m=5, B=ceil(N^{1/5}) relation campaign to rank B-1 (or stop and label
+      incomplete). Solve once. Descend T in {1,4,16,64,256} fresh targets. Plot amortized cost/target
+      vs T against matched T-independent rho. Also run m=3 inadmissible control to show amortization cannot
+      rescue a free-oracle-inadmissible parameterization.
+    controls:
+    - Matched multi-target rho (T independent runs) and BSGS.
+    - Rank control before descent credit.
+    - Inadmissible m=3 control must NOT beat multi-target rho via amortization alone.
+    - Certificates for every claimed log.
+    required_metrics:
+    - C_rel, C_LA, C_desc(T), amortized curve
+    - break-even T*
+    - certificate pass rate
+  falsification_conditions:
+  - 'Amortized cost/target >= single-target rho for all T<=256 at all sizes with completed matrices: multi-target
+    IC advantage absent in scope.'
+  - 'm=3 control beats multi-target rho: accounting bug or free-oracle violation; void.'
+  confounders:
+  - Incomplete matrices under-count C_rel if campaign stops early.
+  - Target reuse or factor-base leakage across descents must be forbidden.
+  interpretation_limits:
+  - Multi-target advantage is real-world relevant for batch attacks but is not a single-target exponent
+    break.
+  - Toy T_max=256 may not reach asymptotic break-even; report missing rather than extrapolate.
+  heuristic_assumptions:
+  - id: HEUR-MT-1
+    statement: After a full-rank factor-base log matrix is known, the cost to descend one additional uniform
+      target is within a small constant factor of the cost of one successful relation decomposition at
+      the same (B,m), and successes are nearly independent across targets.
+    rigorous_support: Standard IC descent accounting; independence is heuristic.
+    validation_plan: Measure C_desc distribution across T targets; compare mean to per-relation decomposition
+      cost; report dependence (correlation) across targets.
+  target_complexity:
+    time_exponent: single-target still ~ max((1+alpha)/m, omega_LA/m); amortized per-target can approach
+      C_desc ~ N^{(1+alpha)/m} for large T
+    memory_exponent: beta for the matrix / factor-base logs
+    best_known: T independent rho runs at T N^{1/2}; multi-target rho variants exist but do not use IC
+      matrices
+    hidden_overhead: Relation collection still paid once; if C_rel >> T N^{1/2} amortization never wins
+    tradeoff_note: Larger B can reduce C_desc at the cost of C_LA; classical IC tradeoff surface
+  dominated_by: For single-target (T=1), dominated by Pollard rho on prime fields given current IC floors;
+    for large T, not dominated a priori — that is the measurement
+  sota_delta: Potential amortized per-target exponent below 1/2 for large T conditional on admissible
+    m>=5 and HEUR-MT-1; not a single-target SOTA claim
+  estimated_cost:
+    implementation: high
+    compute: high
+  recommended_priority: medium

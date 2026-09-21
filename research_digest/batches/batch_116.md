@@ -1,0 +1,60 @@
+# Batch 116 digest
+
+## Overview
+- Two coherent venue blocks: 929300xx ≈ CHES 2015 (hardware/side-channel focus) and 945201xx ≈ ASIACRYPT 2015 (theory/cryptanalysis focus).
+- Dominant themes: side-channel attacks and countermeasures (DPA, EM emanations, masking, higher-order attacks, leakage assessment), plus FPGA/hardware acceleration of homomorphic encryption (YASHE/LTV/ring-LWE).
+- Notable papers: Genkin et al.'s cheap EM key-extraction from PCs ("pita bread" attack), Becker's real-world cloning of commercial XOR Arbiter PUFs, and the Tower Number Field Sieve (Barbulescu–Gaudry–Kleinjung), a landmark DL result affecting pairing security.
+- ECDLP-relevant theory appears in the second half: multiple-DLP with auxiliary inputs, NFS-DL individual logarithms, TNFS, and pairing-based structure-preserving signatures.
+- No anomalies: all 50 extracts are genuine research-paper first pages; no duplicates detected.
+
+## Papers
+- **92930042.pdf** — Blind Source Separation from Single Measurements using Singular Spectrum Analysis (Merino Del Pozo, Standaert). Applies SSA denoising to side-channel traces, improving success rates on unprotected, masked, and hardware implementations.
+- **92930061.pdf** — Highly Efficient GF(2^8) Inversion Circuit Based on Redundant GF Arithmetic (Ueno et al.). Compact AES S-box inversion circuit using redundant tower-field representations, evaluated in 65nm CMOS.
+- **92930100.pdf** — Lightweight Coprocessor for Koblitz Curves: 283-bit ECC (Sinha Roy, Järvinen, Verbauwhede). 4,323-gate Koblitz-curve coprocessor with scalar conversion and side-channel countermeasures for 16-bit microcontrollers.
+- **92930121.pdf** — Single Base Modular Multiplication for Efficient Hardware RNS Implementations of ECC (Bigou, Tisserand). New RNS modular multiplication with RNS-friendly Mersenne-like primes, halving moduli and FPGA area.
+- **92930139.pdf** — Accelerating Homomorphic Evaluation on Reconfigurable Hardware (Pöppelmann et al.). FPGA accelerator for RLWE-based YASHE using NTT multiplier and double-buffered memory.
+- **92930161.pdf** — Modular Hardware Architecture for Somewhat Homomorphic Function Evaluation (Sinha Roy et al.). First FPGA architecture evaluating functions on YASHE ciphertexts, demonstrated with encrypted SIMON-64/128.
+- **92930182.pdf** — Accelerating LTV Based Homomorphic Encryption in Reconfigurable Hardware (Doröz et al.). PCIe-connected FPGA NTT multiplier for LTV SWHE, >100× faster than software for large polynomial products.
+- **92930202.pdf** — Stealing Keys from PCs using a Radio (Genkin, Pachmanov, Pipman, Tromer). Cheap low-bandwidth EM attacks extracting RSA/ElGamal keys from GnuPG on laptops via chosen ciphertexts and windowed exponentiation leakage.
+- **92930222.pdf** — Exclusive Exponent Blinding May Not Suffice to Prevent Timing Attacks on RSA (Schindler). Extends timing attacks to RSA-CRT with Montgomery multiplication despite exponent blinding, confirmed by simulations.
+- **92930241.pdf** — Who Watches the Watchmen? Performance Monitors for Compromising RSA Keys (Bhattacharya, Mukhopadhyay). Recovers 1024-bit RSA key bits via branch-misprediction data from user-accessible Intel hardware performance counters.
+- **92930260.pdf** — Improved Cryptanalysis of the DECT Standard Cipher (Coisel, Sanchez). Known-plaintext attack on the 64-bit DECT stream cipher, 4× less data than the NTW attack, validated on real intercepted traffic.
+- **92930279.pdf** — Practical Key Recovery for Discrete-Log Authentication Schemes from Random Nonce Bits (Bauer, Vergnaud). Statistical key recovery for Schnorr/GPS when nonce bits are leaked exactly or with bit-flip noise.
+- **92930299.pdf** — The Simeck Family of Lightweight Block Ciphers (Yang et al.). New lightweight cipher family combining Simon/Speck design elements, smaller area than Simon, with standard cryptanalytic evaluation.
+- **92930321.pdf** — TriviA: A Fast and Secure Authenticated Encryption Scheme (Chakraborti et al.). Trivium-based AE scheme with EHC-style pairwise-independent hash, 91.2 Gbps at 24.4 KGE, provable 128-bit privacy.
+- **92930344.pdf** — A Physical Approach for Stochastic Modeling of TERO-based TRNG (Haddad et al.). Physically derived stochastic entropy model for transition-effect ring oscillator TRNGs, validated on 28nm ASIC and AIS 31 tests.
+- **92930360.pdf** — Predictive Models for Min-Entropy Estimation (Kelsey, McKay, Sönmez Turan). NIST work on predictor-based entropy estimators, benchmarked against SP 800-90B draft estimators.
+- **92930380.pdf** — Improved Side-Channel Analysis of Finite-Field Multiplication (Belaïd et al.). MSB-based attack on GF(2^128) multiplication (AES-GCM) tolerating much lower SNR, also defeating fresh re-keying.
+- **92930400.pdf** — Evaluation and Improvement of Generic-Emulating DPA Attacks (Wang et al.). Identifies weaknesses of SLR-based generic DPA and proposes lasso/ridge-regression distinguishers.
+- **92930417.pdf** — Transient-Steady Effect Attack on Block Ciphers (Ren, Wang, Wu). Clock-glitch fault attack exploiting transient combinational values; one faulty encryption suffices per key byte on unmasked AES S-boxes.
+- **92930436.pdf** — Assessment of Hiding the Higher-Order Leakages in Hardware (Moradi, Wild). Studies power-equalization hardening of first-order threshold implementations against higher-order attacks, weighing overhead vs. gain.
+- **92930458.pdf** — Multi-Variate High-Order Attacks of Shuffled Tables Recomputation (Bruneau et al.). Shows attacks of order >d can beat order-d attacks on d-share table recomputation within a noise-variance window.
+- **92930478.pdf** — Leakage Assessment Methodology (Schneider, Moradi). Rigorous roadmap for Welch's t-test leakage evaluation, including higher-order and multivariate extensions with case studies.
+- **92930497.pdf** — Secure Key Generation from Biased PUFs (Maes et al.). Helper-data constructions preventing entropy leakage for arbitrarily biased PUFs, evaluated on reliability, efficiency, and reusability.
+- **92930517.pdf** — The Gap Between Promise and Reality: On the Insecurity of XOR Arbiter PUFs (Becker). First real-world cloning of a commercial PUF RFID tag via reliability-based machine learning with linear CRP growth.
+- **92930538.pdf** — End-to-end Design of a PUF-based Privacy Preserving Authentication Protocol (Aysu et al.). Full prototype of provably secure PUF-based mutual authentication on SASEBO-GII with SRAM PUF and fuzzy extractor.
+- **92930558.pdf** — Improved Test Pattern Generation for Hardware Trojan Detection (Saha et al.). Genetic-algorithm ATPG enhanced with Boolean satisfiability to generate compact trigger/payload-covering test vectors.
+- **92930578.pdf** — DPA, Bitslicing and Masking at 1 GHz (Balasch et al.). Breaks constant-time bitsliced AES on 1GHz ARM Cortex-A8 via EM DPA, then hardens it with gate-level masking.
+- **92930599.pdf** — SoC it to EM: Electromagnetic Side-Channel Attacks on a Complex SoC (Longo et al.). EM key-recovery attacks on AM335x SoC across ARM core, crypto coprocessor, and NEON engine with modest resources.
+- **92930620.pdf** — Finding the AES Bits in the Haystack: Reverse Engineering and SCA Using Voltage Contrast (Kison, Frinken, Paar). Uses SEM capacitive-coupled voltage contrast to locate AES wires, reverse engineer netlists, and recover the full key.
+- **92930640.pdf** — Efficient Ring-LWE Encryption on 8-bit AVR Processors (Liu et al.). Optimized AVR ring-LWE implementation with new NTT speedups and reduced RAM footprint.
+- **92930660.pdf** — A Masked Ring-LWE Implementation (Reparaz et al.). First-order side-channel-resistant ring-LWE decryption computed entirely in the masked domain, ~2.6× cycle overhead on FPGA.
+- **94520101.pdf** — On the Optimality of Non-Linear Computations of Length-Preserving Encryption Schemes (Nandi). Proves tight lower bounds: 2ℓ (or 2ℓ−1) block-function calls needed for SPRP (or PRP) linear encryption modes.
+- **94520108.pdf** — Efficient Fully Structure-Preserving Signatures for Large Messages (Groth). Pairing-based structure-preserving signatures for multi-group-element messages with compact keys and signatures.
+- **94520110.pdf** — Optimized Interpolation Attacks on LowMC (Dinur, Liu, Meier, Wang). Breaks most claimed 128-bit LowMC instances ~1000× faster than exhaustive search via improved algebraic interpolation attacks.
+- **94520115.pdf** — Property Preserving Symmetric Encryption Revisited (Chatterjee, Das). Re-analyzes Pandey–Rouselakis security notions, shows tight equivalence for equality testing and that separations are property-specific.
+- **94520116.pdf** — QA-NIZK Arguments in Asymmetric Groups (González, Hevia, Ràfols). New assumption and constant-size quasi-adaptive NIZKs recovering Groth–Sahai aggregation results in asymmetric bilinear groups.
+- **94520130.pdf** — Multiple Discrete Logarithm Problems with Auxiliary Inputs (Kim). Algorithms solving L related DLPs given auxiliary inputs g^{α_i^d}, with Õ(√(L·p/d))-type complexity.
+- **94520132.pdf** — An Asymptotically Optimal Method for Converting Bit Encryption to Multi-Bit Encryption (Matsuda, Hanaoka). CCA-secure KEM from 1-bit CCA PKE with asymptotically optimal public-key and ciphertext sizes.
+- **94520133.pdf** — Implementing Candidate Graded Encoding Schemes from Ideal Lattices (Albrecht et al.). First implementation of GGH-like approximate multilinear maps, computing a κ=52 multilinear jigsaw puzzle.
+- **94520141.pdf** — Computing Individual Discrete Logarithms Faster in GF(p^n) with NFS-DL (Guillevic). Optimizes the descent/booting step of NFS individual logarithms in extension fields, relevant to Logjam-style attacks.
+- **94520144.pdf** — Dual-System Simulation-Soundness with Applications to UC-PAKE (Jutla, Roy). Introduces dual-system simulation-sound NIZKs with partial-simulation worlds, yielding simple UC-PAKE constructions.
+- **94520145.pdf** — Riding on Asymmetry: Efficient ABE for Branching Programs (Gorbunov, Vinayagamurthy). ABE for branching programs with |P|+poly(λ) secret keys from standard LWE with mild approximation factors.
+- **94520150.pdf** — Adaptively Secure Puncturable PRFs in the Standard Model (Hohenberger, Koppula, Waters). Standard-model adaptively secure puncturable PRFs via indistinguishability obfuscation and composite-order DDH groups.
+- **94520154.pdf** — The Tower Number Field Sieve (Barbulescu, Gaudry, Kleinjung). New TNFS variant improving special-NFS discrete log in pairing-relevant extension fields, weakening some pairing parameter choices.
+- **94520161.pdf** — A Provably Secure Group Signature Scheme from Code-Based Assumptions (Ezerman et al.). First code-based group signature with CPA-anonymity and traceability, competitive with lattice-based schemes.
+- **94520165.pdf** — ASCA, SASCA and DPA with Enumeration: Which One Beats the Other and When? (Grosso, Standaert). Compares SASCA, ASCA, and enumeration-enhanced DPA on simulated and real AES targets, deriving evaluation-lab guidance.
+- **94520173.pdf** — A Synthetic Indifferentiability Analysis of Interleaved Double-Key Even-Mansour Ciphers (Guo, Lin). Proves 15-round indifferentiability and 7-round sequential-indifferentiability for double-key iterated Even–Mansour.
+- **94520175.pdf** — Type 2 Structure-Preserving Signature Schemes Revisited (Chatterjee, Menezes). Shows Abe et al.'s Type-2 SPS schemes are beatable by Type-3 analogues and that Type 2 offers no real advantage.
+- **94520180.pdf** — Analysis of SHA-512/224 and SHA-512/256 (Dobraunig, Eichlseder, Mendel). First third-party cryptanalysis: practical free-start collisions for 44/43-step reduced variants and improved 27-step collisions.
+- **94520186.pdf** — Refinements of the k-tree Algorithm for the Generalized Birthday Problem (Nikolić, Sasaki). Improves Wagner's k-tree for non-power-of-two k and gives new time-memory tradeoffs, applied to CAESAR candidates.

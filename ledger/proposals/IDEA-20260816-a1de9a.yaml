@@ -1,0 +1,272 @@
+idea:
+  id: IDEA-20260816-a1de9a
+  question_id: RQ-AEADC-8db132
+  added: '2026-08-16'
+  title: 'One AEAD invocation is not a stream: build an auditor that takes a chunk-framing scheme
+    and decides by exhaustion whether truncation, reordering, duplication and cross-stream splicing
+    of sealed chunks are detectable, returning a witness sequence for every undetectable operation
+    rather than a security opinion'
+  class: tooling
+  claim: '(A) Long messages are not sealed in one AEAD call; they are cut into chunks, each sealed
+    separately, and the properties that survive that cut are properties of the FRAMING scheme -- how
+    chunk index, stream identifier, final-chunk marker and total length are bound into each chunk''s
+    associated data -- and not of the AEAD invocation, which behaves identically under every framing.
+    (B) The proposal is a tool with a narrow, decidable contract: given a framing scheme expressed
+    in a declared notation, and a bound on chunk count, it enumerates all sequences of sealed chunks
+    reachable by four declared adversarial rearrangements -- truncate the stream, reorder two chunks,
+    duplicate a chunk, splice a chunk from a second stream sealed under the same key -- and returns,
+    per operation, either a witness sequence that the receiver accepts, or an exhaustive proof of
+    absence within the bound. The output is a four-cell verdict per framing scheme with witnesses,
+    not an opinion. (C) The tool is primitive-agnostic by construction: the sealed chunks are produced
+    by an AEAD interface filled with a seeded ideal object, and the audit never inspects the AEAD''s
+    internals, which is what makes the result a framing property. One column is rerun with a real
+    AEAD to confirm the verdicts do not move. (D) NOT CLAIMED: no attack on any chunked-encryption
+    format, since the framing schemes audited are declared models and are not identified with any
+    named protocol or library; no security consequence, since an accepted rearranged sequence is a
+    statement about a receiver predicate and becomes a security statement only under conditions this
+    record does not establish; no claim that the four operations exhaust adversarial rearrangements,
+    since they are declared and finite; and nothing about published stream-encryption designs. A tool
+    that returns all-detected for every well-formed framing is a complete result: it is an exhaustive
+    verification within the bound, and it delivers a reusable auditor that later framing schemes can
+    be run through in minutes.'
+  mechanism: 'STAGE 1, zero compute: fix a framing notation in which a scheme is a function from (chunk
+    index, stream identifier, is-final flag, total chunk count) to the associated-data string bound
+    into that chunk, plus a receiver predicate specifying what the receiver checks and in what order.
+    Both halves are needed: a framing that binds the index is worthless if the receiver never checks
+    it, and separating the two is the point of the notation. STAGE 2, zero compute: declare six framing
+    schemes spanning the obvious design space -- no binding, index only, index plus final marker,
+    index plus stream identifier, index plus stream identifier plus total count, and a chained scheme
+    where each chunk binds the previous chunk''s tag -- and pre-register the expected four-cell verdict
+    for each. STAGE 3: implement the auditor: seal a reference stream and a second stream under one
+    key, then enumerate all sequences reachable by each of the four operations within the chunk bound,
+    run the receiver predicate on each, and record every accepted sequence. STAGE 4: emit the verdict
+    table with minimal witnesses. STAGE 5: run the positive control -- the no-binding framing, which
+    must yield witnesses for all four operations -- and the negative control -- the chained framing,
+    which is expected to detect all four. STAGE 6: rerun one framing with a real AEAD and diff the
+    verdicts.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Grepped ledger/proposals/ and knowledge/ for: chunk, streaming AEAD, record boundary,
+      reorder. Grepped ledger/proposals/, ledger/hypotheses/ and knowledge/ for: aead, associated
+      data, nonce-misuse, key commitment, generic composition. Read RQ-AEADC-8db132 and RQ-POLYMAC-7c89e4
+      in full. Read the title, class and claim head of all eight proposals under RQ-AEADC-8db132,
+      and read IDEA-20260809-4719b8''s claim head closely since it is the other tooling-class record
+      in this bucket. Read docs/inventor-protocol.md sections 1-5 and 8.'
+    results: 'The chunk and reorder grep matched only proposals outside this bucket, by filename:
+      IDEA-20260815-143d6e, IDEA-20260805-2dc8de, IDEA-20260805-fbe36a, IDEA-20260808-917e63, IDEA-20260807-dadcd2,
+      IDEA-20260808-25fca0, IDEA-20260805-a9a95d and IDEA-20260805-554b9d. None is filed under RQ-AEADC-8db132.
+      Within this bucket IDEA-20260809-4719b8 is the other tooling record: a commitment test harness
+      that returns a certificate or a derivation for an AEAD implementation. Its input is an AEAD
+      and its question is commitment; this tool''s input is a framing scheme plus a receiver predicate
+      and its question is stream-level rearrangement detectability, and the two share no code path
+      and no output type. RQ-AEADC-8db132''s four targets are certificates, the k-way curve, the repair
+      audit and the interface question; none is a stream-framing audit.'
+    verdict: 'UNVERIFIED. Chunked or streaming authenticated encryption and its rearrangement failures
+      are certainly treated in design practice outside this repository, and nothing is asserted here
+      about that treatment; the six framing schemes are declared internal models and no named format
+      is referenced. What is claimed new is internal: the corpus contains no stream-framing object
+      at all, and its only AEAD tooling record decides commitment on a primitive rather than rearrangement
+      on a framing. Assembled from known parts: exhaustive enumeration within a declared bound, the
+      observation-collision audit of inventor-protocol section 8, the receiver-predicate separation
+      stated here, and the primitive-agnostic construction this bucket''s directive requires.'
+  object_first_candidate:
+    tracked_object: 'The sealed chunk sequence together with its framing metadata: an ordered list
+      of (associated-data string, ciphertext, tag) triples, carried with the receiver''s accumulated
+      state as it walks the list, so that acceptance is a function of the sequence and the predicate
+      alone.'
+    lossiness: 'Lossy. The object discards every plaintext and every AEAD internal value, keeping
+      only the framing strings, the opaque sealed blobs as identifiers, and the receiver''s state
+      trajectory. Dimension collapses from the full message space to a list of metadata plus opaque
+      handles. The discard is compatible with the operation being studied because the four rearrangement
+      operations act on chunk POSITIONS and stream membership, never on plaintext content, and the
+      receiver predicate consults only framing and tag validity -- so the retained part determines
+      acceptance deterministically. Being explicit as section 2 requires: for the no-binding framing
+      the associated-data string is empty and the object degenerates to a list of opaque handles,
+      losing nothing further; that framing is therefore a change of coordinates rather than a projection,
+      and it is included as the positive control precisely because it is degenerate.'
+    propagation: 'One step is applying one of the four rearrangement operations to the sequence. Truncation
+      deletes a suffix, reordering transposes two positions, duplication repeats a position, splicing
+      substitutes a chunk drawn from the second stream. Each acts on the tracked object by permuting
+      or editing the metadata list while leaving each sealed blob individually valid, which is the
+      structural reason a per-chunk AEAD cannot see any of them: every chunk still verifies. Detection
+      therefore lives entirely in the framing and the receiver predicate, and the enumeration walks
+      that propagation directly.'
+    survival_score: Detectability survives across operations up to a definite point per framing, and
+      the survival score is reported as the number of the four operations a framing detects, together
+      with the chunk count at which the first undetected witness appears. For the no-binding framing
+      this is zero operations detected at chunk count 2; for the chained framing the expectation is
+      four detected with no witness anywhere in the bound, reported as an exhaustive absence within
+      chunk count 6.
+  null_object_control: 'Two arms, both driven by the identical auditor in one invocation. POSITIVE
+    CONTROL: the no-binding framing, which must yield an accepted witness for all four operations
+    at chunk count 2; if the auditor finds none, it cannot find witnesses at all and every exhaustive
+    absence it reports elsewhere is worthless. NULL ARM, the shape-matched random object: a framing
+    whose associated-data string is a fresh random value per chunk unrelated to index or stream, paired
+    with a receiver that checks tag validity only. This has the same interface and the same data volume
+    as a real framing but binds nothing, and it must behave exactly like the no-binding control --
+    all four operations accepted. If the random-framing null detects any operation, the receiver predicate
+    is consulting something outside the declared framing and the tool is not auditing what it claims.'
+  discriminated_from:
+  - IDEA-20260809-4719b8 builds a commitment test harness that takes an AEAD implementation and returns
+    a certificate or a derivation. This takes a framing scheme and a receiver predicate and returns
+    a four-cell rearrangement verdict; the inputs, the question and the output type all differ, and
+    the commitment harness would return the same answer for every framing in this record's table.
+  - The generic-composition matrix entry in this batch decides six predicates over twelve single-invocation
+    compositions. This decides four predicates over six multi-invocation framing schemes; the object
+    there is one seal, here it is a sequence of seals, and the failure routes -- reorder, duplicate,
+    splice -- do not exist inside a single invocation.
+  - The associated-data serialization audit in this batch enumerates injectivity of a vector encoding.
+    That asks whether one associated-data value is ambiguous; this asks whether a sequence of correctly-encoded
+    values in the wrong order is accepted, which is a receiver-predicate question and not an encoding
+    question.
+  - 'RQ-POLYMAC-7c89e4 owns polynomial-MAC forgery bounds. No forgery occurs anywhere in this record:
+    every chunk the auditor presents is a genuine, correctly sealed chunk, and detection turns entirely
+    on framing.'
+  - The design rule that a chunked format must bind index, stream and finality. This record does not
+    restate that rule; it decides, per framing, which of four operations that framing plus its receiver
+    actually detects, and the well-formed framings are expected to detect everything, which is the
+    useful verification.
+  assumptions:
+  - The four declared operations -- truncate, reorder, duplicate, splice -- are the enumeration under
+    test; they are declared and finite, and no claim is made that they exhaust adversarial rearrangements.
+  - The framing notation can express the six declared schemes without loss, so the audit tests a scheme
+    rather than a translation of it.
+  - The receiver predicate is a faithful separate object from the framing, and both are specified
+    in stage 1; a framing that binds a field the receiver never checks must be expressible, since
+    that combination is the interesting one.
+  - A chunk bound of six is large enough for a rearrangement witness to appear if one exists; the
+    positive control tests this by producing witnesses at chunk count 2.
+  - The AEAD is treated as an opaque sealer, so verdicts are framing properties, checked by the real-AEAD
+    column rather than assumed.
+  predictions:
+  - metric: number of the four operations accepted under the no-binding positive control
+    direction: different
+    minimum_effect: 4
+  - metric: number of the four operations accepted under the chained framing within the chunk bound
+    direction: different
+    minimum_effect: 0
+  - metric: number of operations accepted under the index-only framing
+    direction: higher
+    minimum_effect: 1
+  - metric: difference between the random-framing null verdicts and the no-binding control verdicts
+    direction: different
+    minimum_effect: 0
+  - metric: cells whose verdict moves between the ideal-AEAD and real-AEAD columns
+    direction: different
+    minimum_effect: 0
+  minimal_test:
+    design: One process, one auditor, six framings plus two control framings, minutes of compute.
+      Implement the framing notation as data and the receiver predicate as a small interpreter, so
+      adding a framing is a data change. Seal a reference stream of up to six chunks and a second
+      stream of the same length under one key with a seeded ideal AEAD object. For each framing, enumerate
+      every sequence reachable by each of the four operations within the bound -- all truncation points,
+      all transpositions, all duplications, all single-chunk splices from the second stream -- run
+      the receiver predicate on each, and record every accepted sequence with its minimal witness.
+      Emit the eight-by-four verdict table. Run the no-binding positive control and the random-framing
+      null through the identical auditor, then rerun one framing with a real AEAD and diff. The discriminating
+      comparison is the per-framing verdict row against its pre-registered expectation, floored by
+      the positive control's required all-accepted row.
+    controls:
+    - No-binding positive control framing, which must accept all four operations.
+    - Random-framing null, which must reproduce the positive control's row exactly.
+    - Pre-registered expected verdict table, hashed before the auditor runs.
+    - Real-AEAD column diffed against the ideal-AEAD column for one framing.
+    - 'Honest-path validation: the unmodified sealed sequence must be accepted by every framing''s
+      receiver, checked before any rearrangement is enumerated.'
+    - 'Framing notation round trip: every declared framing is rendered to associated-data strings
+      and parsed back, confirming the notation is unambiguous.'
+    required_metrics:
+    - 'per-framing, per-operation verdict: accepted with witness, or exhaustive absence within the
+      bound'
+    - minimal witness sequence for each accepted cell, emitted as an explicit chunk ordering
+    - chunk count at which the first accepted witness appears per framing
+    - count of verdicts disagreeing with the pre-registered table
+    - positive-control and random-null verdict rows
+    - count of verdicts moving between AEAD columns
+  falsification_conditions:
+  - The no-binding positive control does not accept all four operations, meaning the auditor cannot
+    find witnesses and every exhaustive absence it reports is uninformative.
+  - The random-framing null detects any operation, meaning the receiver predicate consults state outside
+    the declared framing.
+  - Any framing rejects the unmodified honest sequence, voiding that row.
+  - A verdict disagrees with the pre-registered expectation, which falsifies a framing argument and
+    is the most informative outcome available.
+  - Verdicts move between the ideal-AEAD and real-AEAD columns, meaning the audit is reading the sealer
+    rather than the framing.
+  - Every framing returns identical verdicts, meaning the declared framing space does not separate
+    at the tested chunk bound and the bound must be reported as insufficient.
+  confounders:
+  - A receiver predicate that implicitly checks something the framing does not bind -- for instance
+    rejecting an out-of-order sequence because of an internal counter the notation does not model
+    -- makes a framing look stronger than it is; the random-framing null exists to catch exactly this.
+  - A chunk bound of six may be too small for a witness that requires longer streams, producing an
+    exhaustive absence that reflects the bound and not the framing.
+  - Splicing requires a second stream under the same key, and if the second stream is sealed with
+    different framing parameters the splice may be detected for the wrong reason.
+  - Framing notation ambiguity resolves silently in the interpreter, making the audit measure the
+    interpreter.
+  - Reusing one sealed reference stream across all framings would couple the rows; each framing seals
+    its own streams from a disjoint seed.
+  interpretation_limits:
+  - An accepted rearranged sequence is a statement about a declared receiver predicate, not a forgery
+    and not a security consequence; no consequence is asserted.
+  - All verdicts hold within the declared chunk bound and the four declared operations, and an exhaustive
+    absence is an absence within that bound only.
+  - The six framing schemes are declared models and are not identified with any named protocol, library
+    or format.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The auditor costs O(n^2) sequences per framing at
+      chunk bound n, from transpositions and splices, which is trivially enumerable at n = 6.
+    memory_exponent: No attack exponent is claimed. Memory is linear in the chunk bound plus the recorded
+      witnesses.
+    best_known: The incumbent is the design rule that a chunked format must bind chunk index, stream
+      identity and finality, which predicts most of the pre-registered table. This record does not
+      beat that rule; it decides it by exhaustion for six framings and delivers a reusable auditor,
+      and the interesting outcome is a cell where the decided verdict and the rule disagree.
+    hidden_overhead: 'The human cost is the receiver predicate: separating what a framing BINDS from
+      what a receiver CHECKS is the entire content of stage 1, and collapsing the two -- the natural
+      thing to do -- makes every well-formed framing pass trivially and the tool worthless. Lower-order
+      cost is the framing notation, which must be expressive enough for the chained scheme without
+      becoming a general programming language.'
+  dominated_by: n/a (no result claimed). No attack, so no time, memory or query frontier row. Checked
+    against the four targets of RQ-AEADC-8db132, all eight of its proposals, the four targets of RQ-POLYMAC-7c89e4,
+    and every other entry in this batch. The nearest are IDEA-20260809-4719b8, a commitment harness
+    with a different input and output type, and this batch's composition matrix, which is single-invocation;
+    neither dominates this and this dominates neither, since none of them produces a rearrangement
+    verdict.
+  sota_delta: no attack; conceptual/measurement contribution only. The quantitative deliverable is
+    a thirty-two-cell decided verdict table with minimal witness sequences and a reusable auditor
+    that decides any further framing scheme within the bound in minutes, where the corpus holds no
+    stream-framing object at all.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  honest_prior_of_survival: 'By part. That the auditor is built and decides all cells within the bound:
+    about 0.9, since the enumeration is small and the arithmetic exact. That the no-binding positive
+    control accepts all four operations: about 0.95. That the random-framing null reproduces the control
+    row: about 0.85, and a failure there would be a receiver-predicate leak, which is a genuine and
+    likely implementation trap. That at least one verdict disagrees with the pre-registered expectation:
+    about 0.4, and that is the outcome with the most value, most plausibly in the index-plus-final-marker
+    framing against truncation of a non-final prefix. That the six framings separate at all at chunk
+    bound six: about 0.8. That verdicts are identical across AEAD columns: about 0.95.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-AEADC-8db132
+  - RQ-POLYMAC-7c89e4
+  - IDEA-20260809-4719b8
+  - IDEA-20260809-47a08e
+  - IDEA-20260809-3a5c29
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - templates/research-records.md
+  - harness/runner.py
+  - harness/ctrl_valueshuffle.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-AEADC-ae634f

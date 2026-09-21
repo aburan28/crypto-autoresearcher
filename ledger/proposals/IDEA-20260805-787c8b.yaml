@@ -1,0 +1,560 @@
+idea:
+  id: IDEA-20260805-787c8b
+  question_id: RQ-ECDSA-87625f
+  added: '2026-08-05'
+  title: >-
+    The HNP success region is a WINDOW in signature count, not a threshold:
+    a pre-derived (m, l, log2 n) boundary map, a matched no-leakage null, and
+    a certified toy-to-medium recovery ladder that establishes the pipeline
+    recovers keys at all before any frontier is assembled
+  class: instrument_calibration_with_forced_boundary
+
+  claim: >-
+    For the standard Boneh-Venkatesan / Nguyen-Shparlinski lattice embedding of
+    ECDSA partial-nonce leakage, the set of signature counts m at which a
+    reduction algorithm of root-Hermite factor delta_0 can recover the key is
+    NOT an upward-closed half-line {m >= m*}. It is a BOUNDED WINDOW
+    [m_lo, m_hi], because raising m raises the lattice dimension (and hence the
+    reduction algorithm's approximation loss delta_0^D) faster than it raises
+    the normalized determinant once m exceeds roughly log2(n) / (l+1). The
+    window's two edges are computable in closed form BEFORE any run from
+    (l, log2 n, delta_0) alone, the window is EMPTY for whole (l, log2 n)
+    cells, and both facts are directly falsifiable by a cheap toy ladder. The
+    proposal's first deliverable is the thing GOAL-ECDSA-001.next_action asks
+    for and nothing in this program has yet done: a key recovery from partial
+    nonce leakage, verified by an independent certificate (the recovered scalar
+    must reproduce the public key), with peak memory, wall time and sample
+    count recorded. The window map is what turns that single recovery from an
+    anecdote into a calibrated instrument.
+
+  object_first_candidate:
+    tracked_object: >-
+      The GAP RATIO gamma = lambda_1^GH(L) / ||t||, where L is the HNP
+      embedding lattice of the m signatures, t is the target vector carrying
+      the nonce residuals and the secret, and lambda_1^GH is the Gaussian
+      heuristic prediction for a random lattice of the same determinant and
+      dimension. gamma is followed through the computation as a function of
+      (m, l, log2 n) only, and is compared against the reduction algorithm's
+      own approximation loss delta_0^D. The object is the RATIO, not the
+      lattice and not the short vector: the short vector is what the
+      established family tracks.
+    established_families_off_limits: >-
+      Off-limits as the PRIMARY lens for this proposal: (1) predicate-augmented
+      lattice reduction / sieving with a predicate (Albrecht-Heninger;
+      Xu-Dai-Wu-Lin), (2) Fourier / Bleichenbacher bias analysis, (3) nonce
+      reuse and repeated-nonce degeneracies, (4) implementation side-channel
+      acquisition, (5) any ECDLP attack whatsoever. The plain
+      lattice-with-LLL/BKZ family is NOT off-limits here and that is
+      deliberate and declared: this proposal does not claim a new attack in
+      that family, it CALIBRATES the family's own success boundary and builds
+      the certified baseline that the other two proposals in this batch
+      measure against. Under inventor-protocol section 8 audit 1 that is
+      exactly a baseline reproduction, and calling it a new attack would be
+      false.
+    newness_score: >-
+      The embedding is textbook and the "you need about log2(n)/l signatures"
+      rule of thumb is universally known. What is NOT standard, and what this
+      proposal supplies, is (a) the UPPER edge stated as a closed form and
+      pre-registered as a falsifiable prediction rather than mentioned as
+      folklore that "too many signatures raise the dimension", and (b) the
+      claim that whole (l, log2 n) cells have an EMPTY window under a stated
+      delta_0, which converts "1-bit leakage is hard for lattices" from an
+      empirical report into an arithmetic statement about delta_0 that a
+      defender can evaluate for their own parameters. Novelty against the
+      external literature is UNVERIFIED and is a stage of the experiment, not
+      an assertion here.
+    testability_score: >-
+      Very high and cheap. Both edges are integer arithmetic (zero compute).
+      The measured edges need a working lattice pipeline at dimensions between
+      11 and about 60, which measured probes on this machine put inside a
+      bounded budget (see mechanism, MEASURED ENVIRONMENT).
+    survival_score: >-
+      The gap ratio survives the whole computation by construction, since it is
+      defined from the basis before reduction. Its predictive content dies
+      exactly where delta_0 stops being a good model of the reduction
+      algorithm's realized output, and locating that death is half the value.
+
+  mechanism: >-
+    SETUP, DERIVED HERE. An ECDSA signature (r_i, s_i) on hash h_i with nonce
+    k_i and secret d over a group of prime order n satisfies
+    s_i = k_i^{-1}(h_i + r_i d) mod n, hence
+      k_i = A_i d + B_i mod n,   A_i = s_i^{-1} r_i,  B_i = s_i^{-1} h_i.
+    Assume the leakage model gives the top l bits of k_i, so after subtracting
+    the known part k_i lies in an interval of length n / 2^l. Center it:
+    u_i = k_i - n/2^{l+1} satisfies |u_i| <= n / 2^{l+1}, and
+      A_i d + Btilde_i = u_i mod n,   Btilde_i = B_i - round(n / 2^{l+1}).
+
+    THE LATTICE. Take the (m+2)-dimensional integer lattice L spanned by the
+    rows
+      n*2^{l+1} * e_i        for i = 1..m
+      (2^{l+1} A_1, ..., 2^{l+1} A_m, 1, 0)
+      (2^{l+1} Btilde_1, ..., 2^{l+1} Btilde_m, 0, n).
+    The integer combination d*(row m+1) + 1*(row m+2) minus the appropriate
+    multiples of the first m rows equals
+      t = (2^{l+1} u_1, ..., 2^{l+1} u_m, d, n).
+    So the secret is READ OFF coordinate m+1 of t. This is the certificate
+    hook: a candidate d is accepted only if d*G equals the public key Q,
+    recomputed by scalar multiplication independent of the solver.
+
+    THE TWO QUANTITIES. Dimension D = m+2. Determinant
+      det(L) = (n 2^{l+1})^m * 1 * n = n^{m+1} 2^{(l+1)m}.
+    Target norm: |2^{l+1} u_i| <= n with second moment n^2/3 for u_i uniform on
+    its interval, d uniform on [0,n) with second moment n^2/3, last coordinate
+    exactly n, so
+      E||t||^2 = n^2 (m+4)/3,   ||t|| ~ n sqrt((m+4)/3).
+    Gaussian heuristic for a random lattice of this determinant and dimension:
+      lambda_1^GH = sqrt(D / (2 pi e)) * det^{1/D}.
+    Therefore, writing N = log2 n,
+      log2 gamma = 0.5 log2( 3 D / (2 pi e (m+4)) ) + ((l+1) m - N) / D.
+    The first term tends to 0.5 log2(3 / (2 pi e)) = -1.2546 as m grows; the
+    second is the entire content.
+
+    EDGE 1 (INFORMATION EDGE), the known one. gamma > 1 requires
+    (l+1)m - N > 1.2546 (m+2) asymptotically, i.e.
+      m_lo^info ~ (N + 2.509) / (l - 0.2546).
+    Computed: N=64 gives m_lo^info = 8.6 / 17.8 / 24.2 / 38.1 / 89.0 at
+    l = 8 / 4 / 3 / 2 / 1; N=160 gives 21.0 / 43.4 / 59.2 / 93.0 / 217.5. The
+    exact integer thresholds from the full formula (no asymptotic in the first
+    term) are m_lo^info = 9 / 19 / 25 / 39 / 92 at N=64 and
+    22 / 44 / 60 / 94 / 220 at N=160. These are the numbers below which NO
+    reduction algorithm, however strong, can be expected to see the target as
+    the shortest vector, and they reproduce the textbook log2(n)/l rule.
+
+    EDGE 2 (THE PROPOSAL'S CONTENT). A reduction algorithm with root-Hermite
+    factor delta_0 returns a vector of norm about delta_0^D det^{1/D}, so it
+    isolates t only when gamma > delta_0^D, i.e.
+      0.5 log2(3D/(2 pi e (m+4))) + ((l+1)m - N)/D  >  D log2(delta_0).
+    Multiply by D = m+2: the right side is QUADRATIC in m while the left side
+    is linear. The feasible set is therefore an interval, not a half-line, and
+    it is EMPTY once the quadratic dominates. Computed (integer m, exact
+    formula, no fitting):
+      delta_0 = 1.02  (textbook LLL):
+        N=64,  l=4: window m in [23, 104]     N=64,  l=3: EMPTY
+        N=96,  l=4: window m in [41, 86]      N=96,  l=3: EMPTY
+        N=112, l=4: EMPTY                     any N, l<=2: EMPTY
+      delta_0 = 1.0219 (commonly reported empirical LLL):
+        N=64, l=4: [24, 92];  N=96, l=4: [46, 70];  N=112, l=4: EMPTY
+      delta_0 = 1.013 (BKZ-20 scale):
+        N=64, l=4: [21, 176]; N=64, l=3: [34, 110]; N=96, l=3: EMPTY;
+        N=112, l=4: [40, 157]
+      delta_0 = 1.005:
+        N=96, l=2: [101, 137] -- a window that exists but is only 37 wide.
+    Three structural consequences, all pre-run and all falsifiable:
+    (C1) MORE SIGNATURES CAN HURT. Above m_hi the attack fails again. Every
+         "we used m signatures" report is implicitly a point inside a window
+         whose upper edge nobody states.
+    (C2) A CELL CAN BE EMPTY AT EVERY m. That is a statement about delta_0, not
+         about the leakage: it says the family fails for a REDUCTION-STRENGTH
+         reason with a named number, which is precisely why the predicate/
+         sieving line (off-limits here as a lens, but the thing being explained)
+         exists. Empty at delta_0 = 1.02 and non-empty at delta_0 = 1.013 is a
+         quantitative statement of how much reduction strength buys.
+    (C3) WINDOW WIDTH SHRINKS TOWARD THE BOUNDARY. At N=96, l=4, delta_0=1.0219
+         the window is 25 wide; at N=64, l=4 it is 69 wide. A campaign that
+         samples m coarsely will miss a narrow window and report a false
+         negative. This is a concrete, cheap failure mode of the very
+         reproduction the goal's first batch is asked to perform.
+
+    WHAT IS RECALLED RATHER THAN DERIVED, LABELLED. (i) The Gaussian heuristic
+    constant sqrt(D/(2 pi e)) is standard and used here as a model, not a
+    theorem. (ii) The root-Hermite-factor model ||b_1|| ~ delta_0^D det^{1/D}
+    with delta_0 ~ 1.02 for LLL and ~1.013 for BKZ-20 is RECALLED, UNVERIFIED
+    -- these constants are folklore in this record and the experiment MEASURES
+    delta_0 on this machine's own implementation rather than assuming it. If
+    the measured delta_0 differs, every window above is recomputed from the
+    measured value; the FORM of the prediction, not the constant, is what is
+    on trial. (iii) The identification of the exact lattice used by any
+    published record instance is NOT READ and is a stage-0 reading task.
+
+    MEASURED ENVIRONMENT (measured on this machine on 2026-08-06 by this
+    ideation session, outside the harness; re-measure in-harness before
+    citing). python3 3.11.15; numpy 2.4.6 PRESENT; sympy, fpylll, gmpy2 and
+    ecdsa ALL ABSENT (ImportError on each); 4 cores; 15 GiB RAM. Therefore
+    THERE IS NO LATTICE LIBRARY and LLL must be written. Two pure-Python
+    implementations were timed on a knapsack-shaped lattice with 70-bit
+    entries, seed 1, one instance each: exact-Fraction Gram-Schmidt LLL took
+    62.2 s at dimension 20 and did not reach dimension 40 inside a 120 s probe;
+    float64 Gram-Schmidt over an integer basis took 1.4 s at dimension 20,
+    19.6 s at 40 and 59.2 s at 60, and returned the SAME log2||b_1|| = 66.91 as
+    the exact version at dimension 20. So the ladder is reachable with a
+    float-GSO implementation and is not reachable with a naive exact one. This
+    is an infrastructure fact and it is why the experiment carries an exact
+    re-verification gate: a float-GSO failure to reduce is a NUMERICAL event
+    and must never be reported as a mathematical one (AGENTS.md rule 5).
+
+  novelty_status: unverified
+
+  literature_context:
+    - >-
+      KN-TECH-019 (in this corpus, READ) records the HNP-plus-lattice pipeline,
+      the "roughly sqrt(log q) leaked bits over O(log q) signatures" summary,
+      and the boundary that matters most here: this recovers a key from
+      SIDE-CHANNEL information and is NOT a plain ECDLP attack. Its source_refs
+      KN-LIT-043 (Boneh-Venkatesan), KN-LIT-044 (Nguyen-Shparlinski) and
+      KN-LIT-045 (Howgrave-Graham-Smart) were NOT READ by this session and
+      their contents are relayed through KN-TECH-019 only.
+    - >-
+      RQ-ECDSA-87625f.provenance states that the Albrecht-Heninger predicate
+      lattice work, the TCHES 2023 sieving-with-predicate paper, and ePrint
+      2024/296 with its released instances were seen IN SEARCH-TOOL EXCERPT
+      ONLY on 2026-08-04 and are not filed as KN-LIT. NOT READ -- relayed
+      claim. Nothing in this proposal rests on their contents, and stage 0 of
+      the paired experiment is to obtain them. The session ANGLE-BRIEF records
+      that eprint.iacr.org ABSTRACT pages return 200 while
+      eprint.iacr.org/YYYY/NNNN.pdf returns 403, so partial acquisition is
+      expected and the contract says what to do with a partial read.
+    - >-
+      The corpus-wide caveat applies with full force: KN-OPEN-3f7a21 and the
+      session literature sweep measure that about 95 percent of the 7,809
+      literature entries carry a bulk-seeding caveat, that 2,000 of 2,000
+      sampled carry citation_verified: read while their own body says claims
+      are relayed without verification, and that zero backing artifacts are
+      present. A negative novelty screen against this corpus therefore has
+      very weak power, and this record's novelty_status is unverified for that
+      reason and not as a formality.
+
+  lossy_projection_identifiability_audit:
+    projection: >-
+      Full HNP instance (n, m, l, all A_i, all Btilde_i, the realized nonces,
+      the secret d) --> the single real number gamma = lambda_1^GH / ||t||, and
+      its comparison against delta_0^D.
+    what_is_discarded: >-
+      Every arithmetic detail of the instance. gamma depends on the instance
+      only through (m, l, log2 n) and, weakly, through the realized ||t||,
+      which concentrates.
+    why_genuinely_lossy: >-
+      Maximally lossy: the fibre over a given gamma is the entire instance
+      space at that (m, l, N). The projection is not a change of coordinates in
+      any sense -- d is not recoverable from gamma, and that is not a defect,
+      because gamma is not proposed as an attack statistic. It is proposed as
+      a PREDICTOR of whether the attack works.
+    why_compatible_with_the_operations: >-
+      Compatible in the only sense required: gamma is computed from the basis
+      before reduction and the reduction algorithm's guarantee is stated in
+      exactly the same quantities (D, det, delta_0), so the comparison
+      gamma vs delta_0^D propagates deterministically through the step whose
+      outcome it predicts.
+    is_it_only_a_change_of_coordinates: >-
+      No. THE FAILURE MODE CHECKED FOR IS THE MIRROR ONE -- constancy across
+      instances, zero comparator spread -- and it is REAL here and is handled
+      by design rather than denied. At a FIXED cell (m, l, N), gamma varies
+      only through the realized ||t||, whose relative spread is O(1/sqrt(m)):
+      roughly 12 percent at m=20 and 7 percent at m=60. So gamma is nearly
+      constant within a cell. Consequently the null object may NOT be another
+      seed at the same cell (that null cannot fail interestingly); the
+      comparator must be built ACROSS cells, where gamma ranges over orders of
+      magnitude, and the null must be a same-shaped instance whose gamma is
+      DERIVED to sit on the other side of the boundary. The experiment's null
+      is built exactly that way.
+
+  assumptions:
+    - >-
+      That the leakage model is "top l bits of k_i known exactly". The
+      erroneous-leakage regime is deliberately NOT this proposal's object; it
+      is IDEA-20260805-411b0e's.
+    - >-
+      That the root-Hermite-factor model is a usable description of the
+      implemented reducer. This is the load-bearing modelling assumption and
+      the experiment measures delta_0 rather than assuming it.
+    - >-
+      That a recovered d is accepted only against an independent
+      scalar-multiplication check. No statistical acceptance rule is used
+      anywhere; a solve is certified or it is not a solve.
+
+  predictions:
+    - metric: >-
+        Existence of an upper window edge: at N=64, l=4, delta_0 measured on
+        the implemented reducer, the empirical recovery rate as a function of m
+        over a grid spanning m_lo - 6 to m_hi + 30
+      direction: different
+      minimum_effect: >-
+        NON-MONOTONE IN m. Recovery rate must rise from ~0 below the lower
+        edge, reach a plateau, and FALL BACK to <= 0.10 at m >= m_hi + 20,
+        where m_hi is computed from the MEASURED delta_0 before the sweep is
+        read. Under delta_0 = 1.02 that predicts a plateau over roughly
+        m in [23, 104] and failure again by m = 124. A monotone-increasing
+        recovery curve falsifies C1 and the whole window claim.
+    - metric: >-
+        Lower window edge location: smallest m with recovery rate >= 0.5 at
+        N=64, l=4
+      direction: different
+      minimum_effect: >-
+        Within +/- 25 percent of the predicted m_lo computed from the measured
+        delta_0. Predicted m_lo = 23 at delta_0 = 1.02 and 24 at 1.0219, so the
+        admissible band is roughly m in [17, 30]. The information edge
+        m_lo^info = 19 is a HARD floor: recovery at m < 19 at N=64, l=4 would
+        mean the target is being found while it is not the shortest vector,
+        which would falsify the embedding analysis and is the single most
+        interesting possible outcome of this experiment.
+    - metric: >-
+        Empty-cell prediction: recovery rate at N=64, l=3 over the full m grid
+        with the implemented reducer at its measured delta_0
+      direction: lower
+      minimum_effect: >-
+        0/20 at every m tested, IF the measured delta_0 >= 1.017 (the value
+        above which the N=64, l=3 window closes). If the measured delta_0 comes
+        out below 1.017 the cell is predicted NON-empty and the prediction
+        flips before the data is read; the prediction is a function of the
+        measured constant, fixed by formula in advance, not a free choice.
+    - metric: >-
+        Measured root-Hermite factor delta_0 of the implemented reducer, from
+        log2||b_1|| - log2(det)/D over 20 random lattices of dimension 40 with
+        70-bit entries, reported as delta_0 = 2^((log2||b_1|| - log2 det / D)/D)
+      direction: different
+      minimum_effect: >-
+        Reported with its spread, before any window is evaluated. No predicted
+        value is asserted: 1.02 and 1.0219 are RECALLED, UNVERIFIED folklore in
+        this record and measuring them is a deliverable. If the measured value
+        lands outside [1.005, 1.035] the implementation is suspect and the
+        instrument gate fails.
+    - metric: >-
+        Certified recoveries: number of cells in which at least one recovered
+        scalar d satisfies d*G == Q under an independent scalar-multiplication
+        verifier
+      direction: higher
+      minimum_effect: >-
+        At least 1, and specifically at the positive-control cell
+        (N=64, l=8, m=16). Zero certified recoveries anywhere means the
+        pipeline has never recovered a key and NO negative result from this
+        experiment may be reported at all.
+
+  minimal_test:
+    design: >-
+      Six stages, cheapest first, each able to terminate the line. S0 reading
+      (zero compute). S1 freeze the closed forms and recompute every window
+      integer independently (zero compute; an arithmetic error found here ends
+      the line for the cost of an afternoon). S2 instrument gate: implement
+      LLL, measure delta_0, and verify LLL-reducedness of a sample of outputs
+      in EXACT arithmetic. S3 positive control. S4 matched null. S5 graded
+      window sweep. S6 the optional larger rung. Full contract:
+      experiments/EXP-ECDSA-8b5b84/specification.yaml.
+    controls:
+      - >-
+        NULL-NOLEAK (matched null object, same shape, forced value derived
+        pre-run, CAN FAIL). Identical construction, identical m, l, N,
+        identical lattice-building code path, identical certificate check --
+        but the nonces are drawn uniformly on [0, n) and the claimed leaked
+        bits are drawn independently of them. FORCED VALUE: 0/20 certified
+        recoveries, because with no leakage there is no vector of norm
+        ~n sqrt((m+4)/3) in the lattice and the target does not exist. This
+        null CAN fail: if the pipeline "recovers" a key with no leakage present,
+        the pipeline is reading d from somewhere it should not (a seeding leak
+        between instance generation and solver is the concrete suspected bug),
+        and every positive result in the experiment is void.
+      - >-
+        NULL-BOUNDARY (second null, derived to sit on the other side of the
+        predicted boundary, and the answer to the constancy problem named in
+        the projection audit). A cell chosen so that its gamma is predicted
+        BELOW delta_0^D by a stated margin while every other feature -- curve,
+        code path, l, certificate -- is identical. FORCED VALUE: 0/20. This is
+        the null the projection audit demands, because it varies the quantity
+        gamma actually depends on instead of varying a seed.
+      - >-
+        POSITIVE CONTROL (the effect MUST appear; if it does not the instrument
+        is broken and no negative may be reported). N=64, l=8, m=16, well
+        inside the predicted window [10, 257] at delta_0 = 1.02 and inside
+        every window in the delta_0 sensitivity table. THRESHOLD DECLARED
+        PRE-RUN: >= 18/20 certified recoveries. This cell is also the
+        deliverable GOAL-ECDSA-001.next_action asks the first batch for.
+      - >-
+        GRADED CONTROL, >= 3 interior points, monotonicity reported. Sweep m
+        across the predicted window at N=64, l=4 with at least three interior
+        points and at least two points beyond each edge, and report the
+        recovery curve's shape (rise, plateau, fall) rather than a single
+        number. A failure then localises to an edge instead of leaving "it did
+        not work".
+      - >-
+        EXACT-ARITHMETIC REDUCEDNESS CHECK on every FAILED cell. A cell that
+        reports no recovery must additionally show, in exact rational
+        arithmetic, that the returned basis satisfies the size-reduction and
+        Lovasz conditions. A float-GSO numerical failure is an infrastructure
+        outcome (AGENTS.md rule 5) and is recorded as one. Successes need no
+        such check -- their certificate is d*G == Q.
+      - >-
+        ARCHIVE CHECK (zero compute). There is NO prior evidence, experiment or
+        run in area ECDSA in this corpus; the goal brief records zero prior
+        ideas, hypotheses, experiments and evidence. That absence is recorded
+        here rather than claimed as a passed check.
+    required_metrics:
+      - certified recovery count and rate per cell, with the verifier named
+      - measured delta_0 with spread, reported before any window is evaluated
+      - predicted [m_lo, m_hi] per cell computed from the measured delta_0, frozen before the sweep
+      - peak RSS and wall clock per solve, per cell (this goal charges memory)
+      - sample count m per cell, recorded as a first-class axis
+      - exact-arithmetic reducedness verdict for every failing cell
+
+  falsification_conditions:
+    - >-
+      The recovery curve in m is monotone non-decreasing out to m_hi + 30 at a
+      cell where the model predicts an upper edge. C1 is then wrong and the
+      "window" framing must be withdrawn.
+    - >-
+      Any certified recovery at m below the information edge m_lo^info. The
+      determinant/target-norm analysis is then wrong and this record's whole
+      derivation must be redone.
+    - >-
+      Recovery in a cell predicted EMPTY at the measured delta_0. Either
+      delta_0 does not describe the reducer, or the Gaussian heuristic fails at
+      these dimensions; both are reportable and both kill C2 as stated.
+    - >-
+      NULL-NOLEAK produces any certified recovery. Everything positive in the
+      experiment is void and the finding is a pipeline defect.
+    - >-
+      The positive control fails. No negative result may be reported at all.
+
+  confounders:
+    - >-
+      NUMERICAL FIDELITY. float64 Gram-Schmidt at 70-bit entries is the
+      measured-feasible route on this machine, and it is exactly the route that
+      can silently fail to reduce in higher dimension. Mitigated by the exact
+      reducedness check on failures; not eliminated.
+    - >-
+      delta_0 IS NOT A CONSTANT. The root-Hermite model is an average-case
+      description and its realized value drifts with dimension and with entry
+      size. Reporting a single measured delta_0 and using it to predict edges
+      at other dimensions is the weakest inferential step in the design and is
+      declared as such; the experiment reports delta_0 per dimension.
+    - >-
+      WINDOW-EDGE MEASUREMENT IS COARSE. Recovery is a 0/1 event per instance
+      and the edges are estimated from 20 seeds per m, so edge location has
+      real uncertainty. Stating an edge to the integer would overclaim; the
+      contract reports a bracket.
+    - >-
+      CELL COST IS NOT UNIFORM. Larger m means larger dimension means longer
+      solves, so a coarse m grid biases toward reporting the lower edge more
+      precisely than the upper. The grid is declared in advance for this
+      reason.
+
+  interpretation_limits:
+    - >-
+      SCOPE. Toy and medium only: N in {48, 64, 96}. Nothing here is a
+      statement about 256-bit deployed curves, and the mechanical tier rule in
+      docs/claims-and-verification.md puts every primary cell at medium.
+    - >-
+      LEAKAGE ASSUMPTION IN THE SAME SENTENCE, ALWAYS. Every recovery in this
+      proposal is a recovery GIVEN l exactly-known top bits of each nonce from
+      an ASSUMED side channel. It says nothing about ECDSA without that
+      channel, and nothing whatsoever about ECDLP. KN-TECH-019 records that
+      boundary and KN-OPEN-011 owns the transfer question; it stays with
+      GOAL-ECDLP-001 and GOAL-PATH-001 (GOAL-ECDSA-001.non_duplication).
+    - >-
+      THE WINDOW IS A STATEMENT ABOUT delta_0, NOT ABOUT LEAKAGE. An empty
+      window at delta_0 = 1.02 says LLL cannot do that cell. It does not say
+      the cell is unreachable: the predicate/sieving family exists precisely
+      to lower delta_0 in effect, and this proposal makes no claim about that
+      family's reach. Writing "l-bit leakage is out of reach at N bits" from
+      this experiment would be exactly the premature-closure failure mode.
+    - >-
+      NO EXPONENT IS MOVED. This is calibration. It is proposed because a
+      frontier assembled by a pipeline that has never recovered a key is an
+      arithmetic exercise, which is the goal record's own phrasing.
+
+  heuristic_assumptions:
+    - id: HEUR-EC-1
+      statement: >-
+        (Gaussian heuristic for the HNP embedding lattice.) For the lattices L
+        constructed above at the tested (m, l, N), the shortest nonzero vector
+        of a random lattice of the same dimension and determinant has norm
+        lambda_1 = sqrt(D / (2 pi e)) det(L)^{1/D} (1 + o(1)), and the planted
+        target t is the unique vector materially below that norm.
+      rigorous_support: >-
+        Standard for random lattices; NOT a theorem for this structured q-ary
+        family, which is why it is numbered. The structured part -- the first m
+        rows are n*2^{l+1} times the standard basis -- is exactly where a
+        deviation would show.
+      validation_plan: >-
+        Measure log2||b_1||/D - log2(det)/D^2 on the DECOY family (same shape,
+        no planted target: nonces uniform) at each tested dimension and compare
+        against the heuristic value. This is a direct distributional check of
+        the heuristic at the exact shapes used, and it costs the same as the
+        null arm, which is already required.
+      falsification_condition: >-
+        The measured normalized shortest-vector length in the no-planted-target
+        family departs from the heuristic by more than 15 percent at any tested
+        dimension. Every window number is then recomputed and the departure is
+        reported as the primary finding.
+    - id: HEUR-EC-2
+      statement: >-
+        (Root-Hermite model.) The implemented reducer returns a first basis
+        vector with ||b_1|| <= delta_0^D det^{1/D} for a delta_0 that depends on
+        the reducer and (weakly) on D, and this bound is tight enough that
+        gamma > delta_0^D predicts isolation of the planted target.
+      rigorous_support: >-
+        None offered. This is an empirical description of lattice reduction,
+        RECALLED and UNVERIFIED in this record. It is the single assumption the
+        window prediction rests on.
+      validation_plan: >-
+        Measure delta_0 per dimension on the decoy family before any window is
+        evaluated, and report the measured value with its spread. Every
+        prediction in this record is then re-derived from the measured number.
+      falsification_condition: >-
+        The measured delta_0 varies by more than 0.004 across the tested
+        dimensions 11 to 60. The "one delta_0 predicts all cells" form is then
+        wrong and the window must be stated per dimension or abandoned.
+
+  target_complexity:
+    time_exponent: >-
+      n/a for this audit. NO EXPONENT IS CLAIMED OR MOVED. The object is the
+      success boundary of an existing pipeline, not its asymptotic cost.
+    memory_exponent: >-
+      n/a as a claim, but memory is MEASURED as a first-class axis at every
+      cell (peak RSS), because this goal exists to charge it and because
+      IDEA-20260805-659115 needs matched memory figures from a pipeline this
+      program actually ran.
+    best_known: >-
+      For the tested cells, plain LLL/BKZ on the Boneh-Venkatesan embedding IS
+      the baseline; this proposal reproduces it rather than beating it. The
+      external frontier for low leakage is the predicate/sieving line, NOT READ
+      (RQ-ECDSA-87625f.provenance).
+    hidden_overhead: >-
+      Declared and measured rather than hidden: this environment has no lattice
+      library, so the constant factor is a pure-Python reducer, and every
+      timing reported is a timing of THAT, never a claim about what optimized
+      software would do.
+    tradeoff_note: >-
+      The window itself IS a tradeoff statement -- more samples buy determinant
+      but cost dimension -- and stating it in those terms is the point.
+
+  dominated_by: >-
+    Yes, and completely, ON THE ATTACK AXIS: the predicate-augmented lattice
+    line and the Fourier/Bleichenbacher line both reach leakage levels this
+    proposal's plain-LLL cells cannot, at every curve size, per
+    RQ-ECDSA-87625f.motivation (NOT READ -- relayed). This proposal claims no
+    attack and does not compete with them. Rows checked before writing null on
+    the CALIBRATION axis: (a) this corpus -- ledger/proposals, ledger/hypotheses,
+    ledger/experiments and ledger/evidence contain NOTHING in area ECDSA (the
+    goal brief records zero prior records of every type), and KN-TECH-019 is
+    the only technique entry, which gives the pipeline and no success-boundary
+    map; (b) the time axis -- no prior record here measures HNP recovery time;
+    (c) the memory axis -- no prior record here measures HNP peak memory;
+    (d) the data/query axis -- no prior record here treats signature count as a
+    charged axis. dominated_by on the calibration deliverable is therefore
+    "unknown externally, empty internally", NOT null: the external literature
+    was not read and an unchecked null would be a fabrication under AGENTS.md
+    rule 5.
+  sota_delta: >-
+    Zero on every attack axis: no time, memory, sample or leakage-level record
+    is claimed or approached. Quantitatively, the deliverable is (i) the first
+    certified nonce-leakage key recovery in this program, with peak memory and
+    wall clock attached, at N=64 with l=8 -- a rung the published record
+    instances sit roughly 96 bits and 7 leaked bits above -- and (ii) two
+    closed-form window edges evaluated at 12 (l, N, delta_0) cells whose
+    numbers are stated above and can be checked in five minutes by hand.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: high
+  honest_prior_of_survival: >-
+    0.75 that the window's UPPER edge is observed at N=64, l=4 within the
+    predicted bracket. It is not higher because delta_0 is an average-case
+    description that is known to drift, because the upper edge is where the
+    dimension is largest and the float-GSO reducer is least trustworthy, and
+    because 20 seeds per m gives a coarse edge estimate. It is not lower
+    because the upper edge follows from a quadratic-versus-linear comparison
+    that does not depend on the value of delta_0, only on its existence, and
+    because the effect predicted is large (recovery falling from a plateau back
+    to near zero) rather than marginal. Separately: 0.93 that the positive
+    control succeeds -- the only real risks there are an implementation bug and
+    the absence of a lattice library, both of which stage S2 is designed to
+    catch before anything else runs.

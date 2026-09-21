@@ -1,0 +1,148 @@
+research_question:
+  id: RQ-MLDSA-ffa0f5
+  title: >-
+    What does ML-DSA's verifier not check, and what does FIPS 204 assert
+    without deriving? The signing-only rejection conditions that a
+    non-conforming signer can skip undetectably, and the claim that t0 need
+    not be regarded as secret.
+  scope:
+    scheme: "ML-DSA (FIPS 204), parameter sets ML-DSA-44 / -65 / -87"
+    family: "lattice signature (Fiat-Shamir with aborts)"
+    assumption: >-
+      Neither MLWE, MSIS, nor SelfTargetMSIS. The objects are two statements
+      about the SCHEME rather than its hard problems: that the conditions
+      enforced only during signing are safe to leave unverified, and that t0
+      is reconstructible from "a small number of signatures" and therefore
+      need not be secret.
+    standardization_status: >-
+      Finalized 2024-08-13 as FIPS 204.
+    targets:
+      - >-
+          The signing-only rejection condition — reported as
+          ||<<c*t0>>||_inf >= gamma2 OR #1(h) > omega — which the verifier
+          does not enforce. Signatures violating it verify. Reported as
+          unobserved across more than one billion signatures, which is
+          precisely why sign-verify testing cannot detect a signer that omits
+          it. Measure the true rate, and determine what a signer that skips
+          the check leaks and what the security argument loses.
+      - >-
+          The t0 claim. FIPS 204 states t0 can be reconstructed from a small
+          number of signatures and need not be regarded as secret; a published
+          attack recovers it from roughly 200,000 to 500,000 signatures on a
+          desktop and states the claim has never been formally studied.
+          Independently reproduce the recovery, measure the per-signature leak
+          rate, and turn an unquantified sentence in a standard into a number
+          per parameter set.
+      - >-
+          The gap between the two: both are cases where a checkable
+          quantity was asserted rather than derived, and neither is protected
+          by the scheme's hardness assumptions.
+    methods:
+      - >-
+          Direct measurement at the REAL FIPS 204 parameter sets. Signing is
+          fast enough that hundreds of thousands of signatures are a routine
+          workload, so this question does not need toy parameters and must not
+          use them where the real ones are reachable.
+      - >-
+          Certificate-first: a recovered t0 is checked against the true t0
+          from the keypair, and a non-conforming-but-verifying signature is
+          exhibited directly and re-verified by an independent implementation.
+      - >-
+          Rate estimation with a stated confidence interval for the
+          rejection-condition frequency, including the case where the observed
+          count is zero, since a zero count over a large sample is a bound and
+          not a measurement of zero.
+      - >-
+          Null-object control per docs/inventor-protocol.md: the identical
+          leak measurement run against a signature stream generated with t0
+          resampled independently of the key, so that an apparent leak that
+          survives the control is recognized as an artifact.
+    claim_tier_ceiling: >-
+      CRYPTO TIER IS REACHABLE FOR BOTH OBJECTS, because both are measurable
+      at the standardized parameter sets with cheap certificates — and NEITHER
+      IS A BREAK. Recovering t0 is not a key recovery and is consistent with
+      the security proof, which assumes t0 public. Exhibiting a verifying
+      non-conforming signature is a conformance result, not a forgery. Under
+      AGENTS.md rule 7 neither result may be reported as evidence about MLWE,
+      MSIS or SelfTargetMSIS in any direction, and any statement about what
+      either enables must be costed rather than asserted.
+  motivation: >-
+    ML-DSA's hardness assumptions have a large literature and a dedicated goal
+    in this program. Its non-assumption statements do not. Two of them are
+    load-bearing in the specific sense that something downstream depends on
+    them being true, and both were asserted rather than derived. The first is
+    structural: ML-DSA's verifier deliberately checks a subset of what signing
+    enforces, so a signature that no compliant signer would ever emit can still
+    verify, and the reported rate of such signatures is low enough that no
+    amount of random sign-verify testing will find one. That makes it possible
+    for an implementation to be non-conforming in a security-relevant way and
+    pass every consistency test anyone runs against it — the same shape as the
+    defect class GOAL-MLKEM-002 was built around on the KEM side, where the
+    re-encryption comparison is likewise unobservable from outside. The second
+    is a quantitative claim in the standard itself: t0 is withheld from the
+    public key, kept in the secret key, and justified as not-really-secret
+    because it is reconstructible from "a small number of signatures". A
+    published attack puts that number at 200,000 to 500,000 and observes that
+    the claim has never been formally studied. Whether 200,000 is "a small
+    number" is not a matter of taste — it is the difference between an
+    attacker who has a certificate chain and an attacker who needs a
+    high-volume signing oracle, and it changes the threat model of every
+    side-channel result that assumes t0 known. Both objects are measurable at
+    the real parameter sets with certificates that cost microseconds to check.
+    That combination — a fielded standard, an unquantified assertion, and
+    cheap decisive measurement — is where this program's discipline is worth
+    the most and where its usual toy-scale ceiling does not apply.
+  decision_target: >-
+    Whether ML-DSA's signing-only rejection conditions and its t0-secrecy
+    assertion hold up under direct measurement at FIPS 204 parameters, and
+    what quantities should replace the standard's qualitative language.
+  provenance: >-
+    OBTAINED BY SEARCH-TOOL EXCERPT ON 2026-08-04, NOT FILED AS KN-LIT. Seen
+    in excerpt: "Apples, Oranges, and Signatures" (eprint 2026/1333), whose
+    Pitfall 12 states the rejection condition and the over-one-billion-
+    signature observation and attributes it to line 19 of ITS OWN Algorithm 1
+    — the correspondence to FIPS 204's own algorithm and line numbering is NOT
+    established here and must be checked; "Uncompressing Dilithium's public
+    key" (eprint 2024/1373), for the t0 recovery, the 200,000-to-500,000
+    signature range, the quoted FIPS 204 language and the observation that the
+    claim was never formally studied; the FIPS 204 text itself
+    (nvlpubs.nist.gov/nistpubs/fips/nist.fips.204.pdf) in excerpt only; and
+    the original CRYSTALS-Dilithium paper for the rejection-sampling
+    structure. NOTE THAT NIST DOMAINS ARE RECORDED ELSEWHERE IN THIS LEDGER AS
+    BLOCKED BY THE HARNESS NETWORK POLICY: the FIPS 204 excerpt arrived
+    through the search tool, which is not the harness's own network path, so
+    acquisition by the executor may still fail and the source-preference order
+    must include mirrors. The corpus already holds KN-LIT-056 (the
+    Dilithium/FIPS 204 specification note) and KN-LIT-3907 (Barbosa et al. on
+    the Fiat-Shamir-with-aborts proof gap) independently of this search.
+  constraints:
+    - >-
+      Every technical figure here was read from a search excerpt and is
+      UNVERIFIED, including the rejection condition's exact form and its line
+      attribution. No experiment may be designed until FIPS 204 and the two
+      attack papers are filed as KN-LIT entries at stated provenance levels.
+    - >-
+      SCOPE SEPARATION FROM RQ-MLDSA-001 IS BINDING. That question owns which
+      of MLWE / MSIS / SelfTargetMSIS binds at each category and the boundary
+      of the fault-injection security proof. This question re-estimates no
+      assumption and injects no fault. A batch that finds itself doing either
+      belongs to the other question.
+    - >-
+      Neither object is a break and neither may be reported as one. t0 is
+      assumed public by the security proof; a verifying non-conforming
+      signature is not a forgery under an unknown key.
+    - >-
+      Measure at the real parameter sets. Where a reduced parameter set is
+      used for a pilot, the pilot is labelled as such and the real-parameter
+      measurement is what the evidence record rests on.
+    - >-
+      A zero observed count is reported as an upper bound with its sample
+      size, never as a measured rate of zero.
+    - >-
+      These are fielded algorithms with migration schedules set against them.
+      No result leaves this program at a claim tier above what its evidence
+      supports, and no conformance finding is phrased as a statement about the
+      security of ML-DSA as standardized.
+  status: active
+  owner: coordinator
+  created_at: '2026-08-04'

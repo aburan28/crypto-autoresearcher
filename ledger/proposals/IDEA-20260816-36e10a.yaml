@@ -1,0 +1,269 @@
+idea:
+  id: IDEA-20260816-36e10a
+  question_id: RQ-ASCON-2dfd8b
+  added: '2026-08-16'
+  title: 'Audit CROSS-MODE separation rather than intra-mode: the standard''s AEAD, hash, XOF and
+    customized-XOF algorithms share one permutation and are distinguished only by IV words and mode-level
+    separator bits, so enumerate exhaustively whether any two modes can be driven to the same (initial
+    state, absorb sequence) prefix within a declared class'
+  class: composition
+  claim: '(A) Separation audits usually look inside one mode. The standard, however, defines four
+    algorithms over ONE permutation, distinguished only by their initialization words and by mode-level
+    separator and padding bits. If two different modes can be driven to the same initial state and
+    the same absorb sequence prefix, then one mode''s output is, on that input, literally the other''s
+    -- a cross-primitive coincidence that no property of the permutation can undo. (B) That is a finite,
+    decidable question about four IV words and a small set of separator conventions, and it is answerable
+    by exhaustive enumeration over a declared class of inputs with the permutation stubbed out entirely.
+    The deliverable is a four-by-four table: for each ordered pair of modes, either a certificate
+    (an explicit pair of inputs producing identical initial state and absorb prefix) or the statement
+    that no such pair exists within the enumerated class, with the unenumerated region named exactly.
+    (C) NOT CLAIMED: that any coincidence exists; that the four IV words are as reported, since this
+    program cannot pin them and the audit therefore runs both against candidate IV sets and, more
+    usefully, against the QUESTION of how much IV separation is required for the table to be empty;
+    that a coincidence would constitute an attack. NOT CLAIMED: any statement about published results
+    or about security. (D) The genuinely useful and literature-free variant is the INVERSE question:
+    compute the minimum Hamming distance between the four candidate IV words that suffices to make
+    the cross-mode table empty over the enumerated input class, given the separator conventions. That
+    number is a property of the mode structure alone and needs no pinned constants at all, which makes
+    it computable here today. (E) The null: the identical enumeration runs against a deliberately
+    collapsed variant in which two modes are given the SAME IV word, where the table must be non-empty
+    and its certificates must be found; a search that misses planted cross-mode coincidences measures
+    nothing.'
+  mechanism: 'Stage one implements, with the permutation stubbed, the initialization-state constructor
+    and absorb-sequence encoder for each of the four modes as pure functions of their declared inputs.
+    Stage two defines the enumerated input class per mode: short messages, short customization strings,
+    short associated data, short nonces, over a declared reduced alphabet, sized so the cross product
+    of any two modes'' classes is enumerable. Stage three canonicalises each input to the pair (initial
+    state, absorb sequence prefix truncated at a declared block count) and inserts it into a table
+    keyed on that pair, tagged with its mode. Any key holding inputs from two different modes is a
+    cross-mode certificate and is re-verified independently. Stage four repeats the enumeration under
+    a sweep of candidate IV sets, and computes the minimum IV Hamming distance at which the cross-mode
+    table becomes empty. Stage five runs the collapsed-IV null in the same invocation. Refutation
+    of the method is a null returning no coincidences; refutation of the negative reading is any signal-arm
+    certificate, which is checkable by string comparison.'
+  novelty_status: unverified
+  novelty_screen:
+    method: 'Shared repository screen: grep -ril ascon over ledger/proposals, ledger/hypotheses, ledger/evidence
+      and experiments; grep -il over ledger/proposals/*.yaml for domain.separation, sponge, duplex,
+      capacity, round constant and IV constant. Read: ledger/questions/RQ-ASCON-2dfd8b.yaml in full
+      (its scope lists all four algorithms and its provenance reports new names and new IV constants
+      as a difference), ledger/goals/GOAL-ASCON-001.yaml first 60 lines (whose non-duplication clause
+      assigns BLAKE3 tree-mode domain separation to GOAL-BLAKE-001), docs/inventor-protocol.md sections
+      1-8, header of knowledge/techniques/KN-TECH-066.md.'
+    results: grep -ril ascon returned no ledger record. The domain.separation grep returned ten proposal
+      filenames before truncation (IDEA-20260731-003, IDEA-20260731-006, IDEA-20260805-cec9b6, IDEA-20260808-917e63,
+      IDEA-20260808-95a21c, IDEA-20260809-1b5b15, IDEA-20260809-7f2d9c, IDEA-20260809-c4ecac, IDEA-20260809-ce875b,
+      IDEA-20260809-dc7006), contents not read except IDEA-20260808-95a21c which is a FAEST cost audit;
+      a Coordinator must read the rest. The grep for round constant and IV constant returned ZERO
+      proposal files. GOAL-ASCON-001's non-duplication clause covers tree-mode separation within one
+      design (GOAL-BLAKE-001) but says nothing about separation BETWEEN sibling algorithms of one
+      standard, which is the surface this record takes.
+    verdict: 'UNVERIFIED. Nothing here asserts what any external literature contains and the record
+      is built to need none. Claimed NEW relative to this repository: auditing separation ACROSS the
+      four sibling algorithms of one standard rather than inside one mode, and replacing the unpinnable
+      constant question with the computable inverse question -- the minimum IV Hamming distance sufficient
+      to empty the cross-mode table. ASSEMBLED FROM KNOWN PARTS: exhaustive finite enumeration of
+      a mode surface is the methodology GOAL-ASCON-001 attributes to GOAL-BLAKE-001; keying a table
+      on a canonicalised prefix is elementary; the same-invocation planted-defect null is docs/inventor-protocol.md
+      section 3.'
+  object_first_candidate:
+    tracked_object: 'The pair (initial state, absorb sequence prefix) tagged with the mode that produced
+      it: a canonical fingerprint of everything the permutation will see from a given mode on a given
+      input, up to a declared block depth. The permutation is stubbed and no state evolution is tracked.'
+    lossiness: 'Lossy, and the truncation is where the loss lives. Discarded: everything after the
+      declared prefix depth, the entire permutation, all outputs, and the mode''s post-processing.
+      Retained: the exact bytes the permutation would consume up to that depth, plus the initial state.
+      The discard is compatible with the target operation because two inputs agreeing on this fingerprint
+      agree on everything the permutation does up to that depth under ANY permutation, so a coincidence
+      in the retained part cannot be undone by the discarded part. It is one-directional: distinct
+      fingerprints imply nothing about distinct outputs. The truncation makes the object strictly
+      weaker than a full-session fingerprint, and that weakening is stated, since two modes agreeing
+      on a prefix but diverging later is a real and reportable intermediate outcome.'
+    propagation: 'One step of the target operation is the consumption of one more input unit by a
+      mode''s encoder -- a byte of message, of associated data, of customization string, or a separator
+      or padding bit firing at a block boundary. Acting on the fingerprint it either extends the absorb
+      prefix or, at the declared depth, stops extending it. Cross-mode coincidence propagates or dies
+      according to whether the two modes'' separator conventions inject distinguishing bits at positions
+      the other mode leaves free: a mode that appends its separator at the end of a block can be matched
+      by another mode that happens to place message data there, while a mode that mixes its separator
+      into the initial state cannot be matched at all unless the IVs coincide. The propagation question
+      is therefore where each mode''s distinguishing bits sit relative to attacker-chosen bytes.'
+    survival_score: Reported concretely as the declared prefix depth at which the cross-mode table
+      is enumerated, together with the enumerated class size per mode and the emptiness verdict per
+      ordered mode pair. The object survives to exactly that depth and no further, and the record
+      names the unenumerated remainder -- longer inputs, deeper prefixes, the full alphabet -- rather
+      than claiming the verdict continues.
+  null_object_control: 'A COLLAPSED-IV NULL: the identical enumeration run with two of the four modes
+    assigned the SAME IV word, in the SAME invocation, where the cross-mode table MUST be non-empty
+    and the certificates must be found and re-verified. If the collapsed null returns nothing, the
+    enumeration cannot see a cross-mode coincidence and the signal arm''s emptiness is a property
+    of the search. A SECOND null assigns all four modes random IV words at matched Hamming distance,
+    whose table should be empty at the same rate as the signal arm if the separation comes from distance
+    rather than from the specific constants -- distinguishing a structural separation from an accidental
+    one.'
+  discriminated_from:
+  - The second record in this batch, the CXOF absorb-sequence injectivity audit. That record asks
+    whether one mode separates its own two inputs; this asks whether two DIFFERENT modes can be driven
+    to the same permutation input, which is a different quantifier over a different product space
+    and can be empty when the other is not, or vice versa.
+  - GOAL-BLAKE-001's BLAKE3 tree-mode domain separation, which GOAL-ASCON-001 assigns to that goal.
+    Tree-mode flags separate roles within one hashing construction; this separates four independently
+    named algorithms of one standard from each other.
+  - The eighth record in this batch, the round-constant schedule slice audit. That audits indexing
+    ambiguity within the permutation family; this audits collision between modes' inputs to the permutation
+    and never varies the schedule.
+  - The ten domain-separation-matched proposals seen by filename only. None can concern Ascon since
+    the ascon grep returned no ledger record; a Coordinator must read them, which is a declared derivation
+    gap rather than an assertion of clearance.
+  - KN-TECH-066 (rebound, message modification, internal differentials). That technique manipulates
+    differences through a permutation; this record stubs the permutation entirely and compares byte
+    strings.
+  assumptions:
+  - The four modes' initialization-state constructors and absorb encoders can be pinned from primary
+    text and validated against declared test vectors; without that the audit compares program-invented
+    encoders.
+  - A prefix fingerprint truncated at a declared block depth is a meaningful necessary condition for
+    cross-mode coincidence, decisive on failure and only a coverage statement on success.
+  - The declared reduced alphabet and short input lengths do not systematically hide cross-mode coincidences
+    that a wider class would expose; this is UNSAFE in general and is reported as a scope limit with
+    the class boundary named.
+  - The inverse question -- minimum IV Hamming distance emptying the table -- is well posed given
+    fixed separator conventions, so it can be computed without pinning the actual IV values, which
+    is what makes this record executable in the current environment.
+  - Cross products of two modes' enumerated classes remain within a single machine's memory at the
+    declared bounds, so the enumeration is literal rather than sampled.
+  predictions:
+  - metric: cross-mode certificates found in the collapsed-IV null arm
+    direction: higher
+    minimum_effect: strictly greater than zero, and every certificate independently re-verified; a
+      null returning zero voids the signal arm
+  - metric: cross-mode certificates found in the signal arm over the declared class
+    direction: lower
+    minimum_effect: 'no pre-commitment to zero. Refusing is deliberate: pre-committing to zero would
+      make an empty table read as a confirmation, and both outcomes are reportable with a certificate
+      being decisive'
+  - metric: minimum IV Hamming distance at which the cross-mode table becomes empty over the declared
+      class
+    direction: different
+    minimum_effect: reported as a measured number rather than predicted; it is the record's primary
+      literature-free deliverable and inventing a value would defeat its purpose
+  - metric: fraction of the declared cross product actually enumerated rather than sampled
+    direction: different
+    minimum_effect: exactly 1.0, a forced value; any sampling renames the deliverable from exhaustive
+      to partial and the unenumerated region is named
+  minimal_test:
+    design: 'Stub the permutation. Implement four initialization-state constructors and four absorb
+      encoders as pure functions, gated on exact reproduction of every declared test vector through
+      the full modes. Enumerate, per mode, all inputs with each variable-length field in 0..2 bytes
+      over a declared 4-symbol alphabet -- tens of thousands per mode. Canonicalise each to (initial
+      state, absorb prefix truncated at 2 blocks) and insert into one table tagged by mode; any key
+      holding two different mode tags is a certificate, re-verified by direct byte comparison. Sweep
+      candidate IV sets at Hamming distances 0 through 16 and record the smallest distance emptying
+      the table. In the SAME invocation run the collapsed-IV null and the random-IV null. Cost: seconds
+      to a minute. The output is the four-by-four emptiness table, the minimum-distance number, and
+      both nulls'' certificate counts.'
+    controls:
+    - 'Collapsed-IV null: two modes given the same IV word, where certificates must be found and re-verified.'
+    - Random-IV null at matched Hamming distance, separating structural separation from accidental
+      separation.
+    - 'Test-vector gate: all four modes must reproduce every declared vector through the full mode
+      before enumeration.'
+    - Independent re-verification of every certificate by direct byte comparison outside the table.
+    - 'Self-pair control: each mode against itself must produce coincidences only for genuinely equal
+      inputs, confirming the table is not collapsing distinct inputs.'
+    - Prefix-depth sweep at 1, 2 and 3 blocks, so an emptiness verdict is never reported for one depth
+      as though it held at all depths.
+    required_metrics:
+    - cross-mode certificate count per ordered mode pair, per IV set, per prefix depth
+    - minimum IV Hamming distance emptying the table over the declared class
+    - collapsed-IV null certificate count
+    - random-IV null certificate count at matched distance
+    - exact enumerated class size per mode and the named unenumerated region
+    - test-vector agreement per mode
+    - self-pair control outcome
+  falsification_conditions:
+  - The collapsed-IV null returns zero certificates, showing the enumeration cannot see a cross-mode
+    coincidence.
+  - Any certificate fails independent byte re-verification.
+  - Any mode fails a declared test vector at the gate.
+  - The self-pair control shows distinct inputs colliding, indicating a canonicalisation defect.
+  - The minimum-distance sweep gives a non-monotone result -- a distance that empties the table while
+    a larger one does not -- indicating an enumeration defect.
+  - The declared cross product cannot be enumerated within memory, in which case the exhaustive claim
+    is withdrawn and the coverage reported as partial -- a budget outcome, never mathematical evidence.
+  confounders:
+  - Encoders pinned from a secondary description would make the entire table about four fictions;
+    the test-vector gate is the only defence and it requires vectors for all four modes including
+    the newest one.
+  - The reduced alphabet and short lengths could suppress precisely the cross-mode coincidences a
+    wider class would expose, so emptiness is bounded by the class in two directions at once.
+  - Prefix truncation means two modes agreeing to depth 2 but diverging at depth 3 register as a certificate
+    at depth 2; the prefix-depth sweep makes this visible but the correct reading of such a certificate
+    is delicate and must be stated per certificate.
+  - The minimum-distance number depends on the separator conventions as implemented, so a convention
+    error changes the headline number without changing anything else visibly.
+  - Canonicalisation that normalises padding could merge inputs that the real modes keep distinct,
+    manufacturing certificates.
+  interpretation_limits:
+  - An empty table is a coverage statement over a declared finite class at a declared prefix depth,
+    NOT a proof of cross-mode separation and not a security claim.
+  - A certificate is a statement that two encoders agree on a prefix; converting it to any security
+    consequence needs argument this record does not make and the claim ceiling forbids.
+  - The minimum-distance number is a property of the separator conventions as implemented and of the
+    enumerated class, not a design recommendation.
+  - If any separation gap were found, RQ-ASCON-2dfd8b requires disclosure to NIST and the designers
+    before publication, and this record inherits that requirement.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Enumeration cost is the sum over modes of the declared
+      class sizes, times the IV-set sweep, with a small constant per input.
+    memory_exponent: No attack exponent is claimed. Memory is linear in the total enumerated class
+      size for the fingerprint table.
+    best_known: 'The incumbent is the design argument that different algorithms of one standard are
+      separated by their IVs and separator bits. Within this repository there is no competitor whatsoever:
+      the ascon grep returned zero ledger records and the IV-constant grep returned zero proposal
+      files.'
+    hidden_overhead: The hidden cost is pinning four encoders rather than one, including the newest
+      mode, and obtaining test vectors for all four; the effort scales with the number of algorithms
+      and the least-documented one gates the whole run. A second hidden cost is interpreting prefix-depth
+      certificates, which is human judgement per certificate and cannot be automated.
+  dominated_by: 'n/a (no result claimed). Pareto check across all three axes explicitly: time -- no
+    attack time is produced and no frontier row exists; memory -- the table is class-size linear and
+    no attack memory figure is produced; data/queries -- zero oracle queries, since the permutation
+    is stubbed and never called. Each axis considered rather than the field defaulted.'
+  sota_delta: no attack; conceptual/measurement contribution only. The quantitative delta is a four-by-four
+    cross-mode emptiness table over a declared class at declared prefix depths, plus a measured minimum
+    IV Hamming distance sufficient to empty it, where this repository previously held nothing on cross-mode
+    separation for any standard.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'Separately: that all four encoders can be pinned and test-vector-validated
+    here, about 0.25 -- lower than the single-mode case because the weakest-documented mode gates
+    the run. That the collapsed-IV null produces certificates that are found, above 0.9, since planting
+    an identical IV makes coincidence near-inevitable for short inputs. That the enumeration is genuinely
+    exhaustive at the declared bounds, about 0.8, the risk being cross-product memory. That the minimum-distance
+    number is computable and stable across prefix depths, about 0.5 -- it may well be 1, in which
+    case the deliverable is a small and slightly deflating number that is nonetheless a real measured
+    property. That the signal arm returns a certificate, LOW and deliberately unquantified: sibling
+    algorithms of one standard are designed to be separated, a hit would be surprising, and putting
+    a number on the surprise would either overstate suspicion or manufacture a confirmation.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-ASCON-2dfd8b
+  - GOAL-ASCON-001
+  - GOAL-BLAKE-001
+  - RQ-BLAKE-584719
+  - KN-TECH-066
+  - KN-TECH-056
+  - docs/inventor-protocol.md
+  - docs/claims-and-verification.md
+  - harness/runner.py
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-ASCON-5c9ff7

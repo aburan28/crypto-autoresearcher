@@ -1,0 +1,191 @@
+hypothesis:
+  id: H-AEADC-10bc5f
+  question_id: RQ-AEADC-8db132
+  derived_from_idea: IDEA-20260809-313546
+  added: '2026-08-25'
+  status: proposed
+  proposed_by: coordinator
+  statement: >-
+    For AES-GCM at FULL standard parameters, a ciphertext that authenticates under two
+    attacker-chosen keys can be constructed by SOLVING A SMALL LINEAR SYSTEM rather than by search.
+    Formally: given two keys K1 and K2, the GHASH tag under each key is an affine function of the
+    ciphertext blocks over GF(2^128) with coefficients determined by that key's hash subkey and tag
+    mask; equating the two tags therefore imposes a small number of GF(2^128)-linear constraints on
+    the blocks, and a solution exists and is found in time dominated by one linear solve. The
+    concrete prediction is that a valid two-key certificate is produced in milliseconds on ordinary
+    hardware at standard parameters, that it is a few hundred bytes, and that BOTH decryptions are
+    accepted by an independent stock library implementation.
+  mechanism: >-
+    GCM's authenticator is a polynomial evaluated at a key-derived point - the tag is the GHASH of
+    the ciphertext and associated data under the hash subkey H = E_K(0), masked by E_K(J0). Because
+    GHASH is GF(2^128)-linear in the ciphertext blocks for a fixed block count, fixing two keys
+    fixes two affine forms in those blocks. Setting the two forms equal to a common tag value gives
+    a linear system whose unknowns are a designated subset of blocks; solving it yields blocks that
+    make both tags agree. The remaining blocks are free, so each key's decryption can be steered to
+    an arbitrary chosen plaintext by adjusting keystream-masked content outside the solved subset.
+    Nothing here searches - the cost is one small linear solve over GF(2^128) plus two AES key
+    schedules - and that cost distinction is exactly what the experiment measures.
+  assumptions:
+  - >-
+    The GCM implementation used to construct certificates passes the specification test vectors
+    BEFORE any certificate is minted. A construction validated only against itself proves nothing.
+  - >-
+    At least one verifying implementation is a stock library not written for this goal, so
+    acceptance is not an artifact of the author's own code.
+  - >-
+    The adversary CHOOSES BOTH KEYS. This is a key-commitment property, not a forgery under an
+    unknown key, and every downstream statement is bound by that quantifier.
+  - >-
+    Standard parameters means a NIST SP 800-38D parameter set with a 96-bit IV and a 128-bit tag,
+    named exactly in the contract rather than left as 'full parameters'.
+  proof_search_map:
+    bottleneck: >-
+      The step that would decide the claim is whether the two-tag equality condition is LINEAR in
+      the ciphertext blocks at fixed block count, so that construction is a solve rather than a
+      search. If it is not linear, the mechanism as stated is wrong and the goal's premise must be
+      re-derived.
+    baseline_embedding:
+      parameter_slice: >-
+        The single-key case is the degenerate slice K1 = K2, where the system is trivially
+        consistent and any ciphertext works; the construction must reduce to that slice without
+        special-casing.
+      reproduction_check: >-
+        The GCM implementation reproduces the SP 800-38D test vectors exactly, as a frozen
+        regression fixture, before any certificate is minted.
+    observation_collision:
+      observable: >-
+        The certificate itself - the tuple (K1, K2, nonce, associated data, ciphertext, tag) - is
+        the observable, and it is checkable by third-party code, so there is no room for an
+        observation collision in the usual sense.
+      distinct_preimage_search: >-
+        Not applicable. The certificate is verified rather than inferred; a distinct preimage would
+        simply be a second certificate and would not weaken the first.
+    constructive_transforms:
+    - transform: representation_reduction
+      proposed_object: >-
+        The two tag equations re-expressed as an affine system over GF(2^128) in a designated block
+        subset.
+      predicted_gain: >-
+        Construction cost drops from a birthday-bounded search to one linear solve; the predicted
+        effect is milliseconds versus infeasible.
+    quantifier_order: >-
+      FOR ALL pairs of attacker-chosen keys (K1, K2) with K1 not equal to K2, and for all pairs of
+      target plaintexts within the declared length bound, THERE EXISTS a ciphertext, nonce and
+      associated data such that both GCM decryptions succeed and yield the respective plaintexts.
+      The keys are chosen by the adversary and are NOT quantified over as unknown; the construction
+      depends on both.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The strongest claim a run may support is the existence of concrete verified artifacts at
+        the named standard parameter set. It is not a confidentiality break, not a forgery under an
+        unknown key, and not a statement about any deployed product.
+      nearby_object_control: >-
+        A third, unrelated key K3 - the same ciphertext must FAIL authentication under it. If it
+        does not, the collision is not engineered and the verifier is broken.
+    proof_obligations:
+    - claim: The two-tag equality condition is affine in the designated blocks over GF(2^128).
+      responsibility: correctness
+    - claim: The resulting linear system is consistent at the named standard parameter set.
+      responsibility: feasibility
+    - claim: Construction cost is one linear solve plus two key schedules, with no search.
+      responsibility: runtime
+    - claim: Each key's decryption yields the intended chosen plaintext.
+      responsibility: interface
+    - claim: A third unrelated key rejects the same ciphertext.
+      responsibility: scope
+    not_applicable_reason: null
+  asymptotic_claim:
+    problem: null
+    prior_best: null
+    time_exponent: null
+    memory_exponent: null
+    hidden_cofactor: null
+    claim_kind: null
+  heuristic_assumptions: []
+  structural_ingredients:
+  - description: The GCM mode definition, GHASH, the hash subkey derivation and the tag mask.
+    citation: 'NIST SP 800-38D - REQUIRED READ, NOT YET READ by this program'
+    provenance: recalled
+    verified_by: null
+    role: >-
+      Supplies the exact algebraic form the mechanism relies on. It is a pointer, not support -
+      Stage 0 must obtain the primary text or record that it could not, and no coefficient is taken
+      on recalled authority.
+  - description: >-
+      The published multi-key GCM collision technique underlying message-franking and partitioning
+      results.
+    citation: 'Published multi-key GCM collision technique - RECALLED, REQUIRED READ, NOT YET READ'
+    provenance: recalled
+    verified_by: null
+    role: >-
+      Establishes that the technique is KNOWN and externally dominated. This hypothesis claims the
+      ARTIFACT inside this program, not the technique, and says so.
+  reduction_chain:
+    core_problem: null
+    corollaries: []
+  predictions:
+  - metric: construction_wall_clock_ms
+    direction: lower
+    minimum_effect: >-
+      Below 1000 ms per certificate on the recorded machine at the named standard parameter set,
+      with the reported cost dominated by the linear solve. A construction that requires more, or
+      that requires enumeration over candidate blocks, indicates the mechanism is misunderstood and
+      must halt the goal's premise.
+  - metric: independent_verification_pass_count
+    direction: higher
+    minimum_effect: >-
+      10 of 10 certificates accepted under BOTH keys by BOTH verifiers, one of which is a stock
+      library. Any single rejection means the certificate is invalid and nothing is recorded.
+  - metric: third_key_rejection_count
+    direction: higher
+    minimum_effect: >-
+      10 of 10 certificates REJECTED under a third unrelated key. A pass there means the tag check
+      is broken and no acceptance anywhere in the run means anything.
+  test_boundary:
+    instances:
+    - Ten certificates at the named standard parameter set, each with declared seeds and two distinct meaningful plaintexts.
+    parameters:
+      mode: AES-GCM at a NIST SP 800-38D parameter set named exactly in the contract
+      iv_bits: 96
+      tag_bits: 128
+      key_bits: to be named exactly in the contract
+      certificate_count: 10
+    implementation: >-
+      One construction implementation written for this goal, plus two independent verifiers, at
+      least one of which is a stock library not written for this goal. All three pass the SP
+      800-38D test vectors before any certificate is minted.
+    budget:
+      wall_clock_seconds_per_run: 600
+      maximum_memory_gb: 2
+  falsification_conditions:
+  - >-
+    The linear system is inconsistent at the named standard parameter set. The construction does not
+    apply as described, the mechanism is wrong, and the goal's premise must be re-derived rather
+    than patched.
+  - >-
+    An independent implementation rejects any certificate under either key. The certificate is
+    invalid and nothing is recorded.
+  - >-
+    Construction requires search rather than a linear solve - measured as a wall clock above the
+    declared bound, or as an implementation that enumerates candidates. The mechanism is
+    misunderstood.
+  - >-
+    A certificate is ACCEPTED under the third unrelated key. The tag check is broken and every
+    acceptance in the run is void.
+  - >-
+    The GCM implementation fails the SP 800-38D test vectors. Nothing downstream is admissible.
+  interpretation_limits:
+  - >-
+    A key-commitment certificate requires the adversary to CHOOSE BOTH KEYS. It is not a
+    confidentiality break, not a forgery under an unknown key, and no record may present it as
+    either.
+  - >-
+    Nothing here is a statement about any deployed product, protocol or vendor.
+  - >-
+    The technique is externally published and this record says so. The delta claimed is
+    instrumentation - this program acquiring a verifiable artifact at full parameters - and no
+    novelty is claimed for the mathematics.
+  - >-
+    The result is scoped to the exact parameter set, block count and implementations used. A
+    different AEAD, a different tag length or a different parameter set is a different contract.
+  prior_evidence_refs: []

@@ -1,0 +1,173 @@
+control_plane_correction:
+  schema: crypto.autoresearch.control_plane_correction.v1
+  id: CORR-20260907-5afd89
+  goal_id: GOAL-ECDLP-bbc21f
+  batch_id: BATCH-e9fd22
+  recorded_at: '2026-09-07'
+  recorded_by: coordinator
+  prepared_by_task: TASK-20260907-9e7580
+  archived_by: TASK-20260907-9e7580
+  correction_kind: archival_task_assignment_unrepresentable_in_a_closed_queue
+  corrects_only: >-
+    The `handling` clause of PD-3 in DEC-20260907-b6bcf4 and in
+    ledger/goals/GOAL-ECDLP-bbc21f/checkpoints/BATCH-e9fd22.yaml
+    `procedure_deviations`, both of which state that TASK-20260907-9e7580 IS
+    ADDED to BATCH-e9fd22's dispatch queue as a terminal coordinator
+    ledger-archive node. IT IS NOT, AND IT CANNOT BE. Nothing else in either
+    record is corrected.
+  scientific_effect: none
+  scientific_effect_detail: >-
+    ZERO. This corrects a statement about where a task node lives in a
+    coordination file. It touches no measurement, no verdict, no scope, no
+    defect, no ranking, and no claim about the ECDLP. The lane still executed
+    no run, still created no evidence record, and still changed no hypothesis
+    status. CR-1, CR-1a, HB-1, IC-1, TF-1, PD-1, PD-2, PD-4, the
+    goal-closure assessment and all five ranks of the rerank stand exactly as
+    committed.
+
+  # =====================================================================
+  # 1. THE DEFECT
+  # =====================================================================
+  defect:
+    id: PD-3-HANDLING-UNACHIEVABLE
+    superseded_records:
+      - record: ledger/decisions/DEC-20260907-b6bcf4.yaml
+        clause: procedure_deviations[PD-3].handling
+        commit: 0dbeb3c466417d9d67c3609ed6395ece4e8c03e4
+      - record: ledger/goals/GOAL-ECDLP-bbc21f/checkpoints/BATCH-e9fd22.yaml
+        clause: procedure_deviations[PD-3]
+        commit: 0dbeb3c466417d9d67c3609ed6395ece4e8c03e4
+    superseded_by_reference_never_edited: true
+    superseded_by_reference_note: >-
+      Both records were committed at 0dbeb3c466417d9d67c3609ed6395ece4e8c03e4
+      before this correction was written, and both are immutable. NEITHER IS
+      EDITED. AGENTS.md core rule 4 and CLAUDE.md's conflict rule require a
+      superseding record under a new id, which is this record. A reader of
+      PD-3 must read this correction beside it.
+    what_the_clause_asserted: >-
+      That the follow-up commit backfilling TASK-20260907-ceb8cf's archive
+      block would also add TASK-20260907-9e7580 to the queue as a terminal
+      coordinator ledger-archive node, "so AGENTS.md's 'exactly one archival
+      task' requirement is met for this shard and the dispatcher can verify
+      its commit."
+    why_it_is_false: >-
+      TWO INDEPENDENT DISPATCHER INVARIANTS FORBID THE NODE, and each alone is
+      sufficient. It was asserted as a forward-looking handling before either
+      was checked; the check is below, and it fails.
+    how_it_was_checked: >-
+      EMPIRICALLY, not by reading the source alone. The candidate node was
+      constructed, written to a scratch copy of the queue inside the batch
+      directory, and `tools/research_dispatch.py <scratch> --output /tmp/t.json
+      --report /tmp/t.md` was run against it. The scratch copy was deleted and
+      never committed. The two errors below are the verifier's verbatim output.
+    obstacle_1:
+      invariant: each artifact path is owned by exactly one task
+      source: 'tools/research_dispatch.py validate_queue, the artifact_owners map'
+      verifier_output_verbatim: >-
+        dispatch error: artifact path
+        ledger/goals/GOAL-ECDLP-bbc21f/checkpoints/BATCH-e9fd22.yaml is owned
+        by both TASK-20260907-022c19 and TASK-20260907-9e7580
+      root_cause: >-
+        THE CHECKPOINT PATH WAS ALREADY DECLARED, BY THE LANE'S OWN OPENING
+        PLAN, AS TASK-20260907-022c19's ARTIFACT. 022c19 was the terminal
+        composing ledger archive of the evidence review this lane intended to
+        run; its declared artifact_paths are EV-ECDLP-9875b0,
+        DEC-20260907-7328d4,
+        ledger/goals/GOAL-ECDLP-bbc21f/checkpoints/BATCH-e9fd22.yaml and its
+        own ledger receipt. The review never opened, so 022c19 never ran and
+        is cancelled by this close -- but its DECLARATION of that path stands
+        in the committed queue, and a second owner is refused.
+    obstacle_2:
+      invariant: >-
+        an archive task's `source_task_ids` must be non-empty, must be
+        non-archive tasks, must appear in its own `depends_on`, and each
+        non-archive task may be assigned to at most one archive task
+      source: 'tools/research_dispatch.py validate_archive_shape (require_text_list without allow_empty) and validate_queue (the assignments map)'
+      verifier_output_verbatim: >-
+        dispatch error: non-archive task TASK-20260907-f65c6e is assigned to
+        both TASK-20260907-ceb8cf and TASK-20260907-9e7580
+      root_cause: >-
+        BATCH-e9fd22's queue has five non-archive tasks and every one is
+        already assigned to exactly one archive task: TASK-20260907-d47b50 to
+        TASK-20260907-4ce154, TASK-20260907-f65c6e to TASK-20260907-ceb8cf,
+        TASK-20260907-e423d5 to TASK-20260907-60957d, and
+        TASK-20260907-6a2b2e and TASK-20260907-3dff63 to TASK-20260907-022c19.
+        A new archive node cannot draw a source, and it cannot declare none.
+    the_generic_defect: >-
+      A DISPATCH QUEUE CANNOT REPRESENT AN ARCHIVAL TASK THAT ITS OPENING PLAN
+      DID NOT ANTICIPATE. Every archive node must consume an unassigned
+      non-archive producer, so once a lane's producers are all assigned the
+      queue is closed to new archives -- including the one a LANE CLOSE needs
+      when the planned terminal archive is cancelled unrun. This is a harness
+      defect of the same family as HB-1 (a head that cannot see work archived
+      under another goal id): the control plane's schema, not the science,
+      decides what can be recorded. Recorded for whoever fixes the dispatcher;
+      not repaired here.
+
+  # =====================================================================
+  # 2. WHAT WAS DONE INSTEAD
+  # =====================================================================
+  correct_disposition:
+    task_node_added: false
+    what_was_done: >-
+      TASK-20260907-9e7580 is NOT a node of BATCH-e9fd22's dispatch queue and
+      is not made one. The queue records the lane close in a queue-level
+      `lane_close` block naming the task, its two commits, this correction, and
+      the reason the node is absent. TASK-20260907-022c19 is cancelled with a
+      `cancellation` block that states its declared checkpoint path was written
+      by TASK-20260907-9e7580 instead, so a reader following the queue's own
+      declaration reaches the task that actually wrote the file.
+    exactly_one_archival_task_requirement: >-
+      MET IN SUBSTANCE, NOT IN THE QUEUE'S BOOKKEEPING, and the distinction is
+      stated rather than blurred. Exactly one task archived the checkpoint --
+      TASK-20260907-9e7580, at commit
+      0dbeb3c466417d9d67c3609ed6395ece4e8c03e4, which staged exactly
+      ledger/goals/GOAL-ECDLP-bbc21f/checkpoints/BATCH-e9fd22.yaml,
+      ledger/decisions/DEC-20260907-b6bcf4.yaml and
+      ledger/goals/GOAL-ECDLP-bbc21f/goal.yaml and named the task and record
+      ids in its message. No second task committed any of those paths. What is
+      NOT true is that the dispatcher verified that commit from a queue node:
+      it cannot, because there is no node. Verify it from git and from the
+      checkpoint's `verified_commits`.
+    what_was_deliberately_not_done:
+      - >-
+        The checkpoint path was NOT removed from TASK-20260907-022c19's
+        declared artifact_paths to make room for a new owner. That would
+        rewrite a cancelled task's committed declaration of what it was
+        planned to produce, which is the lane's history.
+      - >-
+        The archive blocks were NOT stripped from the cancelled archive nodes
+        TASK-20260907-60957d and TASK-20260907-022c19 to free their sources.
+        Same reason.
+      - >-
+        No source task was invented to give the node something to archive.
+      - >-
+        TASK-20260907-022c19 was NOT repurposed as the lane-close archive. Its
+        handoff, its `source_task_ids` and its `record_ids` describe an
+        evidence review that never happened, and two of its record_ids
+        (EV-ECDLP-9875b0, DEC-20260907-7328d4) name records that were never
+        authored.
+  binding_for_later_readers: >-
+    PD-3 is superseded ONLY in its `handling`. Its `deviation` -- that
+    TASK-20260907-9e7580 was not a node in the queue when the lane's work began
+    -- is TRUE, and this correction makes it permanent rather than transitional.
+  asserts_nothing_about: >-
+    The ECDLP; G3 feasibility at any a; the approved v2 contract; the
+    compatibility read CR-1 or its four conditions; the identifier collision
+    IC-1; the ranking; or the goal's completion criteria. It is a control-plane
+    correction with no scientific content.
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    reasoning_effort: high
+    fallback_used: false
+    degraded_allowed: false
+    degraded_requirements: []
+    resolved_model: >-
+      claude-opus-5 (Cursor cloud agent runtime; the model that answered this
+      session), recorded beside the requested policy per AGENTS.md "Model
+      policy". No substitution was requested or accepted.
+    model_verified: >-
+      NOT probe-verified; `python3 -m orchestration.adapter doctor --probe` was
+      not run by this session.
+    independent_session: false

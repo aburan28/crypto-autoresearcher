@@ -1,0 +1,191 @@
+schema: crypto.autoresearch.executor_repair_report.v1
+task_id: TASK-20260802-972
+reconciliation_id: RECON-20260802-001
+role: executor
+objective: >-
+  Implement only R-970-001 through R-970-003 from the frozen Codex runtime
+  probe repair protocol, using fixture/static checks only.
+
+frozen_protocol:
+  source: coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-970/repair_protocol.yaml
+  snapshot_commit: d46ef0b8568d1d34a2625509436f1a019eb17b3e
+  dispatch_bind_commit: a03b8855e39008059478e097a45582b1d46a7704
+  execution_base_commit: a03b8855e39008059478e097a45582b1d46a7704
+  snapshot_is_ancestor_of_execution_base: true
+  protocol_unchanged_between_snapshot_and_execution_base: true
+  handoff: ledger/handoffs/TASK-20260802-972.yaml
+
+requirement_traceability:
+  - id: R-970-001
+    finding: F-968-001
+    implementation: >-
+      _parse_launch_stdout now counts every thread.started JSON object in
+      thread_events while independently collecting valid UUID IDs. The caller
+      persists the event count before rejecting zero events or a sole malformed
+      ID as thread_id_missing, and rejects every count other than one as
+      thread_id_ambiguous before state lookup.
+    fixtures:
+      - invalid-plus-valid thread.started events fail thread_id_ambiguous, retain count two, and do not call _query_state_row.
+      - one malformed thread.started ID fails thread_id_missing, retains count one, and does not call _query_state_row.
+      - two valid thread.started events fail thread_id_ambiguous and retain count two.
+  - id: R-970-002
+    finding: F-968-002
+    implementation: >-
+      A preliminary _cross_checks pass evaluates all request/state/rollout and
+      launch/row/session/turn/thread-window checks before the runtime-binding
+      subprocess, using launch_end placeholders without consuming or persisting
+      recorded_at. After the subprocess, _cross_checks validates launch_start
+      <= launch_end <= binding_start <= binding_end <= the single persisted
+      recorded_at. Verification status is set only after this final check and
+      recorded_at is not overwritten.
+    fixtures:
+      - a final clock value preceding launch fails timestamp_invalid.
+      - a reversed binding interval fails timestamp_invalid.
+      - the happy path asserts the single final timestamp 2026-08-02T12:00:06Z.
+      - a metadata model mismatch fails before bindings_runner is called.
+  - id: R-970-003
+    finding: F-968-003
+    implementation: >-
+      ConfigError raised by canonical policy resolution is converted to the
+      existing invalid_argument _ProbeFailure, so the established failure path
+      exclusively creates a failed receipt when the target is safely creatable.
+    fixtures:
+      - an unknown policy raises CodexRuntimeProbeError with invalid_argument, writes a failed receipt, and invokes no process runner.
+      - retrying that unknown-policy request returns receipt_exists and preserves the receipt bytes.
+
+implementation_observations:
+  - >-
+    Changed only orchestration/adapter/codex_runtime.py and
+    tests/test_codex_runtime_probe.py before writing this report.
+  - >-
+    Receipt schema, verification scope, failure-code vocabulary, SQLite query
+    text, exact-ID state locality, receipt privacy behavior, path containment,
+    and model-binding non-mutation code were not changed.
+  - >-
+    The pre-binding metadata gate is preserved: a fixture model mismatch
+    writes its failed receipt without invoking the runtime-binding runner.
+  - >-
+    No live Codex command, real Codex state, network endpoint, model-binding
+    edit, control-plane edit, research-state action, staging, or commit was
+    performed.
+
+fixture_coverage:
+  fake_runtime_only: true
+  live_codex_probe_run: false
+  real_codex_state_inspected: false
+  network_used: false
+  research_runs_executed: 0
+  focused_fixture_tests_passed: 50
+  combined_adapter_and_probe_tests_passed: 104
+
+commands:
+  - argv: [python3, -m, pytest, tests/test_codex_runtime_probe.py, -q]
+    exit_code: 0
+    stdout: |-
+      ..................................................                       [100%]
+      50 passed in 9.26s
+    stderr: ''
+  - argv: [python3, -m, pytest, tests/test_inference_adapter.py, tests/test_codex_runtime_probe.py, -q]
+    exit_code: 0
+    stdout: |-
+      ........................................................................ [ 69%]
+      ................................                                         [100%]
+      104 passed in 10.00s
+    stderr: ''
+  - argv: [python3, tools/check_runtime_bindings.py]
+    exit_code: 0
+    stdout: 'OK: 5 roles consistent with every runtime binding'
+    stderr: ''
+  - argv: [python3, tools/validate_ledger.py]
+    exit_code: 0
+    stdout: |-
+      note: 2248 grandfathered legacy error(s) suppressed by tools/validate_ledger_baseline.txt
+      note: 103 frozen root-level ledger records were indexed; 11 legacy run manifest(s) were indexed; 289 legacy schema issue(s) remain read-only
+      OK: validated 2458 records, no new violations
+    stderr: ''
+  - argv: [python3, tools/check_merge_hygiene.py]
+    exit_code: 0
+    stdout: |-
+      note: experiments/EXP-DREG-004/specification.yaml now parses; drop it from tools/merge_hygiene_baseline.txt
+      note: experiments/EXP-SIG-007/specification.yaml now parses; drop it from tools/merge_hygiene_baseline.txt
+      note: ledger/evidence/EV-FCP-003.yaml now parses; drop it from tools/merge_hygiene_baseline.txt
+      note: ledger/evidence/EV-IC-002.yaml now parses; drop it from tools/merge_hygiene_baseline.txt
+      note: ledger/handoffs/TASK-20260724-242.yaml now parses; drop it from tools/merge_hygiene_baseline.txt
+      note: ledger/handoffs/TASK-20260725-004.yaml now parses; drop it from tools/merge_hygiene_baseline.txt
+      PASS: no conflict markers, no unparseable records
+    stderr: ''
+  - argv: [git, diff, --check]
+    exit_code: 0
+    stdout: ''
+    stderr: ''
+  - argv: [git, merge-base, --is-ancestor, d46ef0b8568d1d34a2625509436f1a019eb17b3e, HEAD]
+    exit_code: 0
+    stdout: ''
+    stderr: ''
+  - argv: [git, diff, --quiet, d46ef0b8568d1d34a2625509436f1a019eb17b3e, --, coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-970/repair_protocol.yaml]
+    exit_code: 0
+    stdout: ''
+    stderr: ''
+
+artifact_hashes:
+  orchestration/adapter/codex_runtime.py: 4921fa5082f5a9a81fd2e15e74ea5e5136c830f9ac3274fccd0973ae7272191e
+  tests/test_codex_runtime_probe.py: 5bf8a499b9b1203e58938367dec0450cb06b2dd8aaf3cbcf52645886d1b06a72
+
+protocol_deviations: []
+anomalies: []
+limitations:
+  - >-
+    This is static and fixture-only execution. It does not establish behavior
+    against an authorized newly-created live Codex session or real Codex state.
+  - >-
+    This report records implementation observations, not an acceptance,
+    validation, research-status, or snapshot-archive decision. Independent
+    validation remains required by the frozen protocol.
+
+artifact_paths:
+  - orchestration/adapter/codex_runtime.py
+  - tests/test_codex_runtime_probe.py
+  - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-972/repair_report.yaml
+
+execution_report:
+  experiment_id: null
+  implementation_commit: null
+  implementation_base_commit: a03b8855e39008059478e097a45582b1d46a7704
+  protocol_deviations: []
+  runs:
+    completed: []
+    invalid: []
+    failed: []
+  observations:
+    - Fixture-only focused suite: 50 tests passed.
+    - Combined inference-adapter and focused probe suites: 104 tests passed.
+    - Runtime bindings static check: 5 roles consistent with every runtime binding.
+    - Ledger and merge-hygiene static checks reported no new violations/errors.
+  anomalies: []
+  artifact_paths:
+    - orchestration/adapter/codex_runtime.py
+    - tests/test_codex_runtime_probe.py
+    - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-972/repair_report.yaml
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false
+
+inference_provenance:
+  requested_policy: executor-implementation
+  requested_reasoning_effort: medium
+  policy_default_reasoning_effort: medium
+  exact_resolved_model_id: null
+  model_verified: false
+  fallback_allowed: true
+  fallback_used: null
+  degraded_allowed: false
+  degraded_requirements: []
+  independent_session_required: false
+  note: >-
+    No exact probe-verified runtime model identifier was available to this
+    Executor session; none is inferred from configuration or fixture results.
+
+state_changes: []
+approval_verdict: not_within_executor_authority
+archived_by: TASK-20260802-973

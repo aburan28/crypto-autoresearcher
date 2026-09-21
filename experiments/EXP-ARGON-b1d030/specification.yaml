@@ -1,0 +1,226 @@
+experiment:
+  id: EXP-ARGON-b1d030
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-78c476; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-78c476
+  question_id: RQ-ARGON-141710
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Across-input variance decomposition and input-invariant skeleton size of the Argon2d and
+    Argon2id per-lane reference DAG at p=1, with Argon2i as a forced-value positive control and a
+    fresh-uniform generator as the negative control
+  objective: The one uncertainty a run reduces is whether the memory-access graph of the data-dependent
+    Argon2 variants is stable enough across inputs that a single-draw measurement is a measurement
+    of the variant rather than of one sample. (i) The skeleton question -- how much of the graph is
+    the same for every input beyond the chain -- is answered by per-position modal mass against an
+    analytically computed, position-dependent coincidence rate, so the answer is calibrated rather
+    than eyeballed. (ii) The variance question -- how much any graph statistic this lane already plans
+    to report moves across inputs -- is answered by computing four such statistics over N independent
+    synthetic inputs and reporting their spread, with the fresh-uniform generator supplying the null
+    spread and Argon2i supplying a forced value of exactly zero. (iii) The consequence question --
+    how many input draws a two-variant comparison needs to be powered at the effect sizes this lane's
+    own existing predictions assume -- is answered by a power calculation from the measured spreads,
+    and it is the deliverable most likely to change what other contracts in this goal do. The run
+    reduces no uncertainty about Argon2's security, about side-channel leakage, or about any adversary's
+    cost.
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'The maximal supportable claim is: for the constructed p=1 per-lane
+      reference DAGs at the declared (t, q) cells under N synthetic inputs drawn from a declared PRNG
+      with declared salt handling, the input-invariant edge skeleton beyond the chain has the measured
+      size relative to the analytic coincidence rate, the four named graph statistics have the measured
+      across-input spreads, Argon2i''s spread is exactly zero, and a two-variant comparison at the
+      declared effect sizes requires the computed number of replicates. WHAT DOES NOT FOLLOW: nothing
+      about Argon2''s security or about any variant being preferable; nothing about side-channel leakage,
+      which this design does not measure; nothing about precomputation, amortization or any attack,
+      since a recurring edge is not an exploitable structure and none is claimed; nothing about real
+      input distributions; and nothing about multi-lane or recommended-parameter behaviour.'
+  inputs:
+    procedure: 'STAGE 0 (cost: hours of human time): freeze N, the salt-handling rule, the per-position
+      skeleton threshold and its analytic coincidence formula, and the three effect sizes for the
+      power calculation, as a pre-registration file. STAGE 1 (cost: low): implement the p=1 reference-target
+      array builder for all three variants from KN-LIT-7f3c21, sharing every code path except the
+      J1 source. STAGE 2 (cost: negligible): run the Argon2i forced-value control first and halt on
+      any nonzero variance; this gates every later stage. STAGE 3 (cost: minutes): build N index arrays
+      per variant per cell, with declared seeds. STAGE 4 (cost: negligible): compute per-position
+      empirical target distributions, modal masses, entropies and lag-one correlations. STAGE 5 (cost:
+      negligible): apply the per-position threshold and report skeleton size against the analytic
+      expectation. STAGE 6 (cost: minutes): compute the four graph statistics per draw and their across-input
+      spreads, for the real variants and for the fresh-uniform null. STAGE 7 (cost: negligible): run
+      the power calculation and emit the required replicate counts. No stage evaluates an attack and
+      no stage touches credential data.'
+    instrument: Python 3 with numpy for index-array construction and the variance decomposition; scipy.stats
+      for the power calculation only, with the closed-form coincidence rate computed in exact integer
+      and rational arithmetic rather than numerically; harness/runner.py for seeding, parameter capture
+      and run manifests. The reference-target builder is written directly from KN-LIT-7f3c21 so that
+      the three variants and the fresh-uniform null share one code path parameterized by J1 source.
+      No external Argon2 library, no computer-algebra system, no Sage.
+    parameters: p=1. t in {1, 3}. q in {1024, 4096}. Variants Argon2d and Argon2id as signal arms,
+      Argon2i as forced-value positive control, fresh-uniform generator as negative control. N=200
+      independent synthetic inputs per (variant, t, q) cell, each 32 random bytes from a declared
+      seeded PRNG, with salt held fixed across draws in the primary arm and varied in a secondary
+      arm of N=50. Skeleton threshold set per position so the expected false-skeleton count over the
+      whole lane is below one at N=200. Power calculation at effect sizes 0.1, 0.2 and 0.5 in the
+      ratio scale, at 80 percent power, two-sided, alpha 0.05. No password, credential, leaked corpus
+      or third-party dataset at any stage.
+  controls:
+  - Argon2i positive control with the forced value of exactly zero across-input variance and a whole-graph
+    skeleton.
+  - Fresh-uniform generator negative control supplying the coincidence-level skeleton and the null
+    variance.
+  - Analytically computed coincidence rate, checked against the fresh-uniform simulation, so the skeleton
+    threshold is validated in two independent ways.
+  - Salt held fixed across draws in the primary arm and varied in a secondary arm, so that the Argon2i
+    control's forced value is not silently broken by salt handling.
+  - Lag-one target correlation reported alongside the marginals, since the projection discards joint
+    structure and the discard must be visible.
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): A fresh-uniform generator: for each of the N inputs, redraw every reference
+    target independently and uniformly from the same candidate window W(j). The skeleton-detection
+    code, the threshold, and the variance decomposition run on this null in the same invocation via
+    the identical code path. The null must show a skeleton of exactly the chain plus a number of false
+    positions consistent with the pre-computed coincidence rate, and it must show the null variance
+    against which Argon2d''s variance is compared. If Argon2d''s skeleton size and across-input variance
+    are indistinguishable from this null, the correct record is a controlled null with real content:
+    the Argon2d graph is, at the resolution of this measurement, a fresh draw per input, which is
+    a directly usable statement that fixes the number of replicates every downstream variant comparison
+    in this lane requires. Argon2i serves as the opposite control with a forced value -- skeleton
+    equal to the whole graph, variance exactly zero -- and any deviation there is a bug, not a result.'
+  independent_variables:
+  - variant, in {Argon2d, Argon2id, Argon2i, fresh-uniform null}
+  - t, in {1, 3}
+  - q, in {1024, 4096}
+  - salt handling, in {fixed across draws, varied across draws}
+  metrics:
+    primary:
+    - input-invariant skeleton size beyond the chain, as a fraction of q, against the analytic coincidence
+      expectation
+    - across-input standard deviation of the live-set integral ratio
+    - across-input standard deviation of native depth and of median back-distance
+    - required replicate count at 80 percent power for each declared effect size
+    secondary:
+    - per-position modal mass and entropy profiles
+    - lag-one target correlation across positions
+    - orphan-fraction spread across inputs
+    - Argon2id split-point-separated skeleton sizes
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The Argon2d input-invariant skeleton size beyond the chain, and the across-input standard
+      deviation of the live-set integral ratio, both against their fresh-uniform null values.
+    formula: 'Skeleton size S = |{j : max_v (count of draws with r_x[j] = v) / N > tau(j)}| minus
+      the chain, where tau(j) is set so that under independent uniform draws from W(j) the expected
+      count of qualifying positions summed over all j is below 1 at N=200. Predicted S/q < 0.02 and
+      within a factor of two of the analytic expectation. Argon2i control forced to variance exactly
+      0.'
+    source: Pre-registered in the parent proposal IDEA-20260816-78c476 before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: Tested at p=1, t in {1,3} matching the RFC 9106 recommended pass counts, and q
+      in {1024, 4096}, which are one to four binary orders below the second recommended tuple's per-lane
+      block count and far below the first. The quantity measured -- across-input variance of an average
+      over positions -- is expected to SHRINK with q, so a spread that is negligible at q=1024 does
+      not imply it is negligible at recommended q; the extrapolation direction is stated and the reported
+      replicate counts are explicitly labelled as valid only at the tested q. The p=1 exclusion of
+      cross-lane edges is inherited from the rest of this lane and is named, not hidden.
+    correspondence: null
+  tail_checks:
+  - Examine the positions with the highest modal mass individually rather than only the count above
+    threshold, since a handful of genuinely recurring positions is a different phenomenon from a diffuse
+    excess.
+  - Examine the extreme draws of each graph statistic, not just the spread, since a heavy-tailed across-input
+    distribution invalidates the power calculation's normal approximation.
+  - Examine the first slice of the first pass separately, where the window is smallest and coincidence
+    rates are highest.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+  stopping_rules:
+  - Halt immediately and report a pipeline defect if the Argon2i forced-value control returns nonzero
+    variance; no downstream number is interpretable in that case.
+  - Stop and report partial results if wall clock exceeds thirty minutes, recording completed cells;
+    incompleteness is a budget outcome, never a negative result.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: The Argon2i control returns exactly zero variance, the fresh-uniform null's false-skeleton
+    count matches its analytic expectation within a factor of two, and the skeleton sizes, across-input
+    spreads and required replicate counts are reported per cell -- irrespective of whether the spreads
+    turn out large or negligible.
+  falsification_criterion:
+  - Argon2i control returns nonzero variance.
+  - Fresh-uniform null false-skeleton count disagrees with the analytic rate by more than a factor
+    of two.
+  - Argon2d skeleton beyond the chain exceeds 0.02 of q.
+  - Argon2d across-input spread indistinguishable from zero at every cell.
+  - Lag-one target correlation in Argon2d materially different from the fresh-uniform null, invalidating
+    the marginal projection.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-78c476
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The salt-handling rule is decisive for whether the Argon2i positive control exists, and the Coordinator
+    must fix it explicitly rather than inheriting a default from any implementation.
+  - The per-position threshold tau(j) is specified by its calibration property but not by a closed
+    form; the exact expression must be derived and checked before approval.
+  - Whether the Argon2id arm should report one skeleton or two, split at the pass-0-slice-1 boundary,
+    is a definitional choice with no obviously right answer and must be settled in the contract.
+  - The power calculation assumes approximate normality of the across-input statistic distribution,
+    which the tail check probes but does not guarantee; a Coordinator may require a nonparametric
+    alternative.

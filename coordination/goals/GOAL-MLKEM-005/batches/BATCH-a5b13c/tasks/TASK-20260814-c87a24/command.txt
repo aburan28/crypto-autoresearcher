@@ -1,0 +1,82 @@
+# TASK-20260814-c87a24 -- every invocation, in order, run from the
+# repository root (/home/user/crypto-autoresearcher). PYTHONDONTWRITEBYTECODE=1
+# and `python3 -B` used throughout so no __pycache__ is created in the repo.
+# Budget: 3600 s hard cap wall clock, 2 GB memory, 1 protocol run.
+
+cd /home/user/crypto-autoresearcher
+TASKDIR=coordination/goals/GOAL-MLKEM-005/batches/BATCH-a5b13c/tasks/TASK-20260814-c87a24
+LE=/tmp/le
+SHIM=tools/sage_free_estimator/shim
+
+# --- 0a. dependency install (this session's Python environment carried
+#     scipy but not mpmath or a PDF text extractor at task start) ---
+pip3 install --user mpmath
+apt-get install -y poppler-utils   # for pdftotext, used only to read the
+                                    # primary FIPS 203 source for section
+                                    # 2.3's Compress/Decompress rounding
+                                    # definition (see writeup for why the
+                                    # committed inputs/MLKEM-DUAL-SOURCES-
+                                    # 20260802 corpus did not carry it)
+
+# --- 0b. SECTION 1 OBLIGATION 1 -- clone lattice-estimator at the pin,
+#     network required ---
+git clone https://github.com/malb/lattice-estimator /tmp/le
+git -C /tmp/le checkout 3e48ef421ec256afddb3e7d2249a77eab6e9ba12
+# HEAD of the fresh clone already landed on the pin (README's own note:
+# "As of 2026-08-03 it is also the repository's HEAD"); `git checkout`
+# above still ran explicitly rather than relying on that, per the README's
+# own "pin explicitly rather than relying on that" instruction.
+git -C /tmp/le rev-parse HEAD
+git -C /tmp/le status --short   # confirms a clean tree at the pin
+
+# --- 0c. primary-source fetch for section 2's rounding-convention check
+#     (network; inputs/MLKEM-DUAL-SOURCES-20260802/fips203_selected_text.txt
+#     turned out to carry only FIPS 203's front matter/abstract, not the
+#     Compress/Decompress passage in section 4.2.1 -- see writeup) ---
+curl -sSL -o /tmp/fips203.pdf "https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf"
+pdftotext -layout /tmp/fips203.pdf /tmp/fips203.txt
+sha256sum /tmp/fips203.pdf /tmp/fips203.txt
+
+# --- 1. SECTION 1 OBLIGATION 2 -- known-answer control (the pinned,
+#     already-established instrument, unmodified) ---
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$SHIM:$LE" timeout 300 \
+  python3 -B tools/sage_free_estimator/known_answer_control.py
+
+# --- 2. STAGE A -- the exact fibre census, standalone (zero external
+#     dependency, pure stdlib) ---
+PYTHONDONTWRITEBYTECODE=1 timeout 120 \
+  python3 -B "$TASKDIR/ciphertext_noise_census.py" > /tmp/census_stdout_capture.json
+
+# --- 3. SECTION 1 OBLIGATIONS 3-4 + STAGE B -- scheme-parameter
+#     re-verification, API-surface determination, and the three-noise-model
+#     block-size readout, imports ciphertext_noise_census.py directly so
+#     Stage A and Stage B share exactly one Compress/Decompress
+#     implementation ---
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$SHIM:$LE" timeout 600 \
+  python3 -B "$TASKDIR/ciphertext_noise_readout.py" > /tmp/readout_stdout_capture.json
+
+# --- 4. combine Stage A's standalone-run output and the readout's full
+#     R-CN-OUT-0..4 payload into the single results_ciphertext_noise.json
+#     deliverable, plus a field-by-field cross-check that the standalone
+#     Stage A run and the Stage-A-embedded-in-readout run agree exactly ---
+python3 -c "
+import json
+readout = json.load(open('/tmp/readout_stdout_capture.json'))
+census_standalone = json.load(open('/tmp/census_stdout_capture.json'))
+combined = dict(readout)
+combined['_stage_A_standalone_reproduction_cross_check'] = {
+    'note': 'census.py run standalone to confirm Stage A is reproducible on '
+            'its own; compared field-by-field against '
+            'R-CN-OUT-1_stage_A_census below.',
+    'falsification_from_standalone_run': census_standalone['falsification'],
+    'matches_readout_embedded_census': census_standalone == combined['R-CN-OUT-1_stage_A_census'],
+}
+json.dump(combined, open('$TASKDIR/results_ciphertext_noise.json', 'w'),
+          indent=2, sort_keys=False)
+"
+
+# --- Reproduction note: to reproduce steps 1-3 exactly, PYTHONPATH must
+#     carry "<repo>/tools/sage_free_estimator/shim:<pinned clone dir>", in
+#     that order (shim first, so it shadows any real `sage` package). All
+#     Python invocations use `-B` with PYTHONDONTWRITEBYTECODE=1 so no
+#     __pycache__ is written inside the repository tree.

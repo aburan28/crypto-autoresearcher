@@ -1,0 +1,295 @@
+execution_report:
+  experiment_id: EXP-MONO-815525
+  handoff_id: TASK-20260904-73d110
+  hypothesis_id: H-MONO-5b6617
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  executed_by: executor
+  executed_at: '2026-09-04'
+  specification_status_at_execution:
+    status: approved
+    frozen: true
+    execution_authorized: true
+    evidence_eligible: true
+    approved_by: coordinator
+
+  runs_planned: 1
+  runs_executed: 1
+  runs_terminal: 1
+  missing_runs: []
+  runs:
+    - id: RUN-MONO-815525-1
+      status: completed_valid
+      classification: completed_valid
+      path: experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/
+
+  # ---------------------------------------------------------------- STAGE 0
+  stage_0:
+    name: derive and verify Q_e(T)
+    construction_route_used: >-
+      All three of: (1) symbolic elimination in sympy -- S_3 from the group
+      law by successive resultants in y1 and y2, then
+      S_4 = Res_U(S_3(x1,x2,U), S_3(x3,x4,U)) eliminating the intermediate
+      point, then exact symmetrization of the T-coefficients into e1,e2,e3;
+      (2) the task card's recommended numeric route -- substitute the three
+      roots of g, realised as X, X^p, X^{p^2} in F_p[X]/(g), into the
+      ordered-base S_4; (3) an independent runtime Sylvester resultant
+      Res_U(S_3(x1,x2,U), S_3(x3,T,U)) over F_{p^3}[T] that never reads the
+      derived S_4 at all. Routes (2) and (3) run at census time; route (1)
+      runs once, offline. The symbolic route proved cheap (10.5 s), so no
+      choice between routes was necessary.
+    derived_S3: >-
+      A^2 - 2A(x1x2+x1x3+x2x3) - 4B(x1+x2+x3) + x1^2x2^2 - 2x1^2x2x3
+      + x1^2x3^2 - 2x1x2^2x3 - 2x1x2x3^2 + x2^2x3^2
+    derived_S3_elimination_identity: "Res_{y2}(Res_{y1}(...)) = (x1-x2)^4 * S_3^2, verified symbolically"
+    derived_S4_term_count: 540
+    derived_S4_full_expansion: experiments/EXP-MONO-815525/implementation/S4_expanded.txt
+    derived_Qe_leading_coefficient: "c_4 = (-A^2 + 2A*e2 + 4B*e1 + 4*e1*e3 - e2^2)^2"
+    derived_Qe_coefficients: experiments/EXP-MONO-815525/implementation/Qe_coeff_c0.txt .. Qe_coeff_c4.txt
+
+    checks:
+      - id: pre_check_S3_against_group_law
+        description: >-
+          S_3(x(P), x(Q), x(P +- Q)) = 0 for every ordered pair from 6 real
+          points on each of the 5 curves, both signs.
+        result: PASS
+      - id: check_a1_symbolic_degree
+        description: "deg_T S_4 = 4 (and degree 4 in each of x1,x2,x3), as a polynomial identity."
+        result: PASS
+        observed: "degrees in x1,x2,x3,x4 = [4,4,4,4]; the elimination carries no extraneous factor"
+      - id: check_a2_specialised_degree_law
+        description: >-
+          deg_T Q_e(e1,e2,e3) = 4 - (number of sign classes eps1 P1 + eps2 P2
+          + eps3 P3 equal to the point at infinity), on split-g base points.
+        result: PASS
+        observed: "269 probes across 5 curves, 0 mismatches; 4 of the 269 exhibited a degree drop"
+        disclosure: >-
+          The specification's check (a) reads literally 'it must be degree 4
+          in T'. That is unambiguous for S_4 and not unambiguous for its
+          specialisation Q_e, since the nonzero polynomial c_4 above can
+          vanish at a point. Check (a) was therefore operationalised in two
+          parts, a1 and a2. Under the alternative reading 'deg_T Q_e = 4
+          always', a2 would have FAILED on 4 of 269 probes. This
+          operationalisation was fixed during a smoke test whose Stage 0
+          aborted before Stage 1 ever ran; no Stage-1 factorization pattern
+          had been observed. The g-irreducibility selection rule was never
+          changed.
+      - id: check_b_split_g_baseline
+        description: >-
+          On base points where g splits completely (constructed from three
+          real points of E with distinct x), monic Q_e must equal
+          prod (T - x(eps1 P1 + eps2 P2 + eps3 P3)) over the finite sign
+          classes, with eps1 = +1 fixed -- the already-discharged
+          ordered-base (Z/2)^2 sign-class structure of H-MONO-93bc4d,
+          cross-checked against ordinary point arithmetic of the kind in
+          EXP-MONO-917e3a/implementation/witness_search.py.
+        result: PASS
+        observed: "269 of 269 probes matched exactly, across all 5 curves; 0 skipped"
+      - id: check_c_symmetry
+        description: >-
+          Q_e is invariant under all 6 orderings of the Galois-conjugate root
+          triple (x1, x1^p, x1^{p^2}), and its F_{p^3} coefficients land in
+          F_p.
+        result: PASS
+        observed: "50 g-irreducible probes (10 per curve): permutation-invariant and F_p-rational in every case"
+      - id: check_paths_agree
+        description: >-
+          The ordered-base F_{p^3} evaluation, the symmetric-base descent,
+          and the independent runtime Sylvester resultant produce identical
+          Q_e coefficient vectors.
+        result: PASS
+        observed: "50 three-way Stage-0 probes agree; additionally all 1500 Stage-1 sampled instances agree on routes (2) vs symmetric descent, and all land in F_p"
+    all_checks_pass: true
+    proceeded_to_stage_1: true
+
+  # ---------------------------------------------------------------- STAGE 1
+  stage_1:
+    name: g-irreducible cycle-type census
+    selection_rule: "g(X) = X^3 - e1 X^2 + e2 X - e3 irreducible over F_p, tested by gcd(T^p - T, g) = 1. A selection on the BASE POINT, not on the curve."
+    factorization_method: "Yun squarefree decomposition + distinct-degree factorization via gcd(T^{p^i} - T, .) with repeated-squaring modular exponentiation; no CAS at runtime"
+    curves:
+      - {id: C1, p: 101,  A: 2,  B: 3,  j: 74,   order: 96,   trace: 6,   ordinary: true, j_not_special: true}
+      - {id: C2, p: 1009, A: 5,  B: 7,  j: 459,  order: 966,  trace: 44,  ordinary: true, j_not_special: true}
+      - {id: C3, p: 211,  A: 3,  B: 11, j: 111,  order: 223,  trace: -11, ordinary: true, j_not_special: true}
+      - {id: C4, p: 1999, A: 7,  B: 13, j: 1870, order: 2064, trace: -64, ordinary: true, j_not_special: true}
+      - {id: C5, p: 101,  A: 37, B: 29, j: 45,   order: 96,   trace: 6,   ordinary: true, j_not_special: true}
+    note_on_scope: >-
+      Five curves at four distinct primes, exceeding the specified minimum of
+      two curves at two primes. C5 exists only to replicate the exhaustive
+      p=101 sweep on a second curve.
+
+    arm_sampled:
+      method: "seeded random draws of (e1,e2,e3) in F_p^3, random.Random(20260904002), single stream"
+      per_curve:
+        C1: {qualifying_kept: 300, draws: 840, rejected_g_reducible: 540, patterns: {"deg4:1+3": 296, "deg3:3": 4}}
+        C2: {qualifying_kept: 300, draws: 878, rejected_g_reducible: 578, patterns: {"deg4:1+3": 299, "deg3:3": 1}}
+        C3: {qualifying_kept: 300, draws: 853, rejected_g_reducible: 553, patterns: {"deg4:1+3": 300}}
+        C4: {qualifying_kept: 300, draws: 911, rejected_g_reducible: 611, patterns: {"deg4:1+3": 300}}
+        C5: {qualifying_kept: 300, draws: 854, rejected_g_reducible: 554, patterns: {"deg4:1+3": 299, "deg3:3": 1}}
+      total_instances: 1500
+      all_instances_recorded_individually: true
+      instances_discarded_or_redrawn: 0
+
+    arm_exhaustive:
+      method: "every (e1,e2,e3) in F_101^3 in lexicographic order; deterministic; 200 s cap not reached"
+      C1: {triples_scanned: 1030301, g_irreducible: 343400, completed: true, wall_seconds: 45.9, patterns: {"deg4:1+3": 340022, "deg3:3": 3378}}
+      C5: {triples_scanned: 1030301, g_irreducible: 343400, completed: true, wall_seconds: 45.8, patterns: {"deg4:1+3": 340022, "deg3:3": 3378}}
+      total_g_irreducible_instances: 686800
+      all_deviating_instances_recorded_individually: true
+      note: "343400 = (101^3 - 101)/3, the exact number of monic irreducible cubics over F_101"
+
+    total_g_irreducible_instances_tested: 688300
+
+  # ---------------------------------------------------------------- STAGE 2
+  stage_2:
+    name: report and compare against the pre-registered prediction
+    preregistered_prediction_verbatim: >-
+      M1: TRUE for every tested instance -- cycle type EXACTLY (1,3), one
+      linear factor and one irreducible cubic factor, in Q_e(T)'s
+      factorization over F_p, for every g-irreducible base point.
+    prediction_source: "IDEA-20260904-ad63fe mechanism (C3)(c); frozen in specification.yaml preregistered_prediction. Not modified."
+
+    M2_observed_distribution_literal_affine_factorization:
+      sampled_1500: {"deg4: 1+3": 1494, "deg3: 3": 6}
+      exhaustive_686800: {"deg4: 1+3": 680044, "deg3: 3": 6756}
+      all_688300: {"deg4: 1+3": 681538, "deg3: 3": 6762}
+      patterns_never_observed: ["4", "2+2", "1+1+2", "1+1+1+1", "any non-squarefree pattern", "any degree < 3"]
+
+    M2_observed_distribution_projective:
+      description: "same factorizations, with the (4 - deg_T Q_e) roots at T = infinity restored as F_p-rational points of the fibre"
+      all_688300: {"1+3": 688300}
+
+    M1_result_literal_affine_reading:
+      value: false
+      n_matching: 681538
+      n_deviating: 6762
+      deviation_rate: 0.009824
+      deviating_pattern: "deg3: single irreducible cubic, no linear factor"
+    M1_result_projective_reading:
+      value: true
+      n_matching: 688300
+      n_deviating: 0
+
+    the_deviating_class_in_full:
+      count: 6762
+      what_it_is: >-
+        Exactly the g-irreducible base points at which the leading
+        coefficient c_4 = (-A^2 + 2A e2 + 4B e1 + 4 e1 e3 - e2^2)^2 vanishes.
+        Q_e then has degree 3 in T and is a single irreducible cubic over
+        F_p; c_3 is nonzero in every observed case, so the homogenised
+        quartic has exactly one simple root at T = infinity.
+      example_deviations:
+        - {curve: C1, p: 101, A: 2, B: 3, e: [26, 64, 100], g: "X^3 - 26X^2 + 64X - 100", Qe_low_to_high: [83, 70, 20, 69], literal_pattern: "deg3:3", projective_pattern: "1+3", source: random_sample}
+        - {curve: C2, p: 1009, A: 5, B: 7, e: [445, 466, 232], g: "X^3 - 445X^2 + 466X - 232", Qe_low_to_high: [617, 471, 213, 106], literal_pattern: "deg3:3", projective_pattern: "1+3", source: random_sample}
+        - {curve: C5, p: 101, A: 37, B: 29, e: [70, 46, 7], g: "X^3 - 70X^2 + 46X - 7", Qe_low_to_high: [34, 19, 97, 36], literal_pattern: "deg3:3", projective_pattern: "1+3", source: random_sample}
+        - {curve: C1, p: 101, A: 2, B: 3, e: [0, 2, 6], Qe_low_to_high: [38, 7, 95, 6], literal_pattern: "deg3:3", projective_pattern: "1+3", source: exhaustive}
+        - {curve: C5, p: 101, A: 37, B: 29, e: [0, 37, 1], Qe_low_to_high: [22, 40, 43, 9], literal_pattern: "deg3:3", projective_pattern: "1+3", source: exhaustive}
+      all_6762_recorded_at: "experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/raw-result.json, keys stage_1.exhaustive_sweep[*].deviations_all and stage_2.deviations_sampled"
+      relation_to_stage_0: >-
+        Stage 0 check (a2) established on 269 split-g probes, with zero
+        mismatches, that deg_T Q_e drops by exactly the number of sign
+        classes eps1 P1 + eps2 P2 + eps3 P3 that equal the point at infinity.
+        On the split-g locus, therefore, a degree-3 Q_e means one of the four
+        fibre points IS the point at infinity, an F_p-rational fibre point.
+        NOT DIRECTLY VERIFIED: the same identification was not re-checked by
+        point arithmetic in the g-irreducible case, which would require
+        F_{p^3}/F_{p^6} point arithmetic that was not implemented. The
+        degree-drop locus itself is identical in both cases (c_4(e) = 0).
+
+    comparison_statement: >-
+      Under the literal affine reading of the frozen prediction -- "one linear
+      factor and one irreducible cubic factor in Q_e(T)'s factorization over
+      F_p" -- M1 is FALSE: 6762 of 688300 g-irreducible base points (0.98%)
+      produce a Q_e of degree 3 that is a single irreducible cubic with no
+      linear factor. Under the projective reading, in which the roots at
+      T = infinity are counted as F_p-rational points of the fibre, M1 is TRUE
+      for all 688300 instances. No instance anywhere in the census showed
+      cycle type 4, 2+2, 1+1+2 or 1+1+1+1, and no instance was non-squarefree.
+      Which reading the frozen prediction intended is not adjudicated here.
+
+  # ---------------------------------------------------------------- meta
+  observations_not_interpretation: >-
+    This report records what was computed. It does not state whether
+    H-MONO-5b6617 or IDEA-20260904-ad63fe's mechanism (C3)(c) is supported,
+    refuted, or unchanged, and does not state whether m=4 symmetric-base
+    monodromy is or is not full S_4. Those are Reviewer and Coordinator
+    judgements, and the choice between the two readings of the frozen
+    prediction is squarely one of them.
+
+  scale_and_transfer:
+    tier: toy
+    tested_parameters: "p in {101, 211, 1009, 1999}; 5 ordinary curves, j not in {0,1728}; base points = monic cubics g irreducible over F_p; m = 4 only"
+    transfer_assumptions: >-
+      None claimed. No transfer to cryptographic scale, to F_{q^n}, to
+      m != 4, to supersingular curves, or to j in {0,1728}. Nothing here
+      bears on relation rates, cost, exponents, or any ECDLP claim.
+
+  budget_compliance:
+    maximum_runs: {limit: 1, used: 1}
+    wall_seconds: {limit: 600, used: 103.3}
+    cpu_seconds: {limit: 600, used: 102.7}
+    peak_rss_bytes: {limit: 134217728, used: 31260672}
+    total_disk_bytes: {limit: 10485760, used: 4713330, note: "raw-result.json; whole run directory is larger only by the small text logs"}
+    workers: {limit: 1, used: 1}
+    network: {required: none, used: none}
+
+  stopping_rules_triggered: []
+  invalidation_rules_triggered: []
+
+  failures_and_deviations:
+    infrastructure_failures: []
+    implementation_errors: []
+    protocol_deviations:
+      - "Stage 0 check (a) operationalised in two parts (a1 symbolic, a2 specialised degree law); see stage_0.checks.check_a2_specialised_degree_law.disclosure."
+      - "Five curves at four primes rather than the two-curve, two-prime minimum."
+      - "Two census arms (seeded sample plus exhaustive p=101 sweep) rather than one; both reported in full."
+      - "No git command was run and no commit sha recorded, per the dispatching Coordinator's explicit instruction for this shared working directory."
+      - "run_census.py was re-run once after adding resource/CPU instrumentation; the mathematics is untouched and the deterministic, seeded results were identical. All recorded logs and raw-result.json come from the single final execution."
+    unexpected_observations:
+      - "The exhaustive sweeps on C1 (A=2,B=3) and C5 (A=37,B=29) returned identical pattern counts, 340022 / 3378, on different base-point sets. Recorded as observed, not explained."
+      - "At e1 = 0 the leading form degenerates to -(e2 - A)^2, so every deviating triple with e1 = 0 has e2 = A exactly -- visible in the exhaustive deviation lists (C1: e2 = 2; C5: e2 = 37)."
+
+  completion_gate:
+    all_planned_runs_terminal: true
+    missing_runs_explained: "none missing"
+    required_artifacts_present: true
+    raw_data_and_summaries_agree: true
+    reproduces_from_recorded_command_and_revision: >-
+      Yes from the recorded command and seed; the revision is bound by the
+      Coordinator's snapshot archive rather than by a commit sha recorded
+      here (see manifest code.commit_note). Fully deterministic: seed
+      20260904002, fixed curve list and search order hard-coded in
+      run_census.py.
+    certificate_discipline: "certificate.kind: none -- pure measurement run, no solve and no relation claimed"
+
+  artifacts:
+    specification: experiments/EXP-MONO-815525/specification.yaml
+    implementation_notes: experiments/EXP-MONO-815525/implementation.md
+    source_code:
+      - experiments/EXP-MONO-815525/implementation/derive_s4.py
+      - experiments/EXP-MONO-815525/implementation/run_census.py
+    derived_polynomials:
+      - experiments/EXP-MONO-815525/implementation/S4_expanded.txt
+      - experiments/EXP-MONO-815525/implementation/Qe_coeff_c0.txt
+      - experiments/EXP-MONO-815525/implementation/Qe_coeff_c1.txt
+      - experiments/EXP-MONO-815525/implementation/Qe_coeff_c2.txt
+      - experiments/EXP-MONO-815525/implementation/Qe_coeff_c3.txt
+      - experiments/EXP-MONO-815525/implementation/Qe_coeff_c4.txt
+      - experiments/EXP-MONO-815525/implementation/s3_monomials.json
+      - experiments/EXP-MONO-815525/implementation/s4_monomials.json
+      - experiments/EXP-MONO-815525/implementation/s4_symmetric_coeffs.json
+      - experiments/EXP-MONO-815525/implementation/derivation_checks.json
+    run_package:
+      - experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/manifest.yaml
+      - experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/command.txt
+      - experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/environment.json
+      - experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/stdout.log
+      - experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/stderr.log
+      - experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/raw-result.json
+    execution_report: experiments/EXP-MONO-815525/execution_report.yaml
+
+  next_step: >-
+    Coordinator isolated snapshot archive of the exact declared paths above,
+    then independent Validator + Red Team dispatch, per
+    TASK-20260904-73d110's next_step_after_completion. The two readings of
+    M1 above are the first thing review should adjudicate.

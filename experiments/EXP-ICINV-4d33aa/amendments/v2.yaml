@@ -1,0 +1,288 @@
+protocol_amendment:
+  experiment_id: EXP-ICINV-4d33aa
+  version_from: 1
+  version_to: 2
+  filed_at: '2026-08-07'
+  filed_by: coordinator (GOAL-ENDO-001, BATCH-aa267f)
+  status: filed_before_re_execution
+  applies_to: >-
+    FUTURE RUNS ONLY. No run of version 1 is re-scored against anything in this
+    file, and no raw run record is altered (AGENTS.md rule 4). The version-1
+    execution's emitted terminal_state INVALID stands exactly as recorded in
+    experiments/EXP-ICINV-4d33aa/runs/RUN-ICINV-fg-decision/
+    decision-rule-evaluation.json. This amendment does not turn that run into a
+    result; it makes a successor run possible.
+  reason: >-
+    THE VERSION-1 CONTRACT FROZE A REPRODUCTION REQUIREMENT AGAINST NUMBERS THAT
+    WERE NEVER MEASURED AT THE PARAMETERS IT FROZE, AND THE GATE WAS THEREFORE
+    UNSATISFIABLE AT p = 6007 BY CONSTRUCTION. Stopping rule SR3 requires Arm A0
+    to reproduce the committed EV-ENDO-10109d density sweep at both p = 4001 and
+    p = 6007, and H-ICINV-6c7920 asserted the contract's parameters were
+    byte-identical to those of RUN-ICINV-p4001-fixed and RUN-ICINV-p6007-fixed.
+    Read from the records: p = 4001 used n_targets 400 over exactly the
+    contract's thirteen factor-base sizes and DOES reproduce (13 of 13 rows,
+    delta 0.0); p = 6007 used n_targets 500 over eleven DIFFERENT sizes
+    {5,6,7,8,9,10,11,12,14,17,21}. The contract's fb = 4 row has no committed
+    counterpart at p = 6007 at all, and every other row was compared against a
+    baseline at a different target count and hence a different binomial null
+    variance. SR3 fired, the frozen rule emitted terminal_state INVALID from
+    state_0, and no OUTCOME state was ever reached. Full record:
+    ledger/corrections/CORR-20260807-14431d.yaml.
+  changes:
+  - id: A1
+    field: inputs.parameters.baseline_reproduction_source
+    kind: defect_repair_premise
+    from: >-
+      Implicit. The contract named no run id for the baseline it required Arm A0
+      to reproduce, and asserted parameter identity rather than reading it.
+    to: >-
+      The successor run MUST FIRST RE-MEASURE the p = 6007 baseline at the
+      contract's own frozen parameters -- n_targets = 400 over the thirteen
+      factor-base sizes {4,5,6,7,8,9,10,11,12,13,15,18,22}, committed sampler
+      (exp_icinv.targets_uniform), same class-selection rule, seed 20260807 --
+      and record it as a NEW run under EXP-ICINV-55c2d8 with its own identifier.
+      SR3 at p = 6007 then compares Arm A0 against THAT run. Option (a) of
+      CORR-20260807-14431d, preferred over restating the gate against the
+      committed T = 500 numbers, because it keeps ONE frozen grid across all
+      three primes and leaves the p = 4001 comparison untouched.
+    rationale: >-
+      This is a reconciliation, not a relaxation. The [1.3, 3.6] band, the
+      monotonic_decay requirement and the +-0.25 operating-row tolerance are all
+      UNCHANGED and still frozen. What changes is that the gate now compares two
+      measurements taken at the same parameters, which is the only condition
+      under which a reproduction requirement means anything.
+    forbidden: >-
+      The new baseline run MUST be executed and committed BEFORE any Arm A0 or
+      Arm B measurement of the successor run, and its numbers may not be adjusted
+      after Arm A0's are seen. If the re-measured p = 6007 baseline itself falls
+      outside [1.3, 3.6] at some density row, THAT IS A FINDING ABOUT
+      EV-ENDO-10109d AND MUST BE REPORTED AS ONE -- it is not licence to move the
+      band.
+  - id: A2
+    field: inputs.class_selection_rule_frozen.primary_class
+    kind: defect_repair_ambiguity
+    from: >-
+      Stated two ways that disagree on a tie: "maximum member count; ties broken
+      by smallest |t|, then smallest t" against "IDENTICAL to
+      harness/run_saturation.py:run". All three required primes ARE tied between
+      t and -t, so the two readings select different classes, and the literal
+      tie-break text selects a class that makes SR3 unsatisfiable by
+      construction at every prime.
+    to: >-
+      The rule is the idiom implemented in harness/run_saturation.py:run, full
+      stop. The prose tie-break sentence is WITHDRAWN as erroneous. The successor
+      contract states the rule once, by reference to that function, and the run
+      must record the selected (p, t, member count) per prime so the selection is
+      auditable without re-deriving it.
+    rationale: >-
+      The version-1 Executor resolved this the same way before taking any
+      measurement and declared it (deviation D1). The resolution was forced -- it
+      is the only reading under which the contract's own SR3 can be satisfied --
+      but leaving a frozen contract to be disambiguated by executor judgement a
+      second time is not acceptable.
+  - id: A3
+    field: budget.maximum_runs
+    kind: budget_increase
+    from: 18
+    to: 30
+    rationale: >-
+      The version-1 run recorded 19 run directories against a frozen maximum of
+      18 -- an overrun of one, declared and not hidden, and entirely spent
+      correcting two Executor defects (a mis-scoped gate evaluation and the
+      fabricated baseline literals of CORR-20260807-a24675). The successor needs
+      the 9 core runs, up to 3 secondary-class runs, the new p = 6007 baseline
+      re-measurement required by A1, and genuine headroom for supersession. 30 is
+      set so the next run is not placed in the position of breaching its own
+      budget to do the honest thing. Wall clock, CPU and memory limits are
+      UNCHANGED (14400 s per run, 12 CPU-hours, 4 GB); the version-1 run used
+      85.5 s peak per run, 0.19 CPU-hours and 362 MB, so runs are not the binding
+      constraint on cost.
+  - id: A4
+    field: required_artifacts
+    kind: addition
+    from: (absent)
+    to: >-
+      Every reference value quoted from a committed record must be READ FROM THAT
+      RECORD AT RUN TIME and bound by a source_sha256 in the run manifest.
+      Transcribing such a value into source at any precision is PROHIBITED and
+      makes the run INVALID. The run must emit a
+      baseline-provenance.json naming, for each prime, the run id read, its
+      declared parameters as read, and the sha256 of the file read.
+    rationale: >-
+      CORR-20260807-a24675. The version-1 Executor hard-coded 24 float literals
+      presented as committed variance ratios and 22 carried invented low-order
+      digits. It self-reported and fixed this, and the Coordinator confirmed the
+      count independently. The defect is structurally preventable and this makes
+      it so: a transcribed number cannot be distinguished from a measured one by
+      any later reader, and the fix is to never transcribe.
+  unchanged_and_still_frozen:
+  - The four sampler arms A0, A1, B, C and their exact support-certificate requirement.
+  - >-
+    The entire frozen_decision_rule: evaluation order, the 1.3 persistence
+    threshold, the S1/S2/S3 stratification tests, the three-prime majority, and
+    the evidence_strength_calibration (3-0 permits `replicated`, 2-1 caps at
+    `preliminary`).
+  - >-
+    Every invalidation rule, including the prohibitions on editing
+    harness/exp_icinv.py, on using exp_icinv.permutation_null (NULL-C), and on
+    recomputing sum sets per arm.
+  - The primes, factor-base sizes, target counts, seeds, controls and tail checks.
+  - >-
+    SR6, no outcome shopping: the terminal state is computed inside the run and
+    is not selected afterwards.
+  affected_runs:
+  - >-
+    NONE ARE RE-SCORED. All 19 version-1 run directories under
+    experiments/EXP-ICINV-4d33aa/runs/ are retained unchanged and remain readable
+    as what they are: a version-1 execution that terminated INVALID at SR3.
+  - >-
+    The version-1 Stage 1 coverage certificates are NOT invalidated by this
+    amendment and do not need re-measuring for their own sake, though the
+    successor run will re-emit them under version 2 as its own gate.
+  confirmatory_status: exploratory_only
+  confirmatory_status_note: >-
+    The successor run is EXPLORATORY_ONLY, not confirmatory, and this is the
+    honest label rather than the flattering one. The version-1 execution has
+    already exposed this Coordinator to two primes' worth of persistence
+    statistics (F_p = 0.6923 at p = 2003 and p = 4001, PERSISTS at both, with
+    stratification NEGATIVE at all nine seed x T combinations). Those numbers are
+    recorded in CORR-20260807-14431d as explicitly NOT a result, and the
+    three-prime aggregate was never reached -- but the design is no longer blind,
+    and a pre-registration written after seeing two thirds of the data is not a
+    pre-registration. Any evidence record arising from the version-2 run is
+    therefore capped at `preliminary` REGARDLESS of what the persistence majority
+    turns out to be, and the cap is set here, before execution, so it cannot be
+    argued away afterwards. A genuinely confirmatory test of this question needs
+    primes not yet touched by either version.
+
+    STRENGTHENED 2026-08-07 AFTER INDEPENDENT REVIEW (VAL-20260807-9c31ab, via
+    CORR-20260807-0f5d56 finding V8). The reason for this cap is now worse than
+    two primes' persistence statistics. The Validator re-executed the frozen
+    decision rule read-only and reproduced decision-rule-evaluation.json
+    BYTE-EQUAL (43431 == 43431 characters of canonical JSON), and in doing so
+    established that HAD SR3 NOT FIRED, THE SAME CHAIN WOULD HAVE EMITTED
+    OUTCOME-C -- which under the contract's own falsification criterion F-i
+    REFUTES H-ICINV-6c7920. It looked for outcome shopping and found none. That
+    counterfactual is NOT a result and moves no hypothesis; a run that terminated
+    INVALID decides nothing. But the Coordinator writing this successor protocol
+    now knows which way the rule was about to fall, and no wording in a successor
+    contract can unknow it. The `preliminary` cap therefore holds
+    unconditionally, and a successor wanting a confirmatory claim must be
+    designed and frozen by a session that has not seen this fact, on primes
+    neither version has touched.
+  post_review_notes_2026_08_07:
+    source: >-
+      VAL-20260807-9c31ab, recorded in CORR-20260807-0f5d56. The Coordinator
+      undertook, in this file's own approved_by_note, to change A1 if a Validator
+      found the SR3 attribution wrong or overstated. The attribution was found
+      IMPRECISELY WORDED, NOT WRONG, so A1 stands and the wording was corrected
+      in CORR-20260807-0f5d56 instead.
+    A1_substantiated_more_strongly_than_the_correction_argued: >-
+      Transporting the committed p = 6007 rows from T = 500 to T = 400 under the
+      CONTRACT'S OWN relation VR(T) ~= 1 + T*sigma^2/(mubar(1-mubar)) drives
+      fb = 5 to 1.2563 and fb = 7 to 1.2776, BOTH BELOW THE 1.3 FLOOR. No
+      faithful reproduction at the contract's parameters could have passed the
+      band. A1's re-measurement is therefore necessary, not merely tidier.
+    A1_scope_was_understated: >-
+      FIVE rows lack a committed counterpart at p = 6007 -- fb in
+      {4, 13, 15, 18, 22} -- not the single fb = 4 row CORR-20260807-14431d
+      named. A1's re-measurement covers all thirteen rows and so is unaffected in
+      substance, but the successor must not repeat the one-row figure.
+    A5_new_standing_caution_on_the_band: >-
+      THE [1.3, 3.6] BAND IS THE OUTWARD-ROUNDED HULL OF THE COMMITTED ROWS
+      THEMSELVES: floor slack 0.020397, ceiling slack 0.011900. The acceptance
+      region was fitted to the data it gates, with under 2% margin at the floor,
+      and neither the contract nor either correction said so. The band is NOT
+      widened here -- widening a threshold after seeing it fail is precisely the
+      move this campaign's rules exist to prevent -- but any successor that keeps
+      it must state plainly that 1.3 is a hull edge and not an independent
+      threshold, and must expect legitimate sampling variation to cross it.
+    A6_blocking_precondition_added: >-
+      `run.code.dirty` is TRUE in every version-1 manifest and only
+      harness/exp_icinv.py is hash-pinned, so 17 of 19 measurement runs have no
+      binding between their numbers and the source that produced them. This is
+      open action N6, carried unresolved since DEC-20260807-c8aa8b, and it is now
+      BLOCKING: it is the reason one of the EXP-INSTR-85b102 root causes is
+      unrecoverable. NO VERSION-2 RUN MAY BE DISPATCHED until run manifests pin
+      the hash of every source file they execute.
+  what_this_amendment_does_not_do:
+  - >-
+    It does not make the version-1 run into evidence. INVALID means the
+    measurement was not admissible; it is not negative evidence and not positive
+    evidence.
+  - >-
+    It does not resolve CORR-20260807-d78e2f. The confound against
+    EV-ENDO-10109d's density-independence finding stands exactly as open as it
+    was before the version-1 run, and EV-ENDO-10109d is untouched in either
+    direction.
+  - >-
+    It does not move any hypothesis status. H-ICINV-6c7920 is neither supported
+    nor refuted by a run that never reached an outcome state.
+  - >-
+    It does not authorize execution. Under AGENTS.md rule 1 the version-2 run
+    needs its own approval and its own handoff; this file makes the protocol
+    coherent, it does not license compute.
+  approved_by: coordinator
+  approved_at: '2026-08-07'
+  approved_by_note: >-
+    APPROVED 2026-08-07, on the condition its own prior text set. That text is
+    retained verbatim below rather than deleted (AGENTS.md rule 4). It read:
+
+    "NOT APPROVED. Filed by the Coordinator as the required precondition for any
+    re-execution (CORR-20260807-14431d required_action, first item), and
+    deliberately left unapproved: the amendment repairs defects in a contract
+    this same Coordinator wrote, and the two independent validations of the
+    version-1 execution are still in flight. Approval should follow those
+    reports, not precede them -- if a Validator finds the SR3 attribution wrong
+    or overstated, A1 is the wrong repair and this file should change before it
+    is approved rather than after."
+
+    The condition is DISCHARGED, not waived. Both validations completed and both
+    returned `passed_with_findings` (VAL-20260807-9c31ab and the EXP-INSTR
+    report; twelve findings recorded in CORR-20260807-0f5d56). The SR3
+    attribution was found IMPRECISELY WORDED, NOT WRONG: the Validator's own
+    T = 500 -> T = 400 transport under the contract's VR(T) relation drives
+    fb = 5 to 1.2563 and fb = 7 to 1.2776, both below the 1.3 floor, so no
+    faithful reproduction could have passed and change A1 is NECESSARY rather
+    than merely tidier. The wording was corrected in CORR-20260807-0f5d56 and
+    the amendment's own post_review_notes_2026_08_07 block, and A1 stands
+    unchanged. The user approved this amendment after being shown that finding.
+  approval_scope_limit: >-
+    THIS APPROVAL DOES NOT AUTHORIZE A RUN. It makes the version-2 protocol
+    coherent; it licenses no compute. A version-2 execution still needs its own
+    Coordinator approval and its own handoff (AGENTS.md rule 1), and it is
+    additionally gated by this amendment's own change A6: no version-2 run may
+    be dispatched until run manifests pin the hash of every source file they
+    execute. A6 is now SATISFIABLE -- harness/runner.py:source_provenance()
+    landed with PR #223 and tools/check_run_source_provenance.py audits it --
+    but satisfiable is not satisfied, and the successor run must be verified
+    with `--strict` before it is admitted as evidence.
+    `confirmatory_status: exploratory_only` and the `preliminary` evidence cap
+    are unaffected by this approval and remain unconditional.
+  refs:
+  - GOAL-ENDO-001
+  - BATCH-aa267f
+  - EXP-ICINV-4d33aa
+  - H-ICINV-6c7920
+  - RQ-ICINV-475b5e
+  - TASK-20260807-3414fc
+  - EXP-ICINV-55c2d8
+  - EV-ENDO-10109d
+  - CORR-20260807-14431d
+  - CORR-20260807-a24675
+  - CORR-20260807-d78e2f
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one model
+      the session runs on. Recorded, never silently substituted (AGENTS.md
+      rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session.

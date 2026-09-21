@@ -1,0 +1,129 @@
+protocol_amendment:
+  experiment_id: EXP-ECDLP-51921d
+  version_from: 3
+  version_to: 4
+  kind: explicit_curve_family_strata_and_partition_superseding_amendment
+  filed_at: '2026-08-09'
+  filed_by: coordinator
+  status: draft_pending_independent_review
+  approved_by: null
+  approved_by_decision: null
+  affected_runs: []
+  confirmatory_status: preserved
+  supersedes:
+    path: amendments/EXP-ECDLP-51921d-v3.yaml
+    snapshot_commit: b264f40ae97033b0cd4783586a6da1c6ad6e71d4
+    treatment: immutable_prior_amendment_remains_unchanged
+  scope_statement: >-
+    This amendment repairs the Arm-A input schedule only. The prior manifest
+    varied field_bits and seeds but did not bind a curve family, special
+    j-invariant stratum, field-of-definition predicate, or held-out partition.
+    A generic generator could therefore produce no admissible special action,
+    making a full-mode refusal indistinguishable from an untested target
+    family. The successor manifest explicitly schedules j=0, j=1728, and
+    ordinary rows in calibration and held-out partitions. It changes no
+    normalization, cost vector, hypothesis, or claim tier and authorizes no
+    run.
+  defect: >-
+    The immutable v2 instance schedule contains only field_bits and seed. Its
+    independent_variables mention curve family and j/CM category, but no row
+    records those variables. The generic toycurve generator does not itself
+    guarantee j=0 or j=1728, so the existing schedule cannot distinguish a
+    genuine no-action result from absent special-structure coverage.
+  successor_input_binding:
+    canonical_path: protocol_inputs/automorphism_census/instance_manifest_v3.yaml
+    superseded_path: protocol_inputs/automorphism_census/instance_manifest.yaml
+    required_fields:
+      - curve_family_per_row
+      - j0_unit_field_predicate
+      - j1728_unit_field_predicate
+      - ordinary_non_special_stratum
+      - calibration_partition
+      - held_out_partition
+      - row_level_expected_action_or_refusal
+      - special_predicate_failure_is_refusal
+    invocation_boundary: >-
+      A future Executor must pass the successor manifest path and record its
+      SHA-256 digest before generating a curve or subgroup. Passing the
+      archived v2 path alone is a pre-walk refusal.
+  schedule_contract:
+    rows: 24
+    field_bits: [14, 16, 18]
+    seeds: [101, 103, 107, 109, 113, 127, 131, 137]
+    per_field_bits_family_counts: {j0_unit: 2, j1728_unit: 2, ordinary: 4}
+    calibration_seeds: [101, 103, 107, 109]
+    held_out_seeds: [113, 127, 131, 137]
+    no_family_or_partition_selection_after_observation: true
+  action_contract:
+    j0_unit: >-
+      Require p>3, p mod 3=1, a=0, b!=0, and a verified F_p-defined order-3
+      action with field/order/eigenvalue/stabilizer/subgroup certificate.
+      Failure emits a refusal before the full walk.
+    j1728_unit: >-
+      Require p>3, p mod 4=1, a!=0, b=0, and a verified F_p-defined order-4
+      action with field/order/eigenvalue/stabilizer/subgroup certificate.
+      Failure emits a refusal before the full walk.
+    ordinary: >-
+      Require a nonsingular non-special curve and admit no extra action without
+      a separate certificate. Ordinary and negation controls remain valid even
+      when a special-family full action is refused.
+  verifier_contract:
+    independent_entrypoint: harness/run_ecdlp_endo_census_v2.py
+    required_checks:
+      - successor_manifest_path_and_hash_bound
+      - row_count_and_lexicographic_order
+      - family_schedule_recomputed
+      - field_predicate_recomputed_from_generated_p
+      - held_out_partition_frozen_before_curve_generation
+      - special_action_certificate_or_refusal
+      - ordinary_rows_have_no_unverified_extra_action
+      - no_family_selection_after_observation
+  controls_added:
+    - id: C-FAMILY-COVERAGE
+      kind: special-family-coverage-conformance
+      construction: >-
+        Parse the successor manifest and verify that every field_bits value has
+        j0_unit, j1728_unit, and ordinary rows in both calibration and held-out
+        partitions before the generator runs.
+      expected: >-
+        Coverage is complete and deterministic; a missing stratum is a
+        pre-walk refusal, not a negative result.
+    - id: C-FAMILY-MUTATION
+      kind: post-observation-family-mutation
+      construction: >-
+        Mutate one row family after a generated curve is available while
+        retaining its seed and field_bits.
+      expected: >-
+        The source manifest digest and row binding change, and the run is
+        refused rather than relabeled as another family.
+  falsification_conditions_added:
+    - >-
+      A successor row lacks an explicit family or partition, or the generated
+      curve does not satisfy its declared family predicate; the row is invalid.
+    - >-
+      A full-mode result is admitted for a j=0/j=1728 row without the complete
+      field/order/eigenvalue/stabilizer/subgroup certificate; the row is
+      invalid.
+    - >-
+      A field predicate failure is counted as evidence against the family or
+      ECDLP; the interpretation is invalid.
+    - >-
+      A family or held-out partition is selected after observing solve cost or
+      success; the schedule is invalid.
+  interpretation_gate:
+    input_only: >-
+      The successor schedule establishes coverage and partition provenance;
+      it does not establish an automorphism speedup, a rho exponent change, or
+      a cryptographic-scale result.
+    scope: >-
+      Future observations remain limited to the declared field sizes, seeds,
+      family strata, partitions, policies, controls, and subgroup certificates.
+  dispatch_gate:
+    not_dispatchable: true
+    required_before_approval:
+      - independent review of EXP-ECDLP-51921d-v3 and this v4 amendment together
+      - source-hash-bound successor manifest and invocation update
+      - family-coverage and family-mutation conformance fixtures
+      - backend preflight passes without prohibited fallback
+      - Coordinator decision explicitly admits or rejects the correction
+

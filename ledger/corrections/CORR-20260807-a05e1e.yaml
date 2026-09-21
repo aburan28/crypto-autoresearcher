@@ -1,0 +1,129 @@
+correction:
+  id: CORR-20260807-a05e1e
+  recorded_at: '2026-08-07'
+  recorded_by: coordinator (GOAL-ENDO-001, BATCH-cb71b5)
+  type: confounded_measurement
+  supersedes: []
+  corrects:
+  - experiments/EXP-ICINV-180a0d/runs/RUN-ICINV-p4001-a/raw-result.json
+  - experiments/EXP-ICINV-180a0d/runs/RUN-ICINV-p4001-b/raw-result.json
+  - experiments/EXP-ICINV-180a0d/runs/RUN-ICINV-p6007-a/raw-result.json
+  - experiments/EXP-ICINV-180a0d/runs/RUN-ICINV-p6007-b/raw-result.json
+  - harness/exp_icinv.py
+  record_type: run
+  record_id: RUN-ICINV-p4001-a, RUN-ICINV-p4001-b, RUN-ICINV-p6007-a, RUN-ICINV-p6007-b
+  field: >-
+    permutation_null.* (the NULL-C label-permutation rows only) in every
+    EXP-ICINV-180a0d run
+  prior_value: >-
+    NULL-C on the m=2 decomposition efficiency reported p = 0.0035 at p = 6007
+    ("class grouping reduces within-group variance") against p = 0.2605 at
+    p = 4001, an inconsistency across primes that the batch was about to record as
+    an unexplained anomaly and the campaign's named next action.
+  corrected_value: >-
+    THERE IS NO ANOMALY. The p = 6007 signal is an artifact of the TARGET SAMPLER
+    and disappears under the correct one. On identical curves, identical factor
+    bases and the identical seed, NULL-C on m=2 efficiency at p = 6007 gives
+    p = 0.0035 with the hash-and-lift sampler and p = 0.1910 with a uniform
+    sampler. Re-run under the uniform sampler, both primes now agree that the
+    isogeny-class grouping carries no detectable information: at p = 4001,
+    p = 0.1310 (m=2) and p = 0.2950 (m=3); at p = 6007, p = 0.1955 (m=2) and
+    p = 0.6905 (m=3). The superseding runs are RUN-ICINV-p4001-uniform and
+    RUN-ICINV-p6007-uniform under EXP-ICINV-9b1f7c.
+  the_defect:
+    location: harness/exp_icinv.py, function `_targets`.
+    what_it_did: >-
+      Hashed (seed, i) to an x-coordinate and kept it if it lifted to a point on
+      the curve, taking the first `count` that did.
+    what_the_code_claimed: >-
+      Its docstring asserted that using a CURVE-INDEPENDENT x sequence kept the
+      sampler from being "a hidden per-curve degree of freedom".
+    why_that_reasoning_is_backwards: >-
+      The x sequence being curve-independent is exactly what makes the ACCEPTED
+      SUBSET curve-dependent. Which x values lift is decided by the curve, the
+      liftable density over the full field is an exact function of (#E, z) by the
+      identity #liftable_x = (#E - 1 + z)/2 that this same batch verified on 104
+      of 104 curves, and #E is precisely what defines an F_p-isogeny class. So the
+      sampler encodes the class label into the target multiset, and any
+      BETWEEN-CLASS comparison built on it is partly measuring the sampler. The
+      instrument was reading its own grouping variable back out.
+    how_it_was_caught: >-
+      By replication, which is the only reason it was caught at all. The p = 4001
+      run alone showed nothing. Replicating at p = 6007 produced a
+      class-level signal that did not replicate, and the search for a mechanism
+      ran the two candidate explanations in order: conditioning on the 2-torsion
+      count z did NOT remove it (p = 0.0415 and p = 0.0173 within z-strata), and
+      substituting a uniform sampler DID (p = 0.0035 -> p = 0.1910).
+  scope_of_the_defect:
+    affected: >-
+      ONLY between-class comparisons: the NULL-C label-permutation rows on
+      decomposition rate and decomposition efficiency, and any cross-class mean
+      comparison.
+    unaffected_and_why: >-
+      WITHIN a class the bias is CONSTANT, because every curve in a class shares
+      the same #E and therefore the same expected acceptance rate. So the
+      within-class results stand unchanged: the binomial over-dispersion verdicts,
+      the liftable-count identity (verified on every curve of every class at three
+      primes), the exact invariance of #E and of the S_3 monomial support, the
+      window-size decay test, and the finding that the m=3 over-dispersion is
+      explained by sum-set size |3V|. None of those compares across classes.
+    other_experiments: >-
+      EXP-JINV-6c5b8e uses `_targets` but compares j-families at matched p, not
+      isogeny classes, and its headline result is the exact symbolic monomial
+      count (9 / 10 / 13), which uses no targets at all. Its Groebner timing
+      comparison inherits a weaker form of the same confound and is recorded here
+      as a limitation rather than a result. EXP-VOLC-9fec05 stratifies WITHIN one
+      class, so it is unaffected. EXP-EWALK-4fc679 and EXP-MTGT-321a54 do not use
+      this sampler.
+  classification: >-
+    A confounded measurement, not a fabrication and not an infrastructure failure.
+    The numbers reported were real; the comparison they were placed in was invalid.
+    Under docs/inventor-protocol.md this is the "controls before belief" obligation
+    working as intended: a reported signal remained an artifact until the identical
+    measurement had been run against a null of the same shape, and it did not
+    survive.
+  required_action:
+  - >-
+    NEVER cite the NULL-C rows of RUN-ICINV-p4001-a/b or RUN-ICINV-p6007-a/b. Cite
+    RUN-ICINV-p4001-uniform and RUN-ICINV-p6007-uniform instead. The other rows of
+    the superseded runs remain citable, with the within-class scoping above.
+  - >-
+    The superseded run directories are NOT edited or deleted (AGENTS.md rule 4).
+    Their correct reading is this record.
+  - >-
+    `_targets` is retained in harness/exp_icinv.py, unchanged in behaviour, with a
+    docstring that states the defect, so the superseded runs stay reproducible.
+    `targets_uniform` is the sampler for anything new, and any future between-class
+    comparison in this program must use a sampler whose acceptance cannot depend on
+    the curve.
+  - >-
+    Add to the campaign's instrument obligations: a between-class comparison
+    requires a sampler-invariance check -- run the same comparison under two
+    samplers that differ only in acceptance, and report both. One prime is not
+    enough to detect this class of defect; replication at a second prime is what
+    found it and is now mandatory for any between-class claim in GOAL-ENDO-001.
+  evidence_artifacts:
+  - experiments/EXP-ICINV-9b1f7c/runs/RUN-ICINV-p4001-uniform/raw-result.json
+  - experiments/EXP-ICINV-9b1f7c/runs/RUN-ICINV-p6007-uniform/raw-result.json
+  - harness/exp_icinv.py
+  refs:
+  - EXP-ICINV-180a0d
+  - EXP-ICINV-9b1f7c
+  - RQ-ICINV-475b5e
+  - RQ-INSTR-f8faa0
+  - GOAL-ENDO-001
+  - BATCH-cb71b5
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-opus-5
+    reasoning_effort: null
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml; every alias falls back to the one model
+      the session runs on. Recorded, never silently substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No adapter probe receipt exists for this session.

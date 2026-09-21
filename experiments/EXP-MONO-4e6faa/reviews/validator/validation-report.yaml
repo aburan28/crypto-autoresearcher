@@ -1,0 +1,511 @@
+validation_report:
+  id: VAL-20260904-ae03f2
+  task_id: TASK-20260904-be7527
+  experiment_id: EXP-MONO-4e6faa
+  hypothesis_id: H-MONO-d4c511
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  run_ids: [RUN-MONO-4e6faa-1]
+  reviewer_role: validator
+  joints_owned: [J1-CURVE-AND-TWIST-CONSTRUCTION-AUDIT, J2-STAGE1-BLIND-RECLASSIFICATION]
+  blind_rederivation_owned: true
+  reviewed_at: '2026-09-04'
+
+  scope_note: >-
+    Per TASK-20260904-be7527's review_plan, this report addresses ONLY J1 and
+    J2 and the blind_rederivation requirement. J3 (new resultant cross-check
+    code audit) and J4 (minimal h_- scope check) are owned by red-team and are
+    NOT addressed here beyond a passing mention where directly relevant to J1/
+    J2's own scope. This report does not render a verdict on the whole claim
+    (H-MONO-d4c511 / IDEA-20260904-4f614a) -- only on the joints assigned to
+    the validator, per agents/validator.md "Working under a review plan".
+
+  # ==================================================================
+  # ORDER OF WORK, MATERIAL BECAUSE blind_rederivation.required IS SET
+  # ==================================================================
+  chronology:
+    note: >-
+      Reconstructed from this session's own tool-call order. The
+      blind_rederivation.blind_from set (execution_report.yaml,
+      runs/RUN-MONO-4e6faa-1/raw-result.json, .../stdout.log) was NOT opened
+      until after both J1's own independent group-law computation and J2's
+      own independent reclassification-and-prediction computation were run
+      and their outputs printed and recorded below.
+    events:
+      - "1. Read agents/validator.md, AGENTS.md, the task card, specification.yaml, IDEA-20260904-4f614a (full), H-MONO-d4c511 (full), implementation.md, and run_h_minus_stress.py source (all explicitly permitted pre-reads; the last two are needed to know the exact imports/signatures used, per the task's own instruction, not to copy the driver logic)."
+      - "2. Read run_census.py / run_uncond_census.py source (compile_sym, qe_from_sym, classify_fibre, resultant, CLASSES) to know the reused primitives' signatures -- source code of the REUSED libraries, not of EXP-MONO-4e6faa's own reported results."
+      - "3. Wrote and ran an OWN standalone script (no RC/UC import) implementing the group law, point enumeration, and n-torsion counting from scratch; computed J1's five numbers independently. Recorded below BEFORE reading anything in blind_from."
+      - "4. Wrote and ran an OWN driver script reusing ONLY UC.classify_fibre/UC.resultant/UC.CLASSES and RC.compile_sym/RC.qe_from_sym (loaded by file path, exactly as the Executor's script does), with its own independent enumeration/tabulation/prediction logic (not copied from run_h_minus_stress.py); computed J2's full reclassification, predicted counts, and R1/R2/R3, independently. Recorded below BEFORE reading anything in blind_from."
+      - "5. Read EXP-MONO-0e6e8f's own execution_report.yaml and its red-team-report.yaml to locate the h_-=0 witness curves for the proves-too-much control (permitted: this is a DIFFERENT experiment's already-archived material, not part of THIS experiment's blind_from set), and ran an additional OWN independent group-law computation for that control."
+      - "6. Read the manifest.yaml for RUN-MONO-4e6faa-1 (NOT in blind_from) to spot-check sha256 values and the certificate block; recomputed all five reused-artifact sha256 values plus specification.yaml's and run_h_minus_stress.py's own sha256, independently, with `shasum -a 256`."
+      - "7. ONLY THEN opened execution_report.yaml, runs/RUN-MONO-4e6faa-1/raw-result.json, and runs/RUN-MONO-4e6faa-1/stdout.log, and compared the Executor's own reported numbers against steps 3-4's already-recorded independent results."
+    blind_from_respected: true
+    sibling_review_read: false
+    sibling_review_directory_exists: false
+    sibling_review_note: >-
+      experiments/EXP-MONO-4e6faa/reviews/ contained no subdirectories at all
+      before this task created reviews/validator/ to hold this report
+      (checked by `ls`, exit code 1 / "No such file or directory" on
+      reviews/red-team/ and reviews/validator/ before this report was
+      written). The red-team report for this task does not yet exist; it was
+      not read, and could not have been.
+
+  # ==================================================================
+  # J1 -- INDEPENDENT CURVE AND TWIST CONSTRUCTION AUDIT
+  # ==================================================================
+  j1_curve_and_twist_audit:
+    method: >-
+      Standalone Python, written from scratch for this review: own quadratic
+      residue / Legendre-symbol function, own brute-force square-root
+      function, own short-Weierstrass point addition/doubling law, own point
+      enumeration over F_p, own scalar-multiplication-by-repeated-doubling,
+      own n-torsion counter (enumerate all points, check nP == O). Imports
+      NOTHING from RC or UC. Full script retained in this session's scratch
+      workspace (ephemeral, not a durable repository artifact); its logic is
+      reproduced in full below because the task's write_scope is this single
+      report file.
+    code_core: |
+      def legendre(a, p):
+          a %= p
+          if a == 0: return 0
+          return 1 if pow(a, (p - 1) // 2, p) == 1 else -1
+
+      def sqrt_mod(a, p):           # brute force, fine at p=101
+          a %= p
+          if a == 0: return 0
+          if legendre(a, p) != 1: return None
+          for c in range(1, p):
+              if (c * c) % p == a: return c
+          return None
+
+      def add(P, Q, A, p):          # own short-Weierstrass group law
+          if P is None: return Q
+          if Q is None: return P
+          x1, y1 = P; x2, y2 = Q
+          if x1 == x2 and (y1 + y2) % p == 0: return None
+          if P == Q:
+              if y1 == 0: return None
+              lam = (3*x1*x1 + A) * pow(2*y1, p-2, p) % p
+          else:
+              lam = (y2-y1) * pow((x2-x1) % p, p-2, p) % p
+          x3 = (lam*lam - x1 - x2) % p
+          y3 = (lam*(x1-x3) - y1) % p
+          return (x3, y3)
+
+      def count_n_torsion(A, B, p, n):   # brute enumerate + brute scalar mul
+          cnt = 0
+          for P in all_points(A, B, p):
+              if scalar_mul(P, n, A, p) is None:
+                  cnt += 1
+          return cnt
+    results:
+      f_roots_mod_101: [0, 10, 91]
+      f_roots_count: 3
+      E_order: 100
+      twist_nonresidue_d: 2
+      twist_A_B: [4, 0]
+      Ed_order: 104
+      identity_2p_plus_2_minus_E_equals_Ed: true
+      E4_count: 4
+      Ed4_count: 8
+      Z: 3
+      tau: 4
+      h_plus: 0
+      h_minus: 1
+    confirmation_table:
+      - {claim: "3 distinct roots of f(X)=X^3+X mod 101", predicted: 3, own_result: 3, match: true}
+      - {claim: "#E(F_101) = 100", predicted: 100, own_result: 100, match: true}
+      - {claim: "#E^d(F_101) = 104 (E^d: y^2=x^3+4x)", predicted: 104, own_result: 104, match: true}
+      - {claim: "2p+2-#E == #E^d", predicted: true, own_result: true, match: true}
+      - {claim: "#E(F_101)[4] = 4", predicted: 4, own_result: 4, match: true}
+      - {claim: "#E^d(F_101)[4] = 8", predicted: 8, own_result: 8, match: true}
+      - {claim: "tau = Z+1 = 4", predicted: 4, own_result: 4, match: true}
+      - {claim: "h_+ = (4-4)/4 = 0", predicted: 0, own_result: 0, match: true}
+      - {claim: "h_- = (8-4)/4 = 1", predicted: 1, own_result: 1, match: true}
+    verdict: HOLDS. All nine independently-checked facts confirmed exactly, using group-law and torsion-counting code sharing no line with RC/UC or with run_h_minus_stress.py.
+
+  # ==================================================================
+  # J2 -- BLIND STAGE-1 RECLASSIFICATION + STAGE-2 RECOMPUTATION
+  # ==================================================================
+  j2_blind_reclassification:
+    method: >-
+      Own driver script, structurally independent of run_h_minus_stress.py
+      (own variable names, own loop/assertion structure, own reporting
+      order), reusing ONLY UC.classify_fibre, UC.resultant, UC.CLASSES (from
+      EXP-MONO-0e6e8f/implementation/run_uncond_census.py) and RC.compile_sym,
+      RC.qe_from_sym (from EXP-MONO-815525/implementation/run_census.py, via
+      UC's own transitive import), loaded read-only by file path exactly as
+      the Executor's own script does. n_+/n_- were computed directly from the
+      definition (own loop over F_101, own Legendre-symbol calls), not
+      inherited from J1. h_+/h_- were taken from this report's own J1 result
+      above (0 and 1). This is a FULL exhaustive census (152,096 base
+      points), not a sample.
+    code_core: |
+      sys.path.insert(0, UC_DIR); sys.path.insert(0, RC_DIR)
+      import run_uncond_census as UC
+      import run_census as RC
+
+      S = [x for x in range(101) if x not in {0, 10, 91}]
+      n_plus  = sum(1 for x in S if legendre(f_val(x), 101) ==  1)
+      n_minus = sum(1 for x in S if legendre(f_val(x), 101) == -1)
+
+      symtab = RC.compile_sym(101, 1, 0)
+      fpoly = RC.pnorm([0, 1, 0, 1], 101)   # f(X) = X^3 + X
+      tally = {c: 0 for c in UC.CLASSES}
+      for r1, r2, r3 in itertools.combinations(S, 3):
+          e1 = (r1+r2+r3) % 101
+          e2 = (r1*r2+r1*r3+r2*r3) % 101
+          e3 = (r1*r2*r3) % 101
+          g = [(-e3) % 101, e2, (-e1) % 101, 1]
+          if UC.resultant(g, fpoly, 101) == 0:
+              continue   # not expected on this stratum; counted as anomaly
+          qe = RC.qe_from_sym(symtab, 101, e1, e2, e3)
+          label = UC.classify_fibre(qe, 101)
+          tally[label["class"]] += 1
+    own_n_plus_n_minus: {n_plus: 48, n_minus: 50, sum: 98, expected_p_minus_Z: 98}
+    stratum_enumeration:
+      base_points_enumerated: 152096
+      expected_C_98_3: 152096
+      match: true
+      resultant_zero_anomalies: 0
+      none_qe_anomalies: 0
+    own_observed_five_class_counts:
+      "1^4": 36944
+      "2+2": 108096
+      "2+1+1": 7056
+      "4": 0
+      "3+1": 0
+      total: 152096
+    own_D3_prediction:
+      formula_used: >-
+        D = h_+*n_- + h_-*n_+ ; #1^4 = C(n_+,3)+C(n_-,3)+D ;
+        #2+1+1 = 3*n_+*n_- - 3*D ;
+        #2+2 = C(n_++n_-,3) - C(n_+,3) - C(n_-,3) - 3*n_+*n_- + 2*D
+        (re-checked verbatim against IDEA-20260904-4f614a section D3,
+        notation block; not paraphrased from the task prompt).
+      D: 48
+      D_terms: {"h_plus_times_n_minus": 0, "h_minus_times_n_plus": 48}
+      predicted:
+        "1^4": 36944
+        "2+1+1": 7056
+        "2+2": 108096
+    own_residuals:
+      R1_1^4: 0
+      R2_2plus1plus1: 0
+      R3_2plus2: 0
+      all_zero: true
+    verdict: >-
+      HOLDS. Own independent reclassification (own driver, own n_+/n_-
+      computation, own J1 h_+/h_- values) reproduces R1 = R2 = R3 = 0
+      exactly, with the full exhaustive 152,096-point stratum matching
+      C(98,3) exactly and zero anomalies (resultant-zero or None-Qe) on this
+      stratum, as required.
+
+  # ==================================================================
+  # PROVES-TOO-MUCH CONTROL (review_plan.proves_too_much)
+  # ==================================================================
+  proves_too_much_control:
+    target_object: >-
+      The task instructions ask for "EXP-MONO-0e6e8f's own already-archived
+      execution report or evidence record" naming an h_-=0 witness curve.
+      SEARCHED AND DISCLOSED DISCREPANCY: neither EXP-MONO-0e6e8f's own
+      execution_report.yaml nor any ledger/evidence/EV-MONO-*.yaml record
+      contains the specific witness integers the review_plan's
+      proves_too_much.objects block actually refers to. EXP-MONO-0e6e8f's own
+      execution_report.yaml reports UNCONDITIONED (all base points, not just
+      distinct-split) counts for curves C1 (A=2,B=3) and C2 (A=1,B=35), which
+      are DIFFERENT curves from the ones the closed form's own (D4)
+      retrodiction targets. The actual h_-=0 witness pair -- p=101, t=-10,
+      Z=3, #E=112, (A,B)=(2,12) j=24 and (A,B)=(4,1) j=41, with archived
+      distinct-split-stratum counts {1^4:38180,2+2:107184,2+1+1:6732} and
+      {1^4:38092,2+2:107008,2+1+1:6996} -- exists ONLY in
+      experiments/EXP-MONO-0e6e8f/reviews/red-team/red-team-report.yaml,
+      section new_result_the_matched_tZ_control_the_spec_deferred, which its
+      OWN AUTHOR explicitly labels "REVIEW-SIDE PROBE ONLY. No run record, no
+      seed contract, not evidence-eligible, MUST be re-run under an approved
+      specification before it is cited." IDEA-20260904-4f614a's own D4/F6
+      sections already disclose and accept this: (D4) is explicitly labelled
+      "A POST-HOC FIT ... NOT MACHINE-VERIFIED ... NOT evidence", and F6 is
+      exactly the falsification condition this control exercises. So the
+      control target is correctly identified as this non-evidence-eligible
+      probe, and running the control against it is consistent with the
+      idea's own pre-registered plan -- but a reader should not mistake
+      "reproduces the red-team probe's numbers" for "reproduces an archived,
+      evidence-eligible experimental result", because no such record exists
+      for these two curves.
+    method: >-
+      Own independent group-law code (same as J1's, re-run for two new
+      (A,B) pairs) computed Z, tau, #E, t, #E^d, #E[4], #E^d[4], h_+, h_-,
+      n_+, n_- from scratch for both witness curves, then applied the
+      IDENTICAL D3 formula under test in EXP-MONO-4e6faa.
+    witness_1_A2_B12_j24:
+      own_recomputed: {Z: 3, tau: 4, E_order: 112, t: -10, Ed_order: 92, E4: 16, Ed4: 4, h_plus: 3, h_minus: 0, n_plus: 54, n_minus: 44, D: 132}
+      D3_predicted: {"1^4": 38180, "2+2": 107184, "2+1+1": 6732}
+      archived_in_red_team_probe: {"1^4": 38180, "2+2": 107184, "2+1+1": 6732}
+      exact_match: true
+    witness_2_A4_B1_j41:
+      own_recomputed: {Z: 3, tau: 4, E_order: 112, t: -10, Ed_order: 92, E4: 8, Ed4: 4, h_plus: 1, h_minus: 0, n_plus: 54, n_minus: 44, D: 44}
+      D3_predicted: {"1^4": 38092, "2+2": 107008, "2+1+1": 6996}
+      archived_in_red_team_probe: {"1^4": 38092, "2+2": 107008, "2+1+1": 6996}
+      exact_match: true
+    verdict: >-
+      CONTROL PASSES. Applying the identical D3 formula, with h_- correctly
+      forced to 0 by an independently-recomputed #E^d[4] = tau on both
+      curves, reproduces both already-reported (non-evidence-eligible, but
+      internally consistent) witness integer triples exactly. This confirms
+      the general (n_+,n_-,h_+,h_-) formula tested in EXP-MONO-4e6faa is a
+      strict generalization of the h_-=0 special case the prior probe
+      reported, not a different formula that merely happens to also fit the
+      new curve -- the failure_signature named in the review_plan did NOT
+      occur.
+
+  # ==================================================================
+  # COMPARISON AGAINST THE EXECUTOR'S OWN REPORTED VALUES
+  # (read only after the above was complete; see chronology)
+  # ==================================================================
+  comparison_against_executor_reported_values:
+    j1_agreement:
+      found_curve_p_A_B: {own: [101, 1, 0], executor: [101, 1, 0], match: true}
+      E_order: {own: 100, executor: 100, match: true}
+      Ed_order: {own: 104, executor: 104, match: true}
+      E4: {own: 4, executor: 4, match: true}
+      Ed4: {own: 8, executor: 8, match: true}
+      Z: {own: 3, executor: 3, match: true}
+      tau: {own: 4, executor: 4, match: true}
+      h_plus: {own: 0, executor: 0, match: true}
+      h_minus: {own: 1, executor: 1, match: true}
+      n_plus: {own: 48, executor: 48, match: true}
+      n_minus: {own: 50, executor: 50, match: true}
+      overall: FULL AGREEMENT, no disagreement of any kind, on every J1 quantity.
+    j2_agreement:
+      stratum_size_enumerated: {own: 152096, executor: 152096, match: true}
+      counts_1_4: {own: 36944, executor: 36944, match: true}
+      counts_2plus2: {own: 108096, executor: 108096, match: true}
+      counts_2plus1plus1: {own: 7056, executor: 7056, match: true}
+      counts_4: {own: 0, executor: 0, match: true}
+      counts_3plus1: {own: 0, executor: 0, match: true}
+      D_term: {own: 48, executor: 48, match: true}
+      predicted_1_4: {own: 36944, executor: 36944, match: true}
+      predicted_2plus1plus1: {own: 7056, executor: 7056, match: true}
+      predicted_2plus2: {own: 108096, executor: 108096, match: true}
+      R1: {own: 0, executor: 0, match: true}
+      R2: {own: 0, executor: 0, match: true}
+      R3: {own: 0, executor: 0, match: true}
+      overall: FULL AGREEMENT, no disagreement of any kind, on every J2 quantity.
+    headline: >-
+      NO DISAGREEMENT FOUND, however small, between this report's own
+      independently-derived J1 numbers, J2 counts, and Stage-2 residuals, and
+      what the Executor reported in execution_report.yaml and
+      runs/RUN-MONO-4e6faa-1/raw-result.json. Every one of the 20+ compared
+      integers/booleans above matches bit-for-bit. Per the task's own
+      instruction, this exact agreement is reported plainly rather than
+      treated as an assumed outcome: the blind re-derivation used a
+      differently-structured driver and an entirely independent group-law
+      implementation for J1, and still converged on identical integers, which
+      is the strongest evidence available at this scale that the Executor's
+      reused-classifier pipeline (RC.qe_from_sym + UC.classify_fibre) is not
+      hiding a shared, self-consistent bug on this stratum.
+
+  # ==================================================================
+  # CERTIFICATE AND PROVENANCE CHECKS (not blind; read freely)
+  # ==================================================================
+  certificate_check:
+    docs_reference: docs/claims-and-verification.md
+    reported: {kind: none}
+    assessment: >-
+      CORRECT, not an evasion. This is a pure measurement run: no
+      discrete-log solve, no factor-base relation/decomposition, no key
+      recovery is claimed anywhere in the specification, implementation, or
+      raw-result.json. docs/claims-and-verification.md explicitly states
+      "`kind: none` is used for pure measurement runs (e.g. recording
+      Gröbner solving degree without claiming a solve)" -- this run's
+      exhaustive five-class census and exact-integer residual comparison is
+      exactly that kind of measurement. The Stage-1 resultant cross-check
+      (RC.qe_from_sym vs RC.qe_from_resultant, 31 sampled points, 0
+      mismatches) is correctly labelled in both execution_report.yaml and
+      manifest.yaml as "a construction check, not a solution certificate" --
+      it is NOT mislabelled as a certificate anywhere I read.
+    verdict: "PASS. certificate.kind: none is the correct classification."
+
+  sha256_reuse_checks:
+    method: "shasum -a 256 on each file, recomputed independently in this review session, compared against manifest.yaml's artifact_sha256 and reused_frozen_artifacts blocks."
+    results:
+      - {path: "experiments/EXP-MONO-0e6e8f/implementation/run_uncond_census.py", manifest_value: "d51e472ca7d73bf5a00137f79c8570b1fa0edeb86a67b9f8e181640ce3f23209", own_recompute: "d51e472ca7d73bf5a00137f79c8570b1fa0edeb86a67b9f8e181640ce3f23209", match: true}
+      - {path: "experiments/EXP-MONO-815525/implementation/run_census.py", manifest_value: "4c0fea302682602ddb48bbb05f47d63f11a5eeb16319f43c63ddc3e6658ce7f8", own_recompute: "4c0fea302682602ddb48bbb05f47d63f11a5eeb16319f43c63ddc3e6658ce7f8", match: true}
+      - {path: "experiments/EXP-MONO-815525/implementation/s3_monomials.json", manifest_value: "af4e88de664d8babbd79b19e78fa1dfbffd8836e1300386475f4be9d84ca5def", own_recompute: "af4e88de664d8babbd79b19e78fa1dfbffd8836e1300386475f4be9d84ca5def", match: true}
+      - {path: "experiments/EXP-MONO-815525/implementation/s4_monomials.json", manifest_value: "0fcd07172ac70ebf80820be9ebe1e09cc329808cfa0ebbf921a65d993410f6ef", own_recompute: "0fcd07172ac70ebf80820be9ebe1e09cc329808cfa0ebbf921a65d993410f6ef", match: true}
+      - {path: "experiments/EXP-MONO-815525/implementation/s4_symmetric_coeffs.json", manifest_value: "829251863a5456c5b90d9ea94eb840bf266dfbe7bba1165d79421af0d91096e7", own_recompute: "829251863a5456c5b90d9ea94eb840bf266dfbe7bba1165d79421af0d91096e7", match: true}
+      - {path: "experiments/EXP-MONO-4e6faa/specification.yaml", manifest_value: "57e7074ff73d4f8ca5e071673225d64fe71d0fdbd44d564bb4ba0aad72bf1ace", own_recompute: "57e7074ff73d4f8ca5e071673225d64fe71d0fdbd44d564bb4ba0aad72bf1ace", match: true}
+      - {path: "experiments/EXP-MONO-4e6faa/implementation/run_h_minus_stress.py", manifest_value: "2a1a44ddb04c54b78948469222fe1a7090984973fdb2ff2399834ae551d5e596", own_recompute: "2a1a44ddb04c54b78948469222fe1a7090984973fdb2ff2399834ae551d5e596", match: true}
+    verdict: ALL SEVEN sha256 values match exactly. The claimed sha256-bound reuse of EXP-MONO-0e6e8f/EXP-MONO-815525 artifacts is real, not asserted.
+
+  # ==================================================================
+  # STANDARD VALIDATOR CHECKLIST (agents/validator.md required output)
+  # ==================================================================
+  artifact_checks:
+    - {artifact: specification.yaml, present: true, frozen: true, sha256_bound: true, note: "manifest.code.specification_sha256 matches own recompute of specification.yaml"}
+    - {artifact: implementation.md, present: true, note: "discloses the one code change (dead xcheck block fix) with a full before/after diff; consistent with the diff read directly against run_h_minus_stress.py's own committed source"}
+    - {artifact: "implementation/run_h_minus_stress.py", present: true, sha256_bound: true, note: "matches manifest.artifact_sha256 exactly"}
+    - {artifact: execution_report.yaml, present: true, note: "read only after blind rederivation completed; all reported numbers agree with this report's own independent computation"}
+    - {artifact: "runs/RUN-MONO-4e6faa-1/manifest.yaml", present: true}
+    - {artifact: "runs/RUN-MONO-4e6faa-1/command.txt", present: true, note: "command matches manifest.code.command verbatim"}
+    - {artifact: "runs/RUN-MONO-4e6faa-1/environment.json", present: true, note: "stdlib_only dependencies confirmed; no CAS/solver; network disabled"}
+    - {artifact: "runs/RUN-MONO-4e6faa-1/stdout.log", present: true, note: "read only after blind rederivation completed; content matches raw-result.json's own numbers"}
+    - {artifact: "runs/RUN-MONO-4e6faa-1/stderr.log", present: true, note: "contains only a harmless SyntaxWarning (invalid escape sequence in a module docstring); no error"}
+    - {artifact: "runs/RUN-MONO-4e6faa-1/raw-result.json", present: true, sha256_bound: true, note: "matches manifest.artifact_sha256 exactly (not independently recomputed by this reviewer since it is in blind_from and was compared only after the fact, but its content matches stdout.log and execution_report.yaml verbatim)"}
+  metric_recomputations:
+    - {metric: "M1 (R1, #1^4 residual)", method: "own independent driver, own group law + reused UC/RC classifier", own_value: 0, reported_value: 0, match: true}
+    - {metric: "M2 (R2, #2+1+1 residual)", method: "own independent driver, own group law + reused UC/RC classifier", own_value: 0, reported_value: 0, match: true}
+    - {metric: "R3 (#2+2 residual, bonus/context metric)", method: "own independent driver", own_value: 0, reported_value: 0, match: true}
+    - {metric: "M3 (found curve + n_+,n_-,h_+,h_-)", method: "own independent group law", own_value: "[101,1,0,48,50,0,1]", reported_value: "[101,1,0,48,50,0,1]", match: true}
+    - {metric: "M4 (curves scanned before success)", method: "not independently re-run (Stage-0 search itself was not re-executed; would require re-implementing the full search loop, out of scope for the J1/J2 joints as assigned)", own_value: null, reported_value: 102, match: not_independently_checked}
+  control_checks:
+    - {control: "proves_too_much (review_plan)", target: "EXP-MONO-0e6e8f's own two h_-=0 witness curves (via its red-team report, see discrepancy note above)", result: PASS, note: "D3 formula with independently-recomputed h_-=0 reproduces both archived triples exactly"}
+    - {control: "internal parity check (n_+ even at Z=3)", result: PASS, note: "own n_+ = 48, even, confirmed directly"}
+    - {control: "twist-order identity 2p+2-#E == #E^d", result: PASS, note: "confirmed by own independent point count"}
+    - {control: "exact-division checks (#E[4]-tau, #E^d[4]-tau divisible by 4)", result: PASS, note: "confirmed directly: (4-4)=0, (8-4)=4, both divisible by 4"}
+    - {control: "stratum-size identity C(n_++n_-,3) == enumerated base points", result: PASS, note: "152096 == 152096, own enumeration"}
+    - {control: "resultant-zero / None-Qe anomaly count on this stratum", result: PASS, note: "0 and 0, own reclassification; matches execution_report's 'accounting: 0 excluded'"}
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks:
+    - {audit: "baseline_embedding reproduction_check (h_+=h_-=0 reduces D3 to C4; Z=0 gives split-stratum 2+1+1=0)", status: "NOT independently re-verified by this reviewer -- out of scope for J1/J2 as assigned; this is IDEA-20260904-4f614a's own proof_search_map obligation, not EXP-MONO-4e6faa's, and was not part of the review_plan's J1/J2 attack plans", applies: true}
+
+  limitations:
+    - >-
+      This report addresses ONLY J1 and J2 (and the blind_rederivation
+      requirement, which J2 subsumes). It renders no verdict on J3 (the new
+      resultant-crosscheck code's genuineness), J4 (whether one h_-=1 curve
+      meaningfully discriminates the linear D-term from alternate functional
+      forms), or on H-MONO-d4c511 / IDEA-20260904-4f614a as a whole. Those
+      are red-team's joints or the Coordinator's synthesis, respectively.
+    - >-
+      M4 (curves scanned before success = 102) was NOT independently
+      re-verified: doing so would require re-implementing the Stage-0 search
+      loop exactly (including its declared search order), which was outside
+      the J1/J2 attack plans as assigned. This is disclosed rather than
+      silently assumed correct.
+    - >-
+      raw-result.json's own sha256 was not independently recomputed by this
+      reviewer against the manifest's own value (it is inside blind_from and
+      was read only after J1/J2 were complete); its CONTENT was cross-checked
+      against stdout.log and execution_report.yaml and all three agree
+      verbatim, which is a strong but not identical check to a byte-for-byte
+      hash recomputation.
+    - >-
+      Per this task's own environment note, no git command was run in this
+      review session (explicit instruction from the launching task, not a
+      validator policy choice). This reviewer therefore did NOT independently
+      verify, via `git log`/`git show`, that this experiment directory is a
+      Coordinator-committed snapshot on a specific reachable commit, as
+      agents/validator.md and the "Coordinator-committed snapshot" operating
+      rule would otherwise require. The manifest's own commit_note discloses
+      commit 023884445b914f5ee32203cb0fd25b5ccfd5944f (obtained by the
+      Coordinator via a read-only `gh api` call against origin, not via a
+      local git command) and binds validity additionally to content via the
+      sha256 values checked above; this reviewer relied on that disclosure
+      and on the sha256/content checks rather than on independently
+      confirmed commit reachability. Flagged here as a limitation on this
+      report's own coverage, not as a defect found in the run package.
+    - >-
+      This report treats "content matches" (sha256 and value-for-value
+      agreement) as the operative admissibility check, consistent with
+      AGENTS.md's "Archive receipts bind to CONTENT first" -- but that
+      principle is stated for the dispatcher's own commit-reachability
+      fallback, and this reviewer's inability to check commit reachability
+      at all (rather than falling back to it after a failed reachability
+      check) is a narrower situation than that principle anticipates.
+    - >-
+      The proves_too_much control's target numbers exist only in a
+      non-evidence-eligible review-side probe (EXP-MONO-0e6e8f's own
+      red-team-report.yaml), not in an approved, evidence-eligible
+      experimental record. The control still executes exactly as
+      IDEA-20260904-4f614a's own pre-registered F6 falsification condition
+      specifies, and passes, but a reader should not treat "reproduces the
+      probe's numbers" as "reproduces an archived experimental result" --
+      no approved-contract experiment has yet re-measured those two witness
+      curves under a frozen specification.
+    - >-
+      dirty-tree state in manifest.yaml is recorded as "unknown" with a
+      disclosed reason (no git command run, per Coordinator instruction in a
+      shared concurrently-worked repository). This is an honest disclosure
+      of an unknown, not a fabricated "clean" state, and this reviewer did
+      not attempt to resolve it (see the git-command limitation above).
+
+  overall_verdict_on_owned_joints:
+    j1: holds
+    j2: holds
+    blind_rederivation: holds
+    proves_too_much: holds
+    certificate_classification: correct
+    sha256_reuse_binding: verified
+    agreement_with_executor: full_agreement_no_disagreement_found
+  verdict: passed
+  verdict_scope_statement: >-
+    "Passed" here means: J1's five (in fact nine) curve/twist/torsion facts
+    are independently confirmed by from-scratch code; J2's full exhaustive
+    reclassification (152,096 base points) and Stage-2 residual computation,
+    performed with an independently-written driver and independently-derived
+    n_+/n_- before any of the Executor's own reported values were read,
+    exactly reproduce R1=R2=R3=0; the proves-too-much control on the prior
+    h_-=0 witnesses passes; the certificate classification is correct; the
+    sha256-bound reuse of prior artifacts is real; and every one of these
+    independently-derived numbers agrees exactly with what the Executor
+    reported, with NO disagreement found anywhere. This is a verdict on the
+    ADMISSIBILITY OF THIS RUN AS A RECEIPT for the two joints assigned to
+    this reviewer. It is NOT a verdict on H-MONO-d4c511, on
+    IDEA-20260904-4f614a's broader closed form, on J3/J4 (red-team's
+    joints), or on any ECDLP-relevant question -- those compositions belong
+    to the Coordinator, per agents/validator.md "Working under a review
+    plan", and per the experiment's own claim_ceiling (toy tier,
+    non-transferable, no relation-rate/cost/exponent content whatsoever).
+
+  artifact_paths:
+    - experiments/EXP-MONO-4e6faa/specification.yaml
+    - experiments/EXP-MONO-4e6faa/implementation.md
+    - experiments/EXP-MONO-4e6faa/implementation/run_h_minus_stress.py
+    - experiments/EXP-MONO-4e6faa/execution_report.yaml
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/manifest.yaml
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/command.txt
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/environment.json
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/stdout.log
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/stderr.log
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/raw-result.json
+    - experiments/EXP-MONO-0e6e8f/implementation/run_uncond_census.py
+    - experiments/EXP-MONO-815525/implementation/run_census.py
+    - experiments/EXP-MONO-0e6e8f/execution_report.yaml
+    - experiments/EXP-MONO-0e6e8f/reviews/red-team/red-team-report.yaml
+    - ledger/proposals/IDEA-20260904-4f614a.yaml
+    - ledger/hypotheses/H-MONO-d4c511.yaml
+    - ledger/handoffs/TASK-20260904-be7527.yaml
+    - docs/claims-and-verification.md
+    - agents/validator.md
+
+review_attestation:
+  task_id: TASK-20260904-be7527
+  joints_owned: [J1-CURVE-AND-TWIST-CONSTRUCTION-AUDIT, J2-STAGE1-BLIND-RECLASSIFICATION]
+  sources_read:
+    - agents/validator.md
+    - AGENTS.md
+    - ledger/handoffs/TASK-20260904-be7527.yaml
+    - experiments/EXP-MONO-4e6faa/specification.yaml
+    - ledger/proposals/IDEA-20260904-4f614a.yaml
+    - ledger/hypotheses/H-MONO-d4c511.yaml
+    - experiments/EXP-MONO-4e6faa/implementation.md
+    - experiments/EXP-MONO-4e6faa/implementation/run_h_minus_stress.py
+    - experiments/EXP-MONO-815525/implementation/run_census.py (source, for reused-primitive signatures only)
+    - experiments/EXP-MONO-0e6e8f/implementation/run_uncond_census.py (source, for reused-primitive signatures only)
+    - experiments/EXP-MONO-0e6e8f/execution_report.yaml
+    - experiments/EXP-MONO-0e6e8f/reviews/red-team/red-team-report.yaml
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/manifest.yaml
+    - experiments/EXP-MONO-4e6faa/execution_report.yaml (read only after own J1/J2 complete, per blind_rederivation)
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/raw-result.json (read only after own J1/J2 complete)
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/stdout.log (read only after own J1/J2 complete)
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/stderr.log
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/command.txt
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/environment.json
+    - docs/claims-and-verification.md
+    - templates/research-records.md
+  read_sibling_reports: false
+  blind_from_respected: true
+  verdict: holds

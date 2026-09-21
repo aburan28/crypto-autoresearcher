@@ -1,0 +1,426 @@
+validation_report:
+  id: VAL-20260801-145
+  task_id: TASK-20260801-145
+  batch_id: BATCH-030
+  goal_id: GOAL-ECDLP-001
+  experiment_id: EXP-IT-001
+  hypothesis_id: H-IT-001
+  claim_under_review: >-
+    Executor claim (TASK-20260801-143, execution_report.yaml) that
+    RUN-IT-001-rerun is a completed_valid measurement under EXP-IT-001 v3 +
+    repair overlay PA-IT-001-v3-rc30-repair-1-to-7, with FIX-1..FIX-7 all PASS,
+    planted_path_recovered=true, plant_detected=true, R_xfer=0.1107 on the
+    planted path, n_unplanted=21, rate_iso_1_fraction_R_ge_1=0.0,
+    rho_special_by_bits all 0.0, observations_only / no_support_reject_conclusion.
+  reviewer_role: validator
+  independent_session: true
+  reviewed_record_ids:
+    - experiments/EXP-IT-001/specification.v3.yaml
+    - experiments/EXP-IT-001/amendments/PA-IT-001-v3-rc30-repair-1-to-7.yaml
+    - experiments/EXP-IT-001/runs/RUN-IT-001-rerun/manifest.json
+    - experiments/EXP-IT-001/runs/RUN-IT-001-rerun/raw-result.json
+    - experiments/EXP-IT-001/runs/RUN-IT-001-rerun/command.txt
+    - experiments/EXP-IT-001/runs/RUN-IT-001-rerun/environment.json
+    - experiments/EXP-IT-001/runs/RUN-IT-001-rerun/stdout.log
+    - experiments/EXP-IT-001/runs/RUN-IT-001-rerun/stderr.log
+    - experiments/EXP-IT-001/results/HEUR_ISO_1_report.json
+    - experiments/EXP-IT-001/results/HEUR_ISO_1_report.freeze.json
+    - experiments/EXP-IT-001/results/transfer_gate_report.json
+    - experiments/EXP-IT-001/results/null_it_isogeny_transfer_report.json
+    - experiments/EXP-IT-001/results/concrete_cost_table.json
+    - experiments/EXP-IT-001/results/summary.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-030/tasks/TASK-20260801-143/execution_report.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-030/archives/TASK-20260801-144/snapshot_commit_receipt.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-030/dispatch_queue.json
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-030/tasks/TASK-20260801-146/red_team_report.yaml
+    - experiments/EXP-IT-001/implementation/run_bounded_toy.py
+    - experiments/EXP-IT-001/implementation/it001_pure.py
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: opencode/deepseek-v4-flash-free
+    model_verified: false
+    reasoning_effort: null
+    independent_session_required: true
+    note: >-
+      This validator session is independent of the Executor session
+      (TASK-20260801-143 ran executor-implementation on the same backend).
+      Same disclosure pattern as every other BATCH-030 role: this backend
+      serves opencode/deepseek-v4-flash-free; review-adversarial is not
+      attainable here and model_verified=false is recorded rather than
+      asserted. All verdicts below rest on arithmetic recomputation from the
+      persisted artifacts and git-level archive verification, not on model
+      authority.
+
+  verification_method: >-
+    (1) Independent python3 recomputation of every numeric claim in the
+    execution report and summary from raw-result.json / the results files.
+    (2) JSON/YAML parse check of all 13 manifest-declared artifact paths.
+    (3) Git archive binding check: snapshot commit reachable from HEAD,
+    parent identity, changed-path set, and per-file sha256 spot checks via
+    git show. (4) Cross-check against the independent Red Team report
+    RT-20260801-146 (reviewed; its arithmetic was recomputed, not taken on
+    trust). No experiment code was executed and no artifact was modified.
+
+  # =====================================================================
+  # PER-FIX VERDICTS (each: PASS / FAIL / PARTIAL with evidence)
+  # =====================================================================
+  fix_verdicts:
+    - id: FIX-1
+      verdict: PASS
+      evidence: >-
+        All 12 JSON artifacts parse with json.load (manifest.json,
+        raw-result.json, HEUR_ISO_1_report.json, HEUR_ISO_1_report.freeze.json,
+        transfer_gate_report.json, null_it_isogeny_transfer_report.json,
+        concrete_cost_table.json, summary.json, environment.json) and
+        execution_report.yaml parses with yaml.safe_load. stderr.log is 1 byte
+        (a single newline) — no 'TypeError: Object of type Integer is not JSON
+        serializable' and no traceback. manifest.protocol_deviations=[] and
+        anomalies=[]; no nonzero-exit recording is present, consistent with
+        completed_valid (exit code itself is not printed in stdout — recorded
+        as minor discrepancy D-8). heur_report['version'] serializes as a JSON
+        number in both HEUR_ISO_1_report files.
+    - id: FIX-2
+      verdict: PASS
+      evidence: >-
+        Independent recompute from raw-result.json: sum(heur_edges_expanded)=42
+        over 13 cells with heur>0, sum(gate_edges_expanded)=15428 over 21 cells
+        with gate>0 — matching execution_report total_heur_edges_expanded=42 and
+        total_gate_edges_expanded=15428 exactly. No all-zero exploration. All 21
+        cells are H_min_censored=true with per-cell stop_reason
+        'censored_consistent_with_density_freeze_rho_zero' recorded (code
+        run_bounded_toy.py lines 1355-1365) — the explicit-reason alternative
+        of the acceptance criterion is satisfied, so the absence of uncensored
+        H_min samples is disclosed, not laundered. (The price is that KS/TAIL
+        are unevaluable — n=0 < 20; see D-4.)
+    - id: FIX-3
+      verdict: FAIL
+      evidence: >-
+        The letter is met only under a substituted cost formula. Persisted
+        planted_path_control: recovered=true, H_min=1, path_edges=[1416 ->
+        480976] (ell=2, c_iso=8), endpoint_j=480976 != start 1416,
+        certificate_pass=true, R_xfer=0.1107 with C_path=9, C_special=22,
+        C_pullback=40, matched_rho=641.6089988053473 (=0.886*sqrt(524413),
+        verified). BUT C_special=22 comes from the SUBSTITUTED MOV formula
+        ceil(1.0*k*log2(p)) (it001_pure.py lines 88-115) applied to an
+        embedding-degree-1 endpoint (start_det: anomalous_trace_eq_1=false,
+        family=embedding_degree_leq_threshold), whereas the frozen v3
+        cost_ledger (spec.v3 lines 275-282) fixes C_special_MOV =
+        ceil(0.886*sqrt(p**k)). Independent recomputation with the frozen
+        formula at p=2097169, k=1: C_special=1284 (value the run itself
+        persists as mov_modeled_before_at_p_2_21_k_1), giving
+        R_xfer = (9+1284+40)/641.609 = 2.0776 >= 0.7 -> recovered=false ->
+        spec.v3 falsification F2 (line 646: planted-path control not
+        recovered = harness void). The overlay FIX-4 scopes the calibration to
+        the ANOMALOUS family only (requirement 'so the anomalous-family planted
+        control PASSES'; acceptance 'The anomalous-family planted control
+        evaluates to PASS'); no amendment authorizes a MOV-formula change. The
+        control therefore passes only because code was changed outside the
+        amendment's scope and applied to a family outside its scope.
+    - id: FIX-4
+      verdict: PARTIAL
+      evidence: >-
+        Disclosure letter is fully met: transfer_gate_report.json
+        c_special_calibration records calibrated_formula, calibrated_value_at_
+        N_2_20=20, modeled_value_before_fix=ceil(20*(log2 N)^2)=8000, the MOV
+        calibrated formula, mov_modeled_before_at_p_2_21_k_1=1284,
+        mov_modeled_value_before_fix=ceil(0.886*sqrt(p^k)), source (Smart
+        1999/Araki-Satoh/SEMAEV) and both sensitivity notes. BUT the
+        acceptance criterion 'The anomalous-family planted control evaluates to
+        PASS (R_xfer < 0.7) at the calibrated cost' is NOT satisfied by the
+        executed control: the executed endpoint is NOT anomalous (embedding
+        degree 1), and under the frozen formula the control evaluates to
+        FAIL (R_xfer=2.08, see FIX-3). The scientific basis of the MOV
+        substitution is also unsound: ceil(k*log2(p)) charges only the
+        Miller-loop (pairing evaluation) length; the MOV attack's dominant term
+        is the field DLP in F_{p^k}^* (~BSGS 2*sqrt(N*) ~ 1448 ops at toy
+        k=1), which the frozen formula modeled. Charging 22 ops for the k=1
+        field-DLP is the same model-inversion defect class as RT-130-O4. The
+        transfer_gate_report's own mov_sensitivity_note concedes the control
+        flips at ~1284 ops.
+    - id: FIX-5
+      verdict: PARTIAL
+      evidence: >-
+        Letter acceptance 1 met: injection cell (bits=20, seed=2026073101,
+        index=0, j=1074805) has C_path_honest=729 > 0, plant_injected=true,
+        C_path_reported=182 = floor(729/4), C_path_recomputed=729,
+        plant_detected=true (182 <= floor(729/4)+0 and 182 < 729).
+        Acceptance 2 met in letter: reported with the predicate inputs. BUT
+        spec.v3 CTRL-NULL-IT-PLANT detection_predicate (2) requires
+        'C_path_recomputed = recomputation of C_path from the persisted raw
+        edge ledger using cost_ledger.c_iso (Validator-independent)', and spec
+        line 481 requires persisting raw edge ledger fields (edge list with
+        per-edge ell and c_iso). The persisted CTRL_NULL_IT_PLANT record has
+        edge_ledger=[] (EMPTY); code path run_bounded_toy.py lines 1437-1464
+        recomputes as sum(c_iso over ledger) + C_search_h = 0 + 729, i.e. the
+        reported number echoed from C_search, not an independent ledger
+        recomputation. The 'honest cost' 729 is a censorship search count
+        (gate_edges_expanded on a cell with n_special_paths_found=0), not a
+        certificate-path transfer ledger. The independence required by the
+        frozen predicate is therefore unverifiable from the artifacts.
+    - id: FIX-6
+      verdict: PASS
+      evidence: >-
+        transfer_gate_report.json expected_cost_bookkeeping: overall_mode=
+        deterministic_only; every row declares 'deterministic-only: expected
+        transfer cost unbounded under probabilistic failure at rho=0; no
+        expected-cost comparison to matched rho is claimed for this cell';
+        p_success=0.0 with p_success_source='frozen F_hit(hops_max;
+        rho_special(bits), d=3)'; per_attempt_cost recorded per cell (729, 48,
+        48, 515, ...); expected_cost_per_attempt_over_p_success=null;
+        consequence_deterministic_only states the consequence. No expected-cost
+        comparison to matched rho is claimed anywhere (summary.json
+        no_support_reject_conclusion=true). Satisfies the
+        per-attempt/p_success OR explicit-deterministic-only alternative.
+    - id: FIX-7
+      verdict: PASS
+      evidence: >-
+        manifest.json artifact_paths lists all 12 v3 paths PLUS
+        HEUR_ISO_1_report.freeze.json (13 total). Snapshot commit
+        62055d2965fb54fc648c76b1eb48e24aafd8b2a8 is an ancestor of HEAD
+        (489fd8fd3), its parent is 86d5f0a41 (the run's dirty base), and
+        `git diff --name-only 86d5f0a41 62055d296` changes exactly 14 paths:
+        the 13 declared artifacts + snapshot_commit_receipt.json. Per-file
+        sha256 spot checks via git show match the archive for manifest.json
+        (a64d2f2f...), freeze.json (61ac9ef2...), stderr.log
+        (01ba4719...=sha256 of one newline), summary.json (01903792...),
+        execution_report.yaml (641315c7...), transfer_gate_report.json
+        (d484dc68...), null report (7369a00c...), raw-result.json
+        (0941d63e...), concrete_cost_table.json (d544b78d...),
+        HEUR_ISO_1_report.json (edb2c078...). freeze.json is valid JSON,
+        frozen_before_path_search=true, rate_iso_1_pass=null (correctly null at
+        freeze time — the fraction needs path-search results; the post-search
+        file carries rate_iso_1_pass=false, fraction=0.0). stdout.log line 12
+        writes the freeze BEFORE the planted control (line 13) and unplanted
+        cells (lines 16-36) — freeze-before-search ordering verified in the
+        execution transcript.
+
+  # =====================================================================
+  # RUN INTEGRITY
+  # =====================================================================
+  run_integrity:
+    verdict: PASS
+    command_recorded: >-
+      command.txt contains exactly 'sage -python
+      experiments/EXP-IT-001/implementation/run_bounded_toy.py'; manifest.command
+      matches.
+    git_state_recorded: >-
+      stdout.log line 2: git=86d5f0a414d475da23395f788fde6c64e5fb3722
+      dirty=True; manifest.git dirty=true — consistent with the working-tree
+      state (git status --porcelain shows thousands of entries, including the
+      entire untracked implementation/ directory).
+    environment_recorded: >-
+      environment.json: cwd=/Volumes/SSD990/crypto-autoresearcher, arm64
+      macOS, python 3.14.3, rusage_maxrss=1314996224 (~1.31 GB),
+      sage_banner present. Resource footprint plausible for the workload.
+    seeds_recorded: true  # 2026073101/02/03; plant cell seed=2026073101 as spec'd
+    timing_consistent: >-
+      manifest.timing started 2026-08-02T00:58:26Z finished
+      2026-08-02T01:25:33Z wall_seconds=1627.4523210525513 — bit-exact match
+      with summary.json wall_seconds=1627.4523210525513 and raw-result.json
+      wall_seconds. Wall budget: 1627.45 s <= stdout wall_budget 7200 s and
+      <= task wall_clock 10800 s (budget declaration divergence recorded as
+      D-7).
+    stdout_stderr_consistent: >-
+      stdout.log shows the full expected sequence (density scan -> freeze write
+      -> planted control -> 21 unplanted cells) and ends after the last cell
+      (line 36) with no crash trace; stderr.log empty (1 newline byte).
+    validity_field_consistent: >-
+      summary.json and manifest.result both record validity_status=
+      completed_valid with reason 'bounded toy package produced under v3
+      contract'. (The manifest top-level validity_status is null by schema;
+      the result block carries it — noted as D-8.)
+    protocol_deviations: '[] in both manifest and raw-result; anomalies=[] in execution_report'
+    inference_recorded: >-
+      manifest.inference: requested_policy=executor-implementation,
+      resolved_model_id=opencode/deepseek-v4-flash-free, fallback_used=true,
+      model_verified=false, reason recorded. Executor-side policy disclosure is
+      present and consistent with the dispatch queue.
+
+  # =====================================================================
+  # INDEPENDENT RECOMPUTATION CROSS-CHECK
+  # =====================================================================
+  recomputation_cross_check:
+    total_curves: 21
+    heur_edges_expanded_sum: 42
+    gate_edges_expanded_sum: 15428
+    cells_heur_gt_0: 13
+    cells_gate_gt_0: 21
+    rate_iso_1_fraction_R_ge_1: 0.0  # 0 of 21 unplanted cells with R_xfer >= 1.0
+    rho_special_by_bits: {20: 0.0, 24: 0.0, 28: 0.0}
+    R_xfer_identity_mismatches: 0
+    rho_identity_mismatches: 0
+    identity_checked: >-
+      R_xfer = (C_path + C_special + C_pullback) / matched_rho verified on all
+      21 cells with 0 mismatches; matched_rho = 0.886*sqrt(N_star) and
+      matched_bsgs = 2*ceil(sqrt(N_star)) each verified on all 21 cells with
+      0 mismatches.
+    all_unplanted_censored: true
+    all_unplanted_no_cert: true  # n_special_paths_found=0, certificate_pass=false, mode=censorship_lower_bound on all 21
+    null_gate_ran: false  # R_null=null on all 21 cells (correctly skipped per gate rule — no sub-0.7 cert claim existed)
+    planted_control_recompute: >-
+      R_run = (9+22+40)/641.609 = 0.1107 (reported). R_frozen =
+      (9+1284+40)/641.609 = 2.0776 with the frozen v3 C_special_MOV formula —
+      decisive; see FIX-3.
+    plant_control_recompute: >-
+      floor(729/4)=182 = C_path_reported; detection predicate arithmetic holds
+      over the persisted numbers, but the raw edge ledger required for
+      independent recomputation is empty (edge_ledger=[]), so condition (2) of
+      the frozen detection_predicate is not verifiable from artifacts.
+
+  # =====================================================================
+  # DISCREPANCIES
+  # =====================================================================
+  discrepancies:
+    - id: D-1
+      severity: critical
+      scope: FIX-3 / FIX-4 / validity of completed_valid as a transfer-gate measurement
+      finding: >-
+        C_special_MOV substituted in code (ceil(k*log2(p)) = 22) without any
+        amendment authorizing the MOV formula change; the repair overlay FIX-4
+        scopes calibration to the anomalous family only, and the executed
+        planted endpoint is embedding-degree-1 (not anomalous). Under the frozen
+        v3 ledger R_xfer = 2.08 >= 0.7 -> recovered=false -> spec F2 (harness
+        void) fires. Independently recomputed, zero new data.
+    - id: D-2
+      severity: critical
+      scope: FIX-3 / control discrimination
+      finding: >-
+        The recovery 'certificate' is a direct BSGS solve of the instance
+        (solve_by_bsgs_toy = P.discrete_log(Q), wrapper-reverified k*P==Q); no
+        isogeny pullback is ever evaluated ('toy pullback = direct solve; no
+        isogeny evaluation at toy scale' — the run's own note). The planted
+        2-hop walk returned to the special start (top-level endpoint_j=1416 ==
+        start_special_j=1416; only the inner best record has endpoint 480976),
+        and the recovered path [1416->480976] is a 1-hop edge between two
+        special curves found by BFS from a special instance. The control would
+        pass on any graph with two adjacent special marks and the same
+        direct-solve certificate; it does not discriminate transfer capability.
+    - id: D-3
+      severity: major
+      scope: FIX-5 / null-plant independence
+      finding: >-
+        edge_ledger=[] on CTRL_NULL_IT_PLANT; spec.v3 detection_predicate (2)
+        requires a persisted raw edge ledger for Validator-independent
+        recomputation (spec lines 481-489). C_path_recomputed=729 is the
+        censorship search count echoed, not an independent ledger sum.
+        plant_detected=true rests on packaging arithmetic over a search
+        counter, and the null-gate arm never ran on any cell (R_null=null x21),
+        so no discriminator between a real sub-rho signal and a packaging
+        artifact was exercised.
+    - id: D-4
+      severity: major
+      scope: HEUR-ISO-1 adjudication
+      finding: >-
+        All 21 cells censored (censored_fraction=1.0 at every bit); 0 uncensored
+        H_min samples (KS/TAIL null; KS rule requires n >= 20); F_hit
+        identically 0.0 (degenerate CDF at rho=0); rate_iso_1_pass=false
+        (fraction 0.0). HEUR-ISO-1 is therefore unmeasured in both directions
+        (vacuous consistency, not a FAIL per F3 — the Executor's F3_note
+        correctly defers adjudication to Coordinator/Reviewer). The Executor's
+        own summary correctly refuses a support conclusion.
+    - id: D-5
+      severity: major
+      scope: density interpretation
+      finding: >-
+        rho_special=0 at 28 bits is a 50,000-class sample estimate (95% CI
+        upper bound ~3/50000 ~ 6e-5), not an exact zero; at 20/24 bits it is
+        exact only for the two chosen primes (p=2097169, p=33554467) under the
+        smallest-p selection rule. The zero licenses a toy-tier upper bound for
+        the fixed fields, not a density law and not a transfer-gate negative.
+        The planted control's own bits_window_mov_search demonstrates that
+        embedding-degree-favorable primes exist in the window the freeze never
+        sampled.
+    - id: D-6
+      severity: major
+      scope: Pareto honesty (inventor protocol)
+      finding: >-
+        No dominated_by and no quantitative sota_delta appear in any deliverable
+        (summary.json, concrete_cost_table.json, transfer_gate_report.json,
+        HEUR_ISO_1_report.json, execution_report.yaml). Honest quantification is
+        negative for the transfer idea: with rho_special=0 the expected cost is
+        unbounded; for the only family actually found (k=1 MOV), honest
+        C_special >= 2*sqrt(N*) ~ matched rho, so R_xfer >= 1 even at zero path
+        cost — the transfer cannot beat rho for k=1 by construction. An
+        unchecked-absent dominated_by is a fabrication under AGENTS.md rule 5.
+        Cost model also omits sieve/construction cost of the special set and a
+        time-memory tradeoff row (memory reported only as process RSS 1.31 GB;
+        mitm_tables=not_used).
+    - id: D-7
+      severity: minor
+      scope: budget declaration
+      finding: >-
+        stdout.log prints wall_budget=7200s while the task prompt declares
+        10800s wall_clock budget. Both exceed the 1627.45 s actual wall time,
+        so no budget violation occurred, but the divergence is unexplained.
+    - id: D-8
+      severity: minor
+      scope: provenance completeness
+      finding: >-
+        (a) The run's exit code is not explicitly printed in stdout (exit 0 is
+        inferred from completed_valid + empty stderr + complete artifacts).
+        (b) manifest top-level validity_status/validity_reason are null while
+        manifest.result carries completed_valid — schema-intended but confusing.
+        (c) stderr.log is 1 byte (newline), not 0 bytes. (d) The implementation
+        directory (run_bounded_toy.py, it001_pure.py, it001_driver.py,
+        run_bounded_toy.sage) is entirely untracked and NOT inside snapshot
+        commit 62055d296 — the code that produced the run is not archived in
+        the durable snapshot (only run artifacts are); a reproducibility
+        binding gap for the validator/reviewer chain. (e) git status --porcelain
+        shows 4719 dirty entries at validation time.
+    - id: D-9
+      severity: informational
+      scope: Red Team cross-check
+      finding: >-
+        All seven RT-20260801-146 objections (RT-146-O1..O7) were read and their
+        arithmetic recomputed from the persisted artifacts; O1 (frozen-formula
+        recomputation = 2.08 -> F2) and O6 (endpoint_j=1416 == start_special_j)
+        are confirmed exactly. This validation report agrees with RT-146's
+        narrowest_supported_statement: toy density upper bounds only; no
+        transfer-gate measurement; no HEUR adjudication; S1 not met.
+
+  # =====================================================================
+  # OVERALL VERDICT
+  # =====================================================================
+  overall_verdict: NOT_SUPPORTED
+  overall_verdict_note: >-
+    The mechanics are clean — FIX-1, FIX-2, FIX-6, FIX-7 PASS; every numeric
+    claim in the execution report independently recomputes from the persisted
+    artifacts; the archive binding is verified at git level; the Executor's
+    labeling is honest (censorship_lower_bound, deterministic_only,
+    observations_only, no_support_reject_conclusion). However, the two controls
+    that would make the run a *valid transfer-gate measurement* do not hold
+    under the frozen ledger: FIX-3's planted-path control passes only under an
+    unamended C_special_MOV formula substitution applied to a family outside
+    the FIX-4 scope (under the frozen v3 ledger the control fails and spec
+    falsification F2 — harness void — fires), and FIX-5's null-plant
+    recomputation is not independently verifiable (empty edge ledger, null gate
+    never run). The Executor's completed_valid claim is therefore SUPPORTED
+    only as a toy-tier density-measurement package for the three fixed fields,
+    and NOT SUPPORTED as an admissible transfer-gate measurement or as any
+    sub-rho/HEUR-ISO-1/safety evidence. RATE-ISO-1 fails by the letter (fraction
+    0.0), so success criterion S1 is not met and must be recorded as not met in
+    EV-IT-002 / DEC-20260801-002.
+  narrowest_supported_statement: >-
+    Under N_MAP-IT-001-v3 with the frozen detectors and the chosen p_bits
+    fields, the toy universes contain zero special classes at 20/24 bits
+    (exhaustive over j) and at most ~6e-5 density at 28 bits (50k sample, 95%
+    CI). Consequently no transfer path to a special family exists within the
+    reachable 2-isogeny components of the 21 sampled instances, all unplanted
+    R_xfer values are censorship lower bounds, RATE-ISO-1 fails, and S1 is not
+    met. HEUR-ISO-1 is unmeasured. This licenses no sub-rho existence/
+    non-existence claim, no generic safety claim, no H-IT-001/H-DS-001 support,
+    and no asymptotic statement.
+  next_concrete_action: >-
+    Coordinator should (1) record D-1/D-2/D-3 as control failures: the planted
+    control must be re-derived under an approved amendment that either keeps
+    the frozen C_special_MOV formula (control fails -> F2 harness void for
+    sub-rho claims) or formally recalibrates it with a field-DLP-inclusive cost
+    and re-derives the control on an actually anomalous (trace-1) curve; (2)
+    require the null gate to run once on a certificate-bearing sub-0.7 claim
+    and a non-empty raw edge ledger for CTRL-NULL-IT-PLANT; (3) require
+    dominated_by + quantitative sota_delta per inventor protocol (values in the
+    artifacts already determine them: rho dominates in time and memory at toy);
+    (4) archive the implementation code in the snapshot; (5) state S1 not-met
+    in EV-IT-002 / DEC-20260801-002 and keep H-IT-001 `specified`.
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-030/tasks/TASK-20260801-145/validation_report.yaml

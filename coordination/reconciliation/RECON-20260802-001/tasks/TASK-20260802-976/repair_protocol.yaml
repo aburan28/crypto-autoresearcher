@@ -1,0 +1,58 @@
+schema: crypto.autoresearch.codex_runtime_failed_receipt_repair.v1
+task_id: TASK-20260802-976
+reconciliation_id: RECON-20260802-001
+coordinator_determination: ACCEPT_VALIDATOR_REJECT_AND_REPAIR
+authoritative_research_evidence: false
+inference_amendment: false
+research_state_changes: []
+live_probe_authorized: false
+r3_r4_dispatch_authorized: false
+
+review_binding:
+  repair_snapshot_commit: eb112d7f5cd674666918160149a8fbb2769da3d5
+  validator_report_id: VAL-20260802-974
+  validator_report_snapshot_commit: a994c4dba1b7b98fc8b34f557e9cd341dc61fcbd
+  validator_verdict: REJECT
+  accepted_blocking_finding: F-974-001
+  preserved_closed_findings:
+    - F-968-001
+    - F-968-003
+    - F-968-002 original verified-path form
+
+repair_requirement:
+  id: R-976-001
+  finding: F-974-001
+  behavior: >-
+    Every path entering failed-receipt persistence must set
+    verification.timestamp_order_valid to false after assigning or preserving
+    the exact recorded_at that will be persisted. No preliminary or stale
+    affirmative timestamp value may survive. Only the fully completed success
+    path, after final recorded_at and real binding interval validation, may
+    persist timestamp_order_valid true.
+  required_fixtures:
+    - A pre-binding model mismatch plus backward failure-handler clock writes a failed receipt with timestamp_order_valid false and never invokes bindings_runner.
+    - A runtime-bindings nonzero result plus backward failure-handler clock writes a failed receipt with timestamp_order_valid false.
+    - Existing backward-final-success and reversed-binding fixtures remain failed with timestamp_order_valid false.
+    - Happy path remains verified with timestamp_order_valid true and its exact final recorded_at.
+
+write_scope:
+  - orchestration/adapter/codex_runtime.py
+  - tests/test_codex_runtime_probe.py
+  - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-978/repair_report.yaml
+
+preserved_contract:
+  - All TASK-970 repairs remain intact.
+  - Pre-binding metadata failures still prevent runtime-binding execution.
+  - Receipt schema, failure codes, query locality, privacy, immutability, path containment, and session-only scope remain unchanged.
+  - No live probe, real state access, binding mutation, or research-state action occurs.
+
+acceptance_gates:
+  - Required fixtures pass and focused count increases above 50.
+  - All 50 prior focused fixtures and the existing inference-adapter suite pass.
+  - Runtime bindings, ledger validation, merge hygiene, and git diff checks pass.
+  - Exact three-path repair package is snapshot-committed before independent validation.
+  - A fresh independent Validator explicitly closes or reaffirms F-974-001 and searches adjacent failed-receipt assertion paths.
+
+downstream_gate: >-
+  Passing Executor tests do not authorize a live probe, R3/R4 dispatch, merge,
+  ECDLP experiment, or research-state transition.

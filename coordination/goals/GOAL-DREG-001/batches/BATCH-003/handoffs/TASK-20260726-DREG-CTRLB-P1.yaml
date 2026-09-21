@@ -1,0 +1,206 @@
+handoff:
+  id: TASK-20260726-DREG-CTRLB-P1
+  from: coordinator
+  to: executor
+  goal_id: GOAL-DREG-001
+  batch_id: BATCH-003
+  question_id: RQ-DREG-001
+  objective: >-
+    Compute the FULL-column exact GF(2) rank of the NULL degree-6 Macaulay matrix
+    RESTRICTED to sem's exact 174035-column support for the single committed cell
+    n=12, t=3, ti=0, seed=2026, D=6, nb=24 -- that is, delete exactly the 16016
+    degree-6 columns that are present in the null support and absent from the sem
+    support -- and report
+    deficit_genuine = rank(null|_sem-support) - 138573.
+    Observations only. Do not interpret, do not compare to any attack baseline, do not
+    use hypothesis-status language.
+  uncertainty_reduced: >-
+    BATCH-002 could only BOUND the genuine, support-independent degree-6 rank deficit to
+    the interval [1931, 17947], because its sem and null arms lived in different column
+    spaces (sem 174035 columns, null 190051 = the full squarefree space; the 16016-column
+    gap is entirely at degree 6). This task replaces that interval with a single exact
+    integer measured in ONE column space shared by both arms, which is the precondition
+    for any admissible degree-axis statement and for retiring or confirming the
+    quarantine on the raw 17947 headline.
+  inputs:
+    - src/h012c_block_m4ri.py
+      # column-chunked, memory-safe block-m4ri instrument; checkpoint/resume via state.json
+      # and carry_*.pkl; adjacency is per-column row lists (col_rows), so a column
+      # restriction is a restriction of that list.
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/d6-null/work/h012c_adj_null_n12_t3_i0_D6_s2026_f2f610730a715593.pkl
+      # committed null adjacency pickle to REUSE; payload carries which, D, system_hash,
+      # col_rows, ncols=190051, nrows=183312.
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/d6-null/manifest.yaml
+      # null arm receipt: ncols 190051, sr_pred 156520, rank 156520, deficit 0,
+      # wall 2284.76 s, peak RSS 7677116416 B, chunk_force 12000, budget_s 2400.
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/d6-sem/manifest.yaml
+      # sem arm receipt: ncols 174035, rank 138573 (FULL-column; not recomputed here).
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/rt-control/support_confound_probe.py
+      # EXACT pattern for rebuilding the colidx maps in-process:
+      # build_system(n,t,ti,seed) -> (rng, nb, sem_monosets, eq_degs);
+      # boolean_null(sem_monosets, nb, rng) using the SAME returned rng state;
+      # macaulay_rows(monosets, nb, D) -> (rows, colidx, _). Whole probe ran in 12.8 s,
+      # peak RSS 3.6 GB. colidx maps are NOT persisted on disk and must be rebuilt.
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-MEASURE-N12-D6/rt-control/support_confound_probe.json
+      # committed support audit: sem 174035, null 190051, gap 16016 all at degree 6,
+      # sem_subset_of_null true, null_is_full_support true, sr_pred 156520.
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-002/reviews/RT-N12D6.md
+      # CTRL-B-specified block (~line 148): the specification this task executes.
+    - coordination/goals/GOAL-DREG-001/batches/BATCH-003/dispatch_queue.yaml
+  constraints:
+    - >-
+      Sage MUST run with TMPDIR=SAGE_TMP=/Volumes/Volume/sage-scratch-dreg. Never write
+      scratch, temp, or checkpoint data to the root volume (documented 2026-07-20 ENOSPC
+      incident; root has 57 Gi free, /Volumes/Volume has 228 Gi free). Verify the scratch
+      directory exists and is on /Volumes/Volume before starting.
+    - >-
+      Chunked instrument ONLY: src/h012c_block_m4ri.py. The un-chunked DREG_dff.sage is
+      host-unsafe at the D6 level (RAM -> root swap) and MUST NOT be used for any part of
+      this task.
+    - >-
+      Write ONLY under the declared write_scope
+      experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/. Do not modify, move, or
+      re-run anything under RUN-DREG-001-MEASURE-N12-D6/ -- it is committed and immutable;
+      read it only. Large checkpoint state and any working copy of the adjacency pickle
+      belong OUTSIDE the repository under /Volumes/Volume/sage-scratch-dreg/, with their
+      absolute paths, byte sizes, and sha256 recorded in manifest.yaml.
+    - >-
+      REUSE the committed null adjacency pickle. Before use, verify its file sha256 and
+      assert its embedded system_hash equals
+      f2f610730a7155933be2afe2d979c8535e1f35f5c0c5ddb246fabe717b147344 and that
+      payload ncols == 190051 and nrows == 183312. A mismatch aborts the task as
+      integrity_failure; it is never worked around.
+    - >-
+      Rebuild BOTH colidx maps in-process with macaulay_rows(...) exactly as
+      rt-control/support_confound_probe.py does, from build_system(12, 3, 0, 2026) and
+      boolean_null on the SAME returned rng state, and assert
+      monosets_hash(sem_monosets) == c47d17c3fd70d5d81127e8d37e21441883f720ca10187f57a3aeb47bfe3ba818
+      and monosets_hash(null_monosets) == f2f610730a7155933be2afe2d979c8535e1f35f5c0c5ddb246fabe717b147344
+      before any rank work.
+    - >-
+      The kept column set must be EXACTLY sem's support: kept count == 174035, deleted
+      count == 16016, every deleted monomial of degree exactly 6, and no sem-only
+      monomial (sem support is a strict subset of null support). Any deviation aborts as
+      integrity_failure before the rank stage.
+    - >-
+      The restricted rank must be a FULL-column exact rank over the restricted column set:
+      the chunked loop must cover [0, 174035) exactly once, with no gap, overlap, or
+      double-count across checkpoint resumes, and each resume must pass the instrument's
+      identity check. Do NOT report a partial rank_acc as a rank.
+    - >-
+      Do not recompute, restrict, or alter the SEM arm. Its 138573 is a committed
+      full-column rank and is used here only as the subtrahend.
+    - >-
+      Emit an immutable run receipt carrying the FULL AGENTS.md artifact policy: exact
+      command; git commit and dirty-tree state; environment and dependency versions
+      (SageMath 10.9); input parameters and seeds; stdout and stderr; raw
+      machine-readable results; validity status and reason; timestamps and resource
+      measurements; and an inference block with requested_policy: executor-terra, the
+      exact resolved_model that actually ran, reasoning_effort, and fallback_used: true
+      (Claude Code cannot resolve GPT-5.6 aliases -- declare the fallback, never
+      substitute silently).
+    - >-
+      A timeout, OOM, ENOSPC, or crash is failed_infrastructure (AGENTS rule 5) and MUST
+      be recorded as such with the exact cap hit, last completed column index, partial
+      rank_acc, and resume-state path. It is never evidence, never a deficit, and never a
+      bound.
+    - >-
+      Never fabricate a command, timing, statistic, or number. If a value cannot be
+      measured it stays missing and is reported as missing.
+  preregistered_bracket:
+    declared_before_execution: true
+    restricted_null_rank_must_lie_in: [140504, 156520]
+    deficit_genuine_must_lie_in: [1931, 17947]
+    derivation: >-
+      Column deletion cannot reduce rank by more than the number of deleted columns:
+      rank(null|_sem-support) >= 156520 - 16016 = 140504, hence
+      deficit_genuine >= 140504 - 138573 = 1931. Column deletion cannot increase rank:
+      rank(null|_sem-support) <= 156520, hence deficit_genuine <= 17947.
+    out_of_bracket_rule: >-
+      A result outside [140504, 156520] falsifies either this instrument (wrong column
+      restriction, identity mismatch, chunk double-count or drop) or the committed
+      BATCH-002 receipts (156520 / 138573 / 16016). It is an INTEGRITY FAILURE, not a
+      finding, not a surprise, and not evidence about H-DREG-001. Set
+      status: integrity_failure in the manifest, report the offending numbers and the
+      diagnostics run, and stop. Attach no interpretation.
+  deliverables:
+    - >-
+      manifest.yaml -- immutable run receipt for RUN-DREG-001-CTRLB-N12-D6 with the full
+      artifact policy above, including the inference block and the resource measurements
+      (wall seconds, reduce seconds, unit count, peak RSS bytes).
+    - >-
+      raw-result.json -- machine-readable: cell {n,t,ti,seed,D,nb}, nrows, ncols_restricted,
+      ncols_deleted, sem_rank_committed (138573), null_rank_full_committed (156520),
+      sr_pred (156520), rank_null_restricted, deficit_genuine, in_preregistered_bracket
+      (boolean), status, certificate_kind: none, system hashes, secs_total, n_units,
+      peak_rss_bytes.
+    - >-
+      column-audit.json -- restricted-column receipt: kept count, deleted count, degree
+      histogram of the kept set and of the deleted set, sem_subset_of_null flag, both
+      monosets hashes, sha256 of the reused adjacency pickle, and the assertion results.
+    - command.txt, environment.json, stdout.log, stderr.log
+    - code/ctrlb_restricted_rank.py -- the exact column-restriction driver that was run.
+  artifact_paths:
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/manifest.yaml
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/raw-result.json
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/column-audit.json
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/command.txt
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/environment.json
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/stdout.log
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/stderr.log
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/code/ctrlb_restricted_rank.py
+  write_scope:
+    - experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/
+  archived_by: TASK-20260726-DREG-CTRLB-SNAP
+  inference:
+    policy: executor-terra
+    fallback_allowed: true
+    independent_session_required: false
+    requires_recorded_resolution: true
+    note: >-
+      Claude Code cannot resolve GPT-5.6 policy aliases (CLAUDE.md model policy note).
+      Record requested_policy: executor-terra, the exact resolved_model, reasoning_effort,
+      and fallback_used: true in manifest.yaml. An omitted or contradictory inference
+      block blocks the snapshot archive (AGENTS rule 11).
+  budget:
+    wall_clock_seconds: 2700
+    memory_gb: 12
+    maximum_runs: 3
+    note: >-
+      Aggregate caps for the whole task, covering one initial invocation plus at most two
+      checkpoint-resume continuations. Baseline for calibration: the committed FULL null
+      cell (190051 columns) measured 2284.76 s wall, 1692.1 s reduce over 16 units, peak
+      RSS 7677116416 B at chunk_force 12000; the restricted problem has 174035 columns
+      (91.6%) and the same 183312 rows. Host: 48 GB RAM, ~14.8 GB free.
+  completion_gate:
+    - >-
+      All of manifest.yaml, raw-result.json, command.txt, environment.json, stdout.log,
+      and stderr.log exist under
+      experiments/EXP-DREG-001/runs/RUN-DREG-001-CTRLB-N12-D6/ and are schema-complete
+      per the AGENTS.md artifact policy, including the inference block.
+    - >-
+      The restricted column count is EXACTLY 174035 and is recorded in both
+      column-audit.json and raw-result.json.
+    - >-
+      The deleted column count is EXACTLY 16016, every deleted monomial has degree 6, and
+      the degree histogram of the deleted set is recorded.
+    - >-
+      rank(null|_sem-support) lies inside the pre-registered bracket [140504, 156520] and
+      deficit_genuine = rank - 138573 lies inside [1931, 17947]; raw-result.json records
+      in_preregistered_bracket explicitly. An out-of-bracket value fails this gate and is
+      reported as integrity_failure.
+    - >-
+      Both monosets hashes and the reused adjacency pickle's sha256 and embedded
+      system_hash are recorded and match the committed values.
+    - >-
+      The chunk log demonstrates coverage of [0, 174035) exactly once with no gap,
+      overlap, or double-count, and every resume passed the identity check.
+    - >-
+      If the cell did not complete, the receipt records status: failed_infrastructure with
+      the exact cap hit; no partial rank is reported as a result.
+  return_format: >-
+    Immutable run receipt plus raw-result.json and column-audit.json. Observations only:
+    no interpretation, no hypothesis-status language, no attack or cost-model comparison,
+    no scope beyond the single tested cell.
+  assigned_at: "2026-07-26"
+  assigned_by: coordinator

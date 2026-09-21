@@ -1,0 +1,193 @@
+# EXP-GPS-001 RUN-f — GPS-4 stage 1: S9 D6 closure in m4ri (rank-only).
+# residual_6(S9) = (nrows6 - rank6) - rank(K6 u F3 u F4 u F5)
+# Necessary condition for GPS-4 P1 shared origin: residual_6(S9) >= 2,500.
+#
+# Usage: sage experiments/EXP-GPS-001/src/gps4_s9_d6.sage --out <raw.json>
+import sys, os, time, json, argparse, platform, datetime, itertools, hashlib, gc
+from pathlib import Path
+from array import array
+
+p = argparse.ArgumentParser()
+p.add_argument('--out', required=True)
+args = p.parse_args()
+
+EXPDIR = Path('/Volumes/Volume/crypto-autoresearcher/experiments/EXP-SIG-007')
+sys.path.insert(0, str(EXPDIR / 'src'))
+import sage.version
+load(str(EXPDIR / 'src' / 'h013_f5_signatures.sage'))
+from sage.all import GF, matrix
+F2 = GF(2)
+
+t_start = time.time()
+def sha256(pth):
+    return hashlib.sha256(Path(pth).read_bytes()).hexdigest()
+PINNED = {
+    "h013_f5_signatures.sage": "1ba96fe477c9dc2e7c551c96353c8361d21e40134551342636b2f13015c09087",
+    "semaev_tree.py": "e9f1681b4e422f7a67176fffd3e5f91ab7a95c9fddc1eb925c2bb0a93a9becef",
+    "ic_first_fall_fast.py": "f1c98bd8642df226760f43038d6687e73794d04b9c7a9073f244b8a0433fad61",
+    "macaulay_export.py": "c00b8aad9ad47f8a3f09c39f6b65062a37562703bfd1c4f6159b1e54b1dbad97",
+}
+ih = {f.name: sha256(f) for f in sorted((EXPDIR / 'src').iterdir()) if f.name in PINNED}
+out = {"experiment": "EXP-GPS-001", "run": "RUN-EXP-GPS-001-f", "phase": "gps4_s9_d6_m4ri",
+       "args": vars(args),
+       "environment": {"sage_version": str(sage.version.version),
+                       "python_version": sys.version.split()[0],
+                       "os": platform.platform(), "machine": platform.machine()},
+       "instrument_sha256_matches_pinned": all(ih.get(k) == v for k, v in PINNED.items()),
+       "started_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+def flush():
+    out["elapsed_s_so_far"] = round(time.time() - t_start, 2)
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    json.dump(jsonsafe(out), open(args.out, "w"), indent=1)
+def log(m):
+    print("[gps4f %.1f] %s" % (time.time() - t_start, m), flush=True)
+
+def full_reduce(v, piv):
+    bb = int(v); o = 0
+    while bb:
+        lead = bb.bit_length() - 1
+        if lead in piv: bb = bb ^^ piv[lead]
+        else:
+            o = o | (1 << lead); bb = bb ^^ (1 << lead)
+    return o
+def quotient_basis(kernel, kpiv):
+    red = [full_reduce(kv, kpiv) for kv in kernel]
+    red = [r for r in red if r]
+    r, pr = vec_echelon(red)
+    return list(pr.values()), r
+def multiplier_sets(nb, maxdeg):
+    ms = [frozenset()]
+    for md in range(1, maxdeg + 1):
+        for combo in itertools.combinations(range(nb), md):
+            ms.append(frozenset(combo))
+    return ms
+def images_of(kernel_basis, rows_src, tag2idx, mults):
+    imgs = []
+    misses = 0
+    for kv in kernel_basis:
+        pos = bits_to_positions(kv)
+        tags = [rows_src[pp][0] for pp in pos]
+        for nu in mults:
+            img = 0
+            for (i, mu) in tags:
+                ix = tag2idx.get((i, mu | nu))
+                if ix is None:
+                    misses += 1
+                else:
+                    img = img ^^ (1 << ix)
+            if img:
+                imgs.append(int(img))
+    return imgs, misses
+def m4ri_from_positions(pos_lists, ncols):
+    M = matrix(F2, len(pos_lists), ncols)
+    for i, pl in enumerate(pos_lists):
+        for j in pl:
+            M[i, j] = 1
+    return M
+def positions_list(bitmask_vecs):
+    return [array("I", bits_to_positions(v)) for v in bitmask_vecs]
+
+# --- build S9 (same specialization as RUN-e)
+monosets, nb, meta = build_boolean_semaev(12, 3, 2)
+V9 = sorted(list(range(0, 9)) + list(range(12, 15)) + list(range(16, 19)) + list(range(20, 23)))
+W = sorted(set(range(24)) - set(V9))
+reidx = {v: i for i, v in enumerate(V9)}
+S9 = []
+for f in monosets:
+    nf = set()
+    for m in f:
+        if m & frozenset(W):
+            continue
+        nf.add(frozenset(reidx[v] for v in m))
+    if nf and nf != {frozenset()}:
+        S9.append(nf)
+NB9 = 18
+out["S9_n_eqs"] = len(S9)
+out["specialization"] = {"V9": V9, "W": W}
+log("S9 built: %d eqs" % len(S9))
+
+# --- D3/D4/D5 quotient bases (bigint, fast) for closure images
+bases = {}
+rows_by_D = {}
+for D in (3, 4, 5):
+    rec, rows, kernel, kpiv = analyze_syzygy_space(S9, NB9, D, extract=True)
+    B, rB = quotient_basis(kernel, kpiv)
+    bases[D] = B
+    rows_by_D[D] = rows
+    log("D%d: rank=%d extra=%d B=%d" % (D, rec["rank"], rec["extra"], rB))
+    flush()
+
+# --- D6 rows + m4ri rank
+t0 = time.time()
+rows6, colidx6 = tagged_macaulay(S9, NB9, 6)
+nrows6, ncols6 = len(rows6), len(colidx6)
+tag2idx6 = {tag: ix for ix, (tag, _) in enumerate(rows6)}
+log("D6 rows=%d cols=%d built (%.1fs)" % (nrows6, ncols6, time.time() - t0))
+t0 = time.time()
+M = matrix(F2, nrows6, ncols6)
+for ri, (tag, prod) in enumerate(rows6):
+    for m in prod:
+        M[ri, colidx6[m]] = 1
+log("M6 filled (%.1fs)" % (time.time() - t0))
+t0 = time.time()
+rank6 = int(M.rank())
+log("rank6=%d (%.1fs)" % (rank6, time.time() - t0))
+del M
+gc.collect()
+kernel6_dim = nrows6 - rank6
+out["S9_D6"] = {"nrows": nrows6, "ncols": ncols6, "rank": rank6,
+                "kernel_dim": kernel6_dim}
+flush()
+
+# --- K6 model family + closure images -> m4ri union ranks
+t0 = time.time()
+kvecs = koszul_principal_vectors(S9, NB9, 6, tag2idx6)
+nvan = 0
+for ix, (tag, prod) in enumerate(rows6):
+    if not prod:
+        kvecs.append(int(1 << ix)); nvan += 1
+k6_pos = positions_list(kvecs)
+del kvecs
+gc.collect()
+log("K6 family %d (+%d vanishing) (%.1fs)" % (len(k6_pos), nvan, time.time() - t0))
+imgs = {}
+for Dsrc, maxmd in ((3, 3), (4, 2), (5, 1)):
+    ms = multiplier_sets(NB9, maxmd)
+    im, misses = images_of(bases[Dsrc], rows_by_D[Dsrc], tag2idx6, ms)
+    imgs[Dsrc] = positions_list(im)
+    log("F%d images %d misses %d" % (Dsrc, len(im), misses))
+    del im
+    gc.collect()
+
+t0 = time.time()
+Mk = m4ri_from_positions(k6_pos, nrows6)
+rankK6 = int(Mk.rank())
+log("rankK6=%d (%.1fs)" % (rankK6, time.time() - t0))
+u = Mk
+for Dsrc in (3, 4, 5):
+    Bm = m4ri_from_positions(imgs[Dsrc], nrows6)
+    u = u.stack(Bm)
+    del Bm
+    gc.collect()
+    r = int(u.rank())
+    log("rank K6..F%d = %d" % (Dsrc, r))
+    flush()
+closure_rank = int(u.rank())
+resid6 = kernel6_dim - closure_rank
+out["S9_D6"].update({
+    "rankK6": rankK6, "rank_K6F345": closure_rank,
+    "A3_6": None, "extra_6": kernel6_dim - rankK6,
+    "residual_6_S9": resid6,
+})
+out["gate_context"] = {
+    "residual_6_n12": 2722, "residual_6_n9_recorded": 2615,
+    "necessary_condition_shared_origin": "residual_6_S9 >= 2500",
+    "necessary_condition_holds": bool(resid6 >= 2500),
+    "independence_band_check": "residual_6_S9 <= 1000 would favour independence",
+}
+log("residual_6(S9) = %d ; necessary condition holds: %s" %
+    (resid6, resid6 >= 2500))
+out["wall_seconds"] = round(time.time() - t_start, 2)
+out["finished_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+flush()
+log("DONE")

@@ -1,0 +1,240 @@
+idea:
+  id: IDEA-20260828-163513
+  question_id: RQ-MDFIVE-6870c1
+  added: '2026-08-28'
+  title: >-
+    Modular addition's ripple carry is not a Boolean-function-only DDT: test
+    a carry-chain-aware differential-probability model against
+    IDEA-20260828-12ce12/400967's closed form and against brute-force ground
+    truth
+  class: representation
+  claim: >-
+    (A) IDEA-20260828-12ce12 and IDEA-20260828-400967's STAGE 1 both derive
+    sufficient-condition counts from "the closed-form bitwise
+    truncated-differential propagation table for each function" -- i.e. a DDT
+    for F/G/H/I treated as the sole source of probabilistic bit-conditions in
+    a step of the form a_new = rotl(a_old + Func(b,c,d) + x[k] + T[i], s). As
+    stated, this closed form does not separately model the three modular
+    ADDITIONS' own differential behavior: in ripple-carry addition mod 2^32,
+    an XOR input-difference does not propagate to an XOR output-difference
+    deterministically or with a bit-independent probability -- the true
+    probability is governed by a carry-chain automaton over the per-bit carry
+    state (the generic ARX result associated with Lipmaa-Moriai, FSE 2001),
+    not by the naive "treat each ADD as contributing conditions only through
+    the bits that differ" assumption 12ce12/400967's stated method implies by
+    omission.
+    (B) The claim under test: sufficient-condition counts computed from
+    F/G/H/I's bitwise DDT alone, ignoring the carry-chain structure of the
+    step's three modular additions, systematically diverge from a
+    carry-chain-aware computation, and the size of the divergence grows with
+    the number of chained additions across the differential path length r --
+    exactly the quantity 12ce12/400967 sweep (r in {1,2,3}).
+    (C) Genuine two-outcome discriminator: EITHER (i) the naive Boolean-only
+    model is adequate at the scales 12ce12/400967 test, because carry effects
+    wash out or are dominated by Boolean-function conditions -- their
+    reported figures stand uncorrected; OR (ii) carry-chain effects
+    contribute a measurable, non-negligible correction whose magnitude (not
+    just sign) this proposal delivers, and every c_total(r)/c_late(r) figure
+    either sibling instrument produces needs it attached.
+    (D) EXPLICITLY NOT CLAIMED: any attack, complexity result, or claim about
+    MD5's collision/preimage resistance; no claim that message-modification
+    forcing (12ce12) fails -- only that the sufficient-condition DENOMINATOR
+    against which forcing gain is measured may need a carry-aware correction.
+  mechanism: >-
+    STAGE 1 constructs, from first principles of ripple-carry addition (not
+    trusted from memory of the cited paper, which is only recalled and
+    unread), a finite automaton over per-bit carry states computing the exact
+    probability that a declared XOR input difference to a+b mod 2^32 yields a
+    declared XOR output difference. STAGE 2 validates this automaton against
+    exhaustive brute-force truth at 4-8 bit widths before trusting it at 32
+    bits. STAGE 3 computes, for a declared MD5/MD4 step, the full condition
+    count using the carry-aware model for all three additions in the step,
+    against the naive Boolean-DDT-only count (Func's DDT plus the
+    per-bit-independent assumption 12ce12/400967's STAGE 1 text implies for
+    the additions). STAGE 4 sweeps r=1,2,3 (reusing 12ce12's declared round
+    sweep) and reports the ratio (carry-aware)/(naive) as a function of r.
+    STAGE 5 cross-validates both models against exhaustive brute-force ground
+    truth on IDEA-20260816-3e6af3's already-built 16-bit toy ARX primitive,
+    giving a three-way comparison (naive prediction, carry-aware prediction,
+    brute-force truth) at a scale where truth is directly countable.
+  novelty_status: unverified
+  citations:
+    - ref: "Lipmaa, Moriai, 'Efficient Algorithms for Computing Differential Properties of Addition', FSE 2001"
+      provenance: recalled
+      claim: >-
+        Origin of carry-chain-automaton computation of XOR-difference
+        propagation probability through modular addition.
+      verified_by: null
+      note: >-
+        Never read by any agent in this program. The automaton used here is
+        re-derived from first principles of binary addition and validated by
+        brute force, not trusted from this citation's authority.
+    - ref: "RFC 1321/1320, pinned in this goal"
+      provenance: internal
+      claim: The exact ADD operations per step.
+      verified_by: "already pinned and validated in this goal"
+    - ref: IDEA-20260828-12ce12
+      provenance: internal
+      claim: >-
+        The closed-form Boolean-DDT instrument whose implicit ADD-modeling
+        assumption this proposal tests.
+      verified_by: "idea-generator subagent (read in full, this session)"
+    - ref: IDEA-20260828-400967
+      provenance: internal
+      claim: Sibling instrument sharing the same implicit assumption.
+      verified_by: "idea-generator subagent (read in full, this session)"
+    - ref: IDEA-20260816-3e6af3
+      provenance: internal
+      claim: >-
+        Toy-ARX brute-force enumeration harness reused for the three-way
+        validation; discriminated from this proposal, which supplies and
+        tests a SPECIFIC alternative closed-form model rather than only
+        measuring the naive model's aggregate error.
+      verified_by: "idea-generator subagent (read in full, this session)"
+    - ref: IDEA-20260816-9b3b6b
+      provenance: internal
+      claim: >-
+        Names carry direction as the mechanism behind forward/backward
+        diffusion-wavefront asymmetry; discriminated from this proposal,
+        which builds a predictive probability MODEL for condition counting
+        rather than measuring diffusion Hamming-weight spread.
+      verified_by: "idea-generator subagent (read in full, this session)"
+  assumptions:
+    - >-
+      The carry-chain automaton, once constructed and validated against
+      small-width brute force, transfers in FORM (not in untested value) to
+      32-bit words -- a transfer assumption, flagged explicitly.
+    - >-
+      The "naive Boolean-only" baseline is implemented exactly as
+      12ce12/400967's STAGE 1 text specifies; verified against their actual
+      code once written, not assumed identical from the text alone.
+  proof_search_map:
+    bottleneck: "Whether the three per-step ADD operations are modeled carry-aware or treated as per-bit independent."
+    baseline_embedding:
+      parameter_slice: >-
+        At any input difference with no bit set where a carry could occur
+        (e.g. differences confined to bit 31, the MSB, which has no carry-out
+        within 32 bits), the carry-aware model must reduce EXACTLY to the
+        naive model's prediction.
+      reproduction_check: "A frozen symbolic check on this degenerate case, before any divergent case is trusted."
+    observation_collision:
+      observable: "Per-path condition count / exact probability."
+      distinct_preimage_search: >-
+        Many distinct per-bit carry-state assignments can produce the same
+        aggregate condition-count bucket; the promotion condition is the
+        exact probability value, not a bucketed count.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          Replace the per-bit-independent naive ADD model with the carry
+          automaton's transition-probability product.
+        predicted_gain: >-
+          MODELED, not yet measured: a divergence ratio as a function of r,
+          reported regardless of direction.
+    quantifier_order: >-
+      FOR the declared MD5/MD4 step and declared input/message difference,
+      the carry-aware model computes an EXACT probability -- not an
+      existential search, a deterministic function evaluation.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        The carry-aware model's predicted probability differs from the naive
+        Boolean-only model's by a measured factor at declared r, validated
+        against brute-force truth at 16-bit scale.
+      nearby_object_control: >-
+        The XOR-ablated primitive (additions replaced by XOR, no carries)
+        already used as a control in IDEA-20260816-9b3b6b/3e6af3, where the
+        two models MUST coincide exactly -- a forced null.
+    proof_obligations:
+      - claim: "The carry automaton reproduces exhaustive brute-force truth at 4-8 bit widths exactly."
+        responsibility: correctness
+      - claim: "The carry-aware and naive models coincide exactly on the XOR-ablation null."
+        responsibility: correctness
+      - claim: "The carry-aware model is closer to brute-force truth than the naive model on IDEA-20260816-3e6af3's toy primitive, or the record states that it is not."
+        responsibility: success_probability
+      - claim: "Every figure is scoped to the declared step/round and width; 32-bit transfer is flagged as unverified extrapolation."
+        responsibility: scope
+    not_applicable_reason: null
+  predictions:
+    - metric: "ratio (carry-aware c_total) / (naive Boolean-only c_total) at r=1"
+      direction: different
+      minimum_effect: "ratio outside [0.9, 1.1] is a reportable divergence; inside is a reportable non-divergence, both informative"
+    - metric: "growth of the ratio across r=1,2,3"
+      direction: different
+      minimum_effect: "no pre-committed sign; reported as observed"
+    - metric: "|predicted-to-actual ratio - 1| on the 16-bit toy primitive, carry-aware model versus naive model, at c=8"
+      direction: lower
+      minimum_effect: "carry-aware model at least 20% closer to 1 in absolute deviation, reusing IDEA-20260816-3e6af3's exact statistic"
+  minimal_test:
+    design: >-
+      Build and validate the carry automaton at 4-8 bit widths against brute
+      force; implement naive-vs-carry-aware condition counts for one declared
+      MD5 step and one declared MD4 step; run the r=1,2,3 sweep; run the
+      three-way toy-primitive comparison reusing IDEA-20260816-3e6af3's
+      harness.
+    controls:
+      - "XOR-ablated null (additions removed); models must coincide exactly."
+      - "Brute-force ground truth at 16-bit toy scale (3e6af3's harness)."
+      - "MD4 vs MD5 paired computation (schedule differs, ADD structure identical -- should show comparable carry-effect magnitude)."
+    required_metrics: ["ratio at each r", "toy-primitive three-way |ratio-1| comparison", "XOR-ablation exact-coincidence pass/fail"]
+  falsification_conditions:
+    - "Carry-aware and naive models coincide within 1% at every r -- carry effects negligible at these scales, a genuine finding validating 12ce12/400967 as-is."
+    - "The XOR-ablation null does NOT show exact coincidence -- falsifies the automaton implementation."
+    - "The carry-aware model is NOT closer to brute-force truth than the naive model on the toy primitive -- falsifies the premise that carry-awareness improves accuracy."
+  confounders:
+    - "Automaton implementation bugs -- mitigated by brute-force validation at small width before scaling."
+    - "Width-transfer risk (4-8 bit to 32-bit) -- flagged as unverified extrapolation, not asserted."
+    - "Conflating this correction with 3e6af3's own aggregate calibration -- kept distinct: this supplies a model, 3e6af3 supplies a bare error bar."
+  interpretation_limits:
+    - "No claim about attack cost; scoped to the declared steps/rounds."
+    - "The automaton's correctness at 32-bit width is inferred by transfer from smaller widths, never directly brute-force verified (infeasible) -- the single largest disclosed risk."
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The carry-chain automaton's transition structure, once correctly
+        derived and validated at small width, is width-independent in FORM;
+        only the number of iterations (bit positions) changes with word
+        width.
+      rigorous_support: >-
+        Imitates the classical scale-invariance of finite-automaton
+        transfer-matrix computations -- the automaton's per-bit transition
+        rule is a local, width-independent function of ripple-carry
+        addition's definition.
+      validation_plan: >-
+        Run the automaton at widths 4, 8, 16 bits against brute force
+        (32-bit brute force is infeasible); confirm the transition matrix
+        itself is unchanged across widths, only its iteration count differs;
+        report any width-dependent drift rather than assuming none.
+  target_complexity:
+    time_exponent: "No attack exponent is claimed. The deliverable is a dimensionless ratio and a toy-scale accuracy comparison."
+    memory_exponent: "Negligible -- a small carry-state transition table and toy-scale runs well under 1 GB."
+    best_known: >-
+      IDEA-20260828-12ce12/400967's undisclosed-by-omission naive ADD model
+      -- the only existing instrument in this corpus computing any condition
+      count at all, with no ADD-carry treatment stated.
+    hidden_overhead: >-
+      The automaton's correctness at 32-bit width is never directly
+      brute-force verified, only inferred by transfer from smaller widths --
+      disclosed as the largest source of unreliability in this record's
+      forward-looking claim.
+    tradeoff_note: "Not applicable -- a modeling-accuracy question, not a resource tradeoff."
+  dominated_by: >-
+    n/a (no result claimed). Checked against the UNVERIFIED 2^123.4 preimage
+    figure, the seconds-scale collision figure, and EV-MDFIVE-f3e1ca's
+    birthday-enumeration cost anchor; no axis on any of them is occupied.
+  sota_delta: "No attack; a modeling-correction contribution to two sibling instruments filed earlier today."
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-28'
+  source_refs:
+    - RQ-MDFIVE-6870c1
+    - IDEA-20260828-12ce12
+    - IDEA-20260828-400967
+    - IDEA-20260816-3e6af3
+    - IDEA-20260816-9b3b6b
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260828`,
+    verified with `--check` before use.

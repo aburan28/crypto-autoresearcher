@@ -1,0 +1,576 @@
+# ============================================================================
+# PHASE 1 FROZEN REPORT — blind re-derivation of the EXP-ECDLP-6ac801
+# derivation-packet quantity at the eight frozen cells of BATCH-12ee85.
+# Task TASK-20260910-19bd7b (role: validator, joint J1).
+#
+# FROZEN AS WRITTEN. This file records phase 1 only. Phase 2 (cross-
+# implementation comparison) is NOT started: per the task card and the packet
+# seal procedure it may begin only after the Coordinator commits this frozen
+# report, and it may read only what the review plan names.
+# ============================================================================
+blind_rederivation:
+  id: BLIND-RDR-TASK-20260910-19bd7b
+  task_id: TASK-20260910-19bd7b
+  blind_input: BLIND-INPUT-BATCH-12ee85
+  derivation_packet: DPKT-PA-ECDLP-6ac801-v2-to-v3
+  phase: 1-frozen
+  frozen_at: "2026-09-11T00:00:34.889488+00:00"
+  wall_clock_total_seconds: 275.137
+
+  # --------------------------------------------------------------------------
+  reading_attestation:
+    files_read_before_seal:
+      - "experiments/EXP-ECDLP-6ac801/derivation-packet/PA-ECDLP-6ac801-v2-to-v3/MANIFEST.yaml"
+      - "experiments/EXP-ECDLP-6ac801/derivation-packet/PA-ECDLP-6ac801-v2-to-v3/quantity.md"
+      - "experiments/EXP-ECDLP-6ac801/derivation-packet/PA-ECDLP-6ac801-v2-to-v3/deliverables.md"
+      - "experiments/EXP-ECDLP-6ac801/derivation-packet/PA-ECDLP-6ac801-v2-to-v3/prohibitions.md"
+      - "coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/blind-input.yaml"
+    statement: >-
+      The four files above are exactly the packet's allowlist
+      (MANIFEST.yaml readable_files, count 4). The fifth file, blind-input.yaml,
+      is this task's own frozen input, named by the task card as the statement
+      to derive from. NOTHING else in this repository was read before this
+      report was frozen: no contract, no amendment, no run directory, no
+      existing implementation, no review, no decision record, no coordination
+      record outside the two paths above, and no git history command of any
+      kind (no git log / show / blame / diff). No commit message was seen.
+      The only other files touched were created by this task itself inside its
+      own write scope (rederive.py, check_params.py, results.json, this file,
+      seal.json).
+    slips: none
+    blind_from_respected: true
+
+  # --------------------------------------------------------------------------
+  declared_conventions:
+    # Every choice below is one the packet leaves to the implementer
+    # (quantity.md s1 "any standard one", s9, prohibitions.md s4 "any RNG").
+    # None of these is claimed to match any other implementation; the packet
+    # states explicitly that they need not.
+    mix64: >-
+      splitmix64 finalizer (u ^= u>>30; u *= 0xBF58476D1CE4E5B9; u ^= u>>27;
+      u *= 0x94D049BB133111EB; u ^= u>>31, on one u64). K = mix64(0x9E3779B97F4A7C15 + seed);
+      K_dp = mix64(K XOR 0xD1B54A32D192ED03), exactly as quantity.md s1.
+    pool_rng: "numpy default_rng([seed, 1]), fresh per cell; uniform restart starts via integers(0, N)."
+    tie_break_rng: >-
+      numpy default_rng([seed, 100]), fresh per cell; one bulk array of r*T
+      doubles, one key per pool entry in pool-insertion order; ascending key
+      breaks ties at the T-th largest weight (quantity.md s6).
+    null_arm_rngs: >-
+      default_rng([seed, 101]) oracle-uniform subset;
+      default_rng([seed, 102]) oracle size-biased subset (sequential draw
+      WITHOUT replacement, probabilities proportional to basin size);
+      default_rng([seed, 103]) uniform random T-subset of the pool;
+      default_rng([seed, 104]) permutation of basin sizes over the pool.
+      All fresh per cell, all deterministic functions of the integer seed.
+    exact_arithmetic: >-
+      Every quantity the definition makes exact — cap, dp_threshold, basin
+      sizes, cycle/capped mass, all shares, cov_static, margins,
+      residual_fraction, rho_ORACLE, the accounting identity, pass-counts and
+      their signs — is computed in integer / fractions.Fraction arithmetic.
+      Float appears only where the definition is irrational or statistical,
+      and each such use is flagged at the value: W (hence weight_d =
+      S_d + 4*W*h_d) uses one double per cell; the null-arm subset draws use
+      float sampling with exact integer read-off; the s11 bootstrap is float
+      by specification. The accounting identity check is exact integer
+      arithmetic with zero tolerance at every cell.
+    ordering: >-
+      a = 1/4 computed first at each scale (quantity.md s13), N = 2^20 before
+      N = 2^24 (prohibitions.md s4). The a = 1/4 control is reported below
+      under control_a_quarter; it came out G3-INFEASIBLE at both scales, so
+      proceeding to the open cells was permitted by deliverables.md s4.
+
+  # --------------------------------------------------------------------------
+  ambiguity_records:
+    # Recorded AS results per the task card: never resolved silently.
+    cap_boundary_at_step_cap:
+      packet_text: >-
+        quantity.md s3b: "A pool-construction walk that reaches `cap` steps
+        without hitting a DP **terminates capped**". The packet does not state
+        whether the point landed on AT step `cap` is itself DP-checked before
+        the walk is declared capped.
+      resolution_used: >-
+        Reading A (primary): the walk examines its landing points x_0 .. x_cap
+        inclusive, and is capped iff none of them is a DP. Reading B: the walk
+        examines x_0 .. x_(cap-1) only. BOTH readings were run at every cell;
+        the values below are reading A, and per-cell
+        `reading_B_differences` lists every field whose value changes under
+        reading B.
+      observed_result: >-
+        The two readings produced IDENTICAL values for every reported field at
+        every cell (all eight frozen cells and all 50 control cells): no walk
+        that reached step cap landed on a DP. The ambiguity is therefore
+        empirically vacuous at these parameters, but it remains a genuine
+        underdetermination of the packet, and phase 2 must compare it as such.
+    rho_ORACLE:
+      packet_text: >-
+        quantity.md s12 names rho_ORACLE only parenthetically: "the smallest
+        `T_sel/T` at which `share_top(T_sel)` reaches `cov_static`". No formal
+        definition of rho_ORACLE appears anywhere in the packet.
+      resolution_used: >-
+        Working definition: rho_ORACLE = k*/T where k* is the smallest
+        k in {1..T} with share_top(k) >= cov_static, share_top ranging over
+        ALL DPs of the exact partition and cov_static the pool-selected
+        coverage (both exact integer comparisons). k* always exists because
+        share_top(T) >= cov_static. Reported as an exact fraction. This is a
+        derivation the re-deriver had to supply; it is flagged as such.
+    null_shuf_scope:
+      packet_text: >-
+        quantity.md s12 NULL-SHUF: "Permute the basin sizes across the pool's
+        DPs, holding the size multiset and the weights fixed, and report the
+        resulting `cov_static`." The packet does not state whether the
+        selection is re-run on the permuted assignment.
+      resolution_used: >-
+        Holding the weights fixed means the selected set is unchanged; only
+        the basin sizes read off at the selected entries are permuted.
+        Reported as the coverage of the same selected entries under a
+        uniformly random permutation of the pool's basin-size vector.
+    size_biased_draw:
+      packet_text: >-
+        quantity.md s12 NULL-ORACLE-RAND (size-biased) says only "drawing the
+        T_sel-subset with probability proportional to basin size"; the
+        without-replacement scheme is not specified.
+      resolution_used: >-
+        Sequential draw without replacement, at each step choosing uniformly
+        among remaining DPs with probability proportional to current basin
+        size (a standard sequential weighted sample without replacement;
+        exact final subset distribution differs slightly from a strict
+        size-biased sampling design). Float sampling arithmetic, exact
+        integer read-off. Disclosed, not silent.
+    pool_stop_rule:
+      packet_text: >-
+        quantity.md s5: "repeat until the pool holds r*T distinct DPs". The
+        packet does not state what happens if walks exhaust before r*T
+        distinct DPs are found.
+      resolution_used: >-
+        No cell encountered this: every cell filled its pool. At the smallest
+        smoke instance the pool also filled. The rule actually implemented is
+        "continue until r*T distinct DPs, unbounded", which is the literal
+        reading; the alternative (a bounded walk budget) never became
+        relevant, so no result depends on the choice.
+    weight_arithmetic:
+      packet_text: >-
+        quantity.md s6 fixes the FORM of weight_d = S_d + 4*W*h_d but W is
+        irrational at a = 1/8 and 3/16, so the weight cannot be an exact
+        rational at those cells; the packet does not state a rounding.
+      resolution_used: >-
+        One IEEE double per cell for W (repr recorded per cell in
+        parameters_used.W_float), weights computed in float64, selection and
+        tie detection on those floats. Ties are detected by exact float
+        equality on the computed weights. Disclosed per cell.
+    t_at_smaller_scale:
+      packet_text: quantity.md s10 frozen table.
+      resolution_used: "T = 64 at N = 2^20, T = 256 at N = 2^24, from the frozen table (deliverables.md joint 5). Verified: all eight W/cap rows reproduced exactly from the formulas (cap = ceil(8*W), dp_threshold = floor(2^64/W)) — see check_params.py output in results.json meta and the per-cell parameters."
+
+  # --------------------------------------------------------------------------
+  implementation:
+    program: rederive.py
+    program_sha256_pending: see seal.json
+    auxiliary_checks: check_params.py   # cap/W table reproduction; mix64 vector==scalar; smoke cell
+    output: results.json
+    environment:
+      python: "3.12.8 (main, Apr  3 2026, 13:08:17) [Clang 17.0.0 (clang-1700.0.13.5)]"
+      numpy: "2.4.4"
+      platform: "macOS-26.6-arm64-arm-64bit"
+    exact_command: "python3 coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-19bd7b/rederive.py"
+    started_utc: "2026-09-10T23:49:39.990895+00:00"
+    finished_utc: "2026-09-10T23:54:15.134331+00:00"
+    algorithm_notes: >-
+      Exact basin partition by reverse breadth-first search over the exact
+      reverse graph (CSR from np.bincount/argsort), DPs absorbing, giving
+      dist and first-DP label for all N points in O(N); the three classes,
+      b(d), cycle_mass, capped_mass and the accounting identity follow
+      exactly. Pool construction by uniform random restarts with the cap
+      binding termination (no S_d/h_d credit for capped walks). Selection by
+      weight_d with the per-entry pseudorandom tie-break key in
+      pool-insertion order. Null arms read off the same partition. A pipeline
+      smoke cell (N=2^12, T=8, a=1/4, seed=1) was run first for correctness
+      only and is NOT a grid cell.
+
+  # --------------------------------------------------------------------------
+  control_a_quarter:
+    # quantity.md s13: a = 1/4 is the batch's known-false object, run FIRST.
+    # Observed: G3-INFEASIBLE at both scales, i.e. the instrument REPRODUCED
+    # the known-false object. Observation only; no interpretation beyond
+    # deliverables.md s4's own stop rule, which did not fire.
+    - cell_family: {N: 1048576, a: 1/4}
+      computed_first: true   # quantity.md s13 / prohibitions.md s4
+      seeds: 1..25
+      T: 64
+      k_25: 3
+      verdict_25: G3-INFEASIBLE
+      k_5: 0
+      verdict_5: G3-INFEASIBLE
+      mean_margin: "exact: -526979/26214400   (~= -0.0201026535)"
+      mean_margin_sign: "-"
+      ci_lo: -0.02557741737365723   # percentile bootstrap, float, quantity.md s11
+      ci_hi: -0.01434203338623047
+      ci_bootstrap_seed: 20283407
+      ci_straddles_zero: false
+      bca_variant: "not computed (optional context declined)"
+      max_residual_fraction: "exact: 24303/1048576   (~= 0.02317714691)"
+      identity_or_min_basin_violations: []
+      per_cell_reading_B_differences_nonempty: 0 of 25 seeds
+    - cell_family: {N: 16777216, a: 1/4}
+      computed_first: true   # quantity.md s13 / prohibitions.md s4
+      seeds: 1..25
+      T: 256
+      k_25: 1
+      verdict_25: G3-INFEASIBLE
+      k_5: 0
+      verdict_5: G3-INFEASIBLE
+      mean_margin: "exact: -8359221/419430400   (~= -0.01992993593)"
+      mean_margin_sign: "-"
+      ci_lo: -0.02305913209915161   # percentile bootstrap, float, quantity.md s11
+      ci_hi: -0.016521881163120273
+      ci_bootstrap_seed: 20287407
+      ci_straddles_zero: false
+      bca_variant: "not computed (optional context declined)"
+      max_residual_fraction: "exact: 7913/1048576   (~= 0.007546424866)"
+      identity_or_min_basin_violations: []
+      per_cell_reading_B_differences_nonempty: 0 of 25 seeds
+
+  # --------------------------------------------------------------------------
+  frozen_cells:
+    # The eight cells of BLIND-INPUT-BATCH-12ee85, listed with all N = 2^20
+    # cells before the N = 2^24 cells (prohibitions.md s4); within that, the
+    # blind-input's own listing interleaves the 2^24 a=1/8 seeds before the
+    # 2^20 a=1/16 cell, and this listing groups by scale instead. Every cell
+    # is labelled with its (N, a, seed), so the ordering carries no
+    # information. All values below are reading A; reading B agreed
+    # everywhere (see ambiguity_records).
+    - cell: {N: 1048576, a: 1/8, seed: 1}
+      parameters_used:
+        N: 1048576
+        a: 1/8
+        seed: 1
+        T: 64
+        T_sel: 32
+        r: 2
+        W_squared: "2048/1"   # exact; W itself is irrational
+        W_float: 45.254833995939045   # double; used only in weight_d, disclosed
+        cap: 363
+        dp_threshold: 407619307041649444
+      fields:
+        share_top_Tsel: "exact: 195351/1048576   (~= 0.1863012314)"
+        cov_static: "exact: 25483/131072   (~= 0.1944198608)"
+        margin: "exact: -8513/1048576   (~= -0.008118629456)"   # = share_top_Tsel - cov_static, exact
+        share_top_T: "exact: 144363/524288   (~= 0.2753505707)"
+        share_top_Tover4: "exact: 128427/1048576   (~= 0.1224775314)"
+        share_top_Tover8: "exact: 39319/524288   (~= 0.07499504089)"
+        rho_ORACLE: "exact: 35/64   (~= 0.546875)"   # k*/T, see ambiguity_records.rho_ORACLE
+        n_dps: 23104
+        cycle_mass: 1104
+        capped_mass: 0
+        cap: 363
+        capped_walks: 0
+        residual_fraction: "exact: 69/65536   (~= 0.001052856445)"
+        accounting_identity_holds: true   # sum_b=1047472 + cycle_mass + capped_mass == N, exact integer
+        min_basin_size: 1   # b(d) >= 1 corollary
+        n_tied_at_Tth_weight: 2
+        margin_null_oracle_rand_uniform: "exact: -200687/1048576   (~= -0.1913900375)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_oracle_rand_sizebiased: "exact: -72975/524288   (~= -0.1391887665)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_randsel: "exact: 99303/1048576   (~= 0.09470272064)"
+        cov_static_shuf: "exact: 137569/1048576   (~= 0.131196022)"
+      execution:
+        cap_boundary_reading: "A (x_cap examined)"
+        reading_B_differences: []   # fields whose values differ under cap-boundary reading B
+        wall_time_seconds: 0.005
+        command: "python3 coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-19bd7b/rederive.py"   # single batch invocation; per-cell times above
+    - cell: {N: 1048576, a: 1/8, seed: 7}
+      parameters_used:
+        N: 1048576
+        a: 1/8
+        seed: 7
+        T: 64
+        T_sel: 32
+        r: 2
+        W_squared: "2048/1"   # exact; W itself is irrational
+        W_float: 45.254833995939045   # double; used only in weight_d, disclosed
+        cap: 363
+        dp_threshold: 407619307041649444
+      fields:
+        share_top_Tsel: "exact: 179411/1048576   (~= 0.1710996628)"
+        cov_static: "exact: 5439/32768   (~= 0.1659851074)"
+        margin: "exact: 5363/1048576   (~= 0.005114555359)"   # = share_top_Tsel - cov_static, exact
+        share_top_T: "exact: 274437/1048576   (~= 0.2617235184)"
+        share_top_Tover4: "exact: 109467/1048576   (~= 0.1043958664)"
+        share_top_Tover8: "exact: 66567/1048576   (~= 0.06348323822)"
+        rho_ORACLE: "exact: 31/64   (~= 0.484375)"   # k*/T, see ambiguity_records.rho_ORACLE
+        n_dps: 22809
+        cycle_mass: 1908
+        capped_mass: 0
+        cap: 363
+        capped_walks: 0
+        residual_fraction: "exact: 477/262144   (~= 0.001819610596)"
+        accounting_identity_holds: true   # sum_b=1046668 + cycle_mass + capped_mass == N, exact integer
+        min_basin_size: 1   # b(d) >= 1 corollary
+        n_tied_at_Tth_weight: 1
+        margin_null_oracle_rand_uniform: "exact: -167811/1048576   (~= -0.1600370407)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_oracle_rand_sizebiased: "exact: -53/512   (~= -0.103515625)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_randsel: "exact: 78943/1048576   (~= 0.07528591156)"
+        cov_static_shuf: "exact: 131861/1048576   (~= 0.125752449)"
+      execution:
+        cap_boundary_reading: "A (x_cap examined)"
+        reading_B_differences: []   # fields whose values differ under cap-boundary reading B
+        wall_time_seconds: 0.003
+        command: "python3 coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-19bd7b/rederive.py"   # single batch invocation; per-cell times above
+    - cell: {N: 1048576, a: 1/8, seed: 13}
+      parameters_used:
+        N: 1048576
+        a: 1/8
+        seed: 13
+        T: 64
+        T_sel: 32
+        r: 2
+        W_squared: "2048/1"   # exact; W itself is irrational
+        W_float: 45.254833995939045   # double; used only in weight_d, disclosed
+        cap: 363
+        dp_threshold: 407619307041649444
+      fields:
+        share_top_Tsel: "exact: 93501/524288   (~= 0.1783390045)"
+        cov_static: "exact: 42891/262144   (~= 0.1636161804)"
+        margin: "exact: 7719/524288   (~= 0.0147228241)"   # = share_top_Tsel - cov_static, exact
+        share_top_T: "exact: 139521/524288   (~= 0.2661151886)"
+        share_top_Tover4: "exact: 60991/524288   (~= 0.1163311005)"
+        share_top_Tover8: "exact: 78615/1048576   (~= 0.07497310638)"
+        rho_ORACLE: "exact: 7/16   (~= 0.4375)"   # k*/T, see ambiguity_records.rho_ORACLE
+        n_dps: 23106
+        cycle_mass: 2468
+        capped_mass: 43
+        cap: 363
+        capped_walks: 0
+        residual_fraction: "exact: 2511/1048576   (~= 0.002394676208)"
+        accounting_identity_holds: true   # sum_b=1046065 + cycle_mass + capped_mass == N, exact integer
+        min_basin_size: 1   # b(d) >= 1 corollary
+        n_tied_at_Tth_weight: 3
+        margin_null_oracle_rand_uniform: "exact: -10637/65536   (~= -0.1623077393)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_oracle_rand_sizebiased: "exact: -63825/524288   (~= -0.1217365265)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_randsel: "exact: 38697/524288   (~= 0.07380867004)"
+        cov_static_shuf: "exact: 42479/524288   (~= 0.08102226257)"
+      execution:
+        cap_boundary_reading: "A (x_cap examined)"
+        reading_B_differences: []   # fields whose values differ under cap-boundary reading B
+        wall_time_seconds: 0.004
+        command: "python3 coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-19bd7b/rederive.py"   # single batch invocation; per-cell times above
+    - cell: {N: 1048576, a: 1/16, seed: 5}
+      parameters_used:
+        N: 1048576
+        a: 1/16
+        seed: 5
+        T: 64
+        T_sel: 32
+        r: 2
+        W_squared: "1024/1"   # exact; W itself is irrational
+        W_float: 32.0   # double; used only in weight_d, disclosed
+        cap: 256
+        dp_threshold: 576460752303423488
+      fields:
+        share_top_Tsel: "exact: 60853/524288   (~= 0.1160678864)"
+        cov_static: "exact: 26193/262144   (~= 0.09991836548)"
+        margin: "exact: 8467/524288   (~= 0.01614952087)"   # = share_top_Tsel - cov_static, exact
+        share_top_T: "exact: 24037/131072   (~= 0.1833877563)"
+        share_top_Tover4: "exact: 73919/1048576   (~= 0.07049465179)"
+        share_top_Tover8: "exact: 43261/1048576   (~= 0.0412569046)"
+        rho_ORACLE: "exact: 13/32   (~= 0.40625)"   # k*/T, see ambiguity_records.rho_ORACLE
+        n_dps: 32725
+        cycle_mass: 2130
+        capped_mass: 0
+        cap: 256
+        capped_walks: 0
+        residual_fraction: "exact: 1065/524288   (~= 0.002031326294)"
+        accounting_identity_holds: true   # sum_b=1046446 + cycle_mass + capped_mass == N, exact integer
+        min_basin_size: 1   # b(d) >= 1 corollary
+        n_tied_at_Tth_weight: 6
+        margin_null_oracle_rand_uniform: "exact: -101121/1048576   (~= -0.09643650055)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_oracle_rand_sizebiased: "exact: -67755/1048576   (~= -0.06461620331)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_randsel: "exact: 62347/1048576   (~= 0.0594587326)"
+        cov_static_shuf: "exact: 66967/1048576   (~= 0.06386470795)"
+      execution:
+        cap_boundary_reading: "A (x_cap examined)"
+        reading_B_differences: []   # fields whose values differ under cap-boundary reading B
+        wall_time_seconds: 0.004
+        command: "python3 coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-19bd7b/rederive.py"   # single batch invocation; per-cell times above
+    - cell: {N: 16777216, a: 1/8, seed: 3}
+      parameters_used:
+        N: 16777216
+        a: 1/8
+        seed: 3
+        T: 256
+        T_sel: 128
+        r: 2
+        W_squared: "8192/1"   # exact; W itself is irrational
+        W_float: 90.50966799187809   # double; used only in weight_d, disclosed
+        cap: 725
+        dp_threshold: 203809653520824722
+      fields:
+        share_top_Tsel: "exact: 2880951/16777216   (~= 0.171718061)"
+        cov_static: "exact: 2678105/16777216   (~= 0.1596274972)"
+        margin: "exact: 101423/8388608   (~= 0.01209056377)"   # = share_top_Tsel - cov_static, exact
+        share_top_T: "exact: 4489645/16777216   (~= 0.2676036954)"
+        share_top_Tover4: "exact: 899993/8388608   (~= 0.1072875261)"
+        share_top_Tover8: "exact: 1080001/16777216   (~= 0.06437307596)"
+        rho_ORACLE: "exact: 115/256   (~= 0.44921875)"   # k*/T, see ambiguity_records.rho_ORACLE
+        n_dps: 185418
+        cycle_mass: 1576
+        capped_mass: 14917
+        cap: 725
+        capped_walks: 1
+        residual_fraction: "exact: 16493/16777216   (~= 0.0009830594063)"
+        accounting_identity_holds: true   # sum_b=16760723 + cycle_mass + capped_mass == N, exact integer
+        min_basin_size: 1   # b(d) >= 1 corollary
+        n_tied_at_Tth_weight: 3
+        margin_null_oracle_rand_uniform: "exact: -83517/524288   (~= -0.1592960358)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_oracle_rand_sizebiased: "exact: -110451/1048576   (~= -0.1053342819)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_randsel: "exact: 1356907/16777216   (~= 0.08087795973)"
+        cov_static_shuf: "exact: 1649247/16777216   (~= 0.09830278158)"
+      execution:
+        cap_boundary_reading: "A (x_cap examined)"
+        reading_B_differences: []   # fields whose values differ under cap-boundary reading B
+        wall_time_seconds: 0.076
+        command: "python3 coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-19bd7b/rederive.py"   # single batch invocation; per-cell times above
+    - cell: {N: 16777216, a: 1/8, seed: 11}
+      parameters_used:
+        N: 16777216
+        a: 1/8
+        seed: 11
+        T: 256
+        T_sel: 128
+        r: 2
+        W_squared: "8192/1"   # exact; W itself is irrational
+        W_float: 90.50966799187809   # double; used only in weight_d, disclosed
+        cap: 725
+        dp_threshold: 203809653520824722
+      fields:
+        share_top_Tsel: "exact: 1639347/8388608   (~= 0.1954253912)"
+        cov_static: "exact: 3316817/16777216   (~= 0.1976976991)"
+        margin: "exact: -38123/16777216   (~= -0.002272307873)"   # = share_top_Tsel - cov_static, exact
+        share_top_T: "exact: 4794123/16777216   (~= 0.2857519984)"
+        share_top_Tover4: "exact: 1067267/8388608   (~= 0.1272281408)"
+        share_top_Tover8: "exact: 644107/8388608   (~= 0.07678353786)"
+        rho_ORACLE: "exact: 131/256   (~= 0.51171875)"   # k*/T, see ambiguity_records.rho_ORACLE
+        n_dps: 185849
+        cycle_mass: 4895
+        capped_mass: 4594
+        cap: 725
+        capped_walks: 0
+        residual_fraction: "exact: 9489/16777216   (~= 0.0005655884743)"
+        accounting_identity_holds: true   # sum_b=16767727 + cycle_mass + capped_mass == N, exact integer
+        min_basin_size: 1   # b(d) >= 1 corollary
+        n_tied_at_Tth_weight: 5
+        margin_null_oracle_rand_uniform: "exact: -3310259/16777216   (~= -0.1973068118)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_oracle_rand_sizebiased: "exact: -2403323/16777216   (~= -0.1432492137)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_randsel: "exact: 672557/8388608   (~= 0.08017504215)"
+        cov_static_shuf: "exact: 454365/4194304   (~= 0.1083290577)"
+      execution:
+        cap_boundary_reading: "A (x_cap examined)"
+        reading_B_differences: []   # fields whose values differ under cap-boundary reading B
+        wall_time_seconds: 0.078
+        command: "python3 coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-19bd7b/rederive.py"   # single batch invocation; per-cell times above
+    - cell: {N: 16777216, a: 1/8, seed: 25}
+      parameters_used:
+        N: 16777216
+        a: 1/8
+        seed: 25
+        T: 256
+        T_sel: 128
+        r: 2
+        W_squared: "8192/1"   # exact; W itself is irrational
+        W_float: 90.50966799187809   # double; used only in weight_d, disclosed
+        cap: 725
+        dp_threshold: 203809653520824722
+      fields:
+        share_top_Tsel: "exact: 3104909/16777216   (~= 0.185066998)"
+        cov_static: "exact: 1437025/8388608   (~= 0.1713067293)"
+        margin: "exact: 230859/16777216   (~= 0.01376026869)"   # = share_top_Tsel - cov_static, exact
+        share_top_T: "exact: 4592207/16777216   (~= 0.273716867)"
+        share_top_Tover4: "exact: 1006797/8388608   (~= 0.1200195551)"
+        share_top_Tover8: "exact: 1258783/16777216   (~= 0.07502931356)"
+        rho_ORACLE: "exact: 113/256   (~= 0.44140625)"   # k*/T, see ambiguity_records.rho_ORACLE
+        n_dps: 185684
+        cycle_mass: 5299
+        capped_mass: 6630
+        cap: 725
+        capped_walks: 2
+        residual_fraction: "exact: 11929/16777216   (~= 0.0007110238075)"
+        accounting_identity_holds: true   # sum_b=16765287 + cycle_mass + capped_mass == N, exact integer
+        min_basin_size: 1   # b(d) >= 1 corollary
+        n_tied_at_Tth_weight: 3
+        margin_null_oracle_rand_uniform: "exact: -2869833/16777216   (~= -0.1710553765)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_oracle_rand_sizebiased: "exact: -1802413/16777216   (~= -0.1074321866)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_randsel: "exact: 1522389/16777216   (~= 0.09074145555)"
+        cov_static_shuf: "exact: 1650895/16777216   (~= 0.09840101004)"
+      execution:
+        cap_boundary_reading: "A (x_cap examined)"
+        reading_B_differences: []   # fields whose values differ under cap-boundary reading B
+        wall_time_seconds: 0.075
+        command: "python3 coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-19bd7b/rederive.py"   # single batch invocation; per-cell times above
+    - cell: {N: 16777216, a: 1/16, seed: 17}
+      parameters_used:
+        N: 16777216
+        a: 1/16
+        seed: 17
+        T: 256
+        T_sel: 128
+        r: 2
+        W_squared: "4096/1"   # exact; W itself is irrational
+        W_float: 64.0   # double; used only in weight_d, disclosed
+        cap: 512
+        dp_threshold: 288230376151711744
+      fields:
+        share_top_Tsel: "exact: 954929/8388608   (~= 0.1138364077)"
+        cov_static: "exact: 206805/2097152   (~= 0.0986123085)"
+        margin: "exact: 127709/8388608   (~= 0.01522409916)"   # = share_top_Tsel - cov_static, exact
+        share_top_T: "exact: 3033005/16777216   (~= 0.1807811856)"
+        share_top_Tover4: "exact: 1165413/16777216   (~= 0.06946402788)"
+        share_top_Tover8: "exact: 680607/16777216   (~= 0.04056733847)"
+        rho_ORACLE: "exact: 13/32   (~= 0.40625)"   # k*/T, see ambiguity_records.rho_ORACLE
+        n_dps: 261938
+        cycle_mass: 1467
+        capped_mass: 318
+        cap: 512
+        capped_walks: 0
+        residual_fraction: "exact: 1785/16777216   (~= 0.0001063942909)"
+        accounting_identity_holds: true   # sum_b=16775431 + cycle_mass + capped_mass == N, exact integer
+        min_basin_size: 1   # b(d) >= 1 corollary
+        n_tied_at_Tth_weight: 8
+        margin_null_oracle_rand_uniform: "exact: -206395/2097152   (~= -0.09841680527)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_oracle_rand_sizebiased: "exact: -543193/8388608   (~= -0.06475365162)"   # float-sampled subset, exact read-off, disclosed
+        margin_null_randsel: "exact: 122953/2097152   (~= 0.05862855911)"
+        cov_static_shuf: "exact: 1020075/16777216   (~= 0.06080120802)"
+      execution:
+        cap_boundary_reading: "A (x_cap examined)"
+        reading_B_differences: []   # fields whose values differ under cap-boundary reading B
+        wall_time_seconds: 0.099
+        command: "python3 coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-19bd7b/rederive.py"   # single batch invocation; per-cell times above
+
+  # --------------------------------------------------------------------------
+  phase_2:
+    status: not-started
+    reason: >-
+      Phase 2 (cross-implementation comparison with per-field verdicts
+      EXACT / QUALITATIVE / DISAGREES / UNDERDETERMINED) runs only after the
+      Coordinator commits this frozen report, and may read only what the
+      review plan names. Nothing outside the five files listed in
+      reading_attestation has been read, so this report is blind as frozen.
+
+  # --------------------------------------------------------------------------
+  review_attestation:
+    joints_owned:
+      - blind re-derivation of every blind-input field at all eight frozen cells
+      - cap applied in both binding places (s3a basin predicate, s3b pool termination)
+      - residual accounting identity exact at every cell (including all 50 control cells)
+      - b(d) >= 1 for every DP at every cell
+      - universe asymmetry: cov_static over pool-selected entries, share_top over all DPs
+      - weight = S_d + 4*W*h_d, never true basin size; tie-break by insertion-order key
+      - T = 64 at N = 2^20 from the frozen table
+      - null arms drawn from the correct universes (oracle arms from all DPs of the partition)
+    sources_read:
+      - experiments/EXP-ECDLP-6ac801/derivation-packet/PA-ECDLP-6ac801-v2-to-v3/MANIFEST.yaml
+      - experiments/EXP-ECDLP-6ac801/derivation-packet/PA-ECDLP-6ac801-v2-to-v3/quantity.md
+      - experiments/EXP-ECDLP-6ac801/derivation-packet/PA-ECDLP-6ac801-v2-to-v3/deliverables.md
+      - experiments/EXP-ECDLP-6ac801/derivation-packet/PA-ECDLP-6ac801-v2-to-v3/prohibitions.md
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/blind-input.yaml
+    read_sibling_reports: false
+    read_git_history: false
+    blind_from_respected: true
+    verdict: phase-1 frozen; observations only, no interpretation

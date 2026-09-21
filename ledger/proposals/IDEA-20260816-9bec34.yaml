@@ -1,0 +1,276 @@
+idea:
+  id: IDEA-20260816-9bec34
+  question_id: RQ-FRODO-a2dbe2
+  added: '2026-08-16'
+  title: 'Build an executable quantifier-order linter for reduction statements: encode a security
+    claim as an ordered binder sequence with dependency edges, and have the tool flag every witness
+    that is allowed to depend on something the claimed uniform conclusion forbids, calibrated on statements
+    deliberately mis-ordered by construction.'
+  class: tooling
+  claim: '(A) OBJECT. A reduction statement is a sequence of quantifier binders over adversaries,
+    parameters, keys, query budgets, users and simulators, together with a dependency relation recording
+    which existentially bound object is permitted to be constructed from which universally bound one.
+    The tracked object is that ordered binder sequence with its dependency edges, stripped of all
+    mathematical content. (B) CLAIM. Quantifier-order defects are DETECTABLE on this object alone,
+    without any semantics: a dependency edge from an existential witness to a universal that is bound
+    after it is a well-formedness violation, and a claimed uniform conclusion is exactly the assertion
+    that certain edges are absent. Encoding a statement this way therefore converts a class of reasoning
+    errors, of the kind inventor-protocol section 8 audit 3 requires be checked by hand, into a graph
+    property that a small program decides. (C) CALIBRATION CLAIM. The tool''s power is measurable
+    rather than assumed: generate statements that are correct by construction, apply a catalogue of
+    named mis-orderings (swap two binders, move a witness earlier, add a forbidden dependency edge,
+    split one universal into two with different scopes), and measure detection rate and false-positive
+    rate per mutation class. A linter whose detection rate is not measured against a mutation catalogue
+    is an assertion, not an instrument. (D) WHAT IS NOT CLAIMED. This tool decides a syntactic property
+    of an encoding. It cannot decide whether a proof is correct, whether a bound is tight, or whether
+    an encoding faithfully represents the prose it came from, and the encoding step remains entirely
+    human and is the weakest link. No attack, no break, no security consequence, and no assertion
+    about what any published statement says: the linter is defined over encodings that this program
+    writes, and if no FrodoKEM statement is ever encoded then the tool reports on nothing. In particular
+    a clean lint result is not evidence that a reduction is sound.'
+  mechanism: 'STAGE 1. Define the encoding format: an ordered list of binders, each with a kind (forall
+    or exists), a sort (adversary, key, parameter, query budget, user index, simulator, advantage),
+    and a set of dependency edges naming which earlier binders a given binder''s witness may use.
+    Freeze the format before writing any statement. STAGE 2. Implement three checks. Well-formedness:
+    no edge points forward. Uniformity: for a claim annotated as uniform in a named sort, no existential
+    binder has an edge to that sort. Scope splitting: no sort is bound twice with overlapping scopes,
+    which is how a single quantifier silently becomes two. STAGE 3. Build a generator of correct-by-construction
+    statements over the format, parameterized by binder count and edge density. STAGE 4. Build the
+    mutation catalogue with the four named classes, apply each to generated statements, and measure
+    per-class detection rate and the false-positive rate on unmutated statements. STAGE 5. Human-encoding
+    reliability: have two independent encodings produced from the same short prose statement and measure
+    agreement on binder order and edge set, because that disagreement rate bounds the whole tool''s
+    usefulness and is the number most likely to be embarrassing. STAGE 6. Apply, if and when any reduction
+    statement is filed under RQ-FRODO-a2dbe2 constraint 1, and report only the lint output plus the
+    encoding disagreement rate, never a verdict about the proof.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Read docs/inventor-protocol.md sections 1 through 5 and section 8, in particular audit
+      3, quantifier order, which requires rewriting a claim with explicit forall and exists order
+      and checking whether a witness may depend on an instance, family member, characteristic, parameter
+      or seed in a way a claimed uniform conclusion forbids. Read RQ-FRODO-a2dbe2's methods, which
+      require every quantifier order to be recorded during transcription. Ran grep -ril over ledger/proposals/
+      for quantifier, forall, uniformity, proof_search_map, linter, and read the titles of the hits
+      and of the nearest reduction-oriented proposals.
+    results: 'The quantifier-order audit is a required field of every proof-oriented proposal under
+      inventor-protocol section 8 and KN-TECH-080, and RQ-FRODO-a2dbe2''s methods already demand that
+      quantifier order be recorded at transcription time. No proposal in ledger/proposals/ implements
+      that audit as an executable check: the audits are performed in prose within individual records.
+      IDEA-20260813-6819af (MQOM) enumerates ROM and QROM game hops and hunts adversaries or slack
+      witnesses, which is semantic reasoning about a specific reduction, not a syntactic tool. IDEA-20260809-2d4427
+      (RQ-NTRU-9015ee) is the closest TOOLING record in spirit: a lattice-recovery certificate format
+      plus an independent checker so any claimed recovery is verifiable in milliseconds. That record
+      builds a checker for RESULTS; this builds a checker for STATEMENTS, and the two share only the
+      discipline of making a verification independent and cheap. No record measures a linter''s detection
+      rate against a mutation catalogue, and none measures human encoding agreement.'
+    verdict: 'UNVERIFIED. External literature is unreachable, so nothing is asserted about published
+      proof-checking or formalization tooling, and this proposal deliberately claims nothing about
+      how it compares to such work. Claimed new inside this repository: making inventor-protocol section
+      8 audit 3 executable as a graph check over a frozen encoding format, and calibrating it with
+      a named mutation catalogue plus a measured human-encoding agreement rate, so that the tool''s
+      power and its weakest link are both numbers. Assembled from known parts: the audit itself is
+      KN-TECH-080 and docs/inventor-protocol.md section 8; the independent-checker discipline is IDEA-20260809-2d4427''s;
+      mutation-based calibration of a detector is the standard positive-control practice this program
+      already requires.'
+  object_first_candidate:
+    tracked_object: 'The ordered binder sequence of a reduction statement with its dependency edges:
+      a directed graph whose nodes are quantifier binders labelled forall or exists with a sort, and
+      whose edges record which earlier binders a witness is permitted to consult, with all mathematical
+      content deleted.'
+    lossiness: 'The projection discards every predicate, every inequality, every probability and every
+      algebraic object, keeping only binder order, binder kind, sort labels and dependency edges.
+      This is extremely lossy: infinitely many mathematically distinct statements, including true
+      and false ones, share an encoding, and the linter is blind to all of that difference by design.
+      What survives propagates because quantifier scope is compositional: composing two reductions
+      concatenates their binder sequences and takes the union of their edges under a renaming, so
+      the object evolves deterministically under the operation that actually matters here, namely
+      chaining reductions. That closure under composition is the whole justification for discarding
+      the semantics.'
+    propagation: One step of the target operation is composing one reduction with another, or instantiating
+      one universal binder with a concrete value. Under composition, binder sequences concatenate
+      and edge sets union under renaming, so a forward edge created by composition is detectable immediately
+      and is exactly the classic failure where a simulator built for one game is silently reused where
+      its inputs are not yet fixed. Under instantiation, a universal binder is deleted and every edge
+      into it is discharged, so uniformity annotations can be rechecked in one pass. Both steps are
+      pure graph operations.
+    survival_score: 'The object survives as long as the statement can be written with a linear binder
+      order. It dissolves where quantification is genuinely nested inside a predicate, for example
+      a claim quantifying over all adversaries with a property that itself quantifies over keys, at
+      which point a flat sequence is the wrong representation and the encoding must nest. The proposal
+      predicts that a nontrivial fraction of realistic statements need nesting and treats measuring
+      that fraction on generated statements as a deliverable: the point at which a flat encoding stops
+      sufficing is the honest boundary of the tool.'
+  null_object_control: 'CORRECT-BY-CONSTRUCTION statements, generated so that no forward edge and
+    no uniformity violation exists, passed through the IDENTICAL linter in the same invocation as
+    the mutated ones. The null must produce a false-positive rate at or near zero; a linter that flags
+    correct statements is worse than no linter, because it will be silenced. The positive side of
+    the same control is the mutation catalogue: each named mis-ordering must be detected at a measured
+    rate, and a mutation class with a low detection rate is a stated blind spot rather than a hidden
+    one. A third control is a SHUFFLED encoding whose binder order is randomly permuted, which should
+    be flagged at a high rate; if random permutations are rarely flagged, the checks are too weak
+    to matter regardless of the catalogue results.'
+  discriminated_from:
+  - 'IDEA-20260809-2d4427 (RQ-NTRU-9015ee): a lattice-recovery certificate format and independent
+    checker verifying claimed recoveries in milliseconds. That checks a RESULT against an instance;
+    this checks the SHAPE of a statement and never touches an instance or a result.'
+  - 'IDEA-20260813-6819af (MQOM): a game-hop saturation ledger searching for matching adversaries
+    or slack witnesses. That is semantic and reduction-specific; the linter is syntactic, scheme-independent,
+    and deliberately incapable of finding an adversary.'
+  - The prose quantifier-order audit that inventor-protocol section 8 already requires in every proof-oriented
+    proposal. The difference is that a prose audit has no measured detection rate and no false-positive
+    rate, and cannot be re-run when a statement changes; this proposal's entire contribution is making
+    both numbers exist.
+  - A general-purpose proof assistant or formalization effort. Nothing here checks mathematics, and
+    the tool would accept a nonsense statement with a well-formed binder order. The scope is deliberately
+    far smaller and correspondingly cheap.
+  - The neighbouring FRODOFO instrument-validity proposal, which certifies that a bound EVALUATOR
+    consumes only declared inputs. That tool checks arithmetic purity over numbers; this one checks
+    scope structure over binders, and neither can detect the other's defect class.
+  assumptions:
+  - A useful class of reduction statements can be written with a linear or shallowly nested binder
+    order; the fraction that cannot is measured rather than assumed to be small.
+  - The encoding format is frozen before any statement is encoded, so that a statement cannot be re-encoded
+    until it lints clean.
+  - Human encoding is the weakest link and its disagreement rate is measured with two independent
+    encoders on the same prose, rather than assumed negligible.
+  - A uniformity annotation is supplied by the encoder as an explicit claim about the statement, since
+    the tool cannot infer what a claim intends to be uniform in.
+  - For any application to FrodoKEM, a reduction statement must first be filed as a KN-LIT entry per
+    RQ-FRODO-a2dbe2 constraint 1; the tool and its calibration do not depend on that and run regardless.
+  predictions:
+  - metric: false-positive rate of the linter on correct-by-construction statements
+    direction: lower
+    minimum_effect: 0.01
+  - metric: detection rate on the forward-dependency-edge mutation class
+    direction: higher
+    minimum_effect: 0.95
+  - metric: detection rate on the scope-splitting mutation class
+    direction: higher
+    minimum_effect: 0.6
+  - metric: detection rate on randomly shuffled binder orders
+    direction: higher
+    minimum_effect: 0.8
+  - metric: agreement rate between two independent human encodings of the same prose statement, on
+      binder order and edge set jointly
+    direction: different
+    minimum_effect: 'no pre-commitment, with reason: this is the number that decides whether the tool
+      is usable at all and I have no basis for guessing it; pre-committing to a high value would bias
+      the encoding protocol toward producing it and pre-committing to a low one would excuse a poor
+      format'
+  minimal_test:
+    design: 'Everything except the human-agreement measurement is synthetic and costs an afternoon.
+      Freeze the encoding format, write the three checks, write a generator of correct-by-construction
+      statements with binder counts from four to twelve and controlled edge density, and write the
+      four-class mutation catalogue. Run in one invocation: 1000 correct statements to measure the
+      false-positive rate, 1000 statements per mutation class to measure per-class detection rate,
+      and 1000 randomly shuffled orders as the coarse power check. The discriminating comparison is
+      the false-positive rate against the shuffled-order detection rate: a tool that flags nothing
+      has a perfect false-positive rate and is useless, and a tool that flags everything has a perfect
+      detection rate and is equally useless, so both must be reported together and neither alone is
+      a result. The human-agreement measurement then needs two encoders and one short prose statement,
+      which is cheap in compute and expensive in coordination, and is scheduled separately.'
+    controls:
+    - Correct-by-construction statement generator, giving the false-positive rate.
+    - Four-class mutation catalogue as the positive control, giving per-class detection rates.
+    - Randomly shuffled binder orders as the coarse power check.
+    - Two independent human encodings of one prose statement, giving the encoding agreement rate.
+    - Nesting-required detector, reporting the fraction of generated statements a flat encoding cannot
+      represent.
+    - An always-pass and an always-fail stub linter run through the identical harness, establishing
+      the endpoints of the detection and false-positive scales.
+    required_metrics:
+    - false-positive rate on correct statements
+    - detection rate per mutation class
+    - detection rate on shuffled orders
+    - human encoding agreement rate on binder order and on edge set, reported separately and jointly
+    - fraction of generated statements requiring nesting
+    - endpoint values from the always-pass and always-fail stubs
+  falsification_conditions:
+  - The false-positive rate on correct-by-construction statements exceeds the pre-registered threshold,
+    so the tool would be silenced in practice.
+  - The detection rate on the forward-edge class, which is the one defect the checks are designed
+    around, falls below the pre-registered threshold.
+  - Randomly shuffled orders are rarely flagged, showing the checks are too weak to be worth running.
+  - Two independent human encodings disagree so often that a lint result is a property of the encoder
+    rather than of the statement.
+  - A large fraction of generated statements cannot be represented in the frozen flat format, so the
+    object does not cover the intended domain.
+  - The always-fail stub does not achieve a detection rate of one, or the always-pass stub does not
+    achieve a false-positive rate of zero, indicating the harness itself is broken.
+  confounders:
+  - The generator and the linter are written by the same author against the same format, so correct-by-construction
+    statements are correct in exactly the sense the linter checks; this circularity is real and is
+    only partly mitigated by the shuffled-order control.
+  - Mutation classes are chosen by the same author and may omit the defect class that actually occurs
+    in practice, which no synthetic calibration can detect.
+  - Edge density is a free generator parameter and directly sets both rates; results must always be
+    quoted with it.
+  - Human encoders who have both read the format specification will agree more than independent readers
+    would, so the measured agreement rate is an upper bound on realistic agreement.
+  - A statement that lints clean may have been silently reshaped during encoding until it did, which
+    is why the format is frozen and re-encoding is recorded.
+  interpretation_limits:
+  - A clean lint result is a syntactic property of an encoding. It is not evidence that a proof is
+    correct, that a bound is tight, or that a scheme is secure.
+  - Detection rates are properties of a self-authored mutation catalogue and do not bound the tool's
+    performance on defect classes not in that catalogue.
+  - The human encoding step is unverified by the tool and its agreement rate is measured under favourable
+    conditions.
+  - Nothing here asserts what any published reduction statement contains; the tool operates only on
+    encodings this program writes.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. The checks are linear in binders plus edges per
+      statement; the whole calibration matrix runs in seconds to minutes.
+    memory_exponent: No attack memory exponent is claimed. Kilobytes per statement.
+    best_known: The incumbent is the prose quantifier-order audit required by docs/inventor-protocol.md
+      section 8 and KN-TECH-080, performed by hand inside each proof-oriented proposal. This proposal
+      does not claim to be better at finding defects; it claims to make the audit re-runnable and
+      to attach measured detection and false-positive rates to it, neither of which a prose audit
+      has.
+    hidden_overhead: 'The encoding step is the entire hidden cost and it does not shrink: every statement
+      must be read by a human and rendered into binders and edges, and that rendering is where the
+      real reasoning happens. The tool checks the rendering, so a program that makes the cheap part
+      cheaper while leaving the expensive part untouched can create a false sense of coverage, which
+      is why the human agreement rate is a required metric rather than an optional one.'
+  dominated_by: 'n/a (no result claimed on any cost frontier). Pareto check actually performed: grep
+    -ril frodo across ledger/ returns no evidence record, so there is no FrodoKEM cost row in this
+    program in any of time, memory or queries. Against IDEA-20260809-2d4427, the nearest tooling record,
+    no Pareto comparison exists because the two checkers verify disjoint objects and neither produces
+    a cost figure.'
+  sota_delta: no attack; tooling and measurement contribution only. The deliverable is a linter with
+    a measured false-positive rate, per-class detection rates, a shuffled-order power figure and a
+    human encoding agreement rate. No security figure is produced and none is moved.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium
+  honest_prior_of_survival: 'Claim (B), that forward-edge and uniformity violations are decidable
+    on the stripped object: 0.9, because it is definitional once the encoding exists. Claim (C), that
+    calibration yields a useful separation, meaning a low false-positive rate together with a high
+    detection rate on the forward-edge class: 0.75, with the risk concentrated in the circularity
+    between generator and checker rather than in the implementation. That the scope-splitting class
+    is detected at even 0.6: 0.5, because scope splitting is the subtlest of the four and the one
+    I am least confident the checks catch. The human encoding agreement rate being high enough to
+    make the tool usable: 0.45, honestly below even odds, and this is the number I expect to determine
+    whether the whole idea is worth anything. That any FrodoKEM statement is encoded within this goal''s
+    budget: 0.3, since it is gated on an undischarged acquisition constraint.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-FRODO-a2dbe2
+  - GOAL-FRODO-002
+  - IDEA-20260809-2d4427
+  - IDEA-20260813-6819af
+  - KN-TECH-080
+  - KN-TECH-056
+  - docs/inventor-protocol.md
+  - templates/research-records.md
+  - harness/runner.py
+  - AGENTS.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-FRODOFO-c8cea1

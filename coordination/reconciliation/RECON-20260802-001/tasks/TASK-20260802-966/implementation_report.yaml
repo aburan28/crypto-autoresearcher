@@ -1,0 +1,206 @@
+schema: crypto.autoresearch.executor_implementation_report.v1
+task_id: TASK-20260802-966
+reconciliation_id: RECON-20260802-001
+role: executor
+objective: >-
+  Implement the snapshot-approved, session-scoped Codex CLI runtime
+  provenance probe with standard-library runtime code, fixture-only tests,
+  and privacy-preserving immutable receipts.
+
+frozen_protocol:
+  source: coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-964/coordinator_protocol.yaml
+  snapshot_commit: 870efbae9fe2d35f2ce6650d4a15549f5052fe9f
+  snapshot_is_ancestor_of_execution_base: true
+  unchanged_between_snapshot_and_execution_base: true
+  execution_base_commit: c4f4f74ac8aca37f9a93bab6de5ad31744cdbd8d
+  handoff: ledger/handoffs/TASK-20260802-966.yaml
+
+implementation_observations:
+  - >-
+    Added orchestration.adapter.codex_runtime using subprocess argument lists
+    with shell=false, no stdin, explicit timeouts, executable hashing, exact
+    JSONL event cardinality, and no --ephemeral flag.
+  - >-
+    The state database is opened with SQLite URI mode=ro and
+    PRAGMA query_only=ON. The only SELECT is the frozen parameterized query
+    with WHERE id = ? LIMIT 2, using only the parsed thread.started ID.
+  - >-
+    The rollout path is resolved from the matching row only. Traversal,
+    symlink escape, missing files, paths outside the state database's Codex
+    home, and unsupported event schemas fail closed; no directory enumeration
+    or globbing is performed.
+  - >-
+    Receipt persistence uses exclusive creation at mode 0600. Existing targets
+    are refused before any subprocess, and both failed and verified receipts
+    are immutable.
+  - >-
+    Receipts retain allowlisted state facts, safe argv, timestamps, byte
+    counts, and SHA-256 digests. They do not retain raw subprocess output,
+    raw rollout events, private prompts/instructions, environment values,
+    credentials, tokens, absolute state/receipt/rollout paths, or unrelated
+    thread identifiers.
+  - >-
+    A fixture receipt becomes verified only after exact model, effort,
+    provider, CLI version, cwd, source, sandbox, session ID, and timestamp
+    cross-checks plus a zero-exit runtime-binding check.
+  - >-
+    Adapter version changed from 1.0.0 to 1.1.0. No manifest edit was needed:
+    orchestration/adapter/manifest.py already imports ADAPTER_VERSION from
+    config.py, and the task write scope did not include manifest.py.
+  - >-
+    Documentation now distinguishes exact-session verification from backend
+    catalog verification and states that a session receipt cannot mutate or
+    upgrade model-bindings.yaml.
+
+fixture_coverage:
+  fake_runtime_only: true
+  live_codex_probe_run: false
+  real_codex_state_inspected: false
+  network_used: false
+  research_runs_executed: 0
+  cases:
+    - verified exact-session happy path
+    - missing and ambiguous thread.started events
+    - nonzero launch, timeout, and missing or extra assistant output
+    - unparseable CLI version
+    - missing and duplicate state rows
+    - missing, duplicate, malformed, and mismatched session_meta and turn_context
+    - model, effort, provider, CLI version, cwd, source, sandbox, session ID, and timestamp mismatches
+    - rollout traversal, symlink escape, missing file, and unsupported metadata
+    - existing-receipt refusal and failed-receipt immutability
+    - runtime-binding checker failure
+    - receipt privacy and unrelated-thread exclusion
+    - SQLite URI read-only mode, query_only, and exact-ID SELECT trace
+    - spaces and shell metacharacters with argv lists and shell=false
+    - no mutation or verification implication for model-bindings.yaml
+
+commands:
+  - argv:
+      - python3
+      - -m
+      - pytest
+      - -q
+      - tests/test_codex_runtime_probe.py
+    exit_code: 0
+    stdout: |-
+      ...........................................                              [100%]
+      43 passed in 7.64s
+    stderr: ''
+  - argv:
+      - python3
+      - -m
+      - pytest
+      - -q
+      - tests/test_inference_adapter.py
+      - tests/test_codex_runtime_probe.py
+    exit_code: 0
+    stdout: |-
+      ........................................................................ [ 74%]
+      .........................                                                [100%]
+      97 passed in 8.39s
+    stderr: ''
+  - argv:
+      - python3
+      - tools/check_runtime_bindings.py
+    exit_code: 0
+    stdout: 'OK: 5 roles consistent with every runtime binding'
+    stderr: ''
+  - argv:
+      - git
+      - diff
+      - --check
+    exit_code: 0
+    stdout: ''
+    stderr: ''
+  - argv:
+      - python3
+      - tools/validate_ledger.py
+    exit_code: 0
+    stdout: |-
+      note: 2248 grandfathered legacy error(s) suppressed by tools/validate_ledger_baseline.txt
+      note: 103 frozen root-level ledger records were indexed; 11 legacy run manifest(s) were indexed; 289 legacy schema issue(s) remain read-only
+      OK: validated 2456 records, no new violations
+    stderr: ''
+  - argv:
+      - python3
+      - tools/check_merge_hygiene.py
+    exit_code: 0
+    stdout: |-
+      note: experiments/EXP-DREG-004/specification.yaml now parses; drop it from tools/merge_hygiene_baseline.txt
+      note: experiments/EXP-SIG-007/specification.yaml now parses; drop it from tools/merge_hygiene_baseline.txt
+      note: ledger/evidence/EV-FCP-003.yaml now parses; drop it from tools/merge_hygiene_baseline.txt
+      note: ledger/evidence/EV-IC-002.yaml now parses; drop it from tools/merge_hygiene_baseline.txt
+      note: ledger/handoffs/TASK-20260724-242.yaml now parses; drop it from tools/merge_hygiene_baseline.txt
+      note: ledger/handoffs/TASK-20260725-004.yaml now parses; drop it from tools/merge_hygiene_baseline.txt
+      PASS: no conflict markers, no unparseable records
+    stderr: ''
+
+protocol_deviations: []
+anomalies: []
+limitations:
+  - >-
+    No live Codex session was launched and no real Codex database or rollout
+    was read, as prohibited by the handoff. Production behavior therefore
+    remains subject to independent validation against an authorized fresh
+    session before downstream review dispatch.
+  - >-
+    A verified receipt has verification_scope exact_codex_session_only. It is
+    not backend-wide model verification and cannot be reused for another
+    thread.
+  - >-
+    The Executor records implementation and fixture-test observations only;
+    no acceptance verdict, inference amendment, merge authorization, or
+    research-state decision is made here.
+
+artifact_paths:
+  - orchestration/adapter/codex_runtime.py
+  - orchestration/adapter/cli.py
+  - orchestration/adapter/config.py
+  - tests/test_codex_runtime_probe.py
+  - docs/inference-backends.md
+  - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-966/implementation_report.yaml
+
+execution_report:
+  experiment_id: null
+  implementation_commit: null
+  implementation_base_commit: c4f4f74ac8aca37f9a93bab6de5ad31744cdbd8d
+  protocol_deviations: []
+  runs:
+    completed: []
+    invalid: []
+    failed: []
+  observations:
+    - Fixture-only focused suite: 43 tests passed.
+    - Existing adapter plus focused suites: 97 tests passed.
+    - Runtime bindings: 5 roles consistent with every runtime binding.
+  anomalies: []
+  artifact_paths:
+    - orchestration/adapter/codex_runtime.py
+    - orchestration/adapter/cli.py
+    - orchestration/adapter/config.py
+    - tests/test_codex_runtime_probe.py
+    - docs/inference-backends.md
+    - coordination/reconciliation/RECON-20260802-001/tasks/TASK-20260802-966/implementation_report.yaml
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false
+
+inference_provenance:
+  requested_policy: executor-implementation
+  requested_reasoning_effort: null
+  policy_default_reasoning_effort: medium
+  exact_resolved_model_id: null
+  model_verified: false
+  fallback_allowed: true
+  fallback_used: null
+  degraded_allowed: false
+  degraded_requirements: []
+  independent_session_required: false
+  note: >-
+    This Executor runtime did not expose an exact probe-verified model
+    identifier. No model identity, effort, or fallback outcome was inferred.
+
+state_changes: []
+approval_verdict: not_within_executor_authority
+archived_by: TASK-20260802-967

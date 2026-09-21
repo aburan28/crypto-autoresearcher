@@ -1,0 +1,234 @@
+design_proposal_v2:
+  task_id: TASK-20260801-051
+  batch_id: BATCH-025
+  predecessor: TASK-20260801-047
+  repairs_review: RT-20260801-051
+  status: coordinator_draft_not_approved
+  experiment_id_if_frozen: EXP-SMTH-002
+  hypothesis_id_if_frozen: H-SMTH-002
+  execution_authorized: false
+  official_state_mutation: false
+
+  objective: >-
+    Compare the finite-X LPF and smoothness distribution of off-diagonal ENC-B
+    S3 invariants with an explicitly named uniform-marginal K_512 graph null on
+    four independent frozen curve/factor-base fixtures at each of bits 16 and
+    20. The comparison is toy and comparator-specific.
+  claim_ceiling: >-
+    At most a replicated toy finite-X anomaly relative to NULL-K512-ADD. No DLP
+    is solved; no relation yield, rank, linear algebra, descent, generic-bound,
+    asymptotic, crypto-scale, support, closure or breakthrough claim is allowed.
+  dominated_by: Pollard-rho generic exact ECDLP at time exponent 1/2
+  sota_delta:
+    time_exponent: 0.0
+    memory_exponent: 0.0
+    data_exponent: 0.0
+    solved_instances: 0
+
+  source:
+    fixture_master_seed: 2502
+    fixture_seed_rule: >-
+      first_128_bits(SHA256("EXP-SMTH-002/v2|"||label||"|"||bits||"|"||cell)).
+    prime_rule: >-
+      Starting at 2^(bits-1)+(fixture_seed mod 2^(bits-2)), take the first prime
+      below 2^bits, advancing deterministically on fixture failure.
+    curve_rule: >-
+      Derive a,b modulo p from domain-separated SHA256 blocks and advance until
+      4*a^3+27*b^2 is nonzero modulo p.
+    factor_base_rule: >-
+      Domain-separated candidate x values are reduced modulo p, duplicates are
+      rejected, and x is accepted exactly when x^3+a*x+b is a quadratic residue
+      including zero, until 512 distinct ordered x values are frozen.
+    fixtures_per_bit: 4
+    bits: [16, 20]
+    factor_base_size: 512
+    pairs: 0 <= i < j < 512
+    n_per_fixture: 130816
+    S3_coefficients:
+      c2: (x_i-x_j)^2 mod p
+      c1: -2*((x_i+x_j)*(x_i*x_j+a)+2*b) mod p
+      c0: (x_i*x_j-a)^2-4*b*(x_i+x_j) mod p
+    encoding:
+      e1: -c1/c2 mod p
+      e2: c0/c2 mod p
+      N: e1*p+e2+1
+      X: p^2
+    integrity:
+    - factor-base x values are distinct
+    - exactly 130816 pairs are enumerated
+    - c2 is nonzero for every pair
+    - every N is in [1,X]
+    - every N is directly factored and its factors multiply back
+
+  inferential_unit:
+    unit: one independently generated curve/factor-base fixture
+    pair_values: >-
+      The 130816 edge values within a fixture are a dependent deterministic
+      multiset and are never counted as 130816 independent observations.
+    replication: >-
+      Cell signs are descriptive. The decision variable aggregates four cells
+      per bit before calibration; no population claim beyond the eight frozen
+      fixtures is made.
+
+  null_objects:
+    decisional:
+      id: NULL-K512-ADD
+      construction: >-
+        For each fixture and replicate draw independent A_i,B_i uniformly in
+        F_p for vertices i=0..511. For every i<j set e1=A_i+A_j mod p,
+        e2=B_i+B_j mod p and N=e1*p+e2+1. Each edge N is exactly uniform on
+        [1,p^2], disjoint edges are independent, and adjacent edges share the
+        vertex labels, matching the K_512 dependency topology.
+      limitation: >-
+        This matches uniform marginals and graph topology, not the unknown
+        higher-order dependence law of the S3 map. Every conclusion names
+        NULL-K512-ADD; agreement is not validation of every uniform-marginal
+        dependency law.
+    diagnostic:
+      id: NULL-IID-EDGE
+      construction: Independent uniform N in [1,X] for every edge.
+      role: >-
+        Non-decisional sensitivity diagnostic. A material cutoff difference
+        from NULL-K512-ADD is recorded as dependence sensitivity, never hidden.
+    fixed_reference:
+      id: NULL-IID-REFERENCE
+      count_per_fixture: 130816
+      role: >-
+        One independently seeded iid reference per fixture. Conditional on this
+        fixed reference and the transformation bank, max-bank null scores and
+        the source score use identical formulas.
+
+  statistics:
+    z: log(max(1,LPF(N)))/log(X)
+    rungs_u: [2, 3, 4, 5]
+    B_u: max(2,floor(X^(1/u)))
+    per_fixture_coordinates_in_frozen_order:
+    - two_sided_KS_z
+    - directional_KS_smoother_z
+    - smooth_rate_difference_u2
+    - smooth_rate_difference_u3
+    - smooth_rate_difference_u4
+    - smooth_rate_difference_u5
+    - corrected_log_rate_ratio_u2
+    - corrected_log_rate_ratio_u3
+    - corrected_log_rate_ratio_u4
+    - corrected_log_rate_ratio_u5
+    - reference_minus_test_top_mean_k1
+    - reference_minus_test_top_mean_k8
+    - reference_minus_test_top_mean_k64
+    - reference_minus_test_top_mean_k512
+    fixture_aggregation: >-
+      Arithmetic mean of each coordinate across the four fixtures at a bit
+      size. The family has 28 coordinates: 14 at bits 16 followed by 14 at
+      bits 20 in the order above.
+
+  exact_calibration:
+    transformation_bank:
+      replicates: 32
+      indices: 1..32
+      per_coordinate_center: median using the average of the two middle values
+      per_coordinate_scale: >-
+        MAD about the median. If MAD is zero, use IQR/1.349; if that is zero,
+        use 1.0 and record scale_fallback=true.
+    maximum_bank:
+      replicates: 32
+      indices: 33..64
+      scalar_score: >-
+        M=max_j s_j*(D_j-center_j)/scale_j over the frozen 28-coordinate
+        family, where s_j=+1 for every coordinate because coordinate formulas
+        already orient larger values toward the declared anomaly.
+    source_score: identical M formula using the frozen centers and scales
+    family_p_formula: >-
+      p=(1+#{r in 33..64: M_r >= M_source})/33. Ties are counted against
+      rejection. No interpolation or randomized tie break is permitted.
+    attainable_p_grid: '{1/33,2/33,...,33/33}'
+    alpha: 0.05
+    rejection_condition: p <= 0.05, attainable only at p=1/33
+    anti_tuning:
+    - banks, seeds, coordinate order, tails, formulas and alpha freeze before data
+    - transformation and maximum banks have disjoint domains
+    - source mode is absent from the calibration executable
+    - numeric centers, scales and max scores snapshot before any source executable exists
+
+  controls:
+    gross_plant:
+      role: implementation_only
+      claim: Certifies only detection of deterministic B4 truncation.
+    matched_plant:
+      id: PLANT-BIN-SMTH
+      construction: >-
+        Begin with a fresh NULL-K512-ADD array. Preserve N=1 exactly. Partition
+        N>1 into 256 frozen equal-width log2(N)/log2(X) bins. With independently
+        seeded mixture fraction delta, replace selected values only by values
+        from a four-times-larger pre-factored candidate pool in the same bin
+        having smaller LPF; if none exists, leave the value unchanged. Re-factor
+        every emitted value through the ordinary pipeline.
+      delta_ladder: [0.005, 0.01, 0.02]
+      integrity:
+      - bin counts are bit-identical before and after replacement
+      - N=1 count is bit-identical
+      - replacement fraction and failed replacements are recorded
+      certified_class: >-
+        Magnitude-bin- and atom-at-one-matched edge-local LPF contamination at
+        the three frozen mixture strengths. No broader alternative class.
+      pass: >-
+        At least one delta has family p<=0.05, positive aggregate u4 smooth-rate
+        difference at both bits, and positive u4 sign in at least 3 of 4 cells
+        per bit. The smallest passing delta is the measured detection floor.
+
+  mutually_exclusive_branches:
+  - id: invalid_integrity
+    precedence: 1
+    when: Any fixture, seed, range, count, factorization or hash check fails.
+    disposition: invalid; no mathematical evidence
+  - id: failed_infrastructure_or_budget
+    precedence: 2
+    when: Timeout, CPU, RSS, disk, checkpoint, dependency or deliberate budget stop.
+    disposition: failed_infrastructure; no mathematical evidence
+  - id: revise_without_source
+    precedence: 3
+    when: Calibration validation fails or neither plant meets its own narrow pass rule.
+    disposition: revise instrument; source remains unrun
+  - id: toy_signal
+    precedence: 4
+    when: >-
+      Source p<=0.05 and at least one directional coordinate is positive at both
+      bits and in at least 3 of 4 cells per bit.
+    disposition: replicate toy comparator-specific anomaly; never support
+  - id: inconsistent_signal
+    precedence: 5
+    when: Source p<=0.05 but sign or 3-of-4 replication condition fails.
+    disposition: archive unexpected observation; no promotion
+  - id: no_detected_signal
+    precedence: 6
+    when: Source p>0.05 after all controls pass.
+    disposition: >-
+      Scoped non-detection for these fixtures, NULL-K512-ADD and statistics;
+      never falsification or rejection of HEUR-DS-1.
+
+  factorization_accounting:
+    reference: 1046528
+    calibration_NULL_K512_ADD: 66977792
+    source_if_authorized: 1046528
+    matched_plant_base_inputs: 1046528
+    matched_plant_candidate_inputs: 4186112
+    matched_plant_outputs_three_deltas: 3139584
+    gross_plant_inputs_and_outputs: 2093056
+    subtotal_before_pilot_or_retries: 79536128
+    note: >-
+      Counts include plant construction factorization and downstream
+      refactorization. The frozen full contract must add pilot, rejection draws,
+      primality verification, certificate verification and retry ceilings.
+
+  RT051_repairs:
+    RT051-B1: Fixture-level aggregation plus NULL-K512-ADD graph topology.
+    RT051-B2: Exact split banks, integer score, ties, denominator and grid frozen.
+    RT051-B3: Gross plant narrowed; bin- and atom-matched mixture plant added.
+    RT051-B4: Plant construction and downstream factorization both charged.
+    RT051-B5: Physical ceilings delegated to the separately frozen null-only pilot.
+    RT051-B6: Six precedence-ordered mutually exclusive branches.
+
+  next_gate: >-
+    Independently review this draft and EXP-SMTH-002. Only a PASS may
+    permit a separate snapshot authorization for the null-only pilot. The full
+    calibration, plant and source remain unauthorized.

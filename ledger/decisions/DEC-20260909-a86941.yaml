@@ -1,0 +1,264 @@
+coordinator_decision:
+  id: DEC-20260909-a86941
+  decision: approve
+  decided_by: coordinator
+  decided_at: '2026-09-09T07:16:59.744042+00:00'
+  target_ids:
+  - TASK-20260909-e5f500
+  - TASK-20260909-90f2b9
+  context: Replace the incomplete native supervisor integration while preserving its failed history and frozen
+    operational cases.
+  rationale:
+  - Archived review 8e89c9097961b3c2309bbef87281fb604239a5c2 demonstrates native NameError,signal mapping,cleanup,counter,identity
+    and host-adapter defects. Passing mocked producer summaries did not establish real adapter completeness.
+  - This shared guard prerequisite remains ranked ahead of extra proposals or scientific execution. Use the
+    research-deep capability policy for full native integration;Executor permissions remain unchanged.
+  - Bounded benign owned-process tests are now explicitly permitted to challenge real pipe/wait/reap behavior;mock-only
+    tests concealed several native defects. No real cgroup,privilege,pressure or Docker action is authorized.
+  - Standing authorization covers this source successor. If frozen permissions prevent inner cleanup,fail closed
+    and use the exact-owned outer-container termination path;do not silently add capabilities.
+  accepted_findings:
+  - id: F-01
+    severity: blocking
+    verdict: breaks
+    source:
+    - supervisor.py:884
+    - supervisor.py:956
+    - supervisor.py:958
+    evidence_cases:
+    - runtime_missing_path_name_blocks_native_bootstrap
+    - static_unresolved_path_loads
+    finding: supervisor.py imports PurePosixPath but never Path. The actual PosixWorkerRuntime bootstrap raises
+      NameError after the mocked close/groups/GID/UID sequence and before it can read /proc, emit the privilege
+      postcondition, check the profile, or enter any fixed case. fixed_small_group_oom_body has the same unresolved
+      name in its auxiliary path.
+    implication: No native exact-profile, group-zero, or small-OOM case is runnable from this snapshot.
+  - id: F-02
+    severity: blocking
+    verdict: breaks
+    source:
+    - supervisor.py:409
+    - supervisor.py:837
+    - supervisor.py:840
+    evidence_case: process_sigkill_numeric_name_breaks_classifier
+    finding: PosixProcessTransport converts negative waitstatus_to_exitcode values with f"SIG{abs(exit_code)}".
+      A real SIGKILL therefore becomes SIG9, while _verify_worker_terminal requires the literal SIGKILL. The
+      fixed native group-OOM terminal cannot satisfy its own classifier.
+  - id: F-03
+    severity: blocking
+    verdict: breaks
+    source:
+    - supervisor.py:443
+    - supervisor.py:452
+    - supervisor.py:855
+    - supervisor.py:859
+    - supervisor.py:874
+    - supervisor.py:907
+    evidence_cases:
+    - supervisor_migration_failure_strands_paused_child
+    - runtime_fixed_body_malformed_ready_strands_helper
+    finding: Cleanup kills the owned worker only when guard-worker is populated. A migration failure leaves
+      the paused child in guard-supervisor and guard-worker empty, so it is not killed. kill_owned_child sends
+      a signal but does not reap or close its pipes. The separately forked auxiliary is not represented by
+      an owned handle and the pressure body has no finally path; malformed readiness or an early exception
+      can strand it.
+  - id: F-04
+    severity: high
+    verdict: breaks
+    source:
+    - supervisor.py:554
+    - supervisor.py:576
+    - supervisor.py:579
+    evidence_case: supervisor_cleanup_failure_false_complete
+    finding: The primary classification is set to complete before cleanup. Cleanup failures are appended but
+      never downgrade or qualify status. An injected guard-worker removal failure therefore returns complete
+      with an explicitly failed cleanup row, which violates complete custody.
+  - id: F-05
+    severity: high
+    verdict: breaks
+    source:
+    - ledger/decisions/DEC-20260908-a617fa.yaml:82
+    - ledger/decisions/DEC-20260908-a617fa.yaml:127
+    - supervisor.py:291
+    - supervisor.py:300
+    - supervisor.py:415
+    - supervisor.py:420
+    - supervisor.py:535
+    - supervisor.py:552
+    evidence_cases:
+    - supervisor_stale_absolute_oom_counters_false_pass
+    - static_no_worker_membership_readback_interface
+    - static_no_counter_delta_or_live_poll
+    finding: The protocol requires both worker-group members established and memory.events increments. The
+      worker interface cannot read membership, the supervisor checks the direct worker only before release,
+      and no check binds the auxiliary PID to guard-worker before allocation. Baseline counters are retained
+      but never compared to final counters; unchanged preloaded threshold values pass. Worker counters are
+      read once after wait_terminal rather than polled with the child at bounded cadence.
+  - id: F-06
+    severity: high
+    verdict: breaks
+    source:
+    - supervisor.py:664
+    - supervisor.py:668
+    evidence_case: descriptor_partial_create_not_rolled_back
+    finding: DescriptorCgroupTransport.create_child does not roll back when mkdir succeeds and _open_child
+      fails. The created path is never returned to GroupOomSupervisor, so scoped cleanup cannot know it exists.
+  - id: F-07
+    severity: high
+    verdict: breaks
+    source:
+    - supervisor.py:761
+    - supervisor.py:788
+    - supervisor.py:827
+    - supervisor.py:835
+    evidence_cases:
+    - process_fork_failure_leaks_pipe_fds
+    - process_report_read_failure_leaves_state
+    finding: Fork setup has no exception cleanup for the four pipe descriptors. A report read failure after
+      waitpid leaves the report descriptor and child-state entry retained. These are deterministic partial-failure
+      custody gaps.
+  - id: F-08
+    severity: high
+    verdict: breaks
+    source:
+    - supervisor.py:757
+    - supervisor.py:759
+    evidence_case: process_partial_event_sink_not_detected
+    finding: _write_event ignores the os.write return length. A short write is silently treated as success,
+      so the event transcript has no complete sink-custody guarantee.
+  - id: F-09
+    severity: medium
+    verdict: breaks
+    source:
+    - supervisor.py:861
+    - supervisor.py:862
+    evidence_case: process_supervisor_alive_is_constant
+    finding: PosixProcessTransport.supervisor_alive always returns true. This is not an independently observed
+      outer-container terminal state and cannot discharge the protocol's outer-OOM exclusion or external custody
+      step.
+  - id: F-10
+    severity: blocking_integration_gap
+    verdict: breaks
+    source:
+    - container.py:1
+    - container.py:6
+    - supervisor.py:598
+    - supervisor.py:628
+    evidence_cases:
+    - static_no_native_container_host_adapter
+    - static_no_cgroup2_mount_verification
+    finding: The package has no native host adapter that creates, independently inspects, starts, and terminally
+      inspects the exact Docker container or binds the task/ID from stdin. ContainerInspection is caller-supplied.
+      DescriptorCgroupTransport opens the configured path but never verifies Linux or the cgroup2 filesystem
+      type. These were acknowledged as future-live prerequisites, and they remain unimplemented boundaries
+      rather than tested conformance.
+  - id: F-11
+    severity: preserved_limitation
+    verdict: inconclusive
+    source:
+    - group-oom-source-delivery-custody.json:8
+    - group-oom-source-delivery-custody.json:10
+    evidence_case: producer_nested_receipt_preserved_not_outer
+    finding: The 45 producer synthetic cases and nested exit 0 remain readable, but the producer outer exit
+      was not retained and implementation_commit is misleading. This independent source review cannot reconstruct
+      either past receipt fact.
+  native_integration_prerequisites:
+  - Correct the unresolved Path import and native signal-name conversion, then independently retest the exact
+    snapshot.
+  - Define owned-child and owned-auxiliary lifecycle cleanup that closes pipes, reaps every child, and cannot
+    strand a pre-migration worker.
+  - Make any failed required cleanup or transcript sink prevent a complete custody result while preserving
+    the primary failure.
+  - Bind baseline-to-final counter increments and verify both worker subgroup members before the allocation
+    marker.
+  - Implement an exact-ID Docker host adapter with independent create/inspect/start/terminal custody and task-ID
+    stdin binding.
+  - Verify Linux, actual cgroup2 mount type, writable delegation, exact own membership, and descriptor identity
+    before mutation.
+  - Obtain a new source snapshot and fresh independent review before any separately authorized live operational
+    protocol.
+  approved_correction_boundaries:
+  - Create an additive eight-file successor of the exact seven-file source at ae1e0ffd286ce70ed781b923554a75a5faf375d0,adding
+    host.py. Preserve the three frozen future cases,their profiles and the source-only boundary. Address every
+    archived finding and native integration prerequisite,not just the first exception.
+  - 'Implement a real native Docker host adapter and container entry path: exact cached image,no automatic
+    pull,unique task-labelled create,independent inspection from actual command JSON,copy only pinned helper
+    sources (no host code mount),attach/start with trusted public taskID/full containerID on stdin,terminal
+    inspection,complete logs and exact-ID cleanup. ContainerInspection must be constructed from verified actual
+    transport results,not an unverified caller assertion. Fixed tests may inject the command transport but
+    must run the real host adapter logic. No new approval schema; a later governed Coordinator handoff remains
+    the authority for live invocation.'
+  - Implement actual Linux and cgroup2 mount verification plus descriptor/no-follow own-subtree confinement
+    before mutation. A directory with plausible filenames is insufficient. Preserve private PID namespace and
+    the original frozen container capability/mount/resource profile;do not add privileges or arbitrary path
+    fallbacks. Refuse unsupported mount/delegation facts explicitly.
+  - Correct Path imports and canonical signal names. Track every owned child,auxiliary and pipe across fork,barrier,migration,release,report-read
+    and terminal paths. Drain bounded event pipes while waiting so a full pipe cannot deadlock the worker.
+    Loop over partial writes and handle interrupted calls;malformed/truncated reports or failed sinks must
+    not produce complete custody. Reap terminated owned children and close every owned descriptor/state entry,including
+    failure-before-migration and partial mkdir/open failures.
+  - Inner cleanup attempts must address known child handles regardless of which subgroup is populated. If a
+    UID-dropped child cannot be signalled under the frozen capabilities,report explicit incomplete cleanup
+    instead of inventing success or broadening privileges. The real outer host adapter must then terminate
+    and inspect only its exact created Docker container,retaining partial output and failed status. No returned
+    complete outcome may retain a failed required cleanup;no orphan may be left after the outer operation returns.
+  - 'For group-OOM classification compare final counters with retained baseline values: require positive increments
+    oom_group_kill>=1 and oom_kill>=2. Verify both direct worker and auxiliary membership before pressure;retain
+    ready and before-allocation markers. Poll owned worker counters during execution at a bounded cadence.
+    Replace constant supervisor_alive with actual inner evidence plus outer terminal/survival/OOM observations.
+    Manual/watchdog/outer-OOM outcomes,missing counters or surviving members never count as a group-OOM pass.'
+  - Every path retains the original failure alongside secondary cleanup/custody failures. The full native host/worker
+    configuration,stdin identities,command exits and prefix logs must remain reconstructable even if inner
+    reporting fails. Preserve zero science and distinguish source checks from live guard evidence.
+  - 'Source-task test amendment: in addition to fixed injected filesystem/Docker/privilege/cgroup mocks,allow
+    at most32real benign owned child starts on the current host across all attempts,at most2live fixture children
+    and onecase at a time. They may exercise the actual POSIX pipe/barrier/wait/signal/reap code under the
+    current user with bounded event data,never more than1MiB deliberate payload allocation per fixture. Use
+    at most3seconds child lifetime with parent watchdog and guaranteed exact-owned cleanup. No real privilege
+    change,cgroup access,memory pressure,Docker call or scientific body. Count and retain every created PID
+    and terminal status. This prospectively supersedes the old blanket no-real-fork source-test restriction
+    only for these fixed benign process fixtures.'
+  - At most640TOTAL fixed cases including parameters,failures and reruns;each complete suite at most128,finalsuite
+    reserved.10s/case1800aggregate executed-check wall/CPU,one testworker2GiB. No live Docker/container/cgroup/mount/UID/GID/capability/migration/pressure/scientific
+    action. Default imports and constructors perform no external actions.
+  - Use absolute artifact paths;you are not alone. Preserve old source/receipts and unrelated work. Full outer
+    tool response/session/terminal exit must be embedded along with nested logs,UTC,reservations,allcase/process
+    counts and actualmetrics. -B/PYTHONDONTWRITEBYTECODE. implementation_commit:null before snapshot,checkout
+    base separately,acyclic report/receipt hashes and truthful final status.
+  source_bindings:
+  - path: coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260908-101548/review.yaml
+    sha256: 46101ffd7f34b16ced478fce9980e7f9216c6cdc5c7bf3f289b78efff91e9fc4
+    snapshot_commit: 8e89c9097961b3c2309bbef87281fb604239a5c2
+  - path: coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260908-101548/checks.py
+    sha256: 0c89c45515e47d7daf3d2f587d02ed39d17f7edd1ebf716af50fd9ac7902028c
+    snapshot_commit: 8e89c9097961b3c2309bbef87281fb604239a5c2
+  - path: coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260908-101548/check-receipt.json
+    sha256: 6d2a1544e09853fa7a95f85827d9710dbc602d631ce711bff0d79713e47d4d9a
+    snapshot_commit: 8e89c9097961b3c2309bbef87281fb604239a5c2
+  - path: coordination/experiment-reserve/BATCH-635652/archives/TASK-20260908-6e7845/snapshot.json
+    sha256: 1b561a29b7df6e3a984bd95f7d4413d39c91ef15aa848c65e38515aa53f70101
+    snapshot_commit: 8e89c9097961b3c2309bbef87281fb604239a5c2
+  evidence_refs: []
+  knowledge_promotion:
+    promoted: []
+    not_warranted: Native operational-source correction only;zero scientific evidence.
+  inference_choice:
+    role: executor
+    policy: research-deep
+    native_model_requested: gpt-5.6-sol
+    reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+    model_verified: false
+  approval_scope:
+    source_implementation: true
+    fixed_mock_checks: true
+    bounded_owned_posix_fixtures: true
+    live_docker: false
+    live_cgroup: false
+    privilege_changes: false
+    pressure_test: false
+    scientific_execution: false
+  next_actions:
+  - Implement TASK-20260909-e5f500 and archive TASK-20260909-90f2b9.
+  - Fresh independent complete native/source review before separately admitted live guard tests.

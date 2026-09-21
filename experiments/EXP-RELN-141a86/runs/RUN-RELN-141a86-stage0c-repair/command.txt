@@ -1,0 +1,67 @@
+# RUN-RELN-141a86-stage0c-repair: exact commands, in the order executed.
+# Working directory for all commands below: experiments/EXP-RELN-141a86/source/
+
+# 1) Hash re-verification of the frozen Stage-0a archive (before anything else):
+cd experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0a/
+python3 -c "import hashlib; print(hashlib.sha256(b''.join(open(f,'rb').read() for f in ['candidate-list.yaml','grammar.yaml','environment.lock.json'])).hexdigest())"
+# -> f1aec620f8cb19318e6d6459174bd79b80daf6dd46fdacf6afdf2468c7cac7f2 (matches candidate-list-hash.txt and the handoff's stated hash)
+
+# 2) New source files written (additive; grammar_engine.py itself is UNCHANGED,
+#    both prior bugfixes -- pow/binomial fingerprint magnitude cap,
+#    per-CONST-leaf distinct fingerprint stream -- left exactly as-is):
+#    experiments/EXP-RELN-141a86/source/grammar_engine_lean.py
+#    experiments/EXP-RELN-141a86/source/target_enumerate_worker.py
+#    experiments/EXP-RELN-141a86/source/run_stage0c_repair_monitor.py
+
+# 3) Correctness validation of the new lean (hash-deduplicated) enumeration
+#    strategy against grammar_engine.enumerate_expressions (the frozen,
+#    already-used engine) on cases small enough for the frozen engine to
+#    finish, BEFORE trusting the lean engine on the real (larger) targets:
+cd experiments/EXP-RELN-141a86/source
+python3 -c "
+import grammar_engine as ge
+import grammar_engine_lean as gl
+for pack in ['degree_table', 'fb3_unsigned_m3_and_enum_unsigned_m3', 'enum_xclass_signed_m2']:
+    for maxc in [5,6,7]:
+        orig = ge.enumeration_counts(pack, maxc)
+        lean = gl.enumerate_lean(pack, maxc)
+        lean_counts = lean['by_complexity_counts']
+        ok = all(orig.get(c,0)==lean_counts.get(c,0) for c in range(1,maxc+1))
+        print(pack, maxc, 'MATCH' if ok else 'MISMATCH', orig, lean_counts)
+"
+# First run (before the -0.0 vs 0.0 repr fix, see implementation.md section 2)
+# showed 4 of 7 comparisons MISMATCH (over-counting by 1-75 forms per level);
+# root-caused to Python's repr(-0.0) != repr(0.0) while -0.0 == 0.0 by value
+# (grammar_engine.enumerate_expressions dedups by true tuple equality, which
+# treats -0.0 and 0.0 as equal; the hash-of-repr approach did not, until
+# grammar_engine_lean._normalize_fp_value was added). After the fix, re-run:
+# all 7 comparisons MATCH exactly (including the largest, level 7 of
+# fb3_unsigned_m3_and_enum_unsigned_m3, 427,569 forms) -- see stdout.log.
+
+# 4) Smoke test of the worker + external monitor on a tiny case (degree_table,
+#    max_complexity=6) to confirm the subprocess/monitor plumbing before the
+#    real (much longer) run:
+python3 target_enumerate_worker.py --pack degree_table --max-complexity 6 \
+  --target-expr "ceil(div(add(mul(m,sub(B,CONST[1])),D_S),CONST[2]))" \
+  --target-id TEST --out /tmp/smoketest/out.json \
+  --mem-soft-cap-gb 10 --wall-clock-soft-cap-s 120
+
+# 5) The real repair run: sequential (never concurrent, unlike the prior
+#    dispatch's three-way-parallel jobs -- an explicit, disclosed engineering
+#    deviation from RUN-RELN-141a86-stage0bcde's approach) attempt at all
+#    four targets (INV-1 mean; INV-7 p_fail; INV-8 d_reg; INV-7 p_exist),
+#    each launched as its own subprocess by an external monitor that polls
+#    /proc/<pid>/status VmRSS every 2 seconds and enforces a hard external
+#    wall-clock/memory backstop independent of each worker's own internal
+#    soft cap:
+cd experiments/EXP-RELN-141a86/source
+python3 run_stage0c_repair_monitor.py
+# (internal worker soft caps: 11.0 GB memory / 5400 s wall clock, checked
+#  only BETWEEN complexity levels -- see implementation note on why this
+#  check did not fire promptly for any of the four targets; external
+#  monitor hard caps, independent of the worker: 13.0 GB / 6000 s, which is
+#  what actually terminated all four targets)
+# Output: stage0c-repair-raw-results.json (copied here as
+# target-enumeration-raw-results.json), memory-timeseries-<target>.json
+# (one per target, ~3000 continuous /proc RSS samples each, 2s cadence),
+# monitor-stdout.log, monitor-stderr.log (this run directory).

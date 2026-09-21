@@ -1,0 +1,306 @@
+amendment:
+  experiment: EXP-HZM-001
+  hypothesis_id: H-HZM-001
+  goal_id: GOAL-CRYPTO-001
+  version: v2
+  amendment_ordinal: 1
+  filename_convention_note: >-
+    v2_primary_gate_cost_check.yaml is amendment ordinal 1 for this
+    experiment (no prior amendment exists; experiments/EXP-HZM-001/amendments/
+    contained only nothing before this file), advancing the frozen protocol
+    from base version 1 (specification.yaml's own `version: 1`) to resulting
+    version 2. It supersedes named fields of specification.yaml by the
+    versioned protocol_amendment mechanism (docs/task-lifecycle.md "Protocol
+    amendments"); specification.yaml itself is not edited in place, and no
+    raw run record (RUN-HZM-001-a, RUN-HZM-001-d) is retroactively altered.
+  base_version: 1
+  resulting_version: 2
+  authored_by: coordinator
+  authored_at: '2026-09-07'
+  approved_by: null
+  status: proposed
+  opened_by: >-
+    This top-level Coordinator session, acting on the independent red-team
+    review's (RT-20260907-e9f097, committed fa79a2158) central finding
+    RTHZM1-O1 and its next_concrete_action, both independently re-verified
+    by this session before drafting (see verified_directly_by_this_
+    coordinator below).
+  review_round: null
+  review_round_note: >-
+    No review round is opened by this amendment itself. Whether the
+    resulting narrow follow-up run should be sent through independent
+    review before any Coordinator decision relies on it is addressed
+    directly by required_control below (yes, at review-adversarial tier,
+    matching this experiment's existing review pattern for RUN-HZM-001-a/-d).
+
+  rationale: >-
+    RT-20260907-e9f097 (independent red-team review of RUN-HZM-001-a/-d,
+    committed fa79a2158) found that H-HZM-001's own declared
+    `primary_gate_sizes: [[12, 1], [16, 1]]` (toy_instances.primary_gate_
+    sizes in specification.yaml) are both d=1, and that
+    binom(n, d-1) = binom(n, 0) = 1 for ANY base n -- so the l-vs-l'
+    manuscript-base ambiguity that caused CTRL-HZM-MANUSCRIPT-ALIGNMENT to
+    fail (RUN-HZM-001-a) has NO effect on H's value at exactly the two sizes
+    this experiment's own success_criterion and falsification_criterion(b)
+    turn on. Using only the spec's own H/q lower-bound formula, RT-20260907-
+    e9f097 computed H/q >= 315.1 (vs rho_bound 64, a 4.9x margin) at (12,1)
+    and H/q >= 3855.1 (vs rho_bound 256, a 15.1x margin) at (16,1) -- both
+    already clearing falsification_criterion(b)'s bar using a CONSERVATIVE
+    lower bound, before cost_ledger.py's full 9-stage charged accounting
+    (which can only add cost, never subtract it) is even applied.
+
+    cost_ledger.py's own module docstring (read directly by this Coordinator)
+    already anticipated exactly this situation: it states the module "makes
+    NO cost claim under EXP-HZM-001's current run set" because "computing a
+    charged cost against a formula the manuscript itself does not actually
+    assert this way would misrepresent an unverified quantity as a measured/
+    charged cost," and names itself "a reusable, honestly-labeled reference
+    implementation for a FUTURE PROTOCOL AMENDMENT." This amendment is that
+    protocol amendment, narrowly scoped to the two base-invariant gate sizes
+    only.
+
+  verified_directly_by_this_coordinator: >-
+    Independently recomputed RT-20260907-e9f097's arithmetic before drafting
+    this amendment: for (L,d)=(12,1), N=2^12=4096, M=L+1=13, H=1 (base-
+    invariant since d-1=0), H/q lower bound = N/M ~= 315.1, rho_bound =
+    ceil(sqrt(4096))=64, ratio ~4.92x. For (L,d)=(16,1), N=65536, M=17, H=1,
+    H/q lower bound ~= 3855.1, rho_bound=ceil(sqrt(65536))=256, ratio
+    ~15.06x. Both independently match RT-20260907-e9f097's stated figures
+    exactly. Separately confirmed H-HZM-001.yaml's test_boundary literally
+    states `primary_gate_sizes: [[12, 1], [16, 1]]` (line 109) and that both
+    are explicitly the "RT303-C2 d=1 boundary mutation" (line 104) -- these
+    are not sizes this amendment invents; they are the experiment's own
+    pre-registered primary gate.
+
+    Also ACTUALLY RAN cost_ledger.py's `model_charged_cost(N, L, d)`
+    directly (not merely read it) at both points:
+    model_charged_cost(4096, 12, 1) -> charged_expected_signatures=315.54,
+    survives_rho_gate=False; model_charged_cost(65536, 16, 1) ->
+    charged_expected_signatures=3855.53, survives_rho_gate=False. Both
+    independently confirm the falsification-criterion(b) outcome the
+    red-team's hand arithmetic predicted (315.1 vs the executed 315.54;
+    3855.1 vs the executed 3855.53 -- the tiny differences are q's exact
+    closed form vs the review's own rounding, not a discrepancy).
+
+    CORRECTION TO THE RED-TEAM'S OWN required_control WORDING, found by
+    this Coordinator on reading cost_ledger.py's source directly (not just
+    its docstring): the function's OWN `optimistic_assumptions` field
+    discloses that `charged_expected_signatures` is H/q ONLY -- "the
+    signature-count bottleneck term" -- and explicitly does NOT sum matrix
+    construction, failed-outer-restriction retries beyond the q-implied
+    count, duplicate storage/streaming, reconstruction, or final
+    verification. There is therefore no existing function in this
+    experiment's implementation/ that sums cost_ledger.py's own nine named
+    `charged_stages` end to end; RTHZM1-C1's "full 9-stage charged
+    accounting" framing overstates what model_charged_cost actually
+    computes today. This does not weaken the falsification conclusion --
+    every omitted stage can only ADD cost, never subtract it, so the true
+    fully-charged figure can only be LARGER than the already-failing H/q
+    lower bound at both gate sizes -- but this amendment's required_artifact
+    is corrected below to describe accurately what is being run: the
+    disclosed H/q lower-bound model, not a full 9-stage sum. Implementing
+    a genuine full 9-stage summation (matrix construction cost, retry
+    overhead, storage, reconstruction, verification, each independently
+    modeled) is named as a possible FUTURE amendment in what_remains_open,
+    not claimed as already done by this one.
+
+  # ===========================================================================
+  # CHANGE 1: narrow, explicit carve-out to stopping_rules[0] for exactly the
+  # two base-invariant primary gate sizes.
+  # ===========================================================================
+  change_1_primary_gate_cost_check:
+    id: V2-CHG-1
+    old_text_superseded_verbatim_stopping_rules_item_0: >-
+      Stop the experiment as inconclusive_misalignment if
+      CTRL-HZM-MANUSCRIPT-ALIGNMENT fails; a toy run is never opened on
+      unaligned formulas.
+    old_text_location_note: >-
+      This is stopping_rules[0] (specification.yaml, the first item of the
+      `stopping_rules` list), verbatim and complete. It already fired:
+      RUN-HZM-001-a found CTRL-HZM-MANUSCRIPT-ALIGNMENT FAILs, and
+      RUN-HZM-001-b/-c were correctly never opened as a result -- confirmed
+      by both the original execution-report.yaml and independently
+      re-verified by RT-20260907-e9f097 and its own predecessor validator
+      report (both committed).
+    new_text_carve_out: >-
+      Stop the experiment as inconclusive_misalignment if
+      CTRL-HZM-MANUSCRIPT-ALIGNMENT fails; a toy run is never opened on
+      unaligned formulas, WITH ONE NARROW, EXPLICIT EXCEPTION (added by
+      amendment v2, V2-CHG-1): a single, bounded follow-up computation MAY
+      be opened, restricted to EXACTLY the two points (L,d) in
+      {(12,1),(16,1)} named in toy_instances.primary_gate_sizes, calling
+      ONLY cost_ledger.py's model_charged_cost(N, L, d) function (no curve
+      instance, no toy enumeration, no signature construction, no call into
+      signature_enumeration.py or brute_force_control.py) -- because H =
+      binom(M+d-1, d-1) = binom(M, 0) = 1 at d=1 for ANY base M the
+      unresolved l-vs-l' ambiguity could produce, so this specific
+      computation's result does not depend on, and cannot be affected by,
+      resolving CTRL-HZM-MANUSCRIPT-ALIGNMENT's general d in {1,2,3}
+      failure. This exception does NOT reopen, narrow, or otherwise touch
+      the general block on RUN-HZM-001-b (the full 9-config x 3-seed
+      enumeration grid) or RUN-HZM-001-c AS ORIGINALLY SCOPED (the
+      brute-force minor-evaluation control, which DOES depend on the
+      general alignment question) -- those remain correctly blocked by
+      stopping_rules[0]'s unmodified general text above. Everything else in
+      stopping_rules (items 1-4) is UNCHANGED.
+    scope_boundary: >-
+      This exception authorizes EXACTLY ONE new bounded computation: a
+      direct call to cost_ledger.py's model_charged_cost(N=4096, L=12, d=1)
+      and model_charged_cost(N=65536, L=16, d=1), archived as a new run
+      under this experiment, and NOTHING ELSE. It does not authorize
+      opening RUN-HZM-001-b, does not authorize the brute-force control
+      portion of RUN-HZM-001-c (evaluating minors, reconstructing
+      signatures, or any toy-curve instance generation), does not authorize
+      re-attempting CTRL-HZM-MANUSCRIPT-ALIGNMENT at d in {2,3}, and does
+      not authorize any standardized-curve, key-recovery, or real-target
+      work (stopping_rules[4] remains fully in force, unmodified).
+    required_artifact: >-
+      REQUIRED_ARTIFACT V2-RA-1: a new run (this amendment proposes
+      RUN-HZM-001-c-primary-gate-only, so as not to collide with the
+      RUN-HZM-001-c name already reserved in specification.yaml's
+      planned_runs for the (never-to-be-opened, under this amendment)
+      general brute-force control) whose raw-result.json/manifest.yaml
+      records the COMPLETE output of cost_ledger.py's
+      model_charged_cost(4096, 12, 1) and model_charged_cost(65536, 16, 1)
+      -- every ChargedCostModel field, including the disclosed
+      `optimistic_assumptions` list verbatim -- and states EXPLICITLY, not
+      merely by omission, that `charged_expected_signatures` is the H/q
+      SIGNATURE-COUNT BOTTLENECK TERM ONLY (per the function's own
+      disclosure), not a sum of all nine named `charged_stages`, and that
+      the true fully-charged cost is therefore >= the reported figure at
+      both gate sizes (so a `survives_rho_gate=False` outcome at this
+      lower bound is decisive; a `True` outcome would NOT have been, and
+      is moot here since both points return False). The run must also
+      state explicitly that H=1 was used at both points because d=1,
+      independent of any base symbol.
+
+  # ===========================================================================
+  # WHAT REMAINS OPEN / UNCLAIMED.
+  # ===========================================================================
+  what_remains_open:
+    - >-
+      Whether the resulting charged cost, once cost_ledger.py's full
+      9-stage accounting (setup, storage, verification, etc. -- not just
+      the H/q lower bound) is applied, still clears the rho bound at both
+      sizes is NOT decided here; RTHZM1-O1's H/q lower-bound margins (4.9x,
+      15.1x) are LOWER bounds, so the fully-charged figure can only be
+      LARGER (worse for the route, i.e. more decisively falsifying), never
+      smaller -- but the exact fully-charged number is not computed by this
+      amendment, which authorizes the computation, not its result.
+    - >-
+      The general CTRL-HZM-MANUSCRIPT-ALIGNMENT failure at d in {2,3}
+      remains completely unresolved and this amendment makes no claim about
+      it; RUN-HZM-001-b and the general-scope portion of RUN-HZM-001-c stay
+      blocked exactly as stopping_rules[0] already required before this
+      amendment.
+    - >-
+      This amendment does not stage any code, run, ledger, or knowledge
+      file; it specifies, in full and exact detail, what a future
+      Coordinator-authorized dispatch must do. write_scope of this
+      amendment is experiments/EXP-HZM-001/amendments/ only.
+    - >-
+      Whether an independent review round should be run on the resulting
+      RUN-HZM-001-c-primary-gate-only record before any evidence-review
+      decision relies on it is not decided by this amendment; next_step
+      below recommends review-adversarial tier (matching this experiment's
+      existing pattern for RUN-HZM-001-a/-d, not the breakthrough tier,
+      since this computation does not itself claim a break or speedup --
+      it evaluates a cost gate on an externally published route and, if the
+      gate is not cleared, closes that route as non-sub-rho under its own
+      model, which is the ordinary falsification_criterion(b) outcome this
+      experiment was designed to produce).
+
+  historical_run_integrity:
+    rescoring: not_applicable -- RUN-HZM-001-a and RUN-HZM-001-d are unchanged by this amendment.
+    reclassification: not_applicable -- no archived run number or field is reclassified.
+    amendment_of_run_record: 'not_applicable -- no file under experiments/EXP-HZM-001/runs/ is edited by this amendment.'
+    artifact_mutation: not_applicable
+    superseded_role_not_deletion: >-
+      RUN-HZM-001-a and RUN-HZM-001-d remain the complete, unaltered
+      historical record of the manuscript-alignment audit and its
+      inconclusive_misalignment classification for the GENERAL (d in
+      {1,2,3}) claim. This amendment adds a narrower, additional
+      measurement; it does not reclassify, supersede, or reinterpret either
+      existing run.
+
+  authority_boundary:
+    claim_ceiling: protocol_repair_only_no_compute_no_status_transition
+    execution_authorized_by_this_amendment: false
+    dispatch_hold_cleared_by_this_amendment: false
+    experiment_status_transition: none
+    hypothesis_status_transition: none
+    goal_status_transition: none
+    scientific_interpretation_authority: none
+
+  nonclaims:
+    - No claim that H-HZM-001 is supported, refuted, or advanced by this amendment; no run occurs under it.
+    - No claim about what the fully-charged cost_ledger.py computation will actually output at either gate size -- this amendment specifies the correct, authorized computation; it does not perform or predict it.
+    - No claim that the general CTRL-HZM-MANUSCRIPT-ALIGNMENT failure is resolved, narrowed, or reopened at d in {2,3}.
+    - No authorization of execution and no clearing of any dispatch hold; both are named as a separate, later Coordinator decision, per next_step.
+
+  next_step: >-
+    A Coordinator decision citing this amendment
+    (experiments/EXP-HZM-001/amendments/v2_primary_gate_cost_check.yaml)
+    must record that the narrow carve-out is adopted, authorize dispatch of
+    exactly one bounded Executor task calling cost_ledger.py's
+    model_charged_cost at (12,1) and (16,1) only, and direct that the
+    resulting run (RUN-HZM-001-c-primary-gate-only) be sent through
+    independent review-adversarial review (validator + red-team, matching
+    this experiment's existing review tier) before any evidence-review
+    decision cites its charged-cost figures. This mirrors the precedent
+    already established this session for EXP-ECDLP-56ee42's amendments
+    (v2/v3/v4): a Coordinator decision, not the amendment's own drafting
+    act, is what authorizes dispatch.
+
+  required_artifacts_summary_of_this_amendment:
+    - {id: V2-RA-1, description: 'a new run (RUN-HZM-001-c-primary-gate-only) recording cost_ledger.py model_charged_cost''s complete disclosed-lower-bound output at exactly (12,1) and (16,1) (H/q signature-count bottleneck term, not a full nine-stage sum -- see the required_artifact text above), the rho_bound comparison at each size, and an explicit statement that the true fully-charged cost can only be larger'}
+
+  confirmatory_status: additive_only
+  confirmatory_status_detail:
+    stopping_rules_general_block: preserved (d in {1,2,3} manuscript-alignment block is completely unchanged)
+    stopping_rules_narrow_exception: new (V2-CHG-1 adds exactly one narrow, bounded exception, scoped to the two base-invariant primary gate sizes only)
+    run_ha_and_rd: preserved (unaltered, unreclassified)
+  confirmatory_rationale: >-
+    This amendment adds a new, narrowly-scoped exception to stopping_rules[0]
+    without touching the general block; it does not reset, reinterpret, or
+    reclassify any prior repair or result. The underlying mathematical
+    justification (H=1 at d=1 regardless of base) was independently derived
+    by RT-20260907-e9f097 and independently re-verified by this Coordinator
+    before drafting; cost_ledger.py, the frozen reference implementation
+    this amendment authorizes calling, already existed and was itself
+    unedited.
+
+  provenance:
+    role: coordinator
+    runtime: Claude Code
+    requested_policy: coordinator-orchestration-code
+    requested_reasoning_effort: high
+    fallback_allowed: false
+    degraded_allowed: false
+    fallback_used: false
+    resolved_model_id_self_reported: claude-sonnet-5
+    resolved_model_self_report_basis: >-
+      Genuine self-report from this session's own runtime system context,
+      which names the answering model "Sonnet 5", exact model id
+      "claude-sonnet-5". Not independently confirmed against
+      orchestration/model-bindings.yaml or by a live backend probe from
+      inside this session (no such tool is on this session's surface); this
+      matches the same disclosed, structural limitation recorded throughout
+      this session's other amendments and reviews.
+    amazon_bedrock: not_selected_not_configured_not_used
+
+  evidence_refs:
+    - experiments/EXP-HZM-001/reviews/red-team/red_team_report.yaml
+    - experiments/EXP-HZM-001/reviews/validator/validation-report.yaml
+    - experiments/EXP-HZM-001/runs/RUN-HZM-001-a/manifest.yaml
+    - experiments/EXP-HZM-001/runs/RUN-HZM-001-d/manifest.yaml
+    - experiments/EXP-HZM-001/implementation/cost_ledger.py
+    - experiments/EXP-HZM-001/specification.yaml
+    - ledger/hypotheses/H-HZM-001.yaml
+
+  commit: null
+  commit_note: >-
+    NULL. A record cannot carry the SHA of the commit that contains it. The
+    Coordinator's own isolated snapshot-archive act binds this field after
+    the post-commit verifier accepts the commit, per AGENTS.md's archival
+    discipline; this drafting task does not commit anything.

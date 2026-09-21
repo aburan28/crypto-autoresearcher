@@ -1,0 +1,1061 @@
+experiment:
+  id: EXP-ECDLP-523318
+  hypothesis_id: H-ECDLP-609ec8
+  question_id: RQ-ECDLP-002
+  source_proposal_id: IDEA-20260802-001
+  context_goal_id: GOAL-ECDLP-001
+  context_note: >-
+    Provenance only. This contract READS artifacts archived under GOAL-ECDLP-001
+    BATCH-025 and is not assigned to a batch by this file. No BATCH identifier, no TASK
+    identifier and no RUN identifier is minted here; the run identifier is minted at
+    dispatch with tools/allocate_id.py and appears in the run package, never in this
+    contract.
+  version: 1
+  supersedes_version: null
+  protocol_amendment_id: null
+
+  title: >-
+    Two independent smoothness references - the Hildebrand-Tenenbaum saddle-point
+    estimate and an EXACT count of Psi - recomputed against the ARCHIVED known-uniform
+    integer arm of RUN-LPF-001-calib, to decide whether the measured Dickman departure is
+    a property of the REFERENCE at finite y or of the SAMPLER
+
+  status: review_required
+  approved_by: null
+  approved_by_note: >-
+    NULL BY DESIGN. DESIGNING IS NOT APPROVING. Approval is a separate committed
+    Coordinator decision taken after the user confirms this frozen contract and after the
+    three blocking gates below are ruled on. This file is never edited to record
+    approval, and no in-session message from any agent is an approval (AGENTS.md,
+    "Inter-agent messaging").
+  frozen: false
+  frozen_note: >-
+    NOT YET FROZEN. The protocol is COMPLETE and every decision threshold in it is fixed
+    before any datum it will be read against exists. It becomes frozen at the moment the
+    approving decision names its path and hash; thereafter a change is a versioned
+    protocol_amendment and never an edit.
+  claim_tier: toy
+  confirmatory_status: confirmatory_on_the_reference_only
+  confirmatory_status_note:
+    id: DISC-1
+    text: >-
+      STATED PLAINLY BECAUSE IT LOOKS STRONGER THAN IT IS. The archived uniform-arm
+      p_hat values ALREADY EXIST and have already been read, so nothing about them is
+      pre-registered by this contract and no statistic computed from them alone is
+      confirmatory. What IS pre-registered, before it exists, is the entire object under
+      test - REF-SP, REF-EXACT, every ratio computed against them, and every threshold
+      those ratios are read against. Neither reference has ever been computed in this
+      program. The thresholds are QUOTED FROM THE ARCHIVE (2.4506, 1.6171, the [1/8, 8]
+      band, 9 of 10) rather than chosen, precisely so that knowing the archived values
+      cannot have influenced them. That is the honest boundary of the pre-registration
+      and no deliverable may state it more strongly.
+
+  # ==================================================================
+  # 0. WHAT THIS EXPERIMENT IS, AND WHAT IT IS NOT
+  # ==================================================================
+  objective: >-
+    DECIDE, BY COMPUTATION ALONE AND OVER ARCHIVED ARRAYS ONLY, WHETHER THE MEASURED
+    UPWARD DEPARTURE OF RUN-LPF-001-calib's KNOWN-UNIFORM INTEGER ARM FROM THE ASYMPTOTIC
+    DICKMAN REFERENCE IS A PROPERTY OF THE REFERENCE AT FINITE y OR OF THE SAMPLER.
+    Implement two independent references - REF-SP, the Hildebrand-Tenenbaum saddle-point
+    estimate of Psi(x, y) with alpha solved on sum over primes p <= y of
+    log p / (p**alpha - 1) = log x; and REF-EXACT, the EXACT integer count Psi(x, Bsm) at
+    the bits-16 cell, which x of order 2**32 makes tractable. Recompute R(u) for the
+    archived uniform arm under all three references at all five rungs at both cells,
+    report max_u |ln R(u)| per reference per cell, the decidable-rung count under the
+    frozen [1/8, 8] band, and the residual's monotonicity in u, and cross-check REF-SP
+    against REF-EXACT at bits 16.
+    BUDGET FLOORS. The template floors are wall_clock_seconds_per_run >= 600 and
+    maximum_memory_gb >= 8; this contract sits ABOVE both (5400 s, 8 GB) and no
+    justification for going below is needed. The wall clock is sized to the exact count,
+    which is the only expensive step, and the stopping rules end the run rather than the
+    cap truncating a measurement silently.
+  what_this_experiment_is_NOT:
+  - Not a search, not an attack, and not a measurement of any Semaev object.
+  - >-
+    Not a re-run, re-score, amendment or edit of EXP-LPF-001, EXP-SMTH-001, RR-LPF-1,
+    RR-LPF-2 or any archived run record. It reads; it never writes into that lane.
+  - >-
+    Not a resampling of anything. NO NEW SAMPLING IS PERMITTED AT ANY RUNG. Redrawing the
+    uniform arm would confound a reference question with a sampling question, which is
+    the one confound this design exists to avoid.
+  - >-
+    Not a reading of the REAL arm. RUN-LPF-001-measure artifacts are on the forbidden-read
+    list below and touching them invalidates the run.
+  - Not a cryptographic claim, not an ECDLP cost claim, and not a claim at any scale above toy.
+  claim_ceiling: >-
+    TOY, AND NARROWER THAN THAT. The only claimable objects are (i) the numerical values
+    of two named reference functions at ten explicit (x, y) pairs per domain, (ii) the
+    position of ONE archived uniform calibration arm relative to those references at
+    those pairs, and (iii) the measured cost of computing them. NOT CLAIMABLE UNDER ANY
+    OUTCOME - any statement about the Semaev map or the real arm; any statement about
+    HEUR-DS-1, H-LPF-001, H-SMTH-001, H-DS-001, H-EQD-001 or H-DEP-001 in either
+    direction; any asymptotic, exponent, memory or cofactor claim; any movement of the
+    four promotion gates in agents/coordinator.md, which remain OPEN; any medium-scale or
+    crypto-scale validity of the saddle-point estimator; `support` or `reject_scoped` for
+    any hypothesis in the LPF lane; and dominated_by null.
+
+  # ==================================================================
+  # 1. BLOCKING GATES THAT MUST BE RULED ON BEFORE APPROVAL
+  # ==================================================================
+  approval_gates:
+    policy: >-
+      THESE ARE NOT REVIEWER SUGGESTIONS. Each is a live conflict or an unread source
+      that this design cannot settle by itself, and the approving Coordinator decision
+      must rule on each EXPLICITLY. An unruled gate is a REVISE, not a proceed.
+    gates:
+    - id: CROSS-1
+      subject: compatibility with EXP-LPF-001's CAL-LPF-1 non-evidential clause
+      the_conflict: >-
+        CAL-LPF-1 reads, verbatim, "THE CALIBRATION IS NON-EVIDENTIAL IN EITHER DIRECTION
+        AND NO CALIBRATION NUMBER MAY BE CITED AS EVIDENCE ABOUT ANY HYPOTHESIS. It
+        supplies thresholds, movement demonstrations and attainability numbers, and
+        nothing else." This experiment cites calibration numbers as evidence about
+        H-ECDLP-609ec8, which is a hypothesis. On the literal text that is forbidden.
+      the_reading_this_contract_takes: >-
+        That CAL-LPF-1 bars reading calibration numbers as evidence about the OBJECT of
+        EXP-LPF-001 - the Semaev intermediates and HEUR-DS-1 - and does not bar reading
+        them as measurements of the apparatus and the reference, which is the use its own
+        LPF-CAL-A `produces` clause names ("the uniform arm's own R(u) at every rung").
+        THE CONTRACT DOES NOT ASSUME THIS READING IS CORRECT.
+      what_survives_the_strictest_reading: >-
+        The reference-versus-reference results cite NO calibration number at all -
+        REF-SP against REF-EXACT (F3), the closed-form controls, the range-membership
+        table and the cost table are computed from x, y and prime tables only. Under the
+        strictest reading those stand unchanged and only the arm-versus-reference
+        readings (F1, F2, F4, M1, M2, M3) are gated.
+      resolution_if_ruled_restrictive: >-
+        The arm-versus-reference limbs are recorded as APPARATUS STATEMENTS in the
+        coordination record and NOT as evidence about H-ECDLP-609ec8, which then stays
+        `specified` on those limbs; and the remedy is a SUPERSEDING record from the
+        EXP-LPF-001 lane clarifying CAL-LPF-1's scope - never an edit to it, and never a
+        redraw of the arm, which this contract forbids anyway.
+      owner: the approving Coordinator decision
+    - id: LIT-1
+      subject: primary sources unread; a KN-LIT entry is owed
+      statement: >-
+        The Hildebrand-Tenenbaum saddle-point formula and Hildebrand's error term are
+        both provenance `recalled` in IDEA-20260802-001 and in H-ECDLP-609ec8. Under
+        AGENTS.md rule 9 a recalled reference is a pointer and never support. THE EXACT
+        FORMULA, ITS ERROR TERM AND ITS UNIFORMITY RANGE MUST BE TRANSCRIBED FROM THE
+        PRIMARY SOURCES AND A KN-LIT ENTRY AUTHORED BEFORE THE IMPLEMENTATION IS FROZEN.
+        No KN identifier is minted by this contract; it is minted by the task that
+        authors the entry.
+      why_it_is_blocking: >-
+        REF-SP is defined by that formula. An implementation frozen against a remembered
+        formula would make F3 undecidable - a disagreement with REF-EXACT could not be
+        attributed between the transcription and the code.
+      owner: the approving Coordinator decision
+    - id: RANGE-1
+      subject: the uniformity range of Hildebrand's theorem is unsettled between two recalled statements
+      statement: >-
+        IDEA-20260802-001 states the range as log x < y <= x**(1/3). The coordinator's own
+        recollection of the standard statement is different - uniformly for x >= y >= 2
+        with u at most exp((log y)**(3/5 - eps)). BOTH ARE RECALLED AND NEITHER IS
+        SUPPORT. The primary source must adjudicate before the implementation is frozen.
+      why_it_matters_arithmetically: >-
+        Under the range as the proposal states it, membership is NOT uniform across the
+        frozen ladder. Pre-datum arithmetic from the frozen contract, to be recomputed and
+        recorded by the run rather than trusted here - at bits 16, D**(1/3) is about
+        1625.5, so the u_target 2 rung (Bsm 65536) and the u_target 3 rung (Bsm 1626) sit
+        at or outside the upper boundary, while Bsm 256, 84 and 40 sit inside and all five
+        exceed ln D of about 22.18; at bits 20, D**(1/3) is about 10321.3, so the
+        u_target 2 rung (Bsm 1048576) sits outside and Bsm 10321 sits just inside, with
+        ln D about 27.73. THIS IS AN AUDIT OF THE INCUMBENT REFERENCE'S APPLICABILITY, NOT
+        A RESULT, and it is recorded as metric M12 either way.
+      owner: the approving Coordinator decision
+
+  # ==================================================================
+  # 2. INPUTS - EXACT PATHS, EXACT FIELDS, AND WHAT MAY NOT BE READ
+  # ==================================================================
+  inputs:
+    policy: >-
+      EVERY INPUT IS AN ALREADY-COMMITTED ARTIFACT AND IS READ-ONLY. The run opens
+      exactly the paths listed under `read` and nothing else under experiments/.
+      Anything not listed is out of scope by construction rather than by discipline.
+    read:
+    - path: experiments/EXP-LPF-001/runs/RUN-LPF-001-calib/raw-result.json
+      fields: >-
+        per_cell["16"].descriptor and per_cell["20"].descriptor (for p,
+        X_equals_p_squared, D_frozen, X_over_D, n_per_sample_set); and
+        per_cell[<bits>].limb_b_absolute.rows[] for u_target, Bsm, u_recomputed,
+        LPF_rho_u_computed, uniform_arm_p_hat_u_mean_over_replicates,
+        uniform_arm_p_hat_u_spread, LPF_R_u_uniform_mean_over_replicates,
+        LPF_R_u_uniform_spread, frozen_absolute_band, LPF_limb_b_decidable_flag,
+        LPF_powered_flag.
+      role: the archived uniform arm and the frozen ladder
+    - path: experiments/EXP-LPF-001/results/calib/null_replicate_statistics.json
+      fields: >-
+        per_cell[<bits>].descriptor, and
+        per_cell[<bits>]["LPF-CAL-A"].LPF_null_replicate_values["STAT-RATE-u@u_target=<k>"]
+        - the 200 per-replicate p_hat values per rung, from which the Monte-Carlo
+        standard error of the archived mean is computed - together with LPF_null_spread.
+      role: per-replicate arrays and the measured spread
+    - path: experiments/EXP-LPF-001/results/calib/dickman_reference_reproduction.json
+      fields: u, rho_computed_by_driver, rho_frozen_reference, relative_discrepancy
+      role: the incumbent reference, as the regression fixture for the third quadrature
+    - path: experiments/EXP-LPF-001/specification.yaml
+      fields: >-
+        the frozen D formula and per-cell D, the u_star_formula, the integer Bsm ladders,
+        the [1/8, 8] absolute band, range_matching_note, and CAL-LPF-1.
+      role: the frozen apparatus, quoted and never edited
+    - path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-051/calibration_validation_report.yaml
+      fields: >-
+        metric_recomputations for the uniform arm's R(u) (the second-quadrature
+        recomputation), the u_recomputation_check, and the limb_b_decidability note.
+      role: the independent recomputation that makes the figures to beat citable
+    forbidden_reads:
+      rule: >-
+        HARD INVALIDATION, NOT ADVICE. Opening any path below, by any means including an
+        import, invalidates the run under IR-1 and the run is reported as invalid rather
+        than partial.
+      paths:
+      - experiments/EXP-LPF-001/runs/RUN-LPF-001-measure/
+      - experiments/EXP-LPF-001/results/measure/
+      - experiments/EXP-LPF-001/results/plantz/
+      - experiments/EXP-LPF-001/implementation/lpf001_driver.py
+      - experiments/EXP-LPF-001/implementation/plant_z_regen.py
+      why: >-
+        The first three are the REAL (Semaev) arm and the plant arms - not this
+        experiment's object, and reading them would let a reference finding be
+        contaminated by, or mistaken for, a statement about the map. The last two are
+        forbidden so that REF-SP and REF-EXACT are genuinely independent of the driver's
+        own numerics rather than a re-execution of them; the driver's rho is reproduced
+        from its ARCHIVED OUTPUT, never from its source.
+
+  # ==================================================================
+  # 3. THE THREE REFERENCES, STATED EXACTLY
+  # ==================================================================
+  references:
+    common:
+      quantity: >-
+        Every reference supplies a DENSITY S(x, y) = Psi(x, y) / x, the probability that
+        a uniform integer in [1, x] is y-smooth, against which the archived empirical
+        rate p_hat is divided. R(u) = p_hat_unif(u) / S(x, Bsm).
+      domains:
+        id: DOM-1
+        levels:
+        - id: DOM-D
+          x: the frozen per-cell D (2**32 at bits 16, 2**40 at bits 20)
+          role: >-
+            THE ARCHIVED CHOICE. u is defined by u = ln(D)/ln(Bsm), so this is the domain
+            at which the incumbent reference was evaluated and it is the domain at which
+            the pre-registered F1 threshold is read.
+        - id: DOM-X
+          x: >-
+            the sampler's own recorded support, X = p**2 - 2177435569 at bits 16 and
+            589134537601 at bits 20, read out of the archived descriptor and never
+            assumed.
+          role: >-
+            THE SAMPLER'S ACTUAL SUPPORT. EXP-LPF-001's range_matching_note records that
+            the uniform arm is drawn on [1, p**2] and that D is retained only as the
+            bound defining u, with X/D about 0.507 (bits 16) and 0.536 (bits 20). A
+            density evaluated at D and an empirical rate measured on [1, X] differ for a
+            reason that has nothing to do with finite-y error, so the domain is a
+            declared VARIABLE here rather than a silent choice.
+        binding: >-
+          EVERY REPORTED RATIO CARRIES ITS REFERENCE LABEL AND ITS DOMAIN LABEL. A ratio
+          computed at one domain may never be read against a threshold registered for the
+          other. This is the single most likely way to produce a wrong finding here and it
+          is closed by construction.
+    REF-RHO:
+      definition: >-
+        S_rho(u) = rho(u) with u the ARCHIVED recomputed value, rho the Dickman-de Bruijn
+        function obtained by numerical solution of the delay equation
+        u * rho'(u) = -rho(u - 1) with rho(u) = 1 on [0, 1].
+      role: >-
+        THE INCUMBENT, reproduced here by a THIRD independent quadrature and used as the
+        baseline and as the regression fixture. It is not a domain-dependent object; it is
+        a function of u alone, which is itself part of what is under examination.
+      implementation_requirement: >-
+        A quadrature scheme of the implementer's choosing, but NOT the one the driver used
+        and NOT the Simpson-on-the-lag-integral scheme the TASK-20260801-051 validation
+        used, so that the reproduction is a third independent route. The scheme and its
+        step size are recorded.
+    REF-SP:
+      definition: >-
+        The Hildebrand-Tenenbaum saddle-point estimate. With alpha = alpha(x, y) the
+        unique positive solution of sum over primes p <= y of log p / (p**alpha - 1) =
+        log x, set zeta(alpha, y) = product over primes p <= y of (1 - p**(-alpha))**(-1)
+        and sigma2(alpha, y) = sum over primes p <= y of (log p)**2 * p**alpha /
+        (p**alpha - 1)**2; then Psi_sp(x, y) = x**alpha * zeta(alpha, y) /
+        (alpha * sqrt(2 * pi * sigma2(alpha, y))) and S_sp(x, y) = Psi_sp(x, y) / x.
+      transcription_duty: >-
+        THE FORMULA ABOVE IS PROVENANCE `recalled` AND IS NOT YET SUPPORT. Gate LIT-1
+        requires it, its error term and its uniformity range to be transcribed from the
+        primary source and recorded in implementation.md, with any correction to the form
+        above recorded as a correction BEFORE the implementation is frozen. A silent
+        difference between the transcription and this text is a protocol deviation.
+      solver_requirement: >-
+        alpha is found by BISECTION on a bracket established by evaluation (the left side
+        is strictly decreasing in alpha on the positive reals), to absolute tolerance
+        1e-12, followed by Newton polish; the final residual |sum - log x| is RECORDED per
+        (x, y) pair. Newton alone is not permitted as the sole route - a Newton failure
+        must not be able to return a plausible wrong alpha.
+      precision_requirement: >-
+        The saddle evaluation runs in a decimal context of 50 significant digits. The
+        products and sums over primes are accumulated in that context and the recorded
+        value is reported to 12 significant digits.
+    REF-EXACT:
+      definition: >-
+        The EXACT count Psi(x, y) = #{n in [1, x] whose every prime factor is at most y},
+        computed in exact integer arithmetic. S_ex(x, y) = Psi(x, y) / x, with the
+        division performed only at the end and reported to 12 significant digits.
+      primary_algorithm: >-
+        The exact recursion over the prime list p_1 < p_2 < ... < p_k = the largest prime
+        at most y, with S(m, 0) = 1 and S(m, j) = S(m, j - 1) + S(m // p_j, j), memoized
+        on the pair (m, j) where m ranges only over integer quotients of x. Psi(x, y) =
+        S(x, k). NO FLOATING POINT APPEARS ANYWHERE IN THE COUNT.
+      independent_cross_check: >-
+        At any rung where the count is at most 5,000,000, the same value is recomputed by
+        DIRECT ENUMERATION of the y-smooth integers by recursive multiplication, and the
+        two integers must agree EXACTLY. Two exact algorithms agreeing on an integer is
+        the strongest internal check this design has and it costs nothing at the cheap
+        rungs.
+      protection:
+        id: PROT-EXACT
+        text: >-
+          REF-EXACT IS THE DESIGN'S ABSOLUTE CONTROL AND MAY NOT BE DROPPED FOR BUDGET.
+          It is a THEOREM about the count rather than a model of it, which is what lets it
+          convict either the reference or the sampler; without it a two-reference design
+          is blind to any error the two analytic references share (EXP-LPF-001's U1
+          applied to references instead of samples). Only INDIVIDUAL RUNGS may go
+          uncomputed, and only by exhausting a declared cap, and each such rung is
+          recorded as budget-exhausted with its elapsed time and memo size. Dropping
+          REF-EXACT entirely, or descoping it to fit a schedule, requires a versioned
+          protocol_amendment and a new Coordinator decision.
+      cost_expectation_declared_not_measured: >-
+        STATED AS AN EXPECTATION TO BE MEASURED, NEVER AS A MEASUREMENT. The exact count
+        is cheapest where y is smallest, i.e. at the HIGHEST u - which is exactly where
+        the archived departure is largest (11.5937 at bits 16 u_target 6, 4.5709 at
+        u_target 5). The design therefore expects its absolute control to cover precisely
+        the rungs that carry the finding, and expects the low-u rungs (Bsm 65536, 1626) to
+        be the ones at risk of exhausting the cap. If that expectation is wrong the run
+        records what actually happened; nothing here is read as a result.
+      bits_20_is_optional: >-
+        DECLARED OPTIONAL BY THE SOURCE PROPOSAL AND KEPT OPTIONAL HERE. x = 589134537601
+        makes the exact count materially more expensive. It is attempted ONLY after every
+        bits-16 deliverable is complete and only within remaining budget, in ascending
+        cost order, and its feasibility is REPORTED rather than assumed. F2 is a bits-16
+        condition and does not depend on it.
+
+  # ==================================================================
+  # 4. PRE-REGISTERED PREDICTION
+  # ==================================================================
+  preregistered_prediction:
+    quantity: >-
+      max_u |ln R(u)| per reference per cell; the count of rungs inside the frozen
+      [1/8, 8] band per reference per cell; and the per-rung ratio R_exact(u) at bits 16.
+    formula: >-
+      R(u) = p_hat_unif(u) / S(x, Bsm), with p_hat_unif the archived
+      uniform_arm_p_hat_u_mean_over_replicates, u the archived u_recomputed = ln(D)/ln(Bsm),
+      and S one of S_rho(u) = rho(u), S_sp(x, y) = Psi_sp(x, y)/x, S_ex(x, y) = Psi(x, y)/x.
+      Predicted - max_u |ln R_sp_D(u)| <= 0.8169 at bits 16 and <= 0.5390 at bits 20
+      (factor-of-3 reductions of the archived 2.4506 and 1.6171; the source proposal
+      states the bits-16 target in rounded form as 0.82 and the exact quotient governs);
+      10 of 10 rungs inside [1/8, 8] under REF-SP against the archived 9 of 10; and
+      R_exact_X(u) inside [0.90, 1.11] at every bits-16 rung where the exact count
+      completes.
+    source: >-
+      IDEA-20260802-001 predictions and minimal_test, which derive the mechanism from
+      Hildebrand's theorem (error scale of the incumbent) and the Hildebrand-Tenenbaum
+      saddle-point method (the replacement estimate). BOTH SOURCES ARE `recalled` AND
+      UNREAD IN THIS PROGRAM - gate LIT-1. The figures to beat are internal and citable -
+      RUN-LPF-001-calib as archived, independently recomputed at TASK-20260801-051.
+    frozen_before_any_datum: >-
+      Every number in this block is fixed here, before REF-SP or REF-EXACT has ever been
+      computed, and NONE OF THEM MOVES AFTER A RUN. A changed threshold requires a
+      versioned protocol_amendment naming the reason and the confirmatory status it
+      leaves behind.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Direct computation at D = 2**32 and D = 2**40 with supports X = 2177435569 and
+      X = 589134537601 - toy parameters, and named as toy in every deliverable. The
+      instances are archived toy calibration draws of uniform integers; no curve, no
+      field larger than 20 bits, and no cryptographic parameter appears anywhere.
+      TRANSFER ASSUMPTION, STATED EXPLICITLY AND NOT MADE - reading any outcome upward
+      would require assuming that the saddle-point estimator's accuracy at
+      y in [40, 1048576] and x of order 2**32 to 2**40 predicts its accuracy at
+      cryptographic x and y. THAT ASSUMPTION IS NOT MADE, NOT TESTED AND NOT SUPPORTED
+      HERE. It is IDEA-20260802-004's object.
+    correspondence: null
+
+  tail_checks:
+  - >-
+    THE DEEP-TAIL RUNG IS THE POINT OF THE EXERCISE, not an afterthought. At bits 16
+    u_target 6 (Bsm 40) the archived departure is largest (11.5937) and the reference is
+    weakest (log(u+1)/log Bsm about 0.53). The exact count at that rung is also the
+    cheapest, so REF-EXACT is required there and its absence would be an infrastructure
+    failure of the first order rather than a scope reduction.
+  - >-
+    CONSISTENCY OF THE ARCHIVED RATE WITH ITS OWN MONTE-CARLO ERROR. The archived p_hat
+    at each rung is a mean of 200 replicates of 130816 draws; the run computes the
+    standard error of that mean from the archived 200-value array and propagates it to
+    ln R, so that a residual is never reported as a departure when it is inside the
+    sampling error of the archived arm.
+  - >-
+    LOW-u AGREEMENT NULL. At u_target 2 the asymptotic and exact references are expected
+    to agree closely at the matched domain. A large disagreement there is an
+    implementation failure and no branch is read (CTRL-LOWU).
+
+  # ==================================================================
+  # 5. INDEPENDENT VARIABLES
+  # ==================================================================
+  independent_variables:
+  - id: IV-REFERENCE
+    levels: [REF-RHO, REF-SP, REF-EXACT]
+    note: >-
+      THE ONLY THING THIS DESIGN VARIES ON PURPOSE. The sample is held fixed at the
+      archived uniform arm, which is what makes this a clean test of the reference rather
+      than of the sampler, and is why no new sampling is permitted at any rung.
+  - id: IV-DOMAIN
+    levels: [DOM-D, DOM-X]
+    note: >-
+      Added because the archived descriptor records a support X = p**2 that is about 0.51
+      of the frozen D at bits 16 and about 0.54 at bits 20. This variable separates a
+      finite-y REFERENCE error from a DOMAIN/specification mismatch, which the source
+      proposal named as confounder 1 and required to be read out of the manifest rather
+      than assumed. It adds no compute of consequence - the same code, called twice.
+  - id: IV-CELL
+    levels: [bits-16, bits-20]
+  - id: IV-RUNG
+    levels: [u_target 2, u_target 3, u_target 4, u_target 5, u_target 6]
+    note: >-
+      Evaluated at the ARCHIVED u_recomputed, never at the nominal integer target -
+      2.99987488400962, 5.00600922694629 and 6.012858390691442 at bits 16 and
+      3.0000085936215726 and 5.994821665277897 at bits 20 are non-integer and the
+      distinction is load-bearing at the deep rungs.
+
+  # ==================================================================
+  # 6. CONTROLS
+  # ==================================================================
+  controls:
+  - id: CTRL-EXACT
+    statement: >-
+      REF-EXACT AS AN ABSOLUTE CONTROL. A two-reference design is blind to any error the
+      two analytic references share, and a finite-x/finite-y modelling error is precisely
+      such an error. The exact count is the only reference here that is not an
+      approximation; it is what makes the sampler branch detectable at all. Protected by
+      PROT-EXACT above.
+  - id: CTRL-EXACT2
+    statement: >-
+      TWO EXACT ALGORITHMS. Where the count is at most 5,000,000 the memoized recursion
+      and direct enumeration must return the SAME INTEGER. Disagreement is an
+      implementation failure, halts the run under SR-3, and is never a finding.
+  - id: CTRL-CLOSEDFORM
+    statement: >-
+      NULL OBJECTS OF THE SAME SHAPE, WITH KNOWN ANSWERS, RUN BEFORE ANY ARCHIVED ARRAY IS
+      OPENED. Both REF-SP and REF-EXACT are evaluated where the answer is closed-form -
+      Psi(x, y) = floor(x) for y >= x, and Psi(x, 2) = floor(log2 x) + 1 - at a declared
+      set of x values spanning the cells. REF-EXACT must match exactly; REF-SP is recorded
+      with its relative error, which is expected to be poor at y = 2 and is reported
+      rather than hidden. A reference that misses a closed form is broken before it can be
+      trusted on a real rung.
+  - id: CTRL-LOWU
+    statement: >-
+      LOW-u AGREEMENT NULL. At u_target 2, REF-SP and REF-EXACT are compared at the
+      matched domain and are expected to agree within the F3 bar of 5 percent. If they do
+      not, the implementation is wrong and no branch is read in either direction.
+  - id: CTRL-RHO-3Q
+    statement: >-
+      THIRD-QUADRATURE rho RECHECK, BEFORE ANY COMPARISON. The archived rho values were
+      reproduced to 8.7e-06 relative by an independent quadrature at TASK-20260801-051;
+      this implementation reproduces them a THIRD time by a different scheme. FROZEN
+      TOLERANCE - 1e-3 relative at every tabulated u, generous against the 8.7e-06 already
+      achieved so that the control tests the implementation rather than the quadrature.
+      Disagreement is an implementation failure, never a finding.
+  - id: CTRL-FIXTURE
+    statement: >-
+      ARCHIVED-VALUE REGRESSION FIXTURE. From the archived p_hat means and this
+      implementation's own rho, the run must reproduce R_rho to four decimal places at
+      every rung - 1.1702, 1.4522, 2.0521, 4.5709, 11.5937 at bits 16 and 1.1279, 1.3055,
+      1.6443, 2.4453, 5.0386 at bits 20. This proves the run is reading the arrays the
+      archive says it is reading, before it computes anything new.
+  - id: CTRL-NOSAMPLE
+    statement: >-
+      NO NEW SAMPLING, ENFORCED RATHER THAN REQUESTED. The implementation imports no
+      random module, seeds nothing, and draws nothing; the run manifest records
+      `random_draws: 0` and the presence of any randomness invalidates the run under IR-2.
+      The uniform arm is the archived one. Redrawing it would confound a reference
+      question with a sampling question.
+  - id: CTRL-NOOBJECT
+    statement: >-
+      THE REAL ARM IS NOT TOUCHED. No curve arithmetic, no Semaev polynomial, no
+      factorization, and no read of any forbidden path. The run records a tripwire flag
+      `real_object_touched: false`, mirroring EXP-LPF-001's own tripwire; true is an
+      immediate invalidation.
+  - id: CTRL-DOMAIN
+    statement: >-
+      DOMAIN READOUT AS A PRECONDITION. Before any ratio is computed the run reads p,
+      X_equals_p_squared, D_frozen and X_over_D out of the archived descriptor at both
+      cells and records them beside the values this contract quotes. A mismatch with the
+      quoted values invalidates the run under IR-5 - it means the archive is not what this
+      contract was written against, which is an evidence-integrity failure and not a
+      result.
+
+  # ==================================================================
+  # 7. METRICS
+  # ==================================================================
+  metrics:
+    block_policy: >-
+      This block defines the quantities; the thresholds live in success_criterion and
+      falsification_criterion and are not restated here. MEASURED versus MODELED is
+      carried per column and is not optional - every reported column is labelled
+      `measured` (read from an archive or computed exactly) or `modeled` (an analytic
+      estimate), and a table that mixes them without labels is an incomplete deliverable.
+    measured_versus_modeled:
+      measured:
+      - the archived p_hat means and their per-replicate spreads
+      - the archived u_recomputed, Bsm, D, p and X values
+      - REF-EXACT counts, which are exact integers
+      - every wall-clock, memo-size and completion measurement
+      modeled:
+      - REF-RHO, an asymptotic reference evaluated by numerical quadrature
+      - REF-SP, an analytic saddle-point estimate
+      - every ratio in which the denominator is REF-RHO or REF-SP
+    primary:
+    - id: M1
+      name: max_abs_log_ratio_saddle_D
+      definition: >-
+        max over the five rungs of |ln R_sp_D(u)|, per cell, where
+        R_sp_D(u) = p_hat_unif(u) / S_sp(D, Bsm). THE F1 DECISION VARIABLE.
+      class: modeled
+    - id: M2
+      name: limb_b_decidable_rung_count
+      definition: >-
+        Per reference per cell, the number of rungs (out of 5) whose R lies inside the
+        frozen [1/8, 8] band, computed at DOM-D so that it is comparable with the archived
+        9 of 10. Reported for REF-RHO (expected to reproduce the archived count), REF-SP
+        and REF-EXACT.
+      class: mixed
+    - id: M3
+      name: R_exact_X_bits16
+      definition: >-
+        Per rung at bits 16, R_exact_X(u) = p_hat_unif(u) / S_ex(X, Bsm) with
+        X = 2177435569 the sampler's recorded support. THE F2 DECISION VARIABLE, and the
+        only one whose denominator is a theorem.
+      class: measured
+    - id: M4
+      name: sp_vs_exact_relative_disagreement_bits16
+      definition: >-
+        Per rung at bits 16 and per domain, |S_sp(x, Bsm) / S_ex(x, Bsm) - 1|, at every
+        rung where the exact count completes. THE F3 DECISION VARIABLE.
+      class: mixed
+    - id: M5
+      name: post_correction_residual_monotonicity
+      definition: >-
+        Per cell, the ordered sequence of ln R_sp_D(u) across the five rungs sorted by
+        u_recomputed, its sign pattern, and a boolean for strict monotonicity, evaluated
+        with the M8 standard errors so that sub-noise wobble is not read as
+        non-monotonicity. THE F4 DECISION VARIABLE.
+      class: modeled
+    secondary:
+    - id: M6
+      name: max_abs_log_ratio_saddle_X
+      definition: >-
+        M1 recomputed at DOM-X. REPORTED BESIDE M1 AND NEVER SUBSTITUTED FOR IT - the
+        pre-registered F1 threshold belongs to DOM-D, and swapping in the domain that
+        happens to look better after seeing the data is exactly the move this separation
+        forbids.
+      class: modeled
+    - id: M7
+      name: R_exact_D_bits16
+      definition: >-
+        Per rung at bits 16, p_hat_unif(u) / S_ex(D, Bsm). Reported beside M3; the
+        difference between M3 and M7 is the exact size of the domain effect, computed
+        against a reference that is a theorem.
+      class: measured
+    - id: M8
+      name: p_hat_monte_carlo_standard_error
+      definition: >-
+        Per rung per cell, sd / sqrt(200) from the archived 200-value replicate array,
+        and its propagation to ln R as sd / (sqrt(200) * p_hat). Bounds how much of any
+        residual can be sampling noise of the archived arm.
+      class: measured
+    - id: M9
+      name: exact_count_cost
+      definition: >-
+        Per rung per cell - wall seconds, peak memo entries, completion flag
+        (`completed` or `budget_exhausted`), and the cap that was in force. The
+        feasibility the source proposal declined to assume, reported as a measurement.
+      class: measured
+    - id: M10
+      name: rho_third_quadrature_reproduction_residual
+      definition: Per tabulated u, the relative difference against the archived driver rho. CTRL-RHO-3Q.
+      class: mixed
+    - id: M11
+      name: saddle_alpha_and_residual
+      definition: >-
+        Per (x, y) pair, the solved alpha, the residual |sum - log x| at that alpha, the
+        bracket used, and the iteration count.
+      class: measured
+    - id: M12
+      name: hildebrand_range_membership
+      definition: >-
+        Per rung per domain, the recomputed values of ln x, x**(1/3) and Bsm, and the
+        booleans Bsm > ln x and Bsm <= x**(1/3), together with the error scale
+        log(u+1)/log(Bsm). RECORDED UNDER THE RANGE AS IDEA-20260802-001 STATES IT AND
+        LABELLED AS CONDITIONAL ON GATE RANGE-1 - it is an applicability audit of the
+        incumbent reference, not a result.
+      class: measured
+    - id: M13
+      name: closed_form_control_residuals
+      definition: Per closed-form case, the exact expected value and each reference's value and relative error. CTRL-CLOSEDFORM.
+      class: mixed
+    - id: M14
+      name: exact_dp_vs_enumeration_agreement
+      definition: Per rung where both ran, the two integers and an exact-equality boolean. CTRL-EXACT2.
+      class: measured
+    - id: M15
+      name: archived_fixture_residual
+      definition: Per rung, this run's recomputed R_rho against the archived value, to four decimal places. CTRL-FIXTURE.
+      class: mixed
+
+  heuristic_under_test: HEUR-SP-1
+  heuristic_under_test_note: >-
+    HEUR-SP-1 is stated in H-ECDLP-609ec8 over a FINITE EXPLICIT SET OF (x, y) PAIRS and
+    is directly decidable at those pairs by REF-EXACT. This experiment is the validation
+    experiment named in its validation_experiment_ids. Agreement at toy pairs does not
+    discharge it anywhere else and never removes a conditional qualifier
+    (docs/claims-and-verification.md).
+
+  # ==================================================================
+  # 8. SEEDS AND REPLICATION
+  # ==================================================================
+  replication:
+    seeds: []
+    seeds_note: >-
+      EMPTY BECAUSE NO RANDOM NUMBER IS DRAWN ANYWHERE IN THIS EXPERIMENT, not because
+      the policy was omitted. The computation is deterministic - archived arrays in,
+      exact integers and a deterministic quadrature out - so the replication question is
+      bit-reproducibility rather than seed coverage.
+    independent_instances: 0
+    independent_instances_note: >-
+      ZERO NEW INSTANCES ARE GENERATED. The experiment re-reads 2 cells x 5 rungs x 200
+      archived replicates of 130816 draws each. Claiming instances here would misdescribe
+      re-analysis as new sampling.
+    replication_plan:
+      internal: >-
+        The run is executed TWICE in the same session over the same inputs and the two
+        raw-result payloads must be byte-identical apart from timing and resource fields,
+        which are listed explicitly as the only permitted differences. A difference
+        anywhere else means the computation is not deterministic and the run is invalid.
+      cross_implementation: >-
+        REF-EXACT versus direct enumeration (CTRL-EXACT2) and REF-SP versus REF-EXACT
+        (M4) are the cross-implementation replications available inside one run, and they
+        are what F3 reads.
+      independent_rederivation: >-
+        NAMED HERE AS OWED AND NOT PERFORMED BY THIS CONTRACT. If a result of this
+        experiment is to move any status, AGENTS.md "Review architecture" requires a BLIND
+        re-derivation of the load-bearing quantity - Psi(2177435569, 40) and the other
+        completed exact counts - by an agent that reads neither this implementation nor
+        its report. That is a later review task and is OPEN AND UNATTEMPTED here.
+
+  # ==================================================================
+  # 9. BUDGET AND TOOLCHAIN
+  # ==================================================================
+  budget:
+    wall_clock_seconds_per_run: 5400
+    total_cpu_hours: 4.5
+    maximum_memory_gb: 8
+    maximum_runs: 3
+    maximum_runs_note: >-
+      One planned execution plus the mandatory determinism re-execution, plus ONE slot
+      for a re-run after a declared and recorded implementation fix. A fourth execution
+      requires a new Coordinator decision. Run identifiers are minted at dispatch.
+    per_rung_exact_count_cap_seconds: 900
+    per_rung_exact_memo_entry_cap: 20000000
+    budget_note: >-
+      SIZED TO THE WORK, NOT TO A TOOL WINDOW. The only expensive step is REF-EXACT; every
+      other step (a sieve to 2**20, five saddle solves per cell per domain, a rho
+      quadrature, and arithmetic over 200-element arrays) is seconds. The per-rung caps
+      exist so that one hard rung cannot consume the run and silently truncate the rest,
+      and an exhausted cap is an infrastructure signal recorded as such, never a
+      mathematical result (AGENTS.md rule 5).
+  toolchain_requirements:
+    network_required: false
+    pari_gp_required: false
+    sagemath_required: false
+    sympy_required: false
+    mpmath_required: false
+    python: ">= 3.10, standard library only on every decisive path"
+    permitted_stdlib: >-
+      decimal (for the saddle context), math, json, time, resource or os for the resource
+      measurements, and hashlib for artifact digests.
+    optional_and_non_decisive: >-
+      A third-party library may be used ONLY to duplicate a value already computed by the
+      stdlib path, must be recorded with its version, and may never be the sole source of
+      any reported number. If it is absent the run proceeds unchanged.
+    declared_at_design_time_and_checked_at_dispatch: >-
+      NAMED AS A DUTY BECAUSE IT HAS ALREADY COST THIS PROGRAM A PROTOCOL. Two producers
+      in one batch of GOAL-ECRANK-002 held different toolchains and the second lost half
+      its protocol to a requirement discovered mid-run. The dispatcher checks this block
+      before launch; a mid-run discovery is a dispatch failure, not an experimental one.
+
+  # ==================================================================
+  # 10. STOPPING AND INVALIDATION
+  # ==================================================================
+  stopping_rules:
+  - id: SR-1
+    rule: >-
+      Exact counts are attempted per cell in ASCENDING COST ORDER - smallest Bsm first,
+      i.e. u_target 6, then 5, 4, 3, 2. A rung that exceeds
+      per_rung_exact_count_cap_seconds or per_rung_exact_memo_entry_cap is ABANDONED FOR
+      THAT RUNG ONLY, recorded as `budget_exhausted` with its elapsed seconds and peak
+      memo size, and the next rung is attempted. F2 and M4 are then evaluated over the
+      completed rungs, with the uncompleted rungs NAMED and their status stated as
+      budget-exhausted - never as a negative result, never as "no departure found", and
+      never as evidence in either direction.
+  - id: SR-2
+    rule: >-
+      The run halts at wall_clock_seconds_per_run and writes a completeness table naming
+      every declared metric as produced or not produced. A partial run is reported as
+      partial and is not interpreted.
+  - id: SR-3
+    rule: >-
+      If CTRL-CLOSEDFORM, CTRL-RHO-3Q, CTRL-FIXTURE or CTRL-EXACT2 fails, the run HALTS
+      BEFORE COMPUTING ANY RATIO against the archived arm and reports an implementation
+      failure. No branch is read in either direction.
+  - id: SR-4
+    rule: >-
+      The bits-20 exact counts are attempted only after every bits-16 deliverable is
+      complete and only within remaining budget. Their absence is a declared scope
+      boundary, not a defect.
+  - id: SR-5
+    rule: >-
+      If gate CROSS-1, LIT-1 or RANGE-1 is unruled at launch, the run does not start. An
+      Executor that cannot find the approving decision and the ruled gates refuses, as it
+      would for any unapproved contract.
+  invalidation_rules:
+  - id: IR-1
+    rule: Any read of a forbidden path, by any means including an import, invalidates the run.
+  - id: IR-2
+    rule: >-
+      Any random draw, any import of a random-number module, or any nonzero
+      `random_draws` count invalidates the run. NO NEW SAMPLING.
+  - id: IR-3
+    rule: >-
+      Failure of CTRL-FIXTURE to reproduce the archived R_rho values to four decimal
+      places invalidates the run as an implementation defect. It is never read as a
+      finding about the archive.
+  - id: IR-4
+    rule: >-
+      F3 firing - REF-SP and REF-EXACT disagreeing by more than 5 percent at any bits-16
+      rung where both completed, at the matched domain - VOIDS THE EXERCISE. The run is
+      recorded, its numbers are archived, and NO BRANCH IS READ IN EITHER DIRECTION. F1,
+      F2 and F4 readings are not recorded as findings under a void.
+  - id: IR-5
+    rule: >-
+      A mismatch between the archived descriptor values (p, X_equals_p_squared, D_frozen,
+      X_over_D, n_per_sample_set) and the values this contract quotes invalidates the
+      run. It means the contract was written against a different archive, which is an
+      evidence-integrity failure and never a result.
+  - id: IR-6
+    rule: >-
+      Any threshold, band, cap, rung or metric definition changed after a datum is
+      observed invalidates the run. Changes require a versioned protocol_amendment
+      recording the reason and the confirmatory status it leaves behind.
+  - id: IR-7
+    rule: >-
+      Network access, or use of PARI/GP, SageMath, sympy or mpmath on any decisive path,
+      invalidates the run under the declared toolchain requirements.
+  - id: IR-8
+    rule: >-
+      A non-byte-identical re-execution (outside the explicitly listed timing and
+      resource fields) invalidates the run as non-deterministic.
+
+  # ==================================================================
+  # 11. SUCCESS AND FALSIFICATION
+  # ==================================================================
+  success_criterion:
+    id: SUCC-1
+    form: COMPLETENESS, NOT DIRECTION.
+    statement: >-
+      THIS EXPERIMENT SUCCEEDS IF IT PRODUCES A COMPLETE, VALID, DETERMINISTIC
+      COMPUTATION THAT CLASSIFIES INTO EXACTLY ONE BRANCH - WHICHEVER BRANCH THAT IS.
+      Concretely, ALL of the following hold. Every control CTRL-CLOSEDFORM,
+      CTRL-RHO-3Q, CTRL-FIXTURE, CTRL-EXACT2, CTRL-LOWU, CTRL-NOSAMPLE, CTRL-NOOBJECT and
+      CTRL-DOMAIN passed and is recorded with its numbers. REF-SP is computed at all ten
+      (cell, rung) pairs at BOTH domains, with its alpha and residual recorded per pair.
+      REF-EXACT completed at at least the bits-16 u_target 6 and u_target 5 rungs, with
+      every attempted rung carrying either a value or an explicit `budget_exhausted`
+      record with its elapsed time. Every primary metric M1 to M5 carries a value or a
+      named reason it does not. Every reported column is labelled measured or modeled.
+      The four falsification conditions are each evaluated and each recorded as fired or
+      not fired. And the deliverable states the branch, its scope (two toy cells, five
+      rungs, one archived arm), and what it does not license.
+    what_success_is_NOT: >-
+      SUCCESS IS NOT A FAVOURABLE BRANCH. Branch (a) and branch (b) are EQUALLY
+      SUCCESSFUL outcomes, and (b) is arguably the more informative - it would put a
+      question mark over the null arm of every LPF reading, which is a first-class result
+      about the apparatus. Defining success by direction is how a measurement becomes a
+      search for a preferred answer.
+    an_exhausted_cap_is_not_a_failure_of_this_criterion: >-
+      A rung whose exact count exhausts its cap, a halted run, or an unresolvable
+      toolchain is INFRASTRUCTURE SIGNAL under AGENTS.md rule 5. It is an unsuccessful
+      RUN and is not a result about the reference, the sampler or anything else. In every
+      such case the open question survives intact and must be said to survive.
+  falsification_criterion:
+    policy: >-
+      FOUR CONDITIONS, EACH DECIDABLE FROM THE PREDEFINED METRICS ALONE. A contract in
+      which no outcome counts as negative is rejected; this one has four, and each names
+      the metric that decides it and the branch it selects.
+    conditions:
+    - id: F1
+      decided_by: M1
+      condition: >-
+        The saddle reference reduces max_u |ln R(u)| by less than a factor of 3 at either
+        cell - that is, M1 exceeds 0.8169 at bits 16 or exceeds 0.5390 at bits 20.
+      meaning: >-
+        THE DEPARTURE IS NOT A FINITE-y REFERENCE EFFECT AND THE SAMPLER OR THE
+        SPECIFICATION IS IMPLICATED. Branch (b). THIS IS A POSITIVE FINDING ABOUT THE
+        APPARATUS AND IS REPORTED AS SUCH, NEVER AS A NULL RESULT AND NEVER AS "no effect
+        found".
+      note: >-
+        M6 (the DOM-X recomputation) and M7 further decompose branch (b) into a
+        domain/specification component and a residual sampler component. That decomposition
+        is reported; it does not change whether F1 fired.
+    - id: F2
+      decided_by: M3
+      condition: >-
+        REF-EXACT at bits 16 puts the archived uniform arm outside [0.90, 1.11] at any
+        rung where the exact count completed.
+      meaning: >-
+        THE ARCHIVED UNIFORM ARM IS NOT BEHAVING AS A UNIFORM SAMPLE OF ITS STATED SUPPORT
+        AGAINST A REFERENCE THAT IS A THEOREM. This is the strongest instrument finding
+        this design can produce. It BLOCKS every LPF reading that rests on the uniform arm
+        until the departure is localized - which is a statement about the apparatus and
+        about nothing else, and specifically not about the Semaev map.
+      note: >-
+        Evaluated only at completed rungs. An uncompleted rung leaves F2 UNDECIDED there
+        and is named as such; an undecided rung is never counted as a pass.
+    - id: F3
+      decided_by: M4
+      condition: >-
+        REF-SP and REF-EXACT disagree by more than 5 percent at any bits-16 rung where
+        both completed, at the matched domain.
+      meaning: >-
+        IMPLEMENTATION OR ESTIMATOR FAILURE. THE EXERCISE IS VOID AND NO BRANCH IS READ IN
+        EITHER DIRECTION. Two references that disagree cannot jointly adjudicate a third.
+        This also refutes HEUR-SP-1 over the tested pairs, which is recorded as such.
+      note: F3 takes precedence over F1, F2 and F4 - a void is read before a branch.
+    - id: F4
+      decided_by: M5
+      condition: >-
+        The post-correction residual ln R_sp_D(u) is non-monotone in u at either cell, by
+        a margin exceeding the M8 standard errors.
+      meaning: >-
+        THE RESIDUAL IS NOT A REFERENCE EFFECT. A reference error must grow with u because
+        the Hildebrand error term grows with u at fixed x, so a non-monotone residual
+        indicates branch (b) or (c) regardless of its magnitude. Report branch (c) with the
+        residual as A NAMED OPEN ITEM rather than as a result.
+  branch_structure:
+    precedence: F3 (void) is read first; then F2; then F1; then F4.
+    branches:
+    - id: BR-A
+      label: reference effect
+      condition: F1 did not fire, F2 did not fire, F3 did not fire, F4 did not fire.
+      reading: >-
+        The saddle-point estimate absorbs the departure at every rung and the exact count
+        places the arm inside its point band. The frozen [1/8, 8] band was being applied
+        against a reference a correct null could not satisfy at u = 6 at bits 16. THE
+        CORRECTION IS CARRIED FORWARD ONLY BY A NEW SUPERSEDING RECORD; nothing here edits
+        a frozen band.
+    - id: BR-B
+      label: sampler or specification effect
+      condition: F1 or F2 fired, F3 did not.
+      reading: >-
+        The departure is not explained by finite-y analysis. The archived uniform arm, its
+        support, its bitlength matching or its u-parameterization is implicated, and M3,
+        M6 and M7 localize how much is domain and how much is not. A POSITIVE FINDING
+        ABOUT THE APPARATUS.
+    - id: BR-C
+      label: partial
+      condition: F4 fired, or the reduction is achieved at some rungs and not others, with F3 not fired.
+      reading: >-
+        The decidable-rung set is reported AS MEASURED and the residual is a named open
+        item rather than a result.
+    - id: BR-VOID
+      label: void
+      condition: F3 fired, or any control failed, or the run is invalid or partial.
+      reading: >-
+        NO BRANCH IS READ. The exercise is recorded as void with its numbers archived, and
+        the open question survives intact.
+
+  # ==================================================================
+  # 12. HONESTY DUTIES CARRIED FROM THE TARGET PROFILE
+  # ==================================================================
+  honesty_duties:
+    measured_versus_modeled: >-
+      Every reported column carries its class, per the metrics block. A ratio whose
+      denominator is REF-SP or REF-RHO is MODELED even though its numerator is measured,
+      and is labelled modeled.
+    optimistic_assumptions_with_direction_of_bias:
+    - assumption: >-
+        That the archived p_hat means are unbiased estimates of the arm's true smooth
+        rate.
+      bias_direction: >-
+        Unknown in sign; bounded in magnitude by M8, which is reported beside every
+        residual so that a sub-noise residual can never be presented as a departure.
+    - assumption: >-
+        That evaluating the reference at x = D, as the archive did, is the comparison the
+        pre-registered threshold is about.
+      bias_direction: >-
+        Favourable to finding a large departure, because X/D is about 0.51 and a smaller
+        true support raises the smooth rate relative to a density computed at D. Disclosed
+        rather than corrected, and separated by IV-DOMAIN rather than assumed away.
+    - assumption: >-
+        That the saddle-point formula as transcribed is the one the primary source
+        states.
+      bias_direction: >-
+        Unknown; this is exactly why gate LIT-1 blocks approval and why F3 exists as a
+        void condition rather than as a branch.
+    - assumption: >-
+        That a 5 percent agreement bar between REF-SP and REF-EXACT is a meaningful
+        implementation check.
+      bias_direction: >-
+        Permissive - it would not catch a systematic estimator error below 5 percent, so a
+        finding of "agreement" is bounded at that resolution and no deliverable may state
+        agreement more finely than the bar resolves it.
+    hidden_overheads_stated_rather_than_buried:
+    - >-
+      REF-SP costs a prime enumeration to y plus a bracketed solve; negligible at every
+      parameter here and NOT negligible in general at cryptographic y, which this
+      experiment does not touch.
+    - >-
+      REF-EXACT's cost grows with x and with pi(y) and is the reason bits 20 is optional.
+      That cost is MEASURED as M9 and reported per rung; it is not amortized, averaged or
+      described as "single-core hours" in any deliverable without the measured table
+      beside it.
+    - >-
+      The memoized recursion's memory is the hidden cost, not its time - the memo is
+      bounded by the number of distinct integer quotients of x times the prime index, and
+      the declared entry cap is what stops it rather than any mathematical bound.
+    no_o1_hiding: >-
+      NO ASYMPTOTIC STATEMENT IS MADE BY THIS EXPERIMENT AT ALL, so there is no o(1) to
+      characterize. Stated explicitly so the absence reads as deliberate.
+
+  # ==================================================================
+  # 13. ARTIFACTS
+  # ==================================================================
+  required_artifacts:
+    policy: >-
+      Exact paths, declared here so the archival task can stage them without judgement.
+      The run directory name carries the run identifier minted at dispatch and is the only
+      path element not fixed by this contract.
+    paths:
+    - experiments/EXP-ECDLP-523318/specification.yaml
+    - experiments/EXP-ECDLP-523318/implementation.md
+    - experiments/EXP-ECDLP-523318/implementation/reference_recompute.py
+    - experiments/EXP-ECDLP-523318/analysis.md
+    - experiments/EXP-ECDLP-523318/results/reference_table.json
+    - experiments/EXP-ECDLP-523318/results/exact_counts.json
+    - experiments/EXP-ECDLP-523318/results/control_report.json
+    - experiments/EXP-ECDLP-523318/results/falsification_readout.json
+    - experiments/EXP-ECDLP-523318/runs/<RUN-ID>/manifest.yaml
+    - experiments/EXP-ECDLP-523318/runs/<RUN-ID>/command.txt
+    - experiments/EXP-ECDLP-523318/runs/<RUN-ID>/environment.json
+    - experiments/EXP-ECDLP-523318/runs/<RUN-ID>/stdout.log
+    - experiments/EXP-ECDLP-523318/runs/<RUN-ID>/stderr.log
+    - experiments/EXP-ECDLP-523318/runs/<RUN-ID>/raw-result.json
+    content_requirements:
+      implementation_md: >-
+        Carries the TRANSCRIBED saddle-point formula with its primary-source citation
+        (gate LIT-1), the exact recursion, the quadrature scheme, the decimal context, and
+        a statement of what was read and what was not.
+      reference_table_json: >-
+        One machine-readable row per (cell, rung, reference, domain) with u_recomputed,
+        Bsm, x, S, p_hat, R, ln R, the M8 standard error, and the measured/modeled label.
+      exact_counts_json: >-
+        Per attempted rung - the exact integer count or `budget_exhausted`, the elapsed
+        seconds, the peak memo entries, and the enumeration cross-check where it ran.
+      falsification_readout_json: >-
+        F1 to F4, each with fired true/false or `undecided` with its reason, the metric
+        value that decided it, and the selected branch.
+      manifest: >-
+        The minimum run manifest of docs/evidence-and-reproducibility.md, including the
+        inference block, `random_draws: 0`, `real_object_touched: false`, and the
+        certificate block below.
+  certificate:
+    kind: none
+    verified: null
+    justification: >-
+      CORRECTLY `none`. No discrete logarithm is computed and no relation is claimed, so
+      there is nothing to certify in the solve sense
+      (docs/claims-and-verification.md). The exact counts are not certificates and are not
+      described as such; they are exact computations whose independent re-derivation is
+      owed to a later review task.
+
+  # ==================================================================
+  # 14. OPEN AND UNATTEMPTED
+  # ==================================================================
+  open_and_unattempted:
+    policy: >-
+      Everything below is OPEN AND UNATTEMPTED. None of it was tried, screened, costed or
+      found negative, and no deliverable may describe it otherwise.
+    items:
+    - The primary-source transcription and the owed KN-LIT entry (gate LIT-1).
+    - The adjudication of Hildebrand's uniformity range (gate RANGE-1).
+    - The CAL-LPF-1 compatibility ruling (gate CROSS-1).
+    - >-
+      The blind re-derivation of the completed exact counts by an agent that reads neither
+      this implementation nor its report.
+    - >-
+      Any recomputation of the LPF lane's conditional cost statements under a repaired
+      reference. That is downstream work requiring its own record and is not authorized by
+      this contract under any outcome.
+    - >-
+      Anything at medium or cryptographic scale, including the behaviour of the
+      saddle-point estimator there - IDEA-20260802-004's object, untouched here.
+    - >-
+      The real (Semaev) arm of EXP-LPF-001 in every respect. Forbidden here, not
+      evaluated, and not commented on.
+
+  assigned_to: executor
+  reviewers_required:
+    policy: >-
+      NAMED AT DESIGN TIME BECAUSE THE RESULT CAN CHANGE AN APPARATUS READING. A result of
+      this experiment that fires F2 would block LPF readings, so the producer task is
+      review_required and an independent Validator task must exist before dispatch. The
+      review_plan is written by the Coordinator on the handoff that opens the round,
+      before any reviewer runs, and is not written here.
+    producer_review_required: true
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    resolved_model_id: claude-opus-5
+    reasoning_effort: high
+    reasoning_effort_source: >-
+      DECLARED, NOT VERIFIED. .claude/agents/coordinator.md carries effort `high`, derived
+      from orchestration/roles.yaml and orchestration/model-policies.yaml. This session
+      has no shell and could not run `tools/check_runtime_bindings.py` or
+      `python3 -m orchestration.adapter resolve`, so the value is reported configuration.
+    effort_cap_disclosed: >-
+      NO PER-TASK CAP WAS REQUESTED BY THE DISPATCHING SESSION AND NONE WAS APPLIED BY
+      THIS AGENT. Disclosed explicitly rather than left silent (DEC-20260903-16bfc2). A
+      cap applied below the agent layer is not observable from here, and that inability is
+      itself the disclosure.
+    fallback_used: true
+    fallback_reason: >-
+      This Claude Code harness cannot resolve the policy aliases in
+      orchestration/model-policies.yaml to a distinct backend; subagent frontmatter
+      selects only Claude models. Recorded, never silently substituted (AGENTS.md rule 11).
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      No `python3 -m orchestration.adapter doctor --probe` receipt exists for this
+      session. The identifier is unverified runtime-reported configuration.
+    executor_inference_note: >-
+      The EXECUTION policy for this contract is executor-implementation and is recorded on
+      the handoff, not here. This block describes the session that DESIGNED the contract.
+  authored_by: coordinator
+  authored_at: null
+  drafting_capability_note: >-
+    EVERY SHA, DIGEST AND TIMESTAMP IN THIS FILE IS NULL AND NAMED. This session has no
+    shell, no clock and no git access, so it computed none of them and invented none of
+    them. Filling them is charged to the dispatcher and to the archival task
+    (DEC-20260903-9c3e26 ruling_1 - capability-conditional). A null here is a declared
+    absence, never an overlooked field.

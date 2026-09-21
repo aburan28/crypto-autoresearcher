@@ -1,0 +1,556 @@
+validation_report:
+  id: TASK-20260806-cdc631
+  task_id: TASK-20260806-cdc631
+  role: validator
+  goal: GOAL-HQC-001
+  batch: BATCH-f8050e
+  validates_task: TASK-20260806-e1700f
+  validates_snapshot: TASK-20260806-c2b509
+  experiment_id: EXP-HQC-982268
+  hypothesis_id: H-HQC-18d1b4
+  claim_tier: toy
+  independent_session: true
+  policy_requested: review-adversarial
+
+  snapshot_verification:
+    commit_sha: ef4c50e731ae8dd57df55ac27fd3296ef6c5103a
+    parent_sha: d1311591686658288e2637b8b197e14e883f08ee
+    commit_reachable_from_head: true
+    note: >-
+      HEAD at the time of this review is ef4c50e7, identical to the
+      snapshot commit itself (this is the tip of the branch); `git log`
+      confirms ef4c50e7's parent is d1311591 exactly as declared in
+      snapshot-receipt.json's archive.parent_sha. This is a
+      Coordinator-committed snapshot, not a working-tree-only producer
+      receipt -- the precondition to validate at all is met.
+    path_sha256_recheck:
+      status: ALL_MATCH
+      detail: >-
+        Recomputed sha256 on disk for all 10 committed files (design.md,
+        planted_arm_v3.py, planted_results.json, detection_results.json,
+        detection_rate_report.md, run_manifest.yaml, stdout_main.log,
+        stderr_main.log, stdout_detection.log, stderr_detection.log) and
+        compared against archives/TASK-20260806-c2b509/snapshot-receipt.json's
+        path_sha256 map. All 10 hashes matched exactly, byte for byte.
+
+  run_ids:
+  - TASK-20260806-e1700f (executor run; artifacts under
+    coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/tasks/TASK-20260806-e1700f/)
+
+  artifact_checks:
+  - artifact: design.md
+    present: true
+    predates_run: true
+    evidence: >-
+      run_manifest.yaml records design.md mtime 2026-08-06T17:45:37Z,
+      main-run started_at_utc 17:51:21Z, detection-run started_at_utc
+      18:02:40Z -- consistent monotonic ordering. planted_arm_v3.py
+      additionally re-derives log2_A_k(k) and q from the closed-form
+      construction at the top of BOTH invocations and bit-compares
+      (1e-12 tolerance) against a DESIGN_TABLE_LOG2_A constant transcribed
+      from design.md Section 2.1; both runs report
+      design_md_reproduction_check.verdict = PASS. This is a
+      code-enforced version of "predates," stronger than mtime evidence
+      alone.
+  - artifact: planted_arm_v3.py
+    present: true
+    imports_real_decode_blocks_and_estimator: true
+    evidence: >-
+      Read the full 1022-line script. load_module() sha256-gates both
+      measure.py and stage_a.py before importlib-loading them
+      unmodified; decode_blocks and wht128 are called directly
+      (sa.decode_blocks(...), sa_mod.wht128(...)), never reimplemented.
+      comb_matrix/log2_A_from_hists are called directly from the loaded
+      measure module, and the point/loo/jmean/jse jackknife block matches
+      measure.py lines 730-739 formula-for-formula (independently
+      confirmed by reading measure.py directly, not merely trusting the
+      script's own comment).
+  - artifact: planted_results.json
+    present: true
+    schema_consistent_with_design: true
+  - artifact: detection_results.json
+    present: true
+    schema_consistent_with_design: true
+  - artifact: detection_rate_report.md
+    present: true
+  - artifact: run_manifest.yaml
+    present: true
+    carries_command_revision_dirty_seeds_env_resources: true
+
+  independent_recomputation:
+  - id: planted_law_rederivation
+    description: >-
+      BEFORE reading design.md's own table or planted_results.json,
+      re-derived log2_A_k(k) for k=2..18 from the stated construction
+      (M_t ~ Uniform{17,18,19}, mu_bar_k =
+      (1/3)(C(17,k)+C(18,k)+C(19,k))/C(56,k), q=E[M]/56=9/28,
+      log2_A_k=log2(mu_bar_k)-k*log2(q)) using fresh Python
+      (fractions.Fraction exact arithmetic).
+    result: >-
+      Independently computed table matches design.md Section 2.1's
+      frozen table digit-for-digit at every one of the 17 cells, and
+      matches q=9/28=0.32142857142857145 exactly. No divergence found.
+  - id: ensemble_heterogeneity_check
+    description: >-
+      Loaded planted_arm_v3.py as a module (read-only import) and called
+      its own generate_full_ensemble_batch/rejection_sample_content
+      functions with a FRESH seed never used by either authorized run
+      (np.random.Generator(PCG64(999999999)), distinct from
+      SEED_PREFIX_MAIN/SEED_PREFIX_DETECTION's derived seeds), producing
+      an independent 300-trial (16,800-block) batch outside the
+      committed artifacts entirely.
+    result: >-
+      Self-check F==block_fail held on this fresh batch. S values were
+      confined to {17,18,19} as predicted. A random 5,000-block sample
+      from this independent batch had 5,000/5,000 distinct sha-dedup
+      values (0 duplicates), matching the executor's own claimed
+      zero-duplicate result on their 10,000-block sample. Eyeballed six
+      raw 32-bit-prefix blocks directly: visibly non-repeating,
+      Bernoulli(0.35)-consistent bit patterns (per-block popcounts
+      42-52 out of 128, consistent with mean 44.8), not a small set of
+      templates cycling. CONFIRMS the heterogeneity claim independently,
+      not merely by re-citing the executor's own dedup count.
+  - id: wilson_ci_recomputation
+    description: >-
+      Recomputed the Wilson score 95% CI from the raw (k, n) counts
+      recorded in detection_results.json (all four Component-A
+      variant/condition combinations: paired_neighbor and
+      independent_foreign_bit, unconditional and margin<=4-conditioned;
+      plus Component B's global and last-block rates) using an
+      independently written Wilson formula, not the script's
+      wilson_and_normal_ci function.
+    result: >-
+      Every recomputed phat, wilson95_lo, wilson95_hi matched the
+      committed JSON to the reported precision (e.g. paired_neighbor
+      unconditional: k=209324, n=2000000 -> phat=0.104662,
+      wilson95=[0.104239, 0.105087], exact match; global off-by-one:
+      k=588492, n=5600000 -> phat=0.10508785714285715, exact match).
+      No arithmetic error found in wilson_and_normal_ci.
+  - id: fail_closed_check_independent_test
+    description: >-
+      Independently called planted_arm_v3.py's own load_module() with a
+      deliberately wrong expected-hash constant ("0"*64), outside any
+      authorized run, to confirm the fail-closed gate actually functions
+      (rather than trusting run_manifest.yaml's narrated scratch-space
+      demonstration, which is not itself independently re-verifiable
+      since it was not committed).
+    result: >-
+      Correctly raised SystemExit("FAIL-CLOSED: measure.py sha256
+      mismatch...") and did not proceed to import. Independently
+      confirms the fail-closed mechanism is real, not merely narrated.
+  - id: reused_pipeline_hash_and_formula_audit
+    description: >-
+      Recomputed sha256 of the actual measure.py and stage_a.py files at
+      their cited repository paths and compared against both the pinned
+      constants in planted_arm_v3.py AND the pinned constants in V2's
+      planted_arm_v2.py (diff check per task instructions item 5). Also
+      read measure.py's comb_matrix/log2_A_from_hists source directly to
+      confirm the formula matches what planted_arm_v3.py claims to reuse.
+    result: >-
+      measure.py sha256 = a4fd1ecb63f0ddc83c02ef45f2c65ab31cf13d13e7ae94f500e67465b24f5dc8;
+      stage_a.py sha256 = 06a0a618432c00fe26c72ecf05a8d89489db61c5183931fdb76a378717681405.
+      Both match the constants pinned in planted_arm_v3.py exactly, AND
+      match the constants pinned in V2's planted_arm_v2.py exactly (byte
+      identical pin values) -- no divergence in the reused pipeline
+      between V2 and V3. log2_A_from_hists' docstring formula and actual
+      code (lines 225-246) match the formula planted_arm_v3.py's own
+      MEASUREMENT.estimator string claims to reuse.
+  - id: compositional_confound_in_detection_rate_comparison
+    description: >-
+      The task instructions asked whether the detection-rate experiment's
+      defect injection is "comparable in shape and strength" to the Red
+      Team's V2-batch measurement. Rather than accepting the artifacts'
+      own "candidate explanation" (accepted-content margin distribution
+      is modestly closer to the boundary, mean 9.79 vs Red Team's 10.70)
+      at face value, ran an independent decomposition: generated fresh,
+      independently-seeded rejection-sampled content for position 10
+      FORCED to label=fail and, separately, FORCED to label=succeed
+      (200,000-300,000 trials each, using the script's own
+      rejection_sample_content function with unused seeds), and measured
+      the flip rate and margin distribution conditional on each label
+      separately.
+    result: >-
+      FAIL-labeled accepted content: flip rate 20.9-21.9%, margin mean
+      4.27-4.3 (close to boundary). SUCCEED-labeled accepted content:
+      flip rate 5.6%, margin mean 12.4 (far from boundary). These two
+      conditional rates are very different (roughly 4x apart). Reweighting
+      these SAME two conditional rates by V3's planted label mix
+      (q=9/28=32.14% fail, from the position-marking mechanism) reproduces
+      the arm's measured pooled unconditional rate almost exactly:
+      10.52% (reweighted) vs 10.47% (measured). Reweighting the SAME
+      conditional rates by the NATURAL, UNCONDITIONED Bernoulli(0.35)
+      population's own decode-label mix (independently re-measured here
+      at 21.1-21.3% fail over 1,000,000 fresh draws, matching design.md
+      Section 3.2's own calibration figure of 0.211079) reproduces the
+      Red Team's baseline almost exactly: 8.82% (reweighted) vs 8.8%
+      (Red Team). The SAME decomposition applied to the margin<=4-
+      conditioned figures (20.22% reweighted by V3's mix vs 20.12%
+      measured; 19.67% reweighted by the natural mix vs 19.6% Red Team)
+      shows the identical pattern. THIS IS A MORE PRECISE AND MORE
+      NEARLY COMPLETE EXPLANATION THAN THE ARTIFACTS' OWN "MARGIN-SHIFT,
+      CANDIDATE EXPLANATION" LANGUAGE OFFERS: essentially the entire
+      gap between this arm's ~10.5%/20.1% and the Red Team's ~8.8%/19.6%
+      is explained by a single, identifiable, quantifiable compositional
+      difference -- V3's target-position label mix (q=9/28, chosen to
+      keep S_t's marginal law closed-form and order-matched to PS-R3's
+      m=17, for reasons UNRELATED to the natural Bernoulli(0.35)
+      population's own decode statistics) differs from the Red Team's
+      unconditioned population's natural fail-rate (~21.1%). See
+      "Assessment: comparability of the detection-rate experiment" below
+      for what this means for the disposition judgement.
+
+  control_checks:
+  - control: closed-form planted-law self-check (both modes)
+    status: verified
+    detail: >-
+      Recomputed independently (see planted_law_rederivation above);
+      both authorized runs report mismatched_keys=[] and verdict=PASS.
+  - control: full-trial block-partition self-check (F == block_fail)
+    status: verified
+    detail: >-
+      Fail-closed by construction (raises SystemExit and writes a
+      failed_implementation record on mismatch); both authorized runs
+      report this held on all 200 (main) and 40 (Component B) batches.
+      Independently reproduced on my own fresh 300-trial batch above
+      (self-check held).
+  - control: rejection-sampling max-rounds guard
+    status: verified_present
+    detail: >-
+      Present in code (rejection_sample_content, MAX_REJECTION_ROUNDS=
+      1000), did not fire in either authorized run (max draws observed:
+      75). Not independently exercised to firing (would require an
+      adversarial low-acceptance-probability input, out of scope for
+      this review's budget and not necessary to validate the authorized
+      runs' own reported behavior).
+  - control: fail-closed integrity gate (sha256 pin on measure.py/stage_a.py)
+    status: verified_by_independent_test
+    detail: See fail_closed_check_independent_test above.
+  - control: heterogeneity-vs-fixed-template distinguishing check
+    status: verified
+    detail: >-
+      This is the arm's positive control against V2's own construction
+      (V2: 100% of succeed-blocks bit-identical, 100% of fail-blocks
+      bit-identical). Independently reproduced a zero-duplicate result
+      on a fresh, non-authorized-run sample; see
+      ensemble_heterogeneity_check above.
+  - control: rejection-sampling-bias / margin-distribution comparison
+    status: partially_addressed_by_artifacts_more_fully_addressed_here
+    detail: >-
+      The artifacts report the margin-distribution comparison (Section 4
+      of detection_rate_report.md) but characterize it only as a
+      "candidate, not asserted-causal, explanation." This review's own
+      label-conditional decomposition (see
+      compositional_confound_in_detection_rate_comparison above) goes
+      further and identifies the more precise mechanism (label-mix
+      composition, not merely "margin shift" in the abstract) and shows
+      it is quantitatively sufficient to explain nearly the entire gap.
+      This is not a null-object control in the AGENTS.md Section-3 sense
+      (there is no destroy-parameter sweep here), but it is the
+      requested comparability assessment, carried further than the
+      artifacts themselves carried it.
+
+  heuristic_validation_checks: []
+  heuristic_validation_checks_note: >-
+    This task is not a heuristic-validation experiment in the
+    docs/target-result-profile.md exemplar sense (no Dickman-de-Bruijn-
+    style asymptotic prediction, no Deuring-correspondence-style
+    substitute sampler). N/A.
+
+  cost_model_checks: []
+  cost_model_checks_note: >-
+    No concrete cost table (field-operations / bit-operations / memory
+    cells) is claimed by this arm. N/A. Resource/budget records
+    (core-seconds, wall-clock, peak RSS) were checked under
+    artifact_checks/resource_and_budget_checks instead, per the
+    Validator's ordinary resource-record duty.
+
+  proof_architecture_checks: []
+  proof_architecture_checks_note: >-
+    Not a proof-oriented task under docs/inventor-protocol.md Section 8 /
+    KN-TECH-080. N/A.
+
+  resource_and_budget_checks:
+  - check: core-second and wall-clock budget compliance
+    status: within_budget
+    detail: >-
+      Main run: 671.596 core-s / 1000.0 allocated (67.2%), 671.541 wall-s
+      / 1800.0 allocated (37.3%). Detection run: 274.711 core-s / 800.0
+      allocated (34.3%), 274.355 wall-s / 1500.0 allocated (18.3%).
+      Combined: 946.307 core-s / 1800.0 task-authorized total (52.6%),
+      945.896 wall-s / 3600.0 task-authorized total (26.3%). All within
+      both the task's own internal split and the dispatch queue's
+      authorized totals. No truncation, no budget-driven abort in either
+      run (both booleans explicitly false in the JSON).
+  - check: memory budget compliance
+    status: within_budget
+    detail: >-
+      peak_rss_mb_self reported as 385.7 MB (main run), 500.6 MB
+      (detection run), both well under the 2 GB (memory_gb: 2)
+      authorized by the dispatch queue and run_manifest.yaml's own
+      budget_authorized block.
+  - check: execution count consistency (V1's carried-forward 2-vs-3
+      discrepancy, explicitly required not to repeat)
+    status: consistent
+    detail: >-
+      run_manifest.yaml execution_count.authorized_runs_executed: 2 (one
+      --mode main invocation, one --mode detection invocation), matching
+      "executed exactly once" stated twice in detection_rate_report.md
+      (lines 11, 220). Three additional scratch-space smoke/calibration
+      invocations are separately, explicitly disclosed and distinguished
+      from the two authorized runs, consistent with V1/V2's own
+      uncharged-calibration convention. No discrepancy found -- this
+      arm does not repeat V1's issue.
+  - check: seed distinctness and reproducibility
+    status: verified
+    detail: >-
+      Seed derivation is SHA-256-based and deterministic
+      (derive_seed(prefix, purpose, n)); prefixes
+      (TASK-20260806-e1700f/PLANTED-ARM-V3/{main,detection}/v1) are
+      distinct from V1's, V2's, and measure.py's own prefixes, and the
+      main/detection prefixes are distinct from each other. Confirmed by
+      reading the code directly, not merely the manifest's claim. First-5
+      batch seeds recorded in run_manifest.yaml were not independently
+      recomputed bit-for-bit against derive_seed() in this review (would
+      require re-running the exact SHA-256 derivation on the exact
+      strings, a low-value formality given the formula itself was read
+      and independently exercised in
+      ensemble_heterogeneity_check/fail_closed_check_independent_test
+      above using the SAME derive_seed logic).
+
+  assessment_comparability_of_detection_rate_experiment: >-
+    See compositional_confound_in_detection_rate_comparison above for the
+    quantitative finding. Qualitative summary: the injected defect itself
+    (shift_read_one_early: drop own last bit, gain a foreign bit at the
+    front) is DEFINITIONALLY IDENTICAL to V2's and the Red Team's V2-batch
+    operator -- no divergence found there. The `independent_foreign_bit`
+    variant is explicitly constructed to replicate the Red Team's stated
+    "random foreign bit" methodology, and the two foreign-bit variants
+    (paired_neighbor vs independent_foreign_bit) agree with each other to
+    within 0.002-0.008 percentage points, so the foreign-bit-source choice
+    is NOT the source of the residual gap. The actual source, identified
+    independently in this review, is that the TARGET-BLOCK population
+    being tested is drawn from a different generative process than the
+    Red Team's: V3's target-position content is REJECTION-SAMPLED to match
+    an intended label whose marginal probability is fixed by the planted
+    marking mechanism's q=9/28 (~32.1% fail), a quantity chosen to keep
+    S_t's support at {17,18,19} for closed-form-estimator reasons and to
+    order-match PS-R3's m=17 -- NOT chosen to match the natural
+    Bernoulli(0.35) population's own decode-label frequency (~21.1% fail,
+    independently confirmed here). Because fail-labeled and succeed-
+    labeled content have markedly different flip probabilities (~21% vs
+    ~5.6%, independently measured here) and markedly different margin
+    distributions (mean ~4.3 vs ~12.4), ANY population-level "detection
+    rate" is a weighted average that is highly sensitive to this label-
+    mix choice, and V3's mix (32.1% fail) differs by a factor of ~1.5
+    from the Red Team's natural mix (21.1% fail) purely because the two
+    populations were never designed to share that particular statistic.
+    The reweighting demonstration above shows this single compositional
+    fact accounts for essentially the entire observed gap (both
+    unconditional and margin-conditioned), leaving little room for a
+    residual attributable to genuinely different "naturalness" of content
+    given a label. This is NOT a computational error and does not
+    indicate any artifact is invalid -- the reported 10.47%/20.12% figures
+    are correctly computed for the population V3 actually draws from. It
+    DOES mean the framing "closely tracks the Red Team's baseline
+    (roughly 1.03-1.19x), confirming it" (run_manifest.yaml validity
+    summary; snapshot commit message) overstates the epistemic weight of
+    the numeric closeness: the closeness is substantially explained by
+    the two label-mix choices (32.1% vs 21.1%) happening to be of similar
+    order rather than by independent convergent measurement of one
+    portable "natural detection rate." A cleaner, more informative, and
+    already-latent result in this arm's own raw data -- not reported as
+    such in detection_rate_report.md -- is the LABEL-CONDITIONAL flip
+    rate (~21% given fail, ~5.6% given succeed), which does not depend on
+    an arbitrary mixture choice and is the more defensible quantity to
+    carry forward.
+
+  fabrication_check: >-
+    No fabricated commands, outputs, timings, statistics, or citations
+    found anywhere in the reviewed package. Every numeric claim checked
+    against either the raw JSON, an independent recomputation, or an
+    independent fresh re-run traced back to hash-verified reused code.
+    stdout logs are consistent with the batch-by-batch progress the code
+    would produce and match the reported core-second/wall-clock totals.
+
+  admit_verdict: ADMIT
+  admit_verdict_rationale: >-
+    All required artifacts are present, hash-verified against the
+    Coordinator's snapshot receipt, and internally consistent. The
+    closed-form planted law was independently re-derived before
+    consulting the reported values and matches exactly. The rejection-
+    sampled content ensemble is independently confirmed genuinely
+    heterogeneous (fresh, non-authorized-run sample: 5,000/5,000 distinct
+    blocks, natural Bernoulli(0.35)-consistent bit statistics) -- a real,
+    verified upgrade over V2's two fixed templates. The reported Wilson
+    CIs recompute exactly from the raw (k,n) counts using an
+    independently-written formula. The reused estimator/decoder pipeline
+    (measure.py, stage_a.py) is byte-identical in both content and pinned
+    hash to what V2 used -- no divergence. The fail-closed integrity gate
+    was independently tested and functions as claimed. Budget, memory,
+    seed, and execution-count records are honest, internally consistent,
+    and do not repeat V1's carried-forward run-count discrepancy. Design.md
+    demonstrably predates both runs (manifest timestamps plus a
+    code-enforced runtime reproduction check). No fabrication found.
+    The one substantive finding this review adds -- that the numeric
+    closeness between this arm's detection rate and the Red Team's
+    baseline is largely a compositional artifact of differing label
+    mixes, not independent convergent confirmation -- is a comparability
+    and interpretation issue, not a defect in what was measured or how it
+    was computed; it belongs in the record as a limitation and as a
+    correction to the run package's own framing, not as grounds to reject
+    the receipt. The artifacts remain admissible evidence.
+
+  open6_disposition: PARTIALLY CLOSES OPEN-6, MORE THAN V2 -- BUT LESS THAN THE RUN PACKAGE'S OWN FRAMING SUGGESTS
+  open6_disposition_rationale: >-
+    Relative to V2 (whose 100%-vs-8.8% Red Team comparison could only ever
+    express an uninformative {0%, 100%} population-level result), this arm
+    is genuine, verifiable progress: it produces a REAL, calibrated,
+    reproducible detection RATE (not a binary), built from genuinely
+    heterogeneous content, using the real decode_blocks and the real
+    estimator/jackknife pipeline, independently reproducible from a fresh
+    seed to within noise (this review's own independent re-run: paired
+    10.52%, indep 10.51%, vs the authorized run's 10.4662%/10.4639% --
+    consistent). That is a strictly stronger instrument than V2's along
+    exactly the axis both prior reviewers named as the required next
+    control, and this review independently confirms it is not, in fact,
+    a disguised small fixed set.
+
+    However, three things keep this from being read as confirming a
+    single ~10% "natural" detection rate for the boundary-shift defect
+    class, and the Coordinator/downstream ledger record should reflect
+    all three, not just the first (which the run package itself already
+    discloses):
+
+    (a) MOST IMPORTANT, AND NOT FULLY DISCLOSED BY THE ARTIFACTS AS SUCH:
+    the ~1.03-1.19x "close agreement" with the Red Team's ~8.8%/19.6%
+    baseline is, per this review's independent decomposition, almost
+    entirely explained by a compositional coincidence -- V3's target-
+    position label mix (32.1% fail, fixed by the planted marking
+    mechanism for closed-form/order-matching reasons unrelated to
+    naturalness) happens to be of similar order to the Red Team's
+    natural population's own label mix (21.1% fail), and reweighting the
+    SAME label-conditional flip rates (~21% given fail, ~5.6% given
+    succeed) by either mix reproduces either headline number almost
+    exactly. Had the marking mechanism's q been chosen differently (for
+    reasons just as legitimate, e.g. a different m/HQC parameter set),
+    the measured "detection rate" would shift accordingly without any
+    change to the underlying flip mechanics. The "confirms the earlier
+    baseline" language in run_manifest.yaml's validity summary and the
+    Coordinator's snapshot commit message should be read with this
+    correction: the two numbers are not independent convergent
+    measurements of one portable quantity; they are two different
+    weighted averages of the same two-component mixture, and their
+    closeness is largely coincidental to this specific q choice.
+
+    (b) This arm still measures only a BLOCK-LEVEL flip rate under
+    injection, not the full-arm log2_Ahat_k ESTIMATOR's response to a
+    defect actually injected into an otherwise-heterogeneous run and
+    re-measured end-to-end -- the kind of experiment the Red Team ran
+    against V1's and V2's own (fixed-template) constructions in the prior
+    batch. Design.md Section 7.2 item 6 discloses this gap honestly;
+    it is restated here because it directly bears on OPEN-6, which is a
+    question about the ESTIMATOR's sensitivity, not merely about
+    individual-block decodability.
+
+    (c) The real cryptographic (T)-sampler (CTRStream, fixed_weight_
+    support, ring_mul_sparse/dense) is still never run, unchanged from
+    V1 and V2. Nothing in any of the three control-arm generations
+    establishes that stage_a.py's real generation path actually carries
+    a boundary/index-shift-class defect -- only that IF one existed and
+    hit content of a given label, decode_blocks could express it as an
+    error at a rate that depends on which label was hit and at what
+    population mixture.
+
+    Net: OPEN-6's underlying question -- whether PS-R3's real,
+    striking anti-correlation signal (EV-HQC-b71230) could hide an
+    undetected subtle sampler bug -- remains OPEN. This arm narrows the
+    uncertainty further than V2 did (a genuinely calibrated,
+    reproducible, label-conditional detection-rate instrument now
+    exists, where V2 had only an uninformative binary), and the
+    label-conditional rates (~21% fail-labeled, ~5.6% succeed-labeled)
+    this review surfaces are a more defensible, mixture-independent
+    result than the pooled headline figures the run package emphasizes.
+    But the "closely tracks / confirms the Red Team's baseline" framing
+    should not be taken as independent validation of a single natural
+    detection rate, and the remaining gaps (b) and (c) above are exactly
+    as open as they were after V2. PARTIALLY CLOSED, incrementally more
+    than V2, with the increment being narrower and more mixture-sensitive
+    than the run package's own summary conveys.
+
+  limitations:
+  - >-
+    This review's own compositional-confound finding (label-mix effect on
+    the pooled detection rate) was derived from independent re-runs at
+    T=200,000-300,000 per label, smaller than the authorized run's
+    T=2,000,000 -- adequate to establish the effect's existence and
+    approximate magnitude (all four reweighted figures matched their
+    targets to within ~0.5 percentage points), but not to the authorized
+    run's own precision. This is disclosed as a limitation of this
+    review's own supplementary measurement, not of the reviewed artifacts.
+  - >-
+    Only derived summary statistics (histograms, aggregate counts) are
+    archived in planted_results.json/detection_results.json; raw
+    per-trial/per-block outcome arrays are not committed (consistent with
+    V1/V2's own precedent and disclosed there as an inherited gap by the
+    prior Validator). A full independent re-derivation from the exact
+    authorized-run raw data is therefore not possible from the committed
+    artifacts alone; this review instead re-generated independent fresh
+    samples from the same (hash-verified, unmodified) generation code, at
+    fresh seeds, which is the strongest verification available given this
+    constraint.
+  - >-
+    This review did not independently re-run the full authorized-scale
+    main run (T=500,000, ~672 core-seconds) or detection run (~275
+    core-seconds) end-to-end; doing so was judged unnecessary given (i)
+    exact hash matches on the committed artifacts, (ii) exact
+    recomputation of the Wilson CIs from the raw counts already in
+    detection_results.json, and (iii) independent fresh re-runs at
+    smaller scale (using the same hash-verified code and unused seeds)
+    that reproduced the reported regime closely. This is judged
+    sufficient under the wall-clock budget available to this validation
+    task (1800s).
+  - >-
+    Per the dispatch queue's constraints, this review takes no position
+    on A17, HQC's decoding-failure rate, or any standardized HQC
+    parameter set, and changes no research status. The admit_verdict and
+    open6_disposition above are this validator's independent reading, to
+    be weighed alongside (not substituted for) the parallel Red Team
+    report (TASK-20260806-7008de) by the Coordinator's ledger archive
+    task.
+
+  verdict: passed
+  verdict_note: >-
+    "passed" in the schema sense of agents/validator.md: the run is
+    admissible evidence (ADMIT above). This is NOT a statement that the
+    run demonstrates a calibrated, portable, cross-population-verified
+    detection rate for OPEN-6's purposes -- see open6_disposition_rationale
+    for the load-bearing qualification a "passed" validation report
+    does not, by itself, convey.
+
+  artifact_paths:
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/tasks/TASK-20260806-e1700f/design.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/tasks/TASK-20260806-e1700f/planted_arm_v3.py
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/tasks/TASK-20260806-e1700f/planted_results.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/tasks/TASK-20260806-e1700f/detection_results.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/tasks/TASK-20260806-e1700f/detection_rate_report.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/tasks/TASK-20260806-e1700f/run_manifest.yaml
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-f8050e/archives/TASK-20260806-c2b509/snapshot-receipt.json
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/reviews/TASK-20260806-ae74c4/red_team_report.md
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/reviews/TASK-20260806-01a340/validation_report.yaml
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py
+  - coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py
+  - ledger/evidence/EV-HQC-9a30d3.yaml
+  - experiments/EXP-HQC-982268/specification.yaml
+
+  next_action_note: >-
+    This report is written for the Coordinator's ledger archive task
+    (TASK-20260806-61b1ff) to combine with the parallel Red Team report
+    (TASK-20260806-7008de). This validator changes no status and takes no
+    position on HQC's security; admit_verdict concerns receipt integrity
+    only, and the open6_disposition judgement above is this validator's
+    independent reading. The compositional-confound finding
+    (label-mix effect) is offered as a concrete, quantified input for
+    the Red Team's own rejection-sampling-bias charge and for the
+    Coordinator's decision record -- it should be cited by ID (this
+    task's validation_report.yaml) rather than re-derived, since it is
+    now a durable, checkable measurement rather than a supposition.

@@ -1,0 +1,158 @@
+protocol_amendment:
+  id: PA-ECDLP-ac7e8b-v2-5-semantic-registry-closure-fbd218
+  experiment_id: EXP-ECDLP-ac7e8b
+  version_from: '2.4'
+  version_to: '2.5'
+  recorded_at: '2026-09-08'
+  triggering_review: TASK-20260908-0a9470
+  correction_record: CORR-20260908-fbd218
+  disposition: >-
+    Additive prospective custody repair. It closes the v2.4 registry schemas
+    and makes physical-counter and schedule-node uniqueness source-checkable.
+    No implementation, fixture, runtime, receipt, or scientific run exists;
+    implementation and execution remain unauthorized.
+  canonical_json:
+    profile: RFC 8785 JSON Canonicalization Scheme
+    bytes: UTF-8 bytes emitted by the profile, with no surrounding framing.
+    digest: SHA-256 of those bytes, lowercase hexadecimal.
+    reject: [noncanonical_json, duplicate_json_member, non_utf8_entry_bytes]
+  cpu_io_interval_accounting:
+    registry_schema_version: sdeg_counter_locator_registry_v1
+    entry_schema:
+      rule: >-
+        A counter locator entry is a closed JSON object. It has exactly the
+        listed keys for its kind; absent keys, additional keys, duplicate JSON
+        members, a different schema_version, or a value of another JSON type
+        are rejected before the entry may be hashed or registered.
+      cpu_cgroup_v2:
+        exact_keys: [schema_version, kind, platform, cgroup_identity_digest, counter_file, field]
+        exact_values:
+          schema_version: sdeg_counter_locator_registry_v1
+          kind: cpu_cgroup_v2
+          platform: linux
+          counter_file: cpu.stat
+          field: usage_usec
+        cgroup_identity_digest: lowercase SHA-256 hexadecimal string exactly equal to the sealed launch cgroup identity
+      io_cgroup_v2:
+        exact_keys: [schema_version, kind, platform, cgroup_identity_digest, counter_file, device, field]
+        exact_values:
+          schema_version: sdeg_counter_locator_registry_v1
+          kind: io_cgroup_v2
+          platform: linux
+          counter_file: io.stat
+        cgroup_identity_digest: lowercase SHA-256 hexadecimal string exactly equal to the sealed launch cgroup identity
+        device:
+          exact_keys: [major, minor]
+          types: {major: JSON integer, minor: JSON integer}
+          bounds: {major: nonnegative, minor: nonnegative}
+        field_enum: [rbytes, wbytes, rios, wios, dbytes, dios]
+    physical_counter_key:
+      rule: >-
+        Before a locator-entry byte hash is accepted, derive this closed
+        semantic key and its canonical-JSON SHA-256. The key does not contain
+        display names, source IDs, traces, paths, URIs, entry hashes, or
+        serialization/schema metadata.
+      cpu_cgroup_v2: [cpu_cgroup_v2, linux, cgroup_identity_digest, cpu.stat, usage_usec]
+      io_cgroup_v2: [io_cgroup_v2, linux, cgroup_identity_digest, io.stat, device.major, device.minor, field]
+    sealed_registry:
+      required_fields: [registry_schema_version, launch_sha256, entries, registry_sha256]
+      entry_fields: [physical_counter_key_sha256, counter_locator_sha256, canonical_entry]
+      validation: >-
+        Validate each entry against entry_schema; recompute both digests; and
+        reject if two entries have the same physical_counter_key_sha256 or the
+        same counter_locator_sha256. The registry is valid only when its
+        declared registry_sha256 commits its canonically ordered entries sorted
+        by physical_counter_key_sha256. A locator may resolve only through this
+        one-to-one table, and the launch hash and cgroup digest must match the
+        active sealed launch.
+    observation_binding: >-
+      Each raw sample names counter_locator_sha256 and
+      physical_counter_key_sha256. Admission recomputes the entry hashes and
+      requires the unique sealed-registry row to match both values. Displayed
+      counter_namespace, counter_source_id, trace digest, path, and URI are
+      non-authoritative representation metadata and may never enter either key.
+    reject: [wrong_counter_locator_schema_version, counter_locator_extra_field,
+      counter_locator_type_mismatch, duplicate_physical_counter_key,
+      duplicate_counter_locator_hash, registry_not_canonically_ordered,
+      physical_counter_key_mismatch, unregistered_counter_locator]
+  wall_interval_accounting:
+    schedule_target_schema_version: sdeg_schedule_target_registry_v1
+    schedule_node_key:
+      rule: >-
+        A stage target identifies a sealed logical schedule node by the closed
+        canonical JSON object below. Its equality is byte-independent equality
+        of the normalized tuple, and its digest is the SHA-256 of canonical
+        JSON for that object.
+      exact_keys: [schema_version, experiment_id, campaign_id, root_ordinal, stage_id, component, phase]
+      exact_values:
+        schema_version: sdeg_schedule_target_registry_v1
+        experiment_id: EXP-ECDLP-ac7e8b
+        stage_id: relation_collection
+      campaign_id: >-
+        An exact campaign key from the sealed appendix inventory, whose
+        construction is EXP-ECDLP-ac7e8b/cell_id/j with j formatted as two
+        decimal digits.
+      root_ordinal: JSON integer from 0 through 7, inclusive, for the one
+        deterministic job in the campaign's rotated load, COUNTING-then-TIMING order.
+      component: >-
+        A canonical component descriptor from the sealed schedule inventory;
+        it is a closed object with exactly {family, ordinal}. family is one of
+        calibrator, planted_positive, main_decomposition, or baseline; ordinal
+        is a JSON integer in the family-specific inventory declared by the
+        appendix's components_per_job rule.
+      phase: one of warmup, primary, profile, or admission.
+    sealed_schedule_inventory:
+      required_fields: [inventory_schema_version, appendix_sha256, entries, inventory_sha256]
+      inventory_schema_version: sdeg_schedule_target_registry_v1
+      entry_fields: [schedule_node_key_sha256, canonical_schedule_node_key]
+      validation: >-
+        Materialize the complete finite schedule implied by the frozen appendix
+        before any measurement. For every and only permitted campaign, root,
+        component, and phase tuple, derive one schedule_node_key; reject a
+        missing tuple, an extra tuple, a duplicate key hash, a duplicate
+        normalized tuple, a noncanonical entry, or an appendix digest mismatch.
+        The inventory_sha256 commits the canonically ordered rows sorted by
+        schedule_node_key_sha256. This inventory is the sole resolver from a
+        stage registry entry to a sealed logical node.
+    target_registry:
+      stage_entry_exact_keys: [schema_version, experiment_id, campaign_id, target_kind, schedule_node_key_sha256]
+      stage_entry_exact_values:
+        schema_version: sdeg_schedule_target_registry_v1
+        experiment_id: EXP-ECDLP-ac7e8b
+        target_kind: stage
+      campaign_entry_exact_keys: [schema_version, experiment_id, campaign_id, target_kind, campaign_root_identity]
+      campaign_entry_exact_values:
+        schema_version: sdeg_schedule_target_registry_v1
+        experiment_id: EXP-ECDLP-ac7e8b
+        target_kind: campaign
+      validation: >-
+        A stage entry resolves only when its schedule_node_key_sha256 has one
+        and exactly one entry in sealed_schedule_inventory, and no two stage
+        entries resolve to that same key. A campaign entry must name exactly
+        one sealed campaign root. The registry rejects extra fields, wrong
+        types, a wrong schema version, a missing inventory key, a duplicate
+        resolved schedule node, or a duplicate campaign root before assigning
+        target_registry_sha256.
+    observation_binding: >-
+      Every reporting scope, interval, and publication carries the resolved
+      target_registry_sha256 and its resolved schedule_node_key_sha256 for a
+      stage target, or its resolved campaign_root_identity for a campaign
+      target. Admission verifies both registry and inventory bijections.
+      target_id is display-only and cannot substitute for either key.
+    reject: [wrong_schedule_target_schema_version, schedule_target_extra_field,
+      noncanonical_schedule_node_key, schedule_inventory_appendix_mismatch,
+      missing_schedule_node_inventory_entry, duplicate_schedule_node_key,
+      duplicate_stage_registry_resolution, unregistered_target_registry_entry,
+      target_id_alias, duplicate_scope_for_target, duplicate_publication_for_target]
+  future_admission_controls:
+    - counter_schema_version_alias
+    - counter_extra_metadata_field_alias
+    - duplicate_physical_counter_key_with_distinct_entry_hash
+    - schedule_node_textual_alias_with_distinct_entry_hash
+    - duplicate_schedule_registry_resolution_without_sum
+    - cpu_stat_namespace_spelling_alias
+    - io_stat_device_or_field_spelling_alias
+    - counter_source_and_trace_representation_alias
+    - schedule_target_id_spelling_alias_without_sum
+  does_not: [approve_implementation, approve_execution, change_hypothesis_or_goal,
+    create_scientific_evidence]

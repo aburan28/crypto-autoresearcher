@@ -1,0 +1,280 @@
+idea:
+  id: IDEA-20260808-d21021
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-HQC-001
+  goal_id: GOAL-HQC-001
+  title: HQC's error vector has an exactly-invariant marginal and an adversarially-steerable
+    covariance - the ciphertext's additive energy is a free, key-independent failure-boosting
+    dial, and the FO/HHK bound needs worst-case, not average-case, correctness
+  class: mechanism
+  claim: 'Let e'' = x.r2 - r1.y + e in R = F_2[X]/(X^n - 1) with S_x, S_y the secret supports
+    of size omega and S_r1, S_r2, S_e the attacker-derived supports of sizes omega_r, omega_r,
+    omega_e. Write r_S(d) = #{(s,s'') in S x S : s - s'' = d} for the difference-multiplicity
+    spectrum of S and Psi(S) = sum_{d != 0} r_S(d)^2 for its additive energy. THREE CLAIMS.
+    (C-A, EXACT, ZERO COMPUTE) For every fixed ciphertext support triple and uniformly random
+    secret supports, Pr[e''_c = 1] is the SAME number for every coordinate c and is independent
+    of the structure of S_r1, S_r2 - it depends only on the cardinalities - because #{a in
+    S_x : c - a in S_r2} is Hypergeometric(n, omega, omega_r) for every c and every S_r2.
+    This reproves the specification''s own Prop. 6.1.2 (each coordinate exactly Bernoulli(p*))
+    and exhibits it as a CONSERVATION LAW, not as evidence of independence. (C-B, EXACT) Cov(e''_c,
+    e''_{c''}) is a computable function of the difference multiplicities r_{S_r2}(c - c''),
+    r_{S_r1}(c - c''), r_{S_e}(c - c'') alone, hence Var(w(e'')) = n p*(1 - p*) + n * sum_{d
+    != 0} g(r_{S_r1}(d), r_{S_r2}(d), r_{S_e}(d)) for an explicit g that is convex and increasing
+    in each argument. Since sum_d r_S(d) = |S|(|S| - 1) is FIXED by the weight budget, Jensen
+    makes Var(w(e'')) strictly maximised by ciphertexts whose difference spectra are maximally
+    concentrated, i.e. by maximal Psi. (C-C, CONDITIONAL ON HA-1 AND HA-2) Because the specification''s
+    Theorem 6.1 DFR is a far-left-tail functional of the weight distribution, and because
+    the Fujisaki-Okamoto transform derives (r1, r2, e) deterministically from theta = G(m,
+    salt), an adversary who grinds 2^beta messages offline and keeps the ciphertext of largest
+    Psi obtains a conditional decoding-failure rate DFR(beta) = DFR * alpha(beta) with alpha(beta)
+    > 1 strictly increasing; and the IND-CCA2 bound''s third term (q_RO + q_D) * delta requires
+    delta to be a WORST-CASE-over-messages correctness error in the HHK sense, whereas Section
+    6.1 computes an AVERAGE over the ciphertext ensemble. The ratio alpha(q_RO) is exactly
+    the gap between what is computed and what is needed.'
+  mechanism: 'The whole HQC DFR chain rests on modelling e'' as a BSC(p*) - Section 6.1.1
+    says so verbatim ("we modelize the error vector as a binary symmetric channel with parameters
+    p*") - and the specification justifies it by proving the MARGINAL is exactly p* (Prop.
+    6.1.2). The marginal being exact is precisely why the model looks safe, and it is also
+    why the model cannot see the attack: a marginal is a first moment and the failure event
+    is a tail event. The exact computation above shows the first moment is invariant under
+    everything the adversary controls, while the second moment is a linear functional of the
+    adversary-controlled difference spectra. So the adversary cannot move the mean at all
+    and can move the variance freely, which is exactly the direction that helps: with the
+    mean pinned, a heavier variance strictly increases every far-tail probability of a convex
+    increasing functional. The FO transform then supplies the grinding channel for free -
+    the adversary chooses m, computes theta = G(m, salt), derives (r1, r2, e), computes Psi
+    from the derived supports at the cost of one hash and one sampling call, and keeps the
+    best of 2^beta. Detection is free too: in the IND-CCA game the adversary knows the m it
+    encapsulated, so it knows the shared key a successful decapsulation must return, and implicit
+    rejection makes a failure observable as a mismatch. This is the same redistribution-under-conservation
+    shape this program has already found on its ECDLP side (KN-FIND-007: geometry cannot change
+    mean yield, only redistribute it) - used here constructively, because redistribution INTO
+    the tail is what an attacker wants.'
+  why_not_a_renamed_known_approach: Nearest known works, named. (1) Guo-Johansson, "A New
+    Decryption Failure Attack Against HQC" (ASIACRYPT 2020) - named in KN-LIT-b9e1a8 as ABSENT
+    from the 2025 specification's reference list, and not read by this program. If that paper
+    already uses the additive energy of the ciphertext supports as its boosting statistic,
+    this idea degrades to a re-derivation and must be downgraded; obtaining it is step 0 of
+    the minimal test. What is claimed here that a reaction attack does not automatically contain
+    is the EXACT mean-conservation identity, the EXACT covariance-equals-difference-spectrum
+    identity, and the resulting statement that the boosting dial is key-independent and computable
+    from the ciphertext alone. (2) KN-TECH-048 (failure boosting) is the lattice-KEM version
+    and states the program's own rule that "a revised failure rate is not an attack"; this
+    proposal supplies exactly the missing links that rule demands - boosting gain, adversary
+    model, query budget - for a code-based KEM rather than a lattice one. (3) IDEA-20260805-15258a
+    is the KEY-side analogue (additive energy of the SECRET support making DFR a per-key quantity).
+    The adversary cannot choose the key; it can choose the ciphertext, and only the ciphertext
+    side has a cost curve alpha(beta) attached to it. (4) IDEA-20260805-db5afa uses the X
+    = 1 evaluation character to force w(e') = w_e mod 2. That is a one-dimensional exact constraint
+    on the total weight; this is an exact description of the full second-moment structure,
+    and the two are compatible (the parity class constrains the support of the weight law
+    that C-B reshapes).
+  predictions:
+  - observable: Empirical mean of w(e') over random secret supports, as a function of the
+      ciphertext-support additive energy Psi, at HQC-1's true parameters (n = 17669, omega
+      = 66, omega_r = omega_e = 75).
+    metric: Pearson slope of E[w(e')] against Psi, in coordinates per unit Psi.
+    predicted: EXACTLY ZERO up to sampling error. This is the null control and it is a theorem
+      (C-A), not a hypothesis; a nonzero slope means the instrument is broken, not that the
+      mechanism is stronger.
+  - observable: Empirical variance of w(e') over random secret supports, same cells.
+    metric: Slope of Var(w(e')) against Psi, compared against the closed-form g.
+    predicted: Strictly positive and equal to the closed-form prediction within jackknife
+      error; direction HIGHER for higher Psi.
+  - observable: Psi of the ciphertext supports actually produced by the specification's SampleFixedWeightVect
+      from theta = G(m, salt), over 2^beta ground m.
+    metric: Psi at the (1 - 2^-beta) quantile, minus the ensemble mean Psi, in units of the
+      ensemble standard deviation of Psi.
+    predicted: Grows like sqrt(2 beta ln 2) for small beta (Gaussian regime) and then sub-Gaussian;
+      the deviation from sqrt(2 beta ln 2) at beta = 20..40 is the measured input to alpha(beta).
+  - observable: Reduced-parameter DFR at cells where failures are observable, measured separately
+      on the top-Psi decile and the bottom-Psi decile of ciphertexts.
+    metric: log2 ratio of the two measured failure rates.
+    predicted: Strictly positive, and equal within error to the ratio predicted by plugging
+      the two measured weight distributions into Theorem 6.1's own binomial-tail formula.
+      A measured ratio of zero at every reduced cell falsifies C-C.
+  minimal_test: 'Three stages, cheapest first, each able to kill the idea. STAGE 0 (hours,
+    no compute): obtain Guo-Johansson ASIACRYPT 2020 and check whether the boosting statistic
+    is already the ciphertext additive energy; if yes, stop and file a literature note. STAGE
+    1 (minutes of compute, CRYPTO SCALE, and this is the cheap discriminator): at HQC-1''s
+    true (n, omega, omega_r, omega_e) sample K = 10^4 ciphertext support triples, compute
+    Psi for each, and for each compute w(e'') against 10^3 random secret supports by sparse
+    ring multiplication. Regress mean and variance of w(e'') on Psi. Computing w(e'') is a
+    sparse convolution of 66 x 75 terms modulo n - it costs microseconds and needs NO reduced
+    parameters, so the mechanism is tested at the deployed parameter set even though the DFR
+    itself is not. STAGE 2 (a few core-hours): at reduced cells where the inner/outer code
+    is scaled down until DFR is 2^-20-ish, measure DFR separately on top-Psi and bottom-Psi
+    ciphertext deciles and compare against the Theorem 6.1 prediction fed with each decile''s
+    own measured weight law.'
+  controls:
+  - MEAN-INVARIANCE NULL. C-A is an exact theorem; E[w(e')] must not move with Psi. Any measured
+    movement is an artifact of the sampler or the estimator and invalidates the run. This
+    is the null object of the same shape that docs/inventor-protocol.md requires before belief.
+  - PSI-DESTRUCTION SWEEP. Re-run Stage 1 with the ciphertext supports replaced by supports
+    resampled to have the SAME cardinality and a deliberately flattened difference spectrum
+    (greedy Sidon-like construction). The variance effect must decay toward the flat-spectrum
+    value; a quantity that fails to decay when the parameter meant to destroy it increases
+    is the canonical artifact tell.
+  - PARITY CONTROL. Condition every weight statistic on the parity class forced by IDEA-20260805-db5afa
+    (w(e') = w_e mod 2) so that the exactly forced component is not mistaken for the measured
+    effect.
+  - SAMPLER CONTROL. Run once with the specification's biased SampleFixedWeightVect and once
+    with the uniform SampleFixedWeightVect$; the specification itself bounds the discrepancy
+    by (tau_max^{omega_r})^3 with tau_max = 1.00015 / 1.00047 / 1.00101, so any Psi-effect
+    larger than that is not a sampler artifact.
+  confounders:
+  - Psi is correlated with other support statistics (e.g. maximum multiplicity, number of
+    distinct differences). Partial out at least the third-moment statistic sum_d r_S(d)^3
+    before attributing the effect to Psi.
+  - At reduced parameters the truncation length l = n - n1 n2 differs from the deployed one,
+    and H-HQC-d46460 predicts a forced (1 - 2p*)^l dependence channel that is NOT the effect
+    sought. Report l for every cell and check the forced decay curve reproduces.
+  - The RM decoder is maximum-likelihood, so "failure" is not a monotone function of block
+    weight in general (see C1-05); if non-monotonicity is large, the convexity step in C-C
+    is not licensed.
+  - Grinding gain measured on 2^20 samples extrapolated to 2^{128} is an extrapolation across
+    108 orders of magnitude and must be labelled as one.
+  falsification_conditions:
+  - Var(w(e')) shows no dependence on Psi at HQC-1's true parameters with slope consistent
+    with zero at 3 jackknife SE. That kills C-B outright and with it the whole mechanism -
+    and it would be a genuinely informative negative, since it would mean the BSC model is
+    far more robust than its stated justification.
+  - 'The measured Psi quantile gain saturates: Psi(1 - 2^-beta) - E[Psi] stops growing by
+    beta = 30, making alpha(beta) bounded by a small constant, so no query-budget consequence
+    follows.'
+  - The FO derivation of (r1, r2, e) from theta turns out to make Psi effectively uncontrollable
+    (e.g. rejection sampling normalises the spectrum), so grinding buys nothing.
+  - Reading Guo-Johansson shows the same statistic is already published; novelty collapses
+    even if the mechanism holds.
+  interpretation_limits: C-A and C-B are exact statements about a specific probability space
+    and are not claims about HQC's security. C-C is conditional on HA-1 and HA-2 and on the
+    specification's own Theorem 6.1 formula being the right functional. NO OUTCOME OF THIS
+    PROPOSAL IS A BREAK, AND NO OUTCOME MAY BE REPORTED AS ONE. The strongest admissible positive
+    outcome is "the number the specification plugs into the FO correctness slot is an average
+    where the framework asks for a maximum, and the measured ratio between them at reduced
+    parameters is X bits, extrapolating under HA-1/HA-2 to Y bits at HQC-1". Claim tier stays
+    TOY per RQ-HQC-001 for anything requiring a reduced-parameter measurement; the Stage 1
+    covariance measurement is at deployed parameters and is crypto-scale for the MECHANISM
+    only, never for the DFR.
+  assumptions:
+  - The transcription in KN-LIT-b9e1a8 faithfully reports Section 6.1 and 6.2.3.
+  - The IND-CCA2 bound HQC invokes is of the Hofheinz-Hoevelmanns-Kiltz FO family whose delta-correctness
+    is defined with a maximum over messages. THIS IS RECALLED FROM MEMORY AND UNVERIFIED;
+    verifying it against the cited framework is part of Stage 0 and the claim C-C collapses
+    without it.
+  - The adversary can detect decapsulation failure in the IND-CCA game.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: For every fixed weight budget, the conditional decoding-failure probability
+      of the two-stage RM/RS decoder, viewed as a function F(W) = Pr[fail | w(e') = W], is
+      convex and strictly increasing on the operating interval [n p* - 6 sigma, n p* + 12
+      sigma] where sigma^2 = n p*(1 - p*).
+    rigorous_ingredient: For the inner code alone, the failure event contains the exact event
+      {exists nonzero codeword c with |supp(e) cap supp(c)| > w(c)/2}, whose probability under
+      a fixed-weight ensemble is a ratio of binomial coefficients that is provably log-convex
+      in W over the stated range; Prop. 6.1.3's union bound and Prop. 6.1.4's tie-corrected
+      version sandwich it (KN-LIT-b9e1a8).
+    distribution_imitated: Large-deviation convexity of binomial tails - the same Chernoff/Cramer
+      shape that makes rate functions convex, imported to the decoder's failure region.
+    validation_route: 'Direct measurement at HQC''s TRUE inner block length: the duplicated
+      RM code is [384, 8, 192] at HQC-1 and [640, 8, 320] at HQC-3/5 REGARDLESS of security
+      level, and its failure rate is about 2^-11 (Table 11), so F(W) is directly estimable
+      at deployed parameters with 10^5-10^7 trials per W. Fit F(W) on a grid of W and test
+      convexity by second differences with jackknife error bars. This is crypto-scale validation
+      for the inner factor and must be labelled as covering ONLY the inner factor.'
+    tail_checks: Compare the fitted F at the largest W reached against Prop. 6.1.4's value;
+      the specification reports predicted -10.79 vs observed -10.96 at NIST-1, so a fit that
+      disagrees with 6.1.4 by more than about 0.3 bits at the ensemble-typical W indicates
+      an instrument fault, not a discovery.
+  - id: HA-2
+    statement: The additive energy Psi(S) of a support S drawn by SampleFixedWeightVect from
+      a uniform theta behaves, with respect to its upper tail, like the additive energy of
+      a uniformly random |S|-subset of Z_n; specifically Pr[Psi >= E[Psi] + t sd(Psi)] = exp(-t^2/2
+      (1 + o(1))) uniformly for 1 <= t <= (log n)^{1/2 - epsilon}.
+    rigorous_ingredient: E[Psi] and Var(Psi) for a uniform k-subset of Z_n are exactly computable
+      (Psi is a degree-4 U-statistic of the indicator vector), giving the centering and scaling
+      without any assumption.
+    distribution_imitated: The classical CLT/Gaussian-tail behaviour of bounded-degree U-statistics
+      (Hoeffding), the additive-combinatorics analogue of the smoothness heuristics the target
+      profile's exemplar uses.
+    validation_route: Sample 10^7 supports at HQC-1's true (n, omega_r) directly through the
+      specification's own sampler, form the empirical CDF of the standardised Psi, and compare
+      against the Gaussian prediction and against the empirical CDF for uniform subsets. The
+      comparison is at DEPLOYED parameters because sampling a support costs microseconds.
+    tail_checks: Report the largest observed Psi among 10^7 samples and compare with the Gaussian
+      prediction for the 1-in-10^7 quantile, exactly as the exemplar compares its smoothest
+      sample against rho(u). A measured tail heavier than Gaussian strengthens the mechanism;
+      a lighter tail weakens alpha(beta).
+  target_complexity:
+    time_exponent: 'Not a decoding-cost claim. The claim moves the EXPONENT OF THE QUERY BUDGET
+      in the IND-CCA reduction: the number of decapsulation queries to the first failure changes
+      from 2^{lambda} (with lambda = 128/192/256 the claimed -log2 DFR) to 2^{lambda - log2
+      alpha(beta)} at an offline grinding cost of 2^beta hash-plus-sample operations. The
+      security- relevant exponent is min over beta of max(beta, lambda - log2 alpha(beta)).'
+    memory_exponent: O(1) ring elements for the grinding search (keep the running best Psi);
+      no table, no claw structure. This is the rare case where the attack side has negligible
+      memory and the defence's own model does not.
+    best_known_baseline: 'The specification''s own accounting: DFR < 2^-128 / 2^-192 / 2^-256
+      at HQC-1/3/5, entering the IND-CCA2 bound as (q_RO + q_D) * delta, i.e. query budget
+      2^{128}/2^{192}/2^{256}. Guo-Johansson ASIACRYPT 2020 is the published decryption-failure
+      attack line and its cost is NOT known to this program.'
+    hidden_overhead_disclosure: alpha(beta) is defined through a tail quantile of a U-statistic
+      and every statement about it beyond beta = 25 is extrapolation. If alpha(beta) grows
+      only polynomially in 2^beta with a tiny exponent, the whole effect is a handful of bits
+      and the honest report is "no consequence". Nothing here hides a superpolynomial factor;
+      the risk is the opposite, that the effect is real but negligible.
+    time_memory_tradeoff: The grinding phase is embarrassingly parallel with linear speedup
+      and no communication, and needs no memory, so van Oorschot-Wiener style interpolation
+      does not apply. The single tradeoff is offline grinding 2^beta against online queries
+      2^{lambda - log2 alpha(beta)}, and the optimum is at the crossing of the two.
+  sota_delta: 'Against the specification: it supplies a quantity the specification does not
+    compute at all (Section 6.3 covers ISD, DOOM and x^n - 1 factorisation and, per KN-LIT-b9e1a8,
+    does not discuss decryption-failure attacks). Against this program''s own campaign: the
+    campaign has spent eight batches on instrument trust for a joint-moment estimator and
+    has measured nothing about HQC; this proposal''s Stage 1 measures a load-bearing structural
+    quantity AT DEPLOYED PARAMETERS in minutes. Quantitatively the delta is unknown until
+    alpha(beta) is measured, and stating it as a bit count before measurement would be a fabrication.'
+  dominated_by: 'Possibly Guo-Johansson ASIACRYPT 2020 - UNRESOLVED, and honestly so: this
+    program has not read it and it is named in KN-LIT-b9e1a8 only as absent from HQC''s reference
+    list. Every other row of the frontier was checked: ISD (Prange/Stern/Dumer) and DOOM attack
+    the QCSD assumption, not correctness, and cannot dominate a correctness claim; KN-TECH-048''s
+    lattice failure- boosting analysis is a different scheme family; IDEA-20260805-15258a
+    is key-side and does not carry a query-budget consequence; IDEA-20260805-db5afa is a first-moment
+    parity identity. Setting this field to null before reading Guo-Johansson would be an unchecked
+    null.'
+  estimated_cost: Implementation LOW (sparse cyclic convolution, a U-statistic, a regression;
+    under 400 lines). Compute LOW for Stages 0-1 (single-digit core-hours), MEDIUM for Stage
+    2 (reduced-parameter DFR at two deciles, order 10^3 core-seconds using the campaign's
+    existing stage_a.py harness).
+  recommended_priority: high
+  honest_prior_of_survival: 'C-A and C-B: about 0.9 that they hold as stated (they are exact
+    computations I have carried out symbolically here, but they have not been independently
+    checked and the hypergeometric step is the place an error would hide). C-C reaching a
+    security-relevant bit count at deployed parameters: about 0.15 - the most likely honest
+    outcome is a real, measurable, correctly-signed effect worth a few bits, which validates
+    the mechanism and does not threaten HQC. Probability that Guo-Johansson already contains
+    the statistic: about 0.35.'
+  novelty_status: unverified
+  novelty_screen: 'Screened against EXISTING_PROPOSALS.txt (all 4 RQ-HQC-001 rows read in
+    full: IDEA-20260801-011, 20260805-15258a, 20260805-baa4da, 20260805-db5afa), EXISTING_HYPOTHESES.txt
+    (H-HQC-18d1b4, H-HQC-1d9b21, H-HQC-d46460), REJECTED_TITLES.txt and CATALOGUE_TITLES.txt
+    (no code-based entries), KNOWLEDGE_BARRIERS.txt (no KN-FIND touches code-based crypto),
+    and the corpus records KN-LIT-b9e1a8, KN-LIT-1c9474, KN-LIT-4c1133, KN-TECH-048. WEB SEARCH
+    WAS UNAVAILABLE, so external novelty is NOT screened and the status is unverified rather
+    than screened.'
+  discriminated_from: IDEA-20260805-15258a (key-side additive energy; this is ciphertext-side
+    and attacker-selectable, and adds the alpha(beta) cost curve and the average-vs-maximum
+    delta-correctness argument). IDEA-20260805-db5afa (exact first-moment parity identity;
+    this is the exact second-moment structure). IDEA-20260801-011 (measure DFR against the
+    model; this identifies WHICH ciphertexts to measure it on and why). H-HQC-d46460 (the
+    (1-2p*)^l forced channel, treated here as a confounder to be controlled, not as the effect).
+  source_refs:
+  - KN-LIT-b9e1a8 (HQC specification 22/08/2025, sha256 174186cb...; Table 5, Prop. 6.1.2,
+    Thm 6.1, Sec. 6.2.3)
+  - KN-TECH-048 (decryption-failure attacks and failure boosting; the "a revised failure rate
+    is not an attack" rule)
+  - KN-FIND-007 (conservation-of-mean, redistribution-only pattern, ECDLP side)
+  - Guo-Johansson, A New Decryption Failure Attack Against HQC, ASIACRYPT 2020 - NAMED IN
+    KN-LIT-b9e1a8, NOT READ BY THIS PROGRAM

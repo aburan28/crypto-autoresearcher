@@ -1,0 +1,212 @@
+idea:
+  id: IDEA-20260815-c33b5d
+  question_id: RQ-ECDSA-87625f
+  added: '2026-08-15'
+  title: >-
+    NONCE BIAS IS ALWAYS MODELLED AS A FIXED-WIDTH MSB WINDOW; MEASURE THE
+    BIAS SHAPES REAL GENERATORS ACTUALLY PRODUCE AND RE-SCORE THE ATTACKS
+    AGAINST THOSE
+  class: measurement
+
+  claim: >-
+    Published nonce-leakage attacks assume a clean model: some number of
+    known top or bottom bits. Real biased generators produce modular,
+    truncation, or rejection-sampling artifacts whose shape differs. Attack
+    cost depends on the shape, not just the bit count, so the published
+    thresholds may not describe any deployed failure.
+
+  mechanism: >-
+    Enumerate bias shapes from documented generator bugs, characterise each
+    as a distribution over the nonce range, and re-run both attack families
+    against each shape at matched effective entropy loss.
+
+  novelty_status: unverified
+
+  novelty_screen:
+    method: >-
+      Grep 'nonce bias Fourier' (0), 'Bleichenbacher' (17), 'bias shape';
+      read of GOAL-ECDSA-001.
+    results: >-
+      Attacks and their MSB-window models are well represented; no record
+      characterises real generator bias shapes or re-scores attacks
+      against them.
+    verdict: >-
+      UNVERIFIED. The attacks are published and generator bugs are
+      documented; connecting the two by shape rather than bit count
+      appears absent here.
+
+  object_first_candidate:
+    tracked_object: >-
+      THE BIAS SHAPE as a distribution, replacing the bit-count scalar the
+      attack models use.
+    lossiness: >-
+      A bit count projects a distribution to one integer, which is exactly
+      the projection this record argues discards the attack-relevant
+      information.
+    propagation: >-
+      Not applicable; no tracked object propagating under a group law is
+      proposed.
+    survival_score: >-
+      Survives while documented generator bugs supply concrete shapes;
+      invented shapes would make the record circular and are excluded.
+
+  null_object_control: >-
+    NULL 1 -- the clean MSB window, which must reproduce published attack
+    costs and calibrates the harness. NULL 2 -- an unbiased generator, where
+    no attack may succeed at any sample size.
+
+  discriminated_from:
+    - >-
+        Published nonce-leakage attacks, which are re-scored here rather
+        than improved.
+    - >-
+        The lattice-versus-Fourier frontier record in this series, which
+        compares families under one cost model; this one varies the bias
+        shape they both consume.
+
+  assumptions:
+    - >-
+        Documented generator bugs supply enough distinct shapes to be
+        worth distinguishing; if all reduce to an MSB window the record's
+        premise fails and that is reportable.
+    - >-
+        Effective entropy loss is the right matching variable across
+        shapes; if not, comparisons across shapes are not like-for-like.
+
+  predictions:
+    - metric: >-
+        clean-MSB calibration
+      direction: different
+      minimum_effect: >-
+        FORCED to reproduce published costs.
+    - metric: >-
+        unbiased-generator null
+      direction: different
+      minimum_effect: >-
+        FORCED: no success at any tested sample size.
+    - metric: >-
+        attack cost across bias shapes at matched entropy loss
+      direction: different
+      minimum_effect: >-
+        The measurement; a large spread means published thresholds do
+        not describe real failures.
+
+  minimal_test:
+    design: >-
+      Three documented shapes plus both nulls, one attack family first.
+    controls:
+      - >-
+          Clean-MSB calibration against published costs.
+      - >-
+          Unbiased-generator null.
+      - >-
+          Shapes taken from documented bugs only, never invented.
+    required_metrics:
+      - >-
+          Attack cost per shape at matched entropy loss.
+      - >-
+          Calibration agreement with published costs.
+      - >-
+          Spread across shapes, reported as the headline.
+
+  falsification_conditions:
+    - >-
+        Calibration fails. Harness differs from published work; halt.
+    - >-
+        The unbiased null yields a success. Harness broken.
+    - >-
+        Cost is flat across shapes. Bit count suffices and the record's
+        premise is wrong, which is a clean negative.
+    - >-
+        Cost varies widely across shapes. Published thresholds are shape-
+        dependent and deployment guidance drawn from them is unreliable.
+
+  confounders:
+    - >-
+        SHAPE SELECTION: choosing shapes that favour one attack family
+        would manufacture the spread; shapes come from documented bugs
+        only.
+    - >-
+        ENTROPY-LOSS MATCHING may not equalise difficulty across shapes,
+        in which case the comparison is not like-for-like and must say so.
+
+  interpretation_limits:
+    - >-
+        Re-scores published attacks against realistic inputs; proposes no
+        new attack.
+    - >-
+        Scoped to the documented shapes and the implemented attack family.
+    - >-
+        Leakage model only; no bearing on plain ECDLP.
+
+  heuristic_assumptions:
+    - id: HEUR-ECDSA-SHAPE-1
+      statement: >-
+        Effective entropy loss is a sufficient statistic for nonce-
+        leakage attack cost, so shapes with equal loss cost equally.
+      rigorous_support: >-
+        Rigorous ingredient: entropy loss bounds the information
+        available to any attack, giving a floor. THE GAP: the floor is
+        not achievability, and lattice attacks specifically exploit the
+        geometry of the leaked set, which entropy does not capture --
+        which is the record's whole hypothesis.
+      falsification_condition: >-
+        A material cost spread across shapes at matched entropy loss.
+      validation_plan: >-
+        SAMPLE: >= 3 shapes x >= 3 entropy-loss levels. TAIL CHECK: the
+        shape with the largest deviation, reported with its geometry.
+        TRANSFER: none beyond the documented shapes.
+
+  target_complexity:
+    time_exponent: >-
+      NO ATTACK EXPONENT IS CLAIMED; this record proposes no algorithm for
+      any hard problem. Cost is repeated attack runs across shapes and
+      levels.
+    memory_exponent: >-
+      Attack working set, dominated by lattice reduction.
+    best_known: >-
+      The incumbents are the published lattice and Fourier nonce attacks,
+      re-scored here and not improved.
+    hidden_overhead: >-
+      Lattice-reduction cost variance across instances can swamp the shape
+      effect unless enough instances are run per cell.
+    tradeoff_note: >-
+      More shapes buys realism and costs attack runs; the record starts
+      with three documented ones.
+
+  dominated_by: >-
+    CHECKED ACROSS EVERY AXIS. As an attack: n/a (no result claimed); no
+    ECDLP frontier row applies. As attacks: dominated by the published work.
+    As a shape-sensitivity measurement: none exists here. Not null on any
+    axis.
+  sota_delta: >-
+    No attack novelty, no exponent. Content delivered: attack cost measured
+    across documented real bias shapes at matched entropy loss, calibrated
+    against the clean-MSB model, testing whether published bit-count
+    thresholds describe any deployed failure.
+
+  estimated_cost:
+    implementation: medium
+    compute: medium
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    0.8 that three documented shapes are characterisable. 0.85 that
+    calibration succeeds. 0.45 that cost varies materially across shapes,
+    which would undercut bit-count-based guidance.
+
+  status: proposed
+  proposed_by: claude-code-session
+  proposed_at: '2026-08-15'
+  source_refs:
+    - RQ-ECDSA-87625f
+    - GOAL-ECDSA-001
+    - KN-OPEN-011
+    - KN-OPEN-018
+    - KN-TECH-056
+    - KN-TECH-080
+    - docs/inventor-protocol.md
+  id_allocation_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next idea --date 20260815`
+    and verified free with `--check` before use; no state was scanned for a
+    "next free number".

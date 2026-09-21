@@ -1,0 +1,223 @@
+validation_report:
+  task_id: TASK-20260724-P13-VAL
+  role: validator
+  role_label: Validator_P13VAL
+  goal_id: GOAL-P13-001
+  subject:
+    experiment_id: EXP-P13VOW-001
+    run_id: RUN-P13VOW-001
+    producer_task_id: TASK-20260724-P13-COST
+    snapshot_task_id: TASK-20260724-P13-COST-SNAPSHOT
+    snapshot_commit: f397c011e46f67c793197a24e7d1c07fe9ffab59
+  timestamp_utc: "2026-07-25T00:51:11Z"
+  nature: >
+    Independent validation of run-receipt integrity and admissibility only.
+    This report confirms receipts, not interpretations; it makes no claim
+    about the mathematical content of P13.
+
+  inference:
+    requested_policy: review-xhigh
+    resolved_model: "kimi-work subagent (exact model identifier not exposed by runtime)"
+    fallback_used: true
+    fallback_reason: "GPT-5.6 policy aliases not resolvable in the Kimi Work harness; recorded explicitly per AGENTS.md rule 11."
+    independent_session_required: true
+    independent_session_actual: true
+
+  checks:
+
+    check_1_artifact_presence:
+      verdict: PASS
+      evidence: >
+        All 7 declared artifacts exist under experiments/EXP-P13VOW-001/.
+        Non-empty: specification.yaml (6091 B), cost_model.py (15410 B),
+        manifest.yaml (3044 B), raw-result.json (41470 B),
+        execution_report.yaml (7009 B), stdout.txt (7403 B).
+        stderr.txt is 0 bytes; manifest.yaml records command.exit_code: 0,
+        so the empty stderr is legitimate (its hash is the canonical empty
+        SHA-256 e3b0c44...). "._"-prefixed files on this volume are AppleDouble
+        filesystem metadata, not producer artifacts.
+
+    check_2_hash_integrity:
+      verdict: PASS
+      evidence: >
+        Recomputed SHA-256 of all 7 artifacts with shasum -a 256; every hash
+        matches snapshot_commit_receipt.json path_sha256 exactly:
+        specification.yaml ef3cc768..., cost_model.py a82b9d5b...,
+        manifest.yaml 099abee0..., raw-result.json 980f399d...,
+        execution_report.yaml f520b023..., stdout.txt 0fb7117d...,
+        stderr.txt e3b0c442.... Spot-checked committed blobs
+        (git show f397c01:<path> | shasum) for raw-result.json and
+        cost_model.py: identical to receipt hashes. Snapshot commit f397c01
+        is reachable from HEAD, has parent ca10b1f8 (matches receipt
+        parent_sha), and changes exactly the 8 declared paths (7 artifacts +
+        the receipt itself).
+      observation: >
+        commit_sha inside the committed receipt is null. The receipt declares
+        receipt_self_hash_excluded: true and notes the dispatcher binds the
+        SHA after commit; the binding was never written back into the receipt.
+        The binding is nonetheless externally verifiable (commit f397c01
+        subject names TASK-20260724-P13-COST-SNAPSHOT, EXP-P13VOW-001,
+        RUN-P13VOW-001). Recommend the Coordinator record the resolved
+        commit_sha in a post-commit note or the dispatch ledger.
+
+    check_3_reproduction:
+      verdict: PASS
+      method: >
+        The literal manifest command could not be used verbatim because
+        cost_model.py writes raw-result.json adjacent to its own __file__;
+        running it from the repo root would have overwritten the producer's
+        artifact and invalidated check 2. Instead the byte-identical script
+        (SHA-256 a82b9d5b... verified after copy) was copied to
+        coordination/tasks/TASK-20260724-P13-VAL/repro/ preserving the
+        relative path experiments/EXP-P13VOW-001/cost_model.py, and run with
+        the same relative command shape. Environment matches the manifest:
+        Python 3.12.13 (managed runtime, Clang 22.1.3), numpy 2.4.4.
+      evidence: >
+        Validator run: exit code 0, stderr empty (0 B), wall clock 4.299 s
+        (real), raw-result.json 41470 B (same size as producer's).
+        Field-by-field diff of validator vs producer raw-result.json:
+        exactly ONE differing field, wall_clock_seconds_script
+        (4.222620010375977 vs 4.180619716644287), which is runtime-dependent
+        and expected to differ. Every model output (all optimal-B rows, vOW
+        grids, crossovers, memory bytes, validation block) is numerically
+        identical. Result: NOT byte-identical (timing field only), numerically
+        identical everywhere else.
+      artifacts:
+        - coordination/tasks/TASK-20260724-P13-VAL/repro/stdout_val.txt
+        - coordination/tasks/TASK-20260724-P13-VAL/repro/stderr_val.txt
+        - coordination/tasks/TASK-20260724-P13-VAL/repro/experiments/EXP-P13VOW-001/runs/RUN-P13VOW-001/raw-result.json
+
+    check_4_manifest_completeness:
+      verdict: PASS
+      evidence: >
+        manifest.yaml contains: exact command with exit_code 0
+        (command.exact); git commit_at_run_time cf82d44f636d... (verified to
+        exist via git cat-file) and dirty_tree: true with a dirty_summary
+        attributing the 25 porcelain entries to pre-existing files outside
+        the write_scope plus the experiment's own untracked files;
+        environment python 3.12.13 / numpy 2.4.4 with scipy and mpmath
+        explicitly "not installed (not used)"; seeds.seed 0 with a
+        full-determinism note (no randomness used); inference block with
+        requested_policy executor-terra, resolved_model, fallback_used: true
+        and explicit fallback_reason; timestamps (run_completed_utc
+        2026-07-25T00:33:34Z, script_wall_clock_seconds 4.223); artifact list;
+        validity.status valid with a reason that discloses the partial C1
+        control failure. All artifact-policy fields per AGENTS.md are present.
+      observations:
+        - "Only a completion timestamp is recorded; no run-start timestamp (wall clock duration is present)."
+        - "resolved_model is not an exact identifier ('not exposed by runtime'); fallback is recorded explicitly, which AGENTS.md rule 11 requires as the minimum."
+
+    check_5_metric_consistency:
+      verdict: PASS
+      evidence: >
+        67 independent spot-checks, all PASS
+        (coordination/tasks/TASK-20260724-P13-VAL/repro/independent_check.py,
+        written independently of the producer's code). Coverage:
+        (a) all five T_DG = p^{1/2} exponents (128/192/256/288/384) match
+        exactly; (b) log2X, w, u, log2P0, and log2T = log2M - log2P0
+        re-derived from the specification formulas for p=256 and p=768 to
+        <1e-9; (c) log2M for all five fields recomputed with an INDEPENDENT
+        Dickman-rho evaluation (Laplace inversion with different quadrature
+        parameters: h=0.02, T=30, 128 Gauss-Legendre nodes vs producer's
+        h=0.05, T=25, 96 nodes) agreeing to <= 0.0003 bit;
+        (d) rho(2) = 1 - ln(2) anchor re-verified independently;
+        (e) vOW T(w) = T_full/sqrt(min(w,M)) capping, overhead bits
+        c*sqrt(log2 p), and speedups recomputed for 4 (p,w,c) cells exactly;
+        (f) crossover w* = 2*(T_full + overhead - T_DG) recomputed for 4
+        cells exactly (e.g. p=256,c=2: +25.46; p=768,c=2: -55.28);
+        (g) byte conversions log2M+6 / log2M+8 and the w=2^60 budget
+        (66/68 bits) exact; (h) all five paper-pair deviations quoted in the
+        execution report re-derived exactly (devT +2.23/+0.37/+1.90/-0.92/
+        -1.46; devM +0.78/-1.11/+0.14/-2.69/-3.51 bits); (i) monotonicity of
+        T(w) verified over the full 5x6x4 grid; (j) reported B* values lie on
+        the declared 0.1-bit grid; (k) asymptotic-B comparison figure
+        re-derived (log2B_asym p=256 = 6.3935).
+      observation: >
+        The execution report's C1 summary sentence ("384/512 time and
+        256/512 memory within tolerance") is inaccurate prose: correctly, only
+        p=384 time (+0.37) and p=512 memory (+0.14) are within the +/-0.75
+        bit tolerance; p=512 time is +1.90 and p=256 memory is +0.78, both
+        outside. The underlying deviation table and raw-result.json flags
+        (within_tolerance_0.75bit = false for all five, requiring both
+        dimensions) are numerically correct, so this is a mis-summarization
+        in prose, not a data integrity issue. Recommend a scoped correction
+        record rather than editing the committed artifact (rule 4).
+
+    check_6_control_integrity:
+      verdict: PASS
+      evidence: >
+        The rho-function validation evidence specified in
+        specification.yaml (dickman_rho.validation) exists in the artifacts:
+        raw-result.json model.dickman.validation records rho2_laplace
+        0.30631868 vs exact 1-ln2 (rel err 1.74e-3 < 3e-3 bound) and
+        cross-method agreement vs du=1e-5 DDE marching with max
+        0.00251 bits over u=2..8 (< 0.02 bit bound); both independently
+        reproduced in check 5. The partial control failure (C1 paper-pair
+        deviations beyond tolerance) is disclosed in ALL of:
+        specification.yaml (C1 tolerance + on_violation clause),
+        execution_report.yaml (deviations_from_paper_pairs table, verdict
+        "C1 partially violated", controls.C1 "PARTIAL FAIL"),
+        manifest.yaml (validity.reason), and
+        snapshot_commit_receipt.json (notes). C2 and C3 verified as passing
+        in check 5.
+      observation: >
+        C4 is recorded as "PASS (by construction)": the tested budgets
+        2^30..2^80 all lie below M >= 2^93.3, so the cap branch
+        (T(w) = T_full for w >= M) is never exercised by the run. The report
+        discloses this honestly; the cap formula itself is verified
+        analytically and in code (min(w, M)). A future run with w > M would
+        make C4 an exercised control.
+
+    check_7_scope_compliance:
+      verdict: PASS
+      evidence: >
+        Snapshot commit f397c01 changes exactly the declared paths, all
+        inside experiments/EXP-P13VOW-001/ plus the Coordinator's own
+        receipt; no executor writes outside the experiment directory.
+        Current git status shows no modifications to the experiment files.
+        No claim-promotion language: specification.yaml states "records
+        OBSERVATIONS ONLY; it does not promote, weaken, or reject any
+        hypothesis"; execution_report.yaml nature: "observations only - no
+        claim promotion, weakening, or rejection"; grep for promotion/
+        conclusion vocabulary across the experiment directory returns no
+        matches. Sensitivity/variant analyses are described as observations
+        conditional on the paper's conventions.
+      observation: >
+        The manifest discloses that one earlier DEVELOPMENT run of an
+        intermediate script version (ill-conditioned Dickman solver, garbage
+        optimum) had its receipts overwritten by the final run. Strictly,
+        overwriting a receipt conflicts with rule 4 (results are immutable
+        records); mitigating factors: it was a pre-official development run
+        of an intermediate script, the failure mode and overwrite are
+        disclosed in three places (specification.yaml dickman_rho section,
+        manifest command.note, execution_report unexpected_observations),
+        and the final run package is complete and self-consistent. Flagged
+        for the Coordinator: future executors should preserve failed
+        development runs as failed_infrastructure records rather than
+        overwriting them.
+
+  headline_objections:
+    - "execution_report C1 summary sentence mischaracterizes which paper-pair dimensions are within tolerance (data itself is correct)"
+    - "snapshot receipt commit_sha was never bound post-commit (externally verifiable, but the record is incomplete)"
+    - "an earlier development run's receipts were overwritten rather than preserved as failed_infrastructure (disclosed honestly)"
+    - "C4 cap control passed by construction only; cap branch unexercised by the tested budget grid"
+
+  terminal_verdict: VALID-WITH-OBSERVATIONS
+  verdict_rationale: >
+    All seven integrity checks pass: artifacts present, hashes match the
+    snapshot receipt and the snapshot commit, the run reproduces
+    deterministically (numerically identical except the timing field), the
+    manifest satisfies the artifact policy, 67 independent recomputations
+    confirm every spot-checked metric, controls are evidenced and the partial
+    C1 failure is disclosed in spec, report, manifest, and receipt, and the
+    executor stayed in scope with observations-only language. The four
+    objections above are record-keeping/prose issues, none of which
+    undermines the admissibility of RUN-P13VOW-001 as evidence.
+
+  validator_artifacts:
+    - coordination/tasks/TASK-20260724-P13-VAL/validation_report.yaml
+    - coordination/tasks/TASK-20260724-P13-VAL/repro/independent_check.py
+    - coordination/tasks/TASK-20260724-P13-VAL/repro/stdout_val.txt
+    - coordination/tasks/TASK-20260724-P13-VAL/repro/stderr_val.txt
+    - coordination/tasks/TASK-20260724-P13-VAL/repro/experiments/EXP-P13VOW-001/cost_model.py (byte-identical copy)
+    - coordination/tasks/TASK-20260724-P13-VAL/repro/experiments/EXP-P13VOW-001/runs/RUN-P13VOW-001/raw-result.json (validator rerun)

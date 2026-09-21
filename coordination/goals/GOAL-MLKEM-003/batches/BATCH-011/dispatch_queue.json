@@ -1,0 +1,621 @@
+{
+  "schema": "crypto.autoresearch.dispatch_queue.v1",
+  "goal_id": "GOAL-MLKEM-003",
+  "objective": "EV-MLKEM-015 found primal_bdd under RC.MATZOV below the NIST classical cutoffs on all three FIPS 203 parameter sets, by 2.80 / 6.04 / 1.28 bits, under a cost model that charges nothing for memory. Determine whether that undercut survives memory charging and report the margin in whichever direction it falls, computing the critical memory-charge exponent c* per parameter set. Uses the Sage-free harness whose known-answer control reproduces the archived Sage-computed reference exactly. No new sampling, no G6K, no ML-KEM break claim, and no security proof either. Rule 12 remains unmet and unwaived.",
+  "max_concurrent": 2,
+  "tasks": [
+    {
+      "id": "TASK-20260803-fb52f4",
+      "title": "Account for the published-vs-estimator dual-attack cost gap at FIPS 203 parameters",
+      "role": "executor",
+      "state": "completed",
+      "priority": 95,
+      "review_required": true,
+      "depends_on": [],
+      "read_scope": [
+        "ledger/goals/GOAL-MLKEM-003.yaml",
+        "ledger/evidence",
+        "ledger/decisions",
+        "knowledge/findings",
+        "knowledge/open-problems",
+        "experiments/EXP-MLKEM-015",
+        "tools/sage_free_estimator",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/dual_gap_decomposition.py",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/results.json",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/gap_report.md",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/heuristics.yaml",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/receipt.json",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/run_stdout.log",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/run_stderr.log"
+      ],
+      "rule12_status": "AGENTS.md rule 12 is UNMET and UNWAIVED. Nothing in this batch may change the status of EV-MLKEM-011, EV-MLKEM-013, EV-MLKEM-017, KN-FIND-012 or KN-FIND-014, or treat them as corrected. This batch is a fresh derivation, not a status change.",
+      "handoff": {
+        "id": "TASK-20260803-fb52f4",
+        "from": "coordinator",
+        "to": "executor",
+        "objective": "EV-MLKEM-015 recorded that the PUBLISHED dual-attack costs sit BELOW what the pinned lattice-estimator reproduces, and the gap GROWS with parameter size: Carrier 139.5/195.1/259.7 sits 4.29/8.69/14.12 bits below dual_hybrid(fft=True) under RC.MATZOV, and MATZOV-2022 137.5/193.5/257.8 sits 6.29/10.29/16.02 below. A gap that grows is a systematic modelling difference, not noise, and Coordinator scouting found it is SUPERLINEAR in beta (gap/beta = 0.01067, 0.01411, 0.01632 at beta = 402, 616, 865). ACCOUNT FOR THAT GAP. This is the live question of KN-OPEN-016 and it cuts both ways: if the published analyses are right, Carrier's costs sit 3.5/11.9/12.3 bits BELOW the NIST cutoffs 143/207/272 and ML-KEM misses its categories under its own convention; if the estimator is right, the published headlines are optimistic and the campaign can say why. Do not decide which by preference -- decompose the gap into named, individually-sized modelling differences and report what each contributes.",
+        "uncertainty_reduced": "Whether the published dual-attack headlines against ML-KEM are reproducible, and if not, exactly which modelling choices account for the difference -- the question KN-OPEN-016 has held open since 2026-07-24 and that every batch of this campaign has circled without attacking directly.",
+        "inputs": [
+          "tools/sage_free_estimator/ (Sage-free harness; run its known-answer control FIRST)",
+          "lattice-estimator pinned at 3e48ef421ec256afddb3e7d2249a77eab6e9ba12",
+          "experiments/EXP-MLKEM-015/runs/RUN-MLKEM-015-001/raw-result.json (the Sage-computed reference)",
+          "ledger/evidence/EV-MLKEM-015.yaml, EV-MLKEM-012.yaml",
+          "knowledge/open-problems/KN-OPEN-016.md"
+        ],
+        "constraints": [
+          "Never fabricate a command, output, timing, statistic, citation, or run (AGENTS.md rule 9).",
+          "RUN THE KNOWN-ANSWER CONTROL FIRST and record its output. If tools/sage_free_estimator/known_answer_control.py does not exit 0 with delta 0.0, STOP and report an instrument failure -- do not produce numbers from an unvalidated instrument.",
+          "Every extrapolation, cost convention and modelling choice is a NUMBERED HEURISTIC in heuristics.yaml, each with: statement, justification, what would falsify it, and whether this batch validated it. An unnumbered assumption is a defect.",
+          "Do NOT adopt a single memory model as 'the' answer. Report a family: free memory (the NIST/published convention), and charges M^c across a range of c including at least the 2D-mesh sqrt (c=1/2) and 3D (c=1/3) conventions. Name a source for each convention or mark it as this batch's own construction.",
+          "State the memory UNIT explicitly and consistently (vectors vs bits vs words) and show the conversion. A memory figure whose unit is ambiguous is a defect.",
+          "The sieve-memory exponent (e.g. 0.2075*beta for BDGL16) must be sourced, not assumed. If you cannot source it from an archived or retrievable primary source, record it as an unsourced heuristic and say what that costs the conclusion.",
+          "Use eta (the SVP-call dimension) or beta as the sieve dimension only after stating which the cost model actually sieves in, and why. Getting this wrong changes the answer.",
+          "Arora-GB is unavailable in this harness. Any 'best attack' phrasing must be scoped to the attacks actually served.",
+          "No ML-KEM break is claimed and none may be implied. A result that RAISES the estimated attack cost is not a security proof either: it is a statement about one cost model at one parameter set under stated heuristics.",
+          "AGENTS.md rule 12 is UNMET and UNWAIVED. Nothing in this batch may change the status of EV-MLKEM-011, EV-MLKEM-013, EV-MLKEM-017, KN-FIND-012 or KN-FIND-014, or treat them as corrected. This batch is a fresh derivation, not a status change.",
+          "Toy/estimate-tier discipline: these are cost-model estimates, not measurements. Do not describe them as measured.",
+          "Write only inside the declared write_scope. Do NOT run git commit."
+        ],
+        "deliverables": [
+          "memory_charged_derivation.py: the exact script run, including the control invocation",
+          "results.json: per parameter set -- beta, eta, d, log2(rop), NIST cutoff, free-memory margin, log2 memory in stated units, charged cost and margin for each c, and the critical exponent c*",
+          "heuristics.yaml: every numbered heuristic with justification, falsifier, and validation status",
+          "derivation_report.md: what was established, in which direction, under which heuristics, and what remains open",
+          "receipt.json: state, exact commands, environment, timestamps, policy and resolved model"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/dual_gap_decomposition.py",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/results.json",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/gap_report.md",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/heuristics.yaml",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/receipt.json",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/run_stdout.log",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/run_stderr.log"
+        ],
+        "archived_by": "TASK-20260803-a9d267",
+        "inference": {
+          "policy": "executor-implementation",
+          "reasoning_effort": null,
+          "fallback_allowed": true,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 3000,
+          "memory_gb": 4,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "the known-answer control ran, exited 0, and its output is recorded verbatim",
+          "beta, eta and d are reported per parameter set and match the control",
+          "every modelling choice appears as a numbered heuristic with a falsifier",
+          "the memory unit is stated and the conversion shown",
+          "the critical exponent c* is computed per parameter set",
+          "the conclusion states its direction explicitly and claims no break and no proof of security"
+        ]
+      },
+      "coordinator_amendment": {
+        "amended_at": "2026-08-03",
+        "by": "coordinator",
+        "field": "artifact_paths",
+        "reason": "producer emitted run_stdout.log/run_stderr.log inside its write_scope; archiving them keeps the control transcript durable"
+      }
+    },
+    {
+      "id": "TASK-20260803-a9d267",
+      "title": "Snapshot archive: memory-charged derivation package",
+      "role": "coordinator",
+      "state": "completed",
+      "priority": 90,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260803-fb52f4"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/archives/TASK-20260803-a9d267"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/archives/TASK-20260803-a9d267/snapshot_receipt.json"
+      ],
+      "handoff": {
+        "id": "TASK-20260803-a9d267",
+        "from": "coordinator",
+        "to": "coordinator",
+        "objective": "Snapshot-archive the exact TASK-20260803-fb52f4 artifacts before independent review reads them.",
+        "uncertainty_reduced": "Whether the derivation package is durable and hash-pinned for review.",
+        "inputs": [
+          "the TASK-20260803-fb52f4 artifact paths"
+        ],
+        "constraints": [
+          "Run alone. Stage only the declared paths.",
+          "Do not edit producer content; a snapshot commits defects too."
+        ],
+        "deliverables": [
+          "snapshot_receipt.json with commit sha, parent sha, per-path sha256"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/archives/TASK-20260803-a9d267/snapshot_receipt.json"
+        ],
+        "archived_by": "TASK-20260803-a9d267",
+        "inference": {
+          "policy": "coordinator-orchestration-code",
+          "reasoning_effort": null,
+          "fallback_allowed": true,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 900,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "commit reachable from HEAD",
+          "declared paths exactly match the commit diff"
+        ]
+      },
+      "archive": {
+        "kind": "snapshot",
+        "source_task_ids": [
+          "TASK-20260803-fb52f4"
+        ],
+        "commit_sha": "12e97be8e04ebf685b5ba326b01241c06eb7c8e0",
+        "parent_sha": "0100fdbcc331c32c18252c20a5ec37f86743fec7",
+        "path_sha256": {
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/archives/TASK-20260803-a9d267/snapshot_receipt.json": "d875d62f42e0f7ccf9fe9cf1617f8d94e06fec716a935dd012abd89f4f59e47d",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/dual_gap_decomposition.py": "e3481f5922a85b64488c2b44a3694d508fbfe460de84d5e3b7c3e2ea227ae6f2",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/gap_report.md": "9ab791f98e84a058e900679513d7e0fec245529340cd6588d0d50348edd62ff8",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/heuristics.yaml": "39f5005863c06f3a7e0d344505ee8ce49124411dbdefcc07a0e381330b2f9c91",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/receipt.json": "e8557203ac620eef16f2cb0d277049e3cd4d7bc9656907e88bfc9ee1405400d3",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/results.json": "77aaf1ca8d00fb04189af7206b8c3d1edf851c946827d947c0847d12b673eaea",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/run_stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4/run_stdout.log": "8282f7da00b6d2d079c196abf45a6bdf4adc642edb50a3aaa179ba1e89934692"
+        },
+        "record_ids": []
+      }
+    },
+    {
+      "id": "TASK-20260803-e09290",
+      "title": "Independent validation of the memory-charged derivation",
+      "role": "validator",
+      "state": "failed",
+      "priority": 85,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260803-fb52f4",
+        "TASK-20260803-a9d267"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4",
+        "experiments/EXP-MLKEM-015",
+        "tools/sage_free_estimator",
+        "ledger/evidence",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-e09290"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-e09290/infra_failure_receipt.yaml"
+      ],
+      "handoff": {
+        "id": "TASK-20260803-e09290",
+        "from": "coordinator",
+        "to": "validator",
+        "objective": "Re-derive the derivation independently: run the known-answer control, recompute beta/eta/d and log2(rop) yourself, recheck the memory figures and unit conversions, and recompute the critical exponent c*. Report any number you cannot reproduce.",
+        "uncertainty_reduced": "Whether the memory-charged conclusion survives independent scrutiny, or rests on a modelling choice that was never justified.",
+        "inputs": [
+          "the TASK-20260803-fb52f4 artifact paths",
+          "tools/sage_free_estimator/known_answer_control.py"
+        ],
+        "constraints": [
+          "Never fabricate a command, output, timing, statistic, citation, or run.",
+          "Re-derive rather than confirm. Run the known-answer control yourself.",
+          "You did not produce this package and must not repair it.",
+          "Independent session.",
+          "No ML-KEM break is claimed and none may be implied. A result that RAISES the estimated attack cost is not a security proof either: it is a statement about one cost model at one parameter set under stated heuristics.",
+          "AGENTS.md rule 12 is UNMET and UNWAIVED. Nothing in this batch may change the status of EV-MLKEM-011, EV-MLKEM-013, EV-MLKEM-017, KN-FIND-012 or KN-FIND-014, or treat them as corrected. This batch is a fresh derivation, not a status change.",
+          "Write only inside the declared write_scope. Do NOT run git commit.",
+          "Check the memory unit is consistent throughout; a vectors-vs-bits slip changes c* by orders of magnitude.",
+          "Check that the sieve dimension used (beta vs eta) matches what the cost model actually sieves in.",
+          "Return ADMISSIBLE, ADMISSIBLE_WITH_DEFECTS, or INADMISSIBLE with numbered defects."
+        ],
+        "deliverables": [
+          "report.yaml with a verdict and numbered findings",
+          "notes.md with the argued case"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-e09290/infra_failure_receipt.yaml"
+        ],
+        "archived_by": "TASK-20260803-12eab2",
+        "inference": {
+          "policy": "review-adversarial",
+          "reasoning_effort": "xhigh",
+          "fallback_allowed": true,
+          "degraded_allowed": false,
+          "independent_session_required": true
+        },
+        "budget": {
+          "wall_clock_seconds": 2400,
+          "memory_gb": 4,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "every quantitative claim marked reproduced, not_reproduced or unable_to_check",
+          "an explicit verdict from the declared enum"
+        ]
+      },
+      "failure": {
+        "cls": "failed_infrastructure",
+        "recorded_at": "2026-08-03T05:00:00Z",
+        "reason": "provider session limit before any deliverable",
+        "receipt": "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-e09290/infra_failure_receipt.yaml",
+        "not_evidence": "AGENTS.md rule 5",
+        "successor_required": true
+      }
+    },
+    {
+      "id": "TASK-20260803-95d8be",
+      "title": "Red team: is the memory-charged conclusion load-bearing or convention-driven?",
+      "role": "red-team",
+      "state": "failed",
+      "priority": 85,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260803-fb52f4",
+        "TASK-20260803-a9d267"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4",
+        "experiments/EXP-MLKEM-015",
+        "tools/sage_free_estimator",
+        "ledger/evidence",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-95d8be"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-95d8be/infra_failure_receipt.yaml"
+      ],
+      "handoff": {
+        "id": "TASK-20260803-95d8be",
+        "from": "coordinator",
+        "to": "red-team",
+        "objective": "Attack the interpretation. (a) The conclusion likely runs OPPOSITE to a break -- argue the strongest case that it is trivial, circular, or an artifact of picking a memory model that had to raise the cost. (b) Attack c* specifically: is a tiny critical exponent a real finding, or an inevitable consequence of comparing a ~1-6 bit margin against a ~90-185 bit quantity? (c) Argue the case FOR the free-memory convention -- NIST chose it deliberately, and a batch that charges memory and declares the margin restored may be arguing against a convention rather than a claim. (d) Name the cheapest single check that would falsify the batch's headline.",
+        "uncertainty_reduced": "Whether the memory-charged conclusion survives independent scrutiny, or rests on a modelling choice that was never justified.",
+        "inputs": [
+          "the TASK-20260803-fb52f4 artifact paths",
+          "tools/sage_free_estimator/known_answer_control.py"
+        ],
+        "constraints": [
+          "Never fabricate a command, output, timing, statistic, citation, or run.",
+          "Re-derive rather than confirm. Run the known-answer control yourself.",
+          "You did not produce this package and must not repair it.",
+          "Independent session.",
+          "No ML-KEM break is claimed and none may be implied. A result that RAISES the estimated attack cost is not a security proof either: it is a statement about one cost model at one parameter set under stated heuristics.",
+          "AGENTS.md rule 12 is UNMET and UNWAIVED. Nothing in this batch may change the status of EV-MLKEM-011, EV-MLKEM-013, EV-MLKEM-017, KN-FIND-012 or KN-FIND-014, or treat them as corrected. This batch is a fresh derivation, not a status change.",
+          "Write only inside the declared write_scope. Do NOT run git commit.",
+          "An objection must be checkable: name the artifact, path, or source locus that would settle it.",
+          "Apply the inventor-protocol closure standard: a claim that a lane is dead needs a named obstruction.",
+          "Return pass, pass_with_constraints, or blocking_objections with numbered objections."
+        ],
+        "deliverables": [
+          "report.yaml with a verdict and numbered findings",
+          "notes.md with the argued case"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-95d8be/infra_failure_receipt.yaml"
+        ],
+        "archived_by": "TASK-20260803-12eab2",
+        "inference": {
+          "policy": "review-adversarial",
+          "reasoning_effort": "xhigh",
+          "fallback_allowed": true,
+          "degraded_allowed": false,
+          "independent_session_required": true
+        },
+        "budget": {
+          "wall_clock_seconds": 2400,
+          "memory_gb": 4,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "every quantitative claim marked reproduced, not_reproduced or unable_to_check",
+          "an explicit verdict from the declared enum"
+        ]
+      },
+      "failure": {
+        "cls": "failed_infrastructure",
+        "recorded_at": "2026-08-03T05:00:00Z",
+        "reason": "provider session limit before any deliverable",
+        "receipt": "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-95d8be/infra_failure_receipt.yaml",
+        "not_evidence": "AGENTS.md rule 5",
+        "successor_required": true
+      }
+    },
+    {
+      "id": "TASK-20260803-0d860f",
+      "title": "Independent validation of the memory-charged derivation (successor to the failed TASK-20260803-e09290)",
+      "role": "validator",
+      "state": "completed",
+      "priority": 85,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260803-fb52f4",
+        "TASK-20260803-a9d267"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4",
+        "experiments/EXP-MLKEM-015",
+        "tools/sage_free_estimator",
+        "ledger/evidence",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-e09290",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/coordinator_notes"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-0d860f"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-0d860f/report.yaml",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-0d860f/notes.md"
+      ],
+      "handoff": {
+        "id": "TASK-20260803-0d860f",
+        "from": "coordinator",
+        "to": "validator",
+        "objective": "Re-derive the derivation independently: run the known-answer control, recompute beta/eta/d and log2(rop) yourself, recheck the memory figures and unit conversions, and recompute the critical exponent c*. Report any number you cannot reproduce.",
+        "uncertainty_reduced": "Whether the memory-charged conclusion survives independent scrutiny, or rests on a modelling choice that was never justified.",
+        "inputs": [
+          "the TASK-20260803-fb52f4 artifact paths",
+          "tools/sage_free_estimator/known_answer_control.py"
+        ],
+        "constraints": [
+          "Never fabricate a command, output, timing, statistic, citation, or run.",
+          "Re-derive rather than confirm. Run the known-answer control yourself.",
+          "You did not produce this package and must not repair it.",
+          "Independent session.",
+          "No ML-KEM break is claimed and none may be implied. A result that RAISES the estimated attack cost is not a security proof either: it is a statement about one cost model at one parameter set under stated heuristics.",
+          "AGENTS.md rule 12 is UNMET and UNWAIVED. Nothing in this batch may change the status of EV-MLKEM-011, EV-MLKEM-013, EV-MLKEM-017, KN-FIND-012 or KN-FIND-014, or treat them as corrected. This batch is a fresh derivation, not a status change.",
+          "Write only inside the declared write_scope. Do NOT run git commit.",
+          "Check the memory unit is consistent throughout; a vectors-vs-bits slip changes c* by orders of magnitude.",
+          "Check that the sieve dimension used (beta vs eta) matches what the cost model actually sieves in.",
+          "Return ADMISSIBLE, ADMISSIBLE_WITH_DEFECTS, or INADMISSIBLE with numbered defects.",
+          "SUPERSEDES TASK-20260803-e09290, which died on a provider session limit before writing any deliverable. Anything it left behind is scratch work from an unfinished session: do NOT adopt it, and disclose it if you look at it. Re-derive independently.",
+          "READ coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/coordinator_notes/anom3_significance_note.md FIRST. It is an UNREVIEWED Coordinator source-reading note, NOT evidence, and you must treat it as a claim to check rather than a finding to accept. It reports that estimator/lwe_dual.py class MATZOV method Nf (line 526) derives N from a closed-form advantage law with mu=0.5 and no correlation term, and that lines 496-700 contain ZERO occurrences of Pwrong, false_pos, fpfn or Phi_inv. If that is right, the estimator/Carrier agreement is vacuous corroboration and ANOM-3's security reading dissolves while its internal content survives. VERIFY BOTH FACTS YOURSELF at those loci and say whether you agree with the split. Do not spend budget re-deriving what the note already settles if you confirm it; spend it on what the note leaves open."
+        ],
+        "deliverables": [
+          "report.yaml with a verdict and numbered findings",
+          "notes.md with the argued case"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-0d860f/report.yaml",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-0d860f/notes.md"
+        ],
+        "archived_by": "TASK-20260803-12eab2",
+        "inference": {
+          "policy": "review-adversarial",
+          "reasoning_effort": "xhigh",
+          "fallback_allowed": true,
+          "degraded_allowed": false,
+          "independent_session_required": true
+        },
+        "budget": {
+          "wall_clock_seconds": 2400,
+          "memory_gb": 4,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "every quantitative claim marked reproduced, not_reproduced or unable_to_check",
+          "an explicit verdict from the declared enum"
+        ],
+        "supersedes": "TASK-20260803-e09290"
+      }
+    },
+    {
+      "id": "TASK-20260803-f42495",
+      "title": "Red team: is the memory-charged conclusion load-bearing or convention-driven? (successor to the failed TASK-20260803-95d8be)",
+      "role": "red-team",
+      "state": "completed",
+      "priority": 85,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260803-fb52f4",
+        "TASK-20260803-a9d267"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4",
+        "experiments/EXP-MLKEM-015",
+        "tools/sage_free_estimator",
+        "ledger/evidence",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-95d8be",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/coordinator_notes"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-f42495"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-f42495/report.yaml",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-f42495/notes.md"
+      ],
+      "handoff": {
+        "id": "TASK-20260803-f42495",
+        "from": "coordinator",
+        "to": "red-team",
+        "objective": "Attack the interpretation. (a) The conclusion likely runs OPPOSITE to a break -- argue the strongest case that it is trivial, circular, or an artifact of picking a memory model that had to raise the cost. (b) Attack c* specifically: is a tiny critical exponent a real finding, or an inevitable consequence of comparing a ~1-6 bit margin against a ~90-185 bit quantity? (c) Argue the case FOR the free-memory convention -- NIST chose it deliberately, and a batch that charges memory and declares the margin restored may be arguing against a convention rather than a claim. (d) Name the cheapest single check that would falsify the batch's headline.",
+        "uncertainty_reduced": "Whether the memory-charged conclusion survives independent scrutiny, or rests on a modelling choice that was never justified.",
+        "inputs": [
+          "the TASK-20260803-fb52f4 artifact paths",
+          "tools/sage_free_estimator/known_answer_control.py"
+        ],
+        "constraints": [
+          "Never fabricate a command, output, timing, statistic, citation, or run.",
+          "Re-derive rather than confirm. Run the known-answer control yourself.",
+          "You did not produce this package and must not repair it.",
+          "Independent session.",
+          "No ML-KEM break is claimed and none may be implied. A result that RAISES the estimated attack cost is not a security proof either: it is a statement about one cost model at one parameter set under stated heuristics.",
+          "AGENTS.md rule 12 is UNMET and UNWAIVED. Nothing in this batch may change the status of EV-MLKEM-011, EV-MLKEM-013, EV-MLKEM-017, KN-FIND-012 or KN-FIND-014, or treat them as corrected. This batch is a fresh derivation, not a status change.",
+          "Write only inside the declared write_scope. Do NOT run git commit.",
+          "An objection must be checkable: name the artifact, path, or source locus that would settle it.",
+          "Apply the inventor-protocol closure standard: a claim that a lane is dead needs a named obstruction.",
+          "Return pass, pass_with_constraints, or blocking_objections with numbered objections.",
+          "SUPERSEDES TASK-20260803-95d8be, which died on a provider session limit before writing any deliverable. Anything it left behind is scratch work from an unfinished session: do NOT adopt it, and disclose it if you look at it. Re-derive independently.",
+          "READ coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/coordinator_notes/anom3_significance_note.md FIRST. It is an UNREVIEWED Coordinator source-reading note, NOT evidence, and you must treat it as a claim to check rather than a finding to accept. It reports that estimator/lwe_dual.py class MATZOV method Nf (line 526) derives N from a closed-form advantage law with mu=0.5 and no correlation term, and that lines 496-700 contain ZERO occurrences of Pwrong, false_pos, fpfn or Phi_inv. If that is right, the estimator/Carrier agreement is vacuous corroboration and ANOM-3's security reading dissolves while its internal content survives. VERIFY BOTH FACTS YOURSELF at those loci and say whether you agree with the split. Do not spend budget re-deriving what the note already settles if you confirm it; spend it on what the note leaves open."
+        ],
+        "deliverables": [
+          "report.yaml with a verdict and numbered findings",
+          "notes.md with the argued case"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-f42495/report.yaml",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-f42495/notes.md"
+        ],
+        "archived_by": "TASK-20260803-12eab2",
+        "inference": {
+          "policy": "review-adversarial",
+          "reasoning_effort": "xhigh",
+          "fallback_allowed": true,
+          "degraded_allowed": false,
+          "independent_session_required": true
+        },
+        "budget": {
+          "wall_clock_seconds": 2400,
+          "memory_gb": 4,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "every quantitative claim marked reproduced, not_reproduced or unable_to_check",
+          "an explicit verdict from the declared enum"
+        ],
+        "supersedes": "TASK-20260803-95d8be"
+      }
+    },
+    {
+      "id": "TASK-20260803-12eab2",
+      "title": "Ledger archive: EV-MLKEM-021, DEC-20260803-85adf8, BATCH-011 checkpoint",
+      "role": "coordinator",
+      "state": "completed",
+      "priority": 80,
+      "review_required": false,
+      "depends_on": [
+        "TASK-20260803-e09290",
+        "TASK-20260803-95d8be",
+        "TASK-20260803-0d860f",
+        "TASK-20260803-f42495"
+      ],
+      "read_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-e09290",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-95d8be",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-fb52f4",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011",
+        "ledger/evidence",
+        "ledger/decisions",
+        "ledger/goals/GOAL-MLKEM-003.yaml",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-0d860f",
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-f42495"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/archives/TASK-20260803-12eab2",
+        "ledger/evidence/EV-MLKEM-021.yaml",
+        "ledger/decisions/DEC-20260803-85adf8.yaml",
+        "ledger/goals/GOAL-MLKEM-003.yaml"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/archives/TASK-20260803-12eab2/ledger_commit_receipt.json",
+        "ledger/evidence/EV-MLKEM-021.yaml",
+        "ledger/decisions/DEC-20260803-85adf8.yaml",
+        "ledger/goals/GOAL-MLKEM-003.yaml"
+      ],
+      "handoff": {
+        "id": "TASK-20260803-12eab2",
+        "from": "coordinator",
+        "to": "coordinator",
+        "objective": "Commit the derivation and both reviews with EV-MLKEM-021 and DEC-20260803-85adf8, and perform the BATCH-011 transition.",
+        "uncertainty_reduced": "Whether the memory-charged result is durable and officially recorded.",
+        "inputs": [
+          "the TASK-20260803-fb52f4, TASK-20260803-e09290 and TASK-20260803-95d8be artifact paths"
+        ],
+        "constraints": [
+          "Run alone. Stage only the declared review and ledger paths.",
+          "Only the Coordinator may write official records.",
+          "EV-MLKEM-021's claim_tier and strength must not exceed what cost-model estimates under stated heuristics carry. These are estimates, not measurements.",
+          "The evidence record names every numbered heuristic it depends on and each one's validation status.",
+          "No ML-KEM break is claimed and none may be implied. A result that RAISES the estimated attack cost is not a security proof either: it is a statement about one cost model at one parameter set under stated heuristics.",
+          "AGENTS.md rule 12 is UNMET and UNWAIVED. Nothing in this batch may change the status of EV-MLKEM-011, EV-MLKEM-013, EV-MLKEM-017, KN-FIND-012 or KN-FIND-014, or treat them as corrected. This batch is a fresh derivation, not a status change.",
+          "If the batch warrants no knowledge promotion, record the not_warranted reason explicitly."
+        ],
+        "deliverables": [
+          "EV-MLKEM-021 scoped to exactly what the derivation established",
+          "DEC-20260803-85adf8 with disposition, scope, non-claims, knowledge_promotion and ranking_rationale",
+          "GOAL-MLKEM-003 updated with the BATCH-011 checkpoint and exactly one next action",
+          "ledger_commit_receipt.json"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/archives/TASK-20260803-12eab2/ledger_commit_receipt.json",
+          "ledger/evidence/EV-MLKEM-021.yaml",
+          "ledger/decisions/DEC-20260803-85adf8.yaml",
+          "ledger/goals/GOAL-MLKEM-003.yaml"
+        ],
+        "archived_by": "TASK-20260803-12eab2",
+        "inference": {
+          "policy": "coordinator-orchestration-code",
+          "reasoning_effort": null,
+          "fallback_allowed": true,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 900,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "commit reachable from HEAD with the expected parent",
+          "EV-MLKEM-021 and DEC-20260803-85adf8 present and cross-referencing",
+          "GOAL-MLKEM-003 carries exactly one next_action",
+          "every numbered heuristic the conclusion depends on is named in the evidence record"
+        ]
+      },
+      "archive": {
+        "kind": "ledger",
+        "source_task_ids": [
+          "TASK-20260803-e09290",
+          "TASK-20260803-95d8be",
+          "TASK-20260803-0d860f",
+          "TASK-20260803-f42495"
+        ],
+        "commit_sha": "b6f690f4d1aed2a9b47a68442340d50e33987f11",
+        "parent_sha": "6876940e3fdc556f74839bdae86c95ab3da4c85a",
+        "path_sha256": {
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/archives/TASK-20260803-12eab2/ledger_commit_receipt.json": "05de379d4a67c33be932594227da2d3246cfb6f9e3a28ba100e69332ddc1281b",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-0d860f/notes.md": "f3e0fa901f22f73cf8837b37624d6160d99dd021845a24d75b59cf16fb80779d",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-0d860f/report.yaml": "7017d5fb0b672afd193cedf56327655bbff08cb5069728d03e9ab5f6c1454e35",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-95d8be/infra_failure_receipt.yaml": "e07789ce9366ee08a1dd7e390a7f703423c4a564bdb7f76f1b3089b9e0c90bb4",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-e09290/infra_failure_receipt.yaml": "9d2fa65f81f9be5bb74a25b817efc339f7b50090ffdb4d48fb3d9267284975e5",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-f42495/notes.md": "9405676012c0ec4b6b3d3fc2751e2e2ccaeaaa703161e6c38ff6e8f1870ff346",
+          "coordination/goals/GOAL-MLKEM-003/batches/BATCH-011/tasks/TASK-20260803-f42495/report.yaml": "b74183d48ca6e973bfbe566441bd0e57fc8270a2b3a91320706c06a0bf76c805",
+          "ledger/decisions/DEC-20260803-85adf8.yaml": "f486be3f5154dbd02bc117e40e5bd90750ee019d980a0ebc85e7e52a5cc80292",
+          "ledger/evidence/EV-MLKEM-021.yaml": "dfc0d9c370dfc218e23142a46b708742b76303daca23d4d536e119b7cf30917e",
+          "ledger/goals/GOAL-MLKEM-003.yaml": "00893b3426d655422a1fc5812c6f49925cb471f2351c48a262deae098e3ed302"
+        },
+        "record_ids": [
+          "EV-MLKEM-021",
+          "DEC-20260803-85adf8",
+          "GOAL-MLKEM-003"
+        ]
+      }
+    }
+  ]
+}

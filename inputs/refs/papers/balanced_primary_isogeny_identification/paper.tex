@@ -1,0 +1,824 @@
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage[hidelinks]{hyperref}
+\usepackage[nameinlink,noabbrev]{cleveref}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{definition}[theorem]{Definition}
+
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Kbar}{\overline{K}}
+\newcommand{\Cr}{C_{\mathrm{ram}}}
+\newcommand{\betaP}{\beta_{\mathrm{prim}}}
+\newcommand{\softO}{\widetilde{O}}
+
+\title{Balanced-Primary Identification\\
+from Sign-Oblivious Isogeny Data}
+\author{Adam Buran\\Independent Researcher}
+\date{July 20, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Self-pairings on oriented elliptic curves can reveal the image of a torsion
+generator under an unknown isogeny only up to sign.  Passing to the Kummer
+line removes these signs, but unrestricted rational interpolation still
+expects $2d$ samples for a degree-$d$ isogeny.  We prove that the
+homomorphism structure gives a strictly stronger identification criterion.
+
+For pairwise coprime odd generator orders $n_1,\ldots,n_r$, define
+\[
+ \betaP(n_1,\ldots,n_r)=
+ \min_{S\subseteq\{1,\ldots,r\}}
+ \left(\prod_{i\in S}n_i+\prod_{i\notin S}n_i\right).
+\]
+If two degree-$d$ homomorphisms have equal target $x$-coordinates on these
+generators and $\betaP>4d$, then the maps differ by at most a global sign.
+The proof partitions the primary subgroups between the kernels of
+$\phi-\psi$ and $\phi+\psi$ and applies the degree parallelogram identity.
+An exact version replaces the products by generated-subgroup orders and
+allows unequal candidate degrees; a minimum-distance corollary treats erased
+and corrupted primary rows.
+
+We validate the full information path on an ordinary ascending degree-$5$
+isogeny over $\F_{34651}$.  Genuine Frobenius-oriented self-pairings at orders
+$3,7,11$ supply three sign-free generator rows with $\betaP=32>20$, while
+their additive Kummer-orbit capacity is $9<10$.  A public two-parameter
+Schoof--V\'elu decoder recovers the unique kernel in three independent-seed
+runs, and a separate post-freeze verifier reconstructs the pairings and the
+withheld edge.  A stronger baseline is also decisive: all nine orbit rows
+leave a rational-interpolation pencil, and the public codomain curve identity
+resolves that pencil faster on this toy.  More decisively, the source has one
+rational degree-$5$ edge, so a zero-row source-only enumeration recovers it
+faster still.  Thus the new result is a compressed-generator identification
+criterion and interface validation, not evidence that self-pairing rows
+improve recovery on this fixture.  It removes local sign ambiguity as an
+information-theoretic defense, but does not reduce torsion acquisition or
+explicit-output costs.
+\end{abstract}
+
+\section{Introduction}
+
+Recovering an isogeny between two fixed elliptic curves is a central problem
+in algorithmic number theory and isogeny-based cryptography.  Recent
+self-pairing techniques extract partial information about an unknown oriented
+isogeny by constraining its action on torsion
+\cite{castryck-selfpairings,macula-stange,ggr-volcanoes}.  In the ramified
+cyclic setting, the image of one exact-order point can be determined only up
+to a scalar square root.  For an odd primary modulus, the two roots differ by
+sign.
+
+The sign disappears under the Kummer quotient $P\mapsto x(P)$.  This gives
+two conceptually different ways to use the leaked action.  One can generate
+all local Kummer orbits and apply unrestricted rational interpolation when
+their additive size reaches $2d$.  Alternatively, one can retain only one
+generator from each primary component and use the fact that a competing map
+must realize every local sign through either $\phi-\psi$ or $\phi+\psi$.
+The second viewpoint yields the product-partition criterion of this paper.  We
+use ``balanced-primary'' specifically for the minimum complementary-product
+sum defined below; it is not the balanced Kani regime used elsewhere in the
+isogeny-interpolation literature.
+
+A classical agreement bound states that sufficiently many exact point images
+determine a bounded-degree isogeny \cite{urbanik-jao}.  Our observation differs
+in that every Kummer observation may carry an independent sign.  It partitions
+the observed primary subgroups between two kernels and controls their combined
+degree with the parallelogram identity.
+
+The distinction is substantial.  For four balanced primary orders of size
+$\Theta(\sqrt d)$, the new criterion holds while their total Kummer-orbit
+capacity is only $O(\sqrt d)$.  Thus a constant number of generator images
+can identify the map in a regime where generic rational interpolation is
+short by a linear factor.  This is an information improvement, not a
+small-torsion improvement: the product of those orders is $\Theta(d^2)$.
+
+\subsection{Contributions}
+
+This paper makes five scoped contributions.
+
+\begin{enumerate}[leftmargin=*,label=(\roman*)]
+\item We prove a balanced-primary uniqueness theorem.  If
+      $\betaP(n_1,\ldots,n_r)>4d$, one sign-free image per pairwise-coprime
+      primary order determines a degree-$d$ isogeny up to global sign.
+\item We prove the generated-subgroup and unequal-degree form of the theorem,
+      and derive erasure and adversarial-row unique-decoding conditions.
+\item We show a strict separation from raw additive primary-orbit
+      interpolation, both in an asymptotic four-primary family and in a
+      deterministic sweep for degrees $5$ through $1021$.
+\item We give a full-path ordinary ascending toy validation.  Actual
+      self-pairings in separate torsion fields feed a three-row target-scaling
+      decoder; three acquisition-seed runs and three executions of a separate
+      verifier recover the same degree-$5$ map with no map access observed in
+      the audited producer source.
+\item We delimit the algorithmic and cryptographic implication with a strong
+      additive-plus-curve-identity baseline and a zero-row source-only
+      ablation.  The theorem eliminates local sign ambiguity, but the toy does
+      not show that the rows improve recovery and does not reduce
+      torsion-field, pairing-DLP, or explicit-output costs.
+\end{enumerate}
+
+The degree parallelogram law and self-pairing ingredients are known.  The
+claimed contribution is their use as a complementary-product uniqueness test
+for independently signed primary images.  A focused literature search found
+no explicit statement of this criterion, but this is not an absolute priority
+certificate.
+
+\section{Preliminaries}
+
+\subsection{Sign-free primary data}
+
+Let $K$ be a field of characteristic different from $2$, let
+$E_0,E_1/K$ be elliptic curves, and let
+\[
+  \phi:E_0\longrightarrow E_1
+\]
+be a separable isogeny of known degree $d$.  The ordinary case may use the
+natural Frobenius orientation; oriented supersingular curves give the second
+main setting \cite{ggr-volcanoes}.
+
+We abstract the output of the ramified self-pairing construction as follows.
+
+\begin{definition}[Primary sign datum]
+Let $n=\ell^e$ be an odd prime power coprime to $d\operatorname{char}K$.
+A primary sign datum consists of exact-order points
+$P\in E_0[n]$, $Q\in E_1[n]$, and a unit square
+$v\in(\Z/n\Z)^\times$ such that
+\[
+  \phi(P)=[\alpha]Q,\qquad \alpha^2=v\pmod n
+\]
+for an unknown square root $\alpha$.
+\end{definition}
+
+For an odd prime power, a unit square has exactly two roots, $\alpha$ and
+$-\alpha$.  Consequently the datum determines
+\[
+  x(\phi(P))=x([\alpha]Q)
+\]
+without selecting a root.  The same holds for all multiples of $P$.
+Producing this datum is not free: local primitivity, torsion construction,
+orientation evaluation, pairing evaluation, and the pairing-target discrete
+logarithm are separate charged operations.
+
+\subsection{Degree as a quadratic form}
+
+The group $\operatorname{Hom}(E_0,E_1)$ carries the positive-definite
+quadratic form $q(f)=\deg f$, with $q(0)=0$.  Its polarization gives the
+parallelogram identity
+\begin{equation}\label{eq:parallelogram}
+ \deg(f+g)+\deg(f-g)=2\deg f+2\deg g.
+\end{equation}
+This identity holds independently of the separability of $f+g$ and $f-g$.
+If a nonzero homomorphism kills a reduced subgroup of order $N$ prime to the
+characteristic, then $N$ is at most its degree.
+
+\section{Balanced-primary uniqueness}
+
+Let $P_i\in E_0(\Kbar)$ have pairwise-coprime odd exact orders $n_i$, all
+coprime to $d\operatorname{char}K$.  The points may be defined over unrelated
+extension fields.
+
+\begin{definition}[Balanced-primary parameter]
+For $S\subseteq\{1,\ldots,r\}$, put
+\[
+ N_S=\prod_{i\in S}n_i,
+\]
+with an empty product equal to one, and define
+\[
+ \betaP(n_1,\ldots,n_r)
+ =\min_S\bigl(N_S+N_{S^c}\bigr).
+\]
+\end{definition}
+
+\begin{theorem}[Balanced-primary uniqueness]\label{thm:balanced}
+Let $\phi,\psi:E_0\to E_1$ have degree $d$.  Suppose
+\[
+ x(\phi(P_i))=x(\psi(P_i))
+ \quad\text{for all }i.
+\]
+If $\betaP(n_1,\ldots,n_r)>4d$, then $\psi=\phi$ or $\psi=-\phi$.
+\end{theorem}
+
+\begin{proof}
+The target points are nonzero because $\gcd(n_i,d)=1$.  Equality of their
+$x$-coordinates therefore gives a sign $\epsilon_i\in\{\pm1\}$ with
+\[
+ \phi(P_i)=\epsilon_i\psi(P_i).
+\]
+Let $S$ contain the indices for which $\epsilon_i=1$.  For $i\in S$, the
+point $P_i$ lies in $\ker(\phi-\psi)$; for $i\notin S$, it lies in
+$\ker(\phi+\psi)$.  Pairwise coprimality implies that these kernels contain
+reduced subgroups of orders $N_S$ and $N_{S^c}$, respectively.
+
+If neither $\phi-\psi$ nor $\phi+\psi$ is zero, then
+\[
+ N_S+N_{S^c}
+ \le \deg(\phi-\psi)+\deg(\phi+\psi)
+ =4d
+\]
+by \cref{eq:parallelogram}.  This contradicts the definition of $\betaP$.
+Hence one of the two homomorphisms is zero, giving $\psi=\pm\phi$.
+\end{proof}
+
+\begin{remark}
+The theorem is an identification statement among degree-$d$ homomorphisms.
+It does not assert that arbitrary bivariate equations derived from the samples
+are zero-dimensional, nor does it make torsion acquisition inexpensive.
+\end{remark}
+
+The product formula is convenient, but the proof yields a sharper statement
+that also records the exact degree dependence.
+
+\begin{theorem}[Generated-subgroup form]\label{thm:generated}
+Let $\phi,\psi:E_0\to E_1$ be homomorphisms, and let $P_1,\ldots,P_r$
+have orders prime to the characteristic and to both map degrees.  For
+$S\subseteq\{1,\ldots,r\}$ define
+\[
+ H_S=\langle P_i:i\in S\rangle,
+ \qquad
+ \beta_H=\min_S\bigl(\#H_S+\#H_{S^c}\bigr).
+\]
+If $x(\phi(P_i))=x(\psi(P_i))$ for every $i$ and
+\[
+ \beta_H>2(\deg\phi+\deg\psi),
+\]
+then $\phi=\psi$ or $\phi=-\psi$.
+\end{theorem}
+
+\begin{proof}
+Use the observed signs to define $S$ as in
+\cref{thm:balanced}.  Then $H_S\subseteq\ker(\phi-\psi)$ and
+$H_{S^c}\subseteq\ker(\phi+\psi)$.  If neither difference is zero,
+\[
+ \#H_S+\#H_{S^c}
+ \le \deg(\phi-\psi)+\deg(\phi+\psi)
+ =2(\deg\phi+\deg\psi),
+\]
+a contradiction.
+\end{proof}
+
+For candidates of degree at most $D$, the sufficient threshold is
+$\beta_H>4D$.  Without pairwise coprimality, one may lower-bound
+$\#H_S$ by the least common multiple of the corresponding exact orders.
+Repeated or nested points on one primary line must not be multiplied: their
+actual generated-subgroup order is the quantity in the theorem.
+
+The same statement gives a simple coding consequence.  Suppose at most $t$
+of $r$ primary rows are corrupted.  Two candidate maps agreeing with at least
+$r-t$ received rows agree with each other on at least $r-2t$ rows.  Hence
+unique decoding up to sign follows if every subset $I$ of $r-2t$ rows
+satisfies $\beta_H(I)>4D$.  Erasures are handled by recomputing the criterion
+on the surviving rows.  This is an information theorem; it does not provide
+an efficient noisy-row decoder.
+
+\subsection{Relation to additive Kummer interpolation}
+
+Define the additive orbit capacity
+\[
+ \Cr=\sum_{i=1}^r\frac{n_i-1}{2}.
+\]
+The earlier sign-oblivious interpolation condition is $\Cr\ge2d$.  The new
+condition subsumes it.
+
+\begin{proposition}\label{prop:additive}
+For pairwise-coprime positive integers $n_i$,
+\[
+ \betaP(n_1,\ldots,n_r)\ge 2+2\Cr.
+\]
+Consequently $\Cr\ge2d$ implies $\betaP>4d$.
+\end{proposition}
+
+\begin{proof}
+For every subset $S$,
+\[
+ N_S=\prod_{i\in S}\bigl(1+(n_i-1)\bigr)
+ \ge 1+\sum_{i\in S}(n_i-1).
+\]
+Apply the same inequality to $S^c$ and add.
+\end{proof}
+
+The converse fails.  For $d=13$ and
+$(n_i)=(3,5,7,11)$, one has $\Cr=11<26$, while the minimizing
+partition is $(3\cdot11,5\cdot7)$ and
+\[
+ \betaP=33+35=68>52=4d.
+\]
+
+Let $m=\prod_i n_i$.  Since $N_SN_{S^c}=m$, AM--GM gives
+\begin{equation}\label{eq:product-bound}
+ \betaP\ge2\sqrt m.
+\end{equation}
+Thus $m>4d^2$ is a simple sufficient condition.  Conversely, the empty
+partition gives $\betaP\le1+m$, so the theorem implies $m>4d-1$; no new
+small-product region is created.  Exact $\betaP$ can be computed by a
+meet-in-the-middle closest-subset-product search.
+
+\subsection{Asymptotic separation}
+
+\begin{corollary}\label{cor:asymptotic}
+Fix $\varepsilon>0$.  Suppose four pairwise-coprime odd orders satisfy
+\[
+ (\sqrt2+\varepsilon)\sqrt d<n_i<C\sqrt d
+\]
+for a fixed constant $C$.  For sufficiently large $d$,
+$\betaP>4d$ while $\Cr=O(\sqrt d)=o(d)$.
+\end{corollary}
+
+\begin{proof}
+Every two-versus-two partition has both products greater than
+$(\sqrt2+\varepsilon)^2d>2d$, so its sum exceeds $4d$.  A one-versus-three
+sum is $\Omega(d^{3/2})$, and the empty-versus-four sum is $\Omega(d^2)$.
+The additive bound follows directly from the upper bound on the four orders.
+\end{proof}
+
+Hence four generator images can identify the map in a family where the total
+number of sign-free Kummer-orbit samples is asymptotically insufficient for
+unrestricted rational interpolation.  The associated torsion product is
+$\Theta(d^2)$.
+
+\subsection{Deterministic threshold sweep}
+
+To test whether the strict region is confined to a hand-picked example, we
+enumerated tuples of at most eight distinct odd primes at most $43$.  For each
+degree we retained tuples satisfying
+\[
+ \betaP>4d,
+ \qquad
+ \Cr<2d,
+\]
+and selected the tuple of minimum product.  An independent implementation
+recomputed every partition and leave-one-primary-out value.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{rllrrr}
+\toprule
+$d$ & selected orders & $\betaP$ & $\Cr$ & product & valid tuples\\
+\midrule
+5    & $3,7,11$       & 32   & 9  & 231     & 1\\
+13   & $3,5,41$       & 56   & 23 & 615     & 89\\
+29   & $5,19,23$      & 118  & 22 & 2185    & 1722\\
+61   & $13,19,23$     & 270  & 26 & 5681    & 6736\\
+127  & $17,29,31$     & 524  & 37 & 15283   & 6437\\
+251  & $29,37,41$     & 1114 & 52 & 43993   & 5997\\
+509  & $13,37,41,43$  & 2076 & 65 & 848003  & 5409\\
+1021 & $11,17,19,23,29$ & 4220 & 47 & 2369851 & 4762\\
+\bottomrule
+\end{tabular}
+\caption{Strict balanced-primary tuples in a bounded combinatorial search.
+The last column counts all valid tuples in the registered search space; it is
+not a count of realizable orientation instances.}
+\label{tab:threshold-sweep}
+\end{table}
+
+The sweep establishes that the numerical separation persists across the
+tested degrees.  It does not establish that every selected prime is ramified
+in a suitable orientation discriminant or that the associated torsion fields
+are economical.
+
+\section{A toy target-scaling decoder}
+
+Theorem~\ref{thm:balanced} proves uniqueness but does not itself construct the
+map.  We describe the toy backend used in our experiments.  Its ingredients
+are Schoof's one-parameter kernel expansion and modified V\'elu formulas
+\cite{schoof-counting,bmss,takahashi-kernel,velu}.
+
+Assume short-Weierstrass models in characteristic sufficiently large for the
+formal recurrence:
+\[
+ E_j:y^2=x^3+A_jx+B_j.
+\]
+Write
+\[
+ \phi(x,y)=\bigl(R(x),c\,yR'(x)\bigr),\qquad \lambda=c^2.
+\]
+Since $R(x)\sim\lambda x$ at infinity, put $R=\lambda U$.  Then $U$ is a
+normalized isogeny to
+\[
+ \overline E_1:y^2=x^3+\frac{A_1}{\lambda^2}x
+                         +\frac{B_1}{\lambda^3}.
+\]
+
+For odd $d$, let $s=(d-1)/2$ and write the monic kernel polynomial as
+\[
+ F(X)=X^s+T X^{s-1}+\cdots.
+\]
+Schoof's formal expansion expresses every remaining coefficient of $F$ in
+$K(T,\lambda)$.  Modified V\'elu formulas give
+\begin{equation}\label{eq:velu-x}
+ U(X)=\frac{N_{T,\lambda}(X)}{D_{T,\lambda}(X)},
+ \qquad D_{T,\lambda}=F^2.
+\end{equation}
+Each sign-free row $(u_i,z_i)=(x(P_i),x(\phi(P_i)))$ gives the residual
+\begin{equation}\label{eq:sample-residual}
+ \lambda N_{T,\lambda}(u_i)-z_iD_{T,\lambda}(u_i)=0.
+\end{equation}
+
+\begin{proposition}[Elimination-degree bound]\label{prop:elimination}
+After clearing powers of $\lambda$, every sample residual has bidegree at most
+$(d,d)$ in $(T,\lambda)$.  If two residuals have no common component, their
+resultant in $T$ has $\lambda$-degree at most $2d^2$.
+\end{proposition}
+
+\begin{proof}
+Give $X$ weight one in the expansion at infinity.  If $f_j$ is the coefficient
+of $X^{s-j}$ in $F$, the formal recurrence has the shape
+$f_j=C_j(T,\lambda)/\lambda^j$, with
+$\deg_T C_j,\deg_\lambda C_j\le j$.  Multiplying $F$ by $\lambda^s$ and
+substituting in the modified V\'elu numerator and denominator therefore gives
+the stated residual bidegree.  The standard bidegree bound for a resultant of
+two polynomials of bidegrees $(a,b)$ and $(c,e)$ is $ae+bc$; here this is at
+most $2d^2$.
+\end{proof}
+
+The prototype factors this resultant, intersects the specialized
+$T$-roots from all rows, and verifies each candidate by requiring:
+
+\begin{enumerate}[leftmargin=*,label=(\arabic*)]
+\item the specialized polynomial is the kernel polynomial of a finite cyclic
+      subgroup of order $d$;
+\item scaling the normalized V\'elu codomain by $\lambda$ gives the marked
+      target model;
+\item $\lambda$ is a square over the base field when a base-field map is
+      required; and
+\item every supplied sample is matched.
+\end{enumerate}
+
+These are public acceptance conditions.  The withheld map is used only for a
+post-run whole-group audit.
+
+\begin{remark}[Completeness boundary]
+A selected pair of residuals can have zero resultant or exceptional
+specializations.  A complete implementation must try other pairs or add the
+exact differential/codomain coefficient equations.  Dense bivariate
+elimination is polynomial in $d$, but the current implementation is a toy
+verified-list decoder, not a claimed replacement for compact Kani or
+higher-dimensional representations.  Writing the explicit map already costs
+$\Omega(d\log q)$ bits.
+\end{remark}
+
+\section{Experimental evidence}
+
+The artifact set separates fixture search, public recovery, and post-freeze
+verification.  The fixture search uses trace, endomorphism-ring, and modular
+polynomial data but no degree-$5$ map.  The recovery producer contains no
+degree-$5$ enumeration, hidden-kernel, or rational-map read.  The verifier is
+a separate program that enumerates the withheld edge only after the complete
+producer payload has been hashed.  These are source and hash audits, not a
+filesystem or syscall sandbox; they justify ``no forbidden access observed,''
+not that such access was technically impossible.
+
+\subsection{A genuine ordinary ascending fixture}
+
+Let $p=34651$ and consider
+\[
+\begin{split}
+ E_0 &: y^2=x^3+15912x+20007,\\
+ E_1 &: y^2=x^3+16688x+3859.
+\end{split}
+\]
+Both curves have trace $2$ and $34650$ rational points.  The Frobenius
+discriminant factors as
+\[
+ t^2-4p=-138600=(-616)\,15^2.
+\]
+The source endomorphism ring has conductor $15$, while the target has
+conductor $3$ and discriminant $-5544=(-616)3^2$.  The source has one rational
+degree-$5$ edge, and its codomain is $E_1$ up to the frozen nontrivial model
+scaling.  Thus the edge is the unique ascent that removes the factor $5$ from
+the conductor.  The target's six rational degree-$5$ neighbors have conductor
+multiset $\{3,3,15,15,15,15\}$, as predicted by the split-crater, depth-one
+volcano.
+
+The word ``ramified'' in the self-pairing literature refers here to
+degeneracy modulo the discriminant of the orientation order.  The primes $7$ and
+$11$ divide the fundamental discriminant $-616$.  The prime $3$ does not; it
+enters through the conductor factor of $\Z[\pi]$, with valuation two in the
+Frobenius discriminant.  Its measured nonscalar nilpotent Frobenius action and
+primitive pairing certify the required local interface.
+
+For primary orders $3,7,11$, the exact Frobenius orders on full torsion are
+$3,7,11$, respectively.  The producer constructs these three fields
+separately.  On each endpoint it samples a cyclic $\Z[\pi]$-generator $P$,
+forms $Q=(\pi-1)P$, and verifies that $e(P,Q)$ has exact primary order.  The
+pairing equations leave the root pairs
+\[
+ \{1,2\},\qquad\{2,5\},\qquad\{2,9\}.
+\]
+Multiplying the target $Q$ by either root gives the same $x$-coordinate.
+Consequently one base-field Kummer generator row is obtained from each local
+field without evaluating the secret isogeny.
+
+Here
+\[
+ \betaP(3,7,11)=32>20=4d,
+ \qquad
+ \Cr=9<10=2d.
+\]
+The three rows enter the target-scaling decoder.  Its residuals have bidegree
+$(5,5)$; all three pairwise resultants are nonzero, and their common
+specialization gives one verified pair.  The recovered kernel polynomial is
+\[
+ F(X)=X^2+9768X+21203,
+\]
+with target $x$-scale $\lambda=16205$.  Post-freeze enumeration finds exactly
+one rational degree-$5$ source edge and the same kernel and explicit $x$-map.
+
+Three acquisition seeds produced different torsion generators but the same
+normalized candidate hash.  Diagnostic total producer times were
+$0.320$--$0.362$ seconds; the decoder subroutine itself took
+$0.043$--$0.059$ seconds.
+Across the runs, torsion acquisition used $78$--$136$ sampled points,
+$176$--$276$ scalar multiplications, and six Weil pairings, with no pairing
+failure.  Three executions of the same separate verifier passed all
+registered checks, including wrong-image, wrong-root, wrong-order,
+wrong-degree, wrong-target, and map-coefficient mutations.  All executions
+share the same Sage trust boundary and are not independent implementations.
+
+\subsection{A stronger additive baseline}
+
+The inequality $\Cr<2d$ rules out a one-dimensional nullspace certificate
+from unrestricted rational interpolation, but it does not exhaust the public
+algebraic structure.  We therefore give the additive baseline all nine local
+half-orbit rows.  The resulting $9\times11$ matrix has rank $9$ and a
+two-dimensional nullspace.  Writing its rational-map pencil as
+$R_u=N_u/D_u$, a homomorphism to the public target must satisfy
+\begin{equation}\label{eq:curve-identity}
+ s(x^3+A_0x+B_0)(N'_uD_u-N_uD'_u)^2
+ =D_u(N_u^3+A_1N_uD_u^2+B_1D_u^3)
+\end{equation}
+for some differential square $s$.  The gcd of the coefficient minors in the
+pencil parameter has degree one and recovers the same map.
+
+This baseline subroutine took $0.006$--$0.011$ seconds, faster than the
+three-row Schoof--V\'elu decoder on this toy.  The experiment therefore establishes a
+strict separation from raw linear interpolation and a three-versus-nine row
+reduction, but not an advantage over interpolation augmented by the public
+curve identity.  Scalar-multiple orbit rows are cheap once a generator has
+been acquired, so the row reduction is not by itself a cryptographic speedup.
+
+\subsection{Zero-row ablation}
+
+The fixture has a still stronger negative control: because $E_0$ lies on the
+degree-$5$ floor, it has exactly one rational degree-$5$ edge.  A source-only
+enumerator therefore recovers the same kernel without the target or any
+self-pairing row.  In 30 fresh-curve repetitions, every run returned the
+kernel $X^2+9768X+21203$; the median enumeration time was $0.00190$ seconds
+(minimum $0.00157$, maximum $0.0605$ including the cold run).
+
+This does not invalidate the self-pairing producer, decoder, or theorem.  It
+does mean that this fixture validates compatibility of the complete
+information path but cannot demonstrate that balanced-primary data improve
+recovery.  The ``three versus nine'' observation is a compressed-generator
+separation from a structure-blind linear-rank certificate, not a three-versus-
+nine acquisition saving.
+
+\subsection{Supplied-row regression fixtures}
+
+Three ordinary fixtures and one supersingular supplied-row fixture pass.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{rrrrr}
+\toprule
+$d$ & field & residual bidegree & resultant degree & verified pairs\\
+\midrule
+3  & $\F_{101}$   & $(3,1)$   & 6   & 1\\
+5  & $\F_{191}$   & $(5,5)$   & 50  & 1\\
+7  & $\F_{269}$   & $(7,7)$   & 98  & 1\\
+13 & $\F_{30029}$ & $(13,13)$ & 338 & 1\\
+\bottomrule
+\end{tabular}
+\caption{Target-scaling decoder results.  ``Verified pairs'' means candidates
+passing the public subgroup, endpoint, degree, scale, and supplied-row checks.}
+\label{tab:fixtures}
+\end{table}
+
+The degree-$13$ supplied-row fixture uses
+\[
+ E_0/\F_{30029}:y^2=x^3+x+12
+\]
+and rational points of exact orders $3,5,7,11$.  The decoder receives only
+the source, marked rescaled target, degree, and four $x$-rows.  It recovers
+\[
+ \lambda=289,
+\]
+and
+\[
+\begin{split}
+ F(X)={}&X^6+321X^5+28082X^4+8827X^3\\
+       &+9401X^2+17638X+10027.
+\end{split}
+\]
+The second implementation obtains the same unique public candidate, checks the
+map on every rational source point only after acceptance, and independently
+enumerates all rational degree-$13$ kernels, finding one matching map.  A
+single mutated image row leaves no verified candidate.
+
+\subsection{Below-threshold non-uniqueness}
+
+The theorem is not asserted without its quantitative hypothesis.  Over
+$\F_{157}$, let
+\[
+ E:y^2=x^3+x
+\]
+and let $\iota$ be the order-four CM automorphism.  The two endomorphisms
+\[
+ \phi=[3]+[5]\iota,\qquad \psi=[3]-[5]\iota
+\]
+have degree $34$ and satisfy $\phi\ne\pm\psi$.  Nevertheless, their target
+$x$-coordinates agree on one exact-order $3$ point and one exact-order $5$
+point.  The local signs split between $\phi+\psi$ and $\phi-\psi$, and
+\[
+ \betaP(3,5)=8\le136=4d,
+ \quad \deg(\phi+\psi)=36,
+ \quad \deg(\phi-\psi)=100.
+\]
+This is a concrete negative control below the theorem threshold.
+
+\subsection{Evidence boundary}
+
+The ordinary degree-$5$ experiment implements the claimed self-pairing
+information path end to end, but only at toy scale and in one isogeny degree;
+the zero-row ablation shows that its rows are unnecessary for recovering this
+particular edge.
+Sage's finite-field, endomorphism-ring, pairing, modular-polynomial, and
+post-freeze isogeny backends are trusted.  At the primary $3$ the Frobenius
+discriminant has valuation two; effectiveness is certified by the observed
+nonscalar nilpotent action and primitive pairing, not by a valuation-one
+shortcut.  The experiment does not implement Kani's construction, benchmark
+a protocol action, or establish a scaling law for the decoder.  The
+degree-$13$ case remains a supplied-row regression and is not used to support
+the self-pairing acquisition claim.
+
+\section{Cryptographic implications}
+
+In the ramified self-pairing setting, each primary component may expose
+\[
+ \phi(P_i)=\pm[\alpha_i]Q_i.
+\]
+When $\betaP>4d$, these nominally independent signs cannot encode two
+different degree-$d$ isogenies.  Thus the local $2^r$ ambiguity is not
+information-theoretic protection in this regime.
+
+This suggests an additional parameter audit.  For every accessible odd
+ramified primary order, record:
+
+\begin{enumerate}[leftmargin=*,label=(\arabic*)]
+\item the exact order and local-primitivity hypotheses;
+\item its torsion-field degree and pairing/DLP cost;
+\item the exact or lower-bounded value of $\betaP$; and
+\item the reconstruction backend and required output representation.
+\end{enumerate}
+
+If $\betaP>4d$, local sign tuples cannot represent distinct degree-$d$ Kummer
+maps.  Conditional on a decoder that consumes these Kummer samples directly,
+one may therefore avoid explicit local-root enumeration.  This is not an
+unconditional $2^r$ runtime saving: existing higher-dimensional algorithms
+reuse work across root choices, and the replacement decoder has different
+arithmetic and output costs.  In the four-primary asymptotic family the
+nominal $2^r=16$ factor is constant.  The theorem's unconditional content is
+that the local roots do not carry $r$ independent bits of map identity once
+the complementary-product threshold is crossed.
+
+These gains come with strong qualifications.  The product order is at least
+on the scale already required by subgroup interpolation and is
+$\Theta(d^2)$ in the balanced asymptotic example.  Torsion-field arithmetic
+and pairing DLPs may dominate.  The explicit output is linear in $d$, whereas
+Kani and higher-dimensional methods can retain compact evaluators.  The
+published SCALLOP examples analyzed by Galbraith, Gilchrist, and Robert are
+not shown vulnerable by this criterion \cite{ggr-volcanoes}.  The defensive
+consequence is a parameter audit: a design should not count local square-root
+multiplicity as security without first checking $\betaP$ and the cost of a
+direct Kummer decoder.  We make no claim about deployed SCALLOP or
+PEARL-SCALLOP parameters, SQIsign, ordinary ECDLP, or generic class-group
+vectorization.
+
+\section{Related work and novelty boundary}
+
+Urbanik and Jao record a classical bounded-degree agreement lemma for exact
+point images \cite{urbanik-jao}.  Petit exploits exact torsion images in
+isogeny recovery \cite{petit-torsion}.  Neither setting includes independent
+Kummer signs on separate primary components.
+
+The abstract proof architecture has a close antecedent in real phase
+retrieval.  Balan, Casazza, and Edidin partition measurements according to
+whether two phaseless observations place the difference or the sum in the
+corresponding kernel, and use the complement property to force a global sign
+\cite{balan-phase}.  Our arithmetic specialization replaces linear spanning
+by generated torsion-subgroup sizes and combines the two branches through the
+degree norm.  We do not claim the sign-partition idea itself as new.
+
+Castryck et al. introduced self-pairing attacks on weak class-group-action
+instances and explicitly account for the $2^{r-1}$ square-root classes left by
+several primary factors \cite{castryck-selfpairings}.  Macula and Stange
+developed the sesquilinear framework and analyzed the remaining local
+candidates \cite{macula-stange}.  Galbraith, Gilchrist, and Robert give the
+ramified cyclic relation used here and recover through an auxiliary quotient
+and higher-dimensional isogenies \cite{ggr-volcanoes}.
+
+General interpolation from sufficiently large torsion action is developed in
+the literature on isogeny interpolation; a public account gives the familiar
+$4d+1$ point threshold \cite{castryck-ants,robert-survey}.  The earlier
+additive Kummer-orbit observation processes each primary sign before Chinese
+remaindering.  Theorem~\ref{thm:balanced} goes further by using the degree
+quadratic form to couple all local signs without enumerating their tuple.
+
+Bostan, Morain, Salvy, and Schost compute normalized isogenies quasi-linearly
+in the degree using formal expansions \cite{bmss}.  Takahashi et al. make
+kernel and intermediate-codomain coefficients symbolic and solve the
+resulting equations algebraically \cite{takahashi-kernel}.  We therefore treat
+the target-scaling decoder as a sample-aided implementation variant and
+experimental witness, not as a standalone novelty claim.
+
+The balanced complementary-product criterion was not found in the inspected
+public primary sources as of July 20, 2026.  The closest defensible novelty
+claim is an arithmetic complement-property criterion for Kummer evaluations
+of bounded-degree elliptic-curve homomorphisms.  It is a short synthesis of
+standard identities, and the in-preparation isogeny-interpolation manuscript
+cited through its public ANTS slides remains a priority gap.  Novelty should
+therefore remain qualified until broader expert review.
+
+\section{Limitations and open problems}
+
+\begin{itemize}[leftmargin=*]
+\item The theorem is sufficient, not necessary; no sharp converse is claimed.
+\item Pairwise coprimality and exact point orders are essential to the product
+      lower bound.
+\item The constructor is toy-scale and assumes short-Weierstrass models in
+      sufficiently large characteristic.
+\item The end-to-end experiment uses one degree-$5$ ordinary ascending
+      fixture.  Its local field construction, sampling, pairings, and
+      pairing-root search are charged, but it does not establish scaling.
+\item At the order-$3$ primary, local effectiveness is measured rather than
+      inferred from a valuation-one discriminant condition.
+\item A zero or exceptional sample resultant requires additional rows or full
+      differential equations; a complete specialization-safe implementation
+      is open.
+\item The dense explicit-map decoder is not directly comparable with compact
+      higher-dimensional representations without conversion and output costs.
+\item The additive nullspace-pencil baseline recovers the same toy map faster.
+      No runtime advantage over a structure-aware interpolation baseline is
+      claimed.
+\item The source-only zero-row baseline also recovers the unique toy edge, so
+      this fixture cannot show that the pairing rows improve recovery.
+\item Producer custody is established by source/API audit and hashes, not by a
+      read-isolated execution environment.
+\item No same-instance Kani/theta implementation or deployed parameter set is
+      benchmarked.
+\item A focused literature review cannot establish absolute priority.
+\end{itemize}
+
+The decisive next experiment is a multi-degree family of genuine
+ramified-orientation fixtures with a fully charged same-instance comparison
+against the root-enumerating Kani/theta route, the additive curve-identity
+solver, and normalize-then-BMSS recovery.
+
+\section{Conclusion}
+
+Independent local signs are coupled by the global degree form.  Partitioning
+pairwise-coprime primary generators between $\ker(\phi-\psi)$ and
+$\ker(\phi+\psi)$ yields the criterion $\betaP>4d$, which determines a
+degree-$d$ isogeny up to global sign.  The generated-subgroup formulation
+also handles bounded unequal degrees and gives an error/erasure uniqueness
+condition.  The criterion strictly improves the sample threshold of raw
+additive Kummer interpolation and gives an asymptotic constant-generator
+identification regime.
+
+The ordinary $\F_{34651}$ experiment realizes the full self-pairing path on a
+genuine conductor-$15$ to conductor-$3$ ascent: three rows at orders
+$3,7,11$ recover the unique degree-$5$ kernel in three acquisition-seed runs.
+The baselines then supply two essential negative results.  Nine orbit rows
+plus the curve identity recover the same map faster, and the source's unique
+rational edge permits zero-row recovery faster still.  What survives is exact
+and useful but narrower than a break: local square-root multiplicity is not
+independent map entropy beyond the complementary-product threshold.  Turning
+that fact into a cryptographic speed gain requires nontrivial instances and a
+decoder and representation that beat the best structure-aware alternatives
+with every acquisition and output cost charged.
+
+\section*{Artifact availability}
+
+The reproducibility bundle contains the experiment contract, producer,
+construction receipt, separate verifier, verification receipt, theorem
+note, and negative controls.  No production keys or unauthorized targets are
+used.
+
+\begingroup
+\footnotesize
+\input{paper.bbl}
+\endgroup
+
+\end{document}

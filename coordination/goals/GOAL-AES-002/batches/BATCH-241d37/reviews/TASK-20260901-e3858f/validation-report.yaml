@@ -1,0 +1,894 @@
+validation_report:
+  id: VAL-20260901-e3858f
+  task_id: TASK-20260901-e3858f
+  goal_id: GOAL-AES-002
+  question_id: RQ-AES-002
+  batch_id: BATCH-241d37
+  role: validator
+  artifact_class: MACHINE_READABLE_MANIFEST
+  snapshot_commit_read: ee80ce45691a791638a614c441d0904775cea142
+  snapshot_is_ancestor_of_head: true
+  head_at_start: 7ce81de51fb9b3035f9b39794eeaa6a31f6dbfd1
+  head_at_finish: 27a51339bf49c9bc82ba953d1a11261d39c02921
+  head_moved_during_this_task_note: >-
+    HEAD advanced by exactly one commit while this task ran (27a51339b,
+    "release(TASK-20260901-3ad5d2): completed by coordinator-aes2-session"),
+    written by the dispatching session. Every finding below is bound to a
+    commit sha or to a blob read with `git show <sha>:<path>`, never to a
+    floating working-tree read, so the move cannot have contaminated any check.
+  run_ids: []
+  run_ids_note: >-
+    NONE. This batch produced no experiment run; the four deliverables are a
+    protocol amendment, a source patch, an experiment design and a hash-binding
+    manifest. No RUN-* record exists to cite and none is invented (SC-10).
+
+  # ---------------------------------------------------------------- J1
+  joints:
+  - joint: J1
+    subject: BLK-1 alternative fix (ITEM 2, TASK-20260901-eb81f4)
+    verdict: holds
+    method: reproduced_in_isolated_worktree
+    what_i_did_not_do: >-
+      I did not accept the producer's or the Coordinator's assertion that the
+      output is byte-identical. I re-ran the validator myself on the unedited
+      pre-fix tree and on the patched tree, and I additionally built the
+      discriminating controls that byte-identical output alone cannot supply.
+    worktree:
+      command: git worktree add --detach <scratchpad>/wt-blk1 ee80ce456^
+      detached_at: 94c6eb7577d5df58e198bca55868856377a6d3c8
+      removed_with: git worktree remove --force
+      shared_tree_status_before: "?? coordination/goals/GOAL-AES-002/batches/BATCH-241d37/reviews/"
+      shared_tree_status_after: "?? coordination/goals/GOAL-AES-002/batches/BATCH-241d37/reviews/"
+      shared_tree_unchanged: true
+      shared_tree_status_note: >-
+        The single untracked entry is this task's own write_scope directory,
+        which also contains the sibling review task's start stamp. Nothing
+        tracked was modified. `git worktree list` returns to one entry.
+    checks:
+    - check: declared patch equals the diff actually committed
+      method: >-
+        `git show --format="" ee80ce456 -- tools/validate_ledger.py
+        docs/claims-and-verification.md docs/evidence-and-reproducibility.md`
+        diffed against the committed blob of blk1-alternative-fix.patch.
+      result: IDENTICAL, 110 lines both sides, zero diff hunks.
+      status: pass
+    - check: patch applies to the pre-fix tree and reproduces the snapshot bytes
+      method: git apply --check then git apply in the detached worktree; per-file sha256.
+      result: |
+        tools/validate_ledger.py             3ed4d35f0f7251989213401cf517e5fdfc6f4538ae5867e6c4d96f61fd43523e  MATCH
+        docs/claims-and-verification.md      ecf8f7e59eac033c472e9f133046856a96ceef3d8e9d122c1379e33283a55211  MATCH
+        docs/evidence-and-reproducibility.md 1bfbad9a22372a3a05047bd1c48817f3698e91ef9da1b6b5e7b023786c2e2a6d  MATCH
+      status: pass
+      note: >-
+        This discharges the executor's `applied` disposition by per-file
+        sha256 against the shared tree as the card requires. The same three
+        files in the CURRENT shared working tree also still hash to the
+        snapshot values, so nothing has drifted since.
+    - check: FULL ERROR-LINE SET, not the count, pre-fix vs post-fix
+      method: two runs of `python3 tools/validate_ledger.py` in the same worktree; stdout and stderr diffed; error lines extracted and sorted into sets.
+      transcript_pre_stdout: |
+        note: 1210 grandfathered legacy error(s) suppressed by tools/validate_ledger_baseline.txt
+        note: 103 frozen root-level ledger records were indexed; 371 legacy run manifest(s) were indexed; 979 legacy schema issue(s) remain read-only
+        note: 31 superseded run manifest(s) routed to their superseding records by tools/run_supersession_registry.yaml; both records stay hash-pinned
+        note: 90 archived schema record(s) routed to complete replacements by tools/schema_supersession_registry.yaml; both records stay hash-pinned
+      transcript_pre_stderr: |
+        FAIL: 4 new validation error(s):
+
+          - experiments/EXP-ISOU-2ac81f/runs/RUN-ISOU-20bit-A/manifest.yaml: run claims a discrete_log but certificate.verified is not true
+          - experiments/EXP-ISOU-2ac81f/runs/RUN-ISOU-20bit-B/manifest.yaml: run claims a discrete_log but certificate.verified is not true
+          - experiments/EXP-ISOU-2ac81f/runs/RUN-ISOU-24bit-A/manifest.yaml: run claims a discrete_log but certificate.verified is not true
+          - experiments/EXP-ISOU-2ac81f/runs/RUN-ISOU-24bit-B/manifest.yaml: run claims a discrete_log but certificate.verified is not true
+      transcript_post: IDENTICAL to the above, byte for byte, on both streams; exit status 1 both runs.
+      error_line_set_comparison: 4 lines pre, 4 lines post, sorted sets diff empty. A count match WITH a set match.
+      grandfathered_suppressed: 1210 (both runs)
+      stale_baseline_note_present: false
+      status: pass
+      independent_confirmation_of_coordinator_claims: >-
+        The Coordinator told me 1210 / FAIL:4 / no stale-baseline note. I did
+        not take that on the Coordinator's word; the numbers above are my own
+        two runs and they agree.
+    - check: DISCRIMINATING CONTROL - is the fix a working fix or a no-op?
+      why: >-
+        Byte-identical whole-repo output is exactly what a no-op edit also
+        produces, so the whole-repo run cannot on its own discharge J1. I built
+        a probe that imports the pre-fix module (`git show 94c6eb757:tools/validate_ledger.py`,
+        sha256 0cec1bf6...) and the post-fix module (sha256 3ed4d35f...) side by
+        side and calls check_run() on synthetic run manifests.
+      transcript: |
+        CASE                               | PRE-FIX emission                                                       | POST-FIX emission
+        A_key_recovery_verified_true       | run.result.certificate.kind must be one of discrete_log|decomposition|none | <no certificate error>   [DIFFERS]
+        B_key_recovery_verified_false      | run.result.certificate.kind must be one of discrete_log|decomposition|none | run claims a key_recovery but certificate.verified is not true   [DIFFERS]
+        C_key_recovery_verified_null       | run.result.certificate.kind must be one of discrete_log|decomposition|none | run claims a key_recovery but certificate.verified is not true   [DIFFERS]
+        D_discrete_log_verified_false      | run claims a discrete_log but certificate.verified is not true         | run claims a discrete_log but certificate.verified is not true   [SAME]
+        E_discrete_log_verified_true       | <no certificate error>                                                 | <no certificate error>   [SAME]
+        F_none                             | <no certificate error>                                                 | <no certificate error>   [SAME]
+        G_NULLOBJ_unknown_kind             | run.result.certificate.kind must be one of discrete_log|decomposition|none | run.result.certificate.kind must be one of discrete_log|decomposition|none   [SAME]
+        H_NULLOBJ_empty_string_kind        | run.result.certificate.kind must be one of discrete_log|decomposition|none | run.result.certificate.kind must be one of discrete_log|decomposition|none   [SAME]
+        I_NULLOBJ_missing_kind             | run.result.certificate.kind must be one of discrete_log|decomposition|none | run.result.certificate.kind must be one of discrete_log|decomposition|none   [SAME]
+        J_NULLOBJ_key_recovery_typo        | run.result.certificate.kind must be one of discrete_log|decomposition|none | run.result.certificate.kind must be one of discrete_log|decomposition|none   [SAME]
+        K_decomposition_verified_false     | run claims a decomposition but certificate.verified is not true        | run claims a decomposition but certificate.verified is not true   [SAME]
+        DISCRIMINATION: post-fix differs from pre-fix on: ['A_key_recovery_verified_true', 'B_key_recovery_verified_false', 'C_key_recovery_verified_null']
+      finding: >-
+        THE FIX IS A WORKING FIX, NOT A NO-OP. It flips exactly the three
+        key_recovery cases and nothing else. It is also not a blanket
+        whitelist: cases B and C show the verification duty
+        (certificate.verified is not true) now attaches to key_recovery, which
+        is the semantics docs/claims-and-verification.md requires. Regression
+        cases D, E, F, K are untouched.
+      status: pass
+    - check: NULL-OBJECT CONTROL (an unknown kind must still emit the protected literal)
+      cases: [unknown kind string, empty-string kind, missing kind key, near-miss typo "key-recovery"]
+      result: >-
+        All four emit the protected literal
+        "run.result.certificate.kind must be one of discrete_log|decomposition|none"
+        BYTE-EXACT under BOTH the pre-fix and the post-fix module. The near-miss
+        typo case is the one that matters most: the fix keys on exact membership
+        in CERTIFICATE_KINDS, so a misspelled kind is still rejected and cannot
+        be laundered through.
+      status: pass
+    - check: WHY the whole-repo output is byte-identical, verified rather than assumed
+      method: enumerated certificate.kind across every run manifest under experiments/.
+      result: >-
+        ZERO existing run manifests declare `certificate.kind: key_recovery`
+        (1527 `none`, 126 `decomposition`, 90 `discrete_log`, plus legacy
+        out-of-vocabulary kinds). The six files matching the string
+        "key_recovery" match on `reason: estimate_or_coverage_analysis_no_key_recovery`
+        and all carry `kind: none`. Byte-identical whole-repo output is
+        therefore the PREDICTED behaviour of a working fix, not evidence of a
+        dead code path - and the probe above independently shows the path is live.
+      status: pass
+    - check: is the byte-for-byte preservation of the message actually load-bearing, or a rationalisation?
+      method: >-
+        I reworded the message myself in the worktree to
+        "discrete_log|decomposition|key_recovery|none" and re-ran the validator.
+      transcript: |
+        note: 1098 grandfathered legacy error(s) suppressed by tools/validate_ledger_baseline.txt
+        note: 112 baseline entrie(s) no longer occur; prune with --update-baseline
+        FAIL: 116 new validation error(s):
+          - experiments/EXP-BKK-001/runs/RUN-BKK-001-a/manifest.yaml: run.result.certificate.kind must be one of discrete_log|decomposition|key_recovery|none
+          ... (116 total)
+      result: >-
+        CONFIRMED AND QUANTIFIED INDEPENDENTLY. Suppression drops 1210 -> 1098
+        (exactly 112 fewer), 116 = 4 + 112 errors are emitted, and the
+        "112 baseline entrie(s) no longer occur" prune note appears. The
+        baseline contains exactly 112 lines ending in the protected literal
+        (`grep -c`). The producer's stated cost is a measured fact, not a story.
+      status: pass
+    - check: does the fix leave the message under-reporting the accepted kind set, and was that disclosed?
+      result: >-
+        YES it under-reports, and YES it is disclosed, in three places I read in
+        the committed bytes: (1) a 12-line comment at the code site naming the
+        message "NO LONGER AN EXHAUSTIVE ENUMERATION"; (2) a "KNOWN DISCREPANCY,
+        RECORDED RATHER THAN HIDDEN" bullet added to docs/claims-and-verification.md
+        declaring THAT DOCUMENT, not the message, authoritative; (3) the snapshot
+        commit message. The disclosure is adequate and correctly located.
+      status: pass
+    residual_costs_i_found_that_the_producer_did_not_name:
+    - >-
+      TWO DOWNSTREAM PROSE SITES ARE NOW STALE and were not flagged:
+      coordination/goals/GOAL-ECQ-2298dc/tasks/TASK-20260824-261bb4/scripts/runner.py:16
+      and .../TASK-20260824-02c3e4/scripts/runner.py:16 both assert
+      "tools/validate_ledger.py admits only discrete_log|decomposition|none".
+      Both are immutable committed coordination artifacts, so the remedy is a
+      superseding note, not an edit, and neither is enforcement code - this is a
+      documentation-drift observation, not a defect in the fix.
+    - >-
+      The 112 grandfathered entries are grandfathered against a message that the
+      repository now declares non-authoritative. The debt is unchanged in size
+      by this fix but is now also semantically stale; the fix defers it to a
+      "Coordinator-authorized baseline regeneration" that has no ticket. Naming
+      it here so it is not lost.
+    blk1_closure_statement: >-
+      This report does NOT declare BLK-1 closed. It reports that the mechanism
+      does what it claims, with the cost the producer declared and one cost the
+      producer did not. Closure is a Coordinator decision.
+
+  # ---------------------------------------------------------------- J2
+  - joint: J2
+    subject: BATCH-286bcd opening-commit binding supplement (ITEM 4, TASK-20260901-d88346)
+    verdict: holds
+    method: full_independent_recomputation
+    scope_note: >-
+      The card asked for a SAMPLE of the declared sha256 values. Recomputing all
+      of them cost under a second, so I recomputed ALL of them rather than a
+      sample.
+    checks:
+    - check: independent recomputation of every declared sha256
+      method: >-
+        Parsed the committed supplement YAML, then for each of its 22 path
+        entries recomputed sha256 over the bytes of `git show <rev>:<path>` at
+        the declared opening commit 6223df070 and at the declared
+        head_at_authoring 719413f0, in a script written for this review.
+      result: "44 of 44 independent hash comparisons AGREED. MISMATCHES: 0."
+      also_checked: >-
+        Every entry's `identical_at_head` boolean recomputed from my own two
+        hashes (all 22 correct), and every
+        `standalone_receipt_cross_check.receipt_declared_sha256` compared
+        against my own opening-commit hash (all 22 agree).
+      status: pass
+    - check: claimed path count against `git show --stat` / `--name-status`
+      result: >-
+        `git show --name-status 6223df070` lists 22 paths, all change type A.
+        The supplement's declared path set is SET-EQUAL to the git set (nothing
+        in git that is undeclared; nothing declared that is not in git).
+        Composition recomputed by me: 2 previously pinned + 20 newly bound;
+        the 20 = 1 dispatch_queue.json + 9 task cards + 10 ledger handoffs.
+        The 22/2/20 split of F-VAL4c225b-1 is independently CONFIRMED.
+      status: pass
+    - check: supporting claims inside the supplement, spot-reproduced
+      result: >-
+        (a) "5 commits modified dispatch_queue.json between the opening commit
+        and head_at_authoring, 86 insertions / 42 deletions" - reproduced
+        exactly: abea11252, e1fd730ae, 81ceb161e, 4e776e8cb, 74c913a68, numstat
+        86/42. (b) The receipt-commit-sha discrepancy: a2073bbbf and 2c1aebf21
+        are both real commits with the same parent 6223df070 and the same
+        subject; a2073bbbf IS an ancestor of HEAD and 2c1aebf21 is NOT - exactly
+        as the supplement records. (c) The d10bc6 receipt blob hashes to
+        46ba5f6d5abc9680d81041b243a462e4bc741aad2b604036ed0652db6d38a378 at both
+        a2073bbbf and HEAD, as claimed.
+      status: pass
+    - check: was any BATCH-286bcd file modified?
+      result: >-
+        BY THE SNAPSHOT UNDER REVIEW, NO - commit ee80ce456 touches zero
+        BATCH-286bcd paths, and none of the supplement's 22 subject paths has
+        changed since head_at_authoring. THE UNQUALIFIED ANSWER IS NO WITH ONE
+        EXCEPTION THAT IS NOT THE PRODUCER'S: commit a4942d229, made by the
+        dispatching session AFTER the snapshot, modified
+        coordination/goals/GOAL-AES-002/batches/BATCH-286bcd/archives/TASK-20260901-420f4b/snapshot-receipt.json
+        in place. That path is not in the opening commit and not in the
+        supplement's subject set, so the supplement's claims are unaffected.
+        See finding OBS-E3858F-1 below - the edit itself is a defect.
+      status: pass
+      qualification: pass_with_out_of_scope_observation
+
+  # ---------------------------------------------------------------- J3
+  - joint: J3
+    subject: protocol-amendment-GOAL-AES-002-004 (ITEM 1, TASK-20260901-e045b8)
+    verdict: holds
+    method: rule_applied_by_me_then_compared
+    procedure_note: >-
+      I extracted the two resolving-text blocks from the committed amendment,
+      applied each rule myself to the required inputs, wrote down my own
+      verdicts, and only then compared against the amendment's own worked
+      checks. I did not derive my verdicts from theirs.
+    checks:
+    - check: GAP B, PROVES-TOO-MUCH, applied to the m=0 definitional reference
+      my_application: >-
+        Clause B-1 makes element (f)'s separate N-verification charge apply IFF
+        the work already charged for producing the candidate set does NOT itself
+        include, per candidate, a full AES-k evaluation on an element (d)
+        plaintext under that candidate key. For m=0 (exhaustive search: pick the
+        next key, encrypt, compare), the charged production work IS one full
+        AES-k encryption per candidate. B-1's antecedent is therefore FALSE, the
+        separate charge DOES NOT apply, and verification is BUNDLED.
+      my_verdict: BUNDLED
+      forced: >-
+        YES. The reading that proves too much - treating "pick the key" as
+        production and "encrypt and compare" as separate verification because
+        they are two procedural steps - is explicitly foreclosed by B-1's
+        sentence "PROCEDURAL SEPARATION IS NOT THE TEST AND NEVER TRIGGERS THE
+        CHARGE". There is no second admissible reading.
+      why_it_matters_arithmetically: >-
+        I checked the absurdity the check is guarding against. Note that
+        m=0 does NOT discriminate the two readings by TOTAL alone: bundled gives
+        2^(k-1) AEU-k from production; unbundled-with-free-production gives
+        2^(k-1) verification units; both total 2^(k-1). The real absurdity is
+        DOUBLE charging - production AND verification - which would make the
+        definitional reference cost about twice itself and would move CM-1's
+        definitional 2^127 / 2^191 / 2^255 figures, which no amendment may move.
+        B-1 plus B-3's "MAY NOT be charged ... more than once for the same
+        candidate set" blocks it.
+      agreement_with_amendment: >-
+        The amendment reaches BUNDLED by the same route and names the same
+        doubling absurdity. My independent application agrees.
+      status: pass
+    - check: GAP A applied to a fused T-table, a bitsliced and an AES-NI implementation
+      method: >-
+        I encoded clauses A-1/A-2/A-3 AND the red team's rejected candidate rule
+        as two predicates and executed both on the same six inputs: three
+        implementation techniques crossed with two specification-level attack
+        descriptions (ATK-P, whose spec consumes no ShiftRows/MixColumns result;
+        ATK-Q, whose spec consumes a MixColumns result).
+      transcript: |
+        attack                                 impl            AMD-004 verdict              rejected-rule verdict
+        ATK-P (no MC/SR result consumed)       fused_T_table   ADMISSIBLE under Route 3     ADMISSIBLE under Route 3
+        ATK-P                                  bitsliced       ADMISSIBLE under Route 3     INADMISSIBLE (no memory-access referent)
+        ATK-P                                  aes_ni          ADMISSIBLE under Route 3     INADMISSIBLE (no memory-access referent)
+        ATK-Q (spec consumes MixColumns)       fused_T_table   INADMISSIBLE/UNADJUDICABLE   ADMISSIBLE under Route 3
+        ATK-Q                                  bitsliced       INADMISSIBLE/UNADJUDICABLE   INADMISSIBLE (no memory-access referent)
+        ATK-Q                                  aes_ni          INADMISSIBLE/UNADJUDICABLE   INADMISSIBLE (no memory-access referent)
+        AMD-004 implementation-invariant for ATK-P: True   ATK-Q: True
+        REJECTED rule implementation-invariant for ATK-P: False   ATK-Q: False
+        TOTALITY: AMD-004 total and single-valued on all 6 inputs -> FORCED, not ambiguous
+      finding: >-
+        THE CLASSIFICATION IS FORCED, NOT STILL AMBIGUOUS, and it is forced in
+        the specific sense the gap required: the verdict is a function of the
+        attack's specification-level description ALONE and is constant across
+        the three implementation techniques. The structural reason, which I
+        verified rather than assumed, is that A-3(ii) is a CONDITIONAL on table
+        accesses (vacuously satisfied where there are none), whereas the
+        rejected rule was a BICONDITIONAL definition of "independent" keyed on a
+        memory access, so with no memory accesses every accompanying operation
+        became independent and the two most auditable implementations became
+        inadmissible. The amendment's stated rejection reason is reproduced by
+        execution, not read back. The rejected rule also mis-classifies the red
+        team's own headline counterexample - a fused T-table attack that
+        computes rounds - as ADMISSIBLE, where A-2(i) forces the conservative
+        INADMISSIBLE.
+      status: pass
+    - check: does A-2 leave a residual gap, and is it disclosed?
+      finding: >-
+        YES, one, and it IS disclosed. A-2's verdict is forced only once the
+        attack's specification-level description is fixed; two readers could
+        still differ on what a loosely described attack "requires" (e.g. "partly
+        decrypt one round"). A-4 mitigates by making the complete spec-level
+        inventory a mandatory disclosure whose omission is itself INADMISSIBLE,
+        so the rule still terminates, but it relocates the disagreement rather
+        than removing it. The amendment names exactly this as limitation L4
+        ("CLAUSE A-2's TEST REQUIRES AN HONEST SPECIFICATION-LEVEL DESCRIPTION
+        OF THE ATTACK, AND THAT IS ITS WEAKEST POINT"), and names the mirror
+        exposure for B-1 as L5. Disclosed, not papered over.
+      status: pass
+    - check: amendment 003 and CM-1 byte-unchanged
+      result: >-
+        Independently confirmed by sha256 over committed blobs at the batch's
+        opening commit 69f52eba4 and at HEAD:
+        amendment-001, -002, -003 all BYTE_UNCHANGED;
+        CM-1 (coordination/goals/GOAL-AES-002/batches/BATCH-2b0fd1/protocol/CM-1.yaml)
+        439f9fab57467fd1fb0927ce05a792876720d5d2ca676e63a835adddb8e56f00 at
+        69f52eba4, at HEAD and in the working tree - BYTE-UNCHANGED. `git log`
+        shows no commit touching amendments 001-003 since the batch opened.
+      status: pass
+    what_this_joint_does_not_establish: >-
+      The amendment's classifications are RULE APPLICATIONS, not measurements.
+      Nothing here says any AES attack exists, is cheap, or beats anything. The
+      amendment's own limitation L3 says the same and I agree with it.
+
+  # ---------------------------------------------------------------- J4
+  - joint: J4
+    subject: C2 paired-validation design v2 (ITEM 3, TASK-20260901-6afe39)
+    verdict: holds
+    method: parsed_traced_and_re_executed
+    checks:
+    - check: the deliverable parses
+      result: >-
+        yaml.safe_load succeeds. Top-level keys: supersession, experiment,
+        defects_resolved, knowledge_retrieval, budget,
+        covering_manifest_declaration, artifact_provenance,
+        other_manifests_of_this_task, honest_accounting, r5_anti_laundering,
+        not_yet_approved_not_yet_executed_statement, inference, evidence_refs,
+        snapshot_binding, commit, commit_note, archived_by, archived_by_note.
+        sha256 of the committed blob 0855a2f455fdaf9244b0d03eea1c9b817d089f539c6086e6a243451f9e8eabe4.
+      status: pass
+    - check: does the revised seed_policy actually deliver byte-identical state_0 across arms?
+      method: >-
+        I implemented S1 (the shared key stream) and S2 (the ARM-NULL-only
+        round-key stream) exactly as the v2 text specifies - SHA-256 over the
+        stated ASCII pre-image, random.Random seeded with the resulting integer,
+        getrandbits(8L).to_bytes(L,"big") for K then K' from the SAME instance -
+        and traced the draw order for both arms across 24 cases
+        (key_size in {128,192,256}) x (tier in {pilot,primary}) x (i in {0,1,7,99}).
+      transcript: |
+        sample: kb=128 tier=pilot i=0
+          K   ARM-REAL add550c6f646c21c0804cb738a0889e2
+          K   ARM-NULL add550c6f646c21c0804cb738a0889e2
+          K'  ARM-REAL df1b4cb8a1f91efe4a03864de48abd1f
+          K'  ARM-NULL df1b4cb8a1f91efe4a03864de48abd1f
+          state_0 ARM-REAL add452c5f243c41b000dc178860587ed
+          state_0 ARM-NULL add452c5f243c41b000dc178860587ed
+          S2 draw count = 20 = 2*R = 20; RK[0] not drawn from S2
+        BYTE-IDENTICAL state_0 (and K,K') ACROSS ARMS ON ALL 24 TRACED CASES: True
+        S1/S2 subseed collision over 1200 sampled indices: False
+      the_defect_is_real: >-
+        I confirmed the defect being repaired rather than assuming it. v1's own
+        text reads "SEED(key_size, arm, tier) := BASE_SEED + 1000*ks_idx +
+        100*arm_idx + tier_offset", i.e. `arm` DID index the key draw, so v1's
+        ARM-REAL and ARM-NULL provably drew different key pairs and v1's own
+        byte-identical-state_0 claim was false as written. v2's S1 index carries
+        no `arm` term.
+      adversarial_probe_i_ran: >-
+        v2 declares "FOUR DECLARED STREAMS, and no others". state_0 =
+        AddRoundKey(P, RK[0]), so if the PLAINTEXT were drawn from an undeclared
+        fifth stream the byte-identical claim could still fail on the P term. I
+        checked: P is `inputs.carried_forward_unchanged_from_v1.fixed_plaintext_P`,
+        exactly one fixed plaintext per key size, not drawn. The claim survives
+        the probe.
+      structural_points_i_verified: >-
+        (a) Because each sample index gets a FRESH random.Random, arm execution
+        order, process separation and resumption cannot desynchronise the arms -
+        this is a genuine improvement over the red team's own "single sequential
+        stream" proposal and the design says so openly rather than silently
+        deviating. (b) RK[0] is taken from the real FIPS-197 KeyExpansion in
+        BOTH arms and is not drawn from S2, so state_0 agreement is by
+        construction. (c) S2 draws exactly 2R 128-bit strings in a fixed order;
+        20/24/28 for R=10/12/14, which I checked. (d) No S1/S2 sub-seed
+        collision over 1200 sampled indices.
+      status: pass
+    - check: does a flat, non-jumping, ARM-NULL-only excess route to a NAMED falsification outcome?
+      my_trace: >-
+        A flat excess does not trip invalidation rule 1a (the jump detector), so
+        the run reaches the 2x2 table on (A = CONVERGED(ARM-REAL),
+        B = CONVERGED(ARM-NULL)). ARM-REAL fine, ARM-NULL alone in excess gives
+        A TRUE, B FALSE -> cell (iv) NULL-CONTROL-ONLY FAILURE -> invalidation
+        rule 4 fires -> the key size is reported as a MEASUREMENT-PIPELINE
+        DEFECT and UNINTERPRETABLE, explicitly never as CH-1 holding.
+      result: >-
+        ROUTED AND NAMED. The table is a truth table over two booleans and is
+        therefore exhaustive and mutually exclusive by construction, which I
+        verified by inspection rather than accepting as a claim. Cell (iv) is
+        the cell v1 did not have. The design also states in advance what the
+        outcome would MEAN (it discriminates "pipeline sound, AES is the
+        subject" from "pipeline unsound, nothing about AES was measured"), which
+        is the pre-registration discipline that makes it a discriminator rather
+        than a post-hoc excuse, and it names a localising diagnostic while
+        explicitly NOT authorising the compute.
+      inventor_protocol_s3_note: >-
+        This is the null-object discipline done correctly: ARM-NULL is a
+        same-shape null object, and the design states what the measured quantity
+        should do (converge to Binomial(128,1/2) and stay there) and treats a
+        null that fails to null out as a broken instrument rather than as a
+        weaker signal. A shared persistent excess in BOTH arms routes to cell
+        (iii) UNINTERPRETABLE, which is the artifact tell named in
+        docs/inventor-protocol.md section 3.
+      status: pass
+    - check: COORDINATOR DEVIATION 1 - the pre-archive edit to experiment.controls
+      what_i_verified: >-
+        v2's experiment.controls is a 5-item list and is EQUAL ELEMENT BY
+        ELEMENT, VERBATIM, to v1's 5-item list (ARM-NULL; the tau(N)
+        sampling-noise calibration null; ARM-ANCHOR; GATE-ROUND0; the
+        final-ciphertext FIPS-197 KAT cross-check). Python equality on the
+        parsed lists returns True and each of the five entries compares equal
+        individually. The authoring session's explanatory scalar is preserved
+        verbatim as `controls_restored_note`, which asserts exactly what the
+        restored list contains and adds nothing. v1 itself is byte-unchanged:
+        sha256 e111a7bb1cbc4025627172b3f2f58aa90e186f1dc7b5cc241d14b91b375632df
+        at HEAD and at ee80ce456, matching the digest the earlier red-team round
+        independently declared. NO CONTENT WAS LOST.
+      what_i_could_not_verify: >-
+        I CANNOT VERIFY "nothing else in the file changed". The edit was made to
+        a working-tree file before its first commit, so no committed pre-edit
+        version of v2 exists to diff against, and the only witness to the edit's
+        extent is the editing Coordinator's own statement. Corroborating but not
+        dispositive: the producer's own report
+        (c2-v2-revision-report.md, its self-declared defect list item 1) states
+        "experiment.controls is a scalar in v2, a 5-item list in v1", which is
+        consistent with a scalar-to-list restoration and with nothing else.
+      assessment: >-
+        The edit was substantively correct - templates/research-records.md
+        specifies `controls: []` and a scalar there is a schema violation - and
+        it was disclosed in the commit message rather than absorbed. The
+        PROCESS is still the weak point: a producer artifact was modified by its
+        archiver between authoring and committing, which is precisely the step
+        at which an independent diff becomes impossible. The cheap remedy for
+        next time is to commit the producer bytes AS RECEIVED first and apply
+        the repair as a second, separately reviewable commit.
+      status: pass_with_named_unverifiable
+    - check: SC-4 / R5 anti-laundering clause on this deliverable
+      result: >-
+        v2's r5_anti_laundering block states no margin and carries the required
+        verbatim dominated_by string. Amendment 004 likewise. Both are
+        non-null. This report states no margin either (see r5_anti_laundering below).
+      status: pass
+
+  # ---------------------------------------------------------------- cross-cutting
+  artifact_checks:
+  - artifact: all 17 paths bound by the snapshot commit
+    method: >-
+      For each of the 17 paths in BATCH-241d37/dispatch_queue.json's
+      TASK-20260901-82ed73 archive block, recomputed sha256 over the committed
+      blob at the declared commit_sha ee80ce456.
+    result: "17 of 17 MATCH the declared path_sha256. Content-verified at the bound commit."
+    status: pass
+  - artifact: tools/validate_ledger_baseline.txt
+    result: >-
+      sha256 (git hash-object) bc3f8ac5dbee552d5ac4ca84663cfcf194890932 at
+      ee80ce456^, at HEAD and in the working tree - BYTE-IDENTICAL, and it is
+      absent from the snapshot commit's name-status list, so --update-baseline
+      was demonstrably never invoked. Contains exactly 112 lines ending in the
+      protected literal.
+    status: pass
+  - artifact: the protected literal itself
+    result: >-
+      "discrete_log|decomposition|none" appears BYTE-UNCHANGED at
+      tools/validate_ledger.py:655 in the shared tree, and the shared tree's
+      copy of that file still hashes to the snapshot value.
+    status: pass
+  - artifact: both producer YAML files
+    result: >-
+      protocol-amendment-GOAL-AES-002-004.yaml and
+      c2-paired-validation-design-v2.yaml both parse under yaml.safe_load. I ran
+      the parser myself. (Two producer sessions honestly reported they could not
+      run it; that honesty is the correct behaviour and I confirm the result
+      they declined to claim.)
+    status: pass
+
+  metric_recomputations:
+  - metric: grandfathered suppression count
+    reported: 1210
+    recomputed: 1210
+    method: my own run of tools/validate_ledger.py on the patched worktree
+    agrees: true
+  - metric: new validation errors
+    reported: 4
+    recomputed: 4
+    agrees: true
+    note: set-equal, not merely count-equal, against the unedited run.
+  - metric: baseline entries ending in the protected literal
+    reported: 112
+    recomputed: 112
+    method: grep -c on the baseline, plus the reword experiment's own prune note
+    agrees: true
+  - metric: BATCH-286bcd opening-commit path split
+    reported: 22 total / 2 pinned / 20 newly bound
+    recomputed: 22 / 2 / 20, set-equal to git's name-status output
+    agrees: true
+  - metric: declared sha256 values in the binding supplement
+    reported: 44 (22 at opening commit, 22 at head_at_authoring)
+    recomputed: 44
+    mismatches: 0
+    agrees: true
+  - metric: dispatch_queue.json churn between opening commit and head_at_authoring
+    reported: 5 commits, 86 insertions / 42 deletions
+    recomputed: 5 commits, 86 / 42
+    agrees: true
+
+  control_checks:
+  - control: NULL OBJECT - unknown certificate kind must still be rejected with the protected literal
+    kind: null_object
+    result: pass on 4 variants (unknown string, empty string, missing key, near-miss typo) under both pre-fix and post-fix modules
+  - control: NEGATIVE - key_recovery with verified not true must still error
+    result: pass - post-fix emits "run claims a key_recovery but certificate.verified is not true"; the fix attaches the duty rather than whitelisting
+  - control: REGRESSION - discrete_log, decomposition and none behaviour must be unchanged
+    result: pass on all four regression cases
+  - control: DISCRIMINATION - post-fix must differ from pre-fix somewhere
+    result: pass - differs on exactly the three key_recovery cases and nowhere else
+  - control: EXPLANATORY - byte-identical whole-repo output must be predicted, not merely observed
+    result: pass - zero existing run manifests declare certificate.kind key_recovery
+  - control: COUNTERFACTUAL - the claimed cost of rewording must be measured
+    result: pass - rewording produces exactly 112 stale entries and 116 errors, as claimed
+  - control: DESIGN-LEVEL null object (C2 v2 ARM-NULL)
+    result: >-
+      present, same-shape, and now genuinely implementable; the design states
+      what the statistic should do as diffusion proceeds and routes a
+      non-decaying null to UNINTERPRETABLE rather than to a finding.
+
+  heuristic_validation_checks:
+  - check: pre-registered prediction
+    result: >-
+      APPLICABLE AND SATISFIED AT DESIGN LEVEL ONLY. C2 v2 carries
+      preregistered_prediction (CH-1: data-path convergence to Binomial(128,1/2)
+      by round ~2-4, sustained to the full round count) and a falsification
+      criterion fixed before any data exists. No data exists yet, so there is
+      nothing to check the prediction against and nothing is claimed.
+  - check: sample integrity
+    result: >-
+      Sample size tiers, the full seed derivation, and the exact draw order are
+      in the design and are reproducible - I re-derived K, K' and state_0 from
+      the text alone. No samples have been drawn.
+  - check: scale binding
+    result: >-
+      Declared: exactly ONE fixed plaintext P per key size, full round counts
+      10/12/14, full-state Hamming weight only. The design explicitly asserts
+      nothing about other plaintexts, related-key structure, or finer-grained
+      statistics. Scope is stated, not implied.
+  - check: correspondence validity
+    result: not_applicable - no substitute-sampling correspondence is used.
+
+  cost_model_checks:
+  - check: cost-unit honesty
+    result: >-
+      APPLICABLE TO AMENDMENT 004, WHICH IS ENTIRELY ABOUT THE UNIT. Clause A-1
+      fixes the unit at the SPECIFICATION level (S-box applications N and
+      AddRoundKey byte-XORs X), explicitly excluding machine instructions,
+      memory accesses, table lookups, register operations, cache lines and
+      gates. A-4 makes the complete spec-level inventory AND the implementation
+      technique mandatory disclosures, with omission rendering the claim
+      inadmissible. This is the "declare your unit" requirement enforced as an
+      admissibility gate rather than as advice.
+  - check: cost bookkeeping - expected cost as per-attempt cost x inverse success probability
+    result: >-
+      Element (b)'s same-convention-on-both-sides rule and clause B-2's bundled
+      semantics (one evaluation per candidate against the first pair, further
+      AEU-k only for first-pair survivors, on average about one) are the correct
+      shape. B-3 forbids charging the N-verification term more than once for the
+      same candidate set. NO CONCRETE COST TABLE IS PRODUCED BY THIS BATCH, so
+      there is no arithmetic for me to recompute; I verified the rule, not a number.
+  - check: memory reported alongside time
+    result: not_applicable - no cost table is stated in this batch.
+  - check: optimistic assumptions flagged
+    result: >-
+      Yes, in the direction that matters: L5 states plainly that B-1's error
+      direction favours a submitter who can make a cheap partial check look like
+      a full evaluation, which moves the total DOWN. Naming the direction of
+      one's own rule's exploitability is the honest form.
+
+  proof_architecture_checks:
+  - check: applicability
+    result: >-
+      not_applicable to this batch. No proof-oriented proposal, no
+      proof_search_map, no boundary-parameter baseline fixture and no
+      strictness witness is claimed. Recorded as not applicable rather than
+      silently omitted.
+
+  findings_outside_my_four_joints:
+  - id: OBS-E3858F-1
+    severity: high_for_process
+    title: TWO HASH-PINNED ARCHIVAL RECEIPTS WERE EDITED IN PLACE AFTER ARCHIVING
+    evidence: |
+      (1) BATCH-286bcd/dispatch_queue.json pins, for TASK-20260901-420f4b,
+          coordination/goals/GOAL-AES-002/batches/BATCH-286bcd/archives/TASK-20260901-420f4b/snapshot-receipt.json
+          = 6f373eabed751d0ad04400574a6b85334ec7d1520befc6599a75925e55cfcacb.
+          Commit a4942d229 edited that file in place (start_epoch 1788322200 ->
+          1788235800). The file now hashes to
+          392720a0316afacb73efb073d12cba1e114972f6f2d0c7cf221f92a156729109.
+          THE PIN NO LONGER MATCHES. The other four pins in that block do match.
+      (2) BATCH-241d37/dispatch_queue.json pins, for TASK-20260901-82ed73, its
+          own snapshot-receipt.json = 55bf6f03c7da7268... . Commit 9bc9653c1
+          edited that file in place after ee80ce456; it now hashes to
+          bea5e8203dc35eea... . THE PIN NO LONGER MATCHES THE WORKING TREE,
+          though it matches exactly at the bound commit ee80ce456.
+    analysis: >-
+      The substance of (1) is correct - 1788235800 really is 2026-09-01T04:10:00Z
+      and 1788322200 is 2026-09-02T04:10:00Z, so the recorded epoch was a day
+      out. The METHOD is the defect. CLAUDE.md states archive receipts bind to
+      content first and that "a content mismatch is still fatal"; AGENTS.md
+      rule 2 requires corrections to supersede rather than overwrite. This is
+      the same class of hash-pinning integrity defect that F-VAL4c225b-1
+      identified and that this very batch convened to repair, recurring inside
+      the repair. Case (2) may be partly the unavoidable receipt
+      self-reference problem, but a receipt that cannot contain its own hash
+      should not be pinned to a value it will not hold.
+    who: >-
+      Both are Coordinator commits, not producer artifacts. NEITHER CHANGES ANY
+      OF MY FOUR JOINT VERDICTS: all 17 snapshot pins verify byte-exactly at
+      the bound commit ee80ce456, which is what the review reads.
+    recommended_remedy: >-
+      Supersede rather than overwrite: file a correction record and, if the
+      queue must reflect it, re-pin in a new archive block that names the
+      superseding receipt. Do not re-write the pinned bytes.
+    for_the_coordinator: not_a_finding_i_may_act_on
+  - id: OBS-E3858F-2
+    severity: informational
+    title: COORDINATOR DEVIATION 2 - the eb81f4 artifact_paths widening was the right call
+    assessment: >-
+      I checked the immutable card myself. Its WRITE SCOPE section already lists
+      tools/validate_ledger.py, docs/claims-and-verification.md and
+      docs/evidence-and-reproducibility.md alongside the task directory; only
+      its DELIVERABLES section listed four paths. The producer therefore did NOT
+      exceed its declared write authority, and the widening does not paper over
+      an over-reaching producer - it closes a gap between a card's write scope
+      and its artifact list. The card itself is byte-unchanged (one commit,
+      69f52eba4, in its whole history). Committing three applied shared files
+      unpinned would have reproduced F-VAL4c225b-1 inside the batch convened to
+      repair it, so the alternative was worse. The widening was disclosed in
+      the commit message. I endorse the call, with one note: the underlying
+      defect is a card template that lets DELIVERABLES and WRITE SCOPE
+      disagree, and that is worth fixing at the template rather than per task.
+  - id: OBS-E3858F-3
+    severity: material_to_independence_accounting
+    title: COORDINATOR DEVIATION 3 - executors self-reported claude-opus-5 against a claude-sonnet-5 binding
+    assessment: >-
+      Confirmed from orchestration/model-bindings.yaml: the anthropic backend
+      binds executor-implementation to claude-sonnet-5 and review-adversarial to
+      claude-opus-5. TWO SEPARATE QUESTIONS. (a) IS IT A DOWNGRADE? No - the
+      resolved model is nominally at least as capable, so `degraded_allowed:
+      false` was not violated and no work needs re-running on capability
+      grounds. Under this runtime model selection is process-level (CLAUDE.md
+      "Model policy note"), so no subagent could have chosen otherwise; the
+      defect is in the launch environment, not in the producers, and recording
+      it rather than absorbing it was correct. (b) DOES IT MATTER FOR THE
+      EVIDENCE? Yes, in one specific way that should not be lost: it means the
+      four producers, the archiving Coordinator and BOTH reviewers were all the
+      same model. Model independence across this batch is ZERO, not merely
+      absent between the two reviewers. That is why I discharged every joint by
+      mechanical reproduction from committed bytes - re-running a command,
+      recomputing a hash, executing a rule as code - rather than by re-reasoning
+      about a producer's argument. A correlated reviewer can still check a
+      sha256 and a diff. It cannot supply an independent judgement, and I do not
+      claim to have supplied one.
+
+  verdict: passed
+  verdict_scope: >-
+    PASSED MEANS: the four producer deliverables of BATCH-241d37 are admissible
+    evidence of what they claim about themselves, each joint holds under
+    independent reproduction, and the snapshot's 17 paths are content-verified at
+    the bound commit. IT DOES NOT MEAN: that BLK-1 is closed, that CM-1's reading
+    gaps are settled for all future attacks, that experiment C2 is approved or
+    executed, that any AES result exists at any round count, or that any
+    promotion is authorized. Per-joint verdicts are J1 holds, J2 holds, J3 holds,
+    J4 holds; there is deliberately no single whole-package claim beyond that.
+  per_joint_verdicts:
+    J1_blk1_fix: holds
+    J2_binding_supplement: holds
+    J3_amendment_004: holds
+    J4_c2_v2: holds
+
+  limitations:
+  - >-
+    CORRELATED PAIR, STATED FIRST BECAUSE IT IS THE BIGGEST ONE. A fresh session
+    supplies SESSION independence, not MODEL independence. This review was
+    answered by claude-opus-5, the same model that answered the producers, the
+    archiving Coordinator and the sibling red-team task. Cross-model
+    independence remains unavailable campaign-wide. Every joint here was
+    therefore discharged by mechanical reproduction rather than by re-argument,
+    which bounds but does not remove the correlation.
+  - >-
+    I CANNOT VERIFY that the Coordinator's pre-archive edit to C2 v2 touched
+    only experiment.controls, because no committed pre-edit version of that file
+    exists. That specific sub-claim is UNVERIFIED, and I have not passed it as
+    verified; what I verified is that the restored list is v1's five items
+    verbatim and that the authoring text survives in controls_restored_note.
+  - >-
+    J3 is a check that a RULE forces a verdict, applied to attack descriptions I
+    constructed. It is not a measurement, and no implementation of any attack was
+    written or run. A rule that forces a verdict can still force a wrong one.
+  - >-
+    J4 verifies a DESIGN. The experiment is not approved, not executed, and has
+    produced no data. Byte-identical state_0 is verified in my re-implementation
+    of the design's specified derivation, not in an executor's future code.
+  - >-
+    My whole-repo validator runs were made at ee80ce456^ (plus the patch) in an
+    isolated worktree, not at current HEAD. The producer separately claims the
+    same output after merging concurrent work; I did not re-run at HEAD and do
+    not certify that claim.
+  - >-
+    NO KNOWLEDGE-CORPUS RETRIEVAL WAS PERFORMED. No search_knowledge /
+    get_context / get_source / find_related tool is present in this session's
+    surface. No query is recorded as issued (SC-10).
+  - >-
+    I did not attempt to adjudicate whether CM-1's remaining open items
+    (O-CM1-1, O-CM1-3) are correctly left open. OPEN AND UNATTEMPTED (SC-9).
+  - >-
+    OPEN AND UNATTEMPTED: I did not verify the four producers' budget_stamps
+    against wall-clock reality, did not audit the amendment's superseded_sentences
+    against -003 sentence by sentence, and did not check the C2 v2 blocks that
+    are "carried forward unchanged" against v1 field by field. Named, not tried,
+    not screened, not reported as negative.
+
+  r5_anti_laundering:
+    margin_stated_by_this_record: none
+    margin_note: >-
+      THIS RECORD STATES NO MARGIN AND NO RESULT ABOUT AES AT ANY ROUND COUNT
+      (SC-8). No reduced-round finding is asserted or implied.
+    dominated_by: "unresolvable in this environment: no primary source reachable; every recalled frontier row is unverified-from-memory"
+    sota_delta: null
+    sota_delta_note: NOT APPLICABLE. This record states no result and no margin, so there is no delta to state.
+    no_state_of_the_art_comparison_made: "TRUE, per SC-6. No comparison against the published state of the art is made or requested."
+    no_recalled_literature_figure_used_as_authority: "TRUE, per SC-5. Every number in this report was computed in this session from committed bytes."
+
+  infrastructure_signal_clause: >-
+    No reproduction failed. Had one failed it would have been INFRASTRUCTURE
+    SIGNAL about the repair under review, never negative mathematical evidence
+    about AES (AGENTS.md rule 3).
+
+  inference:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: true
+    fallback_used: false
+    resolved_model_id_self_reported: claude-opus-5
+    resolved_model_self_report_basis: >-
+      GENUINE SELF-REPORT from this session's own runtime context, which states
+      the model as claude-opus-5. Not probed against the provider; recorded as a
+      self-report, not as a verified fact.
+    binding_conformance: >-
+      orchestration/model-bindings.yaml binds review-adversarial to
+      claude-opus-5 on the anthropic backend. The model that answered matches
+      the binding for THIS role. No downgrade occurred and none was accepted.
+    session_independence: >-
+      SATISFIED. Fresh session, no producer state carried in.
+    model_independence: >-
+      NOT SATISFIED AND NOT CLAIMED. See limitations[0] and OBS-E3858F-3.
+    amazon_bedrock: "NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED AND NOT USED, per SC-11."
+
+  budget:
+    declared_wall_clock_seconds: 1400
+    declaration_basis: "SC-2 / C4: authoring-inclusive session elapsed; compute reported separately."
+    start_utc: '2026-09-01T16:28:55Z'
+    start_epoch: 1788280135
+    binding_stop_utc: '2026-09-01T16:52:15Z'
+    binding_stop_epoch: 1788281535
+    stamps_file: coordination/goals/GOAL-AES-002/batches/BATCH-241d37/reviews/TASK-20260901-e3858f/budget_stamps.jsonl
+    stamps_are_genuine_clock_reads: >-
+      TRUE. This session has a shell; every stamp carries a real `date -u +%s`
+      value, written before the work it bounds.
+    halted_on_budget: false
+    work_dropped: >-
+      none within the four joints. Items named under limitations as OPEN AND
+      UNATTEMPTED were out of scope by the card, not dropped for budget.
+    compute_wall_clock_seconds_used_approx: 95
+    compute_basis: >-
+      Four full runs of tools/validate_ledger.py, one probe harness, one hash
+      recomputation over 44 blobs, one rule-execution script, one seed trace
+      over 24 cases, plus git plumbing. Measured coarsely from section stamps,
+      not instrumented per process.
+    maximum_runs_declared: 3
+    runs_consumed: 0
+    runs_note: >-
+      No EXPERIMENT run was executed; the `maximum_runs` budget is untouched.
+      Validator tooling invocations are not experiment runs and are not charged
+      against it.
+
+  covering_manifest_declaration:
+    this_record_is_the_covering_manifest_for_TASK_20260901_e3858f: true
+    designated_by: "the task card's SC-3 clause, which names this file by path"
+    closed_vocabulary_used: [SOURCE_CODE, MACHINE_READABLE_MANIFEST, PROSE_REPORT, LEDGER_AND_COORDINATION_RECORD]
+    artifacts_covered:
+    - path: coordination/goals/GOAL-AES-002/batches/BATCH-241d37/reviews/TASK-20260901-e3858f/validation-report.yaml
+      class: MACHINE_READABLE_MANIFEST
+      role: this task's covering manifest and sole findings record
+    - path: coordination/goals/GOAL-AES-002/batches/BATCH-241d37/reviews/TASK-20260901-e3858f/budget_stamps.jsonl
+      class: MACHINE_READABLE_MANIFEST
+      role: SC-1 clock stamps, genuine `date -u +%s` reads
+    other_manifests_of_this_task: NONE. These two paths are the complete deliverable set.
+
+  artifact_paths:
+  - coordination/goals/GOAL-AES-002/batches/BATCH-241d37/reviews/TASK-20260901-e3858f/validation-report.yaml
+  - coordination/goals/GOAL-AES-002/batches/BATCH-241d37/reviews/TASK-20260901-e3858f/budget_stamps.jsonl
+
+  commit: null
+  commit_note: >-
+    NULL BY ROLE. The Validator does not commit in a shared worktree. These
+    paths are working-tree artifacts until the Coordinator's ledger archive task
+    commits them, and this record is not durable evidence until then.
+  archived_by: null
+
+  review_attestation:
+    joints_owned: [J1, J2, J3, J4]
+    joint_verdicts: {J1: holds, J2: holds, J3: holds, J4: holds}
+    read_sibling_reports: false
+    read_sibling_reports_statement: >-
+      I DID NOT READ, OPEN, LIST THE CONTENTS OF, GREP, OR OTHERWISE INSPECT the
+      sibling red-team report under
+      coordination/goals/GOAL-AES-002/batches/BATCH-241d37/reviews/TASK-20260901-3ad5d2/.
+      A directory listing of the batch showed that a `.start_stamp` file exists
+      at that path; I did not read it or any other file in that directory. While
+      I worked, HEAD advanced by one commit recording that task's completion
+      (27a51339b "release(TASK-20260901-3ad5d2)"); I read the commit subject in
+      `git log --oneline` output while checking whether HEAD had moved under me,
+      and read no part of its report. No content of that review informed any
+      finding here.
+    prior_review_reports_read: >-
+      NONE from this round. I read the earlier round's red-team digest claim for
+      C2 v1 only as it is QUOTED inside the v2 supersession block I was
+      validating, and I independently recomputed that digest myself
+      (e111a7bb...) rather than relying on the quote.
+    producer_messages_relied_on: >-
+      NONE. No producer message, and no statement from the dispatching
+      Coordinator, was accepted in place of an artifact. The five items the
+      Coordinator said it had already checked were each re-checked here and all
+      five confirmed; the three disclosed deviations were each independently
+      assessed and one of them (the C2 v2 edit extent) is reported as
+      unverifiable rather than passed.
+    sources_read:
+    - AGENTS.md
+    - CLAUDE.md
+    - agents/validator.md
+    - coordination/goals/GOAL-AES-002/batches/BATCH-241d37/task-cards/TASK-20260901-e3858f.md
+    - coordination/goals/GOAL-AES-002/batches/BATCH-241d37/task-cards/TASK-20260901-eb81f4.md
+    - ledger/handoffs/TASK-20260901-e3858f.yaml
+    - coordination/goals/GOAL-AES-002/batches/BATCH-241d37/dispatch_queue.json
+    - coordination/goals/GOAL-AES-002/batches/BATCH-286bcd/dispatch_queue.json
+    - coordination/goals/GOAL-AES-002/amendments/protocol-amendment-GOAL-AES-002-004.yaml
+    - coordination/goals/GOAL-AES-002/batches/BATCH-241d37/tasks/TASK-20260901-eb81f4/blk1-alternative-fix.patch
+    - coordination/goals/GOAL-AES-002/batches/BATCH-241d37/tasks/TASK-20260901-6afe39/c2-paired-validation-design-v2.yaml
+    - coordination/goals/GOAL-AES-002/batches/BATCH-241d37/tasks/TASK-20260901-6afe39/c2-v2-revision-report.md (grep for "controls" only, 4 matching lines)
+    - coordination/goals/GOAL-AES-002/batches/BATCH-241d37/tasks/TASK-20260901-d88346/batch-286bcd-opening-binding-supplement.yaml
+    - coordination/goals/GOAL-AES-002/batches/BATCH-286bcd/tasks/TASK-20260901-354ef5/c2-paired-validation-design.yaml (v1)
+    - tools/validate_ledger.py (pre-fix blob 94c6eb757 and post-fix blob ee80ce456)
+    - tools/validate_ledger_baseline.txt
+    - docs/claims-and-verification.md (as the patch diff)
+    - docs/evidence-and-reproducibility.md (as the patch diff)
+    - orchestration/model-bindings.yaml (grep for policy bindings)
+    - coordination/goals/GOAL-AES-002/batches/BATCH-2b0fd1/protocol/CM-1.yaml (hash only, not content)
+    sources_note: >-
+      Listed as what I ACTUALLY read, not as what the card assigned. Several
+      card-listed inputs - docs/inventor-protocol.md,
+      templates/research-records.md, ledger/goals/GOAL-AES-002.yaml,
+      ledger/questions/RQ-AES-002.yaml, ledger/decisions/DEC-20260901-1fc2f5.yaml,
+      docs/evidence-and-reproducibility.md as a whole file - I did NOT open in
+      this session. tools/check_review_independence.py reads this block and its
+      value depends on it being a record of what happened.
+    verdict: passed

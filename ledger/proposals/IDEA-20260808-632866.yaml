@@ -1,0 +1,148 @@
+idea:
+  id: IDEA-20260808-632866
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-SDITH-001
+  goal_id: GOAL-SDITH-001
+  title: Plain SD reduces to d-split SD by random permutation at polynomial cost, so the split
+    IS a real reduction and not an assumption - write the reduction down, compute its exact
+    bit cost, and name the one adversary class it fails to cover
+  class: mechanism
+  claim: 'GOAL-SDITH-001 asks whether d-split syndrome decoding is as hard as the plain SD
+    baseline it inherits. THREE CLAIMS. (A) There is a randomised polynomial-time reduction
+    in the useful direction: given a plain-SD instance (H, s, w) with H uniformly random,
+    apply a uniformly random column permutation; the error becomes a uniformly random weight-w
+    vector, which is d-block-balanced with probability rho = C(n/d, w/d)^d / C(n, w); rho
+    is POLYNOMIAL, of order w^{-(d-1)/2} up to constants, so 1/rho repetitions of any average-case
+    d-split solver solves plain SD. Hence d-split SD is at most log2(1/rho) bits easier than
+    plain SD, for EVERY adversary, unconditionally. (B) The converse is immediate since a
+    d-split instance is a valid SD instance, so the two problems are polynomially equivalent
+    in the average case and the security inheritance SDitH relies on is a THEOREM, not an
+    assumption - which is a different answer from the one the goal record presupposes. (C)
+    The reduction''s coverage has exactly one hole, and naming it is the real deliverable:
+    it bounds the advantage of any solver on the balanced SUB-POPULATION relative to the full
+    population, but it says nothing about a solver whose cost profile differs, in particular
+    a memory-heavy one, because the 1/rho repetitions multiply TIME while leaving MEMORY unchanged
+    - so under the full-cost composition this program uses (KN-TECH-035, KN-TECH-044) the
+    reduction''s overhead is charged asymmetrically and the bit count in (A) is not the bit
+    count that matters.'
+  mechanism: Permuting columns of a uniformly random parity-check matrix leaves it uniformly
+    random, and permutes the error uniformly, so the reduction is distribution-preserving
+    on both components - which is exactly why it works and why it does not work for a structured
+    code. rho is the balanced-allocation probability of a multivariate hypergeometric draw
+    and by Stirling equals Theta(d^{d/2} (2 pi w (1 - w/n))^{-(d-1)/2}) in the regime of interest,
+    i.e. polynomial in w. Claim (C) follows because full cost charges hardware times time,
+    so a reduction that repeats 1/rho times multiplies the time factor only, and a memory-heavy
+    d-split solver reduced to a plain-SD solver pays 1/rho in time while paying its memory
+    once - meaning the equivalence in the RAM model is not an equivalence under full cost.
+  why_not_a_renamed_known_approach: IDEA-20260805-cbd93d states the admissibility ratio as
+    an information-theoretic bound on the gain. This states the same ratio as the success
+    probability of an explicit REDUCTION, which is a strictly stronger object - a ratio bounds
+    an entropy argument, a reduction bounds every adversary - and then shows the reduction
+    breaks under full cost, which the ratio formulation cannot see. IDEA-20260805-7504c6 treats
+    d as a dial for measurement; this is a proof plus a named gap.
+  predictions:
+  - observable: rho at SDitH's own (n, w, d) and at the sweep d = 1, 2, 4, 8, w.
+    metric: log2(1/rho), in bits.
+    predicted: A handful of bits at SDitH's d (single digits), growing like ((d-1)/2) log2
+      w and reaching the regular-SD entropy gap at d = w.
+  - observable: Whether the reduction preserves the code distribution for SDitH's actual H.
+    metric: Is H expanded from a seed as a uniformly random matrix in systematic form.
+    predicted: Yes - in which case (A) applies to SDitH directly. If H carries any structure
+      the reduction fails and that is the finding.
+  - observable: The full-cost-charged version of the reduction overhead.
+    metric: Ratio of charged cost of the reduced solver to the charged cost of the direct
+      solver, as a function of the solver's memory exponent.
+    predicted: Strictly greater than 1/rho for memory-heavy solvers, so the RAM-model equivalence
+      overstates the security transfer by a computable number of bits.
+  minimal_test: 'Zero-compute for (A) and (B): write the reduction, prove distribution preservation,
+    and evaluate log2(1/rho) in exact rationals at SDitH''s parameters and across the d sweep.
+    For (C), instantiate the charged overhead using C1-05''s frontier at SDitH''s (R, omega).
+    Then one toy validation: at n = 96, k = 48, w = 12, d = 2 over F_251, run a plain-SD solver
+    on permuted instances and confirm the empirical balanced fraction matches rho to within
+    sampling error - a direct check that the reduction''s success probability is what the
+    formula says. Budget under 300 core-seconds.'
+  controls:
+  - STRUCTURED-CODE NULL - repeat the empirical balanced-fraction check with a quasi-cyclic
+    H instead of a random one; the reduction's distribution-preservation argument must visibly
+    fail there, confirming the control detects what it is meant to.
+  - d = 1 DEGENERACY - at d = 1, rho = 1 and the reduction is the identity; any implementation
+    reporting a non-trivial overhead at d = 1 is broken.
+  - SOLVER-INDEPENDENCE - run the check with two different solvers (Prange and Stern); rho
+    is a property of the instance distribution and must not move with the solver.
+  confounders:
+  - SDitH may define the split over F_q symbols rather than coordinates, or with unequal blocks;
+    either changes rho's formula.
+  - If the syndrome admits multiple weight-w solutions, the reduction may return an unbalanced
+    one and the reduction must be re-stated as returning a witness for the d-split relation
+    specifically.
+  - Stirling asymptotics for rho are poor at small w; use exact binomials.
+  falsification_conditions:
+  - SDitH's H is not uniformly random (seed expansion introduces structure), so the reduction
+    does not apply to the deployed instance and the inheritance really is an assumption.
+  - SDitH's relation requires a balanced witness while the syndrome admits unbalanced weight-w
+    solutions at its parameters, breaking claim (B)'s converse.
+  - The full-cost gap in (C) turns out to be zero because the best charged solver is memory-free
+    anyway, in which case (C) is vacuous and (A)+(B) settle the goal's central question outright
+    - a clean and valuable outcome.
+  interpretation_limits: A reduction in the RAM model is not a security equivalence in the
+    cost model this program uses, and that is the whole point of (C). Nothing here lowers
+    or raises SDitH's security; it re-classifies the goal's central question from open to
+    answered-modulo-a-named-gap. Claim tier TOY for the empirical check.
+  assumptions:
+  - SDitH's public parity-check matrix is uniformly random given the seed. UNVERIFIED - the
+    Round-3 specification has not been read by this program.
+  - The d-split promise is equal weight w/d on d disjoint equal-size blocks.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: A d-split solver's success probability on the balanced sub-population is not
+      adversarially correlated with the permutation used by the reduction; formally, for uniformly
+      random pi the solver's success on pi-permuted instances equals its average-case success.
+    rigorous_ingredient: The permutation is uniformly random and independent of the solver,
+      and the code distribution is permutation-invariant, so this holds by symmetry for any
+      solver fixed before pi is drawn.
+    distribution_imitated: Standard average-case reduction symmetry; no distributional heuristic
+      is actually needed, which is recorded here rather than left implied.
+    validation_route: Empirical balanced-fraction check at the toy cell above, comparing measured
+      against exact rho.
+    tail_checks: Report the empirical distribution of the number of repetitions to success
+      and compare against Geometric(rho).
+  target_complexity:
+    time_exponent: No exponent is claimed for an attack. The claim bounds the exponent GAP
+      between d-split SD and plain SD by log2(1/rho) / n, which is o(1) - i.e. the two problems
+      have the same asymptotic exponent, and the entire question is concrete rather than asymptotic.
+    memory_exponent: The reduction is memory-preserving, which is exactly why (C) bites under
+      full cost.
+    best_known_baseline: The specification's inherited plain-SD estimate, and this program's
+      charged-ISD work (43d6df, H-SDITH-d37289).
+    hidden_overhead_disclosure: The polynomial 1/rho is small in bits but is charged only
+      against time; under full cost the honest overhead is different and is computed rather
+      than assumed.
+    time_memory_tradeoff: Named as the gap in (C) rather than as a side note.
+  sota_delta: Converts GOAL-SDITH-001's headline question from open to answered in the RAM
+    model, at zero compute, and relocates the remaining uncertainty to a precisely named place
+    (asymmetric charging of the reduction overhead). That relocation is more useful to the
+    campaign than another measurement.
+  dominated_by: IDEA-20260805-cbd93d dominates the numeric value of log2(1/rho) if its admissibility
+    ratio is the same quantity - which, from its claim text, it appears to be. What is not
+    dominated is the reduction formulation, the every-adversary quantifier, and the full-cost
+    gap. Externally this reduction is elementary enough that the SDitH team may state it in
+    their own security analysis; that must be checked and would dominate (A) and (B) entirely.
+    No web access this session, so this is an honest partial null.
+  estimated_cost: Implementation LOW. Compute LOW (under 300 core-seconds). Blocked on obtaining
+    the Round-3 specification for the H-distribution question.
+  recommended_priority: high
+  honest_prior_of_survival: About 0.75 that (A) and (B) hold as stated for SDitH's actual
+    instance; about 0.5 that (C)'s gap is non-vacuous; about 0.4 that the specification already
+    states (A).
+  novelty_status: unverified
+  novelty_screen: Screened against IDEA-20260801-017, IDEA-20260805-7504c6, cbd93d, 43d6df,
+    bf6448, H-SDITH-d37289, H-SDITH-f1acdd, RQ-SDITH-001, KNOWLEDGE_BARRIERS.txt, REJECTED_TITLES.txt,
+    DEFERRED_TITLES.txt. External unscreened.
+  discriminated_from: IDEA-20260805-cbd93d (an entropy ratio bounding the gain; this is an
+    explicit reduction with an every-adversary quantifier plus a full-cost gap the ratio cannot
+    express).
+  source_refs:
+  - RQ-SDITH-001 (the d-split instance as distinct from plain random SD)
+  - KN-TECH-035, KN-TECH-044 (full-cost accounting)

@@ -1,0 +1,105 @@
+{
+  "schema": "crypto.autoresearch.validator_runtime_receipt.v1",
+  "task_id": "validator-mono-670aa6",
+  "experiment_id": "EXP-MONO-670aa6",
+  "hypothesis_id": "H-MONO-663fb4",
+  "snapshot_receipt": "coordination/tasks/TASK-20260830-f1af50/snapshot-receipt.json",
+  "verified_commit": "34474a493d2928dbd00a5fcd69dc9597e75a8bf1",
+  "verified_commit_check": "git rev-parse HEAD run at task start on branch ideas-ecdlp-20260830; matched exactly. git status --short showed no modifications under experiments/EXP-MONO-670aa6/** (only unrelated concurrent-lane untracked files elsewhere in the tree).",
+  "runtime": "claude_code",
+  "resolved_model_id": "claude-sonnet-5",
+  "requested_policy": "review-adversarial",
+  "requested_reasoning_effort": "xhigh",
+  "model_verified": false,
+  "model_verified_reason": "No adapter probe receipt exists for this session.",
+  "no_network": true,
+  "write_scope": "experiments/EXP-MONO-670aa6/reviews/validator/",
+  "scratchpad_dir": "/private/tmp/claude-501/-Volumes-SSD990-crypto-autoresearcher/655992ba-4699-434f-a2ad-3a4774fe7a8d/scratchpad",
+  "scratchpad_note": "This scratchpad directory is shared across this session's prior, unrelated tasks. Only the files under validator_670aa6/ and the reproduce1/ reproduce2/ directories listed below were authored/used for this task.",
+
+  "scripts_authored_and_run": [
+    {
+      "path_in_scratchpad": "validator_670aa6/defect1_pvalue_floor.py",
+      "sha256": "c620e20d613f76d9c41f519c074a005dec22bba0ee2a78dcf5be71885c29f3d5",
+      "purpose": "Blind re-derivation of DEFECT 1 (p-value floor vs Holm-Bonferroni threshold) directly from n_null_draws and stage3_per_curve in both runs' raw-result.json. No reliance on CORR-20260831-d15d36's own arithmetic.",
+      "command": "python3 defect1_pvalue_floor.py (run from repository root)",
+      "key_outputs": [
+        "Both runs: n_null_draws=200 -> floor=1/(n+1)=0.004975124378109453.",
+        "n_tests per family: j0=98 (49 curves x 2 stats), random-ordinary=100 (50 x 2) in both runs.",
+        "Holm most-lenient threshold alpha/m: j0=5.102e-4, random-ordinary=5.0e-4.",
+        "Floor/threshold ratio: 9.75x (j0), 9.95x (random-ordinary) -- confirms the Coordinator's ~10x claim exactly.",
+        "Actual minimum p-value achieved across all curves/statistics, both runs: exactly 0.004975124378109453 = 1/201 (hit exactly in RUN-2; RUN-1's minimum 0.0199=4/201 is still ~39x above the m=98 threshold)."
+      ]
+    },
+    {
+      "path_in_scratchpad": "validator_670aa6/defect2_family_colliding_primes.py",
+      "sha256": "b6bc821494f42f91ad2754accdc833fd6b24cbc1422ba286f37bc3221bf57315",
+      "purpose": "Blind re-derivation of DEFECT 2 (family-colliding prime streams) by directly re-executing the archived, unmodified panel_primary.build_primary_panel() and comparing j0 vs random-ordinary at every matching curve_ordinal. Also independently quantifies the supersingular-curve fraction of the j0 arm (OTHER-FINDING-2), not derivable from raw-result.json alone since per-curve p/A/B/N is not archived there for the primary panel.",
+      "command": "python3 defect2_family_colliding_primes.py (run from repository root, imports experiments/EXP-MONO-670aa6/implementation/panel_primary.py unmodified)",
+      "key_outputs": [
+        "50/50 matched curve_ordinal pairs share the identical prime p.",
+        "50/50 pairs ALSO share the identical B value (t_used=0 in 100/100 realized curves).",
+        "29/50 (58%) of j0 curves have p=2 mod 3 and are therefore forced supersingular (N=p+1); confirmed via N==p+1 check, 29/50 exact match.",
+        "1/50 random-ordinary curves supersingular (baseline rate)."
+      ]
+    },
+    {
+      "path_in_scratchpad": "validator_670aa6/supplementary_omnibus_power_check.py",
+      "sha256": "b4e5b6d39d35bb4171694a4eb457956767a174270747f1be0bf1e6706872588f",
+      "purpose": "Exploratory (non-primary) analysis for review question (b): applies Fisher's combined-p omnibus test (m=1, no multiplicity correction) and a sign test to the SAME archived per-curve p_var_uncorrected / var_real_over_median_null values, to test whether a coarser aggregation would retain genuine power that the per-curve Holm tests structurally lack. Creates no new evidence about H-MONO-663fb4; reported as informative context only.",
+      "command": "python3 supplementary_omnibus_power_check.py (run from repository root)",
+      "key_outputs": [
+        "RUN-1 j0: n_above_median=23/49, sign_test_p=0.7754, fisher_omnibus_p=0.9934.",
+        "RUN-1 random-ordinary: n_above_median=25/50, sign_test_p=1.0000, fisher_omnibus_p=0.4905.",
+        "RUN-2 j0: n_above_median=22/49, sign_test_p=0.5682, fisher_omnibus_p=0.9837.",
+        "RUN-2 random-ordinary: n_above_median=27/50, sign_test_p=0.6718, fisher_omnibus_p=0.3567.",
+        "No signal in any of the 4 (family x run) cells under this floor-immune, m=1 aggregation."
+      ]
+    }
+  ],
+
+  "reproduction_runs": [
+    {
+      "purpose": "Full bit-for-bit re-execution of RUN-MONO-670aa6-1 from the archived implementation/ and command.txt, to independently verify determinism and reproducibility (not merely trusting the archived raw-result.json).",
+      "command": "cd experiments/EXP-MONO-670aa6/implementation && python3 run_experiment.py 20260901 <scratchpad>/reproduce1",
+      "result": "Output byte-identical to the archived raw-result.json modulo wall_seconds/peak_rss_bytes/checkpoints. Reproduced file sha256 b7de745ef5b82a8f138467773a0559500c2f80a0fd411beee84505726ff85822 matches the archived file and the snapshot receipt's recorded hash exactly."
+    },
+    {
+      "purpose": "Same, for RUN-MONO-670aa6-2 (seed 20260902).",
+      "command": "cd experiments/EXP-MONO-670aa6/implementation && python3 run_experiment.py 20260902 <scratchpad>/reproduce2",
+      "result": "Output byte-identical to the archived raw-result.json modulo timing/RSS fields."
+    }
+  ],
+
+  "hand_derivations_no_code_required": [
+    {
+      "item": "Holm-Bonferroni most-lenient threshold argument (RECOMP-4/DEFECT-1)",
+      "derivation": "Holm step-down requires the SMALLEST p-value in a family of m to clear alpha/m before any test in that family can be rejected; a two-sided permutation p-value against n null draws has floor 1/(n+1) by the (1+count)/(n+1) formula. Since 1/(n+1) > alpha/m unconditionally for n=200, m in [49,100], alpha=0.05, no draw's outcome (however extreme) can ever produce a Holm-significant result in this design.",
+      "matches": "Independently confirms CORR-20260831-d15d36's arithmetic and, separately, the archived raw-result.json's own actually-achieved minimum p-values."
+    }
+  ],
+
+  "files_read_verbatim_for_git_forensics_cross_check": [
+    "git show 9e0e460e31a7bf71da3f460ff570ff8eea0bd66d --stat",
+    "git show 837e51ae5a289a3574f4a502ea5c67da372b1a32 --stat",
+    "git diff 9e0e460e31a7bf71da3f460ff570ff8eea0bd66d 837e51ae5a289a3574f4a502ea5c67da372b1a32 -- experiments/EXP-MONO-670aa6/specification.yaml"
+  ],
+  "git_forensics_result": "Independently confirmed the tampering commit 837e51ae5 touched ONLY specification.yaml (72 insertions, 44 deletions per git show --stat); no implementation file was ever edited by it. The archived and executed implementation/ files match what was actually run (confirmed by bit-for-bit reproduction above) and do NOT contain any of the five fixes the tampering commit's message claims -- independently reconfirms CORR-20260831-d15d36's incident_summary without relying on its prose for the git-history facts.",
+
+  "auxiliary_shell_commands_run": [
+    "git rev-parse HEAD; git status --short; git branch --show-current",
+    "python3 hashlib.sha256 verification of all 25 path_sha256 entries in coordination/tasks/TASK-20260830-f1af50/snapshot-receipt.json against files on disk (0 mismatches)",
+    "python3 -c ... json.load(...) spot-checks of stage2_null_object_gate / stage3_real_arm_holm_families_iii_iv / p5_enrichment against execution_report.yaml's summarized numbers (exact matches)",
+    "python3 -m json inspection of raw-result.json's full key structure (both runs) to confirm the primary-panel per-curve construction transcript is genuinely absent (OTHER-FINDING-3)"
+  ],
+
+  "budget_used_note": "Well within budget; all computations above (re-execution of both runs, all recomputation scripts) ran in well under 10 seconds of CPU time total at this toy scale.",
+
+  "prohibitions_observed": [
+    "No producer artifact (raw-result.json, execution_report.yaml, implementation/*.py, manifests, logs, specification.yaml) was edited.",
+    "No status change of any kind was made to H-MONO-663fb4, EXP-MONO-670aa6, or any ledger/goal record.",
+    "No git commit was made by this task; only files under experiments/EXP-MONO-670aa6/reviews/validator/ were written.",
+    "No network access was used or required.",
+    "No sibling review report (Red Team or otherwise) was read; none existed under experiments/EXP-MONO-670aa6/reviews/ at task start."
+  ]
+}

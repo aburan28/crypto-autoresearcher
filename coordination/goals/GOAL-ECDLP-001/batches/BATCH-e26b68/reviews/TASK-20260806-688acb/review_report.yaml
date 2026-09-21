@@ -1,0 +1,267 @@
+id: TASK-20260806-688acb
+review_type: red-team adversarial review
+reviewed_records:
+  - EXP-MTBK-306bdb/amendments/AMEND-001.yaml
+  - EXP-MTBK-306bdb/analysis.md
+  - EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-cellgrid/result.json
+  - EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-cellgrid/manifest.yaml
+  - EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-smoke/result.json
+  - EXP-MTBK-306bdb/runs/RUN-MTBK-306bdb-smoke/manifest.yaml
+  - ledger/decisions/DEC-20260806-26c0e8.yaml
+  - ledger/hypotheses/H-MTBK-001.yaml
+verdict: CONCUR_WITH_OBJECTIONS
+
+findings:
+  F1:
+    claim: corridor-emptiness (DEC F1 / AMEND-001 analytical_derivation)
+    verification: OBJECTION
+    detail: >-
+      The CONCLUSION is correct only under the hypothesis's pre-registered
+      rescue-window model; the derivation as recorded is mathematically wrong.
+      The DEC F1 statement as literally written is FALSE under its own window
+      definition.
+    derivation: |-
+      Stated window (DEC F1 / AMEND-001): (1) B >= N^(1/m); (2) B^(m-1) >= sqrt(N);
+      (3) beta*(B/2)^(m-1) < sqrt(N), beta = 2/(m+1).
+      From (3): (B/2)^(m-1) < (m+1)/2 * sqrt(N)  =>  B < 2*((m+1)/2)^(1/(m-1)) * N^(1/(2(m-1))).
+      (2) is implied by (1) for m >= 2. Corridor nonempty iff
+        N^(1/m) < 2*((m+1)/2)^(1/(m-1)) * N^(1/(2(m-1)))
+        <=> N^((m-2)/(2m(m-1))) < 2*((m+1)/2)^(1/(m-1))
+        <=> N < [2*((m+1)/2)^(1/(m-1))]^(2m(m-1)/(m-2))
+        <=> N < 2^(2m) * (m+1)^(2m/(m-2)).
+      Numerically: m=3 -> N < 2^6 * 4^6 = 262144; m=4 -> N < 2^8 * 5^4 = 160000;
+      m=5 -> N < 2^10 * 6^(10/3) ~ 398000. NOT the claimed 64/39/39.
+      The claimed bound N < ((m+1)/2)^(2m/(m-2)) = 64/39.06/38.94 follows ONLY if
+      condition (3) is replaced by beta*B^(m-1) < sqrt(N) (equivalently
+      B^(m-1) < (m+1)/2*sqrt(N), i.e. t_std < (m+1)/2 — the hypothesis's own
+      rescue window). Then:
+        N^(1/m) < ((m+1)/2)^(1/(m-1)) * N^(1/(2(m-1)))
+        <=> N < ((m+1)/2)^(2m/(m-2)) = 64 / 39.06 / 38.94 for m = 3/4/5.
+      So the amendment's stated condition and its claimed bound are mutually
+      inconsistent. The amendment's written combined inequality
+      "N^(1/m) < B < 2*((m+1)/2*sqrt(N))^(2/(m-1))" is also wrong: the exponent
+      should be 1/(m-1), and with the factor 2 the bound is 2^(2m)*(m+1)^(2m/(m-2)),
+      not ((m+1)/2)^(2m/(m-2)). As written, that inequality is satisfiable at
+      N=1045 and N=563 for all m in {3,4,5} (e.g. m=3, N=1045: B in (10.15, 129.3)),
+      directly contradicting the amendment's "satisfiable iff N < 64" claim.
+    numeric_check: |-
+      Under the STATED condition (3), the corridor is NONEMPTY at N=64, 10^3, 1e5,
+      5.2e4 for every m in {3,4,5} (e.g. m=3: B in [4,8), [10,15.91), [46.4,50.3),
+      [37.3,42.7) respectively); only N=1e9 is empty. So the amendment's claim
+      "verified for N in {64, 10^3, 1e5, 5.2e4, 1e9}" is FALSE under its own
+      stated condition. Under the corrected condition (beta*B^(m-1) < sqrt(N)) the
+      corridor is empty at all of those N (the N=64, m=3 case is the sharp
+      boundary: B >= 4 and B < 4).
+      Specific cell: (N=1045, B=16, m=3) — the actual measured cell (p=1009,
+      b=0.4). Under the stated condition: t_std = 16^2/sqrt(1045) = 7.92 >= 1 and
+      t_bkk = (2/4)*(16/2)^2/sqrt(1045) = 0.99 < 1, i.e. the stated model predicts
+      a RESCUE at this cell. The measured descent ratio there is 1.37-1.46 (no
+      rescue). The stated model is therefore both internally inconsistent with its
+      own conclusion and empirically falsified at its own boundary cell.
+    conclusion: |
+      The corrected claim — under the hypothesis's rescue-window model
+      (t_std in [1, (m+1)/2), i.e. beta*B^(m-1) < sqrt(N)) the corridor is empty
+      for all toy sizes (N >= 563 > 64) — is TRUE and the bound 64/39/39 is
+      correct. The rescue window is unreachable at the planned cells. But the
+      derivation recorded in AMEND-001 and the F1 statement in DEC-20260806-26c0e8
+      contain a material error (half-domain factor in the stated condition) that
+      must be corrected before the claim is promoted.
+
+  F2:
+    id: geometric-cost-dominance
+    verification: OBJECTION (partial)
+    detail: |
+      Cell-grid means support the qualitative claim; the specific F2 numbers are
+      not verifiable from archived runs; the "1.0-1.8x in both channels" range
+      claim is imprecise at both ends.
+    computed_from_result_json: |
+      mean descent ratio over 36 cells = 1.0546 (matches result.json summary);
+      mean relation ratio over 36 cells = 1.4056 (matches summary).
+      Per-m means: m=3 descent 1.1701 / relation 1.8223; m=4 descent 1.0370 /
+      relation 0.9679; m=5 descent 0.9567 / relation 1.4266 (matches analysis.md).
+      Descent ratio range 0.4318-1.5303; relation ratio range 0.6225-4.0.
+      No m=4 cell reaches 0.9*2^(m-1) = 7.2 (max descent 1.2774, max relation
+      1.2996). No m=5 cell reaches 0.9*2^(m-1) = 14.4 (max descent 1.2638, max
+      relation 3.0334). Verified.
+      m=3, b=0.4 near-sweep cells (relation channel only): (p=1009, B=16, seeds
+      1,2) relation ratio 4.0 with std_checks=256, bkk_checks=64 (exactly the
+      half-domain (B/2)^(m-1) = 8^2 = 64); (p=569, B=13, seeds 1,2) relation
+      ratio 3.3532 (std 169, bkk 36 = 6^2). Their descent ratios are 1.22-1.53,
+      NOT near the sweep factor. So "near-sweep" holds for relation collection
+      only, as analysis.md states.
+    f2_number_check: |
+      F2's specific numbers (mean std 149 / bkk 123 checks on p=52721, 12 targets;
+      relation collection std 4251 / bkk 3856 = 1.10x) are NOT present in any
+      archived run result. They come from AMEND-001 probe_details (unarchived
+      probes). The archived smoke run (RUN-MTBK-306bdb-smoke, p=52721, N=52440,
+      B=230, m=3) reports per_target_check_ratio mean_std_over_bkk_checks = 1.0906
+      (24 jointly found targets), consistent with the qualitative claim but not
+      equal to the probe numbers. The probe's reference values are consistent with
+      the smoke curve (N/B = 52440/230 = 228; B^2 = 52900). The F2 claim
+      "BKK yields ~1.0-1.8x in both channels" matches the descent channel
+      (0.43-1.53) and the relation MEAN (1.41), but not the relation tail: the
+      m=3, b=0.4 cells reach 3.35-4.0 (> 1.8), and some descent cells are below
+      1.0 (0.43). The analysis.md version of this claim is accurate; the DEC F2
+      statement is imprecise.
+    falsification_criterion_check: |
+      AMEND-001 corrected criterion: mean full-check ratio below 0.9*2^(m-1) at
+      m in {3,4} weakens the BKK-rescue proposition. m=3: 0.9*4 = 3.6; measured
+      means 1.17 (descent) and 1.82 (relation) — both below 3.6. m=4: 0.9*8 =
+      7.2; means 1.04 and 0.97 — below. Criterion met on the means; H-MTBK-001
+      WEAKENED scoped to the toy enumeration model is supported. (Note: the m=3,
+      b=0.4 relation cells individually exceed 3.6, but the criterion is on the
+      mean.)
+
+  F3:
+    id: rescue-claim-unfalsifiable
+    verification: VERIFIED
+    detail: |
+      Under the corrected hypothesis model the corridor is empty at all toy sizes
+      (N >= 563 > 64 for m=3; the bound is even smaller for m=4,5), so the claim
+      "K*(std) infinite and K*(BKK) finite" cannot be observed at any planned
+      (curve, b, m) cell. Under the geometric model (T ~ N/B per first success),
+      t = (N/B)/sqrt(N) = sqrt(N)/B: at the large-B cells (B=63, N=1045:
+      t = 0.51 < 1) both K* are finite (~1-2 targets); at small-B cells (B=13,
+      N=563: t = 1.82 >= 1) both are infinite. No strict rescue cell in either
+      model. Removing regime (ii) from testable scope is the correct action.
+
+objections:
+  - id: O1
+    severity: high
+    subject: corridor-emptiness derivation (F1 / AMEND-001 analytical_derivation)
+    statement: >-
+      The recorded derivation is mathematically wrong as written. The stated
+      window condition beta*(B/2)^(m-1) < sqrt(N) yields the bound
+      N < 2^(2m)*(m+1)^(2m/(m-2)) (~262144 for m=3), NOT the claimed
+      N < ((m+1)/2)^(2m/(m-2)) = 64/39/39. Under the stated condition the corridor
+      is NONEMPTY at N in {64, 10^3, 1e5, 5.2e4} for all m in {3,4,5}, and the
+      actual measured cell (N=1045, B=16, m=3) is a rescue cell (t_std = 7.92,
+      t_bkk = 0.99 < 1) — which the measured descent ratio 1.37-1.46 contradicts.
+      The claimed bound is correct only under the hypothesis's own rescue-window
+      model (beta*B^(m-1) < sqrt(N), i.e. t_std < (m+1)/2). The amendment's
+      written combined inequality also carries a wrong exponent (2/(m-1) instead
+      of 1/(m-1)) and is satisfiable at toy sizes. The CONCLUSION (no rescue at
+      toy scale) survives via the corrected model and the empirical geometric
+      model, but the derivation must be corrected (new record, rule 4) before any
+      promotion.
+  - id: O2
+    severity: major
+    subject: run provenance integrity (rule 3/5, artifact policy)
+    statement: >-
+      RUN-MTBK-306bdb-cellgrid manifest.yaml is internally inconsistent with its
+      own artifacts: (a) result.sha256 = f5ae28b7... but the actual sha256 of
+      result.json (and raw-result.json, which is byte-identical) is
+      5f171597... — MISMATCH; (b) code.commit = 089ff715 is a GOAL-SSI-001
+      harmonic-sum commit that does not touch EXP-MTBK (its only file is
+      coordination/goals/GOAL-SSI-001/batches/BATCH-047/harmonic_sum_analysis.md);
+      the experiment code's last commit is 9d1292fcc (2026-08-06 17:11), AFTER
+      the run's stated start (17:00), so the run executed on an unrecorded dirty
+      tree and the code.commit field is not the code's commit; (c) command.txt
+      contains only the script path while the manifest records a full command
+      with arguments; (d) manifest dependencies [harness/toycurve, pyyaml] vs
+      environment.json dependencies [pyyaml, sympy]; (e) manifest metrics
+      sum_descent_checks: 0, sum_relation_checks: 0, wall_clock_seconds: null
+      vs per-cell data in result.json and timing.elapsed_seconds: 0.986. The
+      smoke run's manifest has the same hash failure (recorded 128c815a... vs
+      actual b8dc8bea...). The result.json data itself is internally consistent
+      (my recomputation matches its summary), so the DATA is trustworthy; the
+      manifest provenance is not. This must be repaired (new manifest record)
+      before the run is cited as evidence.
+  - id: O3
+    severity: minor
+    subject: F2 range claim imprecision
+    statement: >-
+      DEC F2's "BKK yields ~1.0-1.8x in both channels" is contradicted at both
+      ends by the cell-grid: descent ratios range 0.43-1.53 (some cells below
+      1.0) and relation ratios range 0.62-4.0 (m=3, b=0.4 cells reach 3.35-4.0).
+      The analysis.md version is accurate; the DEC statement should be corrected
+      to "means ~1.05 (descent) and ~1.41 (relation); relation channel reaches
+      the 2^(m-1) sweep factor only at m=3, b=0.4".
+  - id: O4
+    severity: minor
+    subject: F2 specific numbers unverifiable
+    statement: >-
+      The F2 numbers 149/123 checks and 4251/3856 checks come from unarchived
+      probes in AMEND-001, not from any archived run result. The archived smoke
+      run reports 1.0906 (mean std/bkk checks, 24 targets), consistent in spirit
+      but not equal. The absolute geometric-model constant (N/B = 228) is
+      probe-only and the probe means (149/123) deviate ~35% from it; the
+      geometric model's relative content (equal cost for both enumerators) is
+      well supported, its absolute constant is not.
+  - id: O5
+    severity: minor
+    subject: executor/reviewer model identity
+    statement: >-
+      The run manifest records resolved_model_id deepseek-v4-flash-free for the
+      executor; this reviewer resolves to the same model. The review is an
+      independent session, but model-level independence between producer and
+      reviewer is not available in this deployment (consistent with the
+      GOAL_CLOSURE_QUORUM suspension note). No attestation beyond this single
+      independent session is claimed.
+
+falsification_routes:
+  - id: FR-1
+    cost: free (existing data)
+    description: >-
+      The amendment's own stated sweep model predicts a rescue at the EXISTING
+      cell (N=1045, B=16, m=3): t_std = 7.92 >= 1 and t_bkk = 0.99 < 1. The
+      already-measured descent ratios (1.37-1.46) show no rescue. This falsifies
+      the stated corridor-emptiness claim as written (the corridor is not empty
+      under the stated condition) and shows the sweep model fails at its own
+      boundary cell. No new run needed.
+  - id: FR-2
+    cost: cheapest new run (one tiny curve)
+    description: >-
+      Boundary probe at the maximal rescue cell under the corrected model:
+      N=27 (achievable with p=29 or 31, group order in Hasse interval), m=3,
+      B=3. Corrected sweep model predicts t_std = 9/sqrt(27) = 1.73 in [1,2)
+      (K*(std) infinite) and t_bkk = 0.5*9/5.2 = 0.87 < 1 (K*(BKK) finite) — a
+      rescue. Geometric model predicts t = (N/B)/sqrt(N) = 1.73 for both — no
+      rescue. Measure K*(std) vs K*(BKK) at this cell: a finite K*(BKK) with
+      infinite K*(std) falsifies the geometric model and reopens the corridor;
+      absence of rescue falsifies the sweep model at the boundary and confirms
+      the geometric model. Either outcome is decisive; cost is a handful of
+      targets on one p~30 curve.
+  - id: FR-3
+    description: >-
+      Explicit proof route: the corrected bound N < ((m+1)/2)^(2m/(m-2)) is a
+      one-line derivation (shown in F1) under the hypothesis's model; the
+      amendment's stated condition must be corrected to beta*B^(m-1) < sqrt(N)
+      (drop the half-domain factor) or the emptiness claim is false. A rescue
+      window reappears for N in [21, 27] (m=3, B=3) — the sharp boundary of the
+      claim — and for larger m (the bound grows ~m^2/4, exceeding 1045 only for
+      m >= 65, which is out of toy scope). No layout at the planned (p, b, m)
+      cells can host a rescue window under the corrected model.
+
+promotion_recommendation:
+  promote_corridor_emptiness: false
+  promote_geometric_model: true
+  reason: >-
+    The corridor-emptiness claim as recorded (DEC F1 + AMEND-001 derivation) is
+    mathematically false under its own stated window condition and must be
+    corrected (supersede with the corrected derivation: window condition
+    beta*B^(m-1) < sqrt(N), bound N < ((m+1)/2)^(2m/(m-2)) = 64/39/39, corridor
+    empty at all toy sizes) before any promotion. The corrected claim is
+    provable and the empirical data support it, but the record as written must
+    not be promoted. The geometric model (equal first-success descent cost for
+    std and BKK enumerators, ~N/B per target) is supported by the cell-grid
+    descent ratios (mean 1.05, range 0.43-1.53) and the smoke ratio (1.09), and
+    should be promoted scoped to the descent channel with two caveats: (a) the
+    absolute N/B constant is probe-only and deviates ~35% from the probe means;
+    (b) the relation channel at tiny B (m=3, b=0.4) shows the half-domain
+    enumeration effect (ratio up to 4.0 = 2^(m-1)), so the geometric model is
+    not a full relation-collection model. The manifest provenance failures must
+    be repaired (new manifest records with correct hashes) before either claim
+    is cited as validated evidence.
+
+independent_attestation:
+  independent_session: true
+  requested_policy: review-adversarial
+  resolved_model_id: opencode/deepseek-v4-flash-free
+  reasoning_effort: xhigh
+  attestation_note: >-
+    All computations in this report were re-derived independently from
+    result.json, manifest.yaml, AMEND-001, DEC-20260806-26c0e8, and
+    H-MTBK-001 (mean ratios, per-m means, 0.9*2^(m-1) thresholds, corridor
+    bounds under both condition sets, boundary cells, sha256 hashes, git
+    ancestry). No file prose was trusted for arithmetic.

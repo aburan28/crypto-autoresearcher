@@ -1,0 +1,147 @@
+idea:
+  id: IDEA-20260808-287361
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-SQISIGN-001
+  goal_id: GOAL-SQISIGN-001
+  title: 'Compute the posterior entropy H(secret | transcript^q) EXACTLY by exhaustive enumeration
+    at toy scale, instead of bounding a distinguishing advantage: the only setting in which
+    SQIsign''s zero-knowledge claim becomes a number rather than a reduction, with a leak-per-signature
+    positive control.'
+  class: measurement
+  claim: 'Every transcript-leakage question in this corpus is posed as a distinguishing advantage
+    against a simulator. That framing cannot answer the goal''s own question -- how much KEY
+    information a transcript carries -- because a simulator can be indistinguishable while
+    the transcript still pins the key (indistinguishability is about the transcript distribution,
+    not about the conditional distribution of the key given it). CLAIM: at toy scale the correct
+    object is computable EXACTLY. Fix p small enough that the whole supersingular set V (|V|
+    = floor(p/12) + eps_p) is enumerable; treat each vertex as a candidate public key; run
+    a SQIsign-shaped signer q times per key; and compute the exact posterior H(K | T^q) by
+    counting, over all (key, transcript) pairs. Prediction: H(K | T^q) = log2|V| - delta(q)
+    with delta(q) = O(1) and NOT growing in q. Falsifier: delta(q) growing linearly in q,
+    which would mean each signature carries a constant number of key bits and the scheme''s
+    security degrades with signing volume in a way its reduction does not capture.'
+  mechanism: 'Zero-knowledge says there is a simulator S with Sim(pk) ~ Transcript(sk). If
+    that holds perfectly then H(K | T^q) = H(K) exactly, for every q, because T is independent
+    of K given pk -- and pk IS K here (the public key is the curve, and the secret is its
+    endomorphism ring, which is a deterministic function of the curve). THAT LAST OBSERVATION
+    IS THE POINT AND IT IS WHY THE MEASUREMENT IS NOT VACUOUS: in SQIsign the "secret" End(E_pk)
+    is information-theoretically determined by the public key, so H(K | pk) = 0 and the whole
+    security is COMPUTATIONAL. The right conditioning is therefore not on the key but on the
+    SECRET IDEAL / the connecting isogeny from the base curve E_0, which is NOT determined
+    by pk (many ideals give the same codomain). So the measured object is H(I | pk, T^q) where
+    I ranges over the signer''s key-generation support, and the question is whether transcripts
+    shrink that fibre. That distinction -- key determined, ideal not -- is what makes the
+    experiment meaningful and is stated up front rather than discovered at analysis time.'
+  why_not_a_renamed_known_approach: 'Nearest corpus records: catalogue S3-1 (verification
+    accept-fibre, counting the verifier''s kernel on the ENCODING), S3-3 (the simulator''s
+    output alphabet, a quantifier-domain audit), S3-4 (hint_pk as an estimator of the keygen
+    MARGINAL), and IDEA-20260807-ba5eda (accept-fibre cardinality). All four count fibres
+    of the VERIFIER or describe the transcript''s own distribution. None computes a posterior
+    over the signer''s secret, and none conditions on q transcripts jointly. The delta is
+    the conditioning object and the joint-in-q structure.'
+  predictions:
+  - observable: exact posterior entropy of the secret ideal class given q transcripts
+    metric: H(I | pk, T^q) in bits, computed by exhaustive counting
+    predicted: 'Flat in q to within the sampling granularity. Pre-registered threshold: |H(I|pk,T^q)
+      - H(I|pk)| < 0.1 bits for all q <= 8 at every tested p.'
+  - observable: the leak-per-signature positive control
+    metric: dH/dq for a signer deliberately modified to publish one bit of the secret ideal
+      per signature
+    predicted: Exactly -1 bit per signature until saturation. If the instrument does not recover
+      -1, it has no power and no null result may be reported.
+  - observable: scaling of any residual delta
+    metric: fitted exponent of delta(q) in log2|V| across three toy primes
+    predicted: 0 (constant). A positive fitted exponent is the interesting outcome and routes
+      to independent review.
+  minimal_test: On the corpus's existing pure-Python supersingular 2-isogeny graph builder
+    (experiments/EXP-SSIQ-58b642/implementation/build_isogeny_graph.py) at p in {2437, 3889,
+    5737, 7333}, where |V| is 203-611. For each vertex as pk, generate q <= 8 transcripts
+    from a surrogate signer whose commitment, challenge and response steps are walks of declared
+    lengths in the same graph; bucket transcripts; count. Total work is O(|V| * q * walk length),
+    i.e. seconds. No SageMath.
+  controls:
+  - 'POSITIVE CONTROL (must fire): the one-bit-per-signature leaky signer.'
+  - 'NULL OBJECT: a signer whose transcript is generated independently of the key (a true
+    simulator). H must be exactly flat; any drop is a counting bug.'
+  - 'GRANULARITY CONTROL: report the smallest resolvable entropy change, 1/(number of samples),
+    beside every reading -- KN-FIND-031 records that an empirical survival function''s lowest
+    nonzero value is 1/N and this corpus has been burned by it.'
+  - 'WALK-LENGTH CONTROL: repeat with commitment walks shorter than the mixing length, where
+    a bias MUST appear, calibrating sensitivity in bits.'
+  confounders:
+  - '|V| <= 611 gives at most 9.3 bits of key entropy; a 0.1-bit effect needs ~10^4 transcripts
+    per key. The power calculation is pre-registered or the run is meaningless (this campaign
+    has twice reported low-power controls: GD-8, GD-9).'
+  - The surrogate signer is defined by this record, not by any specification. A negative closes
+    the surrogate only.
+  - Toy graphs are small enough that commitment collisions occur naturally, which is itself
+    the subject of S1b-03 and would contaminate this measurement if not stratified out.
+  falsification_conditions:
+  - The positive control fails to return -1 bit per signature.
+  - The null (true simulator) shows any entropy drop -- counting bug, stop.
+  - delta(q) grows with q, replicated across all four primes with non-overlapping intervals.
+    Positive result; escalate.
+  interpretation_limits: TOY TIER, and the surrogate is not SQIsign (no Round-3 specification
+    has been read by this program). An exact posterior at |V| = 611 supports statements about
+    that surrogate at that size and nothing at 2^256. What generalises is the METHOD -- exact
+    posterior instead of distinguishing advantage -- and the observation that the key is information-theoretically
+    determined so the conditioning must be on the ideal, not the curve.
+  assumptions:
+  - The corpus's graph builder is available and its degree-sequence and edge-list gates pass
+    (they are described in ideas/catalogue-20260806.../S1.md as already implemented).
+  - A SQIsign-shaped surrogate can be specified without the Round-3 document; the record supplies
+    the specification and owns it.
+  heuristic_assumptions:
+  - id: HB-1
+    statement: SURROGATE FIDELITY. The surrogate signer's commitment-challenge-response structure
+      preserves the property under test (whether transcripts shrink the secret-ideal fibre),
+      even though it does not reproduce SQIsign's compression, encoding, or higher-dimensional
+      response.
+    rigorous_ingredient: 'The Fiat-Shamir structure itself: the fibre-shrinking question depends
+      only on the conditional distribution of the response given (pk, commitment, challenge),
+      which the surrogate reproduces by construction.'
+    distribution_imitated: The uniform distribution on the supersingular vertex set, via Pizer's
+      Ramanujan mixing, which the frozen source itself invokes at line 193.
+    validation_route: 'Toy, by construction: the surrogate is fully specified and its commitment
+      marginal is measured against uniform before any posterior is computed. LABELLED TOY.
+      No crypto-scale route exists until the Round-3 specification is read.'
+    tail_checks: The delta_E = 1 stratum (j in F_p) has forced size ~12 p^{-1/2}; the surrogate's
+      commitment marginal must reproduce it.
+  target_complexity:
+    time_exponent: n/a -- a measurement, not an algorithm. The matched key-recovery baseline
+      it is measured against is p^{1/3+o(1)} conditional (KN-TECH-058).
+    memory_exponent: O(|V| * q) counters at toy scale; nothing at crypto scale.
+    best_known_baseline: No transcript-assisted key recovery against SQIsign is known to this
+      program; the matched baseline is bare-curve EndRing at p^{1/3+o(1)} conditional on Heuristic
+      1 (KN-TECH-057/058).
+    hidden_overhead_disclosure: None -- exact counting, no asymptotics.
+    time_memory_tradeoff: n/a.
+  sota_delta: 'Zero attack delta. Evidence delta: replaces a distinguishing-advantage framing
+    with an exactly computable posterior, and supplies the first positive control in this
+    corpus that can detect key leakage at a known rate.'
+  dominated_by: 'n/a (no result claimed). ROWS CHECKED on the question it measures: the p^{1/3+o(1)}
+    conditional and p^{1/2}(log p)^{O(1)} unconditional tiers of KN-TECH-058; KN-TECH-057''s
+    full-cost rows; no transcript-assisted row exists in this corpus, and that absence is
+    recorded rather than presented as a check.'
+  estimated_cost: Implementation medium (surrogate signer on an existing graph builder). Compute
+    low (seconds to minutes).
+  recommended_priority: medium
+  honest_prior_of_survival: 0.95 that the measurement runs and the positive control fires.
+    0.05 that any entropy drop is observed -- the expected outcome is the null, and the value
+    is that the null becomes a number with a stated power rather than an appeal to a reduction.
+  novelty_status: screened
+  novelty_screen: 'Screened against /tmp/ideas-ctx/EXISTING_PROPOSALS.txt, EXISTING_HYPOTHESES.txt,
+    REJECTED_TITLES.txt, DEFERRED_TITLES.txt, CATALOGUE_TITLES.txt, KNOWLEDGE_BARRIERS.txt,
+    and against S1.yaml records S1-01..S1-03. Nearest: catalogue S3-1/S3-3/S3-4, IDEA-20260807-ba5eda,
+    IDEA-20260807-cc84ad. External literature not screened (web unreachable).'
+  discriminated_from: S3-1 and IDEA-20260807-ba5eda count the verifier's accept-fibre on the
+    signature ENCODING; this counts the signer's secret-ideal fibre given the transcript.
+    S3-4 estimates the keygen marginal; this estimates a posterior. S1b-03 below uses the
+    same instrument but tracks commitment COLLISIONS, a different object with an attack attached.
+  source_refs:
+  - inputs/P13-WESOLOWSKI-2026/paper_fulltext.md line 193 (mixing citation), line 31 (affected
+    scope).
+  - ledger/goals/GOAL-SQISIGN-001.yaml -- read in full.
+  - knowledge/techniques/KN-TECH-057.md, KN-TECH-058.md -- read in full.

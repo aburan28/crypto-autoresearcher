@@ -1,0 +1,239 @@
+red_team_report:
+  id: RT-20260909-57daac
+  task_id: TASK-20260909-57daac
+  claim_under_review: >-
+    The v2 zero-run source-definition repair for EXP-ECDLP-df24c3 is
+    deterministic, accounts conservatively for negative shapes, and makes its
+    proposed separation from EXP-JINV-606dce an enforceable row-level gate.
+  review_scope: >-
+    Source-only attack of the pinned v2 packet. No ledger corpus was traversed,
+    no fixture or implementation was created, and no selector, comparator, or
+    experiment was executed.
+  source_snapshot:
+    commit: 161fb55d80bee3acda4d7cb3141a2f90b7084188
+    verified_path_sha256:
+      coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification.yaml: c710f17511752092ddf957edf45212ae5047260ca7a08a0b732ba3cd53e50f12
+      coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification-v2-repair.yaml: 21757713ce5551f743ac43c23a9b895da1448c0beef82cbd10641af74bcf2717
+      coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/duplication-audit.md: 2d7e542a18457c154fca6691473442e99e9840cde07efe31f7b9deb89f278459
+      coordination/design/BATCH-261772/reviews/TASK-20260909-e2247a/review.yaml: ac62dbebfaf7970b3fa7c22fcd92f482e9d4d747027d792eface1ee3332a045a
+      ledger/decisions/DEC-20260909-e946cb.yaml: 139374875b537c2e2e93ede80d10d0f7c728c43f85644699a588898a17df9bc2
+  joint:
+    id: deterministic_selector_vector_and_nonduplication_repair_v2
+    verdict: breaks
+    conclusion: >-
+      The repaired selector and scope-taxonomy controls have deterministic,
+      conservative dispositions, but the non-duplication gate is still not an
+      enforceable row-level proof. Its vector_comparison_present field is an
+      unbound boolean: no v2 rule requires it to resolve to the same statement
+      identity, a stored comparison row, the two normalized vectors, their
+      relations, cited artifact identities, and a comparator version. A row can
+      therefore satisfy the gate without a vector-to-artifact comparison.
+  attack_results:
+    negative_outside_allowed_root_statement_grammar:
+      mutation: >-
+        Put a direct normalized negative token in a mapping outside each of
+        $.conclusions[index], $.findings[index], $.claims[index], $.conclusion,
+        $.findings, and $.claims.
+      result: holds
+      exact_v2_route: >-
+        selector_v2.unsupported_shape_accounting recursively detects the direct
+        token and emits exactly one negative_outside_grammar selector-exclusion
+        row. Because the mapping is outside allowed_paths, it is never selected
+        for a scope verdict.
+    root_statement_with_only_record_level_citation:
+      mutation: >-
+        Put status: negative in an otherwise allowed root-level statement while
+        placing the only manifest citation on the enclosing record mapping.
+      result: holds
+      exact_v2_route: >-
+        citation_colocation requires a direct citation field in the same
+        statement mapping. unsupported_shape_accounting emits exactly one
+        missing_colocated_citation exclusion; record-level citations are
+        expressly insufficient, so this shape cannot become clean or
+        overbroad.
+    invalid_interval_encoding:
+      mutation: >-
+        Select an otherwise eligible statement whose required interval_set has
+        an interval with lower greater than upper or overlapping, noncanonical
+        intervals.
+      result: holds
+      exact_v2_route: >-
+        scope_vector_v2.normalization defines only disjoint closed ordered
+        lower-less-than-or-equal-to-upper decimal intervals. Its
+        absent_or_invalid rule sends any invalid encoding to unauditable and
+        expressly prohibits an overbroad verdict.
+    unmarked_scope_prose:
+      mutation: >-
+        Select an otherwise typed statement with a nonempty scope.prose and no
+        valid semantic_generalization marker.
+      result: holds
+      exact_v2_route: >-
+        semantic_generalization_v2.rule requires inconclusive with reason
+        untyped_scope_prose before any automatic clean or overbroad disposition.
+    marked_scope_prose:
+      mutation: >-
+        Select an otherwise typed statement with
+        scope.semantic_generalization equal to the closed valid mapping
+        {kind: theorem_or_prose_generalization, rationale: nonempty NFC string}.
+      result: holds
+      exact_v2_route: >-
+        semantic_generalization_v2.marker_schema accepts that sole closed form,
+        and a valid marker forces inconclusive before field relations aggregate.
+        A malformed marker also forces inconclusive rather than a favorable
+        automatic verdict.
+    widened_canonical_target_set:
+      mutation: >-
+        Use the declared widened control: conclusion
+        target_object_or_curve_family is ['toy-prime-field', 'binary-field']
+        while resolved coverage is ['toy-prime-field'], with every other
+        required normalized field equal.
+      result: holds
+      exact_v2_route: >-
+        set_string normalization makes both values deduplicated sorted arrays.
+        The coverage is a proper subset of the conclusion, hence the relation
+        is conclusion_strict_superset_of_coverage. With complete bindings and
+        no prose marker, decision_rule.overbroad applies.
+    l3_only_linkage_with_vector_comparison:
+      mutation: >-
+        A selected row resolves a direct linkage to EXP-JINV-606dce and carries
+        a vector comparison.
+      result: holds
+      exact_v2_route: >-
+        non_duplication_v2.l3_rule sets l3_curve_family_table_membership true
+        for that resolved identifier. The gate requires membership false, so
+        this row cannot establish mechanical distinction even when its vector
+        comparison and eligibility fields are true.
+    unbound_vector_comparison_boolean:
+      mutation: >-
+        Construct a selected row with a direct resolved idea_id
+        IDEA-20260815-024cf2, resolved_idea_ids containing only that ID,
+        l3_curve_family_table_membership false, vector_comparison_present true,
+        and non_duplication_eligible true, but with no immutable
+        scope-comparisons row keyed to that statement and no stored vector,
+        relation, cited-artifact identity, or comparator-version evidence.
+      result: breaks
+      accepted_path: >-
+        IDEA-20260815-024cf2 is the plan's declared source idea and is not one
+        of the three identifiers that l3_rule defines as L3 membership. The
+        supplied linkage values therefore meet the stated row_fields and yield
+        membership false. The gate requires only those two asserted booleans
+        plus resolved linkage; it contains no referential-integrity predicate
+        from vector_comparison_present to a comparison row or its required
+        contents. The row consequently satisfies every written gate predicate
+        despite having no evidence of the comparison that is meant to separate
+        it from an L3 table lookup.
+      consequence: >-
+        The design can mechanically assert distinctness from a producer-set
+        flag. That contradicts the duplication audit's requirement for an
+        immutable comparison row containing both typed vectors, per-field
+        relations, cited artifact identities, and comparator version.
+  objections:
+    - id: RT-20260909-57daac-1
+      title: Non-duplication can be established by an unbound Boolean
+      severity: blocking_for_canonical_proposed_records
+      evidence: >-
+        specification-v2-repair.yaml lists vector_comparison_present only as a
+        Boolean row field. It defines neither a comparison-row key nor a rule
+        deriving true from a source-commit-bound scope-comparisons row. The
+        gate consumes the Boolean directly.
+      required_repair: >-
+        Replace vector_comparison_present as a trusted input with a derived
+        predicate. It must be true only when exactly one immutable comparison
+        row matches the selected row's source commit, record blob, statement
+        path, statement boundary version, cited artifact identities, and
+        comparator version, and that row contains both normalized vectors and
+        their per-field relations. Missing, duplicate, mismatched, or malformed
+        comparison rows must set the predicate and non_duplication_eligible
+        false and must fail the non-duplication gate.
+  required_controls:
+    - >-
+      Preserve the six selector/taxonomy controls above; each has the stated
+      conservative v2 route and none authorizes corpus work.
+    - >-
+      Add a row with a resolved non-L3 direct linkage and a manually asserted
+      vector_comparison_present true but no matching immutable comparison row;
+      it must fail the non-duplication gate.
+    - >-
+      Add mismatched-statement-identity and duplicate-comparison-row variants;
+      each must make non_duplication_eligible false rather than permitting
+      mechanical distinction.
+  counterexample_or_mutation: >-
+    The non-L3 direct-linkage row described in unbound_vector_comparison_boolean
+    is the cheapest source-level counterexample. It satisfies the declared
+    Boolean gate without the evidence whose existence the Boolean is supposed
+    to prove.
+  baseline_comparison: >-
+    Not applicable. This is a zero-run source-definition review with no
+    cryptanalytic method, resource, or performance claim.
+  heuristic_challenges: []
+  cost_model_challenges: []
+  reduction_and_scope_challenges:
+    - >-
+      The narrow row-level rejection of EXP-JINV-606dce holds, but it does not
+      establish the positive non-duplication predicate for a non-L3 row until
+      the comparison evidence is referentially bound.
+  proof_architecture_challenges:
+    - >-
+      The attempted observation/custody separator is a producer-declared
+      Boolean rather than a bound observation. Holding that Boolean true while
+      deleting the claimed comparison leaves the conclusion unchanged, so the
+      gate lacks the required invariant.
+  proves_too_much_control:
+    negative_outside_grammar_is_silent:
+      expected: exclusion_only
+      result: holds
+      rationale: >-
+        The v2 selector yields negative_outside_grammar, not a selected verdict.
+    exp_jinv_606dce_l3_row_with_vector_comparison:
+      expected: non_duplication_gate_failure
+      result: holds
+      rationale: >-
+        l3_curve_family_table_membership true directly defeats the gate's
+        membership-false predicate. This control does not cure the separate
+        false-membership/Boolean-binding defect.
+  narrowest_supported_statement: >-
+    The v2 definition repair conservatively specifies the reviewed selector,
+    typed scope classification, prose handling, and rejection of an L3-linked
+    row. It does not yet support a Coordinator finding that this draft is
+    mechanically non-duplicate of EXP-JINV-606dce, canonical proposed-record
+    creation on that basis, corpus traversal, implementation, execution, or
+    any scientific conclusion.
+  next_concrete_action: >-
+    The Coordinator should issue an additive zero-run repair that binds the
+    non-duplication Boolean to exactly one immutable comparison row and then
+    pre-register a fresh independent review of that single repaired joint.
+  artifact_paths:
+    - coordination/design/BATCH-261772/reviews/TASK-20260909-57daac/review.yaml
+  limitations:
+    - The review did not inspect any live corpus record or actual comparison row.
+    - No execution, implementation, fixture, receipt, or scientific evidence was produced.
+    - The report neither proves nor disproves duplicate status in any existing corpus.
+  authority_effect: >-
+    The assigned source-definition joint breaks. The draft remains unsuitable
+    for canonical proposed records through this review path until an additive
+    repair and fresh independent review address the non-duplication evidence
+    binding.
+
+review_attestation:
+  task_id: TASK-20260909-57daac
+  role: red-team
+  joints_owned:
+    - deterministic_selector_vector_and_nonduplication_repair_v2
+  verdict: breaks
+  independent_session: true
+  read_sibling_reports: false
+  blind_rederivation_required: false
+  blind_from_respected: true
+  sources_read:
+    - AGENTS.md
+    - agents/red-team.md
+    - ledger/handoffs/TASK-20260909-57daac.yaml
+    - coordination/design/BATCH-261772/scope-audit-v2-review-plan-TASK-20260909-57daac.yaml
+    - 161fb55d80bee3acda4d7cb3141a2f90b7084188:coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification.yaml
+    - 161fb55d80bee3acda4d7cb3141a2f90b7084188:coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification-v2-repair.yaml
+    - 161fb55d80bee3acda4d7cb3141a2f90b7084188:coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/duplication-audit.md
+    - 161fb55d80bee3acda4d7cb3141a2f90b7084188:coordination/design/BATCH-261772/reviews/TASK-20260909-e2247a/review.yaml
+    - 161fb55d80bee3acda4d7cb3141a2f90b7084188:ledger/decisions/DEC-20260909-e946cb.yaml
+  procedure_deviations: []
+  no_sibling_report_was_read: true
+  execution_or_scientific_claim_made: false

@@ -1,0 +1,107 @@
+protocol_amendment:
+  id: EXP-SMTH-002-AMEND-002
+  amends: experiments/EXP-SMTH-002/specification.yaml
+  amendment_rule: >-
+    Fields below replace the same-named v1 fields; appended required artifacts
+    are binding. Unnamed v1 fields remain binding. Both immutable files form
+    pilot contract v2.
+  authoring_task: TASK-20260801-055
+  status: draft_review_required
+  execution_authorized: false
+
+  factorization_pipeline_replacement:
+    primality_rule: >-
+      Call isprime once for every distinct factor returned by factorint. Reject
+      on false. N<2 has zero factor checks. Because the product of the first
+      twelve primes exceeds 2^40, an N<=p^2<2^40 has at most eleven distinct
+      prime factors; the contract reserves twelve checks per integer.
+    certificate_max_logical_bytes_per_record: 1024
+    oversize_record: invalid_integrity
+
+  writer_topology_replacement:
+    workers: 4 factorization workers
+    writer: >-
+      Exactly one dedicated writer consumes a bounded in-memory queue in
+      sequential-index order. Only one gzip certificate shard is open at a
+      time. Checkpoint, manifest, log and report updates occur between shard
+      closes via write-to-new-file, fsync and atomic rename.
+    bounded_queue_records: 4096
+    maximum_simultaneously_open_certificate_shards: 1
+    maximum_process_output_handles: 8
+    shard_count_exact: 128
+    records_per_shard_exact_except_last: 32704
+    maximum_compressed_bytes_per_shard: 134217728
+    deterministic_archive: >-
+      After all shard hashes validate, package the 128 gzip files in lexical
+      order into certificate_shards.tar with uid/gid 0, empty owner/group,
+      mode 0644 and mtime 0. Hash and fsync the tar before accepting it. Temporary
+      shards are scratch, not evidence; the tar plus shard manifest is evidence.
+
+  frozen_budget_replacement:
+    maximum_runs: 1
+    maximum_resume_count: 1
+    maximum_factorization_calls: 4186112
+    maximum_primality_checks: 50233344
+    maximum_primality_checks_per_integer: 12
+    maximum_certificate_reconstructions: 4186112
+    maximum_wall_seconds: 7200
+    maximum_cpu_seconds: 28800
+    maximum_peak_rss_bytes: 4294967296
+    maximum_total_disk_bytes: 51539607552
+    maximum_certificate_archive_bytes: 17179869184
+    maximum_temporary_shard_bytes: 17179869184
+    reserved_other_artifact_bytes: 17179869184
+    maximum_workers: 4
+    maximum_process_output_handles: 8
+    no_network: true
+    joint_safety_derivation: >-
+      128 shards times 128 MiB is 16 GiB. At peak, temporary shards and the
+      deterministic tar may coexist for at most 32 GiB, leaving 16 GiB for
+      manifests, checkpoints, logs, raw result and filesystem overhead inside
+      the 48 GiB total cap.
+    stop_semantics: >-
+      Crossing any global or per-record ceiling stops at the next record
+      boundary and yields failed_infrastructure_or_budget, except an oversized
+      logical record or false certificate which is invalid_integrity. Neither
+      outcome is mathematical evidence.
+
+  seed_roster_contract:
+    path: experiments/EXP-SMTH-002/results/seed_roster.json
+    contents: >-
+      Every domain tuple, derived 128-bit seed, ordered stream SHA-256, collision
+      count and overall canonical-JSON SHA-256. Collision count must be zero.
+
+  required_artifacts_append:
+  - experiments/EXP-SMTH-002/results/seed_roster.json
+  - experiments/EXP-SMTH-002/results/certificates/certificate_shards.tar
+  - experiments/EXP-SMTH-002/results/certificates/shard_manifest.json
+
+  shard_manifest_contract:
+    exact_entries: 128
+    entry_fields:
+    - shard_index
+    - first_record_index
+    - last_record_index
+    - record_count
+    - compressed_bytes
+    - logical_bytes
+    - gzip_sha256
+    - tar_member_name
+    archive_fields:
+    - tar_bytes
+    - tar_sha256
+    - deterministic_metadata_verified
+
+  controls_append:
+  - >-
+    Assert at runtime and in independent validation that maximum open output
+    handles never exceeds eight and open certificate shards never exceeds one.
+  - Reject a synthetic certificate with twelve distinct alleged factors if any is composite.
+  - Reject a 1025-byte logical certificate record before it reaches the writer.
+  - Rebuild the deterministic tar from verified shards and require identical SHA-256.
+  - Verify seed_roster.json canonical hash and zero collisions independently.
+
+  scope_confirmation: >-
+    This amendment adds no curve, factor base, S3, source, plant, p-value,
+    evidence or status mode. Only a future exact-byte independent PASS plus a
+    separate Coordinator PILOT_AUTHORIZATION snapshot can permit implementation.

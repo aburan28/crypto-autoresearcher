@@ -1,0 +1,232 @@
+idea:
+  id: IDEA-20260808-9f9ed8
+  added: '2026-08-08'
+  proposed_by: idea-generator
+  status: proposed
+  question_id: RQ-HQC-001
+  goal_id: GOAL-HQC-001
+  title: The first two-sided bracket on HQC's decoding failure rate - a second-order Bonferroni
+    lower bound on the inner ML decoder that provably closes the union-bound gap Prop. 6.1.3
+    leaves open, and the honest statement of how wide the outer bracket really is
+  class: algorithm
+  claim: 'Every published analysis of HQC''s DFR is ONE-SIDED: Prop. 6.1.3, Prop. 6.1.4 and
+    Theorem 6.1 are upper bounds, and an upper bound cannot detect a model that is wrong in
+    the dangerous direction. This proposal claims a matching LOWER bound is available in exact
+    rationals with no sampling. (L1, INNER) For the duplicated Reed-Muller code, ML decoding
+    fails whenever there exists a nonzero codeword c with |supp(e) cap supp(c)| > w(c)/2 -
+    an EXACT characterisation of a subset of the failure event, needing no condition on coordinates
+    outside supp(c) - so p_i >= Pr[union_c A_c] and the second-order Bonferroni bound Pr[union
+    A_c] >= sum_c Pr[A_c] - sum_{c < c''} Pr[A_c cap A_{c''}] is computable exactly, because
+    two distinct weight-192 codewords of the [384, 8, 192] code meet in exactly 96 coordinates
+    and the pair probability is a two-dimensional binomial-type sum over the induced 4-cell
+    partition. (L2, MATCHING) That lower bound and Prop. 6.1.3''s union upper bound differ
+    by exactly the pairwise term, so the inner bracket has width log2(1 + sum_pairs / sum_singles)
+    BITS AND NOT A FACTOR OF 255. (L3, OUTER, HONEST) The outer bracket does NOT inherit that
+    tightness for free: a b-bit inner slack compounds to about (delta_e + 1) * b bits at the
+    outer level, so the bracket is only useful if b is small, and quantifying b is the whole
+    point of the exercise.'
+  mechanism: 'Prop. 6.1.3 is a union bound over the 255 nonzero RM codewords. A union bound''s
+    slack is exactly the inclusion-exclusion remainder, and the remainder is computable here
+    because the codeword geometry is completely explicit: the duplicated RM(1,7) code has
+    254 codewords of weight 192 and one of weight 384, and any two distinct weight-192 codewords
+    intersect in 96 coordinates (the weight distribution of RM(1,m) is exactly known and duplication
+    scales it). So Pr[A_c cap A_{c''}] is a sum over the four blocks (in c only, in c'' only,
+    in both, in neither) of a product of binomial terms, with the constraint |e cap supp c|
+    > 96 and |e cap supp c''| > 96 - a two-dimensional lattice sum with at most 192^2 terms,
+    evaluable in exact rationals in milliseconds. That gives a rigorous LOWER bound on p_i.
+    The specification''s own Table 11 gives an independent reality check: it reports predicted
+    -10.79 against observed -10.96 at NIST-1, i.e. the union bound is loose by only about
+    0.17 bits, which says the 255 events are nearly disjoint - exactly the regime where second-order
+    Bonferroni is tight. Arithmetic done in THIS PROPOSAL and to be redone exactly: with p*
+    = 0.3398 the single-codeword probability Pr[Bin(192, p*) >= 97] should land near 2^-18.8,
+    and 255 times that near 2^-10.8, reproducing the specification''s number - which is the
+    sanity check that the transcribed figures are being used correctly. For the outer stage,
+    the same idea gives DFR >= Pr[a specified set of delta_e + 1 blocks all fail], lower-bounded
+    without any independence assumption by conditioning on the block weight vector and applying
+    the inner lower bound blockwise.'
+  why_not_a_renamed_known_approach: 'It is not "compute the union bound more carefully": the
+    union bound is an upper bound and no amount of care makes it a lower bound. It is not
+    a simulation: no sampling occurs. It is not Prop. 6.1.4, which improves the UPPER bound
+    by crediting 1/2 on two-way ties; the tie structure that helps 6.1.4 is the same structure
+    that makes the Bonferroni pairwise term computable, so the two are complementary rather
+    than the same. The nearest genuine prior art is the classical Bonferroni/Kounias-Hunter
+    family of lower bounds for unions, applied to code-decoder error probabilities - which
+    is a standard tool in coding theory and may well already have been applied to RM ML decoding.
+    That possibility is why the novelty status is unverified.'
+  predictions:
+  - observable: Exact-rational value of the Bonferroni lower bound on p_i at HQC-1/3/5.
+    metric: log2 gap to Prop. 6.1.3's union upper bound, in bits.
+    predicted: Under 1 bit at all three parameter sets, consistent with Table 11's 0.17-bit
+      predicted-versus-observed gap. A gap above 3 bits would mean the 255 failure events
+      overlap far more than Table 11 suggests and would itself be a finding about the specification's
+      simulations.
+  - observable: The measured inner DFR at HQC's TRUE inner block lengths ([384, 8, 192] and
+      [640, 8, 320]) against the bracket.
+    metric: Does the measurement fall inside [lower, upper]?
+    predicted: Yes. A measurement outside the bracket is a defect in the bracket, the decoder
+      implementation, or the transcription - and locating which is a decisive outcome either
+      way.
+  - observable: The compounded outer bracket width.
+    metric: bits, at HQC-1 with delta_e = 15 and n_e = 46.
+    predicted: About (delta_e + 1) * b where b is the inner width; with b about 0.2 bits the
+      outer bracket is about 3 bits wide, which is USEFUL. With b about 8 bits (the naive
+      255-factor) it would be about 128 bits wide, which is useless - so the entire value
+      of this idea rides on L2, and that is said here rather than discovered later.
+  minimal_test: '(1) Implement Pr[A_c] and Pr[A_c cap A_{c''}] in exact rationals for the
+    [384, 8, 192] and [640, 8, 320] duplicated RM codes and evaluate the second-order Bonferroni
+    lower bound; compare to Prop. 6.1.3 and 6.1.4. (2) Cross-check the single-codeword term
+    against the specification''s Table 11 numbers. (3) Measure the inner DFR directly at the
+    TRUE block length with 10^7 trials (about 2^-11, entirely feasible) and check bracket
+    containment. (4) Only then compound to the outer stage and report the honest width. Budget:
+    under 500 core-seconds.'
+  controls:
+  - TRANSCRIPTION CONTROL. Re-derive p* from the specification's own definition rather than
+    reusing Table 11's printed value, since this campaign has already found one printed value
+    (RS-S3's minimum distance 49 vs 59) inconsistent with the rest of the document.
+  - DEGENERATE-CODE CONTROL. Run the same bracket on a code where the exact ML failure probability
+    is computable by brute force (RM(1,3) duplicated, 16 codewords, length 24) and confirm
+    the bracket contains the exact value.
+  - NULL-OVERLAP CONTROL. Recompute the pairwise term with the true 96-fold intersection replaced
+    by an artificially independent pair; the bound must get worse, not better. A bound that
+    improves under a control designed to weaken it is an arithmetic error.
+  confounders:
+  - The specification's decoder is "maximum-likelihood on the internal code"; if the deployed
+    implementation is a Hadamard-transform decoder with a tie rule that differs from strict
+    ML, the failure region differs and the bracket brackets the wrong object. Pin the tie
+    rule explicitly.
+  - The all-ones codeword has weight 384 and a different threshold (>192); omitting or mishandling
+    it shifts both bounds.
+  - Prop. 6.1.3 and 6.1.4 carry known published-text anomalies (X1-X10, including a (1 - p)^{d_i
+    - j} versus (1 - p)^{n - j} discrepancy); the bracket must state which reading it uses.
+  falsification_conditions:
+  - The pairwise term is comparable to the singleton sum, making the second-order Bonferroni
+    bound vacuous or negative. Then L2 fails, the bracket is 8 bits wide at the inner level
+    and about 128 bits at the outer level, and the idea is dead as a crypto-relevant bracket
+    (though still useful as a check on Table 11).
+  - The measured inner DFR at true block length falls outside the bracket.
+  - The outer lower bound cannot be made independence-free, so the "lower bound" is itself
+    conditional on the assumption under dispute - which would make it circular and worthless
+    for its stated purpose.
+  interpretation_limits: 'A bracket on the model''s own object is not a bracket on reality:
+    L1/L2 bound the inner ML failure probability under the BSC(p*) input model, and if that
+    input model is wrong (which C1-01 and C1-02 both attack) the bracket is exact around a
+    wrong centre. The honest positive outcome is "under the specification''s own BSC(p*) input
+    model, HQC''s DFR lies in [A, B] with B - A = C bits, versus the previously available
+    one-sided statement DFR <= B". Claim tier TOY.'
+  assumptions:
+  - The duplicated RM code's weight distribution and pairwise intersection sizes are as stated.
+  - The decoder is strict ML with a stated tie rule.
+  heuristic_assumptions:
+  - id: HA-1
+    statement: NONE ARE LOAD-BEARING FOR L1 OR L2. The inner bracket is an exact computation
+      under the specification's own stated input model, and this entry exists to record that
+      fact explicitly rather than leave it implied.
+    rigorous_ingredient: Second-order Bonferroni (Bonferroni's inequality of order 2) is a
+      theorem about any finite union of events, with no distributional assumption.
+    distribution_imitated: Not applicable.
+    validation_route: Brute-force verification on RM(1,3) duplicated to length 24, where the
+      exact ML failure probability is enumerable over all 2^24 error patterns.
+    tail_checks: Not applicable.
+  - id: HA-2
+    statement: 'For the OUTER bound only: conditioned on the block weight vector, the within-block
+      error patterns are independent across blocks and uniform given the block weight.'
+    rigorous_ingredient: True by construction for a uniformly random support of fixed total
+      weight; the question is whether e' is such an object, which is exactly C1-02's HA-1
+      and IDEA-20260805-db5afa's territory.
+    distribution_imitated: The urn model / multivariate hypergeometric allocation.
+    validation_route: Same as C1-02 HA-1 - direct sampling of e' at deployed n and a chi-square
+      against the hypergeometric block-weight law.
+    tail_checks: Maximum block weight over 10^6 draws against the predicted extreme value.
+  target_complexity:
+    time_exponent: The COMPUTATION is polynomial and trivial (about 192^2 rational terms per
+      codeword pair, 255^2/2 pairs, i.e. under 10^9 rational operations, and symmetry cuts
+      that to a few hundred distinct pair types). No attack exponent is claimed. What the
+      result changes is the WIDTH of the uncertainty interval on delta in the IND-CCA2 term
+      (q_RO + q_D) * delta, from "one-sided, unbounded below" to "C bits".
+    memory_exponent: Negligible.
+    best_known_baseline: 'One-sided upper bounds only: Prop. 6.1.3, Prop. 6.1.4, Theorem 6.1,
+      plus the specification''s own inner-code simulations (Table 11).'
+    hidden_overhead_disclosure: The outer compounding is the honest weak point and is stated
+      in the claim itself as L3 rather than discovered downstream.
+    time_memory_tradeoff: Not applicable.
+  sota_delta: Supplies the missing side of an inequality that the whole HQC DFR literature
+    states in one direction only. If L2 holds at about 0.2 bits, the campaign gains a roughly
+    3-bit two-sided bracket on the DFR at HQC-1 for under 500 core-seconds, against a direct
+    measurement its own BATCH-003 priced at 3.4e41 trials. That is a change of kind, not of
+    degree, in what the campaign can say - and it is worth saying that the same bracket says
+    nothing about whether the INPUT model is right.
+  dominated_by: 'Not dominated by anything inside this corpus, checked row by row: no filed
+    proposal or hypothesis produces a lower bound (IDEA-20260801-011 measures, 15258a and
+    db5afa address the input model, baa4da is ISD costing), and no KN-FIND applies. EXTERNALLY
+    THIS IS THE MOST LIKELY OF MY ELEVEN IDEAS TO BE ALREADY KNOWN: lower bounds on ML decoding
+    error probability via Bonferroni-type inequalities are classical coding theory (the Kounias-Hunter
+    and de Caen bounds are the names I recall, UNVERIFIED), and applying them to duplicated
+    RM is an obvious step for a specialist. Web search was unavailable; this must be checked
+    before any claim of novelty.'
+  estimated_cost: Implementation LOW-MEDIUM (exact rational two-dimensional sums plus a brute
+    force check; under 600 lines). Compute LOW (under 500 core-seconds).
+  recommended_priority: high
+  honest_prior_of_survival: About 0.7 that the inner bracket comes out under 1 bit and is
+    correct; about 0.3 that the whole thing is new rather than a rediscovery of a classical
+    bound; about 0.45 that the outer compounding leaves something crypto-relevant.
+  novelty_status: unverified
+  novelty_screen: Screened against all four RQ-HQC-001 proposals, the three H-HQC hypotheses,
+    KNOWLEDGE_BARRIERS.txt, REJECTED_TITLES.txt, CATALOGUE_TITLES.txt, and KN-LIT-b9e1a8's
+    transcription summary. External literature UNSCREENED (no web access this session) and
+    this is the idea most exposed to that gap.
+  discriminated_from: Prop. 6.1.4 (an improved UPPER bound via tie-crediting; this is a LOWER
+    bound via inclusion-exclusion). IDEA-20260801-011 (measurement of DFR; this is a derivation
+    that needs no measurement for its inner half). C1-04 below (which is a measurement architecture;
+    this is a bound).
+  source_refs:
+  - KN-LIT-b9e1a8 (Prop. 6.1.3, Prop. 6.1.4, Theorem 6.1, Table 11, anomalies X1-X10)
+  - GOAL-HQC-001 BATCH-003 checkpoint (T_req structural infeasibility figures)
+  - Kounias-Hunter / de Caen lower bounds for the probability of a union - RECALLED FROM MEMORY,
+    UNVERIFIED
+  proof_search_map:
+    bottleneck: The union-bound slack at the inner ML decoder. Everything downstream (Theorem
+      6.1's outer tail) compounds it (delta_e + 1) times, so closing it at the inner level
+      is the single step that decides whether a two-sided statement about HQC's DFR is possible
+      at all.
+    baseline_embedding:
+      parameter_slice: Setting the pairwise Bonferroni term to zero recovers exactly Prop.
+        6.1.3's union bound as an upper bound and a trivial lower bound of the largest single
+        term - so the classical statement is the boundary case.
+      reproduction_check: 'Frozen regression fixture: the single-codeword term times 255 must
+        reproduce Table 11''s -10.79 / -14.14 / -11.30 to within the rounding of the printed
+        p* values.'
+    observation_collision:
+      observable: The pair (lower bound, upper bound) on p_i.
+      distinct_preimage_search: 'Two decoders with the same bracket but different true failure
+        probabilities: a strict-ML decoder and a Hadamard decoder with a different tie rule
+        have identical A_c events but different failure sets on ties. This collision is real
+        and is why the tie rule must be pinned.'
+    constructive_transforms:
+    - transform: stronger_invariant
+      proposed_object: The pairwise intersection profile of the RM codeword supports (exactly
+        96 for distinct weight-192 codewords), which turns an abstract inclusion-exclusion
+        remainder into a closed two-dimensional lattice sum.
+      predicted_gain: Inner bracket width from log2(255) about 8 bits down to under 1 bit;
+        outer bracket from about 128 bits to about 3 bits at HQC-1.
+    quantifier_order: FOR ALL parameter sets in {HQC-1, HQC-3, HQC-5} and FOR ALL error patterns
+      e in the support of the specification's own BSC(p*) input model, THERE EXISTS a pair
+      of exact rationals (A, B) computable in polynomial time with A <= Pr[inner ML decoding
+      fails] <= B and log2(B/A) < 1. The quantifier on the input model is deliberately outermost
+      and deliberately NOT universal over input models - the bracket is relative to the model.
+    method_ceiling:
+      strongest_certifiable_claim: A two-sided interval for HQC's DFR under the specification's
+        own input model, with a stated width. It can never certify that the input model is
+        correct, and therefore can never certify HQC's actual DFR.
+      nearby_object_control: A code whose codeword supports overlap heavily (e.g. a repetition-heavy
+        concatenation) makes the pairwise term dominate and the method fails there - so the
+        method's success is a property of RM's near-disjoint failure events, not of the technique.
+    proof_obligations:
+    - claim: Pr[A_c] and Pr[A_c cap A_{c'}] are exactly computable in polynomial time.
+      responsibility: runtime
+    - claim: A_c is contained in the ML failure event.
+      responsibility: correctness
+    - claim: Second-order Bonferroni applies with the stated pair geometry.
+      responsibility: size
+    - claim: The outer compounding is (delta_e + 1) * b and not worse.
+      responsibility: scope
+    not_applicable_reason: null

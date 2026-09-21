@@ -1,0 +1,493 @@
+red_team_report:
+  id: RT-20260830-mono2j2
+  task_id: red-team-mono2-2a13d7
+  joint_owned: J2-adversarial-verification
+  claim_under_review: >-
+    H-MONO-0f9170 / EXP-MONO-2a13d7: the m=3 symmetric-base Semaev cover's
+    seven Frobenius-class stratum counts are EXACT functions of (p,t,Z)
+    alone (curve-independent given trace and 2-torsion-x-coordinate count),
+    tested exhaustively at p in {101,211} with an all-exact clean pass
+    (R1=0 every stratum every curve, R2=0 on both matched pairs, R3 exact,
+    baseline reproduction exact, zero anomalies). This report challenges
+    ONLY whether that clean pass is genuine (J2), not the arithmetic
+    derivations themselves (J1, out of scope for this report).
+
+  overall_verdict: holds_with_required_correction
+  verdict_summary: >-
+    The clean pass is REAL, not a hollow artifact, for every failure mode I
+    could construct EXCEPT ONE, which is real and load-bearing: the
+    matched-pair non-vacuity control passed at both primes SOLELY via
+    j-invariant difference, never via the order-3-point-count difference
+    that H-MONO-0f9170's own proof_search_map names as "the planted nearby
+    object... whose differing is what makes the equality test non-vacuous."
+    I proved, independently and by hand from the archived
+    curve_invariant_table.csv (not from the Executor's prose), that this
+    was not bad luck: at p=101 the order-3 control could not possibly have
+    differed in ANY of the prime's 51 populated (t,Z) cells (Cauchy's
+    theorem forces |E(F_p)[3]| whenever 9 does not divide N=p+1-t, and 9
+    divides no populated N at p=101), and at p=211 a genuinely stronger
+    candidate pair DID exist in 7 of 74 cells (630-1050 curves each) but
+    was not selected because the deterministic search prefers a cell
+    touching the fixed sibling curve, which happens to be one of the 67
+    forced cells. The completeness claim itself is not shown to be false or
+    vacuous -- j-differing is a mathematically valid, sufficient proof of
+    non-isomorphism and rules out the single confounder the record's own
+    `confounders` block calls "the single most likely way this record
+    produces a meaningless pass" -- but the STRONG form of the non-vacuity
+    design was never actually exercised by either archived run, and the
+    execution_report's "instrument_outcome: NOT triggered... testable (not
+    vacuous)" language does not disclose this distinction. This is a
+    required correction to the evidence record, not grounds to reject the
+    completeness claim.
+
+  objections:
+    - id: OBJ-1-weak-vs-strong-non-vacuity
+      severity: major
+      statement: >-
+        The frozen spec's non-vacuity rule (specification.yaml line ~229,
+        ~322-327) is a DISJUNCTION -- "differ in AT LEAST ONE of {j,
+        order3_count}" -- while H-MONO-0f9170's own `predictions` field
+        states the stronger reading "j must differ ... AND the pair must
+        differ in its order-3 point count" (a textual inconsistency already
+        present in the hypothesis record, not introduced by the Executor).
+        The Executor correctly implemented, and transparently disclosed
+        (implementation.md, "both matched pairs pass the non-vacuity
+        control ... equal order3_count in both cases, so the control is
+        satisfied via j alone at both primes"), the WEAKER disjunctive
+        reading. Under that reading the pass is not false, but it is close
+        to automatic: j differing for two arbitrarily-chosen distinct
+        isomorphism classes in a populated cell fails only if the pair
+        happens to be related by a twist, which I verified directly is not
+        even possible within a fixed (t,Z) cell for the generic (non-0,
+        non-1728) case tested here (a quadratic twist flips t -> -t, so two
+        curves sharing t cannot be quadratic twists of one another; see
+        `counterexample_or_mutation`). So "passes via j" was overwhelmingly
+        likely to pass for ANY matched pair the algorithm could have picked
+        from either tested cell, independent of whether the completeness
+        claim is true.
+      evidence: >-
+        experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/p101/matched_pair_equality_report.json
+        and .../p211/matched_pair_equality_report.json (both:
+        "order3_count_differs": false, "passes": true via j alone);
+        specification.yaml lines 229 and 322-327 (the OR rule);
+        H-MONO-0f9170 `predictions` (the AND-worded control, inconsistent
+        with the frozen contract it authorized).
+    - id: OBJ-2-strong-control-impossible-at-p101-available-at-p211
+      severity: major
+      statement: >-
+        Independently regrouping the ARCHIVED curve_invariant_table.csv by
+        (t,Z) (not (t) alone) and tallying the set of order3_count values
+        observed per cell shows: at p=101, ALL 51 populated (t,Z) cells
+        have a SINGLE forced order3_count value (0 cells with genuine
+        variation) -- confirmed by direct application of Cauchy's theorem
+        to N=p+1-t for every populated t (9 never divides any populated N
+        at p=101 in this dataset). At p=211, exactly 7 of 74 populated
+        cells DO have genuine order3_count variation ({3,9} within the same
+        cell): (t,Z) in {(-22,1) [1050 curves], (-13,0) [980], (-4,1) [945],
+        (-4,3) [945], (5,0) [1050], (14,1) [945], (23,0) [630]}. The matched
+        pair actually selected at p=211, (t=-11,Z=0), is NOT one of these
+        seven -- it is one of the 67 forced cells. A materially stronger
+        test (order3-count-differing pair, the proof_search_map's own
+        "planted nearby object") was available in already-generated Stage-0
+        data at p=211 and was not run.
+      evidence: >-
+        Independent recomputation (script in
+        `runtime-session-receipt.json` `commands_run`) against
+        runs/RUN-MONO-2a13d7-1/p101/curve_invariant_table.csv and
+        .../p211/curve_invariant_table.csv. Group-theory derivation:
+        E(F_p)[3] is a subgroup of (Z/3)^2 of order 3^a, a = number of
+        {n1,n2} (with E(F_p)=Z/n1 x Z/n2, n1|n2) divisible by 3; if
+        v_3(N)<=1 then a is FORCED to 0 or 1 by n1|n2 (cannot have 3|n1 and
+        3|n2 simultaneously without 9|N), so order3_count in {1,3} is a pure
+        function of t; only v_3(N)>=2 (9|N) leaves genuine curve-specific
+        freedom between {3,9}. Verified against N=p+1-t=105=3x5x7 (v3=1,
+        forced) at the p=101 test cell and N=223 (prime, v3=0, forced) at
+        the p=211 test cell, both matching the archived data exactly
+        (order3_count=3 and 1 respectively, identical on both curves of
+        each pair, as forced).
+    - id: OBJ-3-instrument-outcome-language-overstates
+      severity: minor
+      statement: >-
+        execution_report.yaml's `matched_pair_census.instrument_outcome`
+        states "HEUR-TZ-2's matched-pair half of the claim was testable
+        (not vacuous, not an instrument failure) at both tested primes."
+        This is true only of the weak (j-only) reading. As written it
+        reads as a clean, symmetric confirmation at both primes, when in
+        fact the two primes are asymmetric with respect to the STRONG
+        control: p=101's strong leg was structurally unavailable
+        (impossible, not merely unlucky), while p=211's was available but
+        unused. A reader who does not re-derive OBJ-1/OBJ-2 independently
+        (as this report did) would not learn this from the execution
+        report or implementation.md's terser summary line.
+
+  required_controls:
+    - >-
+      Re-run Stage 0's matched-pair selection at p=211 with the existing
+      "preferred" tie-break re-pointed at one of the 7 already-identified
+      order3-varying cells (e.g. (t=-13,Z=0), 980 curves) instead of the
+      sibling-touching cell, and report R2 on that pair. This exercises the
+      proof_search_map's own designed strong-form non-vacuity test using
+      data this run already computed (no new prime, no new Stage-0
+      enumeration required) -- cheapest possible discriminating addendum.
+    - >-
+      At p=101, record explicitly (not just imply) that the order-3 control
+      leg is UNAVAILABLE FOR EVERY CELL AT THIS PRIME, as an intrinsic,
+      provable (Cauchy's-theorem) instrument property of p=101, not a
+      run-specific gap; either accept p=101's R2 result as validated only
+      in the weak (j-only) sense, or select a different secondary invariant
+      that does vary at p=101 (e.g. an order-5 or order-7 rational-point
+      count, or explicit non-cyclicity, wherever v_l(N)>=2 for some
+      populated cell) if a strong-form test at p=101 specifically is
+      wanted.
+    - >-
+      NULL-OBJECT CONTROL FOR THE FORCING CLAIM ITSELF (asked for, and run,
+      in this report -- see `counterexample_or_mutation`): confirm that j,
+      unlike order3_count, does NOT collapse to a forced/singleton value in
+      the tested cells, i.e. that "passes via j" is not itself vacuous by
+      the same forcing mechanism. Confirmed: 8 distinct j-invariants (50
+      curves apiece) at the p=101 test cell, 4 distinct j-invariants (105
+      curves apiece) at the p=211 test cell -- j genuinely varies with
+      substantial support in both tested cells, so the j-based pass is weak
+      but not itself forced.
+
+  counterexample_or_mutation: >-
+    ITEM 2 (known-false-object control on my own checking method, not the
+    Executor's code): using ONLY the archived measured seven-tuple for
+    p=101 (A=2,B=3,t=6,Z=1) as ground truth, I built two deliberately wrong
+    closed forms in my own scratchpad and confirmed my independent
+    comparison correctly flags both: (a) swapping S<->N (the algebraic
+    signature of a global trace-sign-flip bug) produces residuals
+    {A1:+297, A3:-297} against the true measured values while leaving A2,
+    A4, B1, B2, B3 untouched (A2=S*N is symmetric under the swap, so this
+    mutation is silent there but loud in A1/A3 -- a useful diagnostic in
+    its own right: any future review should check A1/A3 specifically for a
+    trace-sign bug, not just "any nonzero residual"); (b) using the wrong
+    cubic-factorization table Z'=Z instead of {0:0,1:3,3:3}[Z] produces
+    residuals {B2:-1, B3:+1}. Both wrong formulas are correctly rejected by
+    my from-scratch comparison, and the correct formula reproduces the
+    archived measured values exactly (residual 0 on all seven), confirming
+    my checking method (and, by the same logic applied inside the
+    Executor's own R1 code, plausibly the Executor's) has real
+    discriminating power and is not loose enough to pass an arbitrary
+    formula.
+    ITEM 3 (adversarial re-attempt at the isomorphism test, independent
+    from-scratch code, not importing stage0.py): for both reported matched
+    pairs, (A,B)=(1,1) vs (1,48) at p=101 and (1,1) vs (1,94) at p=211, I
+    independently recomputed j via the textbook formula (got j=34/90 and
+    46/30, matching the report exactly), ran an EXHAUSTIVE brute-force
+    search over ALL u in F_p^* for the u^4/u^6 isomorphism relation (not
+    the O(1) algebraic shortcut the Executor's code uses), and separately
+    searched for ANY twist relation A2=d^2 A, B2=d^3 B for ANY d in F_p^*
+    (not only d^4/d^6). All three independent checks agree: the pairs are
+    non-isomorphic and are not related by any twist (square or
+    non-square) of each other. Quadratic twists are the correct confound to
+    worry about for this criterion (they preserve j but are not u^4/u^6
+    -equivalent), but they cannot arise WITHIN a fixed (t,Z) cell in the
+    first place, because a quadratic twist flips the trace t -> -t, so two
+    curves sharing t by construction cannot be quadratic twists of one
+    another; the code's exclusion of j in {0,1728} from panel/matched-pair
+    selection (`curve_panel_note`, verified: all four reported (A,B) have
+    A,B both nonzero) makes the u^4/u^6 criterion complete for every curve
+    actually used. The isomorphism test is correct and complete for this
+    record's tested scope.
+
+  baseline_comparison: >-
+    NOT APPLICABLE, and this is stated for the record rather than silently
+    omitted (KN-TECH-080 discipline): H-MONO-0f9170 makes no ECDLP,
+    relation-rate, or solve-cost claim of any kind (explicitly disclaimed
+    in `interpretation_limits` and `statement`'s "WHAT THIS DOES NOT
+    CLAIM"), so a Pollard-rho / BSGS / specialized-baseline cost comparison
+    does not apply to this record. The one baseline this record DOES claim
+    against is KN-FIND-a8990a's Theorem B (the ordered-base exact class
+    count), and that comparison is scrutinized under ITEM 5 below: I
+    independently hand-verified, from (t,Z) alone with no code, that
+    2*(A1+A3) = S^2+N^2-(p-Z) for a sibling curve at each tested prime:
+    p=101, A=2,B=3 (t=6,Z=1): S=(101-6-1)/2=47, N=(101+6-1)/2=53,
+    47^2+53^2-100=2209+2809-100=4918, matching the ARCHIVED
+    closed_form=4918 exactly; p=211, A=2,B=3 (t=8,Z=1): S=(211-8-1)/2=101,
+    N=(211+8-1)/2=109, 101^2+109^2-210=10201+11881-210=21872, matching the
+    archived closed_form=21872 exactly. The check is not circular:
+    Theorem B's S^k N^{n-k}+N^k S^{n-k} closed form was established and
+    verified in an EARLIER, separate experiment (EXP-SMON-e5cbe6, cited in
+    KN-FIND-a8990a's own verification table, "exact per-class count ...
+    residual exactly 0, every class, every cell") using different code,
+    while the "measured" side here (A1, A3) comes from THIS experiment's
+    independent stage1.py direct classification of the symmetric base --
+    two genuinely different computations being compared, not one formula
+    checked against itself.
+    One residual theoretical gap: S^2+N^2 is symmetric under S<->N, so this
+    particular baseline check alone would NOT detect a pure trace-sign-flip
+    bug in stage0's own t computation; that gap is closed by R1 itself
+    (which is NOT symmetric -- see `cost_model_challenges` note on
+    architecture, and item 2's mutation test above, which shows A1/A3
+    individually diverge under an S<->N swap even though A2 and the
+    baseline aggregate do not).
+
+  heuristic_challenges:
+    - id: HEUR-TZ-1-challenge
+      statement: >-
+        Recorded as "not heuristic, purely deductive" -- I agree with this
+        self-assessment on inspection: every step (Weil/Hasse point counts
+        over F_p and F_{p^2}, the classical fact F_p^* is contained in the
+        squares of F_{p^2}^*, and the character-triple recipe) is an
+        unconditional, hand-checkable identity. I independently verified
+        the Legendre-symbol implementation (fp_common.legendre and
+        stage0.py's inline duplicate) against Euler's criterion by hand at
+        small values (legendre(2,7)=+1, legendre(3,7)=-1, both correct),
+        and independently hand-verified two full seven-tuples end to end
+        from (p,t,Z) alone (see `baseline_comparison`, and the M/B1/B2/B3
+        chain for p=101 A=2,B=3: numerator=10364, M=5082, B1=2541,
+        B2=1, B3=2508, all matching the archived values). No objection to
+        HEUR-TZ-1's "not load-bearing" self-classification.
+    - id: HEUR-TZ-2-challenge
+      statement: >-
+        "THE GAP" HEUR-TZ-2 itself names -- "a particular (t,Z) cell could
+        in principle contain only one isomorphism class" -- is not merely
+        hypothetical: I found it EMPIRICALLY REALIZED in this run's own
+        data (e.g. p=101 (t=20,Z=1): 25 curves, all j=11; p=211 (t=29,Z=0):
+        35 curves, all j=0 -- both near the Hasse-bound extreme, consistent
+        with Deuring's class-number formula collapsing near t=+-2sqrt(p)).
+        The cells the algorithm actually SELECTED for the matched-pair test
+        are not among these degenerate ones (8 distinct j's at p=101's
+        test cell, 4 at p=211's, both far from the Hasse boundary), so the
+        actual test is not vacuous in this specific sense -- but this
+        confirms the heuristic's own stated gap is a live phenomenon in
+        this exact dataset, and a FUTURE selection algorithm that picked a
+        boundary-t cell (e.g. for Z-coverage rather than matched-pair
+        purposes) could unknowingly land in a single-isomorphism-class
+        cell. Recommend explicitly checking distinct-j-count >= 2 as a
+        pre-registered gate on every future selected cell, not only the
+        matched-pair cell.
+    - id: HEUR-TZ-3-challenge
+      statement: >-
+        Correctly and honestly marked out of scope / untested by this
+        contract (validation_scope_note, validation_experiment_ids: []).
+        No objection; not evaluated further here (outside J2's mandate).
+
+  cost_model_challenges:
+    - >-
+      No cost-model claim exists in this record to challenge (see
+      `baseline_comparison`); recorded per KN-TECH-080's "an audit that
+      does not apply records why" rather than silently skipped.
+    - >-
+      One architectural point worth recording precisely because it is
+      load-bearing for OBJ-1/OBJ-4 (shared-bug question): stage1.py's
+      `classify_panel_curve(p, A, B, log_rows)` takes NO t or Z argument
+      and recomputes everything from the raw curve equation; it shares
+      with stage0.py only the Legendre-symbol/Tonelli-Shanks primitives in
+      fp_common.py, which I independently verified against Euler's
+      criterion (see HEUR-TZ-1-challenge). This architectural independence
+      is what makes R1 a genuine cross-check rather than a
+      derive-then-recompute-the-same-thing tautology, and it is why a
+      trace-sign-flip-style bug (the one plausible shared-error class
+      given the shared Legendre-symbol code) would show up as a nonzero
+      A1/A3 residual (confirmed directly by my own mutation test in
+      `counterexample_or_mutation`) rather than being silently absorbed.
+
+  reduction_and_scope_challenges:
+    - >-
+      No published-reduction corollary is claimed in this record (unlike
+      e.g. OneEnd->EndRing->Isogeny-style chains); not applicable.
+    - >-
+      Scope is not inflated: `interpretation_limits` and `statement`
+      explicitly confine the claim to m=3, p in {101,211}, non-singular
+      short-Weierstrass curves, and explicitly disclaim any relation-rate,
+      coverage, or ECDLP consequence. I found no place in the executed
+      artifacts where this scope is silently broadened (e.g. the p=1009
+      rung and the cross-prime decay prediction are correctly absent from
+      every archived run artifact, matching the frozen contract's
+      exclusion of Stage 2).
+
+  proof_architecture_challenges:
+    - attack: nearby-object attack (KN-TECH-080 item 5)
+      finding: >-
+        This IS the central finding of this report (OBJ-1/OBJ-2 above).
+        The proof_search_map's own designated "nearby object" (order-3
+        point count) was the correct choice of a structurally distinct,
+        non-forced-in-general invariant to test blindness against -- but
+        the actual archived runs never got to apply it, because the
+        specific cells selected have that invariant FORCED (p=101,
+        universally) or AVAILABLE-BUT-UNUSED (p=211, in 7 of 74 cells).
+        The missing problem-specific ingredient this attack identifies is
+        not in the completeness claim's mathematics -- it is in the
+        matched-pair SELECTION algorithm's tie-break rule (prefer
+        sibling-touching cells for baseline comparability), which
+        inadvertently steered the search away from the cells where the
+        strong control could bind.
+    - attack: observation-fiber / quantifier-order attack
+      finding: >-
+        The claim's quantifier is FOR ALL pairs at equal (t,Z); the tested
+        instances are two specific pairs, one per prime, each drawn from a
+        cell with only 4-8 distinct isomorphism classes despite 400+ raw
+        curve equations. The universal claim is tested at a small but
+        non-trivial sample of the available fibre (not a single witness
+        chosen post hoc to look good -- the selection rule is declared,
+        deterministic, and pre-registered before Stage 1 runs, per
+        `preregistration_ordering_confirmation`), so no quantifier-order
+        violation (silently picking a convenient witness after seeing the
+        answer) is present. This is a genuine, if narrow, universal-claim
+        test, not a cherry-picked example.
+
+  narrowest_supported_statement: >-
+    At p in {101, 211}, for the specific matched non-isomorphic curve pairs
+    selected by this contract's pre-registered, deterministic algorithm,
+    the seven stratum counts agree exactly, and this agreement is a
+    genuine (non-circular, hand-verifiable, non-shared-bug) confirmation
+    that the seven-tuple observable is invariant under a change of
+    isomorphism class at fixed (t,Z) -- the WEAK form of HEUR-TZ-2's
+    non-vacuity requirement, sufficient to rule out the "vacuous matching"
+    confounder the record itself names as most likely. This run does NOT
+    yet demonstrate invariance under a change of the rational 3-torsion
+    group-structure invariant at fixed order -- the STRONG form the
+    proof_search_map specifically designed as its non-vacuity mechanism --
+    because that invariant was forced-equal (p=101, in every populated
+    cell; p=211, in the specific cell selected) rather than genuinely
+    varying. R1 (per-stratum residual), R3 (internal sums), and the
+    baseline reproduction against KN-FIND-a8990a Theorem B are independently
+    hand-verified and stand as genuine confirmations regardless of the R2
+    non-vacuity-strength finding above.
+
+  next_concrete_action: >-
+    Dispatch a small addendum run (no new Stage-0 enumeration needed --
+    the p=211 curve_invariant_table.csv already computed identifies the 7
+    candidate cells) that re-selects the p=211 matched pair from one of
+    {(t=-13,Z=0), (t=5,Z=0), (t=23,Z=0), (t=-22,Z=1), (t=-4,Z=1),
+    (t=-4,Z=3), (t=14,Z=1)} -- picking two curves within that cell with
+    DIFFERING order3_count (3 vs 9) -- and report R2 on that pair as
+    EV-MONO addendum evidence before this record's HEUR-TZ-2 is cited
+    anywhere as having executed its own designed strong-form non-vacuity
+    test. This is a cheap (<1 minute, reuses existing data) discriminating
+    control that would either strengthen the completeness claim
+    considerably (if R2 still holds under the strong control) or produce
+    the single most valuable outcome this whole research line is looking
+    for (if it does not).
+
+  proves_too_much_check: >-
+    ITEM 1 executed. (a) Genuine multiplicity: independently confirmed from
+    matched_pair_census.json and curve_invariant_table.csv that (t,Z)
+    cells with MULTIPLE non-isomorphic curves genuinely exist in bulk at
+    both primes (51/51 and 74/74 populated cells have >=2 raw curves;
+    exhaustive non-isomorphic-pair counts of 1,112,500 at p=101 and
+    14,733,075 at p=211 across all cells), and the two cells actually used
+    for R2 have 8 and 4 DISTINCT j-invariants respectively (not merely
+    multiple (A,B) representations of one class) -- so the completeness
+    claim is not vacuously true merely because every cell collapses to one
+    isomorphism class (that WOULD happen at a few extreme-Hasse-bound
+    cells in this same dataset, as found under HEUR-TZ-2-challenge, but
+    not at the cells this run actually used). (b) Novelty characterization
+    (the second half of item 1, answered directly): the completeness claim
+    is LOW NOVELTY, not hollow, relative to KN-FIND-a8990a's already-proven
+    Theorem B. Case A (split base points, i.e. A1/A2/A3/A4) is essentially
+    a direct, near-mechanical corollary of Theorem B's exact
+    ordered-class-count law applied at n=2 and mapped from ordered to
+    unordered pairs -- the record's own proof_search_map explicitly
+    requires reproducing Theorem B as its baseline-embedding check, i.e.
+    the author's own design treats this half as recovering, not
+    surpassing, an already-established result. Case B (the inert/case-B
+    counts, B1/B2/B3, via the M-formula and the F_p-square-in-F_{p^2}
+    argument) is genuinely NOT already covered by Theorem B, whose stated
+    setup (`a in F_q^n`) implicitly assumes every coordinate is already
+    F_q-rational and has no analogue for the symmetric base's inert
+    (Galois-conjugate-pair) stratum -- this is the record's actual new
+    content, and it is still a fairly mechanical extension (one classical
+    fact about squares in a quadratic extension, plus the standard
+    Weil count for #E(F_{p^2})) rather than a surprising new phenomenon.
+    Overall: this is a correct, legitimate, LOW-NOVELTY confirmation that
+    extends an already-verified completeness mechanism to a new
+    (unordered/case-split) base, not a vacuous or tautological one -- and
+    it should be cited in the evidence record with that characterization,
+    not as an independent surprising discovery.
+
+  shared_bug_check_r1: >-
+    ITEM 4 executed. No plausible shared-bug explanation for R1=0 found.
+    (1) The Legendre-symbol convention is independently, unambiguously
+    checkable against Euler's criterion (verified by hand at small values)
+    and has no room for a "different but self-consistent" convention
+    beyond a global sign flip, which is exactly the S<->N-swap /
+    trace-sign-flip scenario. (2) That scenario is architecturally
+    defeated: stage1.py's classification is computed directly from (A,B)
+    with no reference at all to stage0's t/Z, so a bug in stage0's trace
+    computation would show up as a nonzero R1 residual, not be silently
+    absorbed -- confirmed concretely by my own mutation test
+    (`counterexample_or_mutation` item 2), which shows an S<->N swap
+    produces nonzero A1/A3 residuals against the ARCHIVED measured values.
+    (3) The one thing that WOULD be invisible to R1 alone -- a shared error
+    in the closed-form DERIVATION's class-label semantics (which physical
+    Frobenius cycle type a given count "really" corresponds to) -- is
+    explicitly and correctly disclaimed by the record itself
+    (`statement`: "the seven numbers themselves ... do not depend on the
+    group-theoretic reading"), so it is not a live risk for the
+    COMPLETENESS claim under test, only for the class LABELS, which this
+    record does not rest weight on.
+
+  baseline_reproduction_circularity_check: >-
+    ITEM 5 executed; see `baseline_comparison` above for the full
+    derivation and the two hand-verified numeric matches (p=101 curve
+    A=2,B=3: 4918; p=211 curve A=2,B=3: 21872). Not circular: Theorem B's
+    closed form is committed in an earlier, separate experiment
+    (EXP-SMON-e5cbe6) with independent code, and the "measured" side here
+    is this experiment's own independent stage1.py direct census. One
+    residual gap (symmetric in S,N, blind to a pure trace-sign flip) is
+    closed by R1's independence from stage0's t/Z (see
+    `shared_bug_check_r1`).
+
+  review_attestation:
+    task_id: red-team-mono2-2a13d7
+    role: red-team
+    joints_owned: [J2-adversarial-verification]
+    verdict: holds
+    verdict_note: >-
+      "holds" on J2's mandate (the clean pass is genuine, not a hollow or
+      vacuous artifact, and no shared-bug or circularity explains it) WITH
+      a required correction recorded above (OBJ-1/OBJ-2): the non-vacuity
+      control's STRONG form was never actually exercised, and the
+      execution report's language should be amended to disclose this
+      before the record is cited as having fully executed its own
+      proof_search_map design. This is not a rejection of H-MONO-0f9170
+      and not a claim that R2 failed -- it is a claim that a designed
+      control was not yet run, with a named, cheap next step to run it.
+    independent_session: true
+    blindness:
+      read_sibling_reports: false
+      lifted_for: null
+      note: >-
+        Per task instructions, did not read any sibling (Validator/J1)
+        review directory. No such directory was present under
+        experiments/EXP-MONO-2a13d7/reviews/ at the time of this review
+        besides the one this report creates.
+    sources_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - ledger/proposals/IDEA-20260830-9761f0.yaml
+      - ledger/hypotheses/H-MONO-0f9170.yaml
+      - experiments/EXP-MONO-2a13d7/specification.yaml
+      - experiments/EXP-MONO-2a13d7/execution_report.yaml
+      - experiments/EXP-MONO-2a13d7/implementation.md
+      - experiments/EXP-MONO-2a13d7/implementation/fp_common.py
+      - experiments/EXP-MONO-2a13d7/implementation/stage0.py
+      - experiments/EXP-MONO-2a13d7/implementation/stage1.py
+      - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/p101/matched_pair_census.json
+      - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/p211/matched_pair_census.json
+      - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/p101/matched_pair_equality_report.json
+      - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/p211/matched_pair_equality_report.json
+      - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/p101/curve_invariant_table.csv
+      - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/p211/curve_invariant_table.csv
+      - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/p101/seven_count_tables.json
+      - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/p211/seven_count_tables.json
+      - experiments/EXP-MONO-2a13d7/runs/RUN-MONO-2a13d7-1/p101/stage1_log_A1_B1.csv (sample)
+      - knowledge/findings/KN-FIND-a8990a.md
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    model_verified_note: >-
+      Not independently probe-verified this session (no
+      `orchestration.adapter doctor --probe` was run); this is the model
+      identifier reported by this runtime's own system context, recorded
+      honestly rather than asserted as probe-confirmed, per AGENTS.md rule
+      5 (never fabricate).
+    procedure_deviations: []
+
+  artifact_paths:
+    - experiments/EXP-MONO-2a13d7/reviews/red-team/red-team-report.yaml
+    - experiments/EXP-MONO-2a13d7/reviews/red-team/runtime-session-receipt.json

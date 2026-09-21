@@ -1,0 +1,234 @@
+experiment:
+  id: EXP-SIDECH-3f3fde
+  hypothesis_id: null
+  hypothesis_id_note: Explicitly null, not omitted. This contract is a DRAFT derived from its parent
+    proposal IDEA-20260816-1b4b7d; the /design-experiment step that mints a specified hypothesis from
+    that proposal has not been run, and only the Coordinator may mint one (AGENTS.md rule 1). Naming
+    an existing hypothesis here would bind the contract to a claim it was not designed to test, which
+    is worse than naming none. The field is null rather than absent so a reader cannot mistake it
+    for an overlooked one.
+  derived_from_idea: IDEA-20260816-1b4b7d
+  question_id: RQ-FNDSA-001
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  title: Enumerate the exact joint distribution of a small-dimension nearest-plane sampler's secret
+    basis, per-level rounding-bit vector and released output, and report whether the internal bit
+    vector carries information the output does not.
+  objective: 'The one uncertainty a run reduces: whether an internal control-flow observable of a
+    lattice Gaussian sampler carries information about the secret that the released signature does
+    not already carry. Concretely: (i) do both nulls return exactly zero -- the fixed-basis null with
+    a fictitious label, and the structurally stronger independent-coin null in which the rounding
+    branch is replaced by a coin independent of the center, which must zero I(secret ; r) while leaving
+    I(secret ; output) untouched -- since without both, any nonzero signal could be an artifact of
+    the joint accumulation rather than a property of the sampler; (ii) is I(secret ; (r, output))
+    strictly greater than I(secret ; output), and by how much, which is the entire question and is
+    computed as a difference on one joint rather than argued; (iii) how is that difference distributed
+    across levels, which says whether the observable''s content is concentrated at the top of the
+    recursion where the center depends most directly on the basis, or spread. The run answers these
+    and stops. It recovers no basis and constructs no attack.'
+  what_this_is_not:
+  - Not an attack, a key recovery, a forgery, a distinguisher, or a cryptanalytic result of any kind.
+    It is a measurement contract.
+  - Not a claim, in either direction, about the security of any deployed scheme or parameter set.
+  - Not a status change to any hypothesis, evidence record, decision or goal record, and not a promotion
+    of any knowledge entry.
+  - Not approval, freezing, execution authorization, a run, an observed output, or evidence. No run
+    has been executed under this contract.
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: 'A run can support at most: ''for this nearest-plane recursion
+      at dimension d in {2,4} with this width, this truncation, this rounding convention and this
+      enumerated secret-basis family under a uniform prior, the exact mutual informations are as tabulated
+      and the internal rounding-bit vector adds X bits over the released output per signature, with
+      both nulls returning zero.'' What does NOT follow: that any implementation''s rounding branch
+      is observable by anyone; that this environment measured anything physical, which it did not
+      and cannot; that FN-DSA at standardized parameters leaks anything; that information about a
+      16-element basis family relates to an NTRU trapdoor; and anything about what any published sampler
+      implementation does. If the difference is zero, that too is scoped: it is a statement about
+      this recursion at these parameters, and not about lattice samplers in general.'
+  inputs:
+    procedure: 'STAGE 0 (cost: ~1 hour): fix and write down the rounding convention, the secret-basis
+      family, the width and the truncation; compute the neglected support mass in closed form. STAGE
+      1 (cost: ~3 hours): implement the nearest-plane recursion with an explicit recorded rounding
+      branch, plus the exact enumerator that walks all per-level draws within the truncated support
+      and accumulates the joint over (secret, r, output) in Fraction arithmetic. STAGE 2 (cost: seconds):
+      d=2 pilot -- compute all three informations plus both nulls and both structural checks. STAGE
+      3 (cost: ~1-4 core-hours): d=4 with the width swept over {1.0, 2.0, 4.0}, same enumeration,
+      retaining the full joint. STAGE 4 (cost: minutes): compute incremental per-level informations
+      by marginalisation and cross-check against the direct computation. STAGE 5 (cost: minutes):
+      convert per-signature bits into signature-count-to-one-bit under the stated independence, with
+      the assumption named alongside the number. STAGE 6 (cost: ~30 minutes): trace the implementation
+      to record whether the rounding comparison is a branch, and emit the run record with the convention,
+      the family, the truncation mass and both nulls.'
+    instrument: Python 3 with fractions.Fraction for exact joint accumulation and entropy summation,
+      numpy for float cross-checks and for summarising the joint. The nearest-plane recursion and
+      its enumerator are written for this experiment; the rounding branch outcome is recorded by direct
+      instrumentation inside the sampler rather than inferred. sys.settrace or sys.monitoring from
+      the standard library is used only for the STAGE 6 branch-existence check. Run-record emission
+      and bounded execution through harness/runner.py and src/crypto_autoresearcher/runner.py. No
+      Sage. No lattice-reduction library is used and none is needed. No timing, cache or physical
+      measurement enters any reported metric.
+    parameters: 'Dimensions d in {2, 4}. Per-level Gaussian width sigma in {1.0, 2.0, 4.0}, support
+      truncated at 6 sigma. Secret-basis family: 16 enumerated bases at d=2 and 16 at d=4, drawn once
+      from a recorded seed and then FIXED and listed in the contract, under a uniform prior. Enumeration:
+      all per-level draws within the truncated support, giving at most (12 sigma + 1)^d terms per
+      secret. Arithmetic: Fraction exact, float cross-check at 1e-12. Nulls: fixed-basis with fictitious
+      label, and independent-coin rounding, both at every (d, sigma). Truncation-mass reporting threshold:
+      1e-6.'
+  controls:
+  - Fixed-basis null with an independently drawn fictitious label, all three informations computed
+    by the identical code.
+  - Independent-coin rounding null, which must zero out I(secret ; r) while leaving I(secret ; output)
+    unchanged.
+  - 'Exact-arithmetic control: informations computed in Fraction and in float, agreement required
+    to 1e-12.'
+  - 'Truncation-mass control: neglected support mass computed and reported as a number.'
+  - 'Branch-existence control: the implementation is traced to confirm the rounding comparison is
+    actually a branch and to record where it is not.'
+  - 'Marginalisation consistency: I(secret ; r_1..r_d) computed directly and by summing incremental
+    per-level terms, required to agree.'
+  - 'NULL OBJECT (from the parent proposal, mandatory under docs/inventor-protocol.md ''null-object
+    controls before belief''): The identical enumeration run with the basis PINNED to a fixed public
+    value while a fictitious secret label is drawn independently, with I(label ; r), I(label ; output)
+    and I(label ; (r, output)) all computed by the identical code path. All three must return exactly
+    zero to numerical tolerance 1e-12, since the label is independent of everything by construction;
+    a nonzero value exposes a bias in the joint-distribution accumulation or in the entropy summation.
+    A SECOND null is structurally forced and stronger: run the enumeration with a sampler whose rounding
+    branch is replaced by a coin flip independent of the center, for which I(secret ; r) must be exactly
+    zero while I(secret ; output) is unchanged -- this separates ''the bit vector carries information''
+    from ''the enumeration attributes information to whatever is in the r slot''. Both nulls execute
+    in the same invocation as the signal arm.'
+  independent_variables:
+  - dimension d
+  - per-level width sigma
+  - observation set (r alone, output alone, both)
+  - recursion prefix length for the incremental profile
+  - arm (signal, fixed-basis null, independent-coin null)
+  metrics:
+    primary:
+    - I(secret ; r)
+    - I(secret ; output)
+    - I(secret ; (r, output)) and its difference from I(secret ; output)
+    - incremental information per level
+    secondary:
+    - both null values on all three informations
+    - signature-count-to-one-bit per observation set
+    - truncated support mass
+    - Fraction versus float discrepancy
+    - branch-existence trace result
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: The difference I(secret ; (r, output)) minus I(secret ; output), in bits per signature,
+      at each (d, sigma).
+    formula: 'Three exact relations are pre-committed, all theorems rather than hypotheses, and all
+      serve as correctness checks rather than as the result. First, monotonicity under refinement:
+      I(secret ; (r, output)) is greater than or equal to both I(secret ; r) and I(secret ; output),
+      so the difference under test is non-negative by construction and a negative value is a computational
+      fault. Second, the fixed-basis null: with the label independent of everything the joint factorises
+      and all three informations are exactly zero. Third, the independent-coin null: replacing the
+      rounding branch by a coin independent of the center makes r independent of the secret given
+      nothing, so I(secret ; r) is exactly zero, while the output distribution is untouched so I(secret
+      ; output) must be bit-identical to the signal arm. The VALUE of the difference is deliberately
+      not pre-committed, because it is the quantity the enumeration exists to determine and because
+      a pre-committed value would give the analysis a target to drift toward.'
+    source: Pre-registered in the parent proposal IDEA-20260816-1b4b7d before any run under this contract
+      exists. Never tuned to data; a run that reports a different quantity reports a different experiment.
+  scale_relevance:
+    tier: toy
+    justification: 'Enumerated at dimensions 2 and 4 with widths up to 4.0 and support truncated at
+      6 sigma, chosen because that is the regime where the joint over (secret, draws) is exactly summable
+      in rational arithmetic with no sampling error at all. FN-DSA''s standardized dimension is orders
+      of magnitude larger. NO transfer is claimed and the obstacle is stated plainly: the enumeration
+      cost grows as the support width to the power of the dimension, so the method has no path to
+      larger d, and the secret-basis prior used here is an enumerated family rather than a key distribution.
+      What transfers unconditionally is only structural -- monotonicity under refinement and both
+      null values hold at every dimension by derivation, and they are reported as such rather than
+      as measurements.'
+    correspondence: null
+  tail_checks:
+  - Report the neglected support mass explicitly, since the rounding comparison is most decisive in
+    exactly the truncated tail.
+  - Inspect the joint entries with the smallest nonzero probability, where Fraction-to-float conversion
+    is least stable.
+  - Inspect the largest width at d=4, the cell with the widest support and the sparsest joint.
+  - Inspect the level-1 incremental term separately, since the top level's center depends most directly
+    on the basis.
+  replication:
+    seeds:
+    - 20260816
+    - 20260817
+    - 20260818
+    independent_instances: 3
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 3.0
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - Halt at the d=2 pilot if either null is nonzero beyond 1e-12 or if monotonicity fails; report
+    a computational fault and run nothing further.
+  - Stop at d=4; do not extend the dimension, since enumeration cost grows as support to the power
+    of d and a partial larger-d result would not be exact.
+  - Halt if total wall time exceeds 6 hours and report completed cells only, recording the halt as
+    a budget event and never as evidence about the sampler.
+  - Stop at maximum_runs or total_cpu_hours, whichever binds first; a budget exhaustion is a stop,
+    never a negative result (AGENTS.md rule 5).
+  invalidation_rules:
+  - A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is NEVER negative mathematical evidence (AGENTS.md rule 5).
+  - 'A run whose null-object arm is missing, or whose control arm was not executed in the same invocation
+    as the signal arm, is invalid_measurement: the comparison the contract exists to make was not
+    made.'
+  - Any claimed solve, relation or distinguisher whose certificate fails independent re-verification
+    by the run wrapper makes the run completed_invalid (docs/claims-and-verification.md).
+  - A run whose parameters differ from the frozen contract is a DIFFERENT experiment and requires
+    a new contract; it is never a repair of this one.
+  success_criterion: Both nulls return exactly zero on all three informations, monotonicity and per-level
+    non-negativity hold, Fraction and float agree to 1e-12, and an exact value for I(secret ; (r,
+    output)) minus I(secret ; output) is produced at every (d, sigma) -- whatever that value is, including
+    zero.
+  falsification_criterion:
+  - Any fixed-basis null value nonzero beyond 1e-12.
+  - Independent-coin null yields nonzero I(secret ; r) or alters I(secret ; output).
+  - I(secret ; (r, output)) less than I(secret ; output) anywhere.
+  - Negative incremental per-level information anywhere.
+  - Fraction and float disagree beyond 1e-12.
+  - Truncated support mass above 1e-6, making the enumeration an inadequate representation.
+  required_artifacts:
+  - manifest.yaml with the exact command, commit sha, dirty-tree state, resolved model/inference block
+    and environment
+  - raw-result.json carrying every per-instance measurement, not summaries
+  - the null-object arm's measurements, in the same file as the signal arm
+  - the pre-registration text, written before the first run and hashed
+  - certificates for any claimed solve, relation or distinguisher
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+  - Coordinator approval is required before execution. This contract is DRAFT and is NOT approved;
+    `approved_by` is null and `execution_authorized` is false (AGENTS.md rule 1).
+  - If the parent proposal is proof-oriented, its `proof_search_map` must be audited before implementation
+    or expensive experiments (KN-TECH-080).
+  - A /design-experiment pass must mint the specified hypothesis this contract tests before it can
+    leave draft; no hypothesis is invented here.
+  derivation_provenance:
+    tool: session-authored draft contract
+    source_record: IDEA-20260816-1b4b7d
+    authored_at: '2026-08-16'
+    note: 'The design, controls, metrics and criteria were authored together with the parent proposal,
+      so the contract states what the proposal''s minimal_test intends rather than re-rendering its
+      prose. Boilerplate that is identical across contracts by program rule -- invalidation rules,
+      required artifacts, approval gate, replication seeds -- comes from a fixed table. Budgets come
+      from the parent''s declared estimated_cost.compute through the table in tools/derive_experiment_contracts.py.
+      No field is invented: a value the proposal did not supply is null.'
+  derivation_gaps:
+  - The secret-basis family is enumerated and given a uniform prior by convenience; what prior a real
+    key generator induces is not derived and changes every number.
+  - The rounding convention must be read out of a specific implementation before the object is well-defined,
+    and no such implementation has been designated.
+  - Independence across signings is assumed for the signature-count conversion and is not proved for
+    a recursion sharing a basis across signings.
+  - No bridge is specified from information about an enumerated basis family to information about
+    a trapdoor, so the quantity cannot yet be consumed by any recovery model.

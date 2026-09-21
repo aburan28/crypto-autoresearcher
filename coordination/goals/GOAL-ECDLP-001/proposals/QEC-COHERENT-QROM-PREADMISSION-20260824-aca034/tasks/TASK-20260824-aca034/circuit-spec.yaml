@@ -1,0 +1,56 @@
+schema: crypto.autoresearch.coherent_signed_qrom_circuit.v1
+task_id: TASK-20260824-aca034
+classification: implementation_and_integrity_control
+scientific_experiment: false
+upstream_commit: b5e4c664de212bdb0981d93d70964a1dca1a0ec9
+gate_set: [X, CX, MCX]
+test_instance:
+  purpose: deterministic semantic control only
+  curve: {p: 5, a: 2, b: 1}
+  base: [0, 1]
+  group_order: 7
+  window_width: 3
+  address_width: 2
+  seed: qec-coherent-qrom-20260824
+registers:
+  address: {width: 2, order: little_endian, unchanged: true}
+  sign: {width: 1, coherent: true, unchanged: true}
+  zero_digit: {width: 1, coherent: true, unchanged: true}
+  external_enable: {width: 1, coherent: true, unchanged: true}
+  effective_enable: {width: 1, initial: 0, final: 0}
+  accumulator:
+    width: 7
+    encoding: "x[0:3] little-endian, y[0:3] little-endian, O bit; O=(0,0,1)"
+    invalid_codes: identity
+  qrom_x: {width: 3, initial: 0, final: 0}
+  qrom_y: {width: 3, initial: 0, final: 0}
+  qrom_o: {width: 1, initial: 0, final: 0}
+  qrom_masks:
+    width: 4
+    names: [O, A, -A, -2A]
+    semantics: handler-availability bits held live across the complete translation
+    initial: 0
+    final: 0
+  arithmetic_work: {width: 0, initial: 0, final: 0}
+compile_time_enumeration:
+  allowed: fixed address/sign truth-table rows and valid point-code permutations
+  runtime_address_reads: false
+operation_order:
+  - derive_effective_enable_by_explicit_negative_zero_X_sandwich
+  - coherently_load_selected_coordinates_and_handler_masks
+  - apply_complete_payload_controlled_point_translation_permutation
+  - unload_qrom_by_exact_reverse_of_load_operations
+  - uncompute_effective_enable_by_exact_inverse
+  - assert_cleanup_and_unchanged_labels
+arithmetic_semantics:
+  enabled_nonzero: "accumulator <- accumulator + selected signed table point"
+  disabled_or_zero_digit: identity
+  explicit_exception_controls: [O, A, -A, -2A]
+  permutation_synthesis: cycle-decomposition then Gray-path MCX transpositions
+  negative_controls: explicit closed X sandwiches
+qrom_access_definition: one selected truth-table payload-bit toggle term
+primitive_invocation_definition: one payload-controlled adjacent Gray-state swap MCX
+claim_boundary: >-
+  Concrete fixed-base signed-window reversible IR on the declared deterministic
+  semantic-control domain, conditional on no external arithmetic cost claim.
+  This record makes no scientific, performance, novelty, parameter, or status claim.

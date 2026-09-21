@@ -1,0 +1,161 @@
+red_team_report:
+  id: RT-20260801-052
+  task_id: TASK-20260801-053
+  role: red-team
+  independent_session: true
+  author_of_reviewed_artifact: false
+  claim_under_review: >-
+    BATCH-025 v2 toy smoothness design and its null-only feasibility pilot.
+  verdicts:
+    V2_DESIGN: REVISE
+    NULL_ONLY_PILOT: REVISE
+  recommendation_to_coordinator: DO_NOT_AUTHORIZE_EXECUTION
+
+  snapshot_verification:
+    commit: 9ef0247c74ffc92e37b6e5fc5b0f388af1b71748
+    parent: 14a5752bd1ae5033d2c2ef27fa64e765c55f904d
+    reachable_from_head: true
+    exact_changed_path_count: 3
+    exact_paths_match_receipt: true
+    proposal_sha256: 8eb34eaddebf86bca70055c838a90ce2f7dc800a1ecb692caa65bac74ceb7fad
+    pilot_sha256: dcf6ca00e2a367f7271e17e3c151286227dba46877b8621cd791109efca3391d
+    recorded_hashes_match: true
+    caveat: receipt_commit_sha_is_null
+
+  count_rederivation:
+    edges_per_array: 130816
+    formula: 512*511/2
+    pilot_arrays: 32
+    pilot_factorizations: 4186112
+    pilot_formula: 2*2*2*4*130816
+    v2_arrays_equivalent: 608
+    v2_subtotal: 79536128
+    v2_terms:
+      reference: 1046528
+      calibration_NULL_K512_ADD: 66977792
+      source_if_authorized: 1046528
+      matched_plant_base_inputs: 1046528
+      matched_plant_candidate_inputs: 4186112
+      matched_plant_outputs_three_deltas: 3139584
+      gross_plant_inputs_and_outputs: 2093056
+    verdict: PASS
+
+  checks:
+    graph_null:
+      verdict: PASS_WITH_LIMITATION
+      finding: >-
+        Each edge is exactly uniform on [1,p^2], and disjoint edges are
+        independent. The construction shares endpoint variables on K_512, but
+        adjacent additive edge sums are themselves pairwise independent and
+        higher-order dependencies are algebra-specific. The proposal correctly
+        carries the limitation that it matches incidence topology, not the
+        source's unknown joint law.
+    exact_split_bank_test:
+      verdict: PASS
+      finding: >-
+        Banks 1..32 and 33..64 are disjoint. Conditional on the frozen
+        transformation bank and fixed reference, the add-one test
+        (1 + count(M_r >= M_source))/33 has grid 1/33 through 33/33; ties count
+        against rejection and alpha 0.05 is reachable only at 1/33.
+    branch_partition:
+      verdict: REVISE
+      finding: >-
+        Precedence makes the six labels exclusive, but revise_without_source
+        is not mechanically decidable: calibration-validation failure is
+        undefined and the gross plant has neither a construction nor a pass
+        rule. Moreover, allowing source execution when either plant passes
+        permits the gross truncation plant alone to bypass failure of the
+        matched sensitivity control.
+    matched_plant:
+      verdict: REVISE
+      finding: >-
+        Same-bin replacement can preserve all bin counts and N=1, but the
+        deterministic algorithm is incomplete. It does not freeze Bernoulli
+        versus fixed-cardinality selection, candidate ordering, tie handling,
+        reuse versus consumption, or whether one candidate pool/base array is
+        shared across deltas. The accounting assumes reuse, while alternative
+        valid readings alter both power and resource costs.
+    pilot_resources:
+      verdict: REVISE
+      finding: >-
+        The roster has exactly 128 shards. At 256 MiB each, the shard maxima
+        consume exactly 32 GiB, leaving no global-disk allowance for manifests,
+        checkpoints, logs, or reports. Also, a number below 2^40 can have
+        eleven distinct prime factors because the product of the first eleven
+        primes is 200560490130, while the nominal primality budget is only
+        eight checks per factorization on average. Any per-record cap of eight
+        would be invalid; the contract must specify global accounting and
+        reserve enough worst-case headroom.
+    shard_and_open_files:
+      verdict: REVISE
+      finding: >-
+        Four workers plus four simultaneously open gzip shards exhaust the
+        four-output-file ceiling before checkpoint or manifest writes. A
+        single-writer architecture could comply, but it is not frozen.
+        Certificate shard paths and the seed-roster hash artifact are also
+        absent from required_artifacts.
+    pilot_scope:
+      verdict: PASS_AT_CONTRACT_LEVEL
+      finding: >-
+        The specification declares no curve, factor base, S3 source arm, plant,
+        p-value, evidence disposition, or status transition. The later
+        implementation must expose no source/evidence mode before authorization;
+        no executable exists in this snapshot to verify that property.
+
+  objections:
+  - id: RT052-B1
+    severity: blocking_determinism
+    finding: Matched-plant selection, reuse, and tie rules are unfrozen.
+  - id: RT052-B2
+    severity: blocking_decision_logic
+    finding: Calibration and gross-plant pass rules are undefined.
+  - id: RT052-B3
+    severity: blocking_resource_contract
+    finding: Disk, primality, shard, and open-file ceilings are not jointly safe.
+  - id: RT052-B4
+    severity: blocking_artifact_integrity
+    finding: Raw certificate shards and seed-roster hashes lack required artifact paths.
+  - id: RT052-B5
+    severity: blocking_statistic_definition
+    finding: >-
+      Directional KS orientation and corrected log-rate-ratio correction are
+      named but not mathematically defined, so conforming implementations can
+      disagree.
+
+  required_controls:
+  - Freeze exact plant selection, candidate ordering, tie and reuse rules.
+  - Require the matched plant itself to pass before any source executable exists.
+  - Define every statistic and calibration-validation predicate algebraically.
+  - Reserve disk beyond 128 shard maxima and freeze a compliant writer topology.
+  - Permit at least eleven explicit primality verifications for an individual N.
+  - Declare certificate-shard and seed-roster artifacts.
+  - Independently inspect the implemented CLI for absence of source/evidence modes.
+
+  counterexample_or_mutation: >-
+    Run the future matched-plant constructor twice with candidate reuse enabled
+    and disabled. Divergent detection floors under the current text demonstrate
+    that plant power is implementation-selected rather than pre-registered.
+
+  baseline_comparison:
+    dominated_by: Pollard-rho generic exact ECDLP
+    sota_delta:
+      time_exponent: 0.0
+      memory_exponent: 0.0
+      data_exponent: 0.0
+      solved_instances: 0
+
+  narrowest_supported_statement: >-
+    The exact snapshot and arithmetic counts are sound, and the pilot is
+    correctly scoped as null-only and non-evidentiary. Neither contract is
+    execution-ready because deterministic plant semantics, decision predicates,
+    and resource/artifact ceilings remain incomplete.
+  next_concrete_action: >-
+    Issue a v3 contract repairing RT052-B1 through RT052-B5, snapshot it, and
+    obtain fresh independent committed-byte review before authorizing any run.
+  artifact_paths:
+  - coordination/goals/GOAL-ECDLP-001/batches/BATCH-025/reviews/TASK-20260801-053/v2_contract_review.yaml
+  explicit_non_actions:
+  - No experiment executed.
+  - No files edited.
+  - No commit created.
+  - No research state changed.

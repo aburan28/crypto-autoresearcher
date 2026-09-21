@@ -1,0 +1,196 @@
+idea:
+  id: IDEA-20260726-005
+  title: Multi-level descent tree for prime-field ECDLP index calculus with explicit depth-cost tradeoff
+  class: composition
+  claim: >-
+    For toy prime-field curves, a depth-2 descent tree — where the target Q
+    is first decomposed over an enlarged "medium base" F_med of size
+    B_med = N^{beta_med} with beta_med > beta, and each medium-base element
+    is then decomposed over the standard factor base F of size B = N^beta —
+    achieves a lower total per-target descent cost than single-level descent
+    over F, provided the medium-base decomposition probability is
+    sufficiently higher than the factor-base decomposition probability to
+    compensate for the B_med second-stage decompositions. If the
+    decomposition probability does not increase fast enough with B_med
+    (specifically, if it scales as (B_med/N)^{m-1} or worse, matching the
+    generic birthday heuristic), the depth-2 tree is no cheaper than
+    single-level descent, and the multi-level route is closed at toy scale.
+  mechanism: >-
+    Standard prime-field index calculus (KN-TECH-003) uses single-level
+    descent: decompose Q+[t]P directly as a sum of m factor-base elements by
+    solving S_{m+1}(x_1,...,x_m; x_{Q+tP}) = 0. The decomposition probability
+    is approximately (B/N)^{m-1} (the probability that m-1 random
+    x-coordinates land in the factor base), and the Groebner solve cost
+    grows with the Semaev degree 2^{m-2}. The multi-level descent tree
+    introduces an intermediate "medium base" F_med of size B_med > B:
+    (1) Decompose Q+[t]P as a sum of m' elements from F_med by solving
+    S_{m'+1}(x_1,...,x_{m'}; x_{Q+tP}) = 0. The decomposition probability is
+    approximately (B_med/N)^{m'-1}, which is higher because B_med > B.
+    (2) For each of the m' medium-base elements in the decomposition,
+    decompose it as a sum of m elements from F by solving S_{m+1} = 0.
+    The total depth-2 cost per target is:
+    C_2 = C_solve(m') / P(m', B_med) + m' * C_solve(m) / P(m, B)
+    where C_solve(k) is the Groebner cost for arity k and P(k, B') is the
+    decomposition probability for arity k with base size B'. Compare to
+    single-level: C_1 = C_solve(m) / P(m, B).
+    The depth-2 tree is cheaper when:
+    C_2 < C_1, i.e., when the higher first-stage probability (from B_med > B)
+    compensates for the m' second-stage decompositions.
+    The key tradeoff: increasing B_med raises the first-stage probability but
+    increases the second-stage work (more medium-base elements to decompose).
+    The optimal B_med minimizes C_2. This is the ECDLP analogue of the NFS
+    descent tree, where numbers are recursively split into smaller factors.
+    The composition novelty is applying the multi-level descent structure
+    (well-known in NFS and extension-field index calculus) to prime-field
+    ECDLP, where the single-level descent has never been benchmarked against
+    a multi-level alternative. The idea discriminates between:
+    (a) the decomposition probability increases fast enough with B_med to
+    make depth-2 cheaper (the descent tree has exploitable structure);
+    (b) the probability increase is too slow (the descent tree offers no
+    advantage over single-level descent).
+  novelty_status: adaptation
+  assumptions:
+    - >-
+      The decomposition probability for arity m with base size B' scales as
+      (B'/N)^{m-1} or faster (the standard heuristic from KN-TECH-003). If
+      the scaling is slower, the depth-2 tree may be cheaper than expected.
+    - >-
+      The Groebner solve cost C_solve(k) depends on the arity k and the
+      Semaev degree 2^{k-2}, not on the base size B' (the base size enters
+      only through the factor-base indicator polynomials, which add degree
+      but may not change the solving degree).
+    - >-
+      The medium base F_med is target-independent (no target-derived
+      material in the medium base), and the medium-base log table is
+      computed from the factor-base log table by additional decompositions.
+    - >-
+      The multi-level descent does not change the generic lower bound: the
+      S*T^2 = Omega~(N) preprocessing bound (KN-LIT-013) still applies. The
+      question is whether the multi-level structure provides a non-generic
+      advantage in the descent stage.
+    - >-
+      The multi-level structure is a composition of known techniques
+      (Semaev decomposition + NFS-style descent tree), not a new mechanism.
+      The novelty is in the composition and the prime-field application.
+  predictions:
+    - metric: depth2_descent_cost_vs_single_level
+      direction: lower
+      minimum_effect: >-
+        C_2 < 0.8 * C_1 for at least one (B_med, m', m) configuration at the
+        largest tested size. If C_2 >= C_1 for all configurations, the
+        depth-2 tree offers no advantage. The 0.8 threshold ensures the
+        advantage is not within noise.
+    - metric: optimal_B_med_vs_B
+      direction: different
+      minimum_effect: >-
+        The B_med that minimizes C_2 is strictly greater than B (otherwise
+        depth-2 degenerates to single-level). If the optimal B_med = B, the
+        medium base provides no benefit.
+    - metric: decomposition_probability_scaling_exponent
+      direction: different
+      minimum_effect: >-
+        The measured decomposition probability P(m, B') as a function of B'
+        has log-slope >= (m-1)/N (the generic heuristic). If the slope is
+        steeper, the medium base is more effective than expected; if
+        shallower, it is less effective.
+  minimal_test:
+    design: >-
+      For 3 toy prime-field curves at 16, 20, and 24 bits with standard
+      factor base B = ceil(sqrt(N)) and m=3: (1) measure the single-level
+      descent cost C_1: median Groebner time and failure rate for 50 targets
+      decomposing over F; (2) for B_med in {2B, 4B, 8B, 16B}, measure the
+      depth-2 descent cost C_2: first decompose each target over F_med (m'=2
+      and m'=3), then decompose each medium-base element over F (m=3);
+      (3) compute C_2 = C_solve(m')/P(m',B_med) + m'*C_solve(m)/P(m,B) from
+      measured costs and probabilities; (4) find the B_med that minimizes C_2
+      and compare to C_1; (5) measure the decomposition probability
+      P(m, B') as a function of B' by brute-force counting on tiny curves
+      (8-12 bit) and fit the log-slope. All costs in group-operation
+      equivalents; Groebner times reported separately.
+    controls:
+      - >-
+        Single-level descent control: C_1 measured on the same curves and
+        targets, using the same solver and cost accounting.
+      - >-
+        Matched rho: per-target sqrt(N) group operations.
+      - >-
+        Generic heuristic control: compute the predicted C_2 from the
+        generic decomposition probability (B'/N)^{m-1} and compare to the
+        measured C_2. If measured C_2 matches the generic prediction, the
+        multi-level structure is generic-equivalent.
+      - >-
+        Medium-base log table cost: charge the cost of computing medium-base
+        logs from factor-base logs (m' decompositions per medium-base
+        element) as part of preprocessing, not per-target.
+      - >-
+        Failed descent control: count all failed decompositions at both
+        levels toward the total cost; no post-hoc selection of successful
+        branches.
+    required_metrics:
+      - C_1 (single-level descent cost) per target
+      - C_2 (depth-2 descent cost) per target for each (B_med, m', m)
+      - P(m, B') decomposition probability for each B'
+      - P(m', B_med) decomposition probability for each (m', B_med)
+      - C_solve(k) Groebner cost for each arity k
+      - optimal B_med and corresponding C_2
+      - log-slope of P(m, B') vs B'
+      - medium-base log table construction cost
+      - fully-charged total: preprocessing + K * descent + verification
+  falsification_conditions:
+    - >-
+      C_2 >= C_1 for all tested (B_med, m', m) configurations at all sizes,
+      meaning the depth-2 tree is never cheaper than single-level descent.
+    - >-
+      The decomposition probability P(m, B') scales as (B'/N)^{m-1} or
+      slower (the generic heuristic), meaning the medium base provides no
+      non-generic probability boost.
+    - >-
+      The optimal B_med = B for all tested sizes, meaning the medium base
+      provides no benefit.
+    - >-
+      The medium-base log table construction cost exceeds the descent saving,
+      making the total cost higher than single-level.
+  confounders:
+    - >-
+      The decomposition probability at toy scale (16-24 bit) may be dominated
+      by finite-size effects, not the asymptotic scaling. The log-slope fit
+      may be unreliable with only 3-4 size points.
+    - >-
+      The Groebner solve cost C_solve(k) may depend on B' through the
+      factor-base indicator polynomials, contrary to the assumption. If
+      C_solve grows with B', the depth-2 cost increases faster than expected.
+    - >-
+      The multi-level descent is a composition of known techniques; the
+      novelty is in the prime-field application, not the descent tree
+      structure itself. The large-prime variation is well-known for
+      extension-field index calculus (KN-LIT-022, KN-LIT-023) but has not
+      been benchmarked for prime-field ECDLP.
+    - >-
+      The medium base may require a different decomposition arity m' than
+      the factor base; the optimal (m', m) pair may not be found by the
+      tested configurations.
+    - >-
+      The generic preprocessing bound S*T^2 = Omega~(N) applies to the
+      multi-level descent as well; the question is whether the multi-level
+      structure provides a non-generic advantage, not whether it beats the
+      generic lower bound.
+  interpretation_limits:
+    - >-
+      Toy-scale only; a depth-2 advantage at 16-24 bits does not prove an
+      asymptotic advantage. The descent tree structure may become
+      irrelevant at larger sizes where the Groebner cost dominates.
+    - >-
+      The multi-level descent is a composition of known techniques, not a
+      new mechanism. A positive result improves the descent stage but does
+      not change the fundamental IC cost structure.
+    - >-
+      The idea is an adaptation of the NFS descent tree to ECDLP; the
+      novelty is in the prime-field application and the explicit depth-cost
+      tradeoff measurement, not in the descent tree concept itself.
+    - >-
+      A negative result (C_2 >= C_1) closes only the tested configurations;
+      other arities, base sizes, or depth-3 trees are not covered.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium

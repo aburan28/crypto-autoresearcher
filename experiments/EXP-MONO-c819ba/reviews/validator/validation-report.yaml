@@ -1,0 +1,497 @@
+validation_report:
+  id: VAL-20260830-mono7c819ba
+  task_id: validator-mono7-c819ba
+  experiment_id: EXP-MONO-c819ba
+  hypothesis_id: H-MONO-663fb4
+  snapshot_receipt: coordination/tasks/TASK-20260830-48eb5c/snapshot-receipt.json
+  snapshot_commit_verified: "11a79965469a895abb4f97b464d97cf548b480c3 (git rev-parse HEAD matched exactly; working tree clean w.r.t. this experiment's files -- no modifications to experiments/EXP-MONO-c819ba/** in `git status`; unrelated untracked files from other concurrent lanes present but out of scope, per this task's instruction to validate only the coordinator-committed snapshot)"
+  run_ids: [RUN-MONO-c819ba-1, RUN-MONO-c819ba-2]
+
+  artifact_checks:
+    - check: All 25 archive_artifact_paths in the snapshot receipt exist at the stated paths in this working tree.
+      result: PASS
+    - check: path_sha256 in the snapshot receipt matches sha256sum of each artifact on disk.
+      result: >-
+        PASS (spot-verified execution_report.yaml, implementation.md, raw-result.json for both
+        runs, and stage1_quotations.md against the receipt's recorded hashes; all matched).
+    - check: Both runs' manifest.yaml carry field_bits, git commit, dirty-tree state, seeds, environment.
+      result: PASS (confirmed by reading manifest.yaml for both runs; field_bits [7,8,9,10,11] present).
+    - check: implementation_commit (833f0f4...) matches parent_sha recorded in the snapshot receipt.
+      result: PASS.
+    - check: certificate discipline (no discrete-log solve or relation claimed).
+      result: "PASS -- certificate.kind: none throughout; this is a pure Fourier/group-theory measurement, correctly scoped."
+
+  metric_recomputations:
+    - id: RECOMP-1-stage0-fixture
+      description: >-
+        Independently recomputed, from scratch (own script, fresh Python, no import of
+        curve.py/conv.py), the Stage-0 fixture identity on p=101, A=1, B=1: N, F=N//2, and
+        Var_1 = F(N-F)/N^2 as an exact Fraction.
+      result: "N=105, F=52, F(N-F)/N^2 = 2756/11025 = 0.24997732426303854 EXACTLY, matching execution_report.yaml m1_var_exact to every reported digit. PASS."
+    - id: RECOMP-2-subgroup-positive-control
+      description: >-
+        Independently re-derived (pure algebra, no code needed) that for FB = subgroup H of
+        order h, Shat(chi)=h on H's annihilator and 0 elsewhere, forcing max_R|N_m(R)/(F^m/N)-1|
+        = N/h - 1 exactly and C/F = 1 exactly.
+      result: >-
+        RO3 h=N/2=144: N/h-1 = 288/144-1 = 1 (matches). h=N/4=72: 288/72-1 = 3 (matches).
+        CM1 h=N/2=70: 140/70-1=1 (matches). h=N/4=35: 140/35-1=3 (matches). All four EXACT
+        matches to the execution_report.yaml table. PASS.
+    - id: RECOMP-3-coset-union-closed-form
+      description: >-
+        Independently derived the coset-union control's closed form. G/H4 is cyclic of order 4
+        for both RO3 (H4={(a,b): b=0 mod4} in Z/3 x Z/96, quotient = Z/96/4Z/96 = Z/4 since the
+        whole Z/3 factor is inside H4) and CM1 (n1=1, quotient trivially Z/4). For chi ranging
+        over the 4 characters trivial on H4, chi(g) runs over the 4th roots of unity as g
+        generates the quotient; |1+chi(g)| in {2, sqrt2, 0, sqrt2}; excluding the trivial
+        character of the whole group (value 2h=F, i.e. chi(g)=1), the nontrivial max is
+        h*sqrt2, giving C/F = h*sqrt2/(2h) = 1/sqrt2.
+      result: "1/sqrt(2) = 0.7071067811865476, EXACT match (to float precision) to both RO3 and CM1's reported C_over_F. PASS."
+    - id: RECOMP-4-J0-real-arm-full-independent-rebuild
+      description: >-
+        THE CENTRAL RECOMPUTATION. Built the J0 curve (p=307, A=0, B=6) from scratch in a
+        standalone script that imports NONE of the Executor's modules: own EC point-add/negate/
+        scalar-mult, own point enumeration, own group-structure determination (order-elimination
+        + independent generator search), own (k1,k2) coordinate map using a DIFFERENT generator
+        pair than the Executor's (mine: G1=(1,43), G2=(4,101), vs whatever curve.py's search
+        order picked -- basis choice does not affect Var or C, which are basis-invariant group
+        invariants, so an exact match across two independently-chosen bases is a strong check),
+        own factor-base construction (scan-order QR-x prefix), own exact-integer convolution
+        tower, own FFT2 character-side cross-check.
+      result: >-
+        N=324, n1=n2=18 (confirmed), fb_full=320, F=162, len(T)=162 -- all match. Var_ordered:
+        m=1: 0.25, m=2: 66.22839506172839, m=3: 31683.5987654321, m=4: 21005603.425925925 --
+        EXACT bit-for-bit match to raw-result.json for BOTH runs (L1/L4 seed-invariant as the
+        contract requires). C = 30.468844766858634, C/F = 0.18807928868431256 -- EXACT match.
+        This is a clean, independent, different-basis confirmation that the reported real-arm
+        numbers for the flagged cell are computed correctly, not transcribed or fabricated.
+        PASS.
+    - id: RECOMP-5-L2-L3-arithmetic
+      description: Recomputed L2(m=3), L2(m=4), L3 directly from the raw per-cell numbers already in raw-result.json (var_ordered / null_mean_var; C_over_F / null_mean_C_over_F), both runs.
+      result: >-
+        Run1: 31683.5987654321/22583.73116219668=1.4029 (matches reported 1.4029);
+        21005603.425925925/11214271.617496807=1.8731 (matches 1.8731);
+        0.18807928868431256/0.16140261429115352=1.1653 (matches 1.1653). Run2 similarly
+        confirmed (1.3052, 1.5715, 1.1700). Internal arithmetic is correct. PASS (as a
+        transcription/arithmetic check only -- see finding F-1 below for why the underlying
+        null_mean_var itself is not a reliable estimator).
+
+  control_checks:
+    - control: Stage-0 exact identity gate (m=1, m=2 on frozen fixture).
+      result: PASS, independently reproduced (RECOMP-1).
+    - control: "Positive control 1 (subgroup, forced N/h-1 and C/F=1)."
+      result: >-
+        PASS, independently reproduced (RECOMP-2). Correctly specified -- this is an exact,
+        non-tautological forced value derivable without the code, and both curves qualify per
+        the corrected `4 | n2` gating logic (interpretation 2), which I independently verified
+        is the right criterion: the naive scalar-mult-image construction genuinely fails on
+        non-cyclic groups for the reason given, and the fix is correct.
+    - control: "Positive control 2 (coset-union, forced C/F=1/sqrt(2))."
+      result: PASS, independently reproduced (RECOMP-3).
+    - control: "Calibration control (m=1), declared non-discriminating and excluded from primary metrics."
+      result: "PASS -- correctly excluded from L2/L3 tables in every cell inspected (CALIBRATION_EXCLUDED label present at m=1 throughout raw-result.json)."
+    - control: Pre-treatment commitment (ordering control) -- nulls and both positive controls SHA-256-committed before any treatment cell.
+      result: "PASS by inspection of stage4_pretreatment_commitment in execution_report.yaml (distinct hashes recorded per run, before Stage 3's treatment loop in run_experiment.py's own code order)."
+    - control: Dual-path control (exact-integer vs float character side).
+      result: >-
+        PASS with disclosed limitation, correctly reported by the Executor: float cross-check
+        exceeds the declared 1e-10 tolerance at m=4 on some cells (up to 3.9e-9), a
+        double-precision FFT2-at-8th-power artifact, NOT a defect in the primary exact-integer
+        metric (which I independently re-derived bit-for-bit in RECOMP-4). Correctly disclosed,
+        not hidden.
+    - control: Dual-convention control (ordered and multiset both reported).
+      result: PASS, both present at every cell in raw-result.json.
+    - control: "NULL-VS-NULL ORDERING CONTROL -- re-examined for statistical adequacy, not just presence."
+      result: >-
+        PRESENT AND EXECUTED AS SPECIFIED, but I find it materially UNDERPOWERED for its stated
+        purpose at m=3/4. See Finding F-1 below: this is the single most consequential finding
+        of this review and is why the "well-behaved null" characterization of the J0/F=N/2 cell
+        does not hold up under an independent, higher-powered check.
+
+  independent_analysis_of_the_J0_F=N/2_signal:
+    item_1_automorphism_mechanism_worked_out:
+      claim_under_test: >-
+        For J0 (y^2=x^3+6 over F_307), does f(omega*x)=f(x) hold, and does this make the
+        F=N/2-truncated real arm a union of complete automorphism orbits (the mechanism the
+        task brief hypothesized as the artifact explanation)?
+      result: >-
+        f(omega*x)=f(x) IS an EXACT algebraic identity (independently verified over ALL 307
+        residues, 0 mismatches; omega=17, a primitive cube root of unity mod 307, found by
+        direct search). The UNTRUNCATED QR-x pool (160 x-values) IS exactly orbit-closed under
+        x -> omega*x (0 leaks out of the pool; 53 orbits of size 3 + the fixed point x=0, whose
+        f(0)=6 is independently confirmed to be a QR mod 307). This premise of the hypothesized
+        mechanism is CORRECT.
+      but: >-
+        THE MECHANISM DOES NOT PROPAGATE TO THE ACTUAL F=N/2 REAL ARM. See item 2.
+    item_2_truncation_interaction_computed:
+      method: >-
+        Built the exact same scan-order-prefix truncated arm T (162 points, F=N/2, matching the
+        Executor's construction exactly -- verified via RECOMP-4's byte-identical numbers) and
+        directly tested T's closure under zeta(x,y)=(omega*x mod p, y) at the POINT level (own
+        fresh script, no Executor code).
+      result: >-
+        T is NOT meaningfully orbit-closed. |T intersect zeta(T)| / |T| = 0.5062, statistically
+        INDISTINGUISHABLE from the naive baseline (|T|/|fb_full| = 0.5062) expected if T behaved
+        like a structure-blind random subset of the 320-point universe. At the individual-orbit
+        level: of the 106 size-3 point-orbits in fb_full touched by T, only 16/(16+80)=16.7% are
+        FULLY contained in T; 75.5% are SPLIT (1 or 2 of 3 members in T, the rest excluded by the
+        arbitrary x-scan-order cutoff). The two x=0 fixed points are trivially both in T (T
+        contains the smallest x-values by construction).
+      conclusion: >-
+        THE HYPOTHESIZED MECHANISM ("the factor base is a union of full or empty automorphism
+        orbits, hence character-biased relative to a generic random symmetric subset") IS
+        DIRECTLY REFUTED BY COMPUTATION AT THIS RUNG. The scan-order truncation destroys the
+        automorphism-orbit structure almost completely; the F=N/2 real arm carries no more
+        zeta-coherence than a random subset of the same size would. Whatever is producing the
+        elevated L2/L3 numbers at this cell, it is NOT simple orbit-invariance of the truncated
+        factor base under the j=0 automorphism. This is the single most important correction to
+        the framing in the task brief and in the execution_report's own escalation note (which
+        correctly declined to adjudicate, but the open possibility it flagged does not survive
+        direct computation).
+    item_3_independent_reverification_of_raw_numbers:
+      result: >-
+        See RECOMP-4 and RECOMP-5 above. All of L2(m=3)=1.4029/1.3052, L2(m=4)=1.8731/1.5715,
+        L3=1.1653/1.1700 (run1/run2) are accurately transcribed from raw-result.json and the
+        underlying Var/C values recompute bit-for-bit from an independent implementation.
+        No transcription or arithmetic error found.
+    item_4_multiple_comparisons_and_the_real_driver_FINDING_F1:
+      naive_multiple_comparisons_framing: >-
+        ~32 (curve,F) cells x {m=3,m=4} = 64 L2 tests, plus 32 L3 tests, ~96 comparisons per
+        run against nominal two-sided bands. Under a naive assumption that the band was
+        calibrated to a small (~5-10%) nominal false-positive rate per cell, one would expect
+        a handful of chance exceedances among 96 tests, and "one cell reproducible across two
+        independent seeds" would look mildly surprising (roughly: two independent ~5-10%
+        events co-occurring on the same cell, i.e. a probability in the low single-digit
+        percent, IF the two seeds' null estimates were independent draws from a well-estimated
+        population -- see below for why that "if" fails).
+      what_i_actually_measured_instead: >-
+        Rather than assume a nominal false-positive rate, I EMPIRICALLY CALIBRATED it for this
+        exact statistic and this exact cell. I drew 500 fresh, independently-seeded null draws
+        (own RNG, unrelated to the contract's Drawer/domain) from the same 323-point universe
+        the contract's draw_symmetric_null uses, and computed Var_ordered(m=3,4) and C/F for
+        each. RESULT: the null population for Var_ordered(m=4) is SEVERELY right-skewed --
+        mean=15,607,075, median=10,842,322 (mean/median=1.44), sd=18,868,186 (LARGER than the
+        mean), p99=99,588,255, max=262,079,082 over 500 draws. This is generic to the design,
+        not J0-specific: an identical check on RO3 (a curve the Executor's own run labeled
+        IN_BAND at this same F=N/2/m=4 cell) shows the SAME heavy right skew
+        (mean/median=1.38, sd larger than half the mean).
+      the_type-I-error_calibration: >-
+        Using the 500-draw pool as a stand-in population, I bootstrap-simulated the contract's
+        own decision rule UNDER THE NULL BEING EXACTLY TRUE (both the "30-draw mean estimate"
+        and the "real" value resampled from the identical population, 20,000 trials): for
+        L2 at m=4, P(ratio > 1.4) = 15.9%, P(ratio < 0.7) = 48.6%, P(outside [0.7,1.4]) = 64.6%.
+        For m=3: P(outside band) = 34.0%. For L3: P(outside [0.85,1.15]) = 25.4%. These are the
+        ACTUAL false-positive/false-negative rates of the pre-registered band for THIS kind of
+        heavy-tailed statistic at n=30 -- not the low single digits a "5% band" framing would
+        suggest. Cross-check: the REAL run1 panel's own observed m=4 label distribution across
+        32 cells (16 IN_BAND / 5 ABOVE_BAND / 11 BELOW_BAND, i.e. 16%/34%/50%... reading as
+        above/below/in: 16% ABOVE, 34% BELOW, 50% IN) is close to what my null-true simulation
+        predicts (16% ABOVE, 49% BELOW, 35% IN) for a J0-shaped null. This correspondence is
+        the decisive evidence: THE WHOLE PANEL'S m=4 (and to a lesser extent m=3) band-label
+        distribution is statistically consistent with pure null-estimator noise from an
+        underpowered, heavy-tailed statistic, not with a population of mostly-null cells plus
+        one genuine deviant.
+      why_reproducibility_across_seeds_is_much_weaker_evidence_than_it_looks: >-
+        Between the two runs, ONLY the null draws change (label "null-subset", domain
+        f"{PANEL_DOMAIN}/run-{master_seed}"); the curve, the factor base, and hence the REAL
+        arm's Var/C values are IDENTICAL (confirmed: L1/L4 seed-invariant, and RECOMP-4's exact
+        recompute is a single fixed number, not a distribution). Because the null distribution
+        is right-skewed (median << mean), a 30-draw sample mean is a SYSTEMATICALLY (not just
+        noisily) downward-biased estimator of the true mean far more often than not (this is
+        exactly the mean/median>1 asymmetry measured above): most 30-draw samples underestimate
+        the true null mean, not half of them. So two INDEPENDENT 30-draw samples landing on the
+        low side of the true mean (thereby both making the SAME fixed real value look
+        "ABOVE_BAND") is NOT a coincidence requiring explanation by curve-specific structure --
+        it is the EXPECTED, most-likely outcome of resampling a right-skewed null twice. This
+        is qualitatively different from "two independent noisy measurements agreeing," which
+        WOULD be informative; the mechanism here is a shared bias in the same direction, not
+        independent confirmation. My own 500-draw estimate of the population mean
+        (15,607,075 at m=4) is 40% and 17% above the two runs' respective 30-draw means
+        (11,214,272 and 13,366,246), consistent with exactly this systematic underestimation.
+        Placed against my own, much less biased, 500-draw null: the real value's L2(m=4)=1.35,
+        L2(m=3)=1.24, L3=1.13, at percentiles 84%, 83%, 86% and z-scores of 0.29, 0.51, 0.92
+        respectively -- an unremarkable, moderately-high-but-ordinary draw, not an outlier.
+      quantified_expected_hits: >-
+        Applying the empirically-calibrated ~16% per-cell ABOVE_BAND rate at m=4 (for a
+        J0-shaped null; other, less-skewed cells will have somewhat different rates, but the
+        RO3 check shows a comparably skewed shape at the same F/N=1/2 rung) to the 8 curves at
+        F=N/2 specifically: expected count of "1 curve ABOVE_BAND at m=4, by chance, at this
+        specific F rung" is ~1.3 per run. Observing exactly one such cell, on the SAME curve
+        both times (because the cause is a systematic bias affecting the SAME fixed real value
+        both times, not independent noise), is fully consistent with -- not surprising against
+        -- pure test-calibration artifact.
+    item_5_stage0_subgroup_coset_recheck: "See RECOMP-1/2/3 above; all PASS."
+    item_6_stage1_quotation_accuracy:
+      method: Read KN-FIND-007.md, KN-FIND-4c9e71.md, KN-FIND-d4f820.md, DEC-20260804-0a4bc2.yaml, DEC-20260804-4f3a3b.yaml, DEC-20260804-53c89f.yaml, DEC-20260804-f320c2.yaml directly (not via the Executor's stage1 file) and diffed against the Executor's stage1_quotations.md / execution_report.yaml stage1 section.
+      result: >-
+        All seven quotations are VERBATIM and accurately transcribed; I found no fabricated or
+        misattributed text. The KN-FIND-007 mean-formula quote is character-for-character
+        identical to the source. The KN-FIND-4c9e71 "CORRECTION (BATCH-107)" section quoted in
+        full does exist and does reverse the document's own earlier "O(1) max C" claim; neither
+        DEC-20260804-0a4bc2 nor DEC-20260804-4f3a3b has been amended to reflect it (confirmed by
+        reading both records directly -- no supersedes/amendment field, no updated verdict). This
+        Executor finding is CORRECT and independently confirmed.
+      two_minor_nuances_not_flagged_by_the_executor:
+        - >-
+          DEC-20260804-53c89f's "genuine p-growth" finding is drawn from BATCH-081 (context:
+          "Weil bound approach... Empirically: |hat{1_F}(k)| ~ sqrt(B)*p^{0.079}"), which reads
+          as a continuation of the earlier MEAN-C measurement lineage (KN-FIND-d4f820,
+          BATCH-073..081), predating and textually distinct from the ADVERSARIAL-MAX-C
+          measurements (BATCH-104/105/107) that DEC-20260804-0a4bc2/-4f3a3b address. DEC-
+          20260804-0a4bc2 itself explicitly distinguishes the two statistics ("mean C ~
+          p^0.079... but the WORST curve has C bounded"). The Executor's stage1 file labels this
+          "directly contradicting... the SAME DAY" without flagging that the three records may
+          concern two different statistics (mean vs. adversarial max), not necessarily one clean
+          same-quantity contradiction. This is a faithful relay of H-MONO-663fb4's own framing
+          (which the contract's Stage 1 explicitly permits reporting-without-resolving), so it
+          is not a defect in the Executor's work, but it is a nuance a reader should have.
+        - >-
+          For DEC-20260804-f320c2, the Executor states the "|S|=O(1)" phrasing attributed to it
+          "is NOT a verbatim phrase in the record." On direct inspection, the record's own text
+          reads "For any bounded generating set |S|=O(1), the spectral gap of Cay(Z/N, S) =
+          Theta(1/N^2) -> 0" -- so the substring "|S|=O(1)" and the substring "Cay(Z/N, S)" ARE
+          both literally, verbatim present in the record (in the same sentence), even though the
+          specific COMBINED phrase H-MONO-663fb4 constructs ("closes the spectral-gap route for
+          Cay(Z/N,S) at |S|=O(1)") is not one continuous verbatim string. The Executor's
+          disclosure is appropriately hedged ("a reasonable reading... NOT asserted as a
+          misquote") and the substance is not wrong, but "not a verbatim phrase" slightly
+          overstates the gap between the paraphrase and the source; both key terms are in fact
+          verbatim.
+      stage1_termination_check_reconfirmed: >-
+        Independently agree: KN-FIND-007's C(B+m-1,m)/N (multiset mean) is a distinct,
+        non-contradictory identity from (I1)'s F^m/N (ordered mean); the Stage-1 stopping rule
+        (F6) is correctly NOT triggered.
+    item_7_F~N/2_vs_literal_full_FB_interpretation:
+      method: Independently confirmed, via RECOMP-4's from-scratch curve build, that for J0 every non-2-torsion affine point (x,y) trivially has f(x)=y^2, a nonzero QR by construction -- so "every x with f(x) a nonzero QR" is satisfied by essentially all non-excluded points, tautologically.
+      result: >-
+        fb_full_size=320 against N=324, Z=3 (independently confirmed, matching
+        execution_report.yaml exactly): F = N-1-Z, i.e. essentially the WHOLE group minus the
+        identity and the 2-torsion-like zero-locus points -- NOT F~N/2. This is a genuine,
+        confirmed internal inconsistency in the frozen contract's own text (the ladder's own top
+        rung is separately labeled "N/2"), not a misreading by the Executor. INTERPRETATION 1 is
+        correctly diagnosed and its adopted resolution (uniform scan-order prefix truncation
+        applied to all four rungs) is the only reading consistent with the contract's own stated
+        ladder values. PASS.
+    item_8_overall_verdict_on_the_central_question: >-
+      HOLDS_WITH_FINDING (see verdict block). The J0/F=N/2 signal is BEST EXPLAINED as (F-1) a
+      NULL-ESTIMATOR MISCALIBRATION ARTIFACT: the pre-registered 30-draw null sample is grossly
+      insufficient to estimate the heavily right-skewed population mean of Var_ordered(m=3,4)
+      and C/F for this design (mean/median ratios of 1.4-1.5, sd exceeding the mean at m=4,
+      confirmed generic across at least two curves including a non-signal one, RO3), and the
+      contract's own "null-vs-null ordering control" (a single held-out draw vs. the mean of the
+      other 29) has essentially no statistical power to detect this specific failure mode (a
+      systematic, same-direction small-sample bias, not scatter among the 30 draws themselves).
+      "Reproducible across both seeds" is fully consistent with -- not evidence against -- this
+      explanation, because the bias acts in the SAME direction on any 30-draw resample of a
+      right-skewed population. Against my own independently-drawn, 500-sample null, the real
+      value sits at the 83rd-86th percentile with z-scores under 1 -- an unremarkable draw. This
+      is NOT the j=0 extra-automorphism/orbit-invariance mechanism the task brief hypothesized:
+      that specific mechanism is DIRECTLY REFUTED BY COMPUTATION (item 2: the F=N/2 truncated
+      arm shows zero excess automorphism-orbit coherence over a structure-blind random subset of
+      the same size). It is also not simply "the same small-F noise the Executor already
+      diagnosed for other cells" in the sense the execution_report implies by contrasting
+      "well-behaved" vs "noise-dominated" nulls -- both ARE noise-dominated, just via a form of
+      noise (heavy-tail small-sample bias) that the specific control used cannot see, whereas
+      the OTHER cells' instability was visible even to that weak control. So: KN-OPEN-009's
+      j=0/1728-automorphism caveat is not directly triggered (the literal mechanism it warns
+      about does not apply here), but the signal is equally NOT a candidate for the exceptional
+      locus this research question exists to find -- it is a measurement artifact of an
+      underpowered null-estimation design, and should be reported as such rather than escalated
+      as a live candidate.
+
+  heuristic_validation_checks:
+    - check: Pre-registered prediction (K3/K4 bands, HEUR-CHR-2, F-ladder decay) recorded in specification.yaml before any run.
+      result: PASS -- bands [0.7,1.4]/[0.85,1.15] and the F-ladder/m-ladder decay predictions are in the frozen, coordinator-approved specification.yaml, dated before RUN-1/RUN-2.
+    - check: Sample size, seeds, sampling procedure in the manifest; empirical statistics recomputed from raw samples.
+      result: >-
+        PASS for presence (30 draws/cell, seeds 20260805/20260806, procedure specified and
+        matches controls.py). PARTIAL/FINDING for adequacy: 30 draws is demonstrably too few to
+        characterize the heavy right tail of Var_ordered(m=3,4) at these toy sizes -- see F-1.
+        This is a design-level statistical-power gap, not a missing-record gap, so it is
+        reported as a finding/limitation rather than an artifact-presence failure.
+    - check: Correspondence validity (substitute sampling).
+      result: not_applicable -- no substitute-sampling correspondence (e.g. Deuring) is used in this contract; the null is drawn directly from E(F_p), no theorem-cited substitution needed.
+    - check: Scale binding recorded.
+      result: PASS -- claim_ceiling/scale_relevance in specification.yaml are explicit that C/F at p~10^3 does not transfer, and HEUR-CHR-2's toy-scale prime-ladder fit (exponent 0.0801 over N in [117,1063]) is reported without extrapolation.
+    - check: Cost-unit honesty / cost bookkeeping.
+      result: not_applicable -- this contract makes no cost-model or attack claim; asymptotic_claim is explicitly null and the record states so throughout.
+
+  cost_model_checks: []
+
+  proof_architecture_checks:
+    - check: proof_search_map completeness (H-MONO-663fb4).
+      result: >-
+        PASS -- bottleneck, baseline_embedding (m=1 symbolic + m=2 exact-integer fixture),
+        observation_collision (searched, collision found and explained as non-straddling),
+        quantifier_order (I1/I2 uniform, I3 FB-dependent via C, explicitly flagged as the
+        record's trap), method_ceiling (explicit strongest-certifiable-claim and nearby-object
+        control: the subgroup extreme), and constructive_transforms are all present and
+        substantively filled, not boilerplate.
+    - check: Nearby-object control (subgroup extreme) actually run and correctly forced.
+      result: PASS -- see RECOMP-2; the instrument correctly reproduces N/h-1 exactly, which per the contract's own stopping rule is a precondition for interpreting any other arm.
+
+  limitations:
+    - >-
+      This review is J1 (correctness) scope only per the joints_owned in the attestation; it
+      renders no verdict on H-MONO-663fb4 itself, no ECDLP claim, and authorizes no status
+      change (AGENTS.md rule 1; per this task's explicit "no status change of any kind").
+    - >-
+      The 500-draw independent MC null I constructed is itself a finite sample of a heavy-tailed
+      distribution and is not a closed-form population value; my percentile/z-score numbers for
+      J0 should be read as "much less extreme than the 30-draw estimate suggested," not as an
+      exact population parameter. A closed-form or much-larger-sample characterization of this
+      null's tail (e.g. via the character-sum literature this program already holds, itself
+      disputed four ways per Stage 1) was out of scope for a 90-minute review.
+    - >-
+      I did not attempt to determine analytically WHY J0's specific group structure (n1=n2=18,
+      full rational 18-torsion, unusually smooth/composite N=324=2^2*3^4) produces a heavier or
+      lighter null tail than a generic curve's; I only confirmed empirically that a
+      similarly-shaped heavy tail also occurs for RO3 (a non-CM, merely mildly non-cyclic curve,
+      n1=3), which argues against extreme non-cyclicity alone being necessary, but a full
+      account of what drives the tail's heaviness across the panel was not attempted.
+    - >-
+      I did not reproduce the exact 30-draw null populations from the contract's own SHA-256
+      Drawer (that would require re-implementing seed.py's exact bit-for-bit rejection-sampling
+      procedure); my independent null uses a different RNG entirely. This is intentional (a
+      DIFFERENT sampling procedure is a stronger, less-correlated check of the underlying
+      population shape than replaying their exact draws would be), but it means I did not verify
+      that the pre-committed SHA-256 hashes in stage4_pretreatment_commitment bind to the EXACT
+      30 draws used (I verified the COMMITMENT PROCESS exists and precedes treatment by reading
+      the code's execution order, not by recomputing the hash preimage).
+    - >-
+      J1728's parallel automorphism structure (x -> -x coupling via the order-4 CM by Z[i], with
+      QR(f(-x))=QR(f(x)) confirmed analytically since p10=1013 = 1 mod 4 forces QR(-1)=1) was
+      derived analytically as a contrast case (no signal observed there) but not independently
+      recomputed to the same depth as J0; this is noted as supporting context, not a
+      fully-verified control.
+    - >-
+      Model-correlation confound: this review runs under claude-sonnet-5 (see review_attestation),
+      not claude-opus-5 (the model family that produced H-MONO-663fb4, the specification, and
+      the execution). This is a genuine independence break from that specific confound relative
+      to EV-MONO-a0a89c's all-opus-5 lineage, and is recorded rather than assumed away.
+
+  verdict: passed
+  j1_attack_verdict: holds_with_finding
+  j1_attack_verdict_note: >-
+    Two distinct verdict fields are recorded deliberately, per agents/validator.md's two-tier
+    structure: `verdict` (this field) is the run's ADMISSIBILITY verdict in the Required
+    Output schema's vocabulary (passed | failed | incomplete | invalid) -- the receipt is
+    admissible evidence of exactly what it measured. `j1_attack_verdict` is this task's
+    requested J1-correctness attack verdict in the review-plan vocabulary (holds |
+    holds_with_finding | breaks | inconclusive) -- the run's internal correctness (identities,
+    controls, arithmetic, transcription) HOLDS under independent attack, WITH the significant
+    finding recorded below about how the headline escalated signal should be read. Neither
+    field authorizes any status change or claim beyond AGENTS.md rule 4's scope (toy-scale,
+    curves/parameters/budget as tested).
+
+  verdict_rationale: >-
+    Every artifact-presence, hash-binding, seed/environment/manifest, dirty-tree, and exact-
+    identity check PASSES, including full independent (different-basis, different-RNG,
+    no-shared-code) recomputation of the flagged J0/F=N/2 cell's Var_ordered(m=1..4) and C/C_F
+    to bit-for-bit agreement with the committed raw-result.json. Both positive controls and the
+    coset-union control are independently re-derived by hand and match exactly. Stage 1's seven
+    quotations are verbatim-accurate on direct re-reading of the source records, with two minor,
+    non-disqualifying nuances noted. The receipt is therefore ADMISSIBLE.
+    The "finding" qualifier is for the report's own headline escalation: the execution_report
+    correctly declines to adjudicate the J0/F=N/2 signal, but its characterization of the null
+    population there as "well-behaved" (based on the contract's own null-vs-null ordering
+    control) does not survive an independent, higher-powered check. I find the signal is best
+    explained by null-estimator miscalibration under a heavy-tailed statistic at n=30 draws --
+    generic to this design, reproduced on a second (non-signal) curve, and NOT explained by the
+    literal j=0-automorphism/orbit-invariance mechanism the task brief and the execution report's
+    own escalation both raise, which I directly refute by computation. This is reported as a
+    finding for the record and for Red Team / Coordinator attention, not as a failure of the
+    run's admissibility: the run measured exactly what it was designed to measure, correctly,
+    and the design's own statistical power at m=3/4 with n=30 is the thing future work should
+    fix (e.g. by increasing null_draws_per_cell substantially at m=3/4, or by using a
+    percentile/bootstrap band instead of a mean-ratio band for these specific heavy-tailed
+    statistics).
+
+  artifact_paths:
+    - experiments/EXP-MONO-c819ba/specification.yaml
+    - experiments/EXP-MONO-c819ba/execution_report.yaml
+    - experiments/EXP-MONO-c819ba/implementation.md
+    - experiments/EXP-MONO-c819ba/implementation/curve.py
+    - experiments/EXP-MONO-c819ba/implementation/fields.py
+    - experiments/EXP-MONO-c819ba/implementation/conv.py
+    - experiments/EXP-MONO-c819ba/implementation/controls.py
+    - experiments/EXP-MONO-c819ba/implementation/panel.py
+    - experiments/EXP-MONO-c819ba/implementation/groupstate.py
+    - experiments/EXP-MONO-c819ba/implementation/run_experiment.py
+    - experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-1/raw-result.json
+    - experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-1/stage1_quotations.md
+    - experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-1/manifest.yaml
+    - experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-2/raw-result.json
+    - experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-2/manifest.yaml
+    - ledger/hypotheses/H-MONO-663fb4.yaml
+    - ledger/handoffs/TASK-20260830-4bf73d.yaml
+    - knowledge/open-problems/KN-OPEN-009.md
+    - knowledge/findings/KN-FIND-007.md
+    - knowledge/findings/KN-FIND-4c9e71.md
+    - knowledge/findings/KN-FIND-d4f820.md
+    - ledger/decisions/DEC-20260804-0a4bc2.yaml
+    - ledger/decisions/DEC-20260804-4f3a3b.yaml
+    - ledger/decisions/DEC-20260804-53c89f.yaml
+    - ledger/decisions/DEC-20260804-f320c2.yaml
+    - coordination/tasks/TASK-20260830-48eb5c/snapshot-receipt.json
+    - experiments/EXP-MONO-c819ba/reviews/validator/runtime-session-receipt.json
+
+  review_attestation:
+    task_id: validator-mono7-c819ba
+    role: validator
+    joints_owned: [J1-correctness]
+    verdict: holds_with_finding
+    sources_read:
+      - AGENTS.md
+      - agents/validator.md
+      - ledger/hypotheses/H-MONO-663fb4.yaml
+      - experiments/EXP-MONO-c819ba/specification.yaml
+      - ledger/handoffs/TASK-20260830-4bf73d.yaml
+      - experiments/EXP-MONO-c819ba/execution_report.yaml
+      - experiments/EXP-MONO-c819ba/implementation.md
+      - experiments/EXP-MONO-c819ba/implementation/curve.py
+      - experiments/EXP-MONO-c819ba/implementation/fields.py
+      - experiments/EXP-MONO-c819ba/implementation/controls.py
+      - experiments/EXP-MONO-c819ba/implementation/conv.py
+      - experiments/EXP-MONO-c819ba/implementation/panel.py
+      - experiments/EXP-MONO-c819ba/implementation/groupstate.py
+      - experiments/EXP-MONO-c819ba/implementation/run_experiment.py
+      - experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-1/raw-result.json
+      - experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-1/stage1_quotations.md
+      - experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-1/manifest.yaml
+      - experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-2/raw-result.json
+      - experiments/EXP-MONO-c819ba/runs/RUN-MONO-c819ba-2/manifest.yaml
+      - knowledge/open-problems/KN-OPEN-009.md
+      - knowledge/findings/KN-FIND-007.md
+      - knowledge/findings/KN-FIND-4c9e71.md
+      - knowledge/findings/KN-FIND-d4f820.md
+      - ledger/decisions/DEC-20260804-0a4bc2.yaml
+      - ledger/decisions/DEC-20260804-4f3a3b.yaml
+      - ledger/decisions/DEC-20260804-53c89f.yaml
+      - ledger/decisions/DEC-20260804-f320c2.yaml
+      - coordination/tasks/TASK-20260830-48eb5c/snapshot-receipt.json
+    read_sibling_reports: []
+    read_sibling_reports_note: "No other reviewer report existed in this write scope at task start; none was read."
+    blindness_note: >-
+      No review_plan/blindness block was attached to this task card; this is a standalone J1
+      review dispatch, not a multi-joint round. DISCLOSURE (per agents/validator.md "say so in
+      the attestation rather than quietly proceeding"): while finalizing this report I observed,
+      via `find`/`ls` on the shared reviews/ directory (not by opening or reading its content),
+      that a sibling file experiments/EXP-MONO-c819ba/reviews/red-team/red-team-report.yaml
+      exists in this shared working tree, apparently written concurrently by a red-team agent
+      during the same window as this task. I did NOT open, read, or otherwise consult its
+      contents at any point; every finding in this report was derived independently from the
+      snapshot artifacts and my own fresh scripts before and without reference to it. Recorded
+      as a disclosed proximity, not a read.
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    model_verified_reason: "No adapter probe receipt exists for this session (consistent with the pattern already disclosed elsewhere in this experiment's own records, e.g. H-MONO-663fb4's inference block)."
+    fallback_used: false
+    independence_note: >-
+      This review's model family (claude-sonnet-5) differs from the producer/hypothesis-author
+      family (claude-opus-5) disclosed throughout this lane's own records, breaking the
+      model-correlation confound H-MONO-663fb4 and the specification both flag. All numeric
+      recomputations in this report were produced by fresh, standalone scripts written for this
+      review, importing none of the Executor's implementation modules.

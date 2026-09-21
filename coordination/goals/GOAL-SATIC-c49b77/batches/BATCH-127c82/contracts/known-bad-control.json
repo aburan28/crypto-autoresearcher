@@ -1,0 +1,423 @@
+{
+  "schema": "crypto.autoresearch.known_bad_control.v1",
+  "contract_id": "KBC-BATCH-127c82",
+  "goal_id": "GOAL-SATIC-c49b77",
+  "batch_id": "BATCH-127c82",
+  "producer_task_id": "TASK-20260907-39511d",
+  "authorized_by": "DEC-20260907-ca563a",
+  "ranked_by": "DEC-20260905-6e8621",
+  "frozen_at": "2026-09-07",
+  "frozen_by": "coordinator-satic-c49b77-276e",
+  "status": "approved",
+
+  "authored_from": {
+    "source_contract": "coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-2cca27/contracts/integrity-review.json",
+    "source_contract_sha256": "8589f1280cfae7891f254851c1297d2cf76a9e7a98df9948f974fa06bc815ab0",
+    "source_contract_schema": "crypto.autoresearch.administrative_integrity_review.v1",
+    "source_clause_location": "checks[5], with the standing qualifier known_bad_control",
+    "source_clause_verbatim": "Known-bad control before any verdict: copy one archive receipt to scratch space (outside the repository, outside write_scope), corrupt one declared hash or parent value in the copy, and run the same verification procedure against the copy. Record that the procedure flags the corruption. If it does not, the procedure is broken and the verdict must be invalid, not passed.",
+    "source_qualifier_verbatim": "Mandatory before verdict; scratch-space only; committed bytes are never touched.",
+    "this_contract_is_not_invented": "Every element below is a specialisation of the quoted clause: 'one archive receipt' fixes the receipt; 'scratch space (outside the repository, outside write_scope)' fixes the path; 'corrupt one declared hash or parent value' fixes the two mutation classes and the one-mutation-per-trial rule; 'the same verification procedure' fixes the procedure under test; 'Record that the procedure flags the corruption' fixes the pass/fail predicate; 'If it does not, the procedure is broken and the verdict must be invalid, not passed' fixes the consequence of a negative outcome. The clause does NOT specify a negative arm, a trial count, or an instrument identity; those are added here and are marked as additions rather than presented as the source clause's own words.",
+    "additions_beyond_the_source_clause": [
+      "The NEGATIVE ARM (T1). The quoted clause names only the corrupted copy. A flag on a corrupted copy is not attributable to the corruption unless the identical procedure, run on an UNCORRUPTED copy in the same scratch location, does not flag. Added under docs/inventor-protocol.md 'controls before belief'.",
+      "The trial count (5) and the sub-case split within each mutation class. The clause says 'one declared hash or parent value'; a procedure could catch one class and miss the other, and within a class could catch a plain entry and miss the self-referential one, so each class gets two trials probing distinct sub-cases.",
+      "The instrument identity. The clause says 'the same verification procedure', but the instrument the delivered review actually ran was not preserved as an artifact. See instruments.what_same_procedure_can_mean_here."
+    ]
+  },
+
+  "what_this_control_measures": "The SENSITIVITY of an archive-receipt verification procedure to a planted defect: whether a procedure that reports 'exact' on intact receipts also reports a defect on a receipt whose declared hash or declared parent has been changed to a well-formed but wrong value.",
+  "what_this_control_does_not_measure": [
+    "Anything about SATIC, summation polynomials, Semaev polynomials, SAT encodings, solvers, or the ECDLP. This contract asserts NO scientific claim of any kind, at any scale, and no result obtained under it may be read as one.",
+    "Anything about the integrity of the five archive bindings named in BATCH-2cca27's contract. A sensitivity measurement of an instrument is not a verdict on the objects that instrument was pointed at.",
+    "The SPECIFICITY of the procedure. That is a different control with an opposite purpose, it was executed under a different frozen contract (BATCH-008925, control kind proves_too_much, 1 flag of 17 on the known-good BATCH-cef2eb set, uncorrelated with batch outcome), and it is a real result. NEITHER CONTROL SUBSTITUTES FOR THE OTHER and this contract does not restate, extend, or revise the other one.",
+    "Whether GOAL-SATIC-c49b77's completion criteria are met. Neither is met, neither is moved, and no run under this contract can move either.",
+    "Whether IMP-3 clears. IMP-3's recheck names TWO separable conditions; this contract addresses only the first (execution of the known-bad control) and leaves the second (a served xhigh binding from a credentialed backend, probe-verified) entirely untouched."
+  ],
+
+  "procedure_under_test": {
+    "name": "at-commit archive-receipt verification",
+    "specified_by": "coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-2cca27/contracts/integrity-review.json checks[0], clauses (a)-(e)",
+    "specification_verbatim": "For each of the five archive_bindings: (a) the archive commit exists and is reachable from frozen_source_head; (b) the receipt's declared parent_sha equals the commit's actual parent; (c) the commit's changed path set equals the receipt's declared archive-and-source path set exactly (no missing, no extra); (d) for every declared path hash, recompute the blob digest from the commit's tree with git and compare against the receipt value -- the receipt names the paths, git supplies the bytes, the reviewer recomputes independently rather than trusting the receipt as an oracle; (e) the commit message names the required task and record IDs for the binding mode the receipt claims. Record any mismatch with the exact values on both sides.",
+    "steps": {
+      "S_a": "reachability: the receipt's commit_sha exists in the repository and is reachable from the declared verification base",
+      "S_b": "parent comparison: the receipt's declared parent_sha equals the actual first parent of commit_sha",
+      "S_c": "path-set comparison: the commit's changed path set equals the receipt's declared path set exactly",
+      "S_d": "per-path digest comparison: for every declared path p, sha256 of p's bytes at commit_sha equals the receipt's declared path_sha256[p]",
+      "S_e": "commit-message binding: the commit message names the required task and record IDs"
+    },
+    "output": "a FLAG SET F. Each flag is a 4-tuple (step, locus, declared_value, observed_value). An empty F means the procedure reports the receipt intact.",
+    "verification_base": "the working branch HEAD at execution time, recorded verbatim in start.json. The base is an input, not a variable to tune: it is recorded once and used for every trial."
+  },
+
+  "instruments": {
+    "what_same_procedure_can_mean_here": "The source clause says 'the same verification procedure'. The instrument the delivered BATCH-008925 review actually executed was NOT PRESERVED as a committed artifact -- a gap of the same family as the FINDING-08/FINDING-09 capture defects DEC-20260905-6e8621 records. So 'the same procedure' cannot mean 'that exact script'. It is resolved here as two instruments that are both checkable by a later reader, and the difference is stated rather than blurred.",
+    "under_test": [
+      {
+        "id": "A",
+        "name": "tools/research_dispatch.py post-commit archive verifier",
+        "why_this_is_the_important_one": "It is the program's ACTUAL archive gate. AGENTS.md 'Durable research commits' makes durability depend on it: 'A missing, dirty, malformed, or scope-expanding commit blocks downstream review or promotion.' Its sensitivity to a planted defect has never been measured. It is preserved, versioned, and re-runnable by any later reader, which the delivered review's instrument is not.",
+        "invocation": "python3 /workspace/tools/research_dispatch.py <TRIAL_DIR>/authority_queue.json --output <TRIAL_DIR>/out/plan.json --report <TRIAL_DIR>/out/plan.md --repo-root /workspace --claims off",
+        "why_claims_off": "so the instrument is a pure function of the receipt copy and the repository, and does not vary with live claims written by other sessions",
+        "reads_repository": "read-only. Every write goes to <TRIAL_DIR>, which is outside the checkout.",
+        "flag_channel": "a DispatchError surfaced as `dispatch error: ...` on stderr with a non-zero returncode. The executor maps each such message to a (step, locus, declared_value, observed_value) tuple verbatim, and records the raw text alongside."
+      },
+      {
+        "id": "B",
+        "name": "executor's re-implementation of S_a..S_e from the specification text",
+        "why": "It makes the specified procedure executable and archived, so this control does not depend on instrument A being pointable at a scratch copy, and so a later reader can re-run the control itself.",
+        "artifact": "coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-127c82/tasks/TASK-20260907-39511d/procedure.py",
+        "mandatory_pre_registration": "procedure.py MUST be written, and its sha256 recorded in start.json, BEFORE any mutation is planted. This is not bookkeeping: instrument B is written by the same agent that plants the mutations, so a B written afterwards could be shaped to look for exactly the planted field, and a 'detection' would then measure the author's knowledge rather than the procedure's sensitivity.",
+        "mandatory_shape": "procedure.py takes the receipt path and the repository root as arguments and emits the flag set. It MUST NOT contain any branch, constant, or comparison keyed to a trial identifier, a mutation class, one of the four planted values, or one of the four true values named in this contract. It reads the declared values from whatever receipt it is given."
+      }
+    ],
+    "protocol_controls_not_under_test": [
+      {
+        "id": "C",
+        "name": "null instrument",
+        "artifact": "coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-127c82/tasks/TASK-20260907-39511d/procedure_null.py",
+        "shape": "reads the receipt and unconditionally emits the empty flag set",
+        "purpose": "known-false object for the CONTROL'S OWN predicate. The predicate MUST return `insensitive` for it. If the predicate returns `sensitive` for an instrument that does nothing, the protocol is measuring the harness rather than the instrument, and this batch's result is invalid."
+      },
+      {
+        "id": "D",
+        "name": "promiscuous instrument",
+        "artifact": "coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-127c82/tasks/TASK-20260907-39511d/procedure_promiscuous.py",
+        "shape": "unconditionally emits a flag at every step and every locus, on every input",
+        "purpose": "the mirror known-false object. The predicate MUST return `invalid` for it, because its negative arm flags. If the predicate returns `sensitive` for an instrument that flags everything, it is scoring noise as detection."
+      }
+    ],
+    "reporting_rule": "A, B, C and D are reported as FOUR SEPARATE ROWS and are never merged into one verdict. C and D calibrate the predicate; only A and B are instruments under test. A reader must not be able to mistake 'four instruments' for 'four verification procedures tested'."
+  },
+
+  "receipt_copied": {
+    "which_receipt": "the archive receipt of TASK-20260905-79a686, the FIRST of the five archive_bindings in BATCH-2cca27's frozen contract",
+    "interpretation_note_read_this_first": "BATCH-2cca27's contract names the receipt as `coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-1a527c/archives/TASK-20260905-79a686/snapshot.md`. THAT FILE CARRIES NO DECLARED HASH AND NO PARENT VALUE -- it is a three-line prose note. Its own final sentence says where they are: 'Commit, parent and exact path hashes are bound after the real commit in the dispatch queue.' The declared hashes and the declared parent live in the `archive` block of task TASK-20260905-79a686 inside BATCH-1a527c's authority queue. A clause instructing a reader to 'corrupt one declared hash or parent value' in 'one archive receipt' therefore refers, operationally, to that block. BOTH FILES ARE COPIED so the receipt pair is complete, and the mutation is applied to the file that actually carries the declared values. This substitution is stated rather than performed silently, because the contract's word and the operational object differ and the record wins.",
+    "files_copied": [
+      {
+        "role": "carries the declared hashes and the declared parent; the mutation target",
+        "repo_path": "coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-1a527c/authority_queue.json",
+        "from_commit": "4c72c94c7b78a04fef16aadd455523aeede5bbbd",
+        "commit_note": "the only commit that has ever touched this path; an ancestor of origin/main; its own first parent is 9a79547b63efbd538197d4399619b4daedd755ac, the commit the receipt binds",
+        "file_sha256_at_that_commit": "8e74be1586a81db4d7978b907c0f281f18dad15fbd768c81421c95df1c18c518",
+        "copy_command": "git -C /workspace show 4c72c94c7b78a04fef16aadd455523aeede5bbbd:coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-1a527c/authority_queue.json > <TRIAL_DIR>/authority_queue.json"
+      },
+      {
+        "role": "the prose receipt named by BATCH-2cca27's contract; copied for completeness, never mutated",
+        "repo_path": "coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-1a527c/archives/TASK-20260905-79a686/snapshot.md",
+        "from_commit": "9a79547b63efbd538197d4399619b4daedd755ac",
+        "file_sha256_at_that_commit": "99a492ad188d2aa6b047c4ccfb11d9ca6ca111e5f525cc28319f7c7447a53c56"
+      }
+    ],
+    "receipt_block_under_mutation": {
+      "queue_task_id": "TASK-20260905-79a686",
+      "archive_kind": "snapshot",
+      "binding_mode": "commit",
+      "commit_sha": "9a79547b63efbd538197d4399619b4daedd755ac",
+      "parent_sha": "26d93c7c857db115beea37ee862f046f6047058c",
+      "declared_path_count": 15
+    },
+    "why_this_receipt": [
+      "It is the first archive_binding in the very contract whose unperformed control this lane executes, so the object is the source clause's own object rather than a convenient substitute.",
+      "Its at-commit result is already on the record from an independent session: the delivered BATCH-008925 review reports this block as 15 declared paths, 15 exact at commit, declared parent equal to the actual first parent, no undeclared extra and no declared-but-untouched path. So the NEGATIVE ARM has a pre-recorded expected outcome and a surprise there is itself informative.",
+      "Both files are reachable at named, published commits, so the copy is reproducible by any later reader without depending on a working tree."
+    ],
+    "true_values_verified_by_the_coordinator_this_turn": {
+      "method": "git -C /workspace show <commit>:<path> piped to sha256sum, and git log -1 --format=%P <commit>, run by coordinator-satic-c49b77-276e while authoring this contract",
+      "launch_md_at_9a79547b": "19f7f4c4b99e6eb952c8ec533dbd13b80f53a438477eb810b35bbf20d349f2f8",
+      "first_parent_of_9a79547b": "26d93c7c857db115beea37ee862f046f6047058c",
+      "both_agree_with_the_receipt": true,
+      "why_this_is_recorded_and_still_not_enough": "If a declared from-value were wrong, the corresponding 'mutation' would not be a mutation and the trial would be void. This Coordinator therefore checked two of them. That check used the same instrument family it is asking the control to test, so it is NOT a substitute for the blind re-derivation required of the reviewer in the review plan."
+    }
+  },
+
+  "scratch_space": {
+    "root": "/tmp/satic-kbc-BATCH-127c82",
+    "outside_the_repository": "VERIFIED at authoring time: `git check-ignore -v /tmp` returns `fatal: /tmp: '/tmp' is outside repository at '/workspace'`, and Path('/tmp').resolve().is_relative_to(Path('/workspace').resolve()) is False.",
+    "layout": {
+      "<root>/trials/<TRIAL_ID>/authority_queue.json": "the mutable copy; exactly one field differs from pristine for T2-T5, zero for T1",
+      "<root>/trials/<TRIAL_ID>/pristine/authority_queue.json": "an unmutated copy, for the one-mutation diff check",
+      "<root>/trials/<TRIAL_ID>/snapshot.md": "the prose receipt copy; never mutated",
+      "<root>/trials/<TRIAL_ID>/out/": "every instrument output file"
+    },
+    "fresh_copy_per_trial": "MANDATORY. Each trial directory is created fresh from the named commits and is never reused, so no trial can contaminate another and no mutation can accumulate.",
+    "how_repository_mutation_is_structurally_prevented": [
+      "The executor's declared write_scope contains ONLY paths under coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-127c82/tasks/TASK-20260907-39511d/. No repository receipt path, no queue file, no archive directory, and no ledger path appears in it, so a repository mutation of any receipt is outside the declared write scope and is refused.",
+      "The scratch root is outside the checkout, so a trial copy cannot be committed by any archival task in this lane -- an archive task stages only its own declared repository-relative paths.",
+      "The copy is taken with `git show <commit>:<path>` redirected into scratch, which reads a commit's tree and never touches the working tree."
+    ],
+    "mandatory_no_mutation_proof": "After the last trial, and recorded verbatim in report.json: (1) `git -C /workspace status --porcelain -- <the two source paths>` is EMPTY; (2) the working-tree sha256 of both source paths equals the value recorded for them in start.json before the first trial; (3) `git -C /workspace diff --stat 4c72c94c7b78a04fef16aadd455523aeede5bbbd -- <the two source paths>` is empty; (4) no path under /tmp/satic-kbc-BATCH-127c82 is inside /workspace, shown by a resolved-path check. All four are captured outputs, not assertions."
+  },
+
+  "mutation_classes": {
+    "one_mutation_per_trial": "EXACTLY ONE field is changed per trial, and the claim is checkable rather than promised: the executor diffs <TRIAL_DIR>/authority_queue.json against <TRIAL_DIR>/pristine/authority_queue.json as parsed JSON and records the diff CARDINALITY. It must be exactly 1 for T2-T5 and exactly 0 for T1. A cardinality other than the declared one makes that trial `invalid`, not a result.",
+    "why_every_planted_value_is_well_formed": "Each planted value is a syntactically valid value of its own field -- 64 lowercase hex for a digest, 40 lowercase hex for a commit sha. A malformed value would let a procedure flag it on FORM alone, and a form check is not a comparison. Only a procedure that actually reads the receipt's declared value and compares it against git can flag a well-formed but wrong one, which is the property under test.",
+    "classes": [
+      {
+        "class_id": "M-HASH",
+        "targets_step": "S_d",
+        "source_clause_words": "corrupt one declared hash",
+        "trials": [
+          {
+            "trial_id": "T2",
+            "sub_case": "a plain declared entry",
+            "field": "tasks[id=TASK-20260905-79a686].archive.path_sha256[\"coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-1a527c/launch.md\"]",
+            "from_value": "19f7f4c4b99e6eb952c8ec533dbd13b80f53a438477eb810b35bbf20d349f2f8",
+            "to_value": "19f7f4c4b99e6eb952c8ec533dbd13b80f53a438477eb810b35bbf20d349f2f9",
+            "mutation": "final hex character 8 -> 9; still 64 lowercase hex",
+            "expected_locus": {"step": "S_d", "locus": "coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-1a527c/launch.md"}
+          },
+          {
+            "trial_id": "T3",
+            "sub_case": "the SELF-REFERENTIAL entry -- the receipt's own artifact",
+            "field": "tasks[id=TASK-20260905-79a686].archive.path_sha256[\"coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-1a527c/archives/TASK-20260905-79a686/snapshot.md\"]",
+            "from_value": "99a492ad188d2aa6b047c4ccfb11d9ca6ca111e5f525cc28319f7c7447a53c56",
+            "to_value": "99a492ad188d2aa6b047c4ccfb11d9ca6ca111e5f525cc28319f7c7447a53c57",
+            "mutation": "final hex character 6 -> 7; still 64 lowercase hex",
+            "why_a_separate_trial": "This is the entry for the archive task's OWN artifact. CLAUDE.md and templates/research-records.md both record that an archive's binding cannot be written inside the commit it binds ('Do not put a commit's own SHA into an artifact within that same commit'), and this lane's own snapshot must be backfilled in a second commit for exactly that reason. A procedure could special-case, defer, or skip the self entry, and would then miss a corruption there while catching one at T2. Same class, different failure mode.",
+            "expected_locus": {"step": "S_d", "locus": "coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-1a527c/archives/TASK-20260905-79a686/snapshot.md"}
+          }
+        ]
+      },
+      {
+        "class_id": "M-PARENT",
+        "targets_step": "S_b",
+        "source_clause_words": "corrupt one ... parent value",
+        "trials": [
+          {
+            "trial_id": "T4",
+            "sub_case": "a REAL commit that is not the parent",
+            "field": "tasks[id=TASK-20260905-79a686].archive.parent_sha",
+            "from_value": "26d93c7c857db115beea37ee862f046f6047058c",
+            "to_value": "4c72c94c7b78a04fef16aadd455523aeede5bbbd",
+            "mutation": "declared parent replaced by a commit that exists in this repository and is an ancestor of origin/main, but is the CHILD of commit_sha rather than its parent",
+            "why_a_real_commit": "A procedure that merely checks 'the declared parent resolves to a commit' passes this. Only a procedure that compares the declared value against the ACTUAL first parent flags it. Using a nonsense string here would let a resolution check masquerade as a comparison.",
+            "expected_locus": {"step": "S_b", "locus": "archive.parent_sha"}
+          },
+          {
+            "trial_id": "T5",
+            "sub_case": "a well-formed sha that is NOT a commit in this repository",
+            "field": "tasks[id=TASK-20260905-79a686].archive.parent_sha",
+            "from_value": "26d93c7c857db115beea37ee862f046f6047058c",
+            "to_value": "dead1eafdead1eafdead1eafdead1eafdead1eaf",
+            "mutation": "declared parent replaced by 40 lowercase hex characters that do not name any object in this repository",
+            "why_a_separate_trial": "It separates FLAGGING a defect from CRASHING on one. An unhandled exception is not a defect finding: a procedure that dies on an unresolvable parent has not reported that the receipt is wrong, and a caller reading only a verdict field would see neither pass nor flag. This trial is where that distinction is measured.",
+            "expected_locus": {"step": "S_b", "locus": "archive.parent_sha"}
+          }
+        ]
+      }
+    ],
+    "negative_arm": {
+      "trial_id": "T1",
+      "class_id": "NONE",
+      "mutation": "none; the copy is byte-identical to the pristine copy",
+      "runs_first": "MANDATORY. T1 runs before any mutation is planted, for every instrument.",
+      "what_it_is_for": "A flag on a corrupted copy is only attributable to the corruption if the identical procedure, on an uncorrupted copy, in the same scratch location, with the same commands, does NOT flag. Without this arm a flag could be produced by the copying, the JSON re-serialisation, the scratch path, or the instrument's own nondeterminism, and nothing about sensitivity would follow."
+    }
+  },
+
+  "trial_matrix": {
+    "trials": 5,
+    "instruments": 4,
+    "cells": 20,
+    "cells_under_test": 10,
+    "cells_that_calibrate_the_predicate": 10,
+    "ordering": "For each instrument: T1 first, then T2, T3, T4, T5. Instrument order A, B, C, D."
+  },
+
+  "arms_and_their_failing_state_of_the_world": [
+    {
+      "arm": "T1, the negative arm",
+      "fails_when": "it FLAGS (F is non-empty) or raises",
+      "states_of_the_world_in_which_it_fails": [
+        "the copy or the JSON re-serialisation changed the receipt's semantics",
+        "the procedure resolves declared paths relative to the receipt's own location rather than to the declared repository root, so the scratch location itself changes the answer",
+        "the instrument is nondeterministic, or depends on live state (claims, working-tree contents, the clock)",
+        "the binding really was broken at 9a79547b, contradicting the delivered review's independently recorded 15/15 at-commit result for this block",
+        "instrument A refuses the scratch queue for a reason unrelated to the archive check (schema, task assignment, path resolution)"
+      ],
+      "consequence_if_it_fails": "That instrument's sensitivity trials are NOT run and its row is `invalid` or `infrastructure_stop`. No flag from T2-T5 would be attributable to a mutation. Per AGENTS.md core rule 5 an instrument that cannot be executed is an infrastructure outcome and never a negative result about sensitivity."
+    },
+    {
+      "arm": "T2, M-HASH plain entry",
+      "fails_when": "it does NOT flag at (S_d, launch.md) with declared = the planted value and observed = the true value",
+      "states_of_the_world_in_which_it_fails": [
+        "the procedure recomputes BOTH sides from git and compares git to git, so the receipt's declared value never enters the comparison -- the 'receipt as its own oracle' bug, which is precisely what the delivered review's blind_from clause claims to have avoided and which no control has ever tested",
+        "the procedure validates only the digest's FORM (64 lowercase hex) and not its value",
+        "the procedure reports a count of paths checked without comparing any"
+      ]
+    },
+    {
+      "arm": "T3, M-HASH self-referential entry",
+      "fails_when": "it does NOT flag at (S_d, .../archives/TASK-20260905-79a686/snapshot.md) with declared = planted and observed = true",
+      "states_of_the_world_in_which_it_fails": [
+        "the procedure special-cases, defers, or skips the archive task's own artifact because that entry cannot be written inside the commit it binds",
+        "the procedure treats a self-referential entry as unverifiable and reports it as neither exact nor mismatched",
+        "any of T2's failing states, which would also show here"
+      ]
+    },
+    {
+      "arm": "T4, M-PARENT real-but-wrong commit",
+      "fails_when": "it does NOT flag at (S_b, archive.parent_sha) with declared = planted and observed = true",
+      "states_of_the_world_in_which_it_fails": [
+        "the procedure checks only that the declared parent RESOLVES to some commit, never that it is the first parent",
+        "the procedure reads the parent from git and reports it without comparing it to the declared value",
+        "the procedure compares against any parent rather than the FIRST parent (this receipt's commit is not a merge, so a first-vs-any confusion would not show here; that limit is stated in scope_and_transfer)"
+      ]
+    },
+    {
+      "arm": "T5, M-PARENT unresolvable sha",
+      "fails_when": "it does NOT flag at (S_b, archive.parent_sha), INCLUDING when it raises an unhandled exception, because an exception is not a defect finding",
+      "states_of_the_world_in_which_it_fails": [
+        "the procedure crashes on an unresolvable sha and the crash is not classified as a receipt defect",
+        "the procedure silently treats an unresolvable declared parent as 'no parent to check' and reports the receipt intact",
+        "the procedure falls back to a content-only verification path that does not examine the parent at all"
+      ]
+    },
+    {
+      "arm": "C, the null instrument, across all five trials",
+      "fails_when": "the predicate returns anything other than `insensitive` for it",
+      "states_of_the_world_in_which_it_fails": [
+        "the predicate credits a detection to an instrument that emitted no flag -- meaning it is reading the harness, the trial label, or the contract's own expectation rather than the instrument's output"
+      ],
+      "consequence_if_it_fails": "This batch's entire result is `invalid`. The control's own predicate has proved too much."
+    },
+    {
+      "arm": "D, the promiscuous instrument, across all five trials",
+      "fails_when": "the predicate returns anything other than `invalid` for it",
+      "states_of_the_world_in_which_it_fails": [
+        "the predicate scores 'flags everything' as sensitivity, i.e. it never checks the negative arm or never checks the declared/observed conjuncts"
+      ],
+      "consequence_if_it_fails": "This batch's entire result is `invalid`, for the mirror reason."
+    }
+  ],
+
+  "pass_fail_predicate": {
+    "form": "a formula over the procedure's output; no judgement call is left to the executor, the reviewer, or the Coordinator",
+    "definitions": {
+      "F(I,t)": "the flag set instrument I emits on trial t; each flag is (step, locus, declared_value, observed_value)",
+      "exc(I,t)": "`none` or `unhandled`. An `unhandled` exception contributes NO flag to F(I,t).",
+      "planted(t)": "the to_value declared for trial t; undefined for T1",
+      "true(t)": "the from_value declared for trial t; undefined for T1",
+      "loc(t)": "the expected_locus declared for trial t; undefined for T1",
+      "card(t)": "the JSON diff cardinality between <TRIAL_DIR>/authority_queue.json and <TRIAL_DIR>/pristine/authority_queue.json"
+    },
+    "detect(I,t)": "EXISTS f IN F(I,t) : f.step = loc(t).step AND f.locus = loc(t).locus AND f.declared_value = planted(t) AND f.observed_value = true(t)",
+    "why_all_four_conjuncts": "A flag naming the right step and locus but not carrying the planted declared value has not demonstrably read the receipt; it may be flagging something else at the same place. The declared/observed pair is the evidence that the receipt's own value entered the comparison, which is the entire property under test.",
+    "negative_arm_clean(I)": "F(I,T1) = EMPTY AND exc(I,T1) = none",
+    "one_mutation_ok": "card(T1) = 0 AND card(T2) = card(T3) = card(T4) = card(T5) = 1",
+    "verdict_per_instrument": {
+      "sensitive": "negative_arm_clean(I) AND one_mutation_ok AND detect(I,t) for ALL t IN {T2,T3,T4,T5}",
+      "partially_sensitive": "negative_arm_clean(I) AND one_mutation_ok AND (EXISTS t: detect(I,t)) AND (EXISTS t: NOT detect(I,t))",
+      "insensitive": "negative_arm_clean(I) AND one_mutation_ok AND NOT detect(I,t) for ALL t IN {T2,T3,T4,T5}",
+      "invalid": "NOT negative_arm_clean(I) OR NOT one_mutation_ok",
+      "infrastructure_stop": "instrument I could not be executed against the scratch copy at all. Recorded per AGENTS.md core rule 5; asserts NOTHING about sensitivity in either direction."
+    },
+    "no_aggregate_verdict": "There is no single batch-level pass. Four instrument rows are reported. Merging them would hide exactly the distinction this control exists to draw.",
+    "consequence_clause_from_the_source_contract": "For any instrument whose row is `insensitive` or `partially_sensitive`, BATCH-2cca27's clause applies in its own words: 'If it does not, the procedure is broken and the verdict must be invalid, not passed.' Concretely: a future receipt-integrity `pass` produced by that instrument may not be read as evidence of intact custody at the loci where the instrument failed to detect a planted defect. This lane does NOT retroactively invalidate any committed verdict; it records what a later Coordinator must weigh.",
+    "predicate_is_frozen": "This predicate may not be relaxed, widened, or re-scored after an outcome is observed. If the executor believes a cell is misclassified by the formula, it records the cell verbatim under defect_surfaced_otherwise (below) and leaves the formula's answer standing. Changing it requires a versioned protocol_amendment recorded before re-scoring.",
+    "defect_surfaced_otherwise": "REQUIRED on every cell where detect(I,t) is false. Records verbatim whether the instrument surfaced the defect through some OTHER channel -- a different step or locus, an exception, a message omitting one of the two values -- with the raw output. This widens the RECORDING without weakening the predicate, so a predicate-strictness question and an instrument-blindness question stay distinguishable instead of being resolved by whoever writes the summary."
+  },
+
+  "required_artifacts": {
+    "directory": "coordination/goals/GOAL-SATIC-c49b77/batches/BATCH-127c82/tasks/TASK-20260907-39511d/",
+    "files": [
+      {
+        "path": "start.json",
+        "when": "within the first 120 seconds of work, BEFORE any mutation is planted and before any instrument runs",
+        "immutable_once_written": true,
+        "must_record": [
+          "task_id, batch_id, goal_id, started_at (UTC)",
+          "requested_policy `executor-implementation`, requested reasoning effort, the resolved model identity exactly as the runtime exposes it (null if not exposed), fallback_used, degraded_requirements, model_verified stated as observed",
+          "the verification base commit used for every trial",
+          "the working-tree sha256 of the two source receipt paths, measured before the first trial",
+          "the sha256 of procedure.py, procedure_null.py and procedure_promiscuous.py -- all three written before this file is closed",
+          "the scratch root, and the captured output of the check that it is outside the repository",
+          "the first commands issued"
+        ]
+      },
+      {"path": "procedure.py", "role": "instrument B; pre-registered in start.json; no trial-specific logic"},
+      {"path": "procedure_null.py", "role": "instrument C"},
+      {"path": "procedure_promiscuous.py", "role": "instrument D"},
+      {
+        "path": "trials.json",
+        "role": "one row per (instrument, trial) cell -- 20 rows",
+        "row_fields": ["instrument_id", "trial_id", "mutation_class", "mutated_field", "from_value", "to_value", "diff_cardinality", "command", "returncode", "elapsed_seconds", "flags_emitted", "raw_output", "exception", "detect", "defect_surfaced_otherwise"]
+      },
+      {
+        "path": "commands.md",
+        "role": "every command issued, with CAPTURED stdout, stderr, returncode and elapsed seconds",
+        "capture_discipline_is_mandatory": "Output is CAPTURED, never transcribed or reconstructed from memory. DEC-20260905-6e8621 records FINDING-08 and FINDING-09 against this campaign for exactly that gap -- an Executor-transcribed probe output read by a later reader as captured, and an asserted returncode that was never captured. A cell whose output was not captured is recorded as not captured; it is not filled in from recollection."
+      },
+      {
+        "path": "report.json",
+        "role": "the durable final report",
+        "must_contain": [
+          "the four instrument rows with the predicate's verdict for each, computed from trials.json by the frozen formula",
+          "the negative-arm result per instrument, stated first",
+          "the four-part no-mutation proof, as captured output",
+          "the inference block: requested_policy, resolved model, fallback_used, degraded_requirements, model_verified as observed",
+          "scope_and_transfer, copied from this contract and not widened",
+          "limitations, including the two named in scope_and_transfer below",
+          "an attestation that every prohibition below was honoured",
+          "deliberately_not_done, for anything in this contract not performed"
+        ]
+      }
+    ],
+    "on_refusal_still_write_both": "If the assigned session cannot honour the requested policy, or the task must stop early, it STILL writes start.json and report.json at their declared paths -- report.json with verdict `incomplete` or `refused`, listing exactly which cells ran. This is not a formality: the snapshot archive binds these paths, and a session that returns nothing leaves an archive that cannot bind. TASK-20260905-5681fc did this correctly under BATCH-2cca27 and its refusal is durable because of it."
+  },
+
+  "stopping_rule": [
+    "Run T1 for an instrument before planting any mutation for it. If negative_arm_clean(I) is false, STOP that instrument's sensitivity trials, record its row as `invalid` or `infrastructure_stop` with the captured evidence, and move to the next instrument.",
+    "Run T2, T3, T4, T5 in order, each on a FRESH trial directory copied from the named commits. Never reuse a trial directory.",
+    "Stop when all 20 cells are recorded, or when the advisory wall-clock estimate is reached -- in which case stop starting new cells, finish the in-flight cell, and write report.json with verdict `incomplete` naming exactly which cells ran. Do not wait to be interrupted.",
+    "NEVER repeat a cell to obtain a different outcome. A cell's first recorded outcome is its outcome. A second run of the same cell is a separate, disclosed row with its own reason for existing.",
+    "If a mutation cannot be applied as declared (the field is absent, or the from_value does not match), STOP that trial, record the mismatch with both values, and mark the trial `invalid`. Do not substitute another field or another value: the mutation set is frozen."
+  ],
+
+  "prohibitions": [
+    "No write of any kind inside the repository except the declared artifact paths under this task's own directory. The mutated copy NEVER exists inside the checkout.",
+    "No modification of any committed byte, any receipt, any queue, any ledger record, or any archive -- in this goal or any other.",
+    "No solver execution, no benchmark, no SAT call, no research run. maximum_runs is 0.",
+    "No network request, no installation, no package fetch, no Bedrock provider, endpoint, or model identifier (AGENTS.md core rule 16).",
+    "No scientific claim, no hypothesis status change, no goal status change, no evidence record, no knowledge promotion, no completion-criterion satisfaction.",
+    "No unblocking of TASK-20260905-e2c12f or TASK-20260905-86ea49, which stay blocked per DEC-20260905-36847f and DEC-20260905-6e8621.",
+    "No repair of the two defects DEC-20260905-6e8621 named for supersession -- the by_severity low/informational miscount in the bound report bytes, and research_goal.updated_at still reading 2026-09-05. They are named, carried forward, and NOT this lane's work. Editing either in place would repeat the dd8bb7d6f error.",
+    "No editing of BATCH-008925's or BATCH-2cca27's directories, lanes, claims, or records.",
+    "Workers never commit. Every commit in this lane is made by a Coordinator archival task."
+  ],
+
+  "scope_and_transfer": {
+    "what_a_result_here_is_scoped_to": "The two instruments named above, at the versions recorded in start.json; ONE archive receipt (TASK-20260905-79a686's archive block as of commit 4c72c94c7); TWO mutation classes; FOUR planted values; the verification base recorded in start.json. Nothing else.",
+    "explicit_non_transfer": [
+      "Not to the other four archive_bindings in BATCH-2cca27's contract, nor to any other receipt in this repository.",
+      "Not to a merge commit. This receipt's commit is not a merge, so a procedure that confuses 'first parent' with 'any parent' would not be caught by T4. Stated because it is the nearest untested neighbour of a tested property.",
+      "Not to mutation classes other than a declared digest value and a declared parent value -- in particular NOT to a mutated commit_sha, a mutated path SET, a removed entry, an added entry, or a mutated record_ids list. A procedure sensitive to the two tested classes may be blind to any of those.",
+      "Not to the exact unpreserved instrument the delivered BATCH-008925 review executed. Instrument A is the program's archive gate and instrument B is a re-implementation of the specification; neither is that script, and no result here licenses a statement about its sensitivity.",
+      "Not to any mathematical, cryptanalytic, or complexity claim. There is none here to transfer."
+    ],
+    "declared_limitations_that_must_appear_in_the_report": [
+      "Instrument B is written by the same agent that plants the mutations. Pre-registration of its sha256 in start.json before the first mutation, and the prohibition on trial-specific logic, bound this but do not eliminate it. Instrument A does not carry this limitation, which is one reason it is primary.",
+      "The four true (from-)values are declared in this contract. The reviewer's blind re-derivation is blind from the PRODUCER's artifacts, not from the Coordinator's declaration, so it localises a disagreement to the producer's implementation and cannot independently discover an error in this contract's own declared values."
+    ]
+  },
+
+  "budget": {
+    "wall_clock_seconds": 3600,
+    "wall_clock_is_advisory": "Per CLAUDE.md 'Research budgets: progress first', this estimate is advisory and requires no further approval. It is a stopping rule for reporting, not a compute ration.",
+    "memory_gb": 2,
+    "maximum_runs": 0,
+    "maximum_runs_note": "Zero experiment runs. The only programs executed are read-only git queries, sha256 recomputation, four instrument invocations per trial, and JSON diffs.",
+    "machine": "4 cores, 15 GB; this lane's max_concurrent is 1 and this task needs 1"
+  },
+
+  "completion_gate": [
+    "start.json exists at the declared path, was written before any mutation was planted, and records the sha256 of all three instrument scripts and the pre-trial working-tree digests of both source paths",
+    "trials.json carries one row per attempted (instrument, trial) cell with captured returncode, raw output and diff cardinality; every non-detecting cell carries defect_surfaced_otherwise verbatim",
+    "report.json states the predicate's verdict for each of the four instruments separately, computed from trials.json by the frozen formula, with the negative arm reported first",
+    "the four-part no-mutation proof is present as captured output and shows no repository byte changed",
+    "the null instrument C scores `insensitive` and the promiscuous instrument D scores `invalid`; if either does not, report.json says so and states that the batch's result is invalid",
+    "requested policy and resolved model are recorded beside each other, with model_verified stated honestly as observed",
+    "no scientific claim, no status change, no evidence record, no unblocking of either blocked ledger stage",
+    "every prohibition above is attested"
+  ]
+}

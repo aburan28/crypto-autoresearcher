@@ -1,0 +1,897 @@
+# Execution report for EXP-PEC-6be870 / RUN-PEC-6be870-a.
+# The Executor records OBSERVATIONS ONLY.  Nothing here declares a
+# hypothesis supported, weakened or rejected, and nothing here is a
+# cryptographic-scale measurement.
+execution_report:
+  experiment_id: "EXP-PEC-6be870"
+  run_id: "RUN-PEC-6be870-a"
+  task_id: "TASK-20260802-b31c7f"
+  goal_id: "GOAL-P13-001"
+  batch_id: "BATCH-002"
+  next_control: "NC-2"
+  implementation_commit: "0d36606196feb787017c3da23aec618f33973147"
+  implementation_commit_note: >
+    That is the commit checked out at run time (HEAD of branch
+    claude/launch-research-harness-wd1fmu, with the frozen contract commit
+    0e773e9a as an ancestor).  The implementation file itself,
+    experiments/EXP-PEC-6be870/implementation/per_entry_cost.py, was created by
+    this task and is UNCOMMITTED at the time of writing; the Coordinator's
+    snapshot task TASK-20260802-ca5bdc archives it.  Its SHA-256 at run time is
+    recorded in manifest.yaml (code.implementation_sha256) so the archive can be
+    checked against what actually ran.
+  contract: "experiments/EXP-PEC-6be870/specification.yaml"
+  contract_status_checked: "approved, approved_by coordinator, frozen: true"
+  contract_frozen_at: "0e773e9a (TASK-20260802-df7df5), before dispatch"
+
+  protocol_deviations:
+    - id: "PD-1"
+      kind: "infrastructure_error"
+      what: >
+        The first launch attempt (2026-08-02T17:53Z) wrapped the run in
+        '/usr/bin/time -v' to capture resource use.  That binary is absent from
+        this image, so the shell failed before python3 started.
+      consequence: >
+        NO measurement was produced by that attempt: stdout.log was empty and
+        raw-result.json was never written.  It is not a run, it produced no
+        datum, and it is recorded here rather than discarded.
+      repair: >
+        Resource accounting was moved inside the program
+        (resource.getrusage on RUSAGE_SELF and RUSAGE_CHILDREN) and the
+        wrapper was dropped.  command.txt records both the failed wrapper and
+        the command that produced every recorded number.
+      affects_any_reported_number: false
+    - id: "PD-2"
+      kind: "infrastructure_error"
+      what: >
+        The acquisition-phase download of Phi_97 from
+        https://math.mit.edu/~drew/modpolys/jfiles/phi_j_97.txt failed during
+        this run.  Per the contract's modular_polynomial_provenance
+        .on_cap_or_failure clause the affected ell is DROPPED and a fetch
+        obstruction is recorded with URL, timestamp and observed failure.
+      recorded_failure: >
+        url https://math.mit.edu/~drew/modpolys/jfiles/phi_j_97.txt ; fetch_utc 2026-08-02T17:54:41.607930+00:00 ; http_status '000' ; curl_returncode 35 ; curl_stderr "curl: (35) Recv failure: Connection reset by peer" ; fetch_seconds 11.118
+      consequence: >
+        The required core grid is 26 primes; 25 survived acquisition and
+        verification, so the completion gate's core-grid requirement is
+        recorded as NOT MET.  1 of 26 core ell dropped is 3.8%, below the
+        contract's 25% invalidation threshold, and 46 surviving ell is far
+        above the 12-ell minimum, so the run is VALID-BUT-SCOPED rather than
+        incomplete.  A fetch obstruction is an infrastructure outcome and is
+        NEVER mathematical evidence about the attack (AGENTS.md rule 5).
+      corroborating_observation: >
+        The same URL was retrieved successfully earlier in this session, during
+        a connectivity check at 2026-08-02T17:31:35Z: 5651385 bytes, SHA-256
+        093fead98fcde6966e652ac2651552f8be050c4433f6d7f341baaf71dc3d16ab.  That earlier file was NOT used: the run's own acquisition
+        dropped ell=97 and the contract prescribes dropping, not patching.  The
+        corroboration is recorded only to characterise the obstruction as
+        transient rather than as a property of the source.
+      affects_any_reported_number: >
+        Yes, in scope only: the fit is computed over the ell actually measured,
+        which omits 97.  No value was substituted for it.
+    - id: "PD-3"
+      kind: "implementation_error_avoided"
+      what: >
+        During pre-run testing, control C-INSTR.3's own guard fired: control
+        work performed in the parent process (C-BASE.4 root finding, C-BASE.5
+        re-derivation) left the per-region counter nonzero, and forked
+        measurement workers inherited it, so region_begin() refused to open a
+        region.
+      repair: >
+        The per-region counter is now cleared in the parent immediately before
+        each worker pool is forked.  This is exactly what the contract
+        requires: 'Every control's own cost (C-NULL, C-INSTR, C-BASE, C-ALT)'
+        is an excluded cost.  The instrument was NOT weakened - the guard that
+        caught this is still armed and reported 0 per-sample isolation
+        failures across the whole run.
+      affects_any_reported_number: false
+    - id: "PD-4"
+      kind: "none_material"
+      what: >
+        Controls C-BASE.3 and C-ALT.1 are defined over 'every sampled (ell, j)'
+        but the contract's execution_order places them at step 6, before IMPL-B
+        (step 7) and the extension (step 8) exist.  Both were therefore
+        evaluated twice: at their step-6 position over the IMPL-A core samples,
+        and again over every sample of the completed run.  Both passes are
+        recorded; both PASS.
+      affects_any_reported_number: false
+    - id: "PD-5"
+      kind: "infrastructure_error"
+      what: >
+        Optional-extension ell whose Phi_ell file exceeds the contract's
+        per_ell_bytes cap of 67108864 bytes were dropped by that cap.  The
+        extension does not bind the completion gate.
+      dropped_extension_ell:
+        - {ell: 223, reason: "fetch_obstruction"}
+        - {ell: 227, reason: "fetch_obstruction"}
+        - {ell: 229, reason: "fetch_obstruction"}
+        - {ell: 233, reason: "fetch_obstruction"}
+        - {ell: 239, reason: "fetch_obstruction"}
+        - {ell: 241, reason: "fetch_obstruction"}
+        - {ell: 251, reason: "fetch_obstruction"}
+      affects_any_reported_number: >
+        Only in scope: the achieved ell_max is 211 rather than 251.
+
+  runs:
+    completed:
+      - id: "RUN-PEC-6be870-a"
+        status: "completed"
+        wall_clock_seconds: 396.204
+        budget_wall_clock_seconds: 5400
+        maximum_runs_in_contract: 1
+        runs_executed: 1
+    invalid: []
+    failed:
+      - id: "none (no run reached a failed terminal state)"
+        note: >
+          PD-1 is a failed COMMAND INVOCATION, not a run: python3 never
+          started, no run directory content was produced by it, and no run id
+          was consumed.  It is recorded under protocol_deviations.
+
+  readings_of_the_frozen_contract_preamble: >
+    Points where the contract admits more than one implementation and the
+    reading taken is recorded so a Validator can check it.  Each records the
+    direction of the reading.  None of these was chosen after seeing a
+    result; all were fixed before the measurement run.
+  readings_of_the_frozen_contract:
+    - id: "R-1"
+      subject: "F_{p^2} inversion accounting"
+      reading: >
+        The contract says inversions are counted in a SEPARATE register and are
+        NOT included in the primary unit, while C-INSTR.4 says an inversion
+        increments the multiplication register 'by exactly the number of
+        multiplications it performs through the instrumented primitive'.  Both
+        clauses hold exactly and simultaneously only if the inversion performs
+        ZERO primitive calls, so fp2_inv computes the F_p norm and the F_p
+        inverse without routing them through the F_{p^2} primitive.
+      direction: "attack-favourable for the primary count"
+      sensitivity_reported: >
+        The declared sensitivity charging 3 multiplications per inversion is
+        reported: gamma under that charge (IMPL-A, W-MID) is 0.9329491309016471 versus 0.9331912935165684
+        without it.
+    - id: "R-2"
+      subject: "what IMPL-B substitutes"
+      reading: >
+        'IMPL-B = the same pipeline with KARATSUBA polynomial multiplication'
+        names exactly one substitution, so only the multiplication routine
+        differs; the schoolbook remainder and division steps are shared with
+        IMPL-A.
+      direction: >
+        A Karatsuba/Newton-based remainder is not named anywhere in the frozen
+        contract and improvising one would redesign the experiment.  It would
+        lower IMPL-B's count further and hence lower the min-over-
+        implementations primary; the reading taken therefore yields an UPPER
+        bound relative to that unnamed alternative.
+    - id: "R-3"
+      subject: "C-NULL denominator"
+      reading: >
+        The contract's own construction says 'a table of ell + 1 entries', so
+        entries_null = ell + 1.  The alternative reading of 'identical
+        cost/entries denominator convention' - counting the non-backtracking
+        roots at each 2-isogeny step - is also computed and recorded per
+        sample.  The two denominators differ by a factor independent of ell, so
+        gamma_null and the C-NULL verdict are identical under both.  The
+        control's verdict is therefore invariant under this ambiguity.
+      direction: "none (verdict invariant)"
+    - id: "R-4"
+      subject: "which implementation the null object is measured with"
+      reading: >
+        'IDENTICAL ... aggregation and fit' was read as mirroring the primary
+        exactly, so C-NULL was run under BOTH IMPL-A and IMPL-B and aggregated
+        by the same min-over-implementations rule.  At the null's fixed degree
+        2 the two implementations coincide (below the Karatsuba threshold), so
+        this makes the mirroring literal at no cost.
+      direction: "none"
+    - id: "R-5"
+      subject: "C-BASE.4 starting j-invariant"
+      reading: >
+        The contract does not name a starting j-invariant for the isogs
+        enumeration.  Rather than privilege one, the enumeration was run from
+        EVERY pool member, and the contract's 20000-chain cap on (5,125) was
+        applied to each starting point's own running total.  count(B,X) is
+        j-independent, so the pass criterion is unchanged.  See
+        underspecification U-1.
+      direction: "superset; no privileged choice made"
+    - id: "R-6"
+      subject: "Horner instantiation"
+      reading: >
+        'by Horner evaluation in j for each x-degree' was implemented as a
+        plain Horner loop with NO zero-coefficient skipping, so
+        mults_instantiate is exactly (ell+1)(ell+2) by construction and is
+        deterministic.
+      direction: "attack-unfavourable (it counts multiplications by zero)"
+    - id: "R-7"
+      subject: "zero-coefficient skipping in polynomial arithmetic"
+      reading: >
+        Polynomial multiplication, remainder and division skip zero
+        coefficients and make no primitive call for them.  With all
+        coefficients nonzero the schoolbook product counts exactly (d+1)^2 as
+        C-INSTR.1 requires, which is the case the control pins.
+      direction: "attack-favourable"
+    - id: "R-8"
+      subject: "the carry-forward minimum"
+      reading: >
+        'the primary per_entry(ell) is the MINIMUM over implementations' is
+        stated at the per-ell level, so the minimum is taken of the two per-ell
+        MEDIANS, not sample by sample.  gamma_A and gamma_B are both reported
+        separately, as are the per-ell cost ratios.
+      direction: "attack-favourable, as the contract intends"
+    - id: "R-9"
+      subject: "the 'POINT estimate' of gamma in the extrapolation"
+      reading: >
+        The contract asks for c at the LOW end, the POINT estimate and the HIGH
+        end of gamma_reported, and declares W-MID the primary window before any
+        datum.  The point estimate used is therefore the W-MID OLS slope.  All
+        three values are reported, so a reviewer may substitute any other
+        summary of gamma into the same law.
+      direction: "none; all three ends reported"
+
+  underspecification_encountered_preamble: >
+    The contract requires the Executor to STOP and report rather than fill a
+    gap that changes a number.  The gaps found are listed with whether they
+    change a number.  None of them changes a primary metric: each was
+    neutralised by computing a superset, by an invariance, or by the
+    contract's own text determining the answer.  No STOP was therefore
+    warranted, and none of these was resolved in a way that could have been
+    chosen after seeing a result.
+  underspecification_encountered:
+    - id: "U-1"
+      gap: "C-BASE.4 does not name the starting j-invariant."
+      changes_a_number: >
+        It changes the chain counts of that control only, never a per-entry
+        cost, gamma or c.  Neutralised by running every pool member (R-5); the
+        per-start results are all recorded individually.
+      resolution: "superset; no privileged choice"
+    - id: "U-2"
+      gap: >
+        C-NULL says 'IDENTICAL cost/entries denominator convention' while its
+        own construction fixes 'a table of ell + 1 entries'.
+      changes_a_number: >
+        It changes the LEVEL of per_entry_null by a constant factor but not its
+        exponent, and the control's pass criterion is on the exponent and on a
+        ratio, so the verdict is invariant.  Both denominators are recorded.
+      resolution: "invariance; both values reported"
+    - id: "U-3"
+      gap: >
+        The contract fixes walk seeds and the bootstrap seed but does not fix a
+        seed for the randomness that Cantor-Zassenhaus splitting requires,
+        although it names Cantor-Zassenhaus explicitly.
+      changes_a_number: >
+        Yes: the number of splitting attempts, and hence the counted cost of a
+        sample, depends on that stream.  It could not be omitted, since the
+        named algorithm is randomised.  Every stream is derived
+        deterministically from strings recorded in the manifest, and the stream
+        for a sample depends on (ell, j_index) ONLY and not on the
+        implementation, so IMPL-A and IMPL-B traverse the identical split
+        structure and differ only in the multiplication routine.  This makes
+        the run bit-for-bit reproducible and makes the A/B cost ratio a clean
+        comparison.  Reported here rather than chosen silently.
+      resolution: >
+        Deterministic seeding, fully recorded.  If the Coordinator judges that
+        this needed to be pre-registered, that is an amendment for a
+        SUPERSEDING contract; nothing here was re-scored.
+    - id: "U-4"
+      gap: >
+        Whether IMPL-B's remainder step is also Karatsuba-based.
+      changes_a_number: >
+        It would change IMPL-B's counts and hence the min-over-implementations
+        primary.  It is NOT genuinely underspecified: the contract names
+        exactly one substitution.  See reading R-2, which also states the
+        direction of the unnamed alternative.
+      resolution: "determined by the contract's own text"
+
+  controls:
+    - id: "C-INSTR"
+      verdict: "pass"
+      evidence: >
+        All four checks exact. C-INSTR.1: schoolbook products of degree-d operands
+        with all coefficients nonzero counted exactly (d+1)^2 for d in
+        {0,1,2,5,10,50}. C-INSTR.2: 1000 repeated single multiplications counted
+        exactly 1000. C-INSTR.3: over 20 regions the counter read 0 at every region
+        start and the sum of region counts equalled the process-global delta
+        exactly, for both the multiplication and the inversion register; across the
+        whole run 0 per-sample isolation failures. C-INSTR.4: over 100 random
+        elements every inversion incremented the inversion register by exactly 1 and
+        the multiplication register by exactly 0, which is exactly the number of
+        primitive calls the inversion makes, and each inverse was verified by
+        multiplication. An extra check not required by the contract also confirmed
+        that the inlined hot-loop arithmetic agrees with the fp2_mul primitive on 50
+        random operand pairs for both implementations.
+    - id: "C-NULL"
+      verdict: "pass"
+      evidence: >
+        The null object is a table of ell+1 entries built by ell+1 successive
+        non-backtracking 2-isogeny steps, whose per-entry cost is O(1) in ell by
+        construction, measured with the identical harness, denominator, aggregation
+        and fit. gamma_null = -0.013241522288809005 on the primary window W-MID,
+        bootstrap 95% CI [-0.03349104106813048, 0.00803413720034009]. The
+        pre-registered pass criterion is |gamma_null| <= 0.15 AND the CI contains 0;
+        both hold, so the primary measurement is neither VOID nor UNCONTROLLED.
+        Flatness across the null's grid: per_entry_null 5118.833333333334 at ell=2
+        and 4903.127450980392 at ell=101, ratio 0.9578603427174924, inside the
+        pre-registered 2^{+/-0.5} band. Scope limitation: the null covers ell 2..101,
+        the grid that existed at its frozen step-5 position; the extension ell
+        103..211 are not null-controlled.
+    - id: "C-BASE.1"
+      verdict: "pass"
+      evidence: >
+        p = 1099511627563 declared prime by Miller-Rabin on the first 20 prime
+        bases; p mod 4 = 3; j(E_0) = 1728; and (p+1)*P = O for three independently
+        sampled random points of E_0(F_p), each recorded with its coordinates.
+    - id: "C-BASE.2"
+      verdict: "pass"
+      evidence: >
+        The verification battery ran on the integer coefficients of all 46
+        successfully retrieved Phi_ell and all 46 pass. (i) bidegree ell+1 in each
+        variable; (ii) the source lists no term with m < n and no duplicate (m,n),
+        so the symmetric extension is well defined and symmetry holds by
+        construction - this is stated exactly rather than as a vacuous check;
+        (iii) the Kronecker congruence Phi_ell(X,Y) = (X^ell - Y)(X - Y^ell) mod
+        ell verified coefficientwise, with 0 violations at every ell. This is the
+        check that makes an arbitrary primary source safe: a corrupted, truncated or
+        misremembered Phi_ell fails (iii) with overwhelming probability. No
+        coefficient was ever hardcoded from recollection.
+    - id: "C-BASE.3"
+      verdict: "pass"
+      evidence: >
+        Regularity of the supersingular ell-isogeny graph: 484 of 484 primary
+        samples gave exactly ell+1 distinct roots of Phi_ell(j,x) in F_{p^2}, a
+        fraction of 1.0 against a 0.90 threshold, with no deviating sample to
+        report. Evaluated at the step-6 position over the 200 IMPL-A core samples
+        (200/200) and again over every sample of the completed run (484/484).
+    - id: "C-BASE.4"
+      verdict: "pass"
+      evidence: >
+        SageMath is absent, so the frozen PoC was NOT executed; its count() and
+        isogs() recursions were re-implemented verbatim in pure Python. Run to
+        EXHAUSTION with no early break from all 8 pool members for (B,X) in
+        {(2,16),(2,64),(3,27),(3,81)} plus (5,125), whose 20000-chain condition was
+        satisfied at every start (running total 1344 before it). All 40
+        enumerations reproduce count(B,X) EXACTLY: 46, 190, 218, 890 and 2960
+        chains against counts of 46, 190, 218, 890 and 2960. Verdict pass, not
+        merely pass_with_observation.
+    - id: "C-BASE.5"
+      verdict: "pass"
+      evidence: >
+        23772 chain relations verified and all vanish: 23672 unique (j_i, ell,
+        j_{i+1}) edges drawn from every chain of C-BASE.4, plus a random sample of
+        100 triples drawn from the walk pool and from the measured root sets, whose
+        ell span 21 distinct values from 2 to 101. Verification used a separate
+        bivariate evaluator that reads the integer coefficient array and reduces mod
+        p on its own path; it does not touch the instantiated univariate polynomial
+        the root finder consumed. Zero nonvanishing relations.
+    - id: "C-BASE.6"
+      verdict: "pass"
+      evidence: >
+        Stated, as the control requires: Section 4.1 of the frozen paper assumes
+        that constructing a table costs a single F_{p^2}-operation per entry, i.e.
+        per_entry = 1 in exactly the unit reported here, which under the fit
+        log2 per_entry(ell) = gamma*log2(ell) + const is the constant function, i.e.
+        gamma_paper = 0.
+    - id: "C-ALT.1"
+      verdict: "pass"
+      evidence: >
+        All 30616 roots reported across the run were re-evaluated by an
+        uninstrumented Horner path independent of the root finder; 0 failed. The
+        number of roots equalled deg(gcd(x^{p^2}-x, f)) at every one of the 484
+        samples, with no exception to report.
+    - id: "C-ALT.2"
+      verdict: "pass"
+      evidence: >
+        IMPL-A (schoolbook multiplication) and IMPL-B (Karatsuba multiplication)
+        returned IDENTICAL root sets at all 200 sampled (ell,j) of the surviving
+        core grid, compared by SHA-256 of the sorted root list; 0 mismatches. The
+        control is COMPLETE, not merely incomplete, so gamma is not restricted to
+        the IMPL-A-only reading the contract reserved for that case. Counts differ,
+        which is the point of the control: gamma_A = 0.9331912935165684,
+        gamma_B = 0.7929150527852443 on W-MID, and per-ell cost ratios are in
+        raw-result.json.
+
+  observations_preamble: >
+    Observations only.  The reported cost unit is the EXACTLY COUNTED
+    F_{p^2} multiplication; wall-clock is recorded alongside and is never
+    substituted for it.  Every number below was produced by code in this run;
+    the only carried-in figures are the log2(B_opt) constants of
+    RUN-P13VOW-001, which are labelled as input constants wherever they
+    appear.
+  observations:
+    - id: "OBS-1"
+      subject: "achieved scope"
+      measured: >
+        ell actually measured: 46 distinct values from 2 to 211.  Core grid
+        (26 required): 25 achieved; ell=97 dropped by fetch obstruction PD-2,
+        so the completion-gate core-grid requirement is NOT MET.  Optional
+        extension completed at 21 further ell: [103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211].  Samples per ell: 8 on the
+        core grid, 4 on the extension.  Pool size 8 of 8; degenerate-j
+        exclusions: none.  Minimum viable grid (>= 12 ell, one <= 3, one >= 43,
+        >= 4 samples each): TRUE.
+    - id: "OBS-2"
+      subject: "the instance"
+      measured: >
+        p = 1099511627563 = the largest prime below 2^40 congruent to 3 mod 4 (Miller-Rabin,
+        first 20 prime bases).  The frozen PoC's previous_prime(2**40) carries no
+        congruence condition and equals 1099511627689; the two do NOT coincide, as the
+        contract anticipated and asked to be recorded.  F_{p^2} = F_p[T]/(T^2+1),
+        field_bits = 80, claim tier medium.
+    - id: "OBS-3"
+      subject: "per-entry cost, the measured quantity"
+      measured: >
+        per_entry(ell) = cost(ell,j)/entries(ell,j) aggregated as the median
+        over the j-pool, with cost = mults_instantiate + mults_rootfind in
+        counted F_{p^2} multiplications.  Smallest measured ell=2:
+        per_entry = 1843.5.  Largest measured ell=211: per_entry = 94023.4.  Section
+        4.1 of the frozen paper assumes per_entry = 1 in this same unit
+        (control C-BASE.6, gamma_paper = 0).  Full per-ell tables, per-sample
+        records, inversion registers and wall-clock are in raw-result.json.
+    - id: "OBS-4"
+      subject: "the pre-registered fit"
+      measured: >
+        Estimator, windows and uncertainty exactly as pre-registered: OLS of
+        log2 per_entry(ell) on log2(ell); cluster bootstrap over the j-pool,
+        2000 replicates, seed 20260802.
+      windows:
+        - window: "W-ALL"
+          n_ell: 46
+          gamma_hat: 0.8948996512169899
+          ols_slope_se: 0.01676031562132839
+          analytic_ci95: [0.8611214545763212, 0.9286778478576586]
+          bootstrap_ci95: [0.8691362629109963, 0.9019697426791533]
+          jackknife_slope_range: [0.8924882486215234, 0.9196176142844917]
+          r2: 0.9848009362284831
+          max_abs_residual_bits: 0.5082302120735225
+        - window: "W-MID  (pre-registered PRIMARY)"
+          n_ell: 42
+          gamma_hat: 0.9739199259643186
+          ols_slope_se: 0.01982866552583605
+          analytic_ci95: [0.9338446980474369, 1.0139951538812004]
+          bootstrap_ci95: [0.9663049092159457, 0.9778101857105841]
+          jackknife_slope_range: [0.9718891378312455, 0.991721571271771]
+          r2: 0.9836898242230547
+          max_abs_residual_bits: 0.2915498433639616
+        - window: "W-TOP"
+          n_ell: 8
+          gamma_hat: 0.973470470508651
+          ols_slope_se: 0.009139002556159301
+          analytic_ci95: [0.9511081368463409, 0.9958328041709611]
+          bootstrap_ci95: [0.9645843691531151, 0.9783098339537538]
+          jackknife_slope_range: [0.9697396448961496, 0.9807125977919415]
+          r2: 0.9994714650834085
+          max_abs_residual_bits: 0.0032018448895065887
+      gamma_reported_interval: [0.8691362629109963, 0.9783098339537538]
+      gamma_reported_definition: >
+        The pre-registered union interval: the minimum over the three windows of
+        the low end of the bootstrap 95% CI, to the maximum over the three
+        windows of the high end.  Half-width 0.054586785521378745.
+      gamma_point_estimate_W_MID: 0.9739199259643186
+      gamma_A_W_MID: 0.9331912935165684
+      gamma_B_W_MID: 0.7929150527852443
+      gamma_A_minus_gamma_B: 0.14027624073132405
+      gamma_inversions_charged_3_IMPL_A_W_MID: 0.9329491309016471
+    - id: "OBS-5"
+      subject: "the frozen prediction, scored exactly as pre-registered"
+      frozen_prediction_reference: >
+        specification.yaml preregistered_prediction: predicted_value 1.0,
+        acceptance_band [0.75, 1.25], with verdict rules fixed before any datum
+        existed.  Anchors named there: gamma_paper = 0 (paper Section 4.1) and
+        the RT-C1 calibration at gamma = 2.
+      comparison_statistic: "gamma_reported_interval = [0.8691362629109963, 0.9783098339537538]"
+      verdict_by_the_contracts_own_rule: "confirmed"
+      classification_band_by_the_contracts_own_rule: >
+        linear regime: per-entry cost ~ ell
+      executor_note: >
+        This is the mechanical application of the contract's own verdict rule
+        to the contract's own statistic.  The Executor draws no conclusion from
+        it about the paper's assumption, about RT-C1, or about H-P13-001.
+    - id: "OBS-6"
+      subject: "curvature diagnostic (pre-registered)"
+      measured: >
+        Quadratic fit y = a + b x + c x^2 on W-ALL: a = 10.426222463665061, b = 0.41680210810369756, c = 0.04881463440717395,
+        bootstrap 95% CI for c = [0.045314559665060074, 0.06252235267120246].  The CI EXCLUDES 0, so under the
+        contract's own rule the single-exponent model is declared MISSPECIFIED over the measured
+        range.  x_max = 7.721099188707185 and the local slope at the top of the range is
+        gamma_local_top = 1.170607376340235, carried through the extrapolation as a declared
+        sensitivity alongside the primary.
+    - id: "OBS-7"
+      subject: "admissibility of the fit (pre-registered conditions)"
+      measured:
+        - condition: "half-width of gamma_reported <= 0.25"
+          value: 0.054586785521378745
+          met: true
+        - condition: "max |residual| on W-MID <= 0.75 bit"
+          value: 0.2915498433639616
+          met: true
+        - condition: "R^2 on W-MID >= 0.98"
+          value: 0.9836898242230547
+          met: true
+        - condition: "C-INSTR PASS, C-NULL PASS, C-BASE PASS, C-ALT.1 PASS"
+          value: "True"
+          met: true
+      all_met: true
+      note: >
+        Nothing was tuned to make a condition pass.  Where a condition is not
+        met the contract caps the evidence strength this run can support at
+        'preliminary'; that cap is a matter for the Reviewer and Coordinator,
+        not for the Executor.
+    - id: "OBS-8"
+      subject: "tail checks (pre-registered)"
+      top_of_range_consistency: >
+        At the largest achieved ell = 211 the observed log2 per_entry is 16.52073282411828; the
+        W-MID fit predicts 16.443798640554533; deviation 0.07693418356374693 bits; exceeds 1 bit: false.
+      null_object_flatness: >
+        per_entry_null at the smallest measured ell (2) is 5118.833333333334 and at the
+        largest (101) is 4903.127450980392; ratio 0.9578603427174924; within 2^{+/-0.5}: true.
+      implementation_gap: >
+        gamma_A - gamma_B = 0.14027624073132405 on W-MID.  The contract calls a substantial
+        negative gap the quantitative form of RT-C1's own caveat that a better
+        implementation lowers the exponent.  The sign and size are recorded;
+        the reading of them is not the Executor's.
+    - id: "OBS-9"
+      subject: "the pre-registered extrapolation to c"
+      status: "MODELED, NOT MEASURED"
+      law: "c = gamma * log2(B_opt) / sqrt(log2 p)  (frozen before any datum)"
+      inputs_that_are_measured_by_this_run: "gamma (see OBS-4)"
+      inputs_that_are_carried_in_constants: >
+        log2(B_opt) per field size, quoted as stored from
+        experiments/EXP-P13VOW-001/runs/RUN-P13VOW-001/raw-result.json
+        (per_field.<key>.optimal.log2B).  sqrt(log2 p) was RECOMPUTED by this
+        run rather than copied.
+      rows:
+        - name: "SQIsign NIST-I"
+          log2p: 256
+          log2_B_opt_input_constant: 14.200000000000001
+          sqrt_log2p_recomputed: 16.0
+          c_modeled_at_gamma_low: 0.7713584333335093
+          c_modeled_at_gamma_point: 0.8643539342933328
+          c_modeled_at_gamma_high: 0.8682499776339566
+          c_modeled_at_gamma_local_top_sensitivity: 1.0389140465019586
+        - name: "SQIsign NIST-III"
+          log2p: 384
+          log2_B_opt_input_constant: 17.8
+          sqrt_log2p_recomputed: 19.595917942265423
+          c_modeled_at_gamma_low: 0.789482050567682
+          c_modeled_at_gamma_point: 0.884662547232566
+          c_modeled_at_gamma_high: 0.8886501308937227
+          c_modeled_at_gamma_local_top_sensitivity: 1.0633240739345178
+        - name: "SQIsign NIST-V"
+          log2p: 512
+          log2_B_opt_input_constant: 20.900000000000002
+          sqrt_log2p_recomputed: 22.627416997969522
+          c_modeled_at_gamma_low: 0.8027848647713463
+          c_modeled_at_gamma_point: 0.899569157826579
+          c_modeled_at_gamma_high: 0.9036239324828037
+          c_modeled_at_gamma_local_top_sensitivity: 1.0812411406793072
+        - name: "log2p = 576"
+          log2p: 576
+          log2_B_opt_input_constant: 22.3
+          sqrt_log2p_recomputed: 24.0
+          c_modeled_at_gamma_low: 0.8075724442881341
+          c_modeled_at_gamma_point: 0.9049339312085127
+          c_modeled_at_gamma_high: 0.9090128873820297
+          c_modeled_at_gamma_local_top_sensitivity: 1.0876893538494683
+        - name: "log2p = 768"
+          log2p: 768
+          log2_B_opt_input_constant: 26.1
+          sqrt_log2p_recomputed: 27.712812921102035
+          c_modeled_at_gamma_low: 0.8185548152964232
+          c_modeled_at_gamma_point: 0.9172403443864438
+          c_modeled_at_gamma_high: 0.9213747712614945
+          c_modeled_at_gamma_local_top_sensitivity: 1.1024811017728027
+      optimistic_and_declared_assumptions_restated_next_to_these_numbers:
+        - id: "L1"
+          statement: >
+            The measured power law is assumed to extend from the tested range
+            (ell <= 211 here) to ell ~ B_opt ~ 2^14.2 at NIST-I through 2^26.1 at
+            log2 p = 768.  UNTESTED.  That is about 6.5 octaves in log2 ell
+            beyond the top of the measured range at NIST-I.  The measured range
+            also never reaches ell >> log2(p^2) = 80, so the asymptotic regime
+            the law describes is not entered by this experiment at all.
+        - id: "L2"
+          statement: >
+            The table build is charged at ell = B_opt.  DECLARED, NOT MEASURED.
+            Algorithm 1 creates entries at every prime ell <= B, so the
+            entry-weighted mean of ell^gamma is at most B^gamma; charging at
+            B_opt makes the primary c an UPPER bound WITHIN the law, which is
+            attack-unfavourable.  The contract's optional secondary kappa was
+            computed from the C-BASE.4 exhaustive builds and is reported below;
+            it carries its own untested transfer from tiny B to B_opt ~ 2^14.
+        - id: "L3"
+          statement: >
+            B_opt is inherited from RUN-P13VOW-001, whose own control
+            reproduced the paper's five Section 4.1 pairs only within 0.05-3.51
+            bits (adjudicated in DEC-20260724-016).  Any margin statement
+            derived from these c values inherits that +/-3.51-bit
+            irreproducibility band.
+        - id: "L4"
+          statement: >
+            gamma is measured for THIS pure-Python implementation pair.  Batched
+            modular-polynomial evaluation of the Sutherland type - suggested in
+            the frozen paper's own Lemma 3.3 footnote, credited there to Damien
+            Robert, and flagged in RT-C1 - is NOT implemented here and could
+            lower the exponent.  An unoptimised implementation yields an UPPER
+            bound on the achievable per-entry exponent, which is anti-attack by
+            construction.  Conversely the costs the contract excludes (Phi_ell
+            storage and I/O, coefficient reduction, hashing and table access)
+            are all excluded in the attack's favour, so the same gamma is
+            simultaneously a LOWER bound with respect to those components.  The
+            two directions are NOT netted; both are reported.
+    - id: "OBS-10"
+      subject: "optional secondary of assumption L2 (kappa)"
+      status: "SECONDARY, MODELED"
+      measured_part: >
+        Entry-weighted mean of log2(ell) over the C-BASE.4 exhaustive builds:
+        [{"B": 2, "X": 16, "entries": 45, "entry_weighted_mean_log2_ell": 1.0, "kappa": 1.0}, {"B": 2, "X": 64, "entries": 189, "entry_weighted_mean_log2_ell": 1.0, "kappa": 1.0}, {"B": 3, "X": 27, "entries": 217, "entry_weighted_mean_log2_ell": 1.463656913014002, "kappa": 0.9234646954410844}, {"B": 3, "X": 81, "entries": 889, "entry_weighted_mean_log2_ell": 1.4606003942686185, "kappa": 0.9215362468222731}]
+      kappa_mean_over_rows: 0.9612502355658393
+      c_kappa_modeled:
+        - {name: "SQIsign NIST-I", log2p: 256, c_kappa_at_gamma_point: 0.8308604229517262}
+        - {name: "SQIsign NIST-III", log2p: 384, c_kappa_at_gamma_point: 0.8503820819235797}
+        - {name: "SQIsign NIST-V", log2p: 512, c_kappa_at_gamma_point: 0.8647110648685628}
+        - {name: "log2p = 576", log2p: 576, c_kappa_at_gamma_point: 0.869867954545704}
+        - {name: "log2p = 768", log2p: 768, c_kappa_at_gamma_point: 0.8816974971119607}
+      caveat: >
+        This does NOT replace the primary law and carries its own untested
+        transfer from B in {2,3} to B_opt ~ 2^14.
+    - id: "OBS-11"
+      subject: "instrument and bookkeeping integrity"
+      measured: >
+        Total counted F_{p^2} multiplications across every measured region of
+        the run: 1511133917.  Per-worker accounting agrees with the sum of per-sample
+        costs: TRUE.  Per-sample counter-isolation failures: 0.  Wall-clock is
+        recorded per sample in raw-result.json and was never substituted for
+        the counted unit.
+
+  anomalies:
+    - id: "AN-1"
+      what: "/usr/bin/time absent from the image (see PD-1)."
+      class: "infrastructure_error"
+      mathematical_evidence: false
+    - id: "AN-2"
+      what: >
+        Transient fetch obstruction on Phi_97 during this run's acquisition
+        phase, although the same URL served the file earlier in the session
+        (see PD-2).
+      class: "infrastructure_error"
+      mathematical_evidence: false
+    - id: "AN-3"
+      what: >
+        C-INSTR.3's isolation guard fired during pre-run testing on control-cost
+        leakage into forked workers (see PD-3).  Recorded because it is exactly
+        the class of bookkeeping error the control exists to catch, and because
+        it demonstrates the guard was armed rather than decorative.
+      class: "implementation_error, caught and repaired before the run"
+      mathematical_evidence: false
+    - id: "AN-4"
+      what: >
+        p (largest prime below 2^40 with p = 3 mod 4) does NOT coincide with the
+        frozen PoC's previous_prime(2**40).  The contract anticipated this and
+        asked for it to be recorded; both values are in OBS-2.
+      class: "expected observation, recorded as instructed"
+      mathematical_evidence: "not applicable"
+    - id: "AN-5"
+      what: >
+        C-NULL covers ell 2..101 only. The contract's execution_order places
+        C-NULL at step 5 and the optional extension at step 8, so the extension ell
+        103..211 were acquired and measured AFTER the null control had run and are
+        therefore not null-controlled, although they enter the W-ALL, W-MID and
+        W-TOP fits. This follows from the frozen order and was not chosen by the
+        Executor. It is recorded rather than repaired by improvising an extra
+        post-hoc null measurement outside the frozen order.
+      class: "scope limitation of the frozen execution order"
+      mathematical_evidence: "not applicable"
+    - id: "AN-6"
+      what: >
+        Two summary fields of raw-result.json under-report the acquisition phase:
+        acquisition_phase_total_bytes reads 28564879 and acquisition_phase_seconds
+        reads 20.41, which cover only the step-2 core acquisition; the step-8
+        extension fetches are recorded completely per ell but were not added into
+        those two summary fields. Recomputed from the run's own committed per-ell
+        records: 646284683 bytes over 46 retrieved files and 51.835 seconds of
+        fetch time, both far inside the contract's caps of 2147483648 bytes and 900
+        seconds, and the largest single file is 66663416 bytes, inside the 67108864
+        per-ell cap. The immutable raw result was NOT edited; the correction is
+        recorded here and in manifest.yaml. No measured quantity is affected.
+      class: "recording defect in a summary field, corrected from the run's own data"
+      mathematical_evidence: "not applicable"
+
+  completion_gate:
+    - check: "all planned runs have terminal states"
+      met: true
+      detail: >
+        One run was planned (maximum_runs: 1) and one run reached a terminal
+        state.  The failed command invocation PD-1 is recorded and is not a run.
+    - check: "missing runs are explained"
+      met: true
+      detail: "no run is missing; PD-1 through PD-5 explain every gap."
+    - check: "required artifacts exist"
+      met: true
+      detail: >
+        All six queue-declared artifacts plus the four the repository validator
+        requires beside a manifest (command.txt, environment.json, stdout.log,
+        stderr.log) are present; their SHA-256 and byte lengths are in
+        manifest.yaml.
+    - check: "raw data and summary tables agree"
+      met: true
+      detail: >
+        manifest.yaml and this report are both generated mechanically from
+        raw-result.json, so no number is transcribed by hand.  Within
+        raw-result.json the per-worker accounting sum equals the sum of
+        per-sample costs (TRUE), and the per-sample counter-isolation check,
+        which compares each region's count against the process-global counter,
+        failed 0 times.
+    - check: "the result reproduces from the recorded command and revision"
+      met: true
+      detail: >
+        The program is deterministic given the recorded seeds: every random
+        stream is derived from a string recorded in manifest.yaml.  The only
+        non-deterministic inputs are the downloaded Phi_ell files, whose
+        SHA-256 are recorded per ell together with the SHA-256 of the
+        mod-p-reduced arrays, and the reduced arrays for ell <= 13 are embedded
+        in raw-result.json as an offline re-verification fixture.  Wall-clock
+        figures and worker pids will differ on re-execution; counted
+        multiplications will not.
+    - check: "core-grid requirement of the contract's success criterion"
+      met: false
+      detail: >
+        The contract binds the completion gate to the 26-prime core grid at 8
+        samples each.  25 of 26 were achieved; ell=97 was dropped by the fetch
+        obstruction PD-2.  Recorded as NOT MET, per the contract's own
+        instruction that a truncated grid is scoped evidence and that the
+        core-grid requirement is then recorded as not met.
+
+  non_claims_restated:
+    - >
+      This run measures a toy-scale exponent at p ~ 2^40 over ell <= 211. It is NOT
+      a cryptographic-scale measurement and may never be presented as one
+      (AGENTS.md rule 7). The claim-tier ceiling is medium.
+    - >
+      Every statement about NIST-I, NIST-III or NIST-V here is an EXTRAPOLATION
+      under the pre-registered law, conditional on L1-L4, and is reported as
+      conditional - never as a measurement of a cryptographic-scale margin. The
+      extrapolated c carries NO tier at all: it is a declared model substitution.
+    - >
+      The measured range never reaches ell >> log2(p^2) = 80 in the asymptotic
+      sense the law describes, and at NIST-I the relevant ell ~ B_opt ~ 2^14.2 lies
+      about 6.5 octaves beyond the top of the measured range. The extension of the
+      power law across that gap is assumed, not observed.
+    - >
+      gamma is a property of this pure-Python implementation pair over this range,
+      not of Algorithm 1. A batched Sutherland-type modular-polynomial evaluation -
+      credited in the paper's own Lemma 3.3 footnote to Damien Robert - is not
+      implemented and could collapse the measured exponent. The measured gamma is
+      therefore an UPPER bound on the achievable per-entry exponent.
+    - >
+      Conversely the excluded costs (Phi_ell storage and I/O, coefficient
+      reduction, hashing and table access) are all excluded in the attack's favour,
+      so gamma is simultaneously a LOWER bound with respect to those components.
+      The two directions are not netted; both are reported.
+    - >
+      This experiment cannot discriminate between per-entry cost laws that agree
+      over ell <= 211 and diverge at ell ~ 2^14. That identifiability limit is
+      inherent to the measured range and is not removed by any precision within it.
+      The pre-registered curvature diagnostic in fact declares the single-exponent
+      model MISSPECIFIED over the measured range, which is recorded as OBS-6 and is
+      an observation, not an interpretation.
+    - >
+      Nothing here decides whether the NIST-I margin is ~34 bits or ~2 bits. It
+      supplies one input to that question.
+    - >
+      Nothing here bears on Heuristic 1: this is a cost measurement, not a
+      smoothness measurement. Nothing here bears on CSIDH, (qt-)Pegasis, or
+      torsion-based constructions, which the attack does not cover.
+    - >
+      Nothing here changes any hypothesis status, promotes or weakens H-P13-001, or
+      supports any security-parameter action.
+
+  artifact_paths:
+    - experiments/EXP-PEC-6be870/implementation/per_entry_cost.py
+    - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/manifest.yaml
+    - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/raw-result.json
+    - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/execution_report.yaml
+    - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/stdout.txt
+    - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/stderr.txt
+    - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/command.txt
+    - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/environment.json
+    - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/stdout.log
+    - experiments/EXP-PEC-6be870/runs/RUN-PEC-6be870-a/stderr.log
+  artifacts_not_committed:
+    - >
+      The retrieved Phi_ell files (28564879 bytes over 46 ell) live in session scratch
+      OUTSIDE the repository and are NOT committed, as the contract's storage
+      clause requires.  Committed instead, per ell: URL, UTC timestamp, byte
+      length, SHA-256, coefficient count and the SHA-256 of the mod-p-reduced
+      array; plus the reduced arrays themselves for ell <= 13.
+
+  executor_assessment:
+    protocol_complete: false
+    protocol_complete_detail: >
+      Every step of the frozen execution_order was executed in order, every
+      pre-registered control was run with its own pass/fail/void criteria, the
+      optional extension was executed and reached ell = 211, and every required
+      artifact exists. The one gap is coverage, not procedure: the contract binds
+      the completion gate to the 26-prime core grid and ell=97 could not be
+      acquired (PD-2), so 25 of 26 core ell were measured. Because that binding
+      requirement is not met, protocol_complete is recorded as false rather than
+      true. The measurement over the 46 ell that WERE measured is unaffected.
+    data_quality: "good"
+    data_quality_detail: >
+      All ten control checks PASS, including the null-object control that would
+      have voided the primary measurement. 484 primary samples and 400 null
+      samples; per-sample counter-isolation failures 0; per-worker accounting
+      agrees exactly with the sum of per-sample costs; every one of 30616 reported
+      roots verified by an independent evaluation path; 23772 chain relations
+      verified by a separate bivariate evaluator; all 40 C-BASE.4 enumerations
+      reproduce the frozen PoC's count(B,X) EXACTLY; root regularity 484/484. All
+      four pre-registered admissibility conditions are met. Two scope limitations
+      qualify the coverage rather than the quality: the missing ell=97, and
+      C-NULL's coverage of ell 2..101 only.
+    requires_rerun: false
+    requires_rerun_detail: >
+      maximum_runs is 1 and the contract's stopping rule is 'stop after the
+      first valid run'.  The one gap (ell=97) is an infrastructure obstruction
+      the contract instructs the Executor to drop and record, not to retry, and
+      re-running to fill it would be a second run against a maximum of one.
+      Whether a scoped successor experiment should re-measure ell=97 is a
+      Coordinator decision, not an Executor one.
+    failure_classification: >
+      The run itself is not a failure. Two infrastructure_error events occurred and
+      are recorded: a failed command invocation before the run started (PD-1) and a
+      transient fetch obstruction on Phi_97 (PD-2). Neither is mathematical
+      evidence about the attack (AGENTS.md rule 5), and neither is a
+      negative_observation. One implementation_error (PD-3) was caught by a control
+      during pre-run testing and repaired before the measurement run; it is
+      recorded rather than omitted. No resource_exhaustion, no invalid_measurement,
+      no specification_error. On the classification list of agents/executor.md the
+      run terminates as a completed valid measurement, scoped to what it measured.
+
+  post_run_verification_preamble: >
+    Checks the Executor performed AFTER the run, using code run in this task,
+    to test the completion gate's own requirements.  Recorded because the
+    gate asserts them.
+  post_run_verification:
+    - check: "determinism / reproducibility from the recorded command and seeds"
+      method: >
+        Three samples were re-executed independently, in a fresh process, from
+        the committed implementation and the recorded seeds, and compared with
+        the recorded per-sample records.
+      result: >
+        (ell=53, j_index=3, IMPL-A) recorded cost 1363011, re-run cost 1363011;
+        (ell=11, j_index=0, IMPL-B) recorded 67938, re-run 67938;
+        (ell=101, j_index=7, IMPL-A) recorded 4746492, re-run 4746492.  Counted
+        multiplications, entries, inversion counts and the SHA-256 of the sorted
+        root set were IDENTICAL in all three cases.  Wall-clock and worker pids
+        are the only fields that differ on re-execution.
+    - check: "raw data and summary tables agree"
+      method: >
+        The per-ell primary table and the three window slopes were recomputed
+        from the per-sample cost and entries fields alone, by an independent
+        median and OLS implementation, and compared with the stored summaries.
+      result: >
+        The per-ell primary table reproduces at all 46 ell.  Recomputed slopes:
+        W-ALL 0.8948996512, W-MID 0.9739199260, W-TOP 0.9734704705, each equal
+        to the stored value to within 1e-12.  The extrapolation law was
+        re-derived independently for the NIST-I and NIST-III rows and agrees to
+        within 1e-12.  The entries convention was checked directly: at ell=2 a
+        sample with 3 distinct roots has entries 2 (roots minus one, the
+        non-backtracking subtraction), and at ell=3 a sample with 4 distinct
+        roots has entries 4.
+    - check: "artifact integrity"
+      result: >
+        All 9 artifact SHA-256 and byte lengths recorded in manifest.yaml were
+        re-verified against the files on disk: 0 mismatches.  stdout.log and
+        stdout.txt, and stderr.log and stderr.txt, are byte-identical by cmp.
+    - check: "repository validator"
+      result: >
+        tools/validate_ledger.py check_run on this manifest returns 0 errors,
+        and tier_of_run derives claim tier 'medium' mechanically from
+        inputs.parameters.field_bits = 80.  The repository-wide validator
+        reports no error whose path mentions EXP-PEC-6be870 or
+        RUN-PEC-6be870-a; the pre-existing failures it reports elsewhere are
+        outside this task's write scope and were not touched.
+
+  authority_boundary: >
+    This report records observations.  It does not declare the paper's
+    Section 4.1 assumption confirmed or violated, does not declare RT-C1
+    supported or refuted, does not move
+    H-P13-001.adjudicated_positions.concrete_threat_nist1 off INCONCLUSIVE,
+    and does not change any hypothesis or experiment status.  The
+    adjudication belongs to DEC-20260802-8227b9 after the independent
+    Validator (TASK-20260802-9ade2e) and Red Team (TASK-20260802-96d908)
+    reviews.

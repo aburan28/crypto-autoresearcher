@@ -1,0 +1,142 @@
+handoff:
+  id: TASK-20260906-a6b415
+  recorded_at: '2026-09-06'
+  goal_id: GOAL-ECDLP-bbc21f
+  question_id: RQ-ECDLP-78dbc5
+  batch_id: BATCH-f3a30a
+  dispatch_queue: coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/dispatch_queue.json
+  task_card: coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-a6b415/task_card.yaml
+  role: red-team
+  from: coordinator
+  to: red-team
+  objective: 'Independent Red Team for the v2 execution of EXP-ECDLP-612fb1: attack the pool-cap accounting
+    and frontier-tuple reporting discipline, and run the proves-too-much controls on the permanent negative
+    fixture and a fresh permutation null, per the review_plan below (written before any run of this batch).'
+  uncertainty_reduced: Whether the v2 amendment's new machinery (G3, corrected HEUR-BLT-7, per-admission
+    cap, permanent negative fixture) behaves as the amendment claims, and whether any resulting S1_v2/F1_v2
+    interpretation is honest under the frontier-tuple discipline.
+  inputs:
+  - experiments/EXP-ECDLP-612fb1/specification.v2.yaml (the approved v2 contract)
+  - experiments/EXP-ECDLP-612fb1/amendments/v1_to_v2.yaml (what changed and why)
+  - the snapshot commit's run package under experiments/EXP-ECDLP-612fb1/source_v2/ and runs/ (path bound
+    at snapshot time)
+  constraints:
+  - 'independent_session_required: true; fresh session; report ONLY on joints [''J3 (pool cap / frontier-tuple
+    honesty)'', ''J4 (proves-too-much on the permanent fixtures and a permutation null)'']; do not read
+    the other reviewer''s task directory or report.'
+  - Never modify a run record, the v2 specification, the amendment record, a ledger record, or the queue.
+  - 'Deliverable: report only in your own task directory.'
+  deliverables:
+  - red_team_report.yaml with per-joint verdicts HOLDS | HOLDS_WITH_FINDINGS | BROKEN and an attestation
+    block naming exactly what was read
+  artifact_paths:
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-a6b415/
+  archived_by: TASK-20260906-ae5bb4
+  write_scope:
+  - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-a6b415/
+  inference:
+    policy: review-adversarial
+    reasoning_effort: null
+    fallback_allowed: true
+    degraded_allowed: false
+    independent_session_required: true
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 4
+    maximum_runs: 0
+  completion_gate:
+  - per-joint verdict recorded
+  - attestation block present and accurate
+  - blind_from respected where applicable
+  review_plan:
+    claim_under_review: 'The v2 contract''s own claims as it will state them: (i) Stage 0''s a-scan locates
+      whether any (a, r) admits a feasible T_sel operating point (ORACLE(T_sel) eps_ss >= STATIC(T) eps_ss),
+      and the ordering rho_ORACLE(a=1/4) < rho_ORACLE(a=1/2) holds; (ii) at every interpreted cell, G3
+      correctly gates S1/F1 as UNTESTABLE rather than negative when infeasible; (iii) the corrected HEUR-BLT-7
+      (admitted-walk count) tracks the measured r_eff better than v1''s k=4 formula; (iv) the per-admission
+      pool cap keeps CAP(2T)''s S_peak at 2T (not 2.6-2.8T as in v1); (v) the permanent negative fixture
+      (the two red-team bijection seed sets) scores G1 FAIL, never a crash, on every run; (vi) any S1_v2
+      pass or fail is reported as the full frontier tuple (T_sel/T, S_peak/T, P/sqrt(NT), L, eps_ss, eps_cum,
+      U, early_penalty), never a bare ratio.'
+    coordinator_prior: Item (h)'s a-scan is a REPLICATION of a quantity aed829/the BATCH-289698 obstruction
+      already measured at a=1/4 (oracle floor ~0.55) and a=1/2 (~0.67, from the red team's F-J4-3 finding);
+      the prior is that the a-scan will reproduce this same ordering rather than surface a new feasible
+      point, and that G3 will therefore fire UNTESTABLE at every T_sel in {0.65T, 0.75T} at a=1/4 (since
+      even T/2's ceiling was infeasible there, a LARGER T_sel is closer to feasible but the decision's
+      own next_actions do not claim it clears the bar). The most likely failure mode is a bookkeeping
+      defect in the NEW machinery itself (G3's exact-vs-sampled boundary at 2^30, the corrected HEUR-BLT-7
+      admitted-walk count estimator, or the per-admission cap enforcement) rather than a genuine positive
+      result on the original claim. The coordinator does NOT expect S1_v2 to pass at a=1/4 on this grid;
+      a pass there is the record's most informative possible outcome and must be scrutinized hardest.
+    joints:
+    - joint: 'G3 ceiling-feasibility gate correctness: at every (a, r, T_sel) cell, G3 must read the SAME
+        exact top-T_sel share / STATIC(T) coverage comparison an independent re-enumeration would give,
+        and must correctly emit UNTESTABLE (never a negative S1/F1 verdict) on failure.'
+      assigned_to: TASK-20260906-bc1cfc
+      attack_plan: Independently re-enumerate exact basins at N=2^24 for at least 2 of the tested (a,
+        r) cells and recompute the top-T_sel share vs STATIC(T)'s exact coverage from scratch (own code,
+        not reading the executor's G3 implementation first). Compare your number to the run's G3 verdict.
+        Separately, read the executor's G3 code and confirm the UNTESTABLE branch is actually reachable
+        and taken (not silently falling through to a default PASS).
+      breaking_artifact: A cell where your independent G3 reading disagrees with the run's recorded G3
+        verdict, or where a G3 FAIL cell nonetheless reports an S1/F1 verdict instead of UNTESTABLE.
+    - joint: 'Blind re-derivation of the Stage 0 a-scan''s headline ordering claim: rho_ORACLE(a=1/4,
+        r) vs rho_ORACLE(a=1/2, r) at N=2^20, for the r values the contract tests.'
+      assigned_to: TASK-20260906-bc1cfc
+      attack_plan: 'SEAL a re-derivation of rho_ORACLE at a in {1/4, 1/2} and the tested r values, from
+        the exact basin definitions alone (as in the BATCH-289698 J2 protocol: write and sha256/timestamp
+        the sealed result BEFORE opening any of the executor''s Stage 0 code, run files, or the v2 spec''s
+        own worked formula), then compare. This is a blind re-derivation, not a rerun of the pipeline.'
+      breaking_artifact: Your sealed independent computation disagrees with the run's Stage 0 ordering
+        result beyond CI, or the ordering itself is reversed from the BATCH-289698 finding it is meant
+        to reproduce (0.55 at a=1/4 vs 0.67 at a=1/2).
+    - joint: 'Per-admission pool cap and working-storage accounting: does CAP(2T)''s measured S_peak actually
+        equal 2T (not drift to 2.6-2.8T as in v1), and is every headline number reported as the full frontier
+        tuple with S_peak charged, never a bare ratio?'
+      assigned_to: TASK-20260906-a6b415
+      attack_plan: Read the executor's pool-admission code and manually trace at least one full round
+        of admission-then-cap on a small synthetic example to confirm truncation happens immediately after
+        each admitted target, not once at round end (the v1 defect the amendment fixes). Then grep every
+        reported headline number in the execution report and analysis outputs for a bare T_sel/T or rho
+        ratio not accompanied by its S_peak/T sibling; a bare ratio anywhere is a finding.
+      breaking_artifact: Any CAP(2T) cell whose measured S_peak exceeds 2T by more than rounding, or any
+        headline number reported without its frontier-tuple siblings.
+    - joint: 'Proves-too-much: the permanent negative fixture (the two red-team bijection seed sets under
+        TASK-20260906-90e7cf/{src/pipeline_perm,results/j4_perm}) and the corrected HEUR-BLT-7 on a null
+        object.'
+      assigned_to: TASK-20260906-a6b415
+      attack_plan: Run (or confirm the executor ran) the v2 pipeline against both permanent-negative-fixture
+        objects and verify G1 reports FAIL on both, with no exception raised (the v1 defect item g fixes).
+        Separately, construct or reuse a random-permutation null object (no tree structure, basins of
+        size 1) and confirm the corrected HEUR-BLT-7 and the frontier-tuple pipeline report nothing resembling
+        a positive re-selection gain on it -- the mechanism should collapse exactly as cf3b76 predicted
+        for basins of size 1.
+      breaking_artifact: G1 does not FAIL on both permanent-fixture seed sets (a crash counts as failing
+        this check, per item g's own requirement that it FAIL, never crash), or the pipeline reports a
+        nonzero re-selection gain on the permutation null.
+    blindness:
+      mutual: true
+      lifted_for: []
+      rationale: null
+    proves_too_much:
+      objects:
+      - The two red-team permanent-negative-fixture bijection seed sets (coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-289698/tasks/TASK-20260906-90e7cf/src/pipeline_perm
+        and results/j4_perm/)
+      - A random-permutation walk (basins of size 1; no tree structure) as a fresh null object for the
+        corrected HEUR-BLT-7
+      failure_signature: G1 must FAIL (not crash, not silently PASS) on both fixture sets; the corrected
+        HEUR-BLT-7 and re-selection gain must both collapse to null-object levels on the permutation object
+        -- a positive reading on either is the pipeline proving too much.
+      assigned_to: TASK-20260906-a6b415
+    blind_rederivation:
+      required: true
+      quantity: rho_ORACLE(a, r) at a in {1/4, 1/2} and the tested r values, N=2^20, from the exact basin-partition
+        definition alone
+      parameters: N=2^20; a in {1/4, 1/2}; r in the contract's a-scan grid; W = (1/2)*sqrt(N/T) at the
+        corresponding T
+      blind_from:
+      - experiments/EXP-ECDLP-612fb1/source_v2/
+      - experiments/EXP-ECDLP-612fb1/runs/
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-5e78c7/
+      assigned_to: TASK-20260906-bc1cfc
+    procedure_deviations: []

@@ -1,0 +1,999 @@
+red_team_report:
+  id: RT-20260801-001
+  task_id: TASK-20260801-002
+  batch_id: BATCH-021
+  goal_id: GOAL-ECDLP-001
+  role: red-team
+  independent_session: true
+  reviewed_snapshot: 61cd52621e0a53669cee8f30af145f8193838362
+  reviewed_at_working_tree: false
+  read_method: >-
+    Every artifact and every line of instrument code cited below was read via
+    `git show 61cd5262:<path>` (and `git show 61cd5262^:<path>` for the
+    pre-existing driver). Nothing in this report is read from the working
+    tree. Line numbers for ds001_driver.py refer to the file AS COMMITTED AT
+    61cd5262 (2398 lines).
+
+  inference:
+    requested_policy: review-adversarial
+    resolved_model_id: claude-opus-5
+    backend: anthropic
+    reasoning_effort: null
+    reasoning_effort_note: >-
+      The review-adversarial floor asks reasoning_effort xhigh. THIS HARNESS
+      CANNOT REQUEST OR READ A REASONING-EFFORT LEVEL FOR A SUBAGENT. The
+      level actually used is therefore not controllable and not verifiable by
+      this session. It is recorded as a degraded_requirement rather than
+      asserted as met; asserting xhigh here would be a fabrication.
+    fallback_allowed: true
+    fallback_used: false
+    degraded_allowed: false
+    degraded_requirements:
+      - requirement: reasoning_effort >= xhigh
+        status: unverifiable_in_this_runtime
+        detail: >-
+          Claude Code subagent frontmatter exposes no reasoning-effort control
+          (CLAUDE.md model policy note). Not asserted met, not asserted unmet.
+    model_verified: false
+    model_verified_note: >-
+      No `python3 -m orchestration.adapter doctor --probe` was run by this
+      session; resolved_model_id is this session's self-identification under
+      the Claude Code runtime, not a probe-verified binding.
+    independent_session_required: true
+    originated_the_claim: false
+
+  claim_under_review: >-
+    That RUN-DS-001-ctrl-unplanted (EXP-DS-001, cell bits=20 B=64 m=4
+    seed=101, unplanted uniform-random targets, relations_target=200) is a
+    valid, completed control measurement whose headline numbers -- R=0.036552,
+    R_null=112.105, all four arms target_reached at 200/200,
+    r1_cell_label=S1_eligible_on_null_axis, live_plant_detected=false -- may
+    be read as discriminating planted-yield packaging from a
+    structure-dependent claw win at the tested cell.
+
+  headline_verdict: >-
+    THE MEASUREMENT IS HONEST; THE RUN'S STATUS IS NOT. Q1, Q2 and Q3 pass on
+    code reading: the targets really are unplanted, the live plant really is
+    free of the synth_R/synth_Rn shortcut, and the shared backend really is
+    byte-identical (independently diff-verified: exactly two deleted lines,
+    both CLI wiring in main()). But the run is recorded `status:
+    completed_valid` / `result.valid: true` in direct contradiction of
+    specification.v2.yaml stopping_rules ("On CTRL-NULL-PLANT failure, stop
+    and report harness void") and of CTRL-NULL-PLANT's own pass_condition
+    ("Detection flag true; otherwise harness void"). The producer-authored
+    mode_ctrl_unplanted omitted the very invalidation branch that the
+    pre-existing mode_impl implements for the identical outcome. Worse, the
+    mitigating precedent the execution report leans on -- "the sibling
+    RUN-DS-001-impl cell, bits=16, DID detect its plant" -- IS FALSE ON THE
+    COMMITTED NUMBERS: that detection came from a tautological fallback and an
+    unconditional hardcoded constant, and the honest live rule evaluates to
+    FALSE there too (fake_R=0.383747 < 0.5 but fake_R_null=20.0654 >= 0.9).
+    CTRL-NULL-PLANT has therefore NEVER been honestly satisfied anywhere in
+    this experiment. The correct disposition is HARNESS VOID for any reading
+    of R as a saving, in either direction, and NOT a mathematical negative
+    (AGENTS rule 5). One narrow statement survives and should be preserved
+    (see narrowest_supported_statement).
+
+  q_verdicts:
+    Q1_unplantedness:
+      verdict: PASS_ON_CODE_READING_WITH_A_PROVENANCE_CAVEAT
+      finding: >-
+        harvest_real_unplanted (lines 1610-1654) obtains every target from
+        random_uniform_target (lines 1597-1607), whose entire body is
+        `k = rng.randrange(1, inst.n)` then `return E.mul(k, inst.P)`. It
+        never receives, references or closes over fb / fb.signed; the factor
+        base is passed to harvest_real_unplanted only as the SEARCH argument
+        to naive_search/split_search (lines 1642, 1645-1648), never to target
+        construction. I traced every path into the target variable T: line
+        1639 is the only assignment, and random_target() (the planting
+        sampler, line 237) is not called anywhere in the ctrl-unplanted code
+        path. There is no fallback, no retry-with-planted-target, no
+        seed-sharing between the target stream and the factor-base stream
+        (fb comes from build_factor_base via _seed_int(seed,"fb<j>"); targets
+        come from _seed_int(seed,"ctrl_unplanted_20_64_4")). CONCLUSION: no
+        planted decomposition witness is reintroduced.
+      caveat_1_provenance: >-
+        The committed file is not cryptographically bound to the executed
+        file. manifest.json records code.commit=981d2542 with dirty=true, and
+        NO sha256 of ds001_driver.py appears in any artifact (sha256_file
+        exists at line 60 and is never applied to the instrument). So "the
+        code I read is the code that ran" is an assumption, not a verified
+        fact. UNVERIFIED, and unverifiable from the artifacts alone.
+      caveat_2_no_recorded_targets: >-
+        Not one target, and not one of the 800 claimed relations, is recorded
+        in raw-result.json (`cell` carries only counters; `notes` is empty).
+        Unplantedness therefore cannot be checked from the OUTPUT at all -- it
+        can only be checked by reading the producer's own source. That is the
+        weakest possible form of verification for the single property the
+        control exists to establish.
+      caveat_3_power_not_correctness: >-
+        Unplantedness being real does not make the control informative. At
+        this cell |S|=128 signed factor-base points give ~C(130,3)=357,760
+        index-nondecreasing triples, and a hit needs T-s3 to land in a
+        128-element set inside a group of ~2^19-2^20 points, so a random
+        target is expected to have TENS of decompositions before any planting.
+        Adding one planted witness changes the expected representation count
+        by order a few percent. ESTIMATE, NOT MEASURED -- see
+        counterexample_or_mutation for the exact cheap computation that
+        settles it. If it holds, the control had almost no power to detect
+        planted-yield packaging at this cell, and the observed "R did not
+        move" is the predicted outcome under BOTH hypotheses.
+    Q2_no_synthetic_shortcut:
+      verdict: PASS
+      finding: >-
+        compute_live_plant_companion (lines 1901-1945) contains no synth_R,
+        no synth_Rn, no hardcoded True, and no `or` fallback. Its detection is
+        exactly `detected = bool(fake_R < 0.5 and fake_R_null < 0.9)` (line
+        1936) computed from fake_cost_split = cost_split/4.0 and
+        fake_cost_split_null = cost_split_null/4.0 (lines 1932-1933), both
+        taken from this run's own measured costs. I re-derived every published
+        number from the four committed wall times and confirmed exact
+        agreement (see verified_arithmetic). The forbidden path
+        (`synth_R, synth_Rn = 0.05, 0.05` OR'd in, line 1018-1020) lives only
+        in execute_cell's do_planted branch and is not reachable from
+        mode_ctrl_unplanted (do_planted is not a parameter of
+        execute_ctrl_cell). CTRL-RT025-UNPLANTED's prohibition is honoured.
+      but: >-
+        Passing Q2 is what EXPOSES the failure in Q4. The synthetic shortcut
+        was the only thing making CTRL-NULL-PLANT ever report a pass; removing
+        it revealed a control with zero power. See Q4.
+    Q3_backend_truthfulness:
+      verdict: PASS_ON_IDENTITY_WITH_THREE_DIVERGENCES_AND_ONE_MISLEADING_NAME
+      finding: >-
+        I verified the additive claim myself rather than accepting
+        CORR-20260731-463: `diff` of 61cd5262^ against the first 1586 lines of
+        61cd5262 is EMPTY, and the full diff shows exactly two deleted lines,
+        both CLI wiring in main() (the --mode choices list, and
+        `if args.mode != "finalize"` -> `if args.mode not in ("finalize",)`).
+        naive_search, split_search, build_claw_table, charge_backend_units,
+        null_naive_search, null_split_search, cost_from_wall, bootstrap_ci,
+        run_rho, run_bsgs and BACKEND_ID are byte-identical. mode_measure
+        (line 1358) and mode_ctrl_unplanted (line 2082) both pass
+        smoothness_abort=False, so the split arm's filtering behaviour matches
+        too. BACKEND_ID is truthful as an identifier of the search code.
+      divergence_1: >-
+        harvest_real_unplanted omits harvest_real's `if attempts >
+        relations_target*50 and n_usable == 0: break` bail. DISCLOSED in the
+        execution report and defensible; inert here (yield was 1.0).
+      divergence_2: >-
+        harvest_null_arm omits harvest_null's `if tag > relations_target*80
+        and n_usable == 0: break` bail, while its docstring (line 1668)
+        asserts "unmodified logic". THAT DOCSTRING IS FALSE. Inert at this
+        cell, but it is an inaccurate claim about the exact property under
+        review, written by the producer, in the file under review.
+      divergence_3: >-
+        Cell wall budget differs by 80x between the packages being compared
+        (planted matrix ran --cell-wall 90 => per_arm_budget 22.5s; the ctrl
+        ran --cell-wall 7200 => per_arm_budget 1800s). No arm truncated at
+        either setting in this cell, so it is inert HERE, but it means the two
+        packages do not share a truncation regime and R values from cells that
+        DID truncate are not comparable across them.
+      misleading_name: >-
+        BACKEND_ID advertises "+charged-units-v1". `backend_units` is
+        accumulated in AttemptResult by every search function and is NEVER
+        READ into any reported metric, in either package (grep: only
+        definition sites and the dataclass field). R and R_null are pure
+        wall-clock ratios. The charged-unit cost model contributes exactly
+        zero to every headline number. The identifier is truthful about code
+        identity and misleading about what was measured.
+    Q4_the_control_did_not_pass:
+      verdict: FAIL -- HARNESS VOID; SUPPORTS NO READING OF R IN EITHER DIRECTION
+      contract_breach: >-
+        specification.v2.yaml line 329 (stopping_rules): "On CTRL-NULL-PLANT
+        failure, stop and report harness void (no mathematical negative)."
+        Line 247 (CTRL-NULL-PLANT): "pass_condition: Detection flag true;
+        otherwise harness void." Line 180: "If not detected, the harness is
+        void for sub-birthday claims." PA-DS-001-v2-ctrl-unplanted's
+        non_changes explicitly does NOT change these criteria, and
+        CTRL-RT025-PLANT-LIVE is the repaired instantiation of exactly this
+        control (amendment discharges[1]). planted_bug_detected is false.
+        The run is nevertheless recorded status=completed_valid,
+        result.valid=true, and the execution report asserts
+        protocol_complete: true, data_quality: good, requires_rerun: false.
+        The words "harness void" appear nowhere in the package.
+      the_instrument_level_omission: >-
+        mode_impl enforces this rule in code -- `if cell.planted_bug_detected
+        is False: logs.append("CTRL-NULL-PLANT failed detection - harness void
+        per stopping_rules"); status = "invalid_measurement"`. The
+        producer-authored mode_ctrl_unplanted (lines 2070-2349) has NO
+        equivalent branch: status is taken from cell.status and downgraded
+        only on a failed rho certificate (lines 2106-2117). THE NEW MODE
+        DROPPED THE ONE GUARD THE PRE-EXISTING MODE APPLIES TO THIS EXACT
+        OUTCOME. This is the single most consequential line-level finding in
+        the package.
+      the_producers_explanation_attacked: >-
+        The producer's account -- R_null=112.1 is so far above 0.9 that a 4x
+        inflation cannot cross the threshold -- is ARITHMETICALLY CORRECT
+        (112.105/4 = 28.026, verified) AND IS AN INDICTMENT, NOT A DEFENCE. It
+        says the control has no power. Detection requires R_null < 3.6.
+        Across the 54 committed planted cells R_null spans [80.405, 189.133]
+        and NOT ONE cell is below 3.6; adding this run makes 55 measurements
+        in which the detector COULD NOT HAVE FIRED. A positive control that
+        cannot fire anywhere in the corpus is not a control. Re-running will
+        not discharge it; only a redesigned plant can.
+      the_deeper_design_defect: >-
+        (a) The plant is injected into the SUMMARY ARITHMETIC, not the
+        measurement pipeline: compute_live_plant_companion divides two
+        already-computed cost scalars by 4 and re-evaluates the gate. Even a
+        POSITIVE result would have verified only that `a/4 < a`. It exercises
+        no line of harvest_real_unplanted, naive_search, split_search, the
+        timer, or the relation counter -- i.e. none of the code that could
+        actually be wrong. (b) The detector IS THE GATE: `fake_R < 0.5 and
+        fake_R_null < 0.9` is literally the F2 rule (lines 1869, 1936). A
+        positive control must have a detection statistic INDEPENDENT of the
+        statistic it validates; this one asks the metric to audit itself.
+      the_false_mitigation: >-
+        The execution report states "the sibling RUN-DS-001-impl cell,
+        bits=16, DID detect its plant". CHECKED AND FALSE. RUN-DS-001-impl's
+        committed raw-result records note "CTRL-NULL-PLANT fake_R=0.383747
+        fake_R_null=20.0654 real_R=1.5349871196116178 detected=True". Under
+        the honest live rule that is fake_R<0.5 TRUE and fake_R_null<0.9
+        FALSE, i.e. NOT DETECTED. The True came from execute_cell lines
+        1011-1020: a packaging-echo fallback `abs(fake_R - R/4) < 1e-9 and
+        fake_R < R`, which is a TAUTOLOGY because fake_R is DEFINED as
+        (cost_split/4)/cost_naive = R/4 (0.383747 = 1.5349871.../4 exactly),
+        OR'd with `synth_detected` from the hardcoded `synth_R, synth_Rn =
+        0.05, 0.05`, which is unconditionally True. RUN-DS-001-impl would have
+        reported detected=True for ANY input whatsoever.
+      consequence: >-
+        CTRL-NULL-PLANT has never once been honestly satisfied in EXP-DS-001.
+        The ctrl-unplanted run is the FIRST honest evaluation of it, and it
+        failed. Under the frozen contract the harness is void for the claim R
+        is used to support. Symmetrically -- and this is where I decline to
+        overclaim -- a void harness is an instrument-integrity failure, so it
+        is NOT evidence that the split arm is slow, NOT evidence that
+        packaging explains the planted result, and NOT a mathematical negative
+        against H-DS-001 (AGENTS rule 5). NO reading of R survives that
+        depends on the companion control having discharged. The one reading
+        that survives is the cross-package comparison, because it does not
+        depend on the plant at all -- and it is separately noise-limited (Q5).
+    Q5_ci_anomaly:
+      verdict: CONFIRMED, MECHANISM IDENTIFIED, AND FATAL TO THE S1 CI CONJUNCT
+      reproduction: >-
+        I recomputed the anomaly rate myself from the committed measure
+        raw-result: 41 of 54 cells have R outside [R_ci_lo, R_ci_hi]. The task
+        card's figure is correct. (Note results/R_table.json carries R_ci=null
+        for every cell, so the anomaly is only visible in
+        runs/RUN-DS-001-measure/raw-result.json -- the summarised table hides
+        it.)
+      mechanism: >-
+        THE CI IS A CONFIDENCE INTERVAL FOR A DIFFERENT ESTIMAND. R is a
+        RATIO OF AGGREGATES: with n_usable equal in both arms, R =
+        wall_split/wall_naive exactly (verified: 0.5380101690000174 /
+        14.719122020999976 = 0.03655178401486385, the published value to all
+        printed digits). The bootstrap (lines 1836-1846, identical to
+        execute_cell lines 927-938) draws INDEPENDENT per-relation times
+        ws~samples_s, wn~samples_n and bootstraps the MEAN OF THE RATIOS
+        E[ws/wn]. For independent skewed positives Jensen gives
+        E[ws/wn] = E[ws]E[1/wn] >= E[ws]/E[wn], with the gap growing in the
+        left tail of wn -- and wn's left tail is exactly what a first-hit
+        search produces (targets found in the first few enumerations cost
+        microseconds). So R < CI_lo is SYSTEMATIC, not stochastic; the 41/54
+        rate is the signature, not a coincidence. Two further defects compound
+        it: the ratio is UNPAIRED (naive and split arms consume DIFFERENT
+        targets from the shared rng, lines 1771 and 1786 -- 200 draws each
+        from one stream), and R's numerator includes the claw-table build and
+        all failed-attempt time (wall_split = perf_counter() - tb0, line 1790)
+        while samples_s excludes both.
+      consequence: >-
+        THERE IS NO UNCERTAINTY ESTIMATE FOR R ANYWHERE IN THIS PACKAGE. Every
+        downstream reading of R is an uncalibrated point estimate. Concretely:
+        (i) CTRL-RT025-UNPLANTED's packaging_falsification_rule requires
+        "bootstrap CI HONESTLY excluding 0.5 from above" -- [0.108, 0.415]
+        formally lies below 0.5, but a CI that does not contain its own
+        estimate is not honest, so that conjunct is NOT met; (ii)
+        specification.v2.yaml's S1 requires "enough relations for a bootstrap
+        CI excluding 0.5 from above" -- likewise not met; (iii)
+        calibration_perturbation_sign_stable=true is computed FROM this CI
+        (lines 1853-1859: `ci_excludes = hi < 0.5 or lo > 0.5`), so
+        CTRL-BACKEND-IDENTICAL's sign-stability flag inherits the defect and
+        carries no information either.
+      empirical_noise_floor_the_package_never_states: >-
+        The null arms do BIT-IDENTICAL deterministic work in both packages
+        (same seed/bits/B/m, per-tag RNG seeded from _seed_int(seed,
+        "null_naive_<tag>")). Their measured ratio nevertheless moved from
+        R_null=100.858 (planted) to 112.105 (ctrl): an 11.2% shift on
+        identical work. R moved from 0.03404 to 0.03655: 7.4%. THE OBSERVED
+        CHANGE IN R IS SMALLER THAN THE INSTRUMENT'S OWN DEMONSTRATED
+        REPRODUCIBILITY ERROR. Nothing in the package quantifies this.
+    Q6_r1_label:
+      verdict: MECHANICALLY CORRECT, SUBSTANTIVELY VACUOUS, CORRECTLY SCOPED IN PROSE
+      derivation_check: >-
+        Lines 1868-1876 apply the identical rule to execute_cell lines
+        981-989. R=0.036552 < 0.5 and R_null=112.105 >= 0.9 gives
+        "S1_eligible_on_null_axis". Correctly derived. The package's own prose
+        (summary.json note, execution report observation 1) correctly says a
+        single cell cannot be S1 because the spec requires >=2 distinct bit
+        sizes. That scoping is honest and I do not challenge it.
+      the_label_is_vacuous_on_the_axis_it_names: >-
+        "on_null_axis" asserts that the null control did not echo the effect.
+        But R_null >= 0.9 held in 54 of 54 planted cells and here, with a
+        minimum of 80.4 -- almost two orders of magnitude above the threshold.
+        The label therefore carries exactly one bit, "R < 0.5", and NOTHING
+        about the null axis. 43 of 54 planted cells carry the same label; zero
+        cells anywhere are F2_eligible. A gate that no measurement has ever
+        come within 89x of tripping has not been tested.
+      why_R_null_is_not_a_null_of_R: >-
+        The real split arm builds the claw table ONCE PER CELL and amortises
+        it over 200 targets (lines 1782-1789). The null split arm rebuilds its
+        table FROM SCRATCH FOR EVERY TARGET: null_split_search line 648 sets
+        left_samples = min(20000, max(B^2, B*10)) = 4096 and fills the table
+        inside the per-target call (lines 649-654), while null_naive_search
+        finds a hit after ~1/(1/64) = 64 random samples (null_full_hit line
+        555: modulus = max(B^(m//2-1),2) = 64). R_null ~ 112 is therefore
+        dominated by an AMORTISATION MISMATCH AND A HIT-DENSITY MISMATCH
+        (1/64 vs ~128/2^19) between the null and real pipelines, not by
+        structure destruction. THE NULL OBJECT IS NOT SHAPE-MATCHED
+        (docs/inventor-protocol.md requires the identical measurement on a
+        null object of the same shape). R_null is a statistic about the null
+        implementation, and R_null >= 0.9 is a near-deterministic property of
+        that implementation.
+      what_the_other_S1_conjuncts_do: >-
+        Full S1 also requires >=2 bit sizes (1 here), a bootstrap CI excluding
+        0.5 from above (defective, Q5), CTRL-NULL-PLANT detected (false, Q4),
+        and CTRL-BACKEND-IDENTICAL (its flag derives from the defective CI).
+        Three of the four fail. The label must never be quoted without them.
+
+  objections:
+    - id: OBJ-1
+      severity: BLOCKING
+      title: Run is recorded completed_valid in violation of the frozen stopping rule for a failed CTRL-NULL-PLANT
+      evidence: >-
+        specification.v2.yaml lines 180, 247, 329; live_plant_report.json
+        planted_bug_detected=false; manifest.json status=completed_valid,
+        result.valid=true; execution_report.yaml executor_assessment
+        protocol_complete=true. mode_ctrl_unplanted (lines 2070-2349) contains
+        no invalidation branch, where mode_impl does.
+      requested_disposition: >-
+        Coordinator records the run as HARNESS VOID for any sub-birthday /
+        cost-saving reading of R, with an explicit statement that this is an
+        instrument-integrity failure and NOT a mathematical negative on
+        H-DS-001 (AGENTS rule 5). Do not overwrite the immutable manifest;
+        supersede with a correction record.
+    - id: OBJ-2
+      severity: BLOCKING
+      title: The cited precedent for a working CTRL-NULL-PLANT is a tautology plus a hardcoded constant
+      evidence: >-
+        execute_cell lines 1011-1020; RUN-DS-001-impl raw-result note
+        "fake_R=0.383747 fake_R_null=20.0654 ... detected=True", where
+        0.383747 = 1.5349871196116178/4 exactly, so the fallback predicate is
+        identically true, and synth_R=synth_Rn=0.05 makes synth_detected
+        unconditionally true.
+      requested_disposition: >-
+        Strike the mitigation from the interpretation record. Note in the
+        ledger that CTRL-NULL-PLANT has no honest pass anywhere in EXP-DS-001,
+        which retroactively removes it as a discharged control for the planted
+        package (EV-DS-002) as well. This is a statement about a control, not
+        a re-scoring of EV-DS-002's measurements, which is the Coordinator's.
+    - id: OBJ-3
+      severity: BLOCKING
+      title: The live plant has structurally zero power and cannot be discharged by re-running
+      evidence: >-
+        Detection requires fake_R_null = R_null/4 < 0.9, i.e. R_null < 3.6.
+        Observed R_null across 54 committed planted cells: [80.405, 189.133];
+        this run: 112.105. 0 of 55 measurements are in the detectable region.
+      requested_disposition: >-
+        CTRL-RT025-PLANT-LIVE must be REDESIGNED, not re-run. Requirements in
+        required_controls RC-1.
+    - id: OBJ-4
+      severity: MAJOR
+      title: R has no valid uncertainty estimate and the CI defect propagates into two contract conjuncts
+      evidence: >-
+        41/54 cells (recomputed by me from RUN-DS-001-measure/raw-result.json)
+        plus this cell; mechanism at lines 1836-1846 (mean-of-ratios vs
+        ratio-of-aggregates, unpaired, table-build excluded from the samples
+        but included in R); CTRL-RT025-UNPLANTED
+        packaging_falsification_rule and specification.v2.yaml S1 both require
+        an honest CI excluding 0.5.
+      requested_disposition: >-
+        No decision may cite R_bootstrap_ci_95. Fixing the estimator is a
+        frozen-cost-model amendment, correctly outside Executor authority --
+        the Executor was right to reproduce rather than silently correct it.
+    - id: OBJ-5
+      severity: MAJOR
+      title: The null object is not shape-matched, so R_null cannot serve as the artifact control for R
+      evidence: >-
+        Real split arm builds the claw table once per cell (lines 1782-1789);
+        null split arm rebuilds a 4096-entry table per target inside
+        null_split_search (lines 647-654); null hit density 1/64 (line 555)
+        vs real hit density ~128/|E| ~ 1.2e-4. Different algorithm, different
+        amortisation, different density.
+      requested_disposition: >-
+        Treat R_null >= 0.9 as an uninformative constant of the harness, not
+        as evidence of structure dependence. A shape-matched null must run the
+        SAME code path with the curve replaced by a random-function object of
+        matched hit density and matched table amortisation.
+    - id: OBJ-6
+      severity: MAJOR
+      title: No decomposition certificate for 800 claimed relations; the in-search check is not independent
+      evidence: >-
+        docs/claims-and-verification.md: "Every run that claims a solve or a
+        relation MUST emit a certificate, and the run wrapper MUST re-verify
+        it with code independent of the solver before marking the run
+        completed_valid ... verifier: independent-recompute -- NOT the
+        solver's own code path." The only certificate emitted is kind
+        discrete_log for the rho baseline (k=43), which certifies nothing
+        about any relation. The re-verification the package points to
+        (`point_sum(E, found_rel) != T`) is INSIDE naive_search line 349 and
+        split_search line 515 -- the solver's own code path. No target and no
+        summand list is retained in raw-result.json, so no independent
+        re-verification is possible after the fact. The manifest certificate
+        also omits the schema's curve_id, statement and verifier_commit.
+      requested_disposition: >-
+        The relation counts are self-reported, not certified. Sibling
+        precedent (RUN-DS-001-impl/measure/heur) is cited by the producer as
+        justification; precedent is not compliance. Any evidence record must
+        set proof_status empirical_only for the yield figures.
+    - id: OBJ-7
+      severity: MAJOR
+      title: Cross-package comparison is confounded by OS, ISA and interpreter change, and the memory field is unit-inconsistent
+      evidence: >-
+        Planted matrix environment.json: macOS-26.6-arm64, Python 3.12.8.
+        This run: Linux-6.18.5-x86_64, Python 3.11.15. On macOS
+        resource.ru_maxrss is BYTES; on Linux it is KILOBYTES. Lines 1793-1799
+        (and 903-909) take max(entries*64, ru_maxrss) -- a max over two
+        incommensurable quantities. Planted cells report 67-104 million
+        (macOS bytes ~= 67-104 MB); this run reports 528384, which is exactly
+        entries*64 = 8256*64, with ru_maxrss=62236 (Linux KB = 62 MB) losing
+        the max. The 64-bytes-per-entry constant is itself invented: a CPython
+        dict of tuples of point-tuples costs several hundred bytes per entry.
+      requested_disposition: >-
+        peak_rss_bytes_claw_table is unusable in this corpus and is NOT
+        comparable between the two packages. No memory-axis statement may be
+        made from EXP-DS-001 as it stands. See cost_model_challenges CMC-2.
+    - id: OBJ-8
+      severity: MODERATE
+      title: An unarchived second execution is cited as supporting evidence
+      evidence: >-
+        execution_report.yaml protocol_deviations: "re-ran the identical
+        command and revision into a scratch directory as a reproducibility
+        check ... R stayed in the approximately-0.03-0.04 band, R_null stayed
+        two orders of magnitude above 0.9", and executor_assessment: "one
+        separate, out-of-write-scope, scratch-directory reproducibility re-run
+        whose outputs were discarded". CTRL-RT025-UNPLANTED budget sets
+        maximum_runs: 1. The disclosure is honest and creditable, but
+        maximum_runs bounds RUNS, not writes, and AGENTS' artifact policy
+        requires every run to retain its command, stdout, raw results and
+        timings. A quantitative claim drawn from destroyed artifacts cannot be
+        checked by anyone.
+      requested_disposition: >-
+        Do not cite the scratch re-run in any decision. If reproducibility
+        evidence is wanted, it must be an archived run.
+    - id: OBJ-9
+      severity: MODERATE
+      title: The nominal `bits` axis does not order the instances by hardness, so the S1 ">=2 bit sizes" axis is uncontrolled
+      evidence: >-
+        generate_instance (harness/toycurve.py lines 190-196) takes the
+        LARGEST PRIME FACTOR of the first admissible curve order as the
+        subgroup order n. Extracted from the committed matrix (bsgs.n per
+        cell): bits=16 seed=101 n=311 (8.28 bits); bits=16 seed=103 n=12967
+        (13.66 bits); bits=20 seed=101 n=241 (7.91 bits); bits=20 seed=103
+        n=13903 (13.76); bits=24 seed=102 n=677 (9.40); bits=24 seed=101
+        n=358031 (18.45). THE CELL UNDER REVIEW HAS THE SMALLEST SUBGROUP IN
+        THE ENTIRE 54-CELL MATRIX -- a 7.91-bit DL instance, weaker than every
+        bits=16 cell.
+      requested_disposition: >-
+        Any future scaling claim must control the actual subgroup order (or
+        state that R is a property of |E| ~ 2^bits and that n is irrelevant to
+        it -- in which case assembled_E_proxy, which divides by log n, is
+        computed against the wrong group; see CMC-3).
+    - id: OBJ-10
+      severity: MODERATE
+      title: R behaves non-monotonically in the parameter that should control it
+      evidence: >-
+        Mean R over seeds from the committed planted matrix: bits=16 m=4 gives
+        R=0.073 at B=64, 0.535 at B=128, 5.301 at B=256; bits=20 m=4 gives
+        0.032, 0.035, 0.249; bits=24 m=4 gives 0.035, 0.016, 0.021. Enlarging
+        the factor base -- which should help a meet-in-the-middle -- makes the
+        split arm up to 73x WORSE at bits=16 and 8x worse at bits=20, then
+        helps at bits=24. This is the shape of a table-build/arm-budget
+        interaction, not of an algorithmic saving.
+      requested_disposition: >-
+        Per docs/inventor-protocol.md section 3, name in advance what R should
+        do as B and bits increase and test it, before any reading of R<0.5 at
+        one favourable (bits,B) corner.
+    - id: OBJ-11
+      severity: MINOR
+      title: A producer docstring asserts a false property about the code under review
+      evidence: >-
+        harvest_null_arm docstring (line 1668) says "unmodified logic" while
+        the function drops harvest_null's zero-yield bail-out.
+      requested_disposition: Correct by superseding note; no run impact here.
+
+  required_controls:
+    - id: RC-1
+      name: A positive control with real power and an independent detector
+      spec: >-
+        Inject the /4 (or /2) fault INSIDE the measurement pipeline -- e.g.
+        return wall_seconds/4 from split_search, or divide the split arm's
+        n_usable by 4 -- so the fault must traverse harvest, timing, counting
+        and cost assembly. Detect it with a statistic that is NOT the F2 gate:
+        the split arm's per-relation enumeration count, or an independently
+        recomputed cost from a second timer. PRE-REGISTER the detection
+        threshold and demonstrate, on the UNfaulted run, that the detector
+        does NOT fire (specificity) and, on the faulted run, that it DOES
+        (sensitivity). Without both arms the control is decoration.
+    - id: RC-2
+      name: Shape-matched null
+      spec: >-
+        Replace NULL-DS-RANDOM-MULTIHOMOGENEOUS with a null that runs THE SAME
+        code path: same build_claw_table called once per cell, same
+        split_search, same naive_search, with E.add replaced by a random
+        quasigroup operation of matched hit density. Target R_null ~ 1 as the
+        calibration sanity CTRL-NULL-RHO already demands. Until then R_null is
+        not a control.
+    - id: RC-3
+      name: Paired-target design and a CI for the estimand actually reported
+      spec: >-
+        Run both arms on THE SAME target list (one rng draw, both arms
+        consume it), and bootstrap the ratio-of-aggregates by resampling
+        TARGETS and recomputing sum(ws)/sum(wn) per replicate. This makes the
+        CI a CI for R. Report the table-build cost as a separate line rather
+        than folding it into the split numerator only.
+    - id: RC-4
+      name: Deterministic, timing-free primary metric
+      spec: >-
+        Report enumeration counts (n_enum) and charged backend_units, which
+        the code already computes and then discards, as the primary cost. They
+        are exactly reproducible, immune to the 11% cross-machine drift
+        measured in Q5, and would have made the macOS/Linux comparison valid.
+    - id: RC-5
+      name: Instrument provenance binding
+      spec: >-
+        Record sha256 of ds001_driver.py (and of harness/*.py) in the manifest.
+        sha256_file already exists at line 60 and is unused. Without it, a run
+        made on a dirty tree has no verifiable code binding, and every code
+        review of the instrument is a review of a file that MIGHT be the one
+        that ran.
+    - id: RC-6
+      name: Retain a verifiable sample of the claimed relations
+      spec: >-
+        Persist the target and summand coordinates for a random sample (e.g.
+        20 per arm) so verify_certificates.py can re-check them from outside
+        the solver, as docs/claims-and-verification.md requires.
+
+  counterexample_or_mutation:
+    cheapest_falsification_of_the_unplantedness_claim:
+      what: >-
+        Two-part, both cheap. PART A (provenance, seconds): recompute
+        sha256(ds001_driver.py at 61cd5262) and compare it to a hash recorded
+        at run time -- IMPOSSIBLE TODAY, because no such hash exists (RC-5).
+        The honest substitute is a re-execution of the committed file at a
+        clean tree with the same command, checking that the DETERMINISTIC
+        quantities reproduce exactly (n_usable_*, attempted_* = 200/200/200/269,
+        fb_x_hash 697365f1..., null_object_spec_hash d501f75e...). Any
+        mismatch proves the committed file is not the file that ran.
+        PART B (substance, under a minute of CPU, and this is the one that
+        matters): enumerate all C(130,3)=357,760 index-nondecreasing triples
+        of the 128 signed factor-base points ONCE for this exact cell,
+        histogram the partial sums, then for each of the 241 elements T of
+        <P> count representations as sum over q in S of hist[T-q]. This
+        yields, EXACTLY and without any timer, (i) the representation-count
+        distribution for unplanted targets, (ii) the same for planted targets
+        (T = sum of 4 signed FB points), and therefore (iii) the true effect
+        size of planting on search difficulty at this cell.
+      what_it_would_falsify: >-
+        If unplanted targets have order-tens of representations, then planting
+        adds a few percent, THE CONTROL HAD ALMOST NO POWER, and "R did not
+        move" is the prediction of BOTH hypotheses -- the control discriminates
+        nothing and CTRL-RT025-UNPLANTED is not discharged on the merits even
+        setting Q4 aside. If instead unplanted targets typically have zero or
+        one representation, the control had real power and its negative result
+        on the packaging branch is meaningful. THE PACKAGE DOES NOT KNOW WHICH
+        WORLD IT IS IN, and neither do I -- my estimate says the former, but I
+        did not run it.
+      can_BATCH_021_run_it: >-
+        NO. TASK-20260801-002 authorises no run: my write_scope is
+        coordination/.../reviews/TASK-20260801-002 only, executing the
+        instrument is the Executor's role, and a measurement produced by the
+        Red Team would be exactly the producer-reviews-own-instrument failure
+        this task exists to correct. It needs a new scoped Executor task
+        under a control protocol. I deliberately executed no instrument code
+        and produced no new measurement; every number in this report is
+        either re-derived arithmetic from committed values or a direct
+        recount of committed JSON, and each is labelled as such.
+    other_cheap_discriminating_mutations:
+      - >-
+        Swap the target sampler to k drawn from a 16-element subset of [1,n-1]
+        and re-measure: if R is unchanged, R is insensitive to the target
+        distribution altogether and cannot be discriminating any target-mode
+        hypothesis.
+      - >-
+        Set relations_target=200 but shuffle the enumeration order of `signed`
+        with a second seed. R should be invariant; if it moves by more than
+        the 11% noise floor, the metric is dominated by enumeration order.
+      - >-
+        Report n_enum instead of wall_seconds for the same run. If R computed
+        on n_enum differs materially from R computed on wall, the wall metric
+        is measuring interpreter constants.
+
+  baseline_comparison:
+    pollard_rho:
+      source: This run's own CTRL-RHO, same instance, same process, R_cell.json
+      numbers: >-
+        rho solved the cell's ECDLP outright: k=43, 744 total group
+        operations, wall 0.0012359719999 s, certificate_verified true. The
+        naive arm spent 14.719 s and the split arm 0.538 s merely to HARVEST
+        200 decompositions, having solved nothing.
+      verdict: >-
+        Pollard rho dominates the entire measured pipeline by roughly 3-4
+        orders of magnitude in wall clock ON THE IDENTICAL INSTANCE IN THE
+        IDENTICAL PROCESS, before any linear algebra, rank check, source
+        recovery or descent is charged -- none of which exists anywhere in
+        EXP-DS-001. Charged in group operations the gap is larger still: 744
+        ops total for the solve.
+    bsgs:
+      numbers: >-
+        run_bsgs is MODELLED, not measured (group_operations_label
+        "modeled"): 2*ceil(sqrt(241)) = 32 group operations, 16 stored
+        elements, for the same instance.
+      verdict: >-
+        BSGS also dominates on both axes. Note that this is a modelled figure
+        and is labelled as such by the driver -- correctly.
+    closest_specialized_baseline:
+      statement: >-
+        The relevant specialised baseline for a claw/meet-in-the-middle over a
+        factor base is plain MITM with van Oorschot-Wiener time-memory
+        interpolation. R ~ 0.037 at this cell is approximately the ratio of
+        enumerated objects (pairs ~ 8256 vs triples ~ 357,760, ratio 0.023),
+        i.e. the split arm is recovering the textbook MITM bookkeeping factor
+        and nothing else, PAID FOR WITH A TABLE. The memory it costs is
+        precisely the axis that this corpus does not measure (OBJ-7).
+      verdict: >-
+        On the evidence committed, the split arm is a time-memory trade with
+        an unpriced memory leg, not a saving.
+    dominated_by:
+      value: ["pollard_rho (time, on the tested instance, measured in-run)", "bsgs (time and memory, modelled, same instance)", "plain MITM/vOW (the claimed saving is the MITM enumeration ratio with memory uncharged)"]
+      must_not_be_null: >-
+        The run package itself carries no dominated_by/sota_delta field, which
+        is correct for a run receipt. But if any downstream ideation, closure,
+        evidence or synthesis record derived from this run sets dominated_by:
+        null, that is a fabrication under AGENTS rule 5: the memory axis has
+        never been measured in usable units (OBJ-7), the data/query axis has
+        never been considered, and the time axis is dominated in-run by rho.
+      eliminated_dimension_check: >-
+        Per KN-LIT-7593, the claw table eliminates one enumeration dimension
+        and its own construction cost MUST be charged. Credit where due: it IS
+        charged into wall_split (line 1790 measures from tb0, before the
+        build). Its MEMORY is not charged in any usable unit.
+    sota_delta: >-
+      Negative. No configuration measured in EXP-DS-001 approaches
+      Pollard-rho on the same instance; assembled_E_proxy = 1.5165 exceeds
+      rho's 0.5 exponent by the package's own proxy formula.
+
+  heuristic_challenges:
+    - id: HC-1
+      challenge: >-
+        No numbered heuristic is stated or tested by this run. HEUR-DS-1 was
+        explicitly not re-run (CTRL-RT025-UNPLANTED scope.heursampling). The
+        package therefore contributes NOTHING to the exponent-first,
+        heuristic-conditional profile of docs/target-result-profile.md, and
+        nothing in it may be cited toward a smoothness or exponent narrative.
+        Stated so the absence is not later mistaken for silent support.
+    - id: HC-2
+      challenge: >-
+        The implicit, unnumbered, load-bearing heuristic of the WHOLE
+        comparison is that a uniform random element of the order-241 subgroup
+        <P> behaves like a uniform random element of E(F_p) with respect to
+        decomposability over a factor base of 128 signed points chosen by
+        lift_x from pseudorandom x-coordinates. THAT IS EXACTLY THE
+        "structured object is not a uniform random integer" transfer failure
+        the Red Team contract asks about: <P> is 241 points out of ~2^19-2^20,
+        a set of measure ~2^-11. The cheapest exposure is PART B of
+        counterexample_or_mutation, which computes the representation count
+        for all 241 elements of <P> exactly and compares it to the ambient
+        mean. Nothing in the package tests it.
+    - id: HC-3
+      challenge: >-
+        Random-model transfer for the null: NULL-DS-RANDOM-MULTIHOMOGENEOUS is
+        justified as "structure destruction", but its hit density (1/64) and
+        its per-target table rebuild make it a different computation, not a
+        structure-free version of the same one (OBJ-5). A null object must
+        differ from the real object in EXACTLY the property under test.
+
+  cost_model_challenges:
+    - id: CMC-1
+      challenge: >-
+        R is a PYTHON WALL-CLOCK RATIO, nothing more. rho_gop_per_second
+        appears in both numerator and denominator and cancels identically
+        (verified: R = wall_split/wall_naive to all printed digits), so the
+        "in rho group operations" framing of cost_identities conveys no
+        normalisation whatsoever for R or R_null. It normalises only the
+        absolute cost_* scalars -- and those are calibrated against rho on a
+        241-element subgroup while the search itself lives in E(F_p) of size
+        ~2^19-2^20, two unrelated problem sizes.
+    - id: CMC-2
+      challenge: >-
+        MEMORY, THE AXIS THE METHOD SPENDS, IS UNMEASURED AND
+        UNIT-INCONSISTENT. entries*64 is an invented per-entry constant;
+        ru_maxrss is bytes on the macOS package and kilobytes on this Linux
+        run; the two are combined under max(). Across the planted matrix
+        peak_rss_bytes_claw_table is essentially constant in B (67-104 million
+        at every B), i.e. it is tracking process RSS and not the table at all.
+        No time-memory tradeoff, no vOW interpolation, and no per-entry
+        constant has been computed anywhere in EXP-DS-001.
+    - id: CMC-3
+      challenge: >-
+        assembled_E_proxy = max(beta*m/2, 2*beta, beta) with beta =
+        log(B)/log(n) uses n = SUBGROUP ORDER = 241, giving beta = 0.7583 and
+        E_proxy = 1.5165 (I reproduced both). But the decomposition search
+        runs in E(F_p) with ~2^19-2^20 elements, so the size parameter in beta
+        is off by more than a factor of two in the exponent's denominator.
+        Whatever E_proxy means, it is computed against the wrong group -- AND
+        EVEN SO IT REPORTS 1.5165 AGAINST RHO'S 0.5, i.e. the package's own
+        proxy says the assembled method is worse than the baseline by a wide
+        margin. Nothing in the package draws that conclusion out loud.
+    - id: CMC-4
+      challenge: >-
+        Total cost is never computed as per-attempt cost x inverse success
+        probability, because at this cell success probability is 1.0 in both
+        arms and the question is invisible. That makes the cell the WORST
+        possible place to validate the cost bookkeeping: the factor the
+        bookkeeping exists to handle is exactly 1 here. Any cell where yield
+        < 1 (e.g. attempted_split_null=269 for 200 successes on the null
+        split arm, a 0.743 success rate that IS recorded and IS NOT charged
+        into any reported cost) would have exercised it.
+    - id: CMC-5
+      challenge: >-
+        The charged-unit model (charge_backend_units, BACKEND_ID
+        "+charged-units-v1") is computed and discarded. The instrumentation
+        that computes it is itself charged asymmetrically into the wall clock:
+        naive_search calls charge_backend once PER ENUMERATED TRIPLE (line
+        311), split_search once PER RIGHT-TUPLE key lookup (line 493), not per
+        candidate. Since R is a wall ratio, the measurement apparatus is
+        inside the measurement.
+    - id: CMC-6
+      challenge: >-
+        25.2 s wall clock BOUNDS ONLY the elapsed time of this one 20-bit
+        four-arm cell on this one Linux container, with a 7200 s ceiling never
+        approached. IT BOUNDS NOTHING ELSE: not the cost of the tested method
+        at any other (bits, B, m), not a yield rate at any other scale, not
+        any asymptotic, and not the cost of the ECDLP the cell contains (rho
+        did that in 1.24 ms). CREDIT WHERE DUE: I looked for a smuggled cost
+        or asymptotic claim in the manifest, summary.json, R_cell.json,
+        null_control_report.json, live_plant_report.json and the execution
+        report, and I did not find one -- every document says observation
+        only, toy tier, no asymptotic support, does not supersede EV-DS-002,
+        H-IC-001/H-STR-002 untouched. The 25.2 s figure is reported as a
+        timing fact, not as a cost result. THE SMUGGLING RISK IS DOWNSTREAM,
+        in whatever record cites "all four arms reached 200/200 in 25 s" as
+        though it were a yield or throughput result.
+
+  reduction_and_scope_challenges:
+    - id: RSC-1
+      challenge: >-
+        THE END-TO-END PATH DOES NOT EXIST. EXP-DS-001 measures relation-SEARCH
+        cost only. There is no relation matrix, no rank check, no linear
+        algebra, no source recovery, no target descent, and no scalar
+        orientation anywhere in the driver. A ratio between two relation-search
+        arms cannot become an ECDLP statement without all of them.
+    - id: RSC-2
+      challenge: >-
+        WORSE: the "relations" may not be relations. build_factor_base
+        (harness/semaev.py lines 60-73) selects on-curve x-coordinates over
+        E(F_p) with no constraint to <P>, while targets are T = k*P inside the
+        order-241 subgroup. A decomposition of T into four signed points of
+        E(F_p) whose discrete logarithms base P are unknown -- and which
+        generically lie OUTSIDE <P> -- carries no index-calculus information
+        about k. As a cost proxy for a Semaev membership step this is
+        defensible; as "usable relations" it is a word doing more work than
+        the object supports. I flag this as PRE-EXISTING and shared with the
+        planted package, not introduced by the ctrl mode.
+    - id: RSC-3
+      challenge: >-
+        Scope inflation check: I looked for affected-scheme language and found
+        none. The package correctly and repeatedly self-limits to toy tier,
+        one cell, observation only, no supersession, no hypothesis movement.
+        THAT SELF-LIMITATION IS ACCURATE AND I DO NOT CHALLENGE IT. The scope
+        risk in this batch is not the producer's prose; it is the label
+        "S1_eligible_on_null_axis" travelling downstream without its four
+        failed conjuncts (Q6).
+    - id: RSC-4
+      challenge: >-
+        Claim tier: bits=20 gives toy under docs/claims-and-verification.md
+        (<= 32 bits), and the actual DL parameter is 7.91 bits (OBJ-9).
+        Nothing here reaches medium, let alone crypto, in any direction --
+        including any negative direction.
+
+  closure_discipline:
+    statement: >-
+      This report asserts NO closure. It does not claim the claw rewrite is
+      dead, that EXP-DS-001 is exhausted, or that H-DS-001 should be rejected.
+      Per docs/inventor-protocol.md section 4 a closure needs a named
+      obstruction, an argument and forward guidance; I name instrument
+      obstructions (OBJ-1..OBJ-11) that are all REPAIRABLE, and RC-1..RC-6 are
+      the forward guidance. A void harness is a statement about the
+      instrument, not about the mathematics, and treating it as a negative
+      result on H-DS-001 would be the exact symmetric failure to overclaiming.
+    what_remains_open: >-
+      Whether a degree-split claw actually saves anything on structured
+      targets is UNTESTED, because no measurement in this corpus has both a
+      working positive control and a shape-matched null. The question is
+      wide open and the cheapest route to a real answer is RC-4 (deterministic
+      enumeration-count metric) plus RC-2 (shape-matched null), which together
+      remove the two defects that make every current number unreadable.
+
+  narrowest_supported_statement: >-
+    At EXP-DS-001 cell bits=20, B=64, m=4, seed=101 (actual prime subgroup
+    order n=241, i.e. a 7.91-bit DL instance), with targets drawn as T = k*P
+    for k uniform in [1, n-1] and carrying no planted decomposition witness,
+    BOTH the naive and the degree-split membership searches found a signed
+    4-sum decomposition for 200 of 200 attempted targets (empirical success
+    probability 1.0 in each arm), and the measured wall-clock ratio
+    wall_split/wall_naive was 0.0366, compared with 0.0340 for the same cell
+    under planted targets in the committed planted matrix. The two differ by
+    7.4%, which is SMALLER than the 11.2% shift observed in the same
+    comparison's null arms, whose workload is bit-identical between the two
+    runs -- so this instrument cannot resolve the difference, and the honest
+    statement is: at this one cell, unplanting the targets produced no change
+    in R that this instrument can resolve, and did not collapse yield. That is
+    a scoped, toy-tier OBSERVATION about one 20-bit cell. It is NOT an S1
+    determination, NOT evidence of a structure-dependent saving, NOT evidence
+    that the split arm saves cost (rho solved the same instance in 744 group
+    operations and 1.24 ms in the same process), and NOT a mathematical
+    negative on H-DS-001. Because CTRL-NULL-PLANT/CTRL-RT025-PLANT-LIVE failed
+    and the frozen contract makes the harness void on that failure, EVEN THIS
+    OBSERVATION should be recorded as instrument-limited pending RC-1, and no
+    reading of R in either direction should be entered into the ledger as
+    evidence.
+
+  what_the_package_gets_right:
+    - >-
+      The unplanted sampler is genuinely unplanted and the live plant is
+      genuinely free of the forbidden synthetic shortcut. Both were the
+      point of the control, and both were implemented honestly.
+    - >-
+      The additive-only claim about the instrument is TRUE; I verified it by
+      diff rather than trusting CORR-20260731-463.
+    - >-
+      Every published number is internally consistent with the stated cost
+      identities; I re-derived cost_naive, cost_split, cost_naive_null,
+      cost_split_null, R, R_null, fake_R and fake_R_null from the four wall
+      times and rho's (744 ops, 0.0012359719999 s) and matched all eight to
+      full printed precision. NOTHING IS FABRICATED IN THIS PACKAGE.
+    - >-
+      planted_bug_detected=false was reported honestly when a hardcoded True
+      was available in the same file and had been used by a sibling run. That
+      is the opposite of the failure mode this review exists to catch, and it
+      is what made OBJ-2 findable at all.
+    - >-
+      The CI anomaly, the timing non-reproducibility, the missing /usr/bin/time,
+      the sympy install and the scratch re-run were all disclosed
+      unprompted, and the Executor correctly refused to "fix" the frozen
+      bootstrap estimator on its own authority.
+    - >-
+      Interpretation was withheld throughout; the package states observation
+      only, toy tier, no supersession, no hypothesis movement, at every level.
+
+  hidden_assumption_most_likely_load_bearing:
+    assumption: >-
+      THAT R IS A PROPERTY OF THE TWO ALGORITHMS RATHER THAN OF THE TWO PYTHON
+      IMPLEMENTATIONS AND THE MACHINE THEY RAN ON.
+    why_it_is_load_bearing: >-
+      Every gate in the contract (S1's R<0.5, F1's R>=0.9, F2's R<0.5 and
+      R_null<0.9) is a threshold on a raw CPython wall-clock ratio between two
+      hand-written search loops with different per-iteration instrumentation,
+      compared across a macOS/arm64/3.12 package and a Linux/x86_64/3.11 one.
+      The driver already computes an exactly reproducible, machine-independent
+      alternative -- n_enum and backend_units -- and throws it away.
+    why_it_is_unexamined: >-
+      Nothing in the package estimates the noise floor of R. The 11.2% shift
+      in R_null on bit-identical deterministic work is sitting in the
+      committed artifacts and is never computed; once computed it is larger
+      than the planted-vs-unplanted difference the control was run to detect.
+      A threshold at 0.5 on a quantity whose reproducibility is unstated is a
+      coin flip wherever R lands near the threshold -- and the entire
+      middle_band population of the planted matrix (5 of 54 cells) is the
+      (bits=16, B=128) block, whose six cells span R = 0.497 to 0.641 and
+      therefore STRADDLE the 0.5 gate: one cell falls on the S1 side by 0.003,
+      well inside the 11.2% drift measured above.
+
+  verified_arithmetic:
+    method: >-
+      Re-derivation from committed values only. No instrument code was
+      executed by this session.
+    checks:
+      - "rho_gop_per_second = 744 / 0.0012359719999039953 = 601955.3841493096"
+      - "cost_naive = 14.719122020999976 * 601955.384 / 200 = 44301.273752458015 (matches R_cell.json exactly)"
+      - "cost_split = 0.5380101690000174 * 601955.384 / 200 = 1619.2905897832022 (matches)"
+      - "cost_naive_null = 0.07283792299995184 * 601955.384 / 200 = 219.22589960036922 (matches)"
+      - "cost_split_null = 8.165517262000094 * 601955.384 / 200 = 24576.385401125426 (matches)"
+      - "R = 1619.2905897832022 / 44301.273752458015 = 0.03655178401486385 (matches manifest) = wall_split/wall_naive exactly"
+      - "R_null = 24576.385401125426 / 219.22589960036922 = 112.10530072371081 (matches)"
+      - "fake_R = R/4 = 0.009137946003715963 (matches live_plant_report.json); fake_R_null = R_null/4 = 28.026325180927703 (matches)"
+      - "detection needs fake_R_null < 0.9 i.e. R_null < 3.6; observed R_null across 54 planted cells in [80.405, 189.133]; 0 of 55 measurements detectable"
+      - "R outside its own R_ci in 41 of 54 cells of RUN-DS-001-measure/raw-result.json (recomputed, matches the task card)"
+      - "RUN-DS-001-impl: fake_R 0.383747 = 1.5349871196116178 / 4 exactly, so the packaging-echo detection predicate is a tautology"
+      - "assembled_E_proxy: beta = ln(64)/ln(241) = 0.75827; max(beta*2, 2*beta, beta) = 1.51654 (matches 1.5165130573805436 to printed precision)"
+      - "peak_rss_bytes_claw_table 528384 = 8256 entries * 64, i.e. the invented byte proxy, with ru_maxrss=62236 (Linux KB) losing the max()"
+      - "subgroup orders from bsgs.n: (16,101)=311, (16,102)=313, (16,103)=12967, (20,101)=241, (20,102)=2137, (20,103)=13903, (24,101)=358031, (24,102)=677, (24,103)=313"
+      - "driver diff 61cd5262^ -> 61cd5262: first 1586 lines byte-identical; exactly 2 deletions, both in main() CLI wiring"
+
+  could_not_verify:
+    - >-
+      THAT THE COMMITTED ds001_driver.py IS THE FILE THAT RAN. manifest.json
+      records dirty=true and no code hash exists. Everything in Q1-Q3 is a
+      review of the committed file under that assumption.
+    - >-
+      The execution report's claim that verify_certificates.py was "run
+      separately against the committed run directory (ok=true)". No output
+      artifact of that verification is in the committed set. UNVERIFIED --
+      not disputed, just unevidenced.
+    - >-
+      The scratch reproducibility re-run's reported band ("R stayed in
+      approximately 0.03-0.04"). Its artifacts were discarded. UNVERIFIABLE BY
+      ANYONE, now or later.
+    - >-
+      My representation-count estimate (tens of decompositions per unplanted
+      target at this cell) is an ANALYTIC ESTIMATE from |S|=128, C(130,3) and
+      |E| ~ 2^19-2^20. IT IS NOT A MEASUREMENT. The exact computation that
+      would settle it is named in counterexample_or_mutation PART B and was
+      deliberately not run by me.
+    - >-
+      Whether ru_maxrss on the macOS run was truly in bytes is inferred from
+      platform convention plus the magnitudes (67-104 million vs this run's
+      62236). Strongly indicated, not directly confirmed.
+    - >-
+      My reasoning-effort level. This harness exposes no control or readback
+      (see inference.degraded_requirements).
+
+  next_concrete_action: >-
+    ONE ACTION, FOR THE COORDINATOR AT TASK-20260801-003: record the
+    disposition of RUN-DS-001-ctrl-unplanted as HARNESS VOID under
+    specification.v2.yaml stopping_rules (failed CTRL-NULL-PLANT), explicitly
+    NOT as a mathematical negative on H-DS-001 and NOT as a supersession of
+    EV-DS-002, and enter only the narrowest_supported_statement above -- then
+    make the NEXT experimental task the redesign of the positive control
+    (RC-1: fault injected inside the measurement pipeline, detector
+    independent of the F2 gate, with BOTH a sensitivity and a specificity
+    demonstration), because until CTRL-NULL-PLANT can honestly fire, no
+    further R measurement at any cell is readable in either direction and
+    spending more budget on cells is spending it on an uncalibrated
+    instrument.
+
+  prohibitions_observed:
+    - No Executor receipt, Validator report, ledger record, hypothesis,
+      specification, amendment or control file was read-modified or written.
+    - No commit was made and nothing was staged; TASK-20260801-003 archives.
+    - No bounded failure was called an impossibility; no closure is asserted.
+    - No conditional result was rejected merely for being conditional.
+    - The only file written by this session inside the repository is this
+      report, at the single declared artifact path.
+    - No coordination with the concurrent Validator task occurred.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/reviews/TASK-20260801-002/red_team_report.yaml
+
+  inputs_read_at_61cd5262:
+    - experiments/EXP-DS-001/implementation/ds001_driver.py
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/manifest.json
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/raw-result.json
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stdout.txt
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/stderr.txt
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/command.txt
+    - experiments/EXP-DS-001/runs/RUN-DS-001-ctrl-unplanted/environment.json
+    - experiments/EXP-DS-001/results/ctrl_unplanted/summary.json
+    - experiments/EXP-DS-001/results/ctrl_unplanted/R_cell.json
+    - experiments/EXP-DS-001/results/ctrl_unplanted/null_control_report.json
+    - experiments/EXP-DS-001/results/ctrl_unplanted/live_plant_report.json
+    - experiments/EXP-DS-001/results/R_table.json
+    - experiments/EXP-DS-001/runs/RUN-DS-001-measure/raw-result.json
+    - experiments/EXP-DS-001/runs/RUN-DS-001-measure/command.txt
+    - experiments/EXP-DS-001/runs/RUN-DS-001-measure/environment.json
+    - experiments/EXP-DS-001/runs/RUN-DS-001-impl/raw-result.json
+    - experiments/EXP-DS-001/specification.v2.yaml
+    - experiments/EXP-DS-001/controls/CTRL-RT025-UNPLANTED.yaml
+    - experiments/EXP-DS-001/amendments/v2_ctrl_unplanted.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-020/tasks/TASK-20260731-044/execution_report.yaml
+    - harness/toycurve.py
+    - harness/semaev.py
+    - "(prior revision) 61cd5262^:experiments/EXP-DS-001/implementation/ds001_driver.py"
+  inputs_read_at_head:
+    - AGENTS.md
+    - agents/red-team.md
+    - docs/claims-and-verification.md
+    - docs/inventor-protocol.md
+    - ledger/corrections/CORR-20260731-463.yaml
+    - ledger/corrections/CORR-20260731-009.yaml
+    - ledger/corrections/CORR-20260731-010.yaml
+    - coordination/goals/GOAL-ECDLP-001/batches/BATCH-021/dispatch_queue.json

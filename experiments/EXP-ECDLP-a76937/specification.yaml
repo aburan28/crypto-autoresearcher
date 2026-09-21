@@ -1,0 +1,275 @@
+experiment:
+  id: EXP-ECDLP-a76937
+  hypothesis_id: H-ECDLP-80fceb
+  question_id: RQ-ECDLP-165d4b
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-ac2e6d
+  supersedes_experiment: EXP-ECDLP-51921d
+  version: 2
+  title: Fail-closed charged automorphism-quotiented Pollard-rho census
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  approved_by: null
+  approval_decision_id: null
+  objective: >-
+    Repair the rejected Arm-A contract by fixing certificate predicates,
+    deterministic paired controls, a complete cost model, a reconciled run
+    matrix, held-out statistics, stopping logic, and immutable artifact schemas
+    before any implementation or execution.
+  metrics:
+    primary:
+      - normalized_charged_work_W_div_sqrt_n
+      - held_out_paired_median_ratio_full_to_negation
+      - recovered_scalar_certificate_success
+    secondary:
+      - raw_operation_counter_vector
+      - wall_seconds
+      - peak_memory_bytes
+      - serialized_bytes
+      - retry_count
+      - cycle_failure_count
+      - descriptive_finite_size_slope
+  budget:
+    wall_clock_seconds_per_run: 180
+    total_cpu_hours: 4
+    maximum_memory_gb: 8
+    maximum_runs: 80
+  inputs:
+    source_scope: coordination/goals/GOAL-ECDLP-001/proposals/NON-INDEX-ECDLP-IV-20260808
+    superseded_specification: experiments/EXP-ECDLP-51921d/specification.yaml
+    field_arithmetic: >-
+      F_p short-Weierstrass E:y^2=x^3+a*x+b, p prime and p < 2^18 for direct
+      exhaustive toy point counting; all point encodings are fixed-width,
+      little-endian (p.bit_length()+7)//8 coordinates with 0xff as infinity.
+  certificate_schema:
+    instance_manifest_fields:
+      - instance_id
+      - seed
+      - role
+      - p
+      - p_primality_witness
+      - curve_a
+      - curve_b
+      - discriminant_nonzero_witness
+      - curve_order
+      - curve_order_count_method
+      - subgroup_order
+      - subgroup_primality_witness
+      - cofactor
+      - base_point_P
+      - base_point_order_certificate
+      - twist_order
+      - twist_cofactor
+      - non_anomalous_certificate
+      - embedding_degree
+      - automorphism_kind
+      - automorphism_formula
+      - automorphism_field_witness
+      - subgroup_eigenvalue_lambda
+      - eigenvalue_certificate
+      - effective_orbit_size
+      - stabilizer_certificate
+    acceptance_predicates:
+      - p is prime by deterministic Miller-Rabin bases [2,3,5,7,11,13,17] for p < 2^18
+      - 4*a^3 + 27*b^2 is nonzero modulo p
+      - exhaustive point count equals h*n, n is prime, h <= 4, and n.bit_length() >= p.bit_length()-2
+      - P is on E, nP=O, and P is not O
+      - twist count is independently enumerated, its cofactor is recorded, and the twist is not silently used as primary data
+      - #E != p and the smallest k in [1,12] with p^k mod n=1 does not exist
+      - automorphism formula maps E to E, is defined over F_p, preserves <P>, and its declared order is verified by composition
+      - lambda is the unique scalar in [0,n) satisfying phi(P)=lambda*P, checked by recomputation
+      - every stabilizer encountered by canonicalization is counted and charged; unexpected stabilizer aborts the primary row
+    rejection: >-
+      Any missing, malformed, inconsistent, or unverifiable field rejects the
+      row before a rho walk; rejected rows are infrastructure/invalidity records,
+      never mathematical negative evidence.
+  deterministic_generation:
+    prime_seed_register: [101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157]
+    candidate_function: >-
+      SHA-256(seed || role || field_bits || attempt) selects p from the next
+      prime in the declared field-bit interval and selects a,b from digest
+      words; attempts increment from zero and every rejection is retained.
+    source_family_rule: >-
+      For special-j source rows require p congruent to 1 modulo 3 for j=0 or
+      1 modulo 4 for j=1728, then apply all certificate predicates.
+    random_match_rule: >-
+      For each accepted source row, derive a separate control seed by
+      SHA-256(seed || source_instance_id || random-control), generate ordinary
+      curves with the same p and exact same n, and retain every candidate and
+      rejection until the first matching n is found or the fixed 256-attempt
+      limit records random_match_unavailable and invalidates that group.
+    target_rule: >-
+      For each source/control pair derive x = 1 + (SHA-256(seed || instance_id
+      || target) interpreted modulo n-1), set Q=xP, and store x only in the
+      independent certificate verifier input, never in the solver walk input.
+  controls:
+    - id: C-BASE
+      object: source curve
+      construction: unquotiented rho with the fixed three-way partition
+      expected_behavior: birthday-scale collision and valid scalar certificate
+    - id: C-NEG
+      object: source curve
+      construction: canonicalization by {+1,-1}, lambda=-1 certificate
+      expected_behavior: same target and partition semantics; negation baseline
+    - id: C-FULL
+      object: source curve
+      construction: canonicalization by the maximal verified subgroup generated by the declared phi and negation
+      expected_behavior: candidate mechanism; no result assumed
+    - id: C-RELABEL
+      object: source curve
+      construction: >-
+        Apply the auditable permutation rho_s to the fixed-width encoded state
+        bytes before partition selection, where rho_s is the Fisher-Yates
+        permutation of byte positions seeded by SHA-256(seed || relabel), and
+        record rho_s and its inverse. Group arithmetic, target, and stopping
+        rule remain unchanged; the quotient certificate is withheld.
+      expected_behavior: no claimed structural advantage; any gain is an artifact warning
+    - id: C-RAND-BASE
+      object: matched random ordinary curve
+      construction: same C-BASE walk, target derivation, seed, and cost model
+      expected_behavior: matched generic null
+    - id: C-RAND-NEG
+      object: matched random ordinary curve
+      construction: same C-NEG walk, target derivation, seed, and cost model
+      expected_behavior: matched negation null
+    - id: C-POS-ANOMALOUS
+      object: separate calibration only
+      construction: certified #E=p row, never included in ordinary primary aggregation
+      expected_behavior: calibration detector must label anomalous and exclude the row
+    - id: C-POS-LOW-EMBEDDING
+      object: separate calibration only
+      construction: certified embedding degree <=12 row, never included in ordinary primary aggregation
+      expected_behavior: calibration detector must label and exclude the row
+  walk_contract:
+    point_partition: SHA-256(seed || encoded_point || step_index) modulo 3
+    transitions: >-
+      Three fixed public additions (A_i,B_i) update (a,b) to (a+A_i,b+B_i)
+      modulo n; every point and coefficient is emitted before and after a step.
+    canonicalization: >-
+      For each verified group element g in the declared orbit, compute g(R),
+      choose the lexicographically smallest encoding, and transform coefficients
+      by the certified eigenvalue. The orbit list, chosen index, stabilizer, and
+      all map charges are emitted.
+    collision: >-
+      A repeated canonical encoding is a candidate collision only when the two
+      coefficient pairs differ. Recover x=(a1-a2)/(b2-b1) modulo n when the
+      denominator is nonzero, verify xP=Q independently, and otherwise charge
+      and record a fruitless collision/retry.
+    stopping: >-
+      Stop a run at the first valid certificate or at 8*ceil(sqrt(n)) accepted
+      transitions, whichever comes first. A run that reaches the cap without a
+      certificate is right-censored and remains a valid observation only under
+      the preregistered censoring estimator.
+  cost_model:
+    id: COST-ECDLP-a76937-v1
+    unit: integer charged_work_units
+    formula: >-
+      W = 1*FADD + 4*FMUL + 3*FSQR + 80*FINV + 12*PADD + 12*PDBL +
+      20*AUT + 2*CANON + 8*CYCLE + 20*RECOVER + 1*RETRY + 1*SERIAL_BYTES +
+      ceil(PEAK_MEMORY_BYTES/64) + PRECOMPUTE; all terms are per-run and
+      include setup, map, recovery, retry, and serialization work.
+    weights:
+      FADD: 1
+      FMUL: 4
+      FSQR: 3
+      FINV: 80
+      PADD: 12
+      PDBL: 12
+      AUT: 20
+      CANON: 2
+      CYCLE: 8
+      RECOVER: 20
+      RETRY: 1
+      SERIAL_BYTES: 1
+      PEAK_MEMORY_BYTES_DIVISOR: 64
+      PRECOMPUTE: 1
+    primary_metric: W / sqrt(n)
+    secondary_metrics: [wall_seconds, peak_memory_bytes, serialized_bytes, retry_count, cycle_failure_count]
+    no_double_counting: >-
+      Point-operation counters are emitted from the field-operation instrument;
+      the implementation must use one declared counter source and the validator
+      recomputes W from the raw vector rather than trusting a summary total.
+  run_matrix:
+    independent_groups: 12
+    train_groups: [G01, G02, G03, G04, G05, G06, G07, G08]
+    held_out_groups: [G09, G10, G11, G12]
+    group_row: >-
+      Each group has one source row and one matched random row, one target x,
+      and one seed. Execute exactly six variants [C-BASE,C-NEG,C-FULL,C-RELABEL,
+      C-RAND-BASE,C-RAND-NEG] = 72 variant runs. Eight separate calibration
+      variants (four anomalous and four low-embedding) are executed before the
+      primary matrix, giving maximum_runs=80; a failed certificate consumes its
+      declared slot and stops only the affected group.
+    maximum_runs: 80
+    cpu_estimate: >-
+      80 runs * 180 seconds worst-case = 4 CPU hours; wall-clock cap 14400
+      seconds; peak memory cap 8 GB; no unregistered reruns.
+  replication_statistics:
+    primary_comparison: >-
+      For each held-out group compute paired log ratio log(W_FULL/W_NEG) and
+      log(W_FULL/W_BASE). Report the Hodges-Lehmann median ratio, exact 2^4
+      sign-permutation p-value, and a 95 percent percentile interval.
+    success_threshold: >-
+      At least 3 of 4 held-out groups valid, every certificate valid, median
+      FULL/NEG <= 0.90, and exact p <= 0.05; a single group failure invalidates
+      the family rather than being silently omitted.
+    slope: >-
+      Fit ordinary least squares to log(W) against log(n) separately for BASE,
+      NEG, and FULL on the four held-out sizes only; emit slope, standard error,
+      residuals, and no-exponent-claim scope. Any FULL slope estimate below
+      0.5 is descriptive and triggers review-breakthrough review if proposed as
+      anything more.
+    censoring: >-
+      Right-censored runs use the preregistered Kaplan-Meier median only for a
+      descriptive table; they cannot satisfy the positive success criterion.
+  stopping_rules:
+    - stop before walks on any failed certificate and classify the row invalid
+    - stop the affected group after two consecutive cycle-failure windows of 32 steps with cycle rate > 0.25; classify family invalid if this occurs in two groups
+    - stop after the exact 80-run matrix; no candidate-family tuning or replacement rows
+    - stop and classify invalid if raw counter recomputation or certificate replay differs from the run summary
+  invalidation_rules:
+    - missing command, commit, environment, seed, instance manifest, raw walk, cost vector, or recovery certificate
+    - any mismatch in paired target, partition seed, success rule, or cost-model version
+    - any primary row admits a non-F_p automorphism, anomalous curve, low embedding degree, or unverified stabilizer
+    - any post-outcome selection, replacement, or unregistered rerun
+  required_artifacts:
+    - experiments/EXP-ECDLP-a76937/implementation/rho_census.py with sha256 in the run manifest
+    - experiments/EXP-ECDLP-a76937/protocol/instance_manifest.schema.yaml
+    - experiments/EXP-ECDLP-a76937/protocol/cost_model.yaml
+    - experiments/EXP-ECDLP-a76937/protocol/seed_register.yaml
+    - experiments/EXP-ECDLP-a76937/protocol/proof_audits.yaml
+    - one run directory per matrix row containing command.txt, environment.json, stdout.log, stderr.log, manifest.yaml, raw-walk.ndjson, cost-vector.json, recovery-certificate.json, and result.yaml
+    - comparison.json with all 80 rows including invalid/censored rows
+    - validation_report.yaml with raw recomputation, control matching, and scope limits
+  proof_search_map_binding:
+    baseline_fixture: experiments/EXP-ECDLP-a76937/protocol/proof_audits.yaml#baseline_reproduction
+    observation_collision_fixture: experiments/EXP-ECDLP-a76937/protocol/proof_audits.yaml#observation_collision
+    audit_gate: >-
+      Both fixtures are required pre-compute checks; a failed or inapplicable
+      audit is recorded with its reason and blocks approval until Coordinator
+      disposition. They are not empirical support for the hypothesis.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Direct finite-field walks at p < 2^18 validate controls and accounting
+      only; no crypto-scale security or exponent claim is licensed.
+    correspondence: null
+  preregistered_prediction:
+    quantity: held-out median normalized charged work ratio
+    formula: FULL/NEG <= 0.90 with exact paired sign-permutation p <= 0.05
+    source: birthday collision model plus explicit overhead charge; heuristic only
+  tail_checks:
+    - cycle-rate window counts by variant
+    - right-censoring and retry tails by group
+    - orbit-size/stabilizer distribution against certificate ceiling
+  success_criterion: >-
+    The exact held-out success_threshold passes, all primary rows are valid,
+    all certificates replay, raw W recomputes, and no stopping/invalidation
+    rule fires. This supports only the declared toy finite-scope comparison.
+  falsification_criterion: >-
+    The exact held-out threshold fails on a valid complete matrix, or the
+    quotient certificate/recovery/control checks fail. Infrastructure-invalid
+    or backend-unavailable outcomes are not falsification.
+  assigned_to: executor

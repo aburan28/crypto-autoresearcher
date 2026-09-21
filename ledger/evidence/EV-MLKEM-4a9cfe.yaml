@@ -1,0 +1,81 @@
+evidence:
+  id: EV-MLKEM-4a9cfe
+  goal_id: GOAL-MLKEM-004
+  batch_id: BATCH-e87ab3
+  batch_number: 6
+  producer_task: TASK-20260804-478b74
+  snapshot_commit: 891f85dd655854515eefb665ec65c8c8ce05cc08
+  validator_task: TASK-20260804-5ea2da
+  red_team_task: TASK-20260804-5d4bfa
+
+  type: empirical
+  claim_tier: toy_scale
+  states_a_finding: false
+  compared_against_assumed_law: false
+
+  what_was_measured: >-
+    50 gauss_sieve runs on the same LWE instance (m=35, n=25, q=127,
+    instance_seed=20260803001, fpylll_seed=20260803005) with seeds from
+    numpy.random.default_rng(20260804004).integers(0,2**32,size=50).
+    Platform: Docker linux/amd64 QEMU on macOS ARM64. N variable per run
+    (N∈{18098,18469,18848}) — gauss_sieve terminates when db stabilises,
+    unlike bgj1_sieve which produced constant N=17919.
+
+  key_results:
+    raw_variance_ratio: 2.7640
+    raw_chi2_df49: 135.44
+    raw_p_value: 4.92e-10
+    N_range: [18098, 18848]
+    mean_N: 18613.3
+    var_N_ddof1: 45919.21
+    r_N_TN: 0.820  # N strongly predicts T_N; Var[T_N] is largely N-driven
+    within_group_ratio_class_18469: 0.955  # chi2(26)=24.82, p=0.529
+    within_group_ratio_class_18848: 0.958  # chi2(20)=19.15, p=0.512
+    rc3_r: 0.302   # raw (N-confounded); N-residualized RC-3 r=-0.063 (p=0.765)
+
+  critical_finding: >-
+    After conditioning on N (within N-class chi-squared tests), gauss_sieve
+    shows NO excess cross-run T_N variance: within-class ratios 0.955 and 0.958,
+    p ≈ 0.52. The raw ratio 2.764 is almost entirely explained by the strong
+    correlation between N and T_N (r=0.820). The correct within-group ratio is
+    ≈ 0.920, consistent with independence of gauss_sieve vectors.
+
+  admissibility:
+    validator_verdict: accept_with_qualifications
+    red_team_verdict: blocking_objections
+    admissible_as_raw_observation: true
+    N_variability_confound_confirmed: true
+    within_group_independent: true
+    reason: >-
+      OBJ-1 (blocking): Coordinator's law-of-total-variance correction assumed
+      N ⊥ T_N but r(N,T_N)=0.820. Within-group tests both fail to reject H0
+      (p≈0.52). The raw ratio 2.764 is not a valid independence test because N
+      variability accounts for the bulk of Var[T_N].
+
+  algorithm_comparison: >-
+    bgj1_sieve (N=constant 17919): ratio=1.39, p=0.001 (n=150) — genuine excess
+    variance within QEMU after proper normalization.
+    gauss_sieve (N variable): corrected within-group ratio≈0.92, p≈0.52 —
+    consistent with independence.
+    The excess variance is bgj1-SPECIFIC, not algorithm-independent. This is
+    evidence against the hypothesis that genuine sieve-vector correlation drives
+    the bgj1 excess, and consistent with a bgj1-specific QEMU/AVX2 emulation
+    artifact.
+
+  campaign_final_observation: >-
+    After 6 batches in QEMU: bgj1_sieve shows excess T_N variance (ratio≈1.39,
+    p=0.001); gauss_sieve on the same instance does not (within-group ratio≈0.96,
+    p≈0.52). The bgj1 excess survives wrong-secret scoring (ratio_null≈1.53) and
+    shows no sequential QEMU state leakage (RC-3≈0). It is algorithm-specific and
+    undetected in gauss_sieve. No statement about genuine LWE hardness or ML-KEM
+    security is supported. Native x86_64 hardware was not available for a
+    definitive control.
+
+  scope_statements:
+    - Dimension 60, q=127, QEMU Docker linux/amd64 only. NOT crypto-scale.
+    - No finding stated.
+    - AGENTS.md rule 12 UNMET and UNWAIVED throughout.
+    - No ML-KEM security claim in either direction.
+
+  created_at: '2026-08-04'
+  created_by: coordinator

@@ -1,0 +1,263 @@
+idea:
+  id: IDEA-20260816-4b35b0
+  question_id: RQ-POLYMAC-7c89e4
+  added: '2026-08-16'
+  title: 'The forger does not choose a polynomial, it chooses a message: measure the ACHIEVABLE difference-coefficient
+    set that each construction''s block encoding permits, and test whether a fully split polynomial
+    is realisable in each field, since a bound assuming free coefficient choice is being compared
+    against a forger who does not have it'
+  class: representation
+  claim: '(A) Every forgery in a polynomial-evaluation MAC succeeds exactly when the authentication
+    key is a root of the difference polynomial induced by the forger''s chosen messages. But the forger
+    chooses MESSAGES, and the two constructions encode messages into coefficients differently: one
+    packs blocks directly and appends a length encoding, the other forces a high bit on every block
+    and reduces modulo a prime slightly above the block range. The claim is that these encodings define
+    genuinely different ACHIEVABLE COEFFICIENT SETS, that the achievable set is the correct domain
+    of the forger''s optimisation, and that this domain difference exists BEFORE any field-theoretic
+    difference and is therefore a confounder for every cross-field comparison in this bucket. (B)
+    The specific measurable claim: for each construction, determine whether a difference polynomial
+    that splits completely into distinct linear factors over the key space is achievable at each degree,
+    and if not, what the maximum achievable number of distinct roots is at that degree. That maximum
+    is the true numerator of the optimal forgery probability, and it may be strictly smaller than
+    the degree. (C) The paired claim: the gap between the degree and the maximum achievable root count
+    is a property of the ENCODING, and by transporting each encoding into the other field - four cells,
+    only two of which exist in deployment - the encoding effect can be separated from the field effect
+    exactly as the clamping entry separates the key constraint. (D) The most valuable outcome is a
+    numeric correction factor that every other contract in this bucket must apply before attributing
+    anything to the field. (E) WHAT IS NOT CLAIMED: no attack, no forgery, no claim that any bound
+    is wrong - a bound that assumes free coefficient choice is a valid upper bound regardless; only
+    that the measured-to-bound ratio has an encoding term in it that has never been isolated here.
+    Nothing about deployed parameters follows.'
+  mechanism: 'STAGE 1 writes each construction''s encoding as an explicit map from message blocks
+    to coefficient vectors, including the length encoding in one arm and the forced high bit and modular
+    reduction in the other, and freezes both. STAGE 2 characterises the image of the difference of
+    two encodings: for each degree d, the set of achievable coefficient vectors. At toy widths this
+    set is enumerable for small d and characterisable by structure for larger d, and the contract
+    does both and requires agreement where they overlap. STAGE 3 asks the root question: for each
+    degree d, maximise the number of distinct roots over the achievable set, by direct search at small
+    d and by a declared constructive family plus an exhaustive check at the largest feasible d. STAGE
+    4 transports each encoding into the other field, producing four cells, and repeats stage 3 in
+    each, so that the encoding main effect, the field main effect, and their interaction are all measurable.
+    STAGE 5 runs the null: an unconstrained encoding in which every coefficient vector is achievable,
+    where the maximum root count must equal the degree exactly - a positive control on the root maximiser.
+    Refutation: if the maximum achievable root count equals the degree in every cell, the encoding
+    imposes no restriction at these parameters and the confounder is measured to be absent, which
+    is a clean and directly useful result.'
+  novelty_status: unverified
+  novelty_screen:
+    method: Greps for POLYMAC, GHASH, Poly1305 across the ledger and knowledge as recorded; targeted
+      greps for encoding, padding, block encoding, length encoding and coefficient across ledger/proposals;
+      read IDEA-20260809-439aa8's title (padding-based commitment fixes) to confirm padding there
+      means something else; read the anchor question's targets and the AEADC question's scope; read
+      the ChaCha20-Poly1305 comparison proposal IDEA-20260809-3a39bc in full for its treatment of
+      the prime-field encoding.
+    results: IDEA-20260809-439aa8 concerns padding added by committing constructions as a fix, not
+      the constructions' own block encoding, and tests a claimed padding bound for commitment. IDEA-20260809-3a39bc
+      names prime-field reduction and clamping as features but treats them as cost factors for certificate
+      construction, not as constraints on an achievable coefficient set. IDEA-20260807-812fd2 discusses
+      GHASH's power weighting and block-position-dependent weights in an AES integral context, which
+      is the closest structural neighbour in the ledger, but its object is a balanced multiset of
+      cipher states and it asks about transfer into a digest, not about which difference polynomials
+      a forger can realise. No record anywhere characterises an achievable coefficient set or a maximum
+      achievable root count.
+    verdict: 'UNVERIFIED. No claim about external literature is made. What is claimed new WITHIN THIS
+      REPOSITORY: the achievable coefficient set as the forger''s actual domain, the maximum achievable
+      distinct-root count as the true numerator of forgery probability, and the four-cell encoding
+      transport that separates encoding from field. What is assembled from known parts: the root-counting
+      machinery is this batch''s shared module; the observation that a degree-d polynomial has at
+      most d roots is elementary and is used as the ceiling against which achievability is measured.'
+  object_first_candidate:
+    tracked_object: The ACHIEVABLE DIFFERENCE-COEFFICIENT SET - the image, under the construction's
+      message encoding, of the set of pairs of distinct valid messages, viewed as a subset of coefficient
+      vectors - together with the induced maximum distinct-root count at each degree.
+    lossiness: 'Lossy. It discards which message pair produced a coefficient vector, all message semantics,
+      the nonce, the mask, and the tag, retaining only a subset of coefficient space and one integer
+      per degree. This is compatible with the target operation because acceptance depends on the messages
+      only through their difference''s coefficient vector, so the encoding''s entire relevance is
+      the image it produces. It is not a change of coordinates: the encoding map is many-to-one and,
+      more importantly, its image is a proper subset in at least one arm by construction (forced high
+      bits cannot be cancelled arbitrarily), so information about which vectors are unreachable is
+      genuinely created by the projection rather than merely rewritten.'
+    propagation: 'One step of the target operation - appending a block - extends the coefficient vector
+      by one position and, in the arm with a length encoding, also changes an existing coefficient,
+      so the achievable set at degree d+1 is not simply the achievable set at degree d crossed with
+      a free coordinate. That coupling is the whole content: the length encoding correlates the top
+      coefficient with the degree, which means the forger cannot vary length and coefficients independently,
+      and the achievable set is therefore a union of slices rather than a product. In the other arm
+      the forced high bit fixes a coordinate of every block, so the achievable difference set is a
+      difference of two boxes and is symmetric around zero with a bounded range per coordinate.'
+    survival_score: The object survives exactly at every degree where the achievable set can be enumerated
+      - small d at the tested widths - and survives structurally (as a described set with a proved
+      cardinality) at larger d where enumeration fails. It DISSOLVES at the degree where the structural
+      description and the enumeration can no longer be cross-checked against each other, which the
+      contract locates explicitly and reports as the boundary of the exact regime. It also dissolves
+      if the encoding is changed by any implementation detail not captured in the frozen map, which
+      is why the map is written from specification text and validated against pinned test vectors
+      before use.
+  null_object_control: 'The FREE-ENCODING NULL: an arm in which every coefficient vector is achievable,
+    run through the identical root maximiser. Its maximum achievable distinct-root count must equal
+    the degree exactly at every degree; if it does not, the maximiser cannot find fully split polynomials
+    even when they exist and every signal number is a lower bound of unknown quality. The second control
+    is a RANDOM-SUBSET ENCODING: a random subset of coefficient space with the same cardinality as
+    the measured achievable set, run identically - for the encoding to be doing anything beyond reducing
+    cardinality, the real encoding''s maximum root count must differ from the random subset''s. If
+    it does not, the finding is that the encoding acts only through the size of its image, which is
+    a complete and useful result and directly bounds the confounder for the rest of the bucket.'
+  discriminated_from:
+  - 'IDEA-20260809-439aa8: padding as a commitment fix and its claimed bound. Different padding, different
+    predicate, different question.'
+  - 'IDEA-20260809-3a39bc: names the prime-field reduction and clamping as certificate-cost features;
+    does not characterise an achievable set or count roots.'
+  - 'IDEA-20260807-812fd2: closest structural neighbour, discussing GHASH''s position-dependent weights
+    and fibre-constancy in an AES integral transfer argument. Its tracked object is a balanced multiset
+    of cipher states; here it is a subset of coefficient space and no cipher is evaluated.'
+  - 'The clamping-ablation entry in this batch: that transports a KEY constraint between fields. This
+    transports a MESSAGE ENCODING between fields. They are the two independent confounders of the
+    cross-field comparison, and they must be measured separately or neither is interpretable.'
+  - 'The ratio-surface entry in this batch: that consumes the achievable set as an input and caps
+    it at 2^18 members. This record characterises the set itself and would replace that cap with a
+    justified family, which is the direct dependency between the two.'
+  assumptions:
+  - The encoding maps written from specification text are correct. Validated against pinned published
+    test vectors before any measurement, and a mismatch halts everything.
+  - The maximum distinct-root count over the achievable set is the right numerator for forgery probability.
+    This is exact at the hash layer under the idealised mask and is stated as such.
+  - Enumeration at small degree and structural characterisation at larger degree describe the same
+    set. Required to agree in the overlap region or the structural description is discarded.
+  - Transporting an encoding into the other field is meaningful - that is, the forced high bit and
+    the length encoding can both be defined over either field. The contract defines both transports
+    explicitly and treats their artificiality as a stated limitation.
+  predictions:
+  - metric: free-encoding null maximum distinct-root count versus degree
+    direction: different
+    minimum_effect: exactly equal to the degree at every tested degree; any shortfall means the maximiser
+      is failing and no signal number is interpretable
+  - metric: maximum achievable distinct-root count divided by degree, prime-field encoding
+    direction: lower
+    minimum_effect: 'no pre-commitment on the size. Reason: whether the forced high bit and the modular
+      reduction actually obstruct full splitting is precisely the unknown, and inventing a number
+      here would be fabrication.'
+  - metric: random-subset encoding maximum root count versus the real encoding at matched image cardinality
+    direction: different
+    minimum_effect: a difference of at least one root at some tested degree would show the encoding
+      acts structurally rather than only by cardinality; equality at every degree is the cardinality-only
+      finding and is reported as such
+  - metric: encoding-by-field interaction in the maximum root count across the four cells
+    direction: different
+    minimum_effect: the contract pre-commits only to reporting the interaction with its exact integer
+      value, since all four cells are exact counts with no sampling error
+  minimal_test:
+    design: Fix n = 12 and degrees d in {1, 2, 3, 4}. In each of four cells (binary field with its
+      own encoding, binary field with the transported prime-style encoding, prime field with its own
+      encoding, prime field with the transported binary-style encoding), enumerate the achievable
+      difference-coefficient set exhaustively - at d at most 4 and n = 12 this is bounded by 2^48
+      in the worst case, so the contract restricts to a declared structured subfamily plus a random
+      sample of the full set, and reports both. For each achievable vector, count distinct roots by
+      evaluating over the full 4096-element key space. Take the maximum per cell per degree. Run the
+      free-encoding null and the random-subset encoding on the same axes. The discrimination is one
+      integer table, four cells by four degrees. If every cell attains the degree, encodings impose
+      no obstruction at these parameters and the confounder is measured absent - which immediately
+      strengthens every cross-field comparison in this bucket. If some cell falls short, the shortfall
+      is the correction factor, and the four-cell layout says whether it is the encoding or the field
+      that carries it.
+    controls:
+    - Free-encoding null where all coefficient vectors are achievable, maximum root count must equal
+      the degree.
+    - Random-subset encoding at matched image cardinality, isolating cardinality from structure.
+    - Test-vector validation of both encoding maps before measurement, with a halt on mismatch.
+    - Enumeration versus structural characterisation cross-check in the overlap degree range.
+    - All four cells through one code path with encoding and field as independent parameters.
+    required_metrics:
+    - achievable difference-coefficient set cardinality per (cell, degree), enumerated or structurally
+      derived
+    - maximum distinct-root count per (cell, degree)
+    - ratio of maximum root count to degree per cell
+    - free-encoding null root count (required equal to degree)
+    - random-subset encoding maximum root count at matched cardinality
+    - encoding-by-field interaction integer
+  falsification_conditions:
+  - The free-encoding null fails to attain the degree at any tested degree, indicating the maximiser
+    is broken.
+  - Either encoding map fails its pinned test vectors.
+  - Enumeration and structural characterisation disagree in the overlap degree range.
+  - Any counted root multiplicity exceeds the degree, a code fault.
+  - The transported encodings cannot be defined in the other field without changing something else,
+    so the four-cell design collapses to two.
+  - Every cell attains the degree at every tested degree, which refutes the obstruction claim and
+    is recorded as the measured absence of the confounder.
+  confounders:
+  - Sampling the achievable set where it cannot be enumerated turns an exact maximum into a lower
+    bound, and a lower bound that differs by cell could be a sampling artifact - the structured subfamily
+    is included precisely so that at least one constructive lower bound is comparable across cells.
+  - The transported encodings are artificial and their definition is a design choice that can create
+    or destroy the effect being measured.
+  - Bit-width and block-width differ between the arms (one reserves bits for the forced high bit),
+    so degree at matched n is not degree at matched information content.
+  - The length encoding couples degree and coefficients, so comparing across degrees within one arm
+    is not a clean single-variable comparison.
+  - At n = 12 the key space is small enough that a degree-4 polynomial can cover a noticeable fraction
+    of it, compressing the differences between cells.
+  interpretation_limits:
+  - A maximum achievable root count at toy width and small degree is exactly that; the deployed constructions
+    operate at degrees in the thousands and are not modelled.
+  - An encoding obstruction, if found, does not make any bound wrong - a bound assuming free coefficient
+    choice remains a valid upper bound - it only means the measured-to-bound ratio contains a term
+    that is not about the field.
+  - The transported cells describe operators studied in isolation and correspond to no deployed construction.
+  - Running a single field would make the encoding and field effects inseparable, which is the exact
+    defect this record exists to remove from the rest of the bucket.
+  target_complexity:
+    time_exponent: No attack exponent is claimed. Cost is O(|achievable family| * 2^n) evaluations
+      per cell per degree, bounded by the declared family cap; no statement is made about the cost
+      of finding a forgery at any parameters.
+    memory_exponent: No attack memory exponent is claimed. One 2^n-bit bitmap per candidate polynomial,
+      transient; kilobytes.
+    best_known: The incumbent is the implicit assumption, present in every other contract in this
+      bucket and in the bound itself, that the forger may choose coefficients freely. No repository
+      record has ever measured whether that is true for either construction.
+    hidden_overhead: The achievable set grows explosively with degree, so the honest characterisation
+      work is structural rather than computational, and the human cost of writing and validating two
+      encoding maps from specification text is the real expense. Lower-order terms hide in the sampled
+      regime, where a maximum becomes a lower bound quietly unless the report is disciplined.
+  dominated_by: 'n/a (no result claimed). Pareto check performed against every polymac-relevant row
+    this repository holds (KN-LIT-4060, KN-LIT-5652, KN-LIT-7035, KN-LIT-1337, KN-LIT-4188, KN-LIT-1445),
+    the nine RQ-AEADC-8db132 proposals, and the structurally nearest ledger record IDEA-20260807-812fd2:
+    none states an achievable-coefficient-set characterisation, none is an algorithm this competes
+    with, and no attack is claimed.'
+  sota_delta: No attack; representation contribution only. Delta is from an unmeasured assumption
+    of free coefficient choice underlying every ratio in this bucket, to a four-cell integer table
+    of maximum achievable distinct-root counts with a free-encoding null and a matched-cardinality
+    random-subset control.
+  estimated_cost:
+    implementation: high
+    compute: medium
+  recommended_priority: high
+  honest_prior_of_survival: 'By part. That both encoding maps can be written correctly and validated
+    against pinned test vectors: about 0.8, with the risk in the length-encoding details. That the
+    free-encoding null attains the degree, validating the maximiser: about 0.85. That at least one
+    real encoding fails to attain the degree at some tested degree: about 0.45 - genuinely uncertain,
+    and the negative outcome (encodings impose no obstruction) is equally useful because it removes
+    a confounder rather than adding one. That the four-cell transport is definable without changing
+    a second variable: about 0.6, which is the design''s weakest joint. Overall this entry is recommended
+    high not because any one prior is high but because both branches directly change how the rest
+    of the bucket may be read.'
+  status: proposed
+  proposed_by: idea-generator
+  proposed_at: '2026-08-16'
+  source_refs:
+  - RQ-POLYMAC-7c89e4
+  - GOAL-POLYMAC-001
+  - IDEA-20260807-812fd2
+  - IDEA-20260809-3a39bc
+  - IDEA-20260809-439aa8
+  - RQ-AEADC-8db132
+  - KN-LIT-7035
+  - KN-LIT-5652
+  - docs/inventor-protocol.md
+  - templates/research-records.md
+  id_allocation_provenance: Minted in this session against the union of identifier-bearing paths that
+    tools/allocate_id.py scans, in one pass rather than one scan per identifier; each id was verified
+    free against that union and against every other id minted in the same pass, and a sample was re-checked
+    with `tools/allocate_id.py --check`. No identifier was chosen by looking for the next free number
+    (CLAUDE.md, Conventions).
+  derived_experiment_id: EXP-POLYMAC-67de7b

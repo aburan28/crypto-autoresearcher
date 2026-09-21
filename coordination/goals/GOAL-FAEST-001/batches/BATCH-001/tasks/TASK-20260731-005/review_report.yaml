@@ -1,0 +1,522 @@
+review_report:
+  handoff_id: TASK-20260731-005
+  goal_id: GOAL-FAEST-001
+  batch_id: BATCH-001
+  role: red-team
+  reviewed_artifacts:
+    - coordination/goals/GOAL-FAEST-001/batches/BATCH-001/archives/TASK-20260731-013/snapshot-receipt.json (commit b706062f)
+    - coordination/goals/GOAL-FAEST-001/batches/BATCH-001/archives/TASK-20260731-015/snapshot-receipt.json (commit 37d8ee81)
+    - knowledge/literature/KN-LIT-7637.md
+    - knowledge/literature/KN-LIT-7638.md
+    - knowledge/literature/KN-LIT-7619.md
+    - knowledge/literature/KN-LIT-7620.md
+    - coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-012/sources_note.md
+    - ledger/proposals/IDEA-20260731-019.yaml
+    - ledger/proposals/IDEA-20260731-002.yaml
+    - ledger/proposals/IDEA-20260731-003.yaml
+    - coordination/goals/GOAL-FAEST-001/batches/BATCH-001/tasks/TASK-20260731-014/ideation_report.md
+    - ledger/goals/GOAL-FAEST-001.yaml
+    - ledger/questions/RQ-FAEST-001.yaml
+    - AGENTS.md
+    - tools/research_dispatch.py (verifier semantics)
+    - coordination/goals/GOAL-FAEST-001/batches/BATCH-001/dispatch_queue.json (post-commit verification state)
+    - supporting: knowledge/literature/KN-LIT-2701.md, KN-LIT-679.md, KN-LIT-7593.md, knowledge/techniques/KN-TECH-040.md
+  session:
+    requested_policy: review-adversarial
+    reasoning_effort: null
+    resolved_model_id: opencode/deepseek-v4-flash-free
+    fallback_used: false
+    fallback_reason: null
+    degraded_allowed: false
+    inference_amendment: none
+    model_verified_by_probe: not confirmed in this session (adapter probe not run by this role)
+    independent_session_required: true
+    independence_claim: >-
+      This session shares no lineage with either producer session. It executed
+      only TASK-20260731-005; it did not originate, draft, or execute
+      TASK-20260731-012/002 (sources) or TASK-20260731-014/004 (ideation). All
+      reviewed artifacts were read post-hoc from their archived commits, not
+      from a producer's working memory. The only writes made were the two
+      declared artifact paths beneath tasks/TASK-20260731-005/.
+    official_state_changed: false
+    producer_artifacts_changed: false
+
+checks:
+  - id: CHECK-1
+    name: receipt_validity
+    result: passed
+    method: >-
+      (a) Reachability: `git merge-base --is-ancestor <sha> HEAD` returned
+      success for both b706062f and 37d8ee81; both appear in `git log`.
+      (b) Parent: `git log --format=%P` gives b706062f -> aefcfaf8 and
+      37d8ee81 -> 05c77ccb, matching dispatch_queue.json archive.parent_sha
+      exactly. (c) Changed paths: `git show --stat` on b706062f lists exactly
+      the 7 declared paths (4 KN-LIT + sources_note + INDEX.md +
+      snapshot-receipt.json); 37d8ee81 lists exactly the 5 declared paths
+      (3 IDEA + ideation_report + snapshot-receipt.json). (d) Per-path
+      SHA-256: recomputed `git show <sha>:<path> | shasum -a 256` for all 6
+      paths at b706062f and all 4 paths at 37d8ee81; all 10 match the receipt
+      records byte-for-byte; the queue's archived receipt hashes (334d0403...,
+      9d300318...) match `git show` of the receipt blobs at those commits.
+      (e) Commit messages name the task and record IDs: b706062f message
+      contains TASK-20260731-013 + KN-LIT-7637, KN-LIT-7638, KN-LIT-7619..7620; 37d8ee81 message
+      contains TASK-20260731-015 + IDEA-20260731-019, IDEA-20260731-002..003. Dispatcher's own
+      verifier run (exact command from handoff) exited 0, printed no error,
+      and the generated plan reports `completed_archive_commits_verified:
+      passed` plus all other gates passed.
+    notes:
+      - >-
+        The standalone snapshot-receipt.json files record commit_sha/parent_sha
+        as null with status pending_post_commit by design: they are producer
+        receipts committed inside the snapshot commit itself, and the
+        post-commit values live in the dispatch queue's archive entries, which
+        the verifier consumes. This is a legitimate split of records, not a
+        gap. No defect found.
+      - >-
+        Working tree carries unrelated untracked files (EXP-STR-004 driver
+        logs, EXP-XEDN-007/, KN-FIND-010.md) from other goals; none touches
+        the reviewed paths and none affects snapshot integrity of the pinned
+        commits.
+
+  - id: CHECK-2
+    name: citation_and_source_correctness
+    result: passed
+    method: >-
+      Read all four KN-LIT entries and the sources_note; compared the claims
+      in each entry against the sources_note fetch table and against the
+      entries' own "Verification performed"/"Limits" sections.
+    findings:
+      - id: C2-F1
+        severity: ok
+        statement: >-
+          KN-LIT-7637 is honest and precise. It is titled and filed as v2.0
+          (latest published), explicitly states no Round-3 specification
+          exists as of 2026-07-31, and contains a prominent "Round-3 status —
+          read this before citing" block warning that citing it as a Round-3
+          document would be wrong. No over-claim: the entry's content claims
+          (degree-3 constraints, batch vector commitments, tight QROM proof)
+          are attributed to the official resources page, not to a reading of
+          the PDF, and the PDF body text being unextractable is disclosed.
+          The %PDF-1.5 magic-header evidence is a reasonable HTTP-level
+          identity check and is not dressed up as content verification.
+      - id: C2-F2
+        severity: ok
+        statement: >-
+          KN-LIT-7638 is abstract-level only, clearly marked as such; the
+          eprint landing page metadata (title, 7 authors, CRYPTO 2023, eprint
+          2023/996) matches the entry. The FAEST signature-size paraphrase
+          (5.6-6.6 kB) is attributed to the abstract. The entry correctly
+          declines to assert the paper's internal soundness bounds were
+          re-derived, and correctly distinguishes the 2026 QROM retightening
+          work from this paper.
+      - id: C2-F3
+        severity: ok
+        statement: >-
+          KN-LIT-7619 (faest-ref) records existence, license, layout, HEAD
+          (2a2c36d9...) and version bump (2.0.5 at 55b52681...) from the
+          rendered page and atom feed; explicitly records that no local
+          clone/build was performed and no source checksums computed. The
+          version-pin discipline note is correct and necessary for a moving
+          target.
+      - id: C2-F4
+        severity: ok
+        statement: >-
+          KN-LIT-7620 is titled with the exact IR 8610 title (status report on
+          the Second Round), correctly flags that it is the document that
+          announces the Round-3 selection rather than a Round-3 results
+          report, and corrects the handoff's "Round-3 status report" naming.
+          DOI, 16 authors, and 05/14/26 final history match the CSRC page
+          metadata. The claim that the csrc.nist.gov obstruction recorded in
+          RQ-FAEST-001 was "no longer observed" is a point-in-time fetch
+          observation, corroborated by the sources_note fetch table rows 8-9,
+          and is hedged with "re-verify if it matters". It is presented as a
+          correction note, not as a deletion of the RQ provenance record —
+          consistent with the corrections-create-new-records rule.
+      - id: C2-F5
+        severity: nonfatal_note
+        statement: >-
+          The negative existence claim "no Round-3 FAEST specification exists
+          as of 2026-07-31" is supported by the faest.info resources page,
+          the NIST round-3 program page (tweaks due 2026-08-14), and
+          secondary web corroboration, but the primary NIST news page was
+          "found but not fetched" (sources_note row 10). Adequate for a
+          status claim at filing time; if this negative is ever relied on
+          after 2026-08-14 it must be re-verified, because the tweaks window
+          closes then. Non-blocking.
+      - id: C2-F6
+        severity: nonfatal_note
+        statement: >-
+          Whether the csrc obstruction disappeared or the fetch pipeline
+          changed is not fully resolvable from the record. The hedge
+          ("no longer observed; re-verify if it matters") is the right
+          epistemic stance; keep it if the claim is carried forward.
+    consistency_with_sources_note: >-
+      All claims made in the four KN-LIT entries are consistent with the
+      sources_note fetch table (rows 1-10), and the headline finding (no
+      Round-3 spec; file v2.0 instead) is carried identically through
+      KN-LIT-7637, the sources_note, and the ideation report. No entry
+      overstates what was read; all four are citation-level with explicit
+      limits sections.
+
+  - id: CHECK-3
+    name: idea_schema_completeness_and_object_first_discipline
+    result: passed
+    method: >-
+      Checked every field named in the handoff against each of the three IDEA
+      records.
+    findings:
+      - id: C3-F1
+        severity: ok
+        statement: >-
+          Required fields present in all three records: id, title, class,
+          claim, mechanism, novelty_status, assumptions, predictions (each
+          with metric + direction + minimum_effect), minimal_test (with
+          design + controls + required_metrics), falsification_conditions,
+          confounders, interpretation_limits, heuristic_assumptions (each
+          with statement + rigorous_support + validation_plan),
+          matched_baseline, target_complexity, estimated_cost,
+          recommended_priority. No field missing in any record.
+      - id: C3-F2
+        severity: ok
+        statement: >-
+          Object-first discipline satisfied. IDEA-001 names the
+          consistency-check error term eps_cc (max over nonzero witness-error
+          vectors of Pr[random linear check passes]) as its exact object;
+          IDEA-002 names the grinding exponent kappa and repetition count tau
+          and the expected forgery cost 2^kappa * eps_cc^{-tau} *
+          C_transcript; IDEA-003 names the LeafCommit collision term and the
+          bAVC hash-collision term. None says "attack FAEST".
+      - id: C3-F3
+        severity: ok
+        statement: >-
+          Falsification conditions in all three records carry an explicit
+          re-derivation-at-deployed-parameters gate before any claim about
+          FAEST (claim_tier_ceiling honored); toy-scale findings are labeled
+          toy-tier per AGENTS.md rule 7, and each record's interpretation_limits
+          closes exactly the tested link.
+      - id: C3-F4
+        severity: nonfatal_note
+        statement: >-
+          The "direction: different" semantics with a [1/4, 4] band in
+          IDEA-001's first prediction and [0.5, 2] in IDEA-002's second are
+          agreement-window formulations rather than monotone directions; this
+          is a defensible measurement framing but should be rendered
+          explicitly as "agreement band" in the experiment contract so the
+          Executor cannot read a pass as one-sided evidence.
+      - id: C3-F5
+        severity: nonfatal_note
+        statement: >-
+          All three minimal tests list the spec v2.0 / eprint 2023/996 full-
+          text read as a hard dependency. That dependency is unresolved
+          (KN-LIT-7637 PDF text was unextractable in the sources task). This
+          is acknowledged correctly in every record; it means no experiment
+          may be designed until the PDF-text blocker is resolved or faest-ref
+          is adopted as ground truth for the exact constructions. Nonfatal
+          for admissibility of the proposals, but it is the single gating
+          dependency for BATCH-002+.
+
+  - id: CHECK-4
+    name: matched_baseline_correctness
+    result: passed
+    findings:
+      - id: C4-F1
+        severity: ok
+        statement: >-
+          AES-128 baseline stated correctly: 2^126.1 full 10-round single-key
+          known-plaintext key recovery via biclique (BKR), matching KN-LIT-2701
+          ("first key recovery method for the full AES-128 with computational
+          complexity 2^126.1"). Data ~2^88 / memory ~2^8 are labeled
+          UNVERIFIED in-repo (not stated in the archived entry) — honest
+          labeling of from-memory detail. The 7-round MitM context
+          (2^89.3-2^91.4, KN-LIT-7593) is correctly scoped as reduced-round
+          and correctly not used as the comparator. Quantum figures are
+          separated under MAXDEPTH convention with Grover 2^64 (KN-LIT-679)
+          archived and 2^85.8 / 2^143 explicitly UNVERIFIED.
+      - id: C4-F2
+        severity: nonfatal_precision_issue
+        statement: >-
+          FAEST's OWF is f(k) = AES_k(x) for fixed public x, i.e. inversion
+          is key recovery from ONE known plaintext-ciphertext pair. The
+          biclique baseline is published at 2^88 CHOSEN plaintexts, which the
+          single-pair OWF game does not naturally provide. The records state
+          "inverting f is exactly key recovery from one known pair — the
+          biclique attack is the matched baseline" without reconciling the
+          data budget. Direction of the discrepancy: 2^126.1 is a lower bound
+          on the true single-pair cost (a single-pair biclique would be no
+          cheaper), so the barrier claim errs conservative — it cannot
+          manufacture a false break, but it could mask a forgery landing
+          between 2^126.1 and the true single-pair cost as a "confirmed
+          barrier". Required scope fix: state the OWF game's data budget
+          explicitly in the matched_baseline block and record 2^126.1 as a
+          comparative lower bound on one-pair key recovery, or re-derive the
+          one-pair biclique cost. Same fix applies to all three records.
+      - id: C4-F3
+        severity: ok
+        statement: >-
+          VOLEitH/FS-layer baseline honestly presented: the generic
+          multi-round transcript forgery 2^kappa * eps_cc^{-tau} * C_transcript
+          is named as exactly the object IDEA-002 models, no structural attack
+          on the term is claimed to exist beyond the program's in-repo grep,
+          and the deployed (kappa, tau, eps_cc, field, digest) values are
+          flagged UNVERIFIED placeholders in every record because the spec
+          PDF text is unread. No number is fabricated; unverified items are
+          labeled in place.
+      - id: C4-F4
+        severity: nonfatal_revision_item
+        statement: >-
+          IDEA-002's formula charges the forger the grinding factor 2^kappa.
+          This is only valid if the verification condition binds the forger
+          too (challenge digest must begin with kappa zero bits regardless of
+          who computes it). That is plausibly true for FAEST (the verifier
+          checks the salt), but it is a modeling assumption and should be a
+          named re-derivation item (H3's toy grinding control partially
+          covers it empirically). Make it explicit in the record's H4
+          validation plan that the forger-side grinding cost must be
+          confirmed from the spec's challenge-verification rule.
+      - id: C4-F5
+        severity: ok
+        statement: >-
+          Cost convention is identical across all three records and across
+          both sides of every comparison: serial classical cost in AES-128-
+          equivalent evaluations, hash calls converted at per-call AES count,
+          memory in bits charged separately, data charged, quantum stated
+          separately under MAXDEPTH. This is the KN-TECH-040 discipline
+          ("the convention is part of the claim") applied consistently; the
+          AES baseline, the VOLEitH forgery model, and the scheme's claimed
+          >= 2^128 are all compared under it.
+
+  - id: CHECK-5
+    name: novelty_honesty
+    result: passed
+    findings:
+      - id: C5-F1
+        severity: ok
+        statement: >-
+          novelty_status verdicts (adaptation / adaptation / speculative) are
+          honest relative to the prior-art grep described in the ideation
+          report (section "Prior-art search performed"): the grep covered
+          knowledge/ and ledger/ for FAEST/VOLEitH/FS/bAVC/consistency-check
+          terms, found the four citation-level FAEST sources (full texts
+          unread), AES key-recovery records, FS QROM records (none FAEST-
+          specific), VOLEitH-adjacent schemes (Lynx, ReSolveD), sibling
+          goals (SDITH, MQOM), and no prior FAEST/VOLEitH IDEA. Given that,
+          "adaptation" for IDEA-001 (S-Z saturation measurement applied to
+          FAEST's degree-3 check) and IDEA-002 (generic transcript-forgery
+          cost model adapted to FAEST's (kappa, tau)) and "speculative" for
+          IDEA-003 (reduction-reconstruction hypothesis that the chain may
+          need less than full collision resistance) are calibrated, not
+          inflated.
+      - id: C5-F2
+        severity: ok
+        statement: >-
+          No idea is sold as a breakthrough. All three explicitly declare
+          "verification/barrier lane, not an attack"; the ideation report
+          states C1 = "no" (no exponent move claimed); target_complexity
+          blocks carry time_exponent "n/a — no attack claimed"; Pareto
+          honesty is handled with dominated_by "n/a (no attack claimed)"
+          (justified: the only attacks referenced are the baselines
+          themselves) and sota_delta "no attack; conceptual/measurement
+          contribution only".
+      - id: C5-F3
+        severity: ok
+        statement: >-
+          Saturation discipline (inventor-protocol §1/§4) is followed: the
+          report names two RQ targets deliberately not covered (QROM
+          extractor loss; algebraic attacks on the constraint system) with
+          named obstructions, arguments, and forward guidance rather than
+          hand-waving, and does not claim the space is mined.
+      - id: C5-F4
+        severity: nonfatal_note
+        statement: >-
+          The novelty-relevant hedge "no structural attack published to this
+          program's knowledge" is scoped to an in-repo grep, not a fresh
+          literature search. This is honestly stated ("prior-art grep of
+          knowledge/ and ledger/"). If novelty claims are ever promoted to
+          "no prior art exists", an external literature search would be
+          required; as stated, the scoping is accurate.
+
+objections:
+  fatal: []
+  nonfatal:
+    - id: OBJ-1
+      relates_to: [IDEA-20260731-019, IDEA-20260731-002, IDEA-20260731-003, CHECK-4]
+      severity: nonfatal_precision_issue
+      title: "Single-pair OWF game vs 2^88-data biclique baseline"
+      statement: >-
+        The matched baseline 2^126.1 is a many-data attack (2^88 chosen
+        plaintexts), while FAEST's OWF inversion is a one-pair problem. The
+        comparison is conservative (2^126.1 is a lower bound on one-pair key
+        recovery), so no false break is possible; but the barrier statement
+        could overclaim: a forgery between 2^126.1 and the true one-pair cost
+        would sit below the honest baseline yet above the stated one.
+      required_scope_fix: >-
+        In each record's matched_baseline block, state the OWF game's data
+        budget (one known pair) and label 2^126.1 as a comparative lower
+        bound on one-pair key recovery (biclique published at 2^88 chosen
+        plaintexts), or re-derive the one-pair biclique cost before the
+        barrier wording is used in any supported claim.
+      falsification_route: >-
+        None needed (precision fix, not a test). If a one-pair biclique
+        variant is re-derived, the new exponent replaces 126.1 in the
+        matched baseline of all three records.
+    - id: OBJ-2
+      relates_to: [IDEA-20260731-002, CHECK-4]
+      severity: nonfatal_revision_item
+      title: "Grinding factor charged to the forger is an unstated modeling assumption"
+      statement: >-
+        The forgery formula 2^kappa * eps_cc^{-tau} * C_transcript charges
+        the forger 2^kappa grinding work. This holds only if the verification
+        condition (challenge digest starts with kappa zero bits) binds a
+        forger equally; plausible for FAEST but not yet verified from the
+        spec. If instead the scheme's grinding is only a prover-side
+        signature-size optimization, the forgery cost drops by 2^kappa and
+        the whole comparison shifts.
+      required_scope_fix: >-
+        Add an explicit re-derivation item: confirm from spec v2.0's
+        challenge-verification rule that kappa leading zeros are checked
+        verifier-side; keep the toy grinding control (kappa = 1..8) as the
+        empirical backstop.
+      falsification_route: >-
+        Cheapest: the toy harness grinding control in IDEA-002's minimal test
+        (measure average hashes to force kappa zero bits for kappa = 1..8;
+        confirm 2^kappa scaling). If scaling fails or is absent, the formula
+        is mis-charged.
+    - id: OBJ-3
+      relates_to: [IDEA-20260731-019, CHECK-3]
+      severity: nonfatal_revision_item
+      title: "Toy check form may not be isomorphic to the deployed degree-3 system"
+      statement: >-
+        The toy measurement's value depends on the toy S-box/constraint
+        reduction mirroring v2.0's actual degree-3 AES constraint family.
+        The record flags this as a confounder; it is also the object-fidelity
+        gate: if the toy form is wrong, the measurement is of the wrong
+        object and cannot feed the barrier statement.
+      required_scope_fix: >-
+        Sequence the re-derivation artifact before the toy harness in the
+        experiment contract (the record already does this in design order;
+        make it an explicit completion gate: no toy run before the re-derived
+        check equation is archived).
+      falsification_route: >-
+        The null-object control (random linear check matrix) plus the
+        field-scaling control (1/|F| decay) — the canonical artifact tells.
+        If the unstructured control fails to saturate at the S-Z value, the
+        harness is invalid, which is already the third falsification
+        condition.
+    - id: OBJ-4
+      relates_to: [IDEA-20260731-003, CHECK-3]
+      severity: nonfatal_revision_item
+      title: "Mode-unverified collision measurement risks measuring the wrong object"
+      statement: >-
+        The LeafCommit/bAVC modes are UNVERIFIED (spec PDF unread, faest-ref
+        not fetched locally). A toy collision search on a reconstructed-by-
+        memory mode measures a doppelganger. The record acknowledges this
+        confounder; it is still the dominant risk for this idea's empirical
+        component.
+      required_scope_fix: >-
+        Make "pin exact mode from spec v2.0 or a pinned faest-ref commit
+        (bavc.c/h, aes.c/h, universal_hashing.c/h)" a hard completion gate
+        before the toy collision run, exactly as the record's assumptions
+        already state; elevate it in the experiment contract.
+      falsification_route: >-
+        Cheapest: random-permutation null control + scale control (collision
+        cost must grow as 2^{n/2} when toy digest length doubles). The
+        property-vs-instantiation check (component 3) is the decisive content
+        and is a derivation, not a run.
+    - id: OBJ-5
+      relates_to: [IDEA-20260731-019, IDEA-20260731-002, IDEA-20260731-003, CHECK-2]
+      severity: nonfatal_gating_note
+      title: "Shared hard dependency: spec v2.0 PDF text is unread"
+      statement: >-
+        Every idea's deployed-parameter statements and the forgery model's
+        inputs are placeholders until the spec v2.0 §security text and the
+        eprint 2023/996 full text are read (KN-LIT-7637 limit: PDF body text
+        unextractable by the sources task). This is acknowledged in all three
+        records and in RQ-FAEST-001 constraints, but it is the single
+        blocking dependency for any experiment design.
+      required_scope_fix: >-
+        Resolve the PDF-text blocker (alternate extraction path, or adopt a
+        pinned faest-ref commit as ground truth for the exact constructions
+        and parameter tables) before BATCH-002 experiment design.
+      falsification_route: >-
+        None needed; this is a dependency, not a hypothesis.
+
+admissibility_verdicts:
+  - idea_id: IDEA-20260731-019
+    verdict: admit
+    rationale: >-
+      Schema-complete; exact object named (consistency-check error term
+      eps_cc at the deployed field); matched baseline present with correct
+      convention; falsification conditions carry deployed-parameter
+      re-derivation gates and toy-tier labeling (rule 7); controls include
+      unstructured control, null-object control, and field-scaling control
+      (inventor-protocol §3). No fatal objection. The two nonfatal fixes
+      (one-pair baseline caveat; re-derivation-before-toy gate) are scoped
+      and trackable.
+  - idea_id: IDEA-20260731-002
+    verdict: admit
+    rationale: >-
+      Schema-complete; exact object named ((kappa, tau) tradeoff and the
+      charged forgery cost); honest baseline treatment (generic transcript
+      forgery as the modeled object, deployed values flagged UNVERIFIED);
+      falsification below 126.1 requires a forgery certificate at reduced
+      parameters plus independent review (rules 7/12), correctly stated. The
+      grinding-charged-to-forger assumption (OBJ-2) and the one-pair caveat
+      (OBJ-1) are revision items to carry into the experiment contract, not
+      blockers: the model's own toy harness and grinding control will catch a
+      mis-charge before any deployed-scale statement. Assembly dependency on
+      IDEA-001's eps_cc and IDEA-003's commitment costs is acknowledged.
+  - idea_id: IDEA-20260731-003
+    verdict: admit
+    rationale: >-
+      Schema-complete; exact objects named (LeafCommit collision term, bAVC
+      hash-collision term); novelty_status "speculative" is calibrated to the
+      genuinely unverified reduction-reconstruction hypothesis; controls
+      (random-permutation null control, scale control, generic Merkle
+      baseline) are the right artifact tells; toy-tier labeling and deployed-
+      size re-derivation requirements honored. Mode-pinning (OBJ-4) and the
+      one-pair caveat (OBJ-1) are the required scope fixes; the discriminating
+      content (property checklist from the reduction reconstruction) is a
+      derivation and does not depend on the toy harness.
+
+required_scope_fixes:
+  - id: RSF-1
+    applies_to: [IDEA-20260731-019, IDEA-20260731-002, IDEA-20260731-003]
+    fix: >-
+      State the OWF game's data budget (one known pair) in matched_baseline
+      and label 2^126.1 as a comparative lower bound on one-pair key
+      recovery (biclique published at 2^88 chosen plaintexts), or re-derive
+      the one-pair biclique cost before any barrier wording is used.
+  - id: RSF-2
+    applies_to: [IDEA-20260731-002]
+    fix: >-
+      Add an explicit re-derivation item confirming from spec v2.0's
+      challenge-verification rule that kappa leading zeros bind the forger
+      (verifier-side check), so the 2^kappa factor in the forgery formula is
+      an evidenced cost, not an assumption.
+  - id: RSF-3
+    applies_to: [IDEA-20260731-019]
+    fix: >-
+      Make the re-derived check equation an explicit completion gate before
+      the toy harness runs; render "direction: different" bands explicitly
+      as agreement windows in the future experiment contract.
+  - id: RSF-4
+    applies_to: [IDEA-20260731-003]
+    fix: >-
+      Elevate "pin exact LeafCommit/bAVC mode from spec v2.0 or a pinned
+      faest-ref commit" to a hard completion gate before the toy collision
+      run.
+  - id: RSF-5
+    applies_to: [batch_level]
+    fix: >-
+      Resolve the spec v2.0 PDF-text blocker (alternate extraction or
+      faest-ref as ground truth for parameters/constructions) before any
+      BATCH-002 experiment design; re-verify the "no Round-3 spec exists"
+      negative after 2026-08-14 if it is relied on.
+
+completion_gate_check:
+  - fatal_and_nonfatal_objections_named_across_five_checks: true
+  - every_idea_has_explicit_verdict: true
+  - bounded_falsification_route_for_every_admitted_idea: true
+  - no_producer_artifact_changed: true
+  - no_official_state_changed: true
+  - writes_limited_to_two_declared_artifact_paths: true

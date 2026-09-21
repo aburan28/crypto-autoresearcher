@@ -1,0 +1,332 @@
+schema: crypto.autoresearch.codex_runtime_probe_protocol.v1
+task_id: TASK-20260802-964
+reconciliation_id: RECON-20260802-001
+coordinator_determination: APPROVE
+authoritative_research_evidence: false
+inference_amendment: false
+research_state_changes: []
+review_dispatch_authorized: false
+
+observed_proof_assessment:
+  thread_id: 019fc3a3-5f11-7812-9570-e1b96ac49833
+  cli_version: 0.144.6
+  probe_output: PROBE_OK
+  state_row:
+    model: gpt-5.6-sol
+    reasoning_effort: xhigh
+    model_provider: openai
+    source: exec
+  rollout_agreement:
+    session_meta_present: true
+    turn_context_present: true
+    model_matches_state_row: true
+    reasoning_effort_matches_state_row: true
+  disposition: >-
+    Sufficient feasibility evidence to approve a reproducible adapter
+    implementation. It is not itself an adapter receipt, backend-wide model
+    verification, inference amendment, or authorization to dispatch R3/R4.
+
+implementation_scope:
+  allowed:
+    - Add a standard-library Codex runtime probe module beneath orchestration/adapter/.
+    - Add the CLI subcommand and session-scoped receipt writer integration.
+    - Add fixture-only unit tests and focused documentation.
+    - Bump ADAPTER_VERSION if the receipt contract changes.
+  expected_paths:
+    - orchestration/adapter/codex_runtime.py
+    - orchestration/adapter/cli.py
+    - orchestration/adapter/manifest.py
+    - orchestration/adapter/config.py
+    - tests/test_codex_runtime_probe.py
+    - docs/inference-backends.md
+  prohibited:
+    - orchestration/model-bindings.yaml
+    - Changing any global binding provenance or last_probed value.
+    - Treating one session receipt as backend-wide verification.
+    - Reading, listing, or reporting unrelated Codex threads.
+    - Retaining prompts, credentials, tokens, environment dumps, or base instructions.
+    - Live-network calls in unit tests.
+    - Reviewer dispatch before snapshot and independent validation.
+
+cli_contract:
+  subcommand: probe-codex-session
+  invocation: >-
+    python3 -m orchestration.adapter probe-codex-session
+    --codex-bin CODEX_BIN --state-db STATE_DB --workdir WORKDIR
+    --model MODEL --effort EFFORT --policy POLICY --role ROLE
+    --task-id TASK_ID --receipt RECEIPT --independent-session
+  required_arguments:
+    --codex-bin: Existing executable path; resolved before launch and invoked without a shell.
+    --state-db: Existing Codex SQLite state database; opened read-only after process exit.
+    --workdir: Existing repository directory; canonical path must equal persisted cwd.
+    --model: Exact requested model identifier; no aliasing or normalization.
+    --effort: Exact requested effort from none|low|medium|high|xhigh|max.
+    --policy: Requested canonical policy or permanent alias; resolved against adapter config.
+    --role: Runtime-neutral role name bound into the receipt.
+    --task-id: Task identifier bound into the receipt.
+    --receipt: New receipt path; existing targets are refused before launch.
+    --independent-session: Required assertion; the adapter creates a new non-ephemeral thread.
+  optional_arguments:
+    --timeout-seconds: Positive integer; default 300.
+  fixed_probe:
+    prompt: Print exactly PROBE_OK and nothing else.
+    expected_normalized_output: PROBE_OK
+    sandbox: read-only
+    source: exec
+    ephemeral: false
+    json_events: true
+  launch_argv_contract:
+    - CODEX_BIN
+    - exec
+    - --json
+    - --sandbox
+    - read-only
+    - --cd
+    - WORKDIR
+    - --model
+    - MODEL
+    - --config
+    - model_reasoning_effort=EFFORT
+    - Print exactly PROBE_OK and nothing else.
+  launch_rules:
+    - Use subprocess with an argv list, shell false, an explicit timeout, and no stdin.
+    - Do not pass --ephemeral.
+    - Do not copy or record the ambient environment; inherit only what Codex needs and never serialize it.
+    - Parse stdout as JSONL and require exactly one thread.started event with exactly one valid thread ID.
+    - Require exit code zero and exactly PROBE_OK as the normalized assistant output.
+    - Record stdout and stderr byte counts and SHA-256 only; never store their full text.
+    - Invoke the same binary with --version and require its parsed version to equal persisted cli_version.
+
+thread_local_metadata_contract:
+  state_database:
+    open_mode: SQLite URI mode=ro with PRAGMA query_only=ON
+    allowed_query: >-
+      SELECT id, rollout_path, cwd, source, model, reasoning_effort,
+      model_provider, cli_version, created_at, updated_at
+      FROM threads WHERE id = ? LIMIT 2
+    parameter: parsed thread.started ID only
+    forbidden:
+      - SELECT without an id predicate
+      - Listing, counting, joining, or sampling other thread rows
+      - Any INSERT, UPDATE, DELETE, schema mutation, checkpoint, or vacuum
+    row_gate: Exactly one row; required columns non-null; created_at is consistent with launch timestamps.
+  rollout:
+    path_source: rollout_path from the single matching state row
+    path_gate: >-
+      Resolve to a regular file beneath the Codex home containing the supplied
+      state database. Reject traversal, symlink escape, missing file, globbing,
+      or directory enumeration.
+    parse_mode: Stream JSONL; retain no raw event text.
+    required_events:
+      session_meta: Exactly one; session ID equals thread.started ID and persisted row ID.
+      turn_context: Exactly one probe-turn context for that session.
+    forbidden_retention:
+      - prompts
+      - full base instructions
+      - tool arguments or outputs
+      - credentials or tokens
+      - unrelated event bodies
+  exact_cross_checks:
+    - requested model == state row model == turn_context model
+    - requested effort == state row reasoning_effort == turn_context effort
+    - state row model_provider is non-empty and matches rollout provider when present
+    - parsed Codex version == state row cli_version == session_meta cli_version
+    - canonical requested workdir == state row cwd == session_meta/turn_context cwd
+    - state row source == session_meta source == exec
+    - turn_context sandbox policy is the known read-only representation
+    - thread.started ID == state row ID == session_meta session ID
+    - launch, thread, row, rollout, and receipt timestamps have a consistent order
+  normalization:
+    paths: Canonical filesystem resolution only.
+    effort: Lowercase exact member of the configured effort lattice; no tier substitution.
+    model: Exact UTF-8 string; trim surrounding whitespace only.
+    sandbox: Accept only explicitly enumerated Codex 0.144.6 read-only encodings; unknown shapes fail.
+
+privacy_and_hashing:
+  command_digest: SHA-256 of the NUL-delimited real argv.
+  safe_argv: >-
+    Record literal non-sensitive flags and requested model/effort; replace the
+    state DB and receipt paths with placeholders. Record their canonical-path
+    SHA-256 values separately.
+  state_row_sha256: SHA-256 of canonical JSON containing only the allowlisted selected columns.
+  session_meta_sha256: SHA-256 of the exact matched JSONL line bytes.
+  turn_context_sha256: SHA-256 of the exact matched JSONL line bytes.
+  codex_binary_sha256: SHA-256 of the resolved executable bytes.
+  rollout_path_recording: Record only a Codex-home-relative path plus its SHA-256.
+  forbidden_receipt_content:
+    - raw stdout or stderr
+    - raw state database pages
+    - raw rollout events
+    - prompts other than the fixed public probe string
+    - environment variables
+    - unrelated thread identifiers
+
+receipt_schema:
+  schema: crypto.autoresearch.codex_runtime_session_receipt.v1
+  top_level: runtime_session_receipt
+  required_fields:
+    identity:
+      - task_id
+      - role
+      - independent_session_id
+      - independent_session
+      - recorded_at
+    requested:
+      - policy
+      - canonical_policy
+      - model
+      - reasoning_effort
+      - workdir
+      - sandbox
+      - source
+    runtime:
+      - runtime
+      - provider
+      - cli_version
+      - codex_binary_sha256
+      - adapter_version
+      - config_digest
+    launch:
+      - safe_argv
+      - command_sha256
+      - started_at
+      - ended_at
+      - exit_code
+      - stdout_sha256
+      - stderr_sha256
+      - thread_started_event_count
+      - probe_output_matches
+    observed:
+      - state_row_allowlist
+      - state_row_sha256
+      - session_meta_sha256
+      - turn_context_sha256
+      - rollout_relative_path
+      - rollout_path_sha256
+    verification:
+      - status
+      - runtime_resolution_verified
+      - verification_scope
+      - model_matches
+      - reasoning_effort_matches
+      - provider_matches
+      - cli_version_matches
+      - workdir_matches
+      - source_matches
+      - sandbox_matches
+      - session_id_matches
+      - timestamp_order_valid
+      - runtime_bindings_check
+      - failures
+  verified_values:
+    status: verified
+    runtime_resolution_verified: true
+    verification_scope: exact_codex_session_only
+    independent_session: true
+    global_backend_verified: false
+    model_bindings_mutated: false
+  failure_values:
+    status: failed
+    runtime_resolution_verified: false
+    verification_scope: exact_codex_session_only
+    global_backend_verified: false
+  immutability: Use exclusive creation; never overwrite or upgrade a failed receipt in place.
+
+runtime_bindings_gate:
+  command: python3 tools/check_runtime_bindings.py
+  execution: >-
+    Run without a shell after metadata checks. Record safe argv, exit code,
+    timestamps, and stdout/stderr SHA-256. Do not set
+    runtime_resolution_verified true unless this command exits zero.
+  scope: Confirms runtime-role binding integrity only; it does not verify a backend model catalog.
+
+failure_codes:
+  - invalid_argument
+  - receipt_exists
+  - codex_version_failed
+  - launch_timeout
+  - launch_nonzero_exit
+  - probe_output_mismatch
+  - thread_id_missing
+  - thread_id_ambiguous
+  - state_db_read_failed
+  - state_row_missing
+  - state_row_ambiguous
+  - rollout_path_invalid
+  - rollout_missing
+  - session_meta_missing
+  - session_meta_ambiguous
+  - turn_context_missing
+  - turn_context_ambiguous
+  - session_id_mismatch
+  - model_mismatch
+  - reasoning_effort_mismatch
+  - provider_mismatch
+  - cli_version_mismatch
+  - workdir_mismatch
+  - source_mismatch
+  - sandbox_mismatch
+  - timestamp_invalid
+  - runtime_bindings_check_failed
+  - receipt_write_failed
+  - privacy_invariant_failed
+  - metadata_schema_unsupported
+
+fail_closed_behavior:
+  - Any failure code produces a nonzero adapter exit.
+  - If a receipt can be safely created, write an immutable failed receipt with hashes and allowlisted facts only.
+  - Never emit a verified receipt after any failure, warning, missing field, unknown schema, or ambiguous value.
+  - Never fall back to CLI request flags, OPENAI_MODEL, family-level labels, or model-bindings as proof of observed runtime values.
+  - Never retry into a second thread under the same receipt; a retry requires a new receipt path.
+
+unit_test_contract:
+  fixtures_only: true
+  dependencies:
+    executable: Fake Codex executable emitting controlled JSONL and PROBE_OK.
+    state: Temporary SQLite database containing only fixture rows.
+    rollout: Temporary session_meta and turn_context JSONL fixtures.
+    runtime_bindings: Stubbed subprocess result; no real user state or network.
+  required_cases:
+    - Happy path with exact model, xhigh effort, provider, version, cwd, source, sandbox, and session ID agreement.
+    - Missing and multiple thread.started events.
+    - Nonzero exit, timeout, and missing or extra probe output.
+    - Missing and duplicate state rows.
+    - Missing, duplicate, malformed, or mismatched session_meta and turn_context.
+    - Independent model, effort, provider, CLI version, cwd, source, sandbox, session ID, and timestamp mismatches.
+    - Rollout traversal, symlink escape, missing file, and unsupported metadata schema.
+    - Existing receipt refusal and immutable failed-receipt behavior.
+    - Runtime-binding checker failure keeps runtime_resolution_verified false.
+    - Receipt privacy assertion: no prompts, base instructions, env values, tokens, raw events, or unrelated IDs.
+    - SQLite query-only enforcement and proof that no thread enumeration query occurs.
+    - Safe argv handling for spaces and metacharacters with shell never enabled.
+    - Session receipt does not mutate or imply verification of model-bindings.yaml.
+
+implementation_acceptance_gates:
+  - CLI exposes every required explicit argument and help text states session-only scope.
+  - Focused unit tests pass entirely on fakes, temporary SQLite, and rollout fixtures.
+  - Existing inference-adapter tests pass.
+  - tools/check_runtime_bindings.py passes.
+  - The implementation produces a verified fixture receipt matching this schema and all privacy assertions.
+  - The implementation produces failed receipts for every mismatch class without leaking raw metadata.
+  - Documentation distinguishes session runtime verification from backend catalog verification.
+  - No global binding, provider capability, hypothesis, goal, evidence, or research decision is changed.
+  - Implementation and tests are snapshot-committed with exact hashes before independent validation.
+  - An independent Validator accepts code, fixtures, receipt semantics, privacy properties, and test results before R3/R4 dispatch.
+
+downstream_use_gate:
+  - A receipt verifies only its independent_session_id; it cannot be reused for another Codex thread.
+  - R3 and R4 each require their own new non-ephemeral verified session receipt at the policy-required effort.
+  - The review must run in or resume the exact verified session ID; otherwise create and verify a new session.
+  - The review receipt cites the implementation snapshot commit and independent validation report.
+  - No global model_verified flag or model-binding provenance changes follow from these receipts.
+
+inference_provenance:
+  requested_policy: coordinator-orchestration-code
+  requested_reasoning_effort: high
+  exact_resolved_model_id: null
+  model_verified: false
+  fallback_used: null
+  note: This Coordinator runtime did not expose an exact probe-verified model identifier.
+
+decided_by: coordinator
+decided_at: '2026-08-02'

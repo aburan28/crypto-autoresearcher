@@ -1,0 +1,58 @@
+hypothesis:
+  id: H-REP-001
+  question_id: RQ-REP-001
+  statement: >-
+    On a prime-field curve admitting a twisted-Edwards model, the membership-
+    constrained point-decomposition system built in the NATIVE Edwards
+    coordinates has a solving degree d_reg whose SCALING in the factor-base
+    degree d is strictly lower than the matched Weierstrass Semaev system on the
+    same curve and the same points.
+  mechanism: >-
+    The twisted-Edwards addition law is a complete biquadratic rational map with
+    rational 2-torsion at (0,-1); the corresponding decomposition relations have
+    lower total degree in the summand coordinates than the Weierstrass Semaev
+    S_{m+1} (which is degree 2 in each of two variables per merge but carries the
+    chord/tangent nonlinearity). A lower-degree relation ideal can have a lower
+    degree of regularity, and the Macaulay-matrix cost binom(nvars+d_reg,d_reg)^w
+    is dominated by d_reg, so a d_reg that grows more slowly in d would lower the
+    per-PDP solve exponent.
+  assumptions:
+    - The curve has a twisted-Edwards model (point of order 4); we CONSTRUCT such
+      curves directly, so this is guaranteed for the tested instances.
+    - The factor base is the SAME set of points in both models, addressed by the
+      model-native coordinate (x for Weierstrass Semaev, y for Edwards).
+    - Groebner-basis output max total degree is a faithful proxy for d_reg (the
+      PKM statistic used throughout the ecdlp-autolab corpus).
+  predictions:
+    - metric: d_reg (output GB max total degree) vs factor-base degree d
+      direction: lower
+      minimum_effect: >-
+        Edwards d_reg strictly below Weierstrass at matched d for >=3 of 4 d
+        values AND the gap non-decreasing in d (scaling, not constant offset).
+    - metric: per-PDP solve wall-time exponent gamma in (time ~ d^gamma)
+      direction: lower
+      minimum_effect: Edwards gamma below Weierstrass gamma by CI-separated margin.
+  test_boundary:
+    instances: [twisted-Edwards curves over F_p, p ~ 2^12..2^20, >=3 seeds]
+    parameters:
+      m: [2, 3]
+      factor_base_degree_d: [4, 6, 8, 12, 16]
+    implementation: src/rep_model_dreg.sage (executor)
+    budget:
+      wall_clock_seconds_per_run: 300
+      maximum_runs: 200
+  falsification_conditions:
+    - Edwards d_reg equals Weierstrass d_reg at every matched d (model-invariant).
+    - Edwards d_reg lower only by a constant offset with NON-growing gap
+      (constant-factor, consistent with IC-5's FHJRV verdict -> KILL).
+    - Edwards per-PDP time exponent CI overlaps Weierstrass -> no scaling win.
+  interpretation_limits:
+    - Toy scale; no crypto-scale claim (AGENTS rule 7).
+    - Scoped to curves with an Edwards model; says nothing about generic
+      Weierstrass curves lacking order-4 torsion.
+    - A GB timeout is infrastructure failure, NOT evidence for either side
+      (AGENTS rule 5).
+  status: rejected_scoped   # DEC-20260716-001: falsification criterion met; model-native
+                     # d_reg invariant at 2 between fair Weierstrass Semaev and Edwards
+                     # (m=2, toy). Scoped negative per EV-REP-001 / RUN-REP-001-c.
+  proposed_by: idea-generator

@@ -1,0 +1,55 @@
+correction:
+  id: CORR-20260802-008
+  recorded_at: '2026-08-02'
+  record_type: tooling
+  record_id: LEGACY-RUN-REGISTRATION-HALF-IMPLEMENTED
+  field: tools/validate_ledger.py legacy run handling
+  reason: >-
+    The legacy mechanism says two things about a frozen pre-schema record: do
+    not fail its shape, and it exists. For runs only the first half was
+    implemented. A legacy run manifest had its shape complaint suppressed by
+    Ctx.err, but its id was never registered, so every evidence record citing
+    it was reported as "references unknown run". The defect was attributed to
+    the citing record, which was correct, while the run it named was present
+    and frozen by sha256 the whole time.
+  what_changed:
+    flat_yaml_manifests: >-
+      A frozen manifest that predates the nested `run:` shape records its id
+      flat. check_run now registers that id as a legacy alias before returning,
+      the same way a legacy ledger record registers its filename stem.
+    json_manifests: >-
+      Some pre-canonical runs serialized the manifest as manifest.json. The
+      scan only visits manifest.yaml, so those runs were never seen at all --
+      not schema-checked, which is correct, but also never registered.
+      register_legacy_json_runs registers ids from inventory entries ending in
+      .json, and 15 such manifests are added to the frozen inventory.
+    cross_reference_checks: >-
+      The evidence->run and evidence->experiment checks now consult
+      legacy_aliases, which the hypothesis->question and evidence->hypothesis
+      checks two lines above already did. That omission was the actual bug.
+  what_deliberately_did_not_change: >-
+    Nothing becomes schema-checkable. Only the identifier is registered, never
+    the body: claim tiers are still derived solely from canonical run records,
+    so a legacy run cannot raise the tier ceiling an evidence record may
+    assert. A run with no manifest of any kind stays unregistered, because no
+    record of it exists and registering one would assert a run record that was
+    never written.
+  residual_debt_deliberately_left_reported:
+    runs_with_no_manifest_of_any_kind: 22
+    runs_with_no_directory_at_all: 7
+    why: >-
+      These are 29 genuine reproducibility gaps, not schema noise. The runs
+      under EXP-SIG-008 and EXP-GPS-001 hold command.txt, raw.json, stdout and
+      stderr but no manifest, so no commit hash or environment capture exists
+      for them anywhere in the repository. Writing one would mean inventing
+      reproducibility metadata, which AGENTS.md rule 5 forbids. They stay
+      reported until the runs are re-executed under the canonical wrapper or
+      the citing evidence records are narrowed.
+  substantive_delta: >-
+    None to any research record. Validator errors fall 94 -> 80 with no record
+    edited; the 14 evidence citations that stop failing name runs that were
+    always present and hash-frozen.
+  status_effects:
+    hypothesis_status_changed: false
+  supersedes: null
+  superseded_by: null

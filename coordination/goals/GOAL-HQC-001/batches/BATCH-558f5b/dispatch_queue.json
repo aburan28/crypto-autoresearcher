@@ -1,0 +1,409 @@
+{
+  "schema": "crypto.autoresearch.dispatch_queue.v1",
+  "goal_id": "GOAL-HQC-001",
+  "batch_id": "BATCH-558f5b",
+  "objective": "V2 planted-correlation control arm for EXP-HQC-982268, dispatched per DEC-20260806-46a8f3's next_action after the V1 arm (TASK-20260806-e19f6c, BATCH-4b8ad3) matched its planted value but was proven, by Red Team injection, structurally blind to the exact defect class (off-by-one / last-block-early index shifts) OPEN-6 cares about, because it used a hand-rolled majority-threshold decoder over homogeneous blocks. This batch closes both named gaps: import the REAL decoder (stage_a.py's decode_blocks, the WHT/Reed-Muller reduction), and construct planted blocks with heterogeneous, decision-boundary-adjacent per-bit content so a boundary-index defect has a non-zero chance of being expressed as a decode error.",
+  "max_concurrent": 3,
+  "tasks": [
+    {
+      "id": "TASK-20260806-047535",
+      "role": "executor",
+      "state": "queued",
+      "priority": 1,
+      "depends_on": [],
+      "review_required": true,
+      "title": "V2 planted-correlation control arm: real decode_blocks, boundary-adjacent heterogeneous planted content",
+      "read_scope": [
+        "experiments/EXP-HQC-982268/specification.yaml",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/tasks/TASK-20260806-e19f6c/",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/reviews/TASK-20260806-9f4b27/validation_report.yaml",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/reviews/TASK-20260806-21c8da/red_team_report.md",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py",
+        "ledger/evidence/EV-HQC-db1fd9.yaml",
+        "ledger/decisions/DEC-20260806-46a8f3.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/design.md",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/planted_arm_v2.py",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/planted_results.json",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/comparison_report.md",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/run_manifest.yaml"
+      ],
+      "budget": {
+        "wall_clock_seconds": 3600,
+        "runs_authorized": 1,
+        "core_seconds": 1800
+      },
+      "handoff": {
+        "id": "TASK-20260806-047535",
+        "from": "coordinator",
+        "to": "executor",
+        "objective": "Build and run a V2 planted-correlation control arm that closes the two gaps the Red Team found in TASK-20260806-e19f6c (BATCH-4b8ad3, snapshot 8538964c): (1) import and run stage_a.py's ACTUAL decode_blocks (the real WHT/Reed-Muller reduction) instead of a hand-rolled majority threshold, and (2) construct planted blocks with HETEROGENEOUS, decision-boundary-adjacent per-bit content instead of homogeneous all-0/all-1 blocks, so that a boundary-index-shift defect (the V1 off-by-one / V3 last-block-early classes that defeated the V1 arm) has a non-zero chance of being expressed as an actual decode error. Report whether the recovered log2_A_k matches the planted value within the pipeline's own stated interval.",
+        "uncertainty_reduced": "Whether OPEN-6 (EV-HQC-b71230's unresolved confound: is the PS-R3 -244.1-to--32.4 null-SD departure a genuine anti-correlation effect or a subtly wrong sampler that would reproduce this exact signature?) can be addressed by a control that actually exercises the real decoder along a path where boundary/index-shift defects are expressible, unlike the V1 arm which was proven structurally blind to exactly that defect class.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/tasks/TASK-20260806-e19f6c/design.md",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/tasks/TASK-20260806-e19f6c/planted_arm.py",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/reviews/TASK-20260806-21c8da/red_team_report.md (sections 2, 6, 7, 8 -- the injection finding and the named next control)",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py (decode_blocks at line 286: bits (B,N) uint8 -> reshape (B, n_e, n_2=128) -> fold dup copies -> wht128 -> argmax|t| with lowest-index tie-break -> F_j failure indicator, W block bit-sum; rm17_codewords at line 310 gives the 256 duplicated RM(1,7) codewords -- [128,8] with dual-of-extended-Hamming structure)",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py (comb_matrix, log2_A_from_hists, and the point/loo/jmean/jse jackknife block -- reuse exactly as the V1 arm did)"
+        ],
+        "constraints": [
+          "PRE-REGISTRATION IS STILL THE POINT: write design.md FIRST, deriving the planted joint law's exact log2_A_k(k) for every k you will report, BEFORE running planted_arm_v2.py on real data. The V1 arm's marginal-law trick still applies and is REUSABLE: choose per-trial which n_e block POSITIONS are 'planted-fail' via the same exchangeable mechanism (e.g. M_t ~ Uniform{17,18,19}, a uniform random M_t-subset of blocks marked fail, S_t = M_t by construction) -- this keeps log2_A_k(k) exactly as closed-form as the V1 arm's, because the marginal law of S_t depends only on which POSITIONS are marked fail, not on what BIT CONTENT realizes 'fail' vs 'succeed' at each position.",
+          "THE NEW REQUIREMENT IS ON THE BIT-LEVEL REALIZATION, NOT THE MARGINAL LAW: for a block marked 'planted-succeed', its actual n_2=128-bit content must be a genuine (possibly duplicated) input that the REAL decode_blocks decodes to F_j=0 -- but chosen NEAR its decision boundary (small |WHT top-two margin|), not the zero codeword or any other huge-margin choice. For a block marked 'planted-fail', its content must be a genuine input decode_blocks decodes to F_j=1, similarly near-boundary. 'Near-boundary' means: a single-coordinate perturbation of the kind V1 (circular shift) or V3 (last-block window shift) would inject should plausibly be ABLE to flip the decoded F_j for at least some of your near-boundary templates -- verify this is genuinely possible (not merely near in some unrelated metric) by testing a small number of candidate perturbations against your own candidate templates during design, and report the margin distribution in design.md.",
+          "VERIFY EACH TEMPLATE'S TRUE DECODE OUTCOME ONCE, BEFORE GENERATING TRIALS, by running the REAL decode_blocks (sha256-pinned import from stage_a.py, do not modify it) on each candidate template and confirming it returns the intended F_j. This one-time verification is the derivation step design.md must document BEFORE any trial generation -- it is what keeps 'closed-form, derivable in advance' true even though bit-level content is now heterogeneous. A template whose true decode disagrees with its intended label must be discarded or fixed, not silently used.",
+          "REUSE THE ESTIMATOR PIPELINE EXACTLY AS THE V1 ARM DID: measure.py's comb_matrix and log2_A_from_hists via direct sha256-pinned import, and the point/loo/jmean/jse jackknife formulas reproduced identically. Do not modify the reused logic.",
+          "Match PS-R3's/the V1 arm's shape and order: n_e = 56, n_2 = 128, dup = 1, m = 17, T = 1e7 if budget allows (state explicitly if you must reduce T, and by how much, and what residual that leaves).",
+          "Apply the L = N/n_e block-partition reference expression (RULE-2), as the V1 arm did, in whatever reshape step feeds decode_blocks.",
+          "FAIL-CLOSED, NOT FAIL-OPEN: any self-integrity/hash check must actually read the field it claims to guard and abort on a real mismatch -- demonstrate this with a deliberate-mismatch dry run, as the V1 arm's executor did, and report the result.",
+          "DO NOT REPEAT THE V1 ARM'S DOCUMENTATION-PRECISION DEFECT: do not describe this arm's use of decode_blocks in language that could be misread as testing more than it does. State PRECISELY which of stage_a.py's machinery you invoke (decode_blocks, rm17_codewords, wht128) and which you still do NOT exercise (the CTRStream/fixed_weight_support sampling machinery that generates a genuine (T)-distributed error vector -- this arm still constructs planted per-block content directly rather than sampling the full cryptographic instance, and design.md must say so plainly, the same honest disclosure the V1 arm made about not running stage_a.py at all).",
+          "DO NOT REPEAT THE V1 ARM'S RUN-COUNT DISCREPANCY: run the authorized command exactly once (runs_authorized: 1), or if a shakedown/dry-run is genuinely needed first, report every execution and its purpose explicitly and consistently across run_manifest.yaml and comparison_report.md.",
+          "SIZE ANY SHAKEDOWN AGAINST THE BUDGET IT CONSUMES; report actual core-seconds against the 1800 s budget.",
+          "APPLY SNAPSHOT-BEFORE-REVIEW DISCIPLINE YOURSELF: do not represent any result as final before the Coordinator's snapshot task (TASK-20260806-883308) exists.",
+          "YOU ARE THE EXECUTOR: OBSERVATIONS ONLY. Report MATCH or MISMATCH per k against the pipeline's own stated interval, and separately report whether any near-boundary template's true decode (verified once, per the constraint above) ever disagreed with its intended label during construction. Do NOT conclude anything about A17, HQC's decoding-failure rate, or any standardized parameter set, and do not characterize what MATCH/MISMATCH implies for OPEN-6 or EV-HQC-db1fd9 -- that interpretation belongs to the Coordinator and the independent reviewers. Claim tier stays toy.",
+          "Do not touch experiments/EXP-HQC-982268/specification.yaml, stage_a.py, measure.py, or any prior batch's artifacts. Write only under your own task directory."
+        ],
+        "deliverables": [
+          "design.md",
+          "planted_arm_v2.py",
+          "planted_results.json",
+          "comparison_report.md",
+          "run_manifest.yaml"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/"
+        ],
+        "archived_by": "TASK-20260806-883308",
+        "inference": {
+          "policy": "executor-implementation",
+          "reasoning_effort": null,
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 3600,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "design.md exists, derives log2_A_k(k) in closed form from the position-level planted mechanism, and documents the one-time template-verification step against the real decode_blocks -- all predating planted_results.json (order recorded in run_manifest.yaml)",
+          "planted_arm_v2.py imports stage_a.py's decode_blocks directly (sha256-pinned), not a reimplementation",
+          "comparison_report.md states MATCH or MISMATCH per reported k, reports the near-boundary margin distribution, and states plainly which stage_a.py machinery is and is not exercised",
+          "run_manifest.yaml carries command, git commit and dirty-tree state, environment, seeds, timings, validity status, and an honest, consistent execution count"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260806-883308",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 2,
+      "depends_on": [
+        "TASK-20260806-047535"
+      ],
+      "review_required": false,
+      "title": "Snapshot the V2 planted-correlation control arm before review",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/archives/TASK-20260806-883308/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/archives/TASK-20260806-883308/snapshot-receipt.json"
+      ],
+      "budget": {
+        "wall_clock_seconds": 900,
+        "runs_authorized": 1
+      },
+      "archive": {
+        "kind": "snapshot",
+        "source_task_ids": [
+          "TASK-20260806-047535"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": [
+          "EXP-HQC-982268"
+        ]
+      },
+      "handoff": {
+        "id": "TASK-20260806-883308",
+        "from": "coordinator",
+        "to": "coordinator",
+        "objective": "Freeze the V2 planted-arm artifacts before either review is dispatched.",
+        "uncertainty_reduced": "Whether reviewers read artifacts frozen by construction rather than by argument.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/"
+        ],
+        "constraints": [
+          "Runs alone.",
+          "Stage by exact pathspec.",
+          "This commit MUST precede both TASK-20260806-01a340 and TASK-20260806-ae74c4."
+        ],
+        "deliverables": [
+          "snapshot-receipt.json"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/archives/TASK-20260806-883308/"
+        ],
+        "archived_by": "TASK-20260806-883308",
+        "inference": {
+          "policy": "coordinator-orchestration-code",
+          "reasoning_effort": null,
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 900,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "Commit reachable from HEAD with declared parent",
+          "Changes exactly the declared paths",
+          "Hashes match"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260806-01a340",
+      "role": "validator",
+      "state": "queued",
+      "priority": 3,
+      "depends_on": [
+        "TASK-20260806-047535",
+        "TASK-20260806-883308"
+      ],
+      "review_required": false,
+      "title": "Validate the V2 planted-correlation control arm",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-0a65c0/tasks/TASK-20260806-cde749/measure.py",
+        "experiments/EXP-HQC-982268/specification.yaml",
+        "ledger/evidence/EV-HQC-db1fd9.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/reviews/TASK-20260806-01a340/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/reviews/TASK-20260806-01a340/validation_report.yaml"
+      ],
+      "budget": {
+        "wall_clock_seconds": 1800,
+        "runs_authorized": 1
+      },
+      "handoff": {
+        "id": "TASK-20260806-01a340",
+        "from": "coordinator",
+        "to": "validator",
+        "objective": "Independently re-derive the planted position-level law's log2_A_k(k), confirm decode_blocks is genuinely imported (not reimplemented) and byte-identical to stage_a.py's, independently verify at least one near-boundary template's true decode outcome yourself against the real decode_blocks, and recompute at least one reported cell from raw output.",
+        "uncertainty_reduced": "Whether the V2 planted-arm result is trustworthy enough to bear on OPEN-6.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py"
+        ],
+        "constraints": [
+          "Independent session. Derive the position-level law's log2_A_k(k) yourself before consulting reported values.",
+          "Diff the imported decode_blocks usage against stage_a.py and confirm no modification.",
+          "Independently verify, using the real decode_blocks yourself, that at least two of the executor's near-boundary templates (one intended-fail, one intended-succeed) truly decode to their claimed label.",
+          "State explicitly whether the near-boundary construction genuinely gives boundary-index-shift defects a non-zero chance of flipping F_j -- do not accept the executor's margin claim without independently checking at least one perturbation against at least one template.",
+          "State an explicit ADMIT / DO-NOT-ADMIT verdict, and a separate explicit judgement: does this arm, if admitted, CLOSE OPEN-6, PARTIALLY CLOSE it, or leave it OPEN, and why.",
+          "You verify; you do not change status."
+        ],
+        "deliverables": [
+          "validation_report.yaml"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/reviews/TASK-20260806-01a340/"
+        ],
+        "archived_by": "TASK-20260806-f11d5f",
+        "inference": {
+          "policy": "review-adversarial",
+          "reasoning_effort": "xhigh",
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": true
+        },
+        "budget": {
+          "wall_clock_seconds": 1800,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "An independently re-derived planted log2_A_k(k), computed before consulting the reported result",
+          "At least one independently-verified near-boundary template decode",
+          "An explicit ADMIT / DO-NOT-ADMIT verdict",
+          "An explicit judgement on whether OPEN-6 is closed, partially closed, or still open by this arm"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260806-ae74c4",
+      "role": "red-team",
+      "state": "queued",
+      "priority": 3,
+      "depends_on": [
+        "TASK-20260806-047535",
+        "TASK-20260806-883308"
+      ],
+      "review_required": false,
+      "title": "Red-team the V2 planted-correlation control arm: do boundary-index defects actually get caught this time?",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/reviews/TASK-20260806-21c8da/red_team_report.md",
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-6fddee/tasks/TASK-20260806-64b506/stage_a.py",
+        "ledger/evidence/EV-HQC-db1fd9.yaml"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/reviews/TASK-20260806-ae74c4/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/reviews/TASK-20260806-ae74c4/red_team_report.md"
+      ],
+      "budget": {
+        "wall_clock_seconds": 1800,
+        "runs_authorized": 1
+      },
+      "handoff": {
+        "id": "TASK-20260806-ae74c4",
+        "from": "coordinator",
+        "to": "red-team",
+        "objective": "Attack the V2 arm the same way TASK-20260806-21c8da attacked V1: inject the same V1 (off-by-one) and V3 (last-block-early) defect classes against a standalone copy of this arm's block-assembly/decode machinery, and determine whether they are now detected (a non-trivial chance of flipping F_j for at least some near-boundary templates) or still structurally invisible.",
+        "uncertainty_reduced": "Whether the V2 arm actually closes the specific blind spot found in the V1 arm, or merely relocates it.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/tasks/TASK-20260806-047535/",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-4b8ad3/reviews/TASK-20260806-21c8da/red_team_report.md"
+        ],
+        "constraints": [
+          "Independent session. Assume the arm is optimistic about what it establishes.",
+          "Inject V1 and V3 (and V2 if useful as a sanity check) against a standalone reimplementation of this arm's block-assembly/decode machinery, mirroring the method used against the V1 arm, and report detection rates -- not just whether the self-check fires, but whether F/S actually change.",
+          "Check whether the near-boundary templates are genuinely representative of realistic (T)-distributed error content, or an artificially narrow slice that happens to be boundary-adjacent without resembling real noise -- name this residual explicitly either way.",
+          "State an explicit ADMIT / DO-NOT-ADMIT verdict, and a separate explicit judgement: does this arm, if admitted, CLOSE OPEN-6, PARTIALLY CLOSE it, or leave it OPEN, and why.",
+          "Report any budget overrun rather than trimming it."
+        ],
+        "deliverables": [
+          "red_team_report.md"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/reviews/TASK-20260806-ae74c4/"
+        ],
+        "archived_by": "TASK-20260806-f11d5f",
+        "inference": {
+          "policy": "review-adversarial",
+          "reasoning_effort": "xhigh",
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": true
+        },
+        "budget": {
+          "wall_clock_seconds": 1800,
+          "memory_gb": 2,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "At least one attempted V1/V3 injection against the V2 arm's machinery, with a measured detection outcome (not just a self-check-fired/not-fired report)",
+          "An explicit ADMIT / DO-NOT-ADMIT verdict",
+          "An explicit judgement on whether OPEN-6 is closed, partially closed, or still open by this arm"
+        ]
+      }
+    },
+    {
+      "id": "TASK-20260806-f11d5f",
+      "role": "coordinator",
+      "state": "queued",
+      "priority": 4,
+      "depends_on": [
+        "TASK-20260806-01a340",
+        "TASK-20260806-ae74c4",
+        "TASK-20260806-883308"
+      ],
+      "review_required": false,
+      "title": "Ledger archive: V2 planted-correlation evidence, OPEN-6 disposition, and batch/goal checkpoint",
+      "read_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/"
+      ],
+      "write_scope": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/archives/TASK-20260806-f11d5f/",
+        "ledger/evidence/",
+        "ledger/decisions/",
+        "ledger/goals/"
+      ],
+      "artifact_paths": [
+        "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/archives/TASK-20260806-f11d5f/ledger-receipt.json"
+      ],
+      "budget": {
+        "wall_clock_seconds": 900,
+        "runs_authorized": 1
+      },
+      "archive": {
+        "kind": "ledger",
+        "source_task_ids": [
+          "TASK-20260806-047535",
+          "TASK-20260806-01a340",
+          "TASK-20260806-ae74c4"
+        ],
+        "commit_sha": null,
+        "parent_sha": null,
+        "path_sha256": {},
+        "record_ids": []
+      },
+      "handoff": {
+        "id": "TASK-20260806-f11d5f",
+        "from": "coordinator",
+        "to": "coordinator",
+        "objective": "Commit both independent reviews of the V2 planted arm plus a new evidence and decision record stating OPEN-6's disposition, then checkpoint GOAL-HQC-001 with exactly one next action.",
+        "uncertainty_reduced": "What the V2 planted-arm result licenses this campaign to conclude about OPEN-6, and what an honest successor batch should do next.",
+        "inputs": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/reviews/TASK-20260806-01a340/",
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/reviews/TASK-20260806-ae74c4/",
+          "ledger/evidence/EV-HQC-db1fd9.yaml",
+          "ledger/decisions/DEC-20260806-46a8f3.yaml"
+        ],
+        "constraints": [
+          "Runs alone.",
+          "Mint new EV-HQC-* and DEC-YYYYMMDD-* IDs with tools/allocate_id.py --next, --check each before use.",
+          "If either review returns DO-NOT-ADMIT, or a red-team injection defeats the arm, OPEN-6 remains OPEN and the evidence/decision record must say so plainly.",
+          "If both reviews admit and agree the arm closes OPEN-6, the new decision may schedule DEC-20260806-2947ba's remaining original next_actions (extrapolation or its unreachability, PS-R3's second reviewer, the remaining harness repairs) in a successor batch -- but does not itself supply them.",
+          "Claim tier stays toy regardless of outcome.",
+          "Update ledger/goals/GOAL-HQC-001.yaml: batch_checkpoints entry for BATCH-558f5b, latest_verified_commit, and exactly one next action."
+        ],
+        "deliverables": [
+          "ledger-receipt.json",
+          "a new EV-HQC-* evidence record",
+          "a new DEC-YYYYMMDD-* decision record",
+          "GOAL-HQC-001.yaml checkpoint"
+        ],
+        "artifact_paths": [
+          "coordination/goals/GOAL-HQC-001/batches/BATCH-558f5b/archives/TASK-20260806-f11d5f/"
+        ],
+        "archived_by": "TASK-20260806-f11d5f",
+        "inference": {
+          "policy": "coordinator-orchestration-code",
+          "reasoning_effort": null,
+          "fallback_allowed": false,
+          "degraded_allowed": false,
+          "independent_session_required": false
+        },
+        "budget": {
+          "wall_clock_seconds": 900,
+          "memory_gb": 1,
+          "maximum_runs": 1
+        },
+        "completion_gate": [
+          "Commit verifies against git",
+          "Declared record IDs in filenames and record_ids",
+          "An explicit OPEN-6 disposition with rationale",
+          "GOAL-HQC-001.yaml checkpoint carries exactly one next action"
+        ]
+      }
+    }
+  ]
+}

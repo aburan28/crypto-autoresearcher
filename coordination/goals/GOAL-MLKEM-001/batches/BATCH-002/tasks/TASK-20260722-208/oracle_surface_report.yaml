@@ -1,0 +1,1527 @@
+schema: crypto.autoresearch.oracle_surface_report.v1
+task_id: TASK-20260722-208
+goal_id: GOAL-MLKEM-001
+question_id: RQ-MLKEM-001
+as_of: '2026-07-22'
+scope: defensive_primary_source_synthesis
+official_state_change: none
+inference:
+  requested_policy: research-sol-max
+  resolved_model_id: gpt-5.6-sol-xhigh
+  reasoning_effort: xhigh
+  fallback_used: true
+  adapter_version: cursor-subagent-2026-07
+
+classification_boundary:
+  passive_core_mlwe:
+    definition: >-
+      Attacks using only the standardized encapsulation key and public
+      ciphertexts, with no decapsulation, failure, leakage, fault, hint, or
+      device oracle.
+    conclusion: >-
+      No source reviewed for this task reports a verified passive
+      standardized-parameter ML-KEM key recovery. Physical observation without
+      chosen inputs is still implementation leakage, not passive core-MLWE.
+  conditional_algorithmic_oracle:
+    definition: >-
+      A mathematical key-recovery procedure evaluated under a stated PC, DF,
+      inequality, or soft-information oracle. Its query count is not an
+      end-to-end attack cost until oracle construction and repeated
+      measurements are charged.
+    conclusion: >-
+      Adaptive coding and soft-information work materially reduce conditional
+      query complexity, but do not create the oracle exposed by neither FIPS
+      203 nor ideal MLWE.
+  implementation_leakage:
+    definition: >-
+      Timing, cache/DMP, DVFS, power, EM, fault, masking-composition, or logic
+      behavior tied to a concrete software, hardware, compiler, microarchitecture,
+      or protocol confirmation path.
+    conclusion: >-
+      Several laboratory attacks recover keys or instantiate high-quality
+      oracles on tested implementations. None establishes that every protected
+      conforming FIPS 203 implementation has the same channel.
+
+fips_203_anchor:
+  parameter_sets: [ML-KEM-512, ML-KEM-768, ML-KEM-1024]
+  honest_decapsulation_failure_rates:
+    ML-KEM-512: '2^-138.8'
+    ML-KEM-768: '2^-164.8'
+    ML-KEM-1024: '2^-174.8'
+  rejection_semantics: >-
+    ML-KEM.Decaps_internal re-encrypts and compares the complete ciphertext.
+    On mismatch it substitutes J(z || c) and still returns a 256-bit value; it
+    does not return a failure symbol.
+  transfer_rule: >-
+    The K-PKE ring and module parameters largely preserve arithmetic attack
+    relevance from round-three Kyber, but final ML-KEM is not byte-for-byte
+    Kyber. Claims involving hashes, KDF inputs, input checks, internal
+    interfaces, malformed ciphertexts, or code paths require a final-FIPS
+    reproduction.
+  round_three_differences_material_here:
+    - Final ML-KEM derives the shared secret without the round-three hash of the ciphertext.
+    - Initial encapsulation randomness is no longer pre-hashed.
+    - The shared secret length is fixed at 256 bits.
+    - Explicit input checks and key-generation domain separation were added.
+    - The final standard corrected matrix indexing from the initial public draft.
+  correction_to_common_misstatement: >-
+    FIPS 203 includes ML-KEM-512, ML-KEM-768, and ML-KEM-1024. Round-three
+    Kyber already used implicit rejection; FIPS 203 changes its exact derivation
+    but does not newly replace an explicit failure return.
+  source:
+    url: https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.203.pdf
+    accessed: '2026-07-22'
+    primary: true
+
+evidence_levels:
+  standard_specification: normative algorithm or parameter statement
+  theoretical_estimate: analytic cost without end-to-end physical execution
+  simulation: synthetic leakage or oracle experiment
+  physical_oracle: measured oracle quality without complete key recovery
+  physical_partial_key: measured recovery of only part of a key or near-key
+  physical_full_key: end-to-end laboratory recovery on the stated target
+  vendor_advisory: vendor or CNA record, with only the reproduction stated there
+
+material_results:
+  - id: ORS-001
+    title: FIPS 203 exposes no decapsulation-failure bit
+    category: standard_boundary
+    claim: >-
+      Honest ML-KEM failures are defined, but a conforming decapsulation call
+      returns a 256-bit value in both match and mismatch cases. A DF or PC bit
+      therefore requires an additional observation channel.
+    oracle_model:
+      name: none_in_ideal_interface
+      output: 256-bit shared secret only
+      availability: absent
+    affected_class: all_conforming_FIPS_203_implementations
+    evidence_level: standard_specification
+    evidence_summary: >-
+      Algorithm 18 performs complete re-encryption comparison and implicit
+      rejection; Table 1 gives the three honest-failure rates.
+    metrics:
+      honest_failure_probability:
+        ML-KEM-512: '2^-138.8'
+        ML-KEM-768: '2^-164.8'
+        ML-KEM-1024: '2^-174.8'
+    resource_accounting:
+      oracle_construction: not_provided_by_standard
+      profiling: none
+      traces: none
+      adaptivity: none
+      device_access: ordinary_KEM_interface_only
+      countermeasure_bypass: none
+      postprocessing: none
+    patch_status: normative_final_standard_with_potential_errata_spreadsheet
+    standardized_transfer_limit:
+      transfers: This is the final standardized behavior.
+      does_not_transfer: >-
+        It does not prove constant-time, power-safe, fault-safe, or
+        microarchitecturally silent execution.
+    sources:
+      - url: https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.203.pdf
+        accessed: '2026-07-22'
+        primary: true
+      - url: https://csrc.nist.gov/pubs/fips/203/final
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: >-
+        For each backend, mutate each ciphertext byte and verify output against
+        a scalar Algorithm-18 oracle while checking that no failure status is
+        exported.
+      controls: [valid_ciphertexts, malformed_lengths, scalar_reference_backend]
+      pass_condition: Complete output agreement with the reference for every test.
+      fail_condition: Any accepted mismatch, truncated comparison, or distinct failure return.
+
+  - id: ORS-002
+    title: Multitarget failure boosting is not a practical Kyber break
+    category: conditional_algorithmic_oracle
+    claim: >-
+      Multitarget failure boosting gives explicit theoretical work/query
+      estimates for round-three Kyber, but under the paper's constrained model
+      none of the Kyber parameter sets is declared vulnerable relative to its
+      comparator, and real execution remains dominated by enormous target,
+      online-query, and precomputation assumptions.
+    oracle_model:
+      name: observable_honest_decryption_failure
+      output: one failure/success bit per decapsulation
+      availability: assumed_after_failure_boosting_not_exposed_by_KEM
+    affected_class: round_three_Kyber_parameter_distributions_with_many_static_targets
+    evidence_level: theoretical_estimate
+    evidence_summary: >-
+      The source evaluates qlimit=2^64 per target, up to 2^64 targets, finite
+      message spaces, and depth limits. Its Kyber table entries remain
+      model-specific estimates, not executions or standardized-interface
+      oracles; the paper's conclusion does not classify a Kyber parameter set
+      as broken by the developed attack under its stated constraints.
+    metrics:
+      target_count_max: '2^64'
+      decapsulation_query_limit_per_target: '2^64'
+      maximum_search_depth_considered: '2^96'
+      cost_unit_warning: W_is_offline_encapsulation_and_Q_is_online_decapsulation
+    resource_accounting:
+      oracle_construction: >-
+        Must expose whether the honest K-PKE message differs; final implicit
+        rejection hides this unless a protocol or leakage channel distinguishes it.
+      profiling: none_in_cost_model
+      traces: not_modeled
+      adaptivity: follow-up failures and target allocation are adaptive
+      device_access: up_to_exponential_online_queries_across_exponential_targets
+      countermeasure_bypass: not_modeled
+      postprocessing: failure_boosting_precomputation_and_key_recovery
+    patch_status: design_analysis_not_a_patchable_single_bug
+    standardized_transfer_limit:
+      transfers: K-PKE parameter distributions and final FIPS failure rates are closely related.
+      does_not_transfer: >-
+        The paper analyzes round-three Kyber and assumes a visible failure bit;
+        final FIPS 203 exposes neither that bit nor the paper's huge target pool.
+    sources:
+      - url: https://eprint.iacr.org/2021/193
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: >-
+        Instrument a local reference only to measure the boosted conditional
+        failure probability, then compare it with the paper's estimator; do not
+        expose the instrumentation in a deployed API.
+      controls: [unboosted_valid_ciphertexts, independent_keys, exact_FIPS_parameters]
+      pass_condition: Estimator and measured toy or moderate-scale rates agree within predeclared intervals.
+      fail_condition: The boosted rate or cost accounting fails reproduction.
+
+  - id: ORS-003
+    title: Error-tolerant inequality recovery is a reusable implementation-attack backend
+    category: conditional_algorithmic_oracle
+    claim: >-
+      Belief propagation followed by lattice reduction can recover Kyber512
+      keys from noisy decryption-error inequalities, with about 5,500 filtered
+      or 9,000 unfiltered correct inequalities in the reported setting.
+    oracle_model:
+      name: signed_decryption_error_inequality
+      output: inequality plus an estimated correctness probability
+      availability: requires_fault_or_side_channel_observation
+    affected_class: Kyber512_fault_or_leakage_sources_that_yield_matching_inequalities
+    evidence_level: simulation_plus_fault_attack_demonstration
+    evidence_summary: >-
+      The source combines statistical and algebraic recovery, models incorrect
+      inequalities, and demonstrates the backend with fault-induced errors.
+    metrics:
+      filtered_inequalities: 5500
+      unfiltered_inequalities: 9000
+      information_theoretic_uniqueness_reference: just_over_2900
+    resource_accounting:
+      oracle_construction: one usable inequality per qualifying faulty_or_leaky decapsulation
+      profiling: correctness_probabilities_must_be_calibrated
+      traces: at_least_one_observation_per_candidate_inequality
+      adaptivity: ciphertext_selection_and_optional_filtering
+      device_access: thousands_of_faulted_or_observed_decapsulations
+      countermeasure_bypass: depends_on_upstream_fault_or_leakage_source
+      postprocessing: belief_propagation_plus_lattice_reduction
+    patch_status: backend_remains_applicable_wherever_matching_inequalities_leak
+    standardized_transfer_limit:
+      transfers: Secret distribution and K-PKE arithmetic map closely to ML-KEM-512.
+      does_not_transfer: >-
+        FIPS 203 does not supply inequalities; each concrete leakage or fault
+        source and final code path must be demonstrated separately.
+    sources:
+      - url: https://eprint.iacr.org/2023/098
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: >-
+        Feed held-out synthetic inequalities with a swept error rate into the
+        published recovery code before any physical campaign.
+      controls: [random_wrong_inequalities, perfect_inequalities, no_side_information]
+      pass_condition: Recovery threshold reproduces within a predeclared tolerance.
+      fail_condition: Reported thresholds or error tolerance do not reproduce.
+
+  - id: ORS-004
+    title: Adaptive-LDPC sharply lowers conditional DF-oracle queries
+    category: conditional_algorithmic_oracle
+    claim: >-
+      For ML-KEM-768 and an independently correct 95% one-bit DF oracle, the
+      adaptive-LDPC simulation reports full recovery in 2,950 queries, 1.35
+      times its Shannon lower bound. The same work materially improves a
+      concrete GoFetch oracle but does not remove its calibration and
+      co-location assumptions.
+    oracle_model:
+      name: imperfect_one_bit_decryption_failure
+      output: success/failure bit with stated independent accuracy
+      availability: assumed_in_algorithmic_table_and_instantiated_separately_with_DMP
+    affected_class: ML-KEM-512_and_768_oracles_with_balanced_multi_coefficient_queries
+    evidence_level: simulation_plus_physical_partial_or_near_key_GoFetch
+    evidence_summary: >-
+      The simulation gives 2,400 calls for ML-KEM-512 and 2,950 for ML-KEM-768
+      at 95% accuracy. On Apple M1, 73 of 100 ML-KEM-512 trials ended within
+      Hamming distance four, averaging 6,047.84 key-recovery traces and about
+      25 minutes including calibration; the profile used 1,000 timing measurements.
+    metrics:
+      ML-KEM-512_queries_at_95_percent: 2400
+      ML-KEM-768_queries_at_95_percent: 2950
+      ML-KEM-768_ratio_to_Shannon_bound: 1.35
+      GoFetch_M1_profile_measurements: 1000
+      GoFetch_M1_success_definition: Hamming_distance_at_most_4
+      GoFetch_M1_success_trials: '73 / 100'
+      GoFetch_M1_mean_key_recovery_traces_on_successes: 6047.84
+      GoFetch_M1_elapsed: approximately_25_minutes
+    resource_accounting:
+      oracle_construction: DMP_pointer_predicate_plus_Prime_Probe
+      profiling: eviction_sets_compound_eviction_sets_and_1000_timing_measurements
+      traces: about_6048_average_on_reported_successful_ML-KEM-512_trials
+      adaptivity: yes_queries_depend_on_LDPC_posterior
+      device_access: unprivileged_co_located_process_and_high_resolution_timer
+      countermeasure_bypass: none_if_DMP_is_disabled_or_non_DMP_core_is_used
+      postprocessing: belief_propagation_no_large_final_lattice_reduction_in_followup
+    patch_status: DMP_disable_or_core_restriction_mitigates_the_concrete_oracle
+    standardized_transfer_limit:
+      transfers: Paper targets final ML-KEM parameter sets and final-style decapsulation arithmetic.
+      does_not_transfer: >-
+        The 2,950 figure is conditional on a memoryless 95% oracle. The Apple
+        experiment has burst errors, platform-specific calibration, and no
+        protected final-FIPS backend.
+    sources:
+      - url: https://eprint.iacr.org/2026/070
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: >-
+        Replay recorded oracle outputs with block-resampling to preserve burst
+        errors and compare recovery with the independent-noise simulation.
+      controls: [iid_bit_flip_oracle, burst_noise_oracle, shuffled_labels]
+      pass_condition: Held-out recovery and trace quantiles match the declared noise model.
+      fail_condition: Gains vanish under measured burst dependence or label shuffling.
+
+  - id: ORS-005
+    title: FO re-encryption leakage can instantiate plaintext checking
+    category: implementation_leakage
+    claim: >-
+      Power or EM leakage from re-encryption and its hash/PRF work can reveal
+      whether a chosen ciphertext decrypts to a reference message, even when
+      the underlying PKE decryption itself is not the leakage target.
+    oracle_model:
+      name: binary_plaintext_checking
+      output: whether_decrypted_message_matches_reference
+      availability: derived_from_re_encryption_leakage
+    affected_class: FO_transformed_KEM_implementations_with_distinguishable_re_encryption
+    evidence_level: physical_oracle
+    evidence_summary: >-
+      Foundational work demonstrated EM classification on Kyber's FO path and
+      later generalized power/EM construction through PRF or PRG leakage.
+    metrics:
+      output_information_per_call: at_most_one_bit_for_binary_PCO
+      full_key_queries: source_family_reports_thousands_for_early_binary_attacks
+    resource_accounting:
+      oracle_construction: side_channel_classifier_for_two_reference_messages
+      profiling: templates_or_points_of_interest_in_reported_instantiations
+      traces: one_or_more_per_chosen_ciphertext_depending_on_noise
+      adaptivity: yes_for_coefficient_recovery
+      device_access: physical_power_or_EM_measurement
+      countermeasure_bypass: re_encryption_and_symmetric_primitives_must_also_be_protected
+      postprocessing: decision_tree_or_oracle_key_recovery
+    patch_status: no_universal_patch_mask_or_harden_complete_decapsulation_path
+    standardized_transfer_limit:
+      transfers: Final FIPS 203 retains decrypt, hash, re-encrypt, and compare structure.
+      does_not_transfer: >-
+        Exact round-three KDF inputs differ, and leakage depends on the final
+        hash, compiler, masking, and hardware implementation.
+    sources:
+      - url: https://eprint.iacr.org/2019/948
+        accessed: '2026-07-22'
+        primary: true
+      - url: https://eprint.iacr.org/2021/849
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: >-
+        Run fixed-versus-random and two-message leakage tests over the complete
+        final-FIPS decapsulation, including hashes and comparison.
+      controls: [same_ciphertext_repetitions, randomized_messages, masked_and_unmasked_builds]
+      pass_condition: No held-out classifier exceeds the predeclared advantage bound.
+      fail_condition: A held-out classifier distinguishes the PC classes above that bound.
+
+  - id: ORS-006
+    title: Parallel PC oracles exchange offline templates for fewer target queries
+    category: conditional_algorithmic_oracle
+    claim: >-
+      On unprotected pqm4 Kyber768, a P=10 classifier recovered the key and the
+      source estimates 232 target queries with a clone device, versus 1,776 for
+      its binary baseline; without a clone, template acquisition raises the
+      measured P=4 total to 613 queries at five traces per class.
+    oracle_model:
+      name: multi_class_parallel_plaintext_checking
+      output: P_message_bits_or_one_of_2^P_classes
+      availability: profiled_side_channel_classifier
+    affected_class: unprotected_or_lightly_shuffled_Kyber768_pqm4_on_Cortex_M4
+    evidence_level: physical_full_key
+    evidence_summary: >-
+      The experiment classified 1,024 classes at P=10 with 100% reported
+      success and used five traces for each of 1,024 classes (5,120 template
+      traces); query tables make clone-device
+      and no-clone costs explicit.
+    metrics:
+      binary_baseline_queries_Kyber768: 1776
+      P10_target_queries_with_clone: 232
+      P10_template_traces: 5120
+      no_clone_P4_queries_at_five_templates_per_class: 613
+      full_key_success_reported: 100_percent
+    resource_accounting:
+      oracle_construction: 2^P_class_templates
+      profiling: clone_device_or_online_template_acquisition
+      traces: 5120_template_traces_for_reported_P10_experiment_plus_attack_traces
+      adaptivity: decision_tree_queries
+      device_access: chosen_ciphertexts_and_power_or_EM_acquisition
+      countermeasure_bypass: demonstrated_against_low_cost_shuffling_not_masking
+      postprocessing: multi_class_tournament_and_coefficient_assembly
+    patch_status: masking_recommended_but_not_established_sufficient
+    standardized_transfer_limit:
+      transfers: Parallel chosen-ciphertext logic applies to the same ML-KEM coefficient distributions.
+      does_not_transfer: >-
+        The measured target was pre-standard unprotected pqm4 Kyber768; exact
+        final code, masks, noise, and template portability were not established.
+    sources:
+      - url: https://eprint.iacr.org/2022/931
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: >-
+        Re-run only the held-out message-class classifier on the production
+        backend, charging templates separately from attack traces.
+      controls: [clone_and_no_clone, shuffled_labels, different_device_holdout]
+      pass_condition: Class advantage remains below the implementation's leakage budget.
+      fail_condition: P-way held-out classification supports the published query tradeoff.
+
+  - id: ORS-007
+    title: Soft-analytic PC attacks remain effective for imperfect oracles
+    category: conditional_algorithmic_oracle
+    claim: >-
+      Soft posterior updates substantially reduce the cost of noisy PC attacks;
+      the source reports, for ML-KEM-1024 with eight positions in parallel,
+      1,529.6 queries at tournament parameter alpha=0.5, 944.64 at 0.7, and
+      706.56 at 0.9.
+    oracle_model:
+      name: soft_probabilistic_parallel_plaintext_checking
+      output: probability_distribution_over_message_classes
+      availability: abstract_or_noisy_Hamming_weight_instantiations
+    affected_class: ML-KEM_implementations_with_even_weak_re_encryption_leakage
+    evidence_level: simulation
+    evidence_summary: >-
+      The paper evaluates abstract tournament and noisy Hamming-weight oracles,
+      masking orders, and open-source solvers; these are not physical
+      end-to-end key recoveries for every model.
+    metrics:
+      ML-KEM-1024_queries_alpha_0_5: 1529.6
+      ML-KEM-1024_queries_alpha_0_7: 944.64
+      ML-KEM-1024_queries_alpha_0_9: 706.56
+      first_order_masked_single_intermediate_example: under_270000_traces_at_sigma_1_0
+    resource_accounting:
+      oracle_construction: noisy_Hamming_weight_or_other_side_channel_scores
+      profiling: score_likelihoods_or_calibrated_class_probabilities
+      traces: model_dependent_and_can_greatly_exceed_query_count
+      adaptivity: posterior_driven_query_selection
+      device_access: chosen_ciphertexts_plus_leakage_measurement
+      countermeasure_bypass: masking_is_included_only_through_stated_leakage_models
+      postprocessing: joint_distribution_or_BP_or_marginal_approximation
+    patch_status: algorithmic_backend_not_patch_specific
+    standardized_transfer_limit:
+      transfers: The paper directly parameterizes standardized ML-KEM.
+      does_not_transfer: >-
+        Abstract alpha or sigma does not establish the same distributions on a
+        concrete masked final-FIPS device; profiling and calibration are charged.
+    sources:
+      - url: https://eprint.iacr.org/2025/1496
+        accessed: '2026-07-22'
+        primary: true
+      - url: https://github.com/juliusjh/sasca_imperfect_pc_oracles
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: >-
+        Replace synthetic likelihoods with held-out traces from one protected
+        backend and test calibration error before running key recovery.
+      controls: [hard_decisions, intentionally_miscalibrated_scores, shuffled_scores]
+      pass_condition: Soft scores remain calibrated and do not support recovery within the trace budget.
+      fail_condition: Calibrated soft recovery reproduces within the declared budget.
+
+  - id: ORS-008
+    title: Sequential testing reduces noisy-oracle repetition but increases online adaptivity
+    category: conditional_algorithmic_oracle
+    claim: >-
+      SPRT-based handling of noisy PCO responses reduces repeated oracle calls
+      by a reported factor of two to three relative to majority or fixed-length
+      likelihood tests in the evaluated simulations.
+    oracle_model:
+      name: repeated_noisy_plaintext_checking_with_scores
+      output: sequential_likelihood_samples
+      availability: requires_repeatable_side_channel_measurements
+    affected_class: noisy_ML-KEM_PCO_implementations
+    evidence_level: simulation
+    evidence_summary: The result is an early-abort wrapper, not a new physical oracle.
+    metrics:
+      repeated_query_reduction: '2x to 3x'
+    resource_accounting:
+      oracle_construction: unchanged_from_underlying_PCO
+      profiling: response_distributions_and_error_targets
+      traces: sequential_random_count_per_query
+      adaptivity: strictly_online_stopping_decisions
+      device_access: repeated_decapsulations_until_each_decision_stops
+      countermeasure_bypass: none_beyond_underlying_PCO
+      postprocessing: low
+    patch_status: algorithmic_backend_not_patch_specific
+    standardized_transfer_limit:
+      transfers: Statistical wrapper is agnostic to the final ML-KEM arithmetic.
+      does_not_transfer: >-
+        The gain depends on stationary, calibrated score distributions and does
+        not remove device, leakage, or online-access costs.
+    sources:
+      - url: https://eprint.iacr.org/2025/2045
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Replay time-ordered traces to compare SPRT with fixed repetition under drift.
+      controls: [randomized_order, injected_drift, fixed_length_test]
+      pass_condition: No reduction survives measured nonstationarity at matched error.
+      fail_condition: The two-to-threefold reduction reproduces at matched error.
+
+  - id: ORS-009
+    title: Probing-secure masked comparisons can still yield a one-trace DF oracle
+    category: implementation_leakage
+    claim: >-
+      A higher-order masked comparison secure in the stated probing model can
+      leak through horizontal or vertical distributions; the source constructs
+      a DF oracle from one trace and reports about 7,000 chosen-ciphertext
+      traces for a no-profile vertical attack at realistic noise.
+    oracle_model:
+      name: masked_comparison_decryption_failure
+      output: failure_or_success_from_trace_distribution
+      availability: physical_or_simulated_leakage_of_specific_masked_comparison
+    affected_class: specific_higher_order_masked_polynomial_comparison_implementations
+    evidence_level: simulation_plus_physical_oracle_on_multiple_devices
+    evidence_summary: >-
+      The work includes approximate templates, profiling-free vertical
+      analysis, horizontal single-trace oracle construction, and physical-device tests.
+    metrics:
+      vertical_no_profile_chosen_ciphertexts_and_traces: approximately_7000
+      horizontal_oracle_traces_per_call: 1
+    resource_accounting:
+      oracle_construction: horizontal_or_vertical_distribution_classifier
+      profiling: small_for_approximate_template_or_none_for_vertical_horizontal_variants
+      traces: one_per_oracle_call_horizontal_or_about_7000_total_vertical_example
+      adaptivity: chosen_ciphertexts_for_key_recovery
+      device_access: physical_power_measurements
+      countermeasure_bypass: higher_masking_order_does_not_remove_horizontal_reuse_in_tested_design
+      postprocessing: template_or_distribution_matching_plus_DF_backend
+    patch_status: affected_algorithm_requires_redesign_or_stronger_physical_model
+    standardized_transfer_limit:
+      transfers: Final FIPS comparison remains security-critical.
+      does_not_transfer: >-
+        The result targets particular masked comparison algorithms and leakage
+        behavior, not every higher-order masked ML-KEM implementation.
+    sources:
+      - url: https://eprint.iacr.org/2024/060
+        accessed: '2026-07-22'
+        primary: true
+      - url: https://eprint.iacr.org/2021/104
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: >-
+        Apply horizontal fixed-versus-random tests at each share count using a
+        single trace per chosen ciphertext and hold out devices.
+      controls: [fresh_masks, shuffled_coefficient_order, independent_device]
+      pass_condition: No cross-device failure classifier exceeds the bound.
+      fail_condition: One-trace failure classification transfers to held-out devices.
+
+  - id: ORS-010
+    title: Masked Keccak can dominate FO plaintext-checking leakage
+    category: implementation_leakage
+    claim: >-
+      Profiled attacks against three masked Keccak software implementations on
+      Cortex-M4 obtain high-accuracy PCOs through seven shares; for the
+      strongest reported seven-share DOM case, a 90% distinguisher uses leakage
+      from 104 Keccak rounds, corresponding to about 50 ML-KEM executions.
+    oracle_model:
+      name: soft_plaintext_checking_from_masked_Keccak
+      output: posterior_over_two_re_encryption_messages
+      availability: profiled_physical_leakage
+    affected_class: tested_DOM_PINI_and_TI_masked_Keccak_software_on_ARM_Cortex_M4
+    evidence_level: physical_oracle_plus_modeled_key_recovery
+    evidence_summary: >-
+      The paper measures concrete masked software, then analyzes hard and soft
+      PCO exploitation. It does not establish universal seven-share failure.
+    metrics:
+      maximum_tested_shares: 7
+      seven_share_DOM_accuracy: 0.90
+      Keccak_round_leakages: 104
+      equivalent_ML-KEM_executions: approximately_50
+    resource_accounting:
+      oracle_construction: profiled_principal_subspace_templates
+      profiling: state_of_the_art_profiled_attack_with_known_classes
+      traces: leakage_aggregated_across_about_50_executions_for_the_stated_point
+      adaptivity: required_by_downstream_PCO_key_recovery
+      device_access: physical_access_to_Cortex_M4_and_profiling_capability
+      countermeasure_bypass: exploits_more_computation_and_transition_leakage_across_shares
+      postprocessing: probabilistic_PCO_and_optional_lattice_hint_processing
+    patch_status: no_universal_patch_secure_hardware_or_parallel_coprocessor_suggested
+    standardized_transfer_limit:
+      transfers: Final ML-KEM uses Keccak in the same broad re-encryption path.
+      does_not_transfer: >-
+        Exact calls and inputs must match final FIPS 203, and the result is
+        platform, implementation, profiling, and leakage-model specific.
+    sources:
+      - url: https://eprint.iacr.org/2026/777
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Reproduce only the two-message held-out classifier at two and seven shares.
+      controls: [same_compute_unmasked, fresh_masks, cross_device_templates]
+      pass_condition: Accuracy stays within the predeclared leakage budget.
+      fail_condition: Accuracy reaches the reported operating point on held-out traces.
+
+  - id: ORS-011
+    title: KyberSlash turns variable-latency division into timing or PC leakage
+    category: implementation_leakage
+    claim: >-
+      Secret-dependent division in affected Kyber implementations enabled
+      full-key timing attacks: KyberSlash1 recovered Kyber512 in 2-4 hours on a
+      Raspberry Pi 2, while KyberSlash2 recovered Kyber768 in 4 minutes using
+      6,144 decapsulations on Cortex-M4.
+    oracle_model:
+      name: secret_dependent_division_timing
+      output: direct_coefficient_timing_or_plaintext_check
+      availability: affected_compiler_CPU_and_code_path_only
+    affected_class: implementations_compiling_secret_derived_division_to_variable_latency_instructions
+    evidence_level: physical_full_key
+    evidence_summary: Both demonstrations succeeded 10 of 10 times on the stated targets.
+    metrics:
+      KyberSlash1_target: Kyber512_Raspberry_Pi_2_Cortex_A7
+      KyberSlash1_time: '2 to 4 hours'
+      KyberSlash2_target: Kyber768_Cortex_M4
+      KyberSlash2_decapsulations: 6144
+      KyberSlash2_time: approximately_4_minutes
+      reported_success: '10 / 10 for each demonstration'
+    resource_accounting:
+      oracle_construction: timing_classifier_for_division_latency
+      profiling: platform_timing_characterization_and_unsupervised_or_simple_classification
+      traces: thousands_of_timed_decapsulations
+      adaptivity: chosen_ciphertexts
+      device_access: local_or_low_noise_remote_timing_on_vulnerable_CPU
+      countermeasure_bypass: targets_variable_latency_instruction_omitted_by_old_constant_time_checks
+      postprocessing: clustering_and_coefficient_reconstruction
+    patch_status: >-
+      Official reference divisions were replaced by explicit multiplication in
+      commits dda29cc (2023-12-01) and 272125f (2023-12-30); third-party patch
+      status must be checked per version.
+    standardized_transfer_limit:
+      transfers: Same arithmetic operations can appear in ML-KEM implementations.
+      does_not_transfer: >-
+        This is not a property of FIPS 203 or every compiler. Patched or
+        formally checked backends without secret variable-latency instructions
+        are outside the demonstrated class.
+    sources:
+      - url: https://eprint.iacr.org/2024/1049
+        accessed: '2026-07-22'
+        primary: true
+      - url: https://kyberslash.cr.yp.to/kyberslash-20240628.pdf
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: >-
+        Run secret-taint variable-latency instruction analysis and dudect-style
+        timing tests on every compiler/flag/backend combination.
+      controls: [known_vulnerable_pre_patch_commit, patched_commit, fixed_public_inputs]
+      pass_condition: Vulnerable control is detected and production builds show no tainted divisions.
+      fail_condition: Production build emits a tainted variable-latency instruction or timing class.
+
+  - id: ORS-012
+    title: Timing remediation can leave exploitable power structure
+    category: implementation_leakage
+    claim: >-
+      A chosen-ciphertext SPA attack on the multiplication-based KyberSlash
+      remediation recovered keys on Cortex-M4 in 30 seconds for the standard
+      implementation and about 3 hours for a shuffled implementation, with
+      100% success in the reported experiments.
+    oracle_model:
+      name: simple_power_classification_of_patched_arithmetic
+      output: coefficient_information
+      availability: physical_power_access_to_tested_backend
+    affected_class: tested_patched_ML-KEM_Cortex_M4_standard_and_shuffled_implementations
+    evidence_level: physical_full_key
+    evidence_summary: >-
+      The paper shows a channel shift, not that the timing patch should be
+      reverted; multiplication remains necessary for timing safety.
+    metrics:
+      standard_elapsed: approximately_30_seconds
+      shuffled_elapsed: approximately_3_hours
+      reported_success: 100_percent
+      worst_case_queries_per_coefficient:
+        ML-KEM-512: 5
+        ML-KEM-768_and_1024: 4
+    resource_accounting:
+      oracle_construction: simple_power_pattern_classifier
+      profiling: operation_pattern_characterization
+      traces: multiple_per_coefficient_source_reports_query_upper_bounds
+      adaptivity: chosen_ciphertexts
+      device_access: physical_power_measurement
+      countermeasure_bypass: shuffling_increases_time_but_does_not_block_reported_attack
+      postprocessing: coefficient_reconstruction
+    patch_status: timing_issue_patched_power_issue_not_universally_remediated
+    standardized_transfer_limit:
+      transfers: The paper explicitly frames the target as ML-KEM arithmetic.
+      does_not_transfer: >-
+        Evidence is for specific Cortex-M4 code and acquisition; it does not
+        apply to all constant-time multiplication sequences or masked hardware.
+    sources:
+      - url: https://eprint.iacr.org/2024/2051
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Pair timing regression with fixed-versus-random power testing on each patch.
+      controls: [pre_patch, patched_unshuffled, patched_shuffled]
+      pass_condition: Timing closes without creating a held-out power classifier.
+      fail_condition: Patched arithmetic yields separable power classes.
+
+  - id: ORS-013
+    title: GoFetch defeats ordinary constant-time assumptions on Apple DMP cores
+    category: implementation_leakage
+    claim: >-
+      A co-located unprivileged process can use Apple data
+      memory-dependent prefetching and Prime+Probe to turn decrypted
+      pointer-like data into a DF oracle. The original Kyber512 PoC recovered
+      392 of 512 coefficients online in 59 minutes and completed recovery with
+      about five hours of lattice reduction.
+    oracle_model:
+      name: DMP_cache_decryption_failure
+      output: Prime_Probe_cache_hit_or_miss
+      availability: co_located_DMP_enabled_microarchitecture
+    affected_class: tested_constant_time_Kyber512_reference_on_Apple_M1_performance_cores
+    evidence_level: physical_full_key
+    evidence_summary: >-
+      Eight challenge ciphertexts and 32 measurements were used for each of 392
+      recoverable coefficients; online table accounting also charges eviction-set work.
+    metrics:
+      recoverable_coefficients: '392 / 512'
+      challenge_ciphertexts_per_recoverable_coefficient: 8
+      measurements_per_ciphertext: 32
+      leakage_phase_minutes: 43
+      total_online_minutes_including_eviction_sets: 59
+      offline_lattice_reduction_minutes: 286
+    resource_accounting:
+      oracle_construction: DMP_pointer_value_plus_compound_eviction_sets
+      profiling: eviction_set_generation_compound_set_search_and_timing_threshold
+      traces: 100352_Prime_Probe_measurements_for_key_hints
+      adaptivity: chosen_inputs_per_coefficient
+      device_access: unprivileged_co_location_no_shared_memory_high_resolution_timer
+      countermeasure_bypass: ordinary_constant_time_code_does_not_stop_data_becoming_an_address_in_DMP
+      postprocessing: high_memory_lattice_reduction_for_unrecovered_coefficients
+    patch_status: >-
+      DIT disables the DMP on tested M3 but not M1/M2; Intel DOIT disables its
+      counterpart. Restricting work to non-DMP cores is a platform mitigation.
+    standardized_transfer_limit:
+      transfers: Final ML-KEM retains the vulnerable class of secret-dependent decrypted data.
+      does_not_transfer: >-
+        The PoC is microarchitecture and placement specific, targets Kyber512
+        reference code, and requires co-location, timers, profiling, and static keys.
+    sources:
+      - url: https://www.usenix.org/conference/usenixsecurity24/presentation/chen-boru
+        accessed: '2026-07-22'
+        primary: true
+      - url: https://gofetch.fail/
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: >-
+        Run the project's DMP quick check with DIT/DOIT on and off, then test a
+        two-class pointer predicate without attempting key recovery.
+      controls: [DMP_enabled, DMP_disabled, non_DMP_core]
+      pass_condition: Production scheduling or control bits eliminate the oracle.
+      fail_condition: A cache classifier remains above the bound when mitigation is enabled.
+
+  - id: ORS-014
+    title: DVFS leakage offers a coarse but extremely expensive timing-frequency oracle
+    category: implementation_leakage
+    claim: >-
+      Hertzbleed-like NTT leakage was measured on reference and AVX2 code, but
+      the Kyber application is a simplified CPA-secure variant without
+      compression and requires 425,984, 851,968, or 1,277,952 oracle calls for
+      ranks two, three, or four; one call itself repeats decryption for a fixed interval.
+    oracle_model:
+      name: DVFS_low_Hamming_weight_frequency_hint
+      output: coarse_frequency_or_timing_class
+      availability: DVFS_enabled_CPU_and_simplified_target
+    affected_class: tested_NTT_implementations_and_simplified_CPA_Kyber
+    evidence_level: physical_leakage_plus_security_estimate
+    evidence_summary: >-
+      Frequency measurements align with the model, but the reported 35%
+      security loss is an estimator result for the simplified target, not a
+      full FIPS 203 recovery.
+    metrics:
+      rank2_oracle_calls: 425984
+      rank3_oracle_calls: 851968
+      rank4_oracle_calls: 1277952
+      example_interval_per_oracle_call: 100_seconds
+      example_frequency_points_per_call: 100000
+      example_single_coefficient_search: approximately_138_hours
+    resource_accounting:
+      oracle_construction: repeated_execution_to_force_DVFS_state
+      profiling: frequency_threshold_characterization
+      traces: one_coarse_oracle_call_contains_many_executions
+      adaptivity: chosen_inputs
+      device_access: frequency_or_timing_observation_potentially_remote_but_not_demonstrated_end_to_end
+      countermeasure_bypass: constant_instruction_flow_does_not_equal_constant_power_or_frequency
+      postprocessing: modular_hints_plus_lattice_estimation
+    patch_status: no_universal_patch_DVFS_is_platform_policy
+    standardized_transfer_limit:
+      transfers: NTT arithmetic remains in ML-KEM.
+      does_not_transfer: >-
+        The key-recovery analysis omits Kyber compression and targets CPA
+        encryption rather than final FIPS 203 decapsulation; no full standard attack follows.
+    sources:
+      - url: https://eprint.iacr.org/2024/070
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Reproduce only the low-Hamming-weight frequency distinguisher with DVFS fixed and enabled.
+      controls: [fixed_frequency, DVFS_enabled, randomized_workload]
+      pass_condition: Fixed-frequency policy removes the class separation.
+      fail_condition: Separation persists under the intended production policy.
+
+  - id: ORS-015
+    title: Adaptive EM chosen ciphertexts magnify Kyber leakage
+    category: implementation_leakage
+    claim: >-
+      On STM32F407, adaptive EM attacks recovered the full pre-standard Kyber
+      key with four traces for the reference implementation and between eight
+      and 960 traces for pqm4, depending on compiler optimization.
+    oracle_model:
+      name: high_bandwidth_EM_intermediate_leakage
+      output: inverse_NTT_or_message_recovery_information
+      availability: close_physical_EM_access
+    affected_class: tested_reference_and_pqm4_Kyber_builds_on_STM32F407
+    evidence_level: physical_full_key
+    evidence_summary: Chosen ciphertexts amplify simple-analysis leakage without complex templates.
+    metrics:
+      reference_traces: 4
+      pqm4_traces: '8 to 960'
+      variability_driver: compiler_optimization
+    resource_accounting:
+      oracle_construction: chosen_ciphertexts_that_magnify_target_intermediate
+      profiling: low_relative_to_template_attacks_but_alignment_and_points_of_interest_required
+      traces: 4_to_960
+      adaptivity: yes
+      device_access: close_EM_probe_and_triggered_acquisition
+      countermeasure_bypass: compiler_specific_optimized_paths_still_leaked
+      postprocessing: simple_power_or_EM_analysis_and_key_assembly
+    patch_status: no_single_universal_patch_masking_and_hiding_are_implementation_specific
+    standardized_transfer_limit:
+      transfers: K-PKE inverse NTT and decoding arithmetic remain closely related.
+      does_not_transfer: >-
+        Trace counts are for pre-standard code, one MCU, and named compiler
+        builds; final FIPS hashes, checks, masking, and code paths were not tested.
+    sources:
+      - url: https://eprint.iacr.org/2020/912
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Repeat fixed-versus-random EM tests across the supported compiler matrix.
+      controls: [reference_build, optimized_builds, masked_build]
+      pass_condition: No chosen-input amplification survives in production builds.
+      fail_condition: A held-out trace recovers the targeted intermediate above threshold.
+
+  - id: ORS-016
+    title: Barrett-reduction leakage enables very low-query full-decryption side channels
+    category: implementation_leakage
+    claim: >-
+      A Cortex-M4 clustering attack recovered full keys with 100% reported
+      success using 6, 6, and 8 chosen ciphertexts for Kyber512/768/1024
+      reference-style code and 6, 9, and 12 for pqm4 m4 code.
+    oracle_model:
+      name: fine_grained_Barrett_reduction_leakage
+      output: multi_coefficient_decryption_information
+      availability: physical_trace_with_distinguishable_reduction_intermediates
+    affected_class: tested_ARM_Cortex_M4_reference_and_pqm4_m4_Kyber_decapsulation
+    evidence_level: physical_full_key
+    evidence_summary: Low ciphertext count does not mean low acquisition or profiling cost per trace.
+    metrics:
+      reference_ciphertexts:
+        Kyber512: 6
+        Kyber768: 6
+        Kyber1024: 8
+      pqm4_m4_ciphertexts:
+        Kyber512: 6
+        Kyber768: 9
+        Kyber1024: 12
+      reported_success: 100_percent
+    resource_accounting:
+      oracle_construction: chosen_ciphertexts_and_clustering_of_reduction_leakage
+      profiling: leakage_model_and_trace_alignment
+      traces: at_least_one_high_resolution_trace_per_ciphertext
+      adaptivity: chosen_ciphertext_set
+      device_access: physical_side_channel
+      countermeasure_bypass: unprotected_tested_builds
+      postprocessing: clustering_and_full_key_assembly
+    patch_status: no_universal_patch_verified
+    standardized_transfer_limit:
+      transfers: Barrett-style modular reduction remains common in ML-KEM implementations.
+      does_not_transfer: >-
+        The specific instruction sequence, reduction schedule, and leakage are
+        not mandated by FIPS 203 and must be retested.
+    sources:
+      - url: https://eprint.iacr.org/2021/874
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Test the reduction routine alone with the published class partition.
+      controls: [constant_public_inputs, random_secret_intermediates, alternate_reduction]
+      pass_condition: Production routine yields no held-out class separation.
+      fail_condition: Clustering recovers the class above the bound.
+
+  - id: ORS-017
+    title: Ordinary known-ciphertext power analysis remains a distinct non-oracle threat
+    category: implementation_leakage
+    claim: >-
+      Correlation power analysis of pqm4 Kyber512 decapsulation on an STM32F3
+      Cortex-M4 recovered the full key in a semi-static known-ciphertext
+      setting; 200 traces were sufficient and reported success exceeded 99%.
+    oracle_model:
+      name: known_ciphertext_Hamming_weight_power_leakage
+      output: pointwise_multiplication_key_hypothesis_scores
+      availability: physical_power_access_without_chosen_ciphertexts
+    affected_class: tested_unprotected_pqm4_Kyber512_on_STM32F3
+    evidence_level: physical_full_key
+    evidence_summary: This is implementation leakage even though no PC/DF oracle or chosen ciphertext is required.
+    metrics:
+      traces: 200
+      reported_success: greater_than_99_percent
+    resource_accounting:
+      oracle_construction: none_as_PC_or_DF
+      profiling: Hamming_weight_model_and_alignment
+      traces: 200_known_ciphertext_power_traces
+      adaptivity: none_required
+      device_access: physical_power_measurement_and_ciphertext_knowledge
+      countermeasure_bypass: unprotected_build
+      postprocessing: correlation_over_key_hypotheses
+    patch_status: masking_or_other_power_countermeasure_required_per_backend
+    standardized_transfer_limit:
+      transfers: Secret-ciphertext pointwise multiplication remains in ML-KEM decapsulation.
+      does_not_transfer: The trace count is platform, code, model, and protection specific.
+    sources:
+      - url: https://eprint.iacr.org/2021/1311
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Run CPA success-versus-trace curves on held-out keys for the final backend.
+      controls: [random_key, fixed_key, masked_build]
+      pass_condition: Correlation stays below the predeclared key-ranking threshold.
+      fail_condition: Correct-key rank converges within the evaluation budget.
+
+  - id: ORS-018
+    title: Blind power analysis removes ciphertext knowledge at higher trace cost
+    category: implementation_leakage
+    claim: >-
+      A blind pointwise-multiplication attack simulated full-key recovery in
+      820 traces with a perfect Hamming-weight classifier and 7,805 traces at
+      95% classifier accuracy; physical experiments recovered 20 selected
+      coefficients in roughly 35 to 5,000 traces.
+    oracle_model:
+      name: blind_Hamming_weight_classifier
+      output: likelihood_over_secret_coefficient_without_ciphertext
+      availability: repeated_power_traces_and_suitable_classifier
+    affected_class: tested_reference_pqm4_Kyber_on_ARM_Cortex_M4
+    evidence_level: simulation_full_key_plus_physical_partial_key
+    evidence_summary: Physical evidence did not itself demonstrate every coefficient of a full key.
+    metrics:
+      simulated_full_key_traces_perfect_classifier: 820
+      simulated_full_key_traces_95_percent_classifier: 7805
+      physically_tested_coefficients: 20
+      physical_trace_range: 'approximately 35 to 5000'
+    resource_accounting:
+      oracle_construction: repeated_passive_power_classifier
+      profiling: Hamming_weight_classifier
+      traces: hundreds_to_thousands
+      adaptivity: none_and_ciphertexts_need_not_be_known
+      device_access: physical_power_measurement
+      countermeasure_bypass: unprotected_reference_build
+      postprocessing: joint_distribution_likelihood
+    patch_status: no_universal_patch_verified
+    standardized_transfer_limit:
+      transfers: Arithmetic target remains relevant.
+      does_not_transfer: Full-key physical recovery and protected final-FIPS transfer were not shown.
+    sources:
+      - url: https://eprint.iacr.org/2024/169
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Hold out ciphertexts entirely and test coefficient rank on ten positions.
+      controls: [known_ciphertext_CPA, shuffled_traces, wrong_leakage_model]
+      pass_condition: Blind ranking stays at chance.
+      fail_condition: Held-out coefficient rank follows the simulated curve.
+
+  - id: ORS-019
+    title: Cross-operation SASCA can remove the clone-device requirement
+    category: implementation_leakage
+    claim: >-
+      On an Atmel SAM4S, a profiling-device-free SASCA trained on controlled
+      non-sensitive NTT leakage and transferred to INTT recovered complete
+      ML-KEM keys with 100 profiling traces and 6.6 attack traces on average.
+    oracle_model:
+      name: soft_analytic_cross_operation_leakage
+      output: posterior_distributions_for_INTT_secret_intermediates
+      availability: chosen_input_NTT_profile_and_attack_traces_on_same_target_class
+    affected_class: tested_ML-KEM_implementation_on_Atmel_SAM4S
+    evidence_level: physical_full_key
+    evidence_summary: >-
+      Adversarial unsupervised domain adaptation replaces a matching clone, but
+      still requires controlled profiling traces and operation similarity.
+    metrics:
+      profiling_traces: 100
+      average_attack_traces: 6.6
+      matched_profile_SASCA_average_attack_traces: 2.6
+      CPA_comparator: failed_complete_recovery_with_400_traces_on_target
+    resource_accounting:
+      oracle_construction: transferred_leakage_models_for_NTT_to_INTT
+      profiling: 100_controlled_NTT_traces
+      traces: average_6_6_attack_INTT_traces
+      adaptivity: chosen_ciphertexts_control_NTT_profile_inputs
+      device_access: physical_power_or_EM_acquisition_on_target
+      countermeasure_bypass: removes_matching_clone_not_masking_or_hiding
+      postprocessing: adversarial_domain_adaptation_plus_SASCA
+    patch_status: no_universal_patch_RNR_or_masking_require_separate_validation
+    standardized_transfer_limit:
+      transfers: Paper explicitly targets ML-KEM.
+      does_not_transfer: >-
+        Trace count is specific to one implementation/device; operation
+        similarity, acquisition quality, and protections can invalidate transfer.
+    sources:
+      - url: https://eprint.iacr.org/2026/981
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Attempt NTT-to-INTT transfer on held-out keys before full SASCA decoding.
+      controls: [same_operation_profile, cross_operation_profile, shuffled_features]
+      pass_condition: Domain adaptation does not beat the leakage budget.
+      fail_condition: Transferred posterior calibration matches the source operating point.
+
+  - id: ORS-020
+    title: First-order masking does not end chosen-ciphertext power analysis
+    category: implementation_leakage
+    claim: >-
+      A multiple-chosen-ciphertext distinguisher reports 95% full-key success
+      with 75,000 traces at SNR 0.67 against a modeled first-order masked Kyber
+      implementation.
+    oracle_model:
+      name: aggregated_masked_chosen_ciphertext_distinguisher
+      output: combined_key_hypothesis_score
+      availability: repeated_physical_or_simulated_leakage_for_many_ciphertexts
+    affected_class: Bronchain_style_first_order_masked_Kyber_implementation_model
+    evidence_level: simulation_on_specific_implementation
+    evidence_summary: The abstract states simulation and illustration, not a universal measured-device result.
+    metrics:
+      traces: 75000
+      SNR: 0.67
+      reported_full_key_success: 0.95
+    resource_accounting:
+      oracle_construction: combine_distinct_chosen_ciphertext_distinguishers
+      profiling: leakage_model_and_distinguisher_calibration
+      traces: 75000
+      adaptivity: multiple_distinct_chosen_ciphertexts
+      device_access: assumed_trace_acquisition
+      countermeasure_bypass: first_order_masking_in_stated_model
+      postprocessing: aggregate_distinguishers
+    patch_status: no_universal_patch_or_physical_validation_claim
+    standardized_transfer_limit:
+      transfers: Masked K-PKE arithmetic remains relevant.
+      does_not_transfer: >-
+        Result is simulation-bound, pre-standard-branded Kyber, and tied to one
+        masked design and noise model.
+    sources:
+      - url: https://eprint.iacr.org/2026/528
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Measure whether the simulated distinguisher calibration survives 1,000 real traces.
+      controls: [fresh_masks, wrong_ciphertext_labels, unmasked_reference]
+      pass_condition: Real leakage is inconsistent with the modeled score.
+      fail_condition: Held-out score separation predicts the simulated curve.
+
+  - id: ORS-021
+    title: Fault-enabled chosen-ciphertext attacks turn implicit rejection into inequalities
+    category: implementation_leakage
+    claim: >-
+      Faults in decoding or re-encryption can make effective versus ineffective
+      faults observable through FO behavior. A foundational simulated attack
+      reports 6,500 faulty decapsulations for Kyber512; later chosen-ciphertext
+      variants bypass shuffling and Boolean masking assumptions.
+    oracle_model:
+      name: effective_ineffective_fault_or_FO_failure_inequality
+      output: one_linear_inequality_per_qualifying_fault
+      availability: repeated_precisely_timed_fault_injection
+    affected_class: Kyber_implementations_without_complete_fault_detection
+    evidence_level: simulation_plus_Cortex_M4_clock_glitch_demonstration
+    evidence_summary: The physical demonstrations establish implementation risk, not passive MLWE weakness.
+    metrics:
+      Kyber512_faulty_decapsulations_foundational: 6500
+    resource_accounting:
+      oracle_construction: instruction_skip_or_ciphertext_correction_fault
+      profiling: fault_window_and_effect_characterization
+      traces: one_or_more_observations_per_fault
+      adaptivity: chosen_ciphertexts_and_repeated_faults
+      device_access: physical_fault_injection
+      countermeasure_bypass: some_double_execution_shuffling_and_Boolean_masking_do_not_cover_the_target
+      postprocessing: statistical_inequality_solver
+    patch_status: requires_fault_detection_covering_full_decapsulation_dataflow
+    standardized_transfer_limit:
+      transfers: Final ML-KEM retains re-encryption and implicit rejection.
+      does_not_transfer: >-
+        Fault timing, observability, and target operations are implementation
+        specific; FIPS 203 does not mandate fault resistance.
+    sources:
+      - url: https://eprint.iacr.org/2021/064
+        accessed: '2026-07-22'
+        primary: true
+      - url: https://eprint.iacr.org/2021/1222
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Perform software fault simulation over every decapsulation stage and compare redundant checks.
+      controls: [no_fault, single_fault, duplicated_execution]
+      pass_condition: Every tested fault is detected or produces indistinguishable rejection.
+      fail_condition: A fault yields a stable secret-dependent inequality without detection.
+
+  - id: ORS-022
+    title: Roulette broadens fault models and can be helped by masking randomness
+    category: implementation_leakage
+    claim: >-
+      Roulette breaks a masked Kyber Cortex-M4 implementation with
+      ChipWhisperer clock glitches, supports set-to-zero, random, bit-flip and
+      instruction-skip models, and solves with fewer than 10,000 inequalities
+      while tolerating about 25% incorrect inequalities.
+    oracle_model:
+      name: randomized_fault_hit_inequality
+      output: noisy_linear_inequality
+      availability: clock_glitch_or_other_fault_access
+    affected_class: tested_masked_Kyber_on_ARM_Cortex_M4_and_related_re_encryption_targets
+    evidence_level: physical_full_key
+    evidence_summary: >-
+      Randomized masked intermediates increase chances of landing in useful
+      value sets; this is a countermeasure interaction, not a claim against masking generally.
+    metrics:
+      inequalities: fewer_than_10000
+      tolerated_incorrect_inequalities: approximately_25_percent
+      solver_time: approximately_1_minute
+      earlier_solver_time_comparator: approximately_100_minutes
+    resource_accounting:
+      oracle_construction: repeated_clock_glitches_until_useful_faults
+      profiling: fault_window_and_target_module_selection
+      traces: thousands_of_faulted_decapsulations
+      adaptivity: repeated_fault_collection
+      device_access: ChipWhisperer_class_physical_access
+      countermeasure_bypass: expands_beyond_comparison_and_uses_mask_randomization
+      postprocessing: error_tolerant_inequality_solver
+    patch_status: source_proposes_countermeasures_but_no_universal_library_patch
+    standardized_transfer_limit:
+      transfers: Masked ML-KEM uses related arithmetic and re-encryption stages.
+      does_not_transfer: Exact masked implementation, fault physics, and coverage must be reproduced.
+    sources:
+      - url: https://eprint.iacr.org/2021/1622
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Fault-simulate set-to-zero and skip faults outside the comparison in the protected build.
+      controls: [comparison_only_protection, full_dataflow_protection, fresh_masks]
+      pass_condition: Useful inequality yield is zero within the bounded campaign.
+      fail_condition: Non-comparison faults recreate the inequality channel.
+
+  - id: ORS-023
+    title: A2B masking support can create a carry-propagation fault surface
+    category: implementation_leakage
+    claim: >-
+      Carry Your Fault exploits data dependence in arithmetic-to-Boolean
+      conversion used by masked decapsulation and demonstrates Kyber key
+      recovery with simulated and EM fault validation on an STM32 first-order
+      implementation.
+    oracle_model:
+      name: A2B_carry_propagation_fault_leakage
+      output: soft_information_for_belief_propagation
+      availability: targeted_EM_fault_access_to_conversion
+    affected_class: masked_LWE_KEMs_using_the_vulnerable_A2B_conversion_pattern
+    evidence_level: simulation_plus_physical_fault_validation
+    evidence_summary: The paper states arbitrary masking order at the algorithmic leakage level and tests first-order code.
+    metrics:
+      fault_or_trace_count: not_stated_in_primary_abstract
+      postprocessing: belief_propagation
+    resource_accounting:
+      oracle_construction: targeted_fault_propagation_through_A2B_carry_chain
+      profiling: EM_fault_location_and_timing
+      traces: source_specific_count_not_verified_in_this_report
+      adaptivity: repeated_decapsulation_faults
+      device_access: close_EM_fault_injection
+      countermeasure_bypass: attacks_component_introduced_to_enable_masking
+      postprocessing: belief_propagation
+    patch_status: conversion_requires_fault-aware_redesign_or_redundancy
+    standardized_transfer_limit:
+      transfers: Applies to implementations selecting that conversion, not to the FIPS algorithm itself.
+      does_not_transfer: A2B conversion and masking are not mandated by FIPS 203.
+    sources:
+      - url: https://eprint.iacr.org/2023/1674
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Inject single-bit software faults into every A2B carry stage and measure output dependence.
+      controls: [unmasked_conversion, alternate_A2B, redundant_A2B]
+      pass_condition: Redundancy detects all tested propagated faults.
+      fail_condition: A stable secret-dependent soft channel remains.
+
+  - id: ORS-024
+    title: Seed-pointer corruption is a direct implementation fault, not an oracle algorithm
+    category: implementation_leakage
+    claim: >-
+      Laser corruption of a random-seed pointer used by polynomial sampling
+      enabled full ML-KEM key or message recovery on STM32H7 with reported
+      success up to 100%; the vulnerable coding style was found in PQM4,
+      liboqs, PQClean, and wolfSSL.
+    oracle_model:
+      name: deterministic_seed_pointer_corruption
+      output: biased_or_attacker_predictable_sampling_state
+      availability: precision_laser_fault_access
+    affected_class: implementations_with_single_unprotected_seed_pointer_flow
+    evidence_level: physical_full_key
+    evidence_summary: This is a direct faulted-implementation compromise, not passive MLWE or a standard property.
+    metrics:
+      reported_success: up_to_100_percent
+      target: STM32H7_with_laser_fault_injection
+    resource_accounting:
+      oracle_construction: not_a_PC_or_DF_oracle
+      profiling: laser_location_timing_and_pointer_dataflow
+      traces: fault_attempt_count_not_stated_in_primary_abstract
+      adaptivity: fault_campaign
+      device_access: invasive_or_semi_invasive_laser_access
+      countermeasure_bypass: targets_single_point_before_standard_masking_or_redundancy
+      postprocessing: key_or_message_reconstruction_from_faulted_sampling
+    patch_status: countermeasures_proposed_vendor_wide_patch_status_not_verified
+    standardized_transfer_limit:
+      transfers: Directly concerns ML-KEM implementations and final-standard sampling.
+      does_not_transfer: FIPS 203 specifies outputs, not this pointer-based coding style.
+    sources:
+      - url: https://eprint.iacr.org/2025/2009
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Dataflow-audit and software-fault the seed pointer, length, and sampler state.
+      controls: [duplicated_pointer, integrity_tagged_state, independent_seed_copy]
+      pass_condition: Every corruption is detected before secret-dependent output.
+      fail_condition: A deterministic sampling bias survives.
+
+  - id: ORS-025
+    title: CVE-2026-10097 omitted the final ML-KEM-1024 ciphertext block
+    category: implementation_leakage
+    claim: >-
+      wolfSSL's x64 AVX2 ML-KEM-1024 comparison checked 1,536 of 1,568 bytes.
+      The CNA record reports a PoC recovering a static key with about 98%
+      success using roughly 350 chosen ciphertexts, provided the caller can
+      distinguish genuine from implicit-rejection shared secrets.
+    oracle_model:
+      name: deterministic_incomplete_re_encryption_comparison_PCO
+      output: accepted_real_secret_versus_implicit_rejection_secret
+      availability: affected_wolfSSL_AVX2_path_plus_output_confirmation
+    affected_class: wolfSSL_5_7_0_through_5_9_1_ML-KEM-1024_x64_AVX2
+    evidence_level: vendor_advisory_with_reported_PoC_full_key
+    evidence_summary: Deterministic boundary bug; no timing measurement is required.
+    metrics:
+      compared_bytes: 1536
+      required_bytes: 1568
+      chosen_ciphertexts: approximately_350
+      reported_success: approximately_98_percent
+    resource_accounting:
+      oracle_construction: >-
+        Modify only ignored bytes and obtain a protocol or API confirmation that
+        distinguishes the genuine shared secret from J(z || c).
+      profiling: none
+      traces: none
+      adaptivity: chosen_ciphertexts
+      device_access: decapsulation_access_under_static_key
+      countermeasure_bypass: optimized_backend_skips_security_critical_bytes
+      postprocessing: plaintext_checking_key_recovery
+    patch_status: fixed_in_wolfSSL_5_9_2_via_PR_10430
+    standardized_transfer_limit:
+      transfers: This directly violates final FIPS 203 complete comparison semantics.
+      does_not_transfer: Only the affected AVX2 ML-KEM-1024 versions and paths are implicated.
+    sources:
+      - url: https://nvd.nist.gov/vuln/detail/CVE-2026-10097
+        accessed: '2026-07-22'
+        primary: true
+      - url: https://github.com/wolfSSL/wolfssl/releases/tag/v5.9.2-stable
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: >-
+        Mutate each of the final 32 ciphertext bytes and compare scalar, AVX2,
+        and patched outputs with a known-secret reference.
+      controls: [wolfSSL_5_9_1_AVX2_positive_control, scalar_backend, wolfSSL_5_9_2]
+      pass_condition: Every mutation triggers identical implicit rejection on all patched backends.
+      fail_condition: Any optimized backend returns the valid-path secret.
+
+  - id: ORS-026
+    title: CVE-2026-6330 compared only half of ARM64 NEON ciphertext input
+    category: implementation_leakage
+    claim: >-
+      wolfSSL's affected ARM64 NEON comparison ignored half of its input,
+      weakening implicit rejection on versions 5.7.4 through 5.9.1. The vendor
+      record does not state an end-to-end key-recovery query count.
+    oracle_model:
+      name: deterministic_partial_re_encryption_comparison
+      output: malformed_ciphertext_can_compare_equal
+      availability: affected_wolfSSL_ARM64_NEON_path
+    affected_class: wolfSSL_5_7_4_through_5_9_1_ML-KEM_ARM64_NEON
+    evidence_level: vendor_advisory
+    evidence_summary: Affected range and patch are verified; no CVE-10097 metric is transferred to this bug.
+    metrics:
+      compared_fraction: one_half
+      full_key_queries: not_reported
+    resource_accounting:
+      oracle_construction: requires_mutation_in_ignored_region_and_acceptance_confirmation
+      profiling: none
+      traces: none
+      adaptivity: unknown_for_end_to_end_recovery
+      device_access: affected_decapsulation_backend
+      countermeasure_bypass: optimized_comparison_logic_error
+      postprocessing: not_reported
+    patch_status: fixed_in_wolfSSL_5_9_2_via_PR_10192
+    standardized_transfer_limit:
+      transfers: Direct violation of final FIPS 203 complete comparison.
+      does_not_transfer: Only the named versions and ARM64 NEON path are implicated.
+    sources:
+      - url: https://nvd.nist.gov/vuln/detail/CVE-2026-6330
+        accessed: '2026-07-22'
+        primary: true
+      - url: https://github.com/wolfSSL/wolfssl/releases/tag/v5.9.2-stable
+        accessed: '2026-07-22'
+        primary: true
+    cheapest_defensive_gate:
+      design: Differentially mutate every ciphertext vector lane across scalar and NEON backends.
+      controls: [wolfSSL_5_9_1_NEON_positive_control, scalar_backend, wolfSSL_5_9_2]
+      pass_condition: Patched outputs agree for every lane mutation.
+      fail_condition: Any ignored lane or backend disagreement remains.
+
+synthesis:
+  strongest_conditional_algorithmic_result: >-
+    ORS-004: 2,950 ML-KEM-768 queries at a stipulated 95% DF oracle, but the
+    oracle's measurement cost remains separate and can be millions of traces
+    under much noisier leakage.
+  strongest_direct_logic_bug_result: >-
+    ORS-025: about 350 chosen ciphertexts in the reported PoC, but only for a
+    specific unpatched wolfSSL AVX2 ML-KEM-1024 path and a distinguishable
+    valid-versus-rejection output.
+  broadest_physical_lesson: >-
+    Protecting only decryption or only timing is insufficient. Re-encryption,
+    Keccak, comparison, arithmetic representations, masking conversions,
+    microarchitectural features, and fault integrity all participate in the
+    effective oracle surface.
+  no_breakthrough_conclusion: >-
+    No reviewed assisted result is evidence that passive core MLWE is easier,
+    and no pre-standard physical result transfers automatically to every
+    protected FIPS 203 implementation.
+
+defensive_research_directions:
+  - idea:
+      id: IDEA-20260722-002
+      title: Cross-backend negative-ciphertext conformance matrix
+      class: control
+      claim: >-
+        For a selected ML-KEM library, a backend-differential suite that mutates
+        every ciphertext byte and vector lane will detect every incomplete
+        re-encryption comparison represented by CVE-2026-10097 and
+        CVE-2026-6330 while producing zero scalar-versus-optimized output
+        disagreements on patched releases across all three FIPS 203 parameter sets.
+      mechanism: >-
+        Security-critical comparison bugs are functionally silent on valid KATs
+        but become deterministic output differences on malformed ciphertexts.
+        A scalar Algorithm-18 oracle plus structured negative tests turns the
+        omitted work into an observable conformance failure.
+      novelty_status: adaptation
+      assumptions:
+        - A scalar backend is independently checked against FIPS 203.
+        - Tests can observe shared-secret bytes in a laboratory harness.
+        - Every optimized backend and runtime dispatch path can be forced.
+      predictions:
+        - metric: vulnerable_positive_control_detection_rate
+          direction: higher
+          minimum_effect: 1.0
+        - metric: patched_backend_output_disagreements
+          direction: lower
+          minimum_effect: 0
+        - metric: ciphertext_byte_and_lane_coverage
+          direction: higher
+          minimum_effect: 1.0
+      minimal_test:
+        design: >-
+          Run scalar, AVX2, and NEON backends on valid ciphertexts and on one
+          mutation per byte and SIMD lane for ML-KEM-512/768/1024. Include the
+          two vulnerable wolfSSL releases as positive controls and 5.9.2 as the
+          patched control. Compare exact outputs to the scalar FIPS oracle.
+        controls:
+          - Valid known-answer tests.
+          - CVE-2026-10097 vulnerable AVX2 path.
+          - CVE-2026-6330 vulnerable NEON path.
+          - Patched wolfSSL 5.9.2 and scalar reference.
+        required_metrics:
+          - backend_dispatch_path
+          - mutated_byte_and_lane
+          - exact_shared_secret_agreement
+          - implicit_rejection_agreement
+          - coverage
+        competing_explanations:
+          - id: suite_is_discriminating
+            meaning: Vulnerable controls fail and patched backends agree.
+          - id: generator_is_inadequate
+            meaning: A vulnerable control passes, so mutation coverage is not security-relevant.
+          - id: residual_backend_bug
+            meaning: Vulnerable controls fail but a patched backend disagrees.
+      falsification_conditions:
+        - Either known vulnerable positive control is not detected.
+        - A claimed full-coverage backend or vector lane cannot be forced.
+        - The scalar reference disagrees with FIPS 203 on an independent vector.
+      confounders:
+        - Runtime dispatch silently selecting the scalar backend.
+        - Comparing only return codes rather than shared-secret bytes.
+        - Treating malformed-length rejection as equivalent to equal-length implicit rejection.
+        - Compiler dead-code elimination in the test harness.
+      interpretation_limits:
+        - Passing addresses deterministic functional comparison omissions only.
+        - It does not establish timing, power, EM, cache, or fault resistance.
+        - It does not approve a release or change official research state.
+      estimated_cost:
+        implementation: low
+        compute: low
+      recommended_priority: high
+      novelty_screen:
+        local_corpus:
+          checked: [knowledge/, ledger/hypotheses/, ledger/proposals/]
+          exact_duplicate_found: false
+        primary_literature:
+          checked_through: '2026-07-22'
+          closest_prior_art:
+            - https://eprint.iacr.org/2025/450
+            - https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.203.pdf
+            - https://nvd.nist.gov/vuln/detail/CVE-2026-10097
+            - https://nvd.nist.gov/vuln/detail/CVE-2026-6330
+          classification_reason: >-
+            Negative and verifiable decapsulation testing is known; the proposal
+            adapts it into a backend- and lane-complete regression control.
+
+  - idea:
+      id: IDEA-20260722-003
+      title: End-to-end soft-oracle leakage budget
+      class: measurement
+      claim: >-
+        For at least one protected Cortex-M4 ML-KEM implementation, a
+        held-out soft-information model that charges profiling and repeated
+        executions will predict median traces-to-key-recovery within a factor
+        of two across three noise or masking configurations, while a hard
+        oracle-accuracy-only model will miss by more than a factor of two on at
+        least one configuration.
+      mechanism: >-
+        Hard accuracy discards score confidence, correlation, burst errors, and
+        profiling cost. Calibrated likelihoods combined with current soft-PC
+        and adaptive-LDPC backends should map physical leakage to end-to-end
+        trace risk more faithfully, unless model mismatch or nonstationarity dominates.
+      novelty_status: adaptation
+      assumptions:
+        - A laboratory-only protected ML-KEM implementation and traces are available.
+        - The published attack backends can consume calibrated likelihoods.
+        - Training keys, attack keys, and devices can be held out.
+      predictions:
+        - metric: soft_model_trace_prediction_multiplicative_error
+          direction: lower
+          minimum_effect: at_most_2
+        - metric: hard_accuracy_trace_prediction_multiplicative_error
+          direction: higher
+          minimum_effect: greater_than_2_for_at_least_one_configuration
+        - metric: total_cost_including_profiling_and_retries
+          direction: different
+          minimum_effect: changes_the_ranking_of_at_least_one_pair
+      minimal_test:
+        design: >-
+          Use three predeclared leakage configurations on one Cortex-M4
+          implementation. Train on disjoint keys, freeze calibration and attack
+          parameters, then predict and measure the median trace count on held-out
+          keys. Compare hard accuracy, soft likelihoods, and a burst-aware model.
+        controls:
+          - Shuffled labels.
+          - IID synthetic bit-flip oracle at matched marginal accuracy.
+          - Time-ordered replay preserving burst errors.
+          - Same-key versus held-out-key calibration.
+        required_metrics:
+          - calibration_error
+          - mutual_information_per_execution
+          - oracle_queries
+          - physical_traces
+          - profiling_traces
+          - retries
+          - wall_clock
+          - key_recovery_success_interval
+        competing_explanations:
+          - id: soft_information_is_predictive
+            meaning: Held-out trace counts fall within the factor-two interval.
+          - id: nonstationary_or_correlated_leakage_dominates
+            meaning: IID soft scores fail but burst-aware replay predicts recovery.
+          - id: attack_backend_mismatch
+            meaning: No calibrated model predicts held-out recovery.
+      falsification_conditions:
+        - Soft prediction misses by more than twofold in two or more configurations.
+        - Hard accuracy is equally predictive for all configurations.
+        - Results depend on training and attacking the same keys or device traces.
+      confounders:
+        - Treating one oracle query as one physical execution.
+        - Omitting template acquisition and failed retries.
+        - Calibration drift, autocorrelation, and operating-system bursts.
+        - Selecting the best decoder after viewing held-out results.
+        - Comparing attack backends at different success probabilities.
+      interpretation_limits:
+        - Passing validates only the tested device, code, protections, and budgets.
+        - It is a defensive evaluation metric, not evidence of passive MLWE weakness.
+        - It does not establish a universal leakage threshold.
+      estimated_cost:
+        implementation: medium
+        compute: medium
+      recommended_priority: medium
+      novelty_screen:
+        local_corpus:
+          checked: [knowledge/, ledger/hypotheses/, ledger/proposals/]
+          exact_duplicate_found: false
+        primary_literature:
+          checked_through: '2026-07-22'
+          closest_prior_art:
+            - https://eprint.iacr.org/2025/1496
+            - https://eprint.iacr.org/2025/2045
+            - https://eprint.iacr.org/2026/070
+            - https://eprint.iacr.org/2026/777
+          classification_reason: >-
+            Soft PCOs, sequential testing, LDPC exploitation, and masked Keccak
+            measurements are known. The proposal is a defensive integration and
+            validation study, not a claimed novel attack.
+
+ranking_rationale: >-
+  IDEA-20260722-002 ranks first because it directly targets two observed
+  standardized-implementation failure modes with deterministic positive
+  controls, requires no physical acquisition, and can fail cheaply. IDEA-20260722-003
+  has higher potential information gain about protected-device residual risk,
+  but its profiling, held-out acquisition, calibration, and decoder integration
+  make it materially more expensive and easier to confound.
+test_first:
+  idea_id: IDEA-20260722-002
+  flag: true
+  reason: >-
+    The byte-and-lane mutation matrix is the cheapest valid discriminator:
+    vulnerable releases must fail, patched backends must agree, and either
+    outcome is actionable without constructing an exploitation path.
+
+scope_limits:
+  - No operational instructions for attacking deployed systems are provided.
+  - Query and trace figures are retained in each source's model and are not interchangeable.
+  - A timeout, failed reproduction, or unavailable device would be infrastructure outcome only.
+  - Patch status is version- and backend-specific; absence of a published patch is not proof of present vulnerability.
+  - This report changes no hypothesis, experiment, evidence, or goal status.
+
+archival_provenance:
+  archived_by: TASK-20260722-209
+  status: awaiting_coordinator_snapshot
