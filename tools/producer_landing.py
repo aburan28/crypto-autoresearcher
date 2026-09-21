@@ -110,6 +110,38 @@ def other_owners(queue: dict, task_id: str, paths: list[str]) -> dict[str, str]:
     return clashes
 
 
+def undeclared_in_scope(repo: Path, task: dict) -> list[str]:
+    """Files inside the task's write_scope that it did NOT declare.
+
+    A producer routinely writes more than its card declared: on the lost
+    BATCH-e0a0c1 reads, two cards declared three files each and the readers filed
+    seventeen and twelve -- re-extractions, and executable rechecks, one of which
+    carried the counterexample that mattered most. Landing commits only the
+    declared set, by design, so an undeclared artifact is an UNLANDED artifact
+    and would have been lost even with this tool in place.
+
+    So it is reported. The remedy is for the Coordinator to widen the card's
+    declaration (a recorded revision) and land again -- never for landing to
+    quietly adopt whatever it finds, which would make the declared set
+    meaningless and sweep in scratch files.
+    """
+    declared = set(task.get("artifact_paths", []))
+    found: list[str] = []
+    for scope in task.get("write_scope", []):
+        root = repo / scope
+        if not root.exists():
+            continue
+        if root.is_file():
+            candidates = [root]
+        else:
+            candidates = [p for p in root.rglob("*") if p.is_file()]
+        for path in candidates:
+            rel = path.relative_to(repo).as_posix()
+            if rel not in declared:
+                found.append(rel)
+    return sorted(found)
+
+
 def landing_status(repo: Path, queue: dict) -> list[dict]:
     """Per producer task: does its declared output exist, and is it landed?"""
     rows = []
@@ -126,6 +158,7 @@ def landing_status(repo: Path, queue: dict) -> list[dict]:
                 (landed if tracked_at_head(repo, rel) else unlanded).append(rel)
             else:
                 missing.append(rel)
+        undeclared = undeclared_in_scope(repo, task)
         rows.append({
             "task_id": task["id"],
             "state": task.get("state"),
@@ -134,6 +167,9 @@ def landing_status(repo: Path, queue: dict) -> list[dict]:
             "missing": missing,
             "landed": landed,
             "unlanded": unlanded,
+            "undeclared_in_scope": [
+                rel for rel in undeclared if not tracked_at_head(repo, rel)
+            ],
         })
     return rows
 
@@ -141,23 +177,42 @@ def landing_status(repo: Path, queue: dict) -> list[dict]:
 def report_check(repo: Path, queue_path: Path, queue: dict) -> int:
     rows = landing_status(repo, queue)
     exposed = [r for r in rows if r["unlanded"]]
+    undeclared = [r for r in rows if r["undeclared_in_scope"]]
     print(f"queue: {queue_path}")
     print(f"producer tasks with declared artifacts: {len(rows)}")
-    if not exposed:
-        print("\nNo unlanded producer output. Every declared artifact that exists "
-              "on disk is present at HEAD.")
+
+    if exposed:
+        print(f"\nUNLANDED PRODUCER OUTPUT in {len(exposed)} task(s). These files exist "
+              f"on this machine and NOWHERE ELSE:\n")
+        for row in exposed:
+            print(f"  {row['task_id']}  (state: {row['state']})")
+            for rel in row["unlanded"]:
+                print(f"      ! {rel}")
+            if row["missing"]:
+                print(f"      (declared but absent: {len(row['missing'])})")
+        print("\nLand each with:")
+        for row in exposed:
+            print(f"  python3 tools/producer_landing.py {queue_path} "
+                  f"{row['task_id']} --push")
+
+    if undeclared:
+        print(f"\nUNDECLARED OUTPUT IN SCOPE in {len(undeclared)} task(s). Landing "
+              f"commits the DECLARED set only, so these would be lost with it:\n")
+        for row in undeclared:
+            print(f"  {row['task_id']}  declared {row['declared']}, "
+                  f"{len(row['undeclared_in_scope'])} undeclared:")
+            for rel in row["undeclared_in_scope"][:12]:
+                print(f"      ? {rel}")
+            if len(row["undeclared_in_scope"]) > 12:
+                print(f"      ... and {len(row['undeclared_in_scope']) - 12} more")
+        print("\nWiden the card's artifact_paths as a recorded revision, then land. "
+              "Do NOT have landing adopt them silently: the declared set is the "
+              "contract, and scratch files are not evidence.")
+
+    if not exposed and not undeclared:
+        print("\nNo unlanded producer output, and nothing undeclared in any "
+              "producer's write scope.")
         return 0
-    print(f"\nUNLANDED PRODUCER OUTPUT in {len(exposed)} task(s). These files exist "
-          f"on this machine and NOWHERE ELSE:\n")
-    for row in exposed:
-        print(f"  {row['task_id']}  (state: {row['state']})")
-        for rel in row["unlanded"]:
-            print(f"      ! {rel}")
-        if row["missing"]:
-            print(f"      (declared but absent: {len(row['missing'])})")
-    print("\nLand each with:")
-    for row in exposed:
-        print(f"  python3 tools/producer_landing.py {queue_path} {row['task_id']} --push")
     return 1
 
 

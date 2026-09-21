@@ -217,3 +217,51 @@ class TestCheckMode(LandingHarness):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestUndeclaredOutputInScope(LandingHarness):
+    """A producer that writes more than it declared is still exposed.
+
+    On the lost BATCH-e0a0c1 reads, two cards declared three files each and the
+    readers filed seventeen and twelve. Landing commits the declared set by
+    design, so the extras would have been lost even with the tool in place.
+    """
+
+    def test_extra_files_in_scope_are_reported(self):
+        q = self.write_queue([PRODUCER])
+        self.produce(*PRODUCER["artifact_paths"])
+        self.produce("work/t1/recheck.py", "work/t1/extract/raw.txt")
+        rows = producer_landing.landing_status(
+            self.repo, producer_landing.load_queue(q))
+        self.assertEqual(
+            rows[0]["undeclared_in_scope"],
+            ["work/t1/extract/raw.txt", "work/t1/recheck.py"],
+        )
+
+    def test_landing_does_not_adopt_them(self):
+        """The declared set is the contract; landing must not widen it silently."""
+        q = self.write_queue([PRODUCER])
+        self.produce(*PRODUCER["artifact_paths"], "work/t1/recheck.py")
+        self.land(q, PRODUCER["id"])
+        tracked = run_git(self.repo, "ls-tree", "-r", "--name-only", "HEAD")
+        self.assertIn("work/t1/report.md", tracked)
+        self.assertNotIn("recheck.py", tracked)
+
+    def test_check_exits_nonzero_on_undeclared_output_alone(self):
+        """Even with every declared path landed, extras keep the report red."""
+        q = self.write_queue([PRODUCER])
+        self.produce(*PRODUCER["artifact_paths"])
+        self.land(q, PRODUCER["id"])
+        self.produce("work/t1/recheck.py")
+        queue = producer_landing.load_queue(q)
+        self.assertEqual(producer_landing.report_check(self.repo, q, queue), 1)
+
+    def test_already_tracked_extras_are_not_reported(self):
+        """A committed file in scope is not an exposure."""
+        q = self.write_queue([PRODUCER])
+        self.produce(*PRODUCER["artifact_paths"], "work/t1/recheck.py")
+        run_git(self.repo, "add", "work/t1/recheck.py")
+        run_git(self.repo, "commit", "-q", "-m", "recheck")
+        rows = producer_landing.landing_status(
+            self.repo, producer_landing.load_queue(q))
+        self.assertEqual(rows[0]["undeclared_in_scope"], [])
