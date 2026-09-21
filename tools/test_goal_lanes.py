@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import subprocess
 import sys
@@ -388,3 +389,184 @@ class CliTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CompletedReleaseBindsArtifactsTests(unittest.TestCase):
+    """A completed release asserts the work was DONE, so it binds what was produced.
+
+    Before CORR-20260921-942a62 it could bind nothing. TASK-20260916-64a93b was
+    released `completed` with an empty artifact_sha256 while its artifacts existed
+    only in one machine's working tree; had the release carried hashes, the loss
+    would have surfaced as a MISMATCH the next time anyone looked instead of as an
+    absence nobody was looking for.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.repo = Repo(Path(self._tmp.name))
+        self.root = self.repo.a
+        self.queue = Repo.queue(self.root)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _args(self, **overrides):
+        import argparse
+        base = dict(queue=str(self.queue), task=PRODUCER, outcome="completed",
+                    note=None, artifact=None, as_addr="coord-a", local_only=True,
+                    publish=False, no_push=True, allow_missing_artifacts=False)
+        base.update(overrides)
+        return argparse.Namespace(**base)
+
+    def _claim(self):
+        lanes.claim_task(self.root, self.queue, PRODUCER, owner="coord-a",
+                         ttl_minutes=30, now=T0)
+
+    def _produce(self):
+        path = self.root / BATCH_DIR / "tasks" / PRODUCER / "report.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('{"finding": "real"}\n')
+        return path
+
+    def test_completed_release_records_the_declared_artifact_hash(self) -> None:
+        self._claim()
+        produced = self._produce()
+        lanes.cmd_release(self._args())
+        release = json.loads(
+            (self.root / BATCH_DIR / "claims" / f"{PRODUCER}.1.release.json").read_text()
+        )
+        expected = hashlib.sha256(produced.read_bytes()).hexdigest()
+        rel = f"{BATCH_DIR}/tasks/{PRODUCER}/report.json"
+        self.assertEqual(release["artifact_sha256"], {rel: expected})
+
+    def test_completed_release_is_refused_when_the_artifact_is_absent(self) -> None:
+        """The exact shape of the lost release: completed, binding nothing."""
+        self._claim()
+        with self.assertRaises(lanes.LaneError) as cm:
+            lanes.cmd_release(self._args())
+        message = str(cm.exception)
+        self.assertIn("refusing to release", message)
+        self.assertIn("producer_landing.py", message)
+
+    def test_the_refusal_can_be_overridden_deliberately(self) -> None:
+        self._claim()
+        lanes.cmd_release(self._args(allow_missing_artifacts=True,
+                                     note="zero-output task by design"))
+        release = json.loads(
+            (self.root / BATCH_DIR / "claims" / f"{PRODUCER}.1.release.json").read_text()
+        )
+        self.assertEqual(release["outcome"], "completed")
+        self.assertEqual(release["artifact_sha256"], {})
+        self.assertEqual(release["note"], "zero-output task by design")
+
+    def test_failed_and_abandoned_releases_are_not_gated(self) -> None:
+        """A failed task legitimately produced nothing; gating it would be wrong."""
+        for outcome in ("failed", "abandoned"):
+            with self.subTest(outcome=outcome):
+                tmp = tempfile.TemporaryDirectory()
+                repo = Repo(Path(tmp.name))
+                lanes.claim_task(repo.a, Repo.queue(repo.a), PRODUCER,
+                                 owner="coord-a", ttl_minutes=30, now=T0)
+                import argparse
+                lanes.cmd_release(argparse.Namespace(
+                    queue=str(Repo.queue(repo.a)), task=PRODUCER, outcome=outcome,
+                    note=None, artifact=None, as_addr="coord-a", local_only=True,
+                    publish=False, no_push=True, allow_missing_artifacts=False))
+                release = json.loads(
+                    (repo.a / BATCH_DIR / "claims" / f"{PRODUCER}.1.release.json").read_text()
+                )
+                self.assertEqual(release["outcome"], outcome)
+                tmp.cleanup()
+
+    def test_an_explicit_artifact_hash_wins_over_the_derived_one(self) -> None:
+        """The producer's own receipt stays authoritative where it is supplied."""
+        self._claim()
+        self._produce()
+        rel = f"{BATCH_DIR}/tasks/{PRODUCER}/report.json"
+        lanes.cmd_release(self._args(artifact=[f"{rel}=" + "f" * 64]))
+        release = json.loads(
+            (self.root / BATCH_DIR / "claims" / f"{PRODUCER}.1.release.json").read_text()
+        )
+        self.assertEqual(release["artifact_sha256"][rel], "f" * 64)
+
+
+class SupersedeLostCompletionTests(unittest.TestCase):
+    """Re-claiming a completion whose output was destroyed.
+
+    "A completed task is archived, not re-claimed" is right, and has one blind
+    spot found the hard way (CORR-20260921-942a62): when the output no longer
+    exists there is nothing to archive, and the task is stuck terminal forever
+    with its objective unmet.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.repo = Repo(Path(self._tmp.name))
+        self.root = self.repo.a
+        self.queue = Repo.queue(self.root)
+        self.rel = f"{BATCH_DIR}/tasks/{PRODUCER}/report.json"
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _complete(self, with_artifact: bool) -> None:
+        lanes.claim_task(self.root, self.queue, PRODUCER, owner="coord-a",
+                         ttl_minutes=30, now=T0)
+        hashes = {}
+        if with_artifact:
+            path = self.root / self.rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("{}\n")
+            hashes = {self.rel: hashlib.sha256(path.read_bytes()).hexdigest()}
+        lanes.release_task(self.root, self.queue, PRODUCER, owner="coord-a",
+                           outcome="completed", artifact_sha256=hashes, now=T0)
+
+    def test_a_completed_task_is_not_reclaimable_without_the_flag(self):
+        self._complete(with_artifact=False)
+        with self.assertRaises(lanes.LaneError) as cm:
+            lanes.claim_task(self.root, self.queue, PRODUCER, owner="coord-b",
+                             ttl_minutes=30, now=T0)
+        self.assertIn("not re-claimable", str(cm.exception))
+        self.assertIn("supersedes_lost_completion", str(cm.exception))
+
+    def test_reclaim_succeeds_when_the_output_is_genuinely_gone(self):
+        self._complete(with_artifact=False)
+        path = lanes.claim_task(
+            self.root, self.queue, PRODUCER, owner="coord-b", ttl_minutes=30, now=T0,
+            lost_completion_reason="VM replaced between turns; artifacts never committed",
+        )
+        claim = json.loads(path.read_text())
+        self.assertEqual(claim["epoch"], 2)
+        lost = claim["supersedes_lost_completion"]
+        self.assertEqual(lost["epoch"], 1)
+        self.assertEqual(lost["owner"], "coord-a")
+        self.assertEqual(lost["bound_artifact_count"], 0)
+        self.assertEqual(lost["declared_artifacts_now_absent"], [self.rel])
+        self.assertIn("VM replaced", lost["reason"])
+
+    def test_refused_when_the_output_still_exists(self):
+        """The check that stops this being a way to redo work that exists."""
+        self._complete(with_artifact=True)
+        with self.assertRaises(lanes.LaneError) as cm:
+            lanes.claim_task(
+                self.root, self.queue, PRODUCER, owner="coord-b", ttl_minutes=30, now=T0,
+                lost_completion_reason="I would simply like to run it again",
+            )
+        message = str(cm.exception)
+        self.assertIn("DO exist", message)
+        self.assertIn("archived, not re-run", message)
+
+    def test_an_ordinary_claim_records_no_superseded_completion(self):
+        path = lanes.claim_task(self.root, self.queue, PRODUCER, owner="coord-a",
+                                ttl_minutes=30, now=T0)
+        self.assertIsNone(json.loads(path.read_text())["supersedes_lost_completion"])
+
+    def test_the_immutable_release_is_not_touched(self):
+        """The completion was accurate when written and stays exactly as written."""
+        self._complete(with_artifact=False)
+        release_path = self.root / BATCH_DIR / "claims" / f"{PRODUCER}.1.release.json"
+        before = release_path.read_bytes()
+        lanes.claim_task(self.root, self.queue, PRODUCER, owner="coord-b",
+                         ttl_minutes=30, now=T0,
+                         lost_completion_reason="output lost with its machine")
+        self.assertEqual(release_path.read_bytes(), before)

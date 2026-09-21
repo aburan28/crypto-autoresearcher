@@ -1042,6 +1042,12 @@ REVIEWER_READ_SCOPE = [
     f"{EXP}/",
     f"{REVIEW}/review-plan.yaml",
     REVIEW_ADDENDUM,
+    # Addendum 3 puts additive obligations on J1 and J2, both owned by the
+    # instrument reviewer. A read scope is closed, so without this line those
+    # obligations could never reach the joints that own them. The blind
+    # re-deriver passes its own read_scope and must NOT see this file: it is
+    # under addendum 3's own blind_from_additions.
+    PRIOR_ADDENDUM_PATH,
     AUDIT,
     "ledger/hypotheses/H-SEMBIN-a7e721.yaml",
     "ledger/decisions/DEC-20260916-88ac73.yaml",
@@ -1054,7 +1060,8 @@ REVIEWER_READ_SCOPE = [
 
 def reviewer(task_id, title, joints, objective, questions, extra_constraints=(), *,
              read_scope=REVIEWER_READ_SCOPE, read_scope_note=None, extra_inputs=(),
-             extra_artifacts=(), extra_deliverables=(), extra_gate=(), extra_preconditions=()):
+             extra_artifacts=(), extra_deliverables=(), extra_gate=(), extra_preconditions=(),
+             extra_addenda=()):
     """One reviewer card. Two of these make up REVIEW-SEMBIN-20260916-cbb416's round.
 
     Split the way ICPERF's BATCH-a33cda split its round, and for the reason that
@@ -1091,7 +1098,7 @@ def reviewer(task_id, title, joints, objective, questions, extra_constraints=(),
             f"{REVIEW}/{task_id}/attestation.yaml",
         ] + list(extra_artifacts)),
         ("review_plan_ref", f"{REVIEW}/review-plan.yaml"),
-        ("review_plan_addendum", [REVIEW_ADDENDUM]),
+        ("review_plan_addendum", [REVIEW_ADDENDUM] + list(extra_addenda)),
         ("joints_owned", joints),
         ("handoff", od([
             ("objective", objective),
@@ -1239,7 +1246,22 @@ tasks.append(reviewer(
         "those integers blind, and the plan's blind_from_note makes this a standing obligation on "
         "every document in the campaign.",
     ),
-    extra_inputs=(f"{AUDIT}/verdict.json -- the pre-compute collision audit.",),
+    extra_inputs=(
+        f"{AUDIT}/verdict.json -- the pre-compute collision audit.",
+        f"{PRIOR_ADDENDUM_PATH} -- ADDITIVE companion written before any reviewer ran and BEFORE "
+        "the measurement: the Coordinator's reversed prior d'_F(A-SHIFTED) <= 4 at m = 3, its "
+        "outcome table, and two obligations on joints you already own. J1: check the instrument "
+        "against the shifted all-variable witness x_1 * S_3 as a known-answer fixture -- an "
+        "instrument reporting no fall at 4 for that product is broken whatever it reports for the "
+        "full system. J2: if the arms do not separate, say whether the contract's criteria can "
+        "distinguish 'no effect' from 'instrument cannot resolve either arm'. Your sibling is "
+        "blind from this file; do not quote it to them.",
+    ),
+    extra_addenda=(PRIOR_ADDENDUM_PATH,),
+    extra_preconditions=(
+        f"{PRIOR_ADDENDUM_PATH} is committed and pushed (archived by {PRIOR_ARCHIVE}), so the J1 "
+        "and J2 obligations you are handed are the ones the round declares",
+    ),
 ))
 
 tasks.append(reviewer(
