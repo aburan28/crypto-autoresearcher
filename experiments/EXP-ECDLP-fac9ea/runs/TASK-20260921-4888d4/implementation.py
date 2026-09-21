@@ -42,8 +42,10 @@ RUN_ID = "RUN-ECDLP-8e13c2"
 TASK_ID = "TASK-20260921-4888d4"
 MEM_CAP_GB = 8.0
 PRIMARY_EXPONENTS = [12.0, 13.0, 14.0, 15.0, 16.0, 17.5, 19.0, 20.5, 22.0, 24.0]
-SECONDARY_J = list(range(8))
-EXTRA_TAIL_EXPONENT = 26.0
+# Frozen prime_ladders.secondary: exponent step 14/9 so j = 9 is exactly 2^26
+# (the jackknife tail) and no interior exponent coincides with the primary list.
+SECONDARY_J = list(range(10))
+SECONDARY_STEP = 14.0 / 9.0
 GATE_ROWS = ["R01", "R02", "R03", "R04", "R05", "R06", "R07", "R08", "R09"]
 
 
@@ -362,7 +364,10 @@ class ChirpZ:
 
     def transform(self, v):
         p, L = self.p, self.L
-        need_gb = (L * 16 * 2 + p * 24) / 2**30
+        # Live at peak: the padded array, the FFT's own working copy, the
+        # resident mmapped bspec pages (three L-length complex buffers), plus
+        # the chirp, the input v, and the output (p * (16 + 8 + 16) bytes).
+        need_gb = (L * 16 * 3 + p * 40) / 2**30
         if need_gb > MEM_CAP_GB - 0.5:
             return None, need_gb
         A = np.zeros(L, dtype=np.complex128)
@@ -407,9 +412,10 @@ def measure(row, p, cz, inv=None, suffix=None, v=None, note=None):
     cid = cell_id(row, p, suffix)
     reg = load_registry()
     existing = reg.get(cid)
-    terminal = ("ok", "unavailable")
-    if os.environ.get("CENSUS_NO_REMEASURE") == "1":
-        terminal = ("ok", "unavailable", "resource_exhaustion")
+    # A resource_exhaustion checkpoint is terminal under the frozen stopping
+    # rule: continuation is a chunked/on-disk convolution under an amendment,
+    # never a silent re-measurement that folds the cell back into the fits.
+    terminal = ("ok", "unavailable", "resource_exhaustion")
     if existing is not None and existing["status"] in terminal:
         return existing
     t0 = time.perf_counter()
@@ -512,9 +518,8 @@ def one_cell(cid):
 def main():
     os.makedirs(WORK, exist_ok=True)
     primary = [smallest_prime_at_least(2.0 ** b) for b in PRIMARY_EXPONENTS]
-    secondary = [smallest_prime_at_least(2.0 ** (12 + 1.7 * j)) for j in SECONDARY_J]
-    tail = smallest_prime_at_least(2.0 ** EXTRA_TAIL_EXPONENT)
-    secondary = secondary + [tail]
+    secondary = [smallest_prime_at_least(2.0 ** (12 + SECONDARY_STEP * j)) for j in SECONDARY_J]
+    tail = secondary[-1]
     all_primes = sorted(set(primary) | set(secondary))
     ladder_of = {}
     for p in primary:
@@ -783,9 +788,9 @@ def write_report(families, curve_fams, controls, control_notes=None):
             y.append(f"| {row} | {fam['fit']['lambda']:.4f} | {fam['fit']['se']:.4f} | {note} |")
     y.append(f"| C01 | 0 (exact) | - | all cells numerically zero: {families['C01']['all_numerically_zero']} |")
     for row in GATE_ROWS:
-        fam = families.get(row + "M", {})
-        if fam.get("fit"):
-            y.append(f"| {row}M | {fam['fit']['lambda']:.4f} | {fam['fit']['se']:.4f} | PGL_2 battery |")
+        mfit = families.get(row, {}).get("moebius_fit")
+        if mfit:
+            y.append(f"| {row}M | {mfit['lambda']:.4f} | {mfit['se']:.4f} | PGL_2 battery |")
     for k, fit in sorted(curve_fams.items()):
         if fit:
             y.append(f"| {k} | {fit['lambda']:.4f} | {fit['se']:.4f} | curve-restricted, auxiliary |")

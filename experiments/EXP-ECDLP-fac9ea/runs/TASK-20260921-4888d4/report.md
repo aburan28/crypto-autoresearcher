@@ -43,6 +43,15 @@ and voids it from the gate table (frozen rule).
 | C02B | 0.5001 | 0.0002 | Parseval level 0.5, seed set B |
 | R03B | 0.4191 | 0.0062 | deterministic replication of R03 |
 | C01 | 0 (exact) | - | all cells numerically zero: True |
+| R01M | 0.5010 | 0.0016 | PGL_2 battery |
+| R02M | 0.5005 | 0.0004 | PGL_2 battery |
+| R03M | 0.5229 | 0.0014 | PGL_2 battery |
+| R04M | 0.5247 | 0.0011 | PGL_2 battery |
+| R05M | 0.5215 | 0.0008 | PGL_2 battery |
+| R06M | 0.4934 | 0.0056 | PGL_2 battery |
+| R07M | 0.5423 | 0.0296 | PGL_2 battery |
+| R08M | 0.4999 | 0.0001 | PGL_2 battery |
+| R09M | 0.5013 | 0.0005 | PGL_2 battery |
 | R06:curve0 | 0.4998 | 0.0006 | curve-restricted, auxiliary |
 | R06:curve1 | 0.4990 | 0.0011 | curve-restricted, auxiliary |
 | R06:curve2 | 0.5001 | 0.0014 | curve-restricted, auxiliary |
