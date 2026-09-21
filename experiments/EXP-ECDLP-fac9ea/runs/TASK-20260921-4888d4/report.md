@@ -1,6 +1,6 @@
 # EXP-ECDLP-fac9ea v3 — lambda-registry census report
 
-Run RUN-ECDLP-8e13c2, generated 2026-09-21T18:40:36Z under TASK-20260921-4888d4.
+Run RUN-ECDLP-8e13c2, generated 2026-09-21T19:28:38Z under TASK-20260921-4888d4.
 Specification v1 + amendments DEC-20260921-d3fafb (ladder) and
 DEC-20260921-f1d95a (probability normalisation), both pre-run.
 Observations only; gate verdicts use the frozen vocabulary; gates are
