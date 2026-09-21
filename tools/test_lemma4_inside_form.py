@@ -10,6 +10,8 @@ leave resting on an unpinned hand-rolled eliminator.
 
 import unittest
 
+import random
+
 from lemma4_inside_form import (
     WITNESS_F1,
     WITNESS_F2,
@@ -20,6 +22,7 @@ from lemma4_inside_form import (
     first_fall_degree,
     first_fall_degree_by_enumeration,
     least_degree_in_ideal,
+    monomials_up_to,
     poly_add,
     poly_mul_mono,
     reduce_fe,
@@ -124,6 +127,114 @@ class TestWhatIsNotClaimed(unittest.TestCase):
             self.assertEqual(f, reduce_fe(f))          # already multilinear
             self.assertNotIn((0, 0, 0), f)             # no constant term
             self.assertEqual(len(f), 2)
+
+
+class TestTheFakeSidePlacementIsInert(unittest.TestCase):
+    """Adjoining `S_fe` to the FAKE system changes nothing.
+
+    This campaign spent a round treating "inside" versus "outside" as the
+    distinction that decided Lemma 4's truth value, where those words referred
+    to which side of `d'_F` the field equations sat on. They decide nothing
+    there: every `X_i^2 + X_i` reduces to zero under the fake degree, so it
+    contributes no product at any degree and drops out of all three of
+    Definition 6's conditions. The placement that does decide the truth value is
+    on the TRUE side, and that is what `TestTheRefutation` pins.
+
+    Found independently by the blind read at `TASK-20260916-9da6e0`, which never
+    read this module, and reproduced here against it.
+    """
+
+    def test_the_field_equations_reduce_to_nothing(self):
+        for fe in field_equations(3):
+            self.assertEqual(reduce_fe(fe), frozenset())
+
+    def test_adjoining_them_does_not_move_the_fake_degree(self):
+        bare = [WITNESS_F1, WITNESS_F2]
+        self.assertEqual(
+            first_fall_degree(bare, fake=True, n=3),
+            first_fall_degree(bare + field_equations(3), fake=True, n=3),
+        )
+
+    def test_inertness_is_not_an_accident_of_the_witness(self):
+        """300 random multilinear pairs, zero disagreements.
+
+        A single instance cannot distinguish "inert" from "happens to agree
+        here", and the claim being pinned is universal.
+        """
+        rng = random.Random(20260921)
+        monos = list(monomials_up_to(3, 3, multilinear=True))
+        for _ in range(300):
+            fs = [
+                frozenset(rng.sample(monos, rng.randint(1, 4)))
+                for _ in range(2)
+            ]
+            self.assertEqual(
+                first_fall_degree(fs, fake=True, n=3),
+                first_fall_degree(fs + field_equations(3), fake=True, n=3),
+                msg=f"fake-side placement moved d'_F on {sorted(map(sorted, fs))}",
+            )
+
+
+class TestTheSecondIndependentWitness(unittest.TestCase):
+    """`f_1 = X^2 Y`, `f_2 = XY + X` over `F_2[X, Y]`.
+
+    Constructed by the blind read at `TASK-20260916-9da6e0` without access to
+    this module, and recomputed here by this module without reference to that
+    reader's arithmetic. Agreement is therefore evidence about the quantities
+    rather than about either implementation -- which is the point of a blind
+    re-derivation as against a replication.
+
+    It is a genuinely different object from `WITNESS_F1`/`WITNESS_F2`: two
+    variables rather than three, and not multilinear.
+    """
+
+    F1 = frozenset({(2, 1)})              # X^2 Y
+    F2 = frozenset({(1, 1), (1, 0)})      # XY + X
+
+    def system(self, with_fe):
+        gens = [self.F1, self.F2]
+        return gens + field_equations(2) if with_fe else gens
+
+    def test_the_reported_numbers_reproduce(self):
+        self.assertEqual(first_fall_degree(self.system(True), fake=True, n=2), 2)
+        self.assertEqual(first_fall_degree(self.system(False), fake=False, n=2), 3)
+
+    def test_it_refutes_lemma_4_under_both_true_side_placements(self):
+        fake = first_fall_degree(self.system(True), fake=True, n=2)
+        for with_fe in (True, False):
+            true = first_fall_degree(self.system(with_fe), fake=False, n=2)
+            self.assertGreater(
+                true,
+                fake,
+                msg=f"d_F <= d'_F held with S_fe {'inside' if with_fe else 'outside'}",
+            )
+
+    def test_this_witness_is_not_multilinear_unlike_the_first(self):
+        """Pinned so the two witnesses cannot silently collapse into one.
+
+        If a later refactor normalised generators into the Boolean quotient,
+        this witness would become `XY`, and the test above would be checking a
+        different object while still passing under a lenient assertion.
+        """
+        self.assertNotEqual(self.F1, reduce_fe(self.F1))
+        self.assertEqual(deg(self.F1), 3)
+
+
+class TestTheFirstWitnessRefutesBothPlacementsToo(unittest.TestCase):
+    def test_both_true_side_placements_fail(self):
+        """The inside placement is the harder one, and it fails as well.
+
+        Adjoining `S_fe` to the true system can only add products, so it gives a
+        fall more chances to appear and cannot raise `d_F` above its value
+        without them. Refuting the inequality in that setting is therefore the
+        stronger of the two statements, and it is the one this module's witness
+        makes.
+        """
+        bare = [WITNESS_F1, WITNESS_F2]
+        fake = first_fall_degree(witness_system(), fake=True, n=3)
+        self.assertEqual(first_fall_degree(witness_system(), fake=False, n=3), 3)
+        self.assertEqual(first_fall_degree(bare, fake=False, n=3), 3)
+        self.assertGreater(3, fake)
 
 
 if __name__ == "__main__":
