@@ -108,6 +108,7 @@ run:
 
   code:
     head_commit: e2703b0d465906f86e477503f7628723da91450c
+    commit: e2703b0d465906f86e477503f7628723da91450c
     branch: claude/factor-base-field-comparison-kn8wt7
     dirty_at_execution_start: false
     dirty_note: >-
@@ -131,8 +132,61 @@ run:
         sha256: 20e103435250b72f99d8758318ff71b63489925da7336fd41abf8ab8d913e6e6
         note: byte-identical copy of TASK-20260914-7119f2/work/lattice.py, unchanged.
     command_ref: experiments/EXP-FROB-91ee9c/runs/TASK-20260921-51bc02/command.txt
+    command: |
+      # Executed from RUN=/home/user/crypto-autoresearcher/experiments/EXP-FROB-91ee9c/runs/TASK-20260921-51bc02
+      # Memory cap: 8589934592 bytes (8 GiB), enforced via RLIMIT_AS inside each subprocess.
+      # One worker at a time (sequential subprocesses), per maximum_workers=1 (unchanged by amendment).
+      # Scope: exactly the two (cell, curve) pairs named in the amendment / handoff --
+      # the object curve is already identified (not re-searched); only the object-arm
+      # recompute + C2/C3/C4 control battery is computed here.
+      
+      cd $RUN
+      
+      /opt/conda-sage/bin/sage -python implementation.py FROB-SPLIT-q11n5 11 5 1 2 10061 2026091401,2026091402 8589934592 > work/FROB-SPLIT-q11n5.out.json 2> work/FROB-SPLIT-q11n5.err.log
+      
+      /opt/conda-sage/bin/sage -python implementation.py FROB-EQDEG-q19n5 19 5 1 1 117991 2026091401,2026091402 8589934592 > work/FROB-EQDEG-q19n5.out.json 2> work/FROB-EQDEG-q19n5.err.log
+      
+      # Independent checker (no sage import; pure Python/stdlib only):
+      python3 checker.py $RUN > work/checker-run1.log 2>&1
+      
+      # Aggregation into declared artifacts (metrics.json, cost-model.json,
+      # certificates.json, fixtures.json):
+      python3 aggregate.py
 
   environment_ref: experiments/EXP-FROB-91ee9c/runs/TASK-20260921-51bc02/environment.json
+  environment:
+    os: Linux-6.18.44-fc-v37-x86_64-with-glibc2.39
+    arch: x86_64
+    python_version: 3.11.15
+    sage_version: '10.9'
+    sage_binary: /opt/conda-sage/bin/sage
+    dependencies:
+      sage: '10.9'
+      python3: 3.11.15
+      checker_uses_stdlib_only: true
+    inference:
+      requested_policy: executor-implementation
+      resolved_by: python3 -m orchestration.adapter resolve --role executor
+      resolved_output: executor-implementation -> anthropic:claude-sonnet-5 (effort=medium)
+      resolved_model_id: claude-sonnet-5
+      resolved_backend: anthropic
+      resolved_reasoning_effort: medium
+      runtime: claude_code
+      model_verified: true
+      model_verification_note: Session's own model identity (Sonnet 5 / claude-sonnet-5,
+        per this session's system context) matches the adapter's resolved model for
+        the executor role and policy; no Bedrock backend involved.
+      fallback_used: false
+      degraded_requirements: []
+    memory_cap_bytes_declared: 8589934592
+    maximum_workers_declared: 1
+    execution_mode: one worker process at a time; each (cell,curve) target run as a
+      separate `sage -python implementation.py <cell> <q> <n> <A> <B> <N> <seeds> <mem_cap_bytes>`
+      subprocess with RLIMIT_AS set to the declared memory cap inside the subprocess
+      before any field/curve computation begins.
+    unknown_fields_disclosed_as_unknown:
+    - 'exact CPU model/microarchitecture: not queried in this session'
+    - container/VM identity beyond `uname -a` output recorded in stdout.log
 
   inputs:
     specification_path: experiments/EXP-FROB-91ee9c/specification.yaml
