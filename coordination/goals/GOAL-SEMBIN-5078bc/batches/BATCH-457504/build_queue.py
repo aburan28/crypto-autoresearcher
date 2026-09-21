@@ -722,6 +722,119 @@ EXECUTED = {
          "itself. The d_F4 convention divergence is the evidence that it held -- an "
          "implementation that had peeked would not have disagreed."),
     ]),
+    COMPOSE: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21, landed at 803f19231. TRANSITION: inconclusive. "
+         "EV-SEMBIN-c6e9ad direction neutral, strength inconclusive, claim_tier toy, "
+         "proof_status derivation. All seven priors scored: FIVE CONFIRMED, P-6 and P-7 "
+         "REFUTED. Completion criterion 1 NOT MET on either branch. H-SEMBIN-112e2e does "
+         "not move. Nothing promoted to knowledge, with a concrete reason."),
+        ("the_asymmetry_is_the_finding",
+         "Every prior about a DEFECT held; every prior about what the run ESTABLISHED fell. "
+         "P-6 was flagged in the plan as THIS_IS_THE_PREDICTION_I_MOST_EXPECT_TO_LOSE with "
+         "its escape clause written in advance, and the clause fired verbatim. The plan was "
+         "committed at 43e99599f in a commit containing no reviewer output, which is the "
+         "only thing that lets 'three reviewers concurred' be distinguished from 'three "
+         "reviewers concurred with what the Coordinator already believed'."),
+        ("why_inconclusive_rather_than_refine",
+         "`refine` presupposes a measured comparison that needs sharpening. There is none to "
+         "sharpen: the contract's declared primary metric was never computed as an output, "
+         "so the instrument for the map has to be built first. `support` fails on unobserved "
+         "strictness, `reject_scoped` on the bar forbidding one unreplicated empirical-only "
+         "run, and replicate/expand because re-running the same instrument pair reproduces "
+         "the same definitional gap at greater cost. P-7's three EXCLUSIONS all survive and "
+         "are adopted even though its positive prediction was refuted."),
+        ("the_hypothesis_does_not_move_on_a_ground_found_late",
+         "H-SEMBIN-112e2e states that the predicted separation IS the excluded 'No pairs to "
+         "reduce' tail -- and J-3 found that tail EMPTY in msolve across all 749 F4 rounds. "
+         "So the hypothesis's own mechanism predicts separation 0 on this engine, and the "
+         "observed 0 is CONSISTENT WITH it rather than against it. Unobserved strictness "
+         "reads adverse and an unmeasured quantity reads neutral; the neutral reading wins. "
+         "Coverage confirms no verdict was available anyway: exactly ONE non-degenerate "
+         "separation-cell observation across the four cells where strictness is predicted."),
+        ("its_own_overclaim_caught_mid_task_as_PD_5",
+         "An earlier draft stated the declared metric was available at ZERO RUN COST on 31 "
+         "instances. FALSE: the single-level sweep stops at D = 4, where every structured "
+         "instance is far from determining (rank 4707 of 12951 columns, deficits 46-67), so "
+         "obtaining it needs D >= 5 -- exactly where the memory caps bit. The error made the "
+         "remedy look cheap and the completion criterion look nearer, which is precisely the "
+         "bias this round existed to catch, and it also CORRECTS J-2's 'the fix needs zero "
+         "runs' claim. Caught and disclosed by the composition itself rather than by audit."),
+        ("nine_versus_eleven_reconciled",
+         "Eleven rows carry both instruments: 9 distinct structured instances plus 1 "
+         "known-false control and 1 identity repeat. 9 is adopted for the map claim and 11 "
+         "for separation-bearing rows, with the reading stated wherever either is used. The "
+         "producer is not wrong to say 9; it is wrong to put 9 in manifest.yaml and 11 in "
+         "summary.json with no reconciling note."),
+        ("one_reviewer_finding_corrected",
+         "J-1 reversed the certificate bases; recomputation confirms J-2's split -- 5 "
+         "unit-ideal deciding by 1 in W_D, 4 by standard-monomial match. J-1's joint verdict "
+         "is untouched by the correction."),
+    ]),
+    LEDGER: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21 at commit 73f807a8137028e650b549f75d091a7f5e0842ff. "
+         "EV-SEMBIN-c6e9ad and DEC-20260921-2c62d7 are official, with the analysis bound "
+         "alongside. ZERO divergence from the composition's drafts, verified by diff and by "
+         "recorded source and result hashes rather than asserted. validate_ledger.py names "
+         "none of these records; the standing errors are other campaigns' run-manifest "
+         "schema debt."),
+        ("archive_binding", od([
+            ("commit_sha", "d436b131c7d86df5d1037a193c80a5cd737ce155"),
+            ("parent_sha", "73f807a8137028e650b549f75d091a7f5e0842ff"),
+            ("commit_sha_note",
+             "TWO COMMITS, and the binding names the second. The records were staged and "
+             "committed at 73f807a81, whose message named all six record ids and OMITTED THE "
+             "TASK ID -- against a card constraint requiring both, which research_dispatch.py "
+             "enforces and which refused the render. 73f807a81 carries two ledger records and "
+             "is pushed, so it was NOT amended: AGENTS.md forbids rewriting history over "
+             "pushed records, and amending would have erased the evidence that a declared "
+             "constraint was missed. d436b131c stages only the disclosure addendum and carries "
+             "every identifier. The declared path_sha256 set is unchanged and still verifies, "
+             "because content_first checks hashes against HEAD rather than against the named "
+             "commit's tree, so the binding is exactly as strong as before. Full account: "
+             "archives/TASK-20260921-bd5f2e/commit-message-addendum.md. Cost, stated plainly: "
+             "the commit named here is not the commit that created the records it binds."),
+            ("path_sha256", od([
+                (f"{BASE}/archives/{LEDGER}/ledger-receipt.json",
+                 "679e952becb07245de9b3b7ce20c8a37445a2892d8381b7b45b9c056644c5f32"),
+                (f"ledger/evidence/{EVIDENCE}.yaml",
+                 "bae577859c95303cbd4914c244b2cd8d13dc879837430e715583515d68e74c9d"),
+                (f"ledger/decisions/{DECISION}.yaml",
+                 "eda1fa6018a8740933d4fe5c0ccf2cd1164a6a42ccb549da73a711bb86143136"),
+                (f"experiments/{EXP}/analysis.md",
+                 "e134e8bc33ebd66f348f8c0c83965272a8df1abbf6b745b9997be56fed5f5d90"),
+                (f"{BASE}/{COMPOSE}/scored-priors.json",
+                 "1b68a2b2ae7d96bda80eac734c4f61867a64f9a75b5af21e1b33fe18d269cb88"),
+                (f"{BASE}/{COMPOSE}/evidence-draft.yaml",
+                 "bae577859c95303cbd4914c244b2cd8d13dc879837430e715583515d68e74c9d"),
+                (f"{BASE}/{COMPOSE}/decision-draft.yaml",
+                 "eda1fa6018a8740933d4fe5c0ccf2cd1164a6a42ccb549da73a711bb86143136"),
+            ])),
+            ("path_sha256_note",
+             "SEVEN entries: the receipt, the two official ledger records, and the four "
+             "artifacts the source task declared (the analysis, the scored priors, and both "
+             "drafts). All computed from git blobs."),
+            ("the_binding_CRYPTOGRAPHICALLY_confirms_the_zero_divergence_claim",
+             "evidence-draft.yaml hashes to bae577859c95... and ledger/evidence/"
+             "EV-SEMBIN-c6e9ad.yaml hashes to the SAME value; decision-draft.yaml and "
+             "ledger/decisions/DEC-20260921-2c62d7.yaml likewise both hash to eda1fa601... "
+             "So 'the official records are byte-identical to the composition's drafts' is not "
+             "the archiving session's assertion about its own work -- it is two pairs of "
+             "equal hashes in this binding, checkable by anyone against commit 73f807a81. "
+             "That is a better guarantee than the receipt's prose and it is the reason to "
+             "bind the drafts here rather than only the records."),
+        ])),
+        ("the_parent_sha_was_resolved_from_HEAD_this_time",
+         "Recorded because the sibling archive TASK-20260921-064ae9 misfiled this exact "
+         "field in this same batch, writing the tip of origin/main -- the commit it had just "
+         "merged IN -- instead of its own parent. Here the declared value was produced by "
+         "`git rev-parse HEAD` before staging and then checked against `git rev-parse HEAD^` "
+         "after committing; the two agree. The earlier receipt is immutable and stays wrong, "
+         "and the queue carries the correct value for it."),
+    ]),
     SNAPSHOT: od([
         ("state", "completed"),
         ("outcome",
