@@ -295,8 +295,8 @@ conflicts over the summed `n`-system baseline, on refuted targets.
 **`n = 29` did not complete, and that is the honest top of the ladder.** The
 cell was launched with a `4 * 10^6` conflict budget per solve and a 2400 s cell
 wall; the baseline arm finished, and the single one-hot solve was still running
-after **39 minutes of CPU** without reaching its budget, so no target row was
-emitted. A conflict budget is the only censoring mechanism available:
+after **62 minutes of CPU** without reaching its budget, so no target row was
+emitted (final accounting in `logs/incomplete_cells.json`). A conflict budget is the only censoring mechanism available:
 `Cadical153.interrupt()` raises `NotImplementedError` in `python-sat`
 1.9.dev15, so a per-solve wall clock cannot be imposed on this solver, and the
 instrument now **refuses** `--solve-wall` rather than silently ignoring it.
@@ -327,9 +327,12 @@ cap. The cell wall was 46 s.
 
 So the object is real and the instance is buildable and runnable at the true
 ECC2K-130 parameters — but **neither arm terminated**, at any budget reached
-here. A second cell with a 20000-conflict budget was also run; its outcome is
-in `solve-cost-results.json` if it completed and is recorded as non-completing
-if it did not. Two rules bind how this is read:
+here. A second cell with a 20000-conflict budget was also run and
+**did not complete**: after 36 minutes of CPU it was still inside the baseline
+arm, having not reached 20000 conflicts on a single gauge-fixed system. It is
+recorded as non-completing, with its cost accounting, in
+`logs/incomplete_cells.json` and in `solve-cost-results.json`; nothing is
+reported from it beyond that. Two rules bind how this is read:
 
 - **No UNSAT at `n = 131` is ground truth.** Exhaustive enumeration over `V'`
   is `2^58` and was not attempted; the instrument sets `ground_truth: false`
@@ -397,7 +400,7 @@ Applying C2 to the measured rows:
 ## Wall clock, memory, budget
 
 Advisory budget 4 hours, single worker per cell, memory cap 8 GiB. Observed:
-about 3.2 hours to this point, peak resident memory **645 MiB** in the heaviest
+about 3.8 hours, peak resident memory **645 MiB** in the heaviest
 cell (`n = 131` one-hot, 4.09e6 clauses), never above 2 GiB across all
 concurrent cells. Some cells ran two or three at a time on a 4-core machine;
 that perturbs **seconds** and not **conflicts**, which are deterministic — and
