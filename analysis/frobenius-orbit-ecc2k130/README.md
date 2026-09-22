@@ -533,3 +533,30 @@ whatever those PRs settle rather than answered from this note alone. With
 likeliest resolution is that this note's subject already has an owner and this
 directory should be superseded by, or folded into, that lane rather than
 adopted on its own.
+
+---
+
+## Coordinator ruling, 2026-09-22 (appended; nothing above is edited)
+
+**`DEC-20260922-61cdc1`** rules the ownership question this note left open.
+Read that record. It supersedes the "likeliest resolution" guess in the
+paragraph above, which was written before `RQ-CERTBIN-836ce2` existed.
+
+- **Owner: `RQ-CERTBIN-836ce2`.** This directory is a **pre-compute artifact**
+  of that question: a section-8 audit plus a single-session instrument probe.
+  Future CERTBIN contracts reuse it by reference and say what they add.
+  CERTBIN admits ECC2K-130 as an instance, with the challenges as declared
+  endpoints. It also names Frobenius-stable and orbit-aware `V` as a
+  factor-base choice. `GOAL-FROB-6333a9` and `RQ-FROB-7d8dd4` exclude both.
+- **Not folded into `EXP-FROB-ec08b5`.** That contract covers Part 1 section B
+  only. Its frozen scope is the linear Gaudry/Diem `F_V` family, and it
+  explicitly excludes decomposition cost. So the orbit union (C, D), the
+  charged floor table and all of Part 2 fall outside it. It is
+  cross-referenced, not an owner.
+- **Still not evidence.** No `RUN-*` exists and none is created. No status
+  moves. No completion criterion is discharged, including
+  `GOAL-FROB-6333a9` C1/C2. The sentence above placing this note on
+  `RQ-FROB-7d8dd4`'s target (a) is **not** adopted as a ruling on that
+  question.
+- **Pending:** attaching `RQ-CERTBIN-836ce2` to `GOAL-ECDLP2M-001` is a named
+  next action (NA-2), not done here.
