@@ -168,16 +168,78 @@ def phase_degree_law(cells):
 MEMORY_CAP_MB = 3072
 
 
-def phase_solver_ladder(ladders, timeout_seconds):
-    from pdp import curve, semaev, subspace_basis, descend
-    from sage.all import Ideal, set_random_seed
+def _cell_worker(q, m, n, l, seed, target_x_repr, timeout_seconds):
+    """Build and solve ONE cell, in a child process.
+
+    Isolated because the two failure modes here kill a process rather than
+    raising: PolyBoRi calls abort() on an allocation failure instead of throwing,
+    and a cysignals alarm cannot interrupt its C++ inner loops. An address-space
+    cap in-process therefore converts an out-of-memory cell into a SIGABRT that
+    takes the whole run down -- which is what it did. In a child, both become an
+    exit status the parent records as a censored cell.
+    """
     import resource as _res
     try:
         cap = MEMORY_CAP_MB * 1024 * 1024
-        soft, hard = _res.getrlimit(_res.RLIMIT_AS)
-        _res.setrlimit(_res.RLIMIT_AS, (cap, hard if hard != _res.RLIM_INFINITY else cap))
+        _, hard = _res.getrlimit(_res.RLIMIT_AS)
+        _res.setrlimit(_res.RLIMIT_AS, (cap, hard))
     except (ValueError, OSError):
         pass
+    try:
+        from pdp import curve, semaev, subspace_basis, descend
+        from sage.all import Ideal
+        K, E, a6 = curve(n, seed=seed)
+        _, S = semaev(m, K, a6)
+        basis = subspace_basis(K, n, l, seed=5)
+        xR = K(target_x_repr)
+        t0 = time.perf_counter()
+        B, eqs = descend(S, basis, xR, m, n)
+        tb = time.perf_counter() - t0
+        t0 = time.perf_counter()
+        gb = list(Ideal(eqs).groebner_basis())
+        q.put(dict(equations=len(eqs), boolean_degree=max(e.deg() for e in eqs),
+                   build_seconds=round(tb, 3),
+                   groebner_seconds=round(time.perf_counter() - t0, 4),
+                   unsat=(len(gb) == 1 and gb[0] == B(1)), timed_out=False))
+    except MemoryError:
+        q.put(dict(timed_out=False, out_of_memory=True, memory_cap_mb=MEMORY_CAP_MB))
+    except BaseException as exc:                      # noqa: BLE001
+        q.put(dict(timed_out=False, error=f"{type(exc).__name__}: {str(exc)[:200]}"))
+
+
+def _run_cell(m, n, l, seed, target_x, timeout_seconds):
+    import multiprocessing as mp
+    ctx = mp.get_context("fork")
+    q = ctx.Queue()
+    proc = ctx.Process(target=_cell_worker,
+                       args=(q, m, n, l, seed, str(target_x), timeout_seconds))
+    t0 = time.perf_counter()
+    proc.start()
+    proc.join(timeout_seconds)
+    if proc.is_alive():
+        proc.terminate()
+        proc.join(10)
+        if proc.is_alive():
+            proc.kill()
+            proc.join(10)
+        return dict(groebner_seconds=None, timed_out=True,
+                    timeout_seconds=timeout_seconds,
+                    wall_seconds=round(time.perf_counter() - t0, 1),
+                    note=("Execution status, not a mathematical result: the cell "
+                          "is uncharacterised, not proven hard."))
+    if not q.empty():
+        return q.get()
+    return dict(groebner_seconds=None, timed_out=False,
+                crashed=True, exit_code=proc.exitcode,
+                wall_seconds=round(time.perf_counter() - t0, 1),
+                note=("Child exited without a result -- out of memory or an abort "
+                      "inside the solver. Execution status, never evidence that "
+                      "the cell is hard."))
+
+
+def phase_solver_ladder(ladders, timeout_seconds):
+    from pdp import curve, semaev, subspace_basis
+    from sage.all import set_random_seed
     out = {}
     for m_str, ns in ladders.items():
         m = int(m_str)
@@ -186,7 +248,6 @@ def phase_solver_ladder(ladders, timeout_seconds):
             l = -(-n // m)
             try:
                 K, E, a6 = curve(n, seed=3)
-                _, S = semaev(m, K, a6)
                 basis = subspace_basis(K, n, l, seed=5)
                 Vset = [sum((K(c) * b for c, b in zip(co, basis)), K(0))
                         for co in itertools.product([0, 1], repeat=l)]
@@ -211,40 +272,7 @@ def phase_solver_ladder(ladders, timeout_seconds):
                     if target == E(0):
                         row[tag] = dict(skipped="target is the identity")
                         continue
-                    entry = dict()
-                    signal.alarm(int(timeout_seconds))
-                    try:
-                        t0 = time.perf_counter()
-                        B, eqs = descend(S, basis, target[0], m, n)
-                        tb = time.perf_counter() - t0
-                        entry.update(equations=len(eqs),
-                                     boolean_degree=max(e.deg() for e in eqs),
-                                     build_seconds=round(tb, 3))
-                        t0 = time.perf_counter()
-                        gb = list(Ideal(eqs).groebner_basis())
-                        entry["groebner_seconds"] = round(time.perf_counter() - t0, 4)
-                        signal.alarm(0)
-                        entry["unsat"] = (len(gb) == 1 and gb[0] == B(1))
-                        entry["timed_out"] = False
-                    except TIMEOUTS:
-                        signal.alarm(0)
-                        entry.update(groebner_seconds=None, timed_out=True,
-                                     timeout_seconds=timeout_seconds,
-                                     stage=("descent" if "equations" not in entry
-                                            else "groebner"),
-                                     note=("Execution status, not a mathematical "
-                                           "result: the cell is uncharacterised, "
-                                           "not proven hard."))
-                    except MemoryError:
-                        signal.alarm(0)
-                        entry.update(groebner_seconds=None, timed_out=False,
-                                     out_of_memory=True,
-                                     memory_cap_mb=MEMORY_CAP_MB,
-                                     stage=("descent" if "equations" not in entry
-                                            else "groebner"),
-                                     note=("Execution status, not a mathematical "
-                                           "result."))
-                    row[tag] = entry
+                    row[tag] = _run_cell(m, n, l, 3, target[0], timeout_seconds)
                 rows.append(row)
             except Exception as exc:
                 rows.append(dict(n=n, l=l, error=str(exc)[:200]))
@@ -266,7 +294,7 @@ def _fit_exponents(rows, min_points=4):
             e = r.get(tag)
             if not isinstance(e, dict):
                 continue
-            if e.get("timed_out"):
+            if e.get("timed_out") or e.get("crashed") or e.get("out_of_memory"):
                 censored += 1
                 continue
             s = e.get("groebner_seconds")
