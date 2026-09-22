@@ -478,16 +478,25 @@ curve order and `r` are determined by the parameters rather than the draw.
 
 ---
 
-## Concurrent work that bears on this note (pointers, not findings)
+## Concurrent work that bears on this note
 
-Two PRs opened by other sessions the same day overlap this note directly. They
-are **open and unreviewed** at the time of writing, so nothing below is treated
-as established — they are recorded here because the alternative is two lanes
-spending budget on the same object without knowing it, which is exactly the
-failure mode CLAUDE.md's concurrency section exists to prevent. A pointer is
-never a permission and never evidence.
+Two PRs opened by other sessions the same day overlap this note directly, and
+recording them is cheaper than two lanes spending budget on the same object
+without knowing it — the failure mode CLAUDE.md's concurrency section exists to
+prevent.
 
-**PR #1360 — `EXP-FROB-ec08b5`** designs `IDEA-20260918-9abf42`, the same idea
+**Status, stated precisely because it changed while this section was being
+written.** `PR #1360` **merged to `main` on 2026-09-22**, so
+`EXP-FROB-ec08b5`, `EXP-ICPERF-783e9e`, `EV-FROB-d336b0`, `EV-ICPERF-784b25`
+and `DEC-20260922-925da8` are committed records, not proposals. Merged is not
+reviewed: that PR's own text records independent `validator` and `red-team`
+passes as still outstanding, and caps its strength at `strong` (FROB) and
+`moderate` (ICPERF) for declared model-dependence. `PR #1361` — which opens
+`BATCH-5286b0` on `GOAL-FROB-6333a9` — was still open, its
+`coordination/review/frob-20260922-5286b0` and `DEC-20260922-f4d910` not yet on
+`main`. Read the current state rather than this paragraph.
+
+**`EXP-FROB-ec08b5` (merged)** designs `IDEA-20260918-9abf42`, the same idea
 Part 1 re-derives, and reaches the same structural conclusion from the module
 side with far more generality. It reports the stable subspaces as the ideals of
 `F_q[T]/(T^n - 1)`, availability decided by `ord_n(q)` alone, exactly four
@@ -498,7 +507,7 @@ curve; that is corroboration from a different direction, not novelty on this
 note's part. It also costs the ECC2K-130 net loss across `m` at 57 to 122 bits,
 which this note does not do.
 
-**PR #1360 — `EXP-ICPERF-783e9e`** bears on the question Part 1 left open and
+**`EXP-ICPERF-783e9e` (merged)** bears on the question Part 1 left open and
 Part 2 failed to measure. Part 1 reduced viability at `m >= 4` to a single
 unmeasured number — the per-solve budget of about `2^31` — and Part 2 could not
 reach it. That PR argues the binding constraint at this degree is not the solve
@@ -515,8 +524,12 @@ instance construction alone overran the budget by more than `2^26`, before a
 single conflict. This note reported that number without recognising it as the
 general obstruction.
 
-**PR #1361** opens `BATCH-5286b0` on `GOAL-FROB-6333a9` and composes
+**`PR #1361`** opens `BATCH-5286b0` on `GOAL-FROB-6333a9` and composes
 `EV-FROB-b6e1e9` and the promotion gate on `KN-FIND-47da4e` — the two records
 Part 2 extends. Anyone acting on this note should read the state of that batch
 first, and the ownership question in Part 1's header should be re-asked against
-whatever those PRs settle rather than answered from this note alone.
+whatever those PRs settle rather than answered from this note alone. With
+`EXP-FROB-ec08b5` now merged under `GOAL-FROB-6333a9`'s own question, the
+likeliest resolution is that this note's subject already has an owner and this
+directory should be superseded by, or folded into, that lane rather than
+adopted on its own.
