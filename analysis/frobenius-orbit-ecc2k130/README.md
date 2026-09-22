@@ -475,3 +475,48 @@ Raw per-target rows live in `logs/cell_*.json` and `logs/enc_*.json`;
 own random `V'`, generator and targets from its `--seed`, so a rerun with the
 same seed reproduces that cell exactly, and the derived `S_3`, the modulus, the
 curve order and `r` are determined by the parameters rather than the draw.
+
+---
+
+## Concurrent work that bears on this note (pointers, not findings)
+
+Two PRs opened by other sessions the same day overlap this note directly. They
+are **open and unreviewed** at the time of writing, so nothing below is treated
+as established — they are recorded here because the alternative is two lanes
+spending budget on the same object without knowing it, which is exactly the
+failure mode CLAUDE.md's concurrency section exists to prevent. A pointer is
+never a permission and never evidence.
+
+**PR #1360 — `EXP-FROB-ec08b5`** designs `IDEA-20260918-9abf42`, the same idea
+Part 1 re-derives, and reaches the same structural conclusion from the module
+side with far more generality. It reports the stable subspaces as the ideals of
+`F_q[T]/(T^n - 1)`, availability decided by `ord_n(q)` alone, exactly four
+stable subspaces of dimensions `0, 1, n-1, n` at `n = 131` **and** at
+`n = 163`, and the orbit gain exactly `n` and never more — verified on 14 curve
+cells. Part 1 here reaches the `n = 131` case independently and on the real
+curve; that is corroboration from a different direction, not novelty on this
+note's part. It also costs the ECC2K-130 net loss across `m` at 57 to 122 bits,
+which this note does not do.
+
+**PR #1360 — `EXP-ICPERF-783e9e`** bears on the question Part 1 left open and
+Part 2 failed to measure. Part 1 reduced viability at `m >= 4` to a single
+unmeasured number — the per-solve budget of about `2^31` — and Part 2 could not
+reach it. That PR argues the binding constraint at this degree is not the solve
+at all: forming the descended system for one target costs about
+`C(n, m(m-1))`, which it puts at **+40.8 bits over the whole per-decomposition
+budget at `n = 131`**. If that holds, the `2^31` target is unreachable for a
+reason this note's framing understates, because it charges a cost paid *before*
+the solver is called.
+
+Part 2's own measurement is an empirical instance of exactly that mechanism and
+was read that way only in hindsight: **building** the `n = 131` one-hot CNF cost
+4.84 s = `2^27.6` field operations, against a `2^1.43` budget at `m = 2` — the
+instance construction alone overran the budget by more than `2^26`, before a
+single conflict. This note reported that number without recognising it as the
+general obstruction.
+
+**PR #1361** opens `BATCH-5286b0` on `GOAL-FROB-6333a9` and composes
+`EV-FROB-b6e1e9` and the promotion gate on `KN-FIND-47da4e` — the two records
+Part 2 extends. Anyone acting on this note should read the state of that batch
+first, and the ownership question in Part 1's header should be re-asked against
+whatever those PRs settle rather than answered from this note alone.
