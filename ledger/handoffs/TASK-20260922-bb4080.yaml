@@ -1,0 +1,86 @@
+handoff:
+  id: TASK-20260922-bb4080
+  created_at: '2026-09-22'
+  created_by: coordinator
+  from: coordinator
+  to: executor
+  assigned_to: executor
+  goal_id: GOAL-ICPERF-e6b6a4
+  question_id: RQ-ICPERF-94c86e
+  hypothesis_id: H-ICPERF-7d24fd
+  experiment_id: EXP-ICPERF-783e9e
+  decision_id: DEC-20260922-925da8
+  state: running
+  title: >-
+    Implement and run EXP-ICPERF-783e9e: the forced arity, the cost of forming
+    the descended system, and the solver exponent that remains
+  objective: >-
+    Execute the frozen protocol against trial-plan-v1.json and produce immutable
+    run artifacts. Interpret nothing; the evidence record and the status
+    transition are the Coordinator's.
+  inputs:
+    - experiments/EXP-ICPERF-783e9e/specification.yaml
+    - experiments/EXP-ICPERF-783e9e/trial-plan-v1.json
+    - experiments/EXP-ICPERF-783e9e/impl/
+    - experiments/EXP-FROB-ec08b5/impl/ (read-only; supplies the orbit factor R)
+  outputs_committed_so_far:
+    - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/checkpoint/self_test.json
+    - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/checkpoint/budget_table.json
+    - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/checkpoint/degree_law.json
+    - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/command.txt
+    - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/environment.json
+  outputs_pending:
+    - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/checkpoint/solver_ladder.json
+    - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/raw-result.json
+    - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/metrics.json
+    - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/manifest.yaml
+    - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/execution-receipt.json
+  state_note: >-
+    Phases 1-3 complete and committed; phase 4 (the solver ladder) still
+    executing at commit time. The stale manifest.yaml, stdout.log and stderr.log
+    left on disk by the SUPERSEDED first attempt are deliberately NOT committed:
+    they describe a run that the cysignals fix below replaced, and committing
+    them would put a `failed` receipt in the archive for a run that is live.
+  run_ids:
+    - RUN-ICPERF-2f36fd
+  budget:
+    watchdog_seconds: 10800
+    memory_mb: 8192
+    max_concurrent: 1
+    ladder_timeout_seconds: 600
+    wall_clock_seconds: null
+    maximum_batches: null
+    budget_note: >-
+      wall_clock_seconds and maximum_batches are null because ICPERF is a
+      declared ECC area and CLAUDE.md rule 11 sets ECC budgets unlimited. The
+      watchdog, memory cap and per-cell ladder timeout are machine protection.
+  execution_notes:
+    - >-
+      The first launch failed in the degree-law phase on a JSON encoding error
+      (Sage returns its own Integer type). Fixed by converting on serialisation
+      rather than casting at each call site, and the run RESUMED from its
+      checkpoints -- the self-test and budget-table phases were not recomputed.
+      An encoding failure is execution status, never evidence (AGENTS.md rule 3).
+    - >-
+      The descent was rewritten to stay MULTILINEAR after the naive route --
+      substitute into S_{m+1}, expand over K, then reduce v^k to v -- was
+      measured taking over thirteen minutes on a single (n, m) = (8, 4) cell
+      while holding 1.9 GB. Exploiting that every Frobenius power is F_2-linear
+      keeps intermediate degree at m*min(m-1, l) instead of m*2^(m-1), and the
+      same cell then built in 0.12 s. This is an instrument fix, not a result.
+    - >-
+      `sage` is not on PATH in a fresh container of this environment; it is at
+      /opt/conda-sage/bin/sage (SageMath 10.9). The launcher resolves it rather
+      than assuming a bare `sage`.
+  receipt:
+    branch: claude/frobenius-orbit-factor-bases-46r5z2
+    merge_outcome: >-
+      origin/main fetched and merged into the branch before this task's archival
+      commit; no divergent changes touched ICPERF or FROB paths.
+  constraints_observed:
+    - No deployed curve used as an attack instance.
+    - No discrete logarithm solved; certificate.kind = none.
+    - Ladder cells exceeding the declared timeout are recorded censored and
+      excluded from every fit; a censored cell is never read as difficulty.
+    - Output bounded by construction; no per-instance stream.
+    - Every identifier minted via tools/allocate_id.py and --check-confirmed.
