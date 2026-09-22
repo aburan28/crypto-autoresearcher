@@ -9,7 +9,14 @@ def hexblob(body, label):
     m = re.search(re.escape(label) + r':\s*\n((?:\s+[0-9a-f:]+\n)+)', body)
     if not m:
         m = re.search(re.escape(label) + r':\s*((?:[0-9a-f]{2}:)+[0-9a-f]{2})', body)
-        if not m: return None
+        if not m:
+            # OpenSSL prints a zero coefficient as a bare decimal, e.g. "A:    0",
+            # not as a colon-hex blob. Without this branch A = 0 reads as absent
+            # and c2pnb208w1 reports "A in no subfield", which is backwards:
+            # 0 lies in every subfield. Mirrors subfield_certify.blob.
+            m = re.search(re.escape(label) + r':\s*(\d+)\s*\n', body)
+            if m: return int(m.group(1))
+            return None
     h = re.sub(r'[^0-9a-f]', '', m.group(1))
     return int(h, 16) if h else None
 
@@ -58,7 +65,16 @@ for name, body in pairs:
 
 print()
 print("Composite-m curves, subfield check detail:")
+def factor(n):
+    fs, d = [], 2
+    while d * d <= n:
+        while n % d == 0: fs.append(d); n //= d
+        d += 1
+    if n > 1: fs.append(n)
+    return fs
+
 for name, m, isprime, Ad, Bd, cof, order in rows:
     if not isprime:
-        d = max(x for x in (Ad or 1, Bd or 1))
-        print(f"  {name}: m={m}={' * '.join(str(p) for p in ([2]*0))}{m}, smallest subfield containing A: {Ad}, B: {Bd}, cofactor {cof}, order_bits {order.bit_length() if order else None}")
+        print(f"  {name}: m={m}={' * '.join(str(p) for p in factor(m))}, "
+              f"smallest subfield containing A: {Ad}, B: {Bd}, "
+              f"cofactor {cof}, order_bits {order.bit_length() if order else None}")

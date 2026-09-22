@@ -36,7 +36,12 @@ provenance `internal`, confidence `computed-here`.
 tests subfield membership of `A` and `B` in `F_{2^d}` by the Frobenius
 fixed-point test `a^(2^d) == a`, evaluated in `F_2[x]/(f)` with carry-less
 multiplication and polynomial reduction. `A == 0` is in every subfield and is
-reported as such.
+reported as such — the scan prints the **smallest** subfield containing each
+coefficient, so `c2pnb208w1`'s `A = 0` shows as `1` (that is `F_2`, which is
+contained in `F_{2^16}`), not as absent. OpenSSL prints a zero coefficient as a
+bare decimal rather than a colon-hex blob, and the parser handles both forms;
+an earlier revision of this directory did not, and reported that row as "A in
+no subfield", which is backwards.
 
 `subfield_certify.py` takes the five composite-degree curves further. If `E` is
 defined over `F_q`, `q = 2^16`, with trace `t`, then `#E(F_q) = q + 1 - t` and
