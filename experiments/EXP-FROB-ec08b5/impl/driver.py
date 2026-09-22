@@ -216,10 +216,12 @@ def phase_curve_panel(cells, seed):
                 cells_measured=len(scored),
                 prediction_exact_on_all=all(r["prediction_exact"] for r in scored),
                 stable_V_always_pi_stable=all(r["pi_stable"] for r in scored),
+                # a control that was not constructed or errored did NOT fail as
+                # required; it must not be counted as if it had run and passed
                 unstable_control_always_fails=all(
-                    r.get("control_unstable_V", {}).get("control_passes", True) for r in scored),
+                    r.get("control_unstable_V", {}).get("control_passes", False) for r in scored),
                 null_curve_control_always_fails=all(
-                    r.get("control_null_curve", {}).get("control_passes", True) for r in scored))
+                    r.get("control_null_curve", {}).get("control_passes", False) for r in scored))
 
 
 # ---------------------------------------------------------------- phase 5 ----
