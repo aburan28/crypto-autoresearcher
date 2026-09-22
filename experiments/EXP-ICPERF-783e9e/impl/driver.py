@@ -165,9 +165,19 @@ def phase_degree_law(cells):
 
 
 # ---------------------------------------------------------------- phase 4 ----
+MEMORY_CAP_MB = 3072
+
+
 def phase_solver_ladder(ladders, timeout_seconds):
     from pdp import curve, semaev, subspace_basis, descend
     from sage.all import Ideal, set_random_seed
+    import resource as _res
+    try:
+        cap = MEMORY_CAP_MB * 1024 * 1024
+        soft, hard = _res.getrlimit(_res.RLIMIT_AS)
+        _res.setrlimit(_res.RLIMIT_AS, (cap, hard if hard != _res.RLIM_INFINITY else cap))
+    except (ValueError, OSError):
+        pass
     out = {}
     for m_str, ns in ladders.items():
         m = int(m_str)
@@ -201,14 +211,15 @@ def phase_solver_ladder(ladders, timeout_seconds):
                     if target == E(0):
                         row[tag] = dict(skipped="target is the identity")
                         continue
-                    t0 = time.perf_counter()
-                    B, eqs = descend(S, basis, target[0], m, n)
-                    tb = time.perf_counter() - t0
-                    entry = dict(equations=len(eqs),
-                                 boolean_degree=max(e.deg() for e in eqs),
-                                 build_seconds=round(tb, 3))
+                    entry = dict()
                     signal.alarm(int(timeout_seconds))
                     try:
+                        t0 = time.perf_counter()
+                        B, eqs = descend(S, basis, target[0], m, n)
+                        tb = time.perf_counter() - t0
+                        entry.update(equations=len(eqs),
+                                     boolean_degree=max(e.deg() for e in eqs),
+                                     build_seconds=round(tb, 3))
                         t0 = time.perf_counter()
                         gb = list(Ideal(eqs).groebner_basis())
                         entry["groebner_seconds"] = round(time.perf_counter() - t0, 4)
@@ -219,9 +230,20 @@ def phase_solver_ladder(ladders, timeout_seconds):
                         signal.alarm(0)
                         entry.update(groebner_seconds=None, timed_out=True,
                                      timeout_seconds=timeout_seconds,
+                                     stage=("descent" if "equations" not in entry
+                                            else "groebner"),
                                      note=("Execution status, not a mathematical "
                                            "result: the cell is uncharacterised, "
                                            "not proven hard."))
+                    except MemoryError:
+                        signal.alarm(0)
+                        entry.update(groebner_seconds=None, timed_out=False,
+                                     out_of_memory=True,
+                                     memory_cap_mb=MEMORY_CAP_MB,
+                                     stage=("descent" if "equations" not in entry
+                                            else "groebner"),
+                                     note=("Execution status, not a mathematical "
+                                           "result."))
                     row[tag] = entry
                 rows.append(row)
             except Exception as exc:
