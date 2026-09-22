@@ -1760,6 +1760,80 @@ REVISIONS = [
     ]),
 ]
 
+LEMMA4_AMENDMENT_PATH = f"{EXP}/amendments/AMD-EXP-SEMBIN-4fa22c-20260921-lemma4.yaml"
+GE_CORRECTION_PATH = "ledger/corrections/CORR-20260921-896b22.yaml"
+LOSS_CORRECTION_PATH = "ledger/corrections/CORR-20260921-942a62.yaml"
+
+REVISIONS.append(od([
+    ("at", "2026-09-22T22:40:00Z"),
+    ("task_id", EXECUTE),
+    ("from_state", "queued"),
+    ("to_state", "queued"),
+    ("reason",
+     "NOT A STATE CHANGE: a PRE-DISPATCH SUPPLEMENT for re-execution attempt epoch 3, applied "
+     "before any agent is launched under it. The epoch-2 execution reached completed_valid and "
+     "was lost as untracked working-tree state (CORR-20260921-942a62); nothing it produced "
+     "survives, so this is a fresh execution, not a resumption. Three things the card lacked are "
+     "supplied here, each of which a dispatcher must satisfy BEFORE launch: (1) `archived_by` "
+     f"was absent from the card itself -- ownership was carried only by {PRODUCER_SNAPSHOT}'s "
+     "source_task_ids -- and AGENTS.md's first standing precondition asks for it on the card; "
+     f"(2) {LEMMA4_AMENDMENT_PATH} is a BINDING additive amendment committed 2026-09-21, after "
+     "this card was last widened, whose clause (b) imposes per-instance U-4 bookkeeping on every "
+     f"reported d'_F; an executor that cannot read it cannot honour it; {GE_CORRECTION_PATH} "
+     "scopes that amendment's '>=' note and is added for the same reason; (3) the loss "
+     "correction records the lost run's findings as `recalled` LEADS, and an executor that read "
+     "them would be re-deriving toward a remembered answer -- so it is declared blind_from. "
+     "The original card text is unchanged; the fields below are additions."),
+]))
+
+EXECUTE_SUPPLEMENT = od([
+    ("archived_by", PRODUCER_SNAPSHOT),
+    ("archived_by_note",
+     f"Supplied 2026-09-22 before the epoch-3 dispatch. {PRODUCER_SNAPSHOT} already named this "
+     "card in its source_task_ids; the binding is now stated on both sides."),
+    ("read_scope_additions", [LEMMA4_AMENDMENT_PATH, GE_CORRECTION_PATH]),
+    ("blind_from", [
+        LOSS_CORRECTION_PATH,
+        "coordination/review/sembin-20260916-cbb416/",
+        "coordination/review/sembin-20260916-e0a0c1/",
+        f"coordination/goals/{GOAL}/batches/BATCH-e0a0c1/ruling/",
+    ]),
+    ("blind_from_note",
+     "The loss record describes the lost run's measured values at provenance `recalled`; the "
+     "review directories hold the Coordinator's pre-measurement prior (ADD3) and the joints the "
+     "reviewers will attack. An executor that has read any of them is no longer producing an "
+     "observation independent of the prediction it will be scored against."),
+    ("dispatch_preconditions_supplement", [
+        f"archived_by names {PRODUCER_SNAPSHOT} on this card before launch",
+        "a fresh lane claim (epoch 3) is published before the subagent is launched; epochs 1-2 "
+        "are expired and belong to a session that no longer exists",
+        "every declared input, including both amendments and CORR-20260921-896b22, is committed "
+        "and pushed before launch",
+        f"the outputs are landed with tools/producer_landing.py --task {EXECUTE} the moment the "
+        "subagent returns, before anything else in the session -- the remedy CORR-20260921-942a62 "
+        "records, because a declared owner is not a commit",
+    ]),
+])
+
+for _task in tasks:
+    if _task["id"] == EXECUTE:
+        for _field, _value in EXECUTE_SUPPLEMENT.items():
+            if _field == "read_scope_additions":
+                _task["read_scope"] = _task["read_scope"] + [
+                    p for p in _value if p not in _task["read_scope"]]
+                _task["handoff"]["inputs"] = _task["handoff"]["inputs"] + [
+                    f"{LEMMA4_AMENDMENT_PATH} -- BINDING additive amendment (NA-1): clause (b) "
+                    "requires, for every reported d'_F, the unreduced total degree of each "
+                    "product g_i f_i of the realising fake witness and whether max_i deg(g_i f_i) "
+                    "<= d'_F at that instance; clause (d) reports C-6 as structurally forced.",
+                    f"{GE_CORRECTION_PATH} -- scopes the amendment's '>=' note by placement.",
+                ]
+            elif _field == "dispatch_preconditions_supplement":
+                _task["handoff"]["dispatch_preconditions"] = (
+                    _task["handoff"]["dispatch_preconditions"] + _value)
+            else:
+                _task[_field] = _value
+
 for _task in tasks:
     _applied = EXECUTED.get(_task["id"])
     if not _applied:
