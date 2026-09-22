@@ -1,0 +1,177 @@
+diff --git aa/examples/koblitz_rank_fixture.rs bb/examples/koblitz_rank_fixture.rs
+index ae58ba5415..c9838d3857 100644
+--- aa/examples/koblitz_rank_fixture.rs
++++ bb/examples/koblitz_rank_fixture.rs
+@@ -316,6 +316,7 @@ struct CompactPairTable {
+ impl CompactPairTable {
+     fn with_capacity(expected: usize, x_only: bool, x_domain: usize) -> Self {
+         let capacity = expected.max(2).next_power_of_two();
++        let capacity = if x_only { capacity * 2 } else { capacity };
+         let x_filter_exact = x_only && x_domain <= (1usize << 29);
+         let filter_bits = if !x_only {
+             0
+@@ -4743,164 +4744,3 @@ mod cold_arm_port_tests {
+         }
+     }
+ }
+-
+-#[cfg(test)]
+-mod cold_capacity_semantic_control_tests {
+-    use super::*;
+-
+-    fn json_digest(value: &serde_json::Value) -> String {
+-        blake3::hash(&serde_json::to_vec(value).unwrap())
+-            .to_hex()
+-            .to_string()
+-    }
+-
+-    #[test]
+-    fn n13_signed_expanded_x_domain_and_witnesses_are_exact() {
+-        let n = 13u32;
+-        let curve = KoblitzCurve::new(0, n).unwrap();
+-        let modulus = curve.subgroup_order.to_u64().unwrap();
+-        let lambda = curve.lambda.to_u64().unwrap();
+-        let signed_size = signed_scalars(lambda, modulus, n).len();
+-        let columns = balanced_orbits(&curve.subgroup_order, signed_size, 1, 2);
+-        assert_eq!(columns, 1);
+-        let base = point_defined_base(&curve, columns);
+-        let label_to_index: HashMap<_, _> = base
+-            .point_labels
+-            .iter()
+-            .copied()
+-            .enumerate()
+-            .map(|(index, label)| (label, index))
+-            .collect();
+-        let frobenius_next_index: Vec<usize> = base
+-            .point_labels
+-            .iter()
+-            .map(|&(column, coefficient)| {
+-                let next = ((coefficient as u128 * lambda as u128) % modulus as u128) as u64;
+-                label_to_index[&(column, next)]
+-            })
+-            .collect();
+-        let automorphisms: Vec<_> = signed_scalars(lambda, modulus, n).into_iter().collect();
+-        let diagonal_relatives: Vec<_> = automorphisms
+-            .iter()
+-            .copied()
+-            .filter(|&value| value <= modpow(value, modulus - 2, modulus))
+-            .collect();
+-        let expected_capacity = columns * (columns + 1) / 2 * signed_size * (signed_size / 2);
+-        let x_domain = (1usize << n) + 1;
+-        let mut table = CompactPairTable::with_capacity(expected_capacity, true, x_domain);
+-        let mut expected = BTreeMap::<u64, ((u64, u64), [usize; 2])>::new();
+-        for left_column in 0..columns {
+-            let left = label_to_index[&(left_column, 1)];
+-            for right_column in left_column..columns {
+-                let relatives = if left_column == right_column {
+-                    &diagonal_relatives
+-                } else {
+-                    &automorphisms
+-                };
+-                for &relative in relatives {
+-                    let right = label_to_index[&(right_column, relative)];
+-                    let mut image_key = raw_compact_key(raw_add_point(
+-                        &curve,
+-                        to_raw_point(&base.points[left]),
+-                        to_raw_point(&base.points[right]),
+-                    ));
+-                    let mut image_indices = [left, right];
+-                    for exponent in 0..curve.n {
+-                        expected
+-                            .entry(image_key.0)
+-                            .or_insert((image_key, image_indices));
+-                        table.insert(
+-                            image_key,
+-                            QuotientPairWitness::from_point_indices(image_indices, image_key.1),
+-                        );
+-                        if exponent + 1 < curve.n && image_key.0 != 0 {
+-                            image_key = (
+-                                square_raw(&curve, image_key.0 - 1) + 1,
+-                                square_raw(&curve, image_key.1),
+-                            );
+-                            image_indices = image_indices.map(|index| frobenius_next_index[index]);
+-                        }
+-                    }
+-                }
+-            }
+-        }
+-        for x in 0..x_domain as u64 {
+-            assert_eq!(table.might_contain_x(x), expected.contains_key(&x), "x={x}");
+-        }
+-        let mut lookup_rows = Vec::new();
+-        for (&x, &(key, _expected_indices)) in &expected {
+-            let witness = table.get(key).expect("every active x has a witness");
+-            let indices = witness.point_indices();
+-            let sum = raw_compact_key(raw_add_point(
+-                &curve,
+-                to_raw_point(&base.points[indices[0]]),
+-                to_raw_point(&base.points[indices[1]]),
+-            ));
+-            assert_eq!(sum, key);
+-            let (lookup_indices, _) = lookup_signed_expanded_pair(
+-                key,
+-                modulus,
+-                &table,
+-                &base.point_labels,
+-                &label_to_index,
+-                false,
+-            )
+-            .unwrap();
+-            let lookup_sum = raw_compact_key(raw_add_point(
+-                &curve,
+-                to_raw_point(&base.points[lookup_indices[0]]),
+-                to_raw_point(&base.points[lookup_indices[1]]),
+-            ));
+-            assert_eq!(lookup_sum, key);
+-            let negative_key = (x, key.1 ^ x.saturating_sub(1));
+-            let (negative_indices, _) = lookup_signed_expanded_pair(
+-                negative_key,
+-                modulus,
+-                &table,
+-                &base.point_labels,
+-                &label_to_index,
+-                false,
+-            )
+-            .unwrap();
+-            let negative_sum = raw_compact_key(raw_add_point(
+-                &curve,
+-                to_raw_point(&base.points[negative_indices[0]]),
+-                to_raw_point(&base.points[negative_indices[1]]),
+-            ));
+-            assert_eq!(negative_sum, negative_key);
+-            lookup_rows.push(json!([x, key.1, indices, lookup_indices, negative_indices]));
+-        }
+-        let base_rows = json!(base
+-            .points
+-            .iter()
+-            .map(to_raw_point)
+-            .zip(base.point_labels.iter().copied())
+-            .collect::<Vec<_>>());
+-        let domain_rows = json!(expected
+-            .iter()
+-            .map(|(&x, &(key, indices))| (x, key.1, indices))
+-            .collect::<Vec<_>>());
+-        let lookup_rows = serde_json::Value::Array(lookup_rows);
+-        println!(
+-            "{}",
+-            json!({
+-                "kind":"cold_capacity_semantic_control",
+-                "n":n,
+-                "a":0,
+-                "eta":{"numerator":1,"denominator":2},
+-                "orbit_columns":columns,
+-                "factor_base_points":base.points.len(),
+-                "expected_parameter":expected_capacity,
+-                "table_capacity":table.keys_x.len(),
+-                "active_x_count":expected.len(),
+-                "table_len":table.len(),
+-                "base_digest":json_digest(&base_rows),
+-                "domain_digest":json_digest(&domain_rows),
+-                "lookup_digest":json_digest(&lookup_rows),
+-                "all_x_membership_exhaustive":true,
+-                "all_returned_witness_group_identities":true,
+-                "actual_backend":field_mul_backend(),
+-            })
+-        );
+-    }
+-}
