@@ -1,0 +1,300 @@
+# =============================================================================
+# TASK-20260922-7ef166 -- Coordinator: COMPOSE the two blinded reviews into one
+# decision and LEDGER-ARCHIVE the round. Runs ALONE, after both reviews return.
+#
+# This is BATCH-5286b0's closing archive and the single ledger archive
+# `_validate_review_chains` requires: it depends on every review and names every
+# review as a source, so `review_archives` is a set of size exactly one.
+#
+# IT DOES TWO JOBS, AND THAT IS A DISCLOSED COMPROMISE. It composes the verdicts
+# into DEC-20260922-f4d910 and it commits them. The better shape splits those --
+# BATCH-cbb416 used TASK-20260916-ac0aea to rule and TASK-20260916-9d98ef to
+# archive, and this batch's own procedure_deviations PD-2 argues for exactly that
+# separation. It is not taken here for two reasons stated rather than glossed: no
+# fifth handoff identifier is minted, and the validator demands exactly ONE
+# ledger archive over the reviews, so a separate compose card would have to be a
+# non-archive source of this one -- which is right, and is what a later batch
+# should do. See `composition_and_archive_in_one_card` below.
+# =============================================================================
+handoff:
+  id: TASK-20260922-7ef166
+  from: coordinator
+  to: coordinator
+  recorded_at: '2026-09-22'
+  opened_by_decision: DEC-20260922-e9d35a
+  goal_id: GOAL-FROB-6333a9
+  batch_id: BATCH-5286b0
+  experiment_id: EXP-FROB-30006a
+  hypothesis_id: H-FROB-a5bf86
+  question_id: RQ-FROB-7d8dd4
+  review_plan_ref: coordination/review/frob-20260922-5286b0/review-plan.yaml
+  kind: compose_and_ledger_archive
+
+  depends_on:
+    - TASK-20260922-ba4a2f
+    - TASK-20260922-e62294
+  depends_on_note: >-
+    BOTH REVIEWS, DIRECTLY. `_validate_review_chains` (line 806) refuses unless
+    every review id appears here, and (line 796) unless the set of archives
+    assigned to the reviews has size exactly one. Two ledger archives, or one
+    review left unassigned, both fail -- and both would also mean a round whose
+    verdicts were composed from a fraction of the evidence.
+
+  objective: >-
+    Compose the two blinded reviewers' per-joint verdicts into ONE Coordinator
+    decision, DEC-20260922-f4d910, and commit it with both review reports in one
+    isolated ledger commit; then verify the receipt against Git, push, and
+    refresh the PR.
+
+  uncertainty_reduced: >-
+    NONE by measurement. What it resolves is whether the primary cell's verdict
+    may be cited at all, and at what scope -- which is a judgement on validity,
+    not a new observation.
+
+  inputs:
+    - coordination/goals/GOAL-FROB-6333a9/batches/BATCH-5286b0/reviews/TASK-20260922-ba4a2f/report.md
+    - coordination/goals/GOAL-FROB-6333a9/batches/BATCH-5286b0/reviews/TASK-20260922-ba4a2f/rederivation.json
+    - coordination/goals/GOAL-FROB-6333a9/batches/BATCH-5286b0/reviews/TASK-20260922-ba4a2f/attestation.yaml
+    - coordination/goals/GOAL-FROB-6333a9/batches/BATCH-5286b0/reviews/TASK-20260922-e62294/report.md
+    - coordination/goals/GOAL-FROB-6333a9/batches/BATCH-5286b0/reviews/TASK-20260922-e62294/recomputation.json
+    - coordination/goals/GOAL-FROB-6333a9/batches/BATCH-5286b0/reviews/TASK-20260922-e62294/objections.md
+    - coordination/goals/GOAL-FROB-6333a9/batches/BATCH-5286b0/reviews/TASK-20260922-e62294/attestation.yaml
+    - coordination/review/frob-20260922-5286b0/review-plan.yaml
+    - experiments/EXP-FROB-30006a/RESULTS.json
+
+  read_scope:
+    - coordination/goals/GOAL-FROB-6333a9/batches/BATCH-5286b0/
+    - coordination/review/frob-20260922-5286b0/
+    - experiments/EXP-FROB-30006a/
+    - ledger/
+  read_scope_note: >-
+    Must cover every artifact_path of BOTH reviews: `research_dispatch.py` line
+    927 refuses an archive whose read_scope does not contain the union of its
+    sources' artifact_paths. The first entry covers both reviewers' directories.
+    Unlike the reviewers, this card reads everything -- composition is the one
+    role that is supposed to see all the joints at once.
+
+  constraints:
+    - id: CA-1
+      text: >-
+        COMPOSE; DO NOT VOTE-COUNT. Each reviewer owned a strict subset of the
+        joints and could not see the others. "Both reviewers concurred" is not a
+        finding about the claim; it is two findings about disjoint joints. Write
+        what the union of the joints establishes and what it does not.
+    - id: CA-2
+      text: >-
+        RUN `python3 tools/check_review_independence.py --batch
+        coordination/goals/GOAL-FROB-6333a9/batches/BATCH-5286b0/reviews/` BEFORE
+        composing, and record its result in the decision. Every joint owned,
+        every assigned reviewer attested, no undeclared sibling reads, and no
+        re-deriver whose declared sources intersect its `blind_from`. A failure
+        here voids the round's independence and the composition waits.
+    - id: CA-3
+      text: >-
+        COMPARE THE OUTCOME AGAINST THE RECORDED PRIOR, EXPLICITLY, and cite
+        PD-R1 when you do. The prior was written by the session that also
+        composed EV-FROB-b6e1e9 and found both contract defects, so concurrence
+        is weaker evidence than it looks and the decision must say so rather than
+        letting a reader infer independence that is not there.
+    - id: CA-4
+      text: >-
+        AN INSTRUMENT DEFECT IS NOT A MATHEMATICAL RESULT. If J1, J2 or J4
+        breaks, the decision records an invalid run set returned to the executor
+        with concrete defects -- never a finding for or against Frobenius-stable
+        factor bases.
+    - id: CA-5
+      text: >-
+        DO NOT MOVE H-FROB-a5bf86 IN THIS ARCHIVE unless the composition actually
+        supports it at the scope the artifacts carry, and never on a single
+        unreplicated cell. `weaken` plus replication, never `reject_scoped`, on
+        one run set. Any adverse transition needs the strongest checkable
+        refutation artifact the result admits, archived first.
+    - id: CA-6
+      text: >-
+        FILL `knowledge_promotion` ON THE DECISION. Promote a KN-FIND only on
+        `support`/`reject_scoped` backed by `replicated`/`strong` evidence; a
+        single primary cell is neither. Otherwise state a concrete
+        `not_warranted` reason.
+    - id: CA-7
+      text: >-
+        STAGE ONLY THE DECLARED PATHS, PATH BY PATH. `git add -A` is forbidden.
+        Merge origin/main first -- merge, never rebase.
+    - id: CA-8
+      text: >-
+        SCOPE THE DECISION to the tested curves, degrees, arity, solver commit,
+        search modes, replicate count and budget, and state any transfer
+        assumption explicitly. n = 41 and 43 is not n = 131.
+    - id: CA-9
+      text: ZERO RUNS. This is not a /run and launches no trial.
+
+  deliverables:
+    - >-
+      ledger/decisions/DEC-20260922-f4d910.yaml -- the composed decision: the
+      per-joint verdicts and who owned them, the independence-check result, the
+      prior-versus-outcome comparison with PD-R1 cited, the validity ruling, the
+      scope statement, `knowledge_promotion`, and exactly one next_action.
+    - >-
+      ledger-receipt.json with commit_sha, parent_sha, base_commit_checked,
+      merge_outcome, path_sha256, record_ids and the validator outcome.
+
+  artifact_paths:
+    - coordination/goals/GOAL-FROB-6333a9/batches/BATCH-5286b0/archives/TASK-20260922-7ef166/ledger-receipt.json
+    - ledger/decisions/DEC-20260922-f4d910.yaml
+  artifact_paths_note: >-
+    TWO PATHS, the shape TASK-20260922-0e3b58 settled on and
+    TASK-20260916-9d98ef dispatched with: this archive's own receipt, plus the
+    one `ledger/decisions/` path `_validate_ledger_archive` requires it to own,
+    whose filename carries the record id `_ledger_record_matches_path` checks
+    against `record_ids`. THE TWO REVIEW REPORT SETS ARE NOT LISTED HERE and are
+    still staged: line 931 unions this archive's artifact_paths with its sources'
+    artifact_paths to get the commit scope. DEC-20260922-f4d910 IS A FRESH
+    IDENTIFIER and deliberately not DEC-20260922-e9d35a, which
+    TASK-20260922-0e3b58 already owns -- an artifact owned by two tasks is a
+    refusal, and the same defect this batch spent a round removing.
+
+  write_scope:
+    - coordination/goals/GOAL-FROB-6333a9/batches/BATCH-5286b0/archives/TASK-20260922-7ef166/
+    - ledger/decisions/DEC-20260922-f4d910.yaml
+  write_scope_note: >-
+    The receipt directory plus the one decision file, because line 875 requires
+    artifact_paths to be inside write_scope. It does NOT include the reviewers'
+    directories: this card stages their reports, it never edits them. Editing a
+    review report while archiving it would destroy the only evidence of what the
+    reviewer actually said.
+
+  archive:
+    kind: ledger
+    source_task_ids:
+      - TASK-20260922-ba4a2f
+      - TASK-20260922-e62294
+    source_task_ids_note: >-
+      BOTH REVIEWS, which is what makes this the single archive covering the
+      round. Not the producer: TASK-20260922-cd6f21's run package is owned by the
+      SNAPSHOT archive TASK-20260922-98729f, and an artifact owned twice is a
+      refusal.
+    record_ids:
+      - DEC-20260922-f4d910
+      - REVIEW-FROB-20260922-5286b0
+      - EXP-FROB-30006a
+      - GOAL-FROB-6333a9
+      - BATCH-5286b0
+      - TASK-20260922-ba4a2f
+      - TASK-20260922-e62294
+      - TASK-20260922-7ef166
+    record_ids_note: >-
+      NO `EV-*` IS NAMED, and that is a declared limit rather than an oversight.
+      Line 752 requires an evidence artifact only when record_ids names an EV-*,
+      so naming none is consistent -- but it means THIS BATCH CLOSES ITS REVIEW
+      ROUND WITHOUT WRITING AN EVIDENCE RECORD. Writing one needs an `EV-FROB-*`
+      identifier that is not minted. See `what_this_batch_still_does_not_reach`.
+    commit_sha: null
+    parent_sha: null
+    path_sha256: {}
+    binding_mode: content_at_commit
+    binding_mode_note: >-
+      content_at_commit, consistently with every archive in this batch. Under
+      content_first the goal head and the queue moving at close would report this
+      archive as corrupt (CORR-20260915-654160).
+
+  composition_and_archive_in_one_card: >-
+    DISCLOSED, NOT HIDDEN. This card writes DEC-20260922-f4d910 and also commits
+    it, so it archives its own output -- the shape PD-2 on DEC-20260922-e9d35a
+    argues against, having been caught doing the same thing at this batch's
+    opening. It is accepted here for two reasons and neither is that it is
+    better. First, no fifth handoff identifier is minted and inventing one is
+    forbidden. Second, `_validate_review_chains` requires exactly ONE ledger
+    archive over the reviews, so the correct split is a separate non-archive
+    COMPOSE card listed as an additional source of this one -- which is a real
+    structure, is what a later batch on this goal should use, and needs an
+    identifier this session does not have. THE COST IS CONCRETE: the composition
+    has no write scope or completion gate of its own while it is being written,
+    and its artifacts are unowned until this same card commits them.
+
+  dispatch_preconditions:
+    - >-
+      BOTH reviews have RETURNED and released their lane claims with outcomes.
+      This archive runs after them, never concurrently.
+    - >-
+      `tools/check_review_independence.py` has been run and its result recorded
+      (CA-2). A failed independence check blocks composition; it is not a
+      formality to note afterwards.
+    - archived_by is SELF and is bound (satisfied on this card)
+    - >-
+      RUNS ALONE. max_concurrent is 1 on this queue and on the goal, and an
+      archive must run alone.
+    - a lane is claimed on GOAL-FROB-6333a9 after a `git fetch`
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: true
+    fallback_note: >-
+      TRUE and declared up front, as on every card in this batch: no adapter
+      backend is credentialed in this checkout.
+    degraded_allowed: false
+    degraded_requirements_expected:
+      - model_verified false: no backend is probeable in this checkout.
+    independent_session_required: false
+    independent_session_note: >-
+      FALSE, and correctly: composition is the Coordinator's own act and is the
+      one role that must see every joint. Independence was spent where it counts
+      -- on the two reviewers, each in its own session, neither having originated
+      the claim.
+
+  budget:
+    wall_clock_seconds: 5400
+    memory_gb: 1
+    maximum_runs: 0
+
+  completion_gate:
+    - >-
+      `tools/check_review_independence.py` run and its outcome recorded in the
+      decision, whatever that outcome is
+    - >-
+      every joint J1-J6 has a composed disposition, and any joint left unowned or
+      unattested is named as such rather than absorbed
+    - the recorded prior is compared against the outcome, citing PD-R1
+    - >-
+      `knowledge_promotion` filled, with promoted entries or a concrete
+      not_warranted reason
+    - >-
+      the decision is scoped to the tested curves, degrees, arity, solver commit,
+      modes, replicate count and budget, with transfer assumptions explicit
+    - exactly one next_action survives
+    - >-
+      `python3 tools/validate_ledger.py` run with no new error attributable to
+      the staged paths
+    - one commit changing exactly the declared set; receipt verified by research_dispatch.py
+    - branch pushed and the PR refreshed, naming every record id
+    - zero runs launched and no review report edited
+
+  what_this_batch_still_does_not_reach:
+    - >-
+      AN EVIDENCE RECORD. `EV-FROB-*` is not minted, so the round closes with a
+      composed decision and no `EV-*`. That is a declared remainder, and it means
+      no completion criterion of GOAL-FROB-6333a9 is discharged by this batch:
+      C1 asks for a measured ratio "citing run/evidence IDs".
+    - >-
+      A HYPOTHESIS MOVE, unless the composition genuinely supports one at the
+      artifacts' scope -- and never `reject_scoped` on one unreplicated cell.
+    - >-
+      ANYTHING AT A CRYPTOGRAPHIC DEGREE. n = 41 and 43 against targets at 131
+      and above; claim_tier toy; no transfer claimed.
+    - >-
+      A PROMOTED `review-breakthrough` CLAIM. If a `pruning` verdict were
+      presented as contradicting prior FROB negatives, rule 12 requires `max`,
+      which is `degradable: false` and cannot be served here. The CLAIM would
+      stay un-promoted; the campaign stays active.
+
+  return_format: >-
+    The composed per-joint dispositions, the independence-check result, the
+    prior-versus-outcome comparison, the validity ruling, the commit sha and its
+    parent, the PR, and the one next_action. Report a failed gate as a failure.
+
+  handoff_record: ledger/handoffs/TASK-20260922-7ef166.yaml
+  state: written_not_dispatched
+
+  asserts_nothing_about: >-
+    The science, until it composes. Writing this card commissions a judgement; it
+    does not make one. No status moves and no claim is made about any curve by
+    its existence.
