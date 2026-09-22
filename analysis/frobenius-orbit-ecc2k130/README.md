@@ -560,3 +560,25 @@ paragraph above, which was written before `RQ-CERTBIN-836ce2` existed.
   question.
 - **Pending:** attaching `RQ-CERTBIN-836ce2` to `GOAL-ECDLP2M-001` is a named
   next action (NA-2), not done here.
+
+---
+
+## Erratum, 2026-09-22 — a net-loss range attributed to the wrong degree
+
+The "Concurrent work" section above says `EXP-FROB-ec08b5` "costs the
+ECC2K-130 net loss across `m` at 57 to 122 bits". **That is wrong.** The range
+spans two different degrees: `EV-FROB-d336b0` gives the net loss as **57.0 to
+96.0 bits at `n = 131` (ECC2K-130)** and 72.7 to 121.7 bits at `n = 163`
+(K-163). The error came from reading PR #1360's description, which quotes a
+single "57 to 122 bits" for both degrees together, instead of the evidence
+record. It was caught by the coordinator ruling `DEC-20260922-61cdc1` (its
+`R2`) and confirmed against `EV-FROB-d336b0` directly before this erratum was
+written.
+
+The sentence is left as written above rather than edited in place, because
+`DEC-20260922-61cdc1` reviewed this README with that text in it. The same wrong
+range also appears in the description of PR #1363, which is merged and closed.
+
+Nothing else in this note depends on the figure: it was cited only as the
+reason `EXP-FROB-ec08b5` goes further than this note does, and that remains
+true at the corrected range.
