@@ -1,0 +1,138 @@
+research_question:
+  id: RQ-OAKLEY-264353
+  title: >-
+    The point-decomposition problem at Gaudry-Diem n = 5 on the two Oakley EC2N
+    curves: what does a fully charged decomposition cost on E/F_{2^155} and
+    E/F_{2^185}, and does any of {SAT formulation, factor-base subspace choice,
+    symmetrisation, chained summation} move it measurably against a Groebner
+    baseline?
+  scope:
+    curve_families:
+      - >-
+        RFC 2409 Third Oakley Group: y^2 + xy = x^3 + 0x07338f over F_{2^155},
+        f = u^155 + u^62 + 1, #E = 2^2 * 3 * r with r a 152-bit prime. NOT Koblitz
+        (b not in F_2).
+      - >-
+        RFC 2409 Fourth Oakley Group: y^2 + xy = x^3 + 0x1ee9 over F_{2^185},
+        f = u^185 + u^69 + 1, #E = 2^2 * r with r a 183-bit prime. NOT Koblitz.
+      - >-
+        Scaled-down siblings for measurement: random ordinary curves over
+        F_{2^{5*p}} for primes p in a range this machine can decompose, with the
+        SAME tower shape (quintic over F_{2^p}) and a=0, so every measured cell is
+        the same object at smaller q and the two Oakley curves are the endpoints.
+    field_types:
+      - >-
+        F_{2^m} with m = 5p, p prime, viewed as the quintic extension of F_q,
+        q = 2^p. Parameters verified from the frozen RFC by
+        inputs/RFC2409-OAKLEY-EC2N/verify_params.py.
+    bit_sizes:
+      - 'targets: 155 and 185 (subgroups of 152 and 183 bits)'
+      - 'measurable: m = 5p for p in roughly [5, 13], i.e. m in [25, 65], to be fixed per contract'
+    methods:
+      - >-
+        Semaev summation-polynomial PDP with factor base F = {P : x(P) in F_q}:
+        S_6(x_1..x_5, x_R) Weil-restricted over F_q to 5 equations in 5 unknowns of
+        degree 2^4 = 16 each, plus the chained S_3 formulation this program already
+        instruments (EXP-SEMBIN-*), solved by (a) Groebner (F4 via msolve or an
+        equivalent), (b) symmetrised Groebner in the elementary symmetric
+        polynomials (the S_5-invariant reformulation), and (c) SAT over the Boolean
+        Weil descent (WDSat with its XOR reasoning and symmetry breaking; a
+        CDCL+XOR control such as CryptoMiniSat).
+      - >-
+        Factor-base subspace choice: the subfield F_q is ONE p-dimensional
+        F_2-subspace of F_{2^m}; compare it against Frobenius-stable, random, and
+        trace-structured p-dimensional subspaces V for decomposition probability and
+        solver cost at fixed |F|, extending GOAL-FROB-6333a9's question to the
+        subfield-tower setting.
+      - >-
+        Weil (GHS) descent through the degree-5 extension as the classical known
+        phenomenon on these curves, used as a POSITIVE CONTROL and cost comparator,
+        not as the object of study.
+      - >-
+        Fully charged cost accounting per ICPERF discipline: decomposition
+        probability, per-attempt solver time and memory, failed attempts, relation
+        yield per charged second, linear algebra, and the generic-rho comparator at
+        the subgroup size, all measured rather than modelled where the machine can.
+  motivation: >-
+    The program has audited Semaev 2015 in depth (GOAL-SEMBIN-*), instruments SAT
+    on summation systems (GOAL-SATIC-c49b77), asks whether factor-base subspace
+    choice is visible to WDSat (GOAL-FROB-6333a9), and maintains a phase-decomposed
+    index-calculus cost table (GOAL-ICPERF-e6b6a4) -- but every one of those
+    campaigns works on curves the program generated. The Oakley EC2N groups are
+    the two standardised binary curves with the composite-degree, large-prime-
+    subfield tower that makes n = 5 decomposition the natural attack shape, and the
+    corpus holds essentially nothing on them: one RFC mention and six passing
+    references to 2^155 / 2^185. They are deployed-curve OBJECTS on which the
+    program's existing instruments can be pointed, and on which the classical
+    GHS analysis supplies a known comparator. Posing the PDP on them converts a
+    family of tool-benchmarks into a target-benchmark, and the two curves at
+    different q with identical tower shape give a two-point scaling probe for
+    free. n = 5 is also the frontier where symmetrised Groebner decomposition is
+    known to become expensive and where SAT formulations have recently been
+    proposed as the alternative, so the question is live rather than settled.
+  decision_target: >-
+    A committed Coordinator decision stating, on the scaled-down tower family with
+    the two Oakley curves as declared endpoints, (1) the fully charged PDP cost per
+    relation under the Groebner baseline as a function of q, with its measured
+    scaling exponent and the largest q reached on this machine; (2) for each of SAT
+    formulation, subspace choice, and symmetrisation, whether it changes that cost
+    by a factor that survives the matched-null and size-matched controls, or
+    explicitly does not; (3) the GHS comparator's cost at the same cells; and
+    (4) an explicit, honest extrapolation boundary -- which of these claims, if any,
+    transfer to q = 2^31 and q = 2^37, and under which numbered heuristics. Either
+    direction on (2) satisfies the target; an unmeasured comparison does not.
+  constraints:
+    - >-
+      OBJECT FIRST. Every contract names the Oakley curve or the tower-family
+      sibling it measures, with the field polynomial, a, b, and the subgroup order
+      stated; no cell is a curve chosen because an instrument likes it.
+    - >-
+      Scale is disclosed, never laundered. A cost measured at m = 35 is a cost at
+      m = 35. Any statement about m = 155 or 185 is an EXTRAPOLATION and names the
+      heuristic it rides on and the validation route for that heuristic.
+    - >-
+      Controls before belief. Every claimed speedup is measured against (a) a
+      shape-matched random Boolean system, (b) a size-matched random subspace where
+      subspace choice is the variable, and (c) the identity of the Groebner and SAT
+      answers on the same instance bytes. A quantity that does not decay when the
+      parameter meant to destroy it increases is an artifact.
+    - >-
+      Charge everything. Failed decompositions, solver time-outs, preprocessing,
+      symmetry-breaking setup, and memory are charged; a per-solve number that omits
+      the failure rate is not a relation cost.
+    - >-
+      Do not duplicate. Chained-S_3 Boolean instrumentation, the fake-vs-true
+      first-fall-degree distinction (EV-SEMBIN-1ca3c8, KN-FIND-936151), the WDSat
+      vendored source and its ICPERF regression gate, and the FROB dimension tables
+      all exist; a contract reuses them by reference and states what it adds.
+    - >-
+      A timeout, memory cap, or solver crash is an infrastructure fact and never
+      evidence about the curve (AGENTS.md rule 5). The n43 note on EXP-FROB-30006a
+      applies verbatim here.
+    - >-
+      Nothing here asserts anything about the security of any deployed system.
+      The RFC 2409 EC2N groups were withdrawn in IKEv2; the interest is the object,
+      not a live target.
+  status: active
+  owner: coordinator
+  provenance:
+    posed_at: '2026-09-22'
+    posed_by: coordinator, on user direction of 2026-09-22
+    object_source: SRC-RFC2409-OAKLEY-EC2N (inputs/RFC2409-OAKLEY-EC2N/)
+    rolls_up_to: GOAL-ECDLP2M-001
+    rolls_up_note: >-
+      GOAL-ECDLP2M-001's objective names Weil/GHS descent and subfield orbit
+      structure explicitly, and its second completion criterion asks for a known
+      characteristic-2 descent phenomenon reproduced as a positive control. This
+      question is posed under a letters-only sibling area because allocate_id.py
+      refuses to mint under ECDLP2M (its code carries a digit) -- a tooling
+      inconsistency recorded in orchestration/research-priority.yaml beside the
+      OAKLEY declaration and not repaired here. The goal head is NOT edited by this
+      record: another session holds its QSP lane, and attaching this question to
+      question_ids is that lane's additive edit to make, or a later Coordinator's.
+    user_directions_this_question_carries:
+      - PDP speedups via summation polynomials, on Oakley curves as named targets
+      - Gaudry and Gaudry-Diem decomposition as the frame; GHS descent as comparator
+      - Semaev 2015's own notes, via the SEMBIN audit already in the ledger
+      - WDSat and other SAT solvers as the PDP formulation
+      - a more performant choice of the F_2-subspace V in the Weil restriction
