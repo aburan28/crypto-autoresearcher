@@ -851,10 +851,17 @@ def run_cell(n, a, lprime, ntargets, seed, encoding, order, conf_budget,
             continue
         b = mean('baseline_conflicts', flt)
         o = mean('onehot_conflicts', flt)
+        # A censored conflict count is a budget cutoff, not a measurement, so a
+        # ratio built from one is not a ratio. Both arms hitting the same budget
+        # yields exactly 1.0, which reads as "no difference measured" when in
+        # fact nothing was measured at all.
+        any_censored = any(r['baseline_censored'] or r.get('onehot_censored')
+                           for r in rows if flt(r))
         cell.setdefault('summary', []).append(dict(
             subset=label, targets=cnt,
             baseline_conflicts=b, onehot_conflicts=o,
-            ratio_of_means=(o / b if b else None),
+            censored_contributors=any_censored,
+            ratio_of_means=(None if (any_censored or not b) else o / b),
             mean_of_ratios=mean('ratio', flt),
             baseline_t=mean('baseline_t', flt), onehot_t=mean('onehot_t', flt)))
     return cell
