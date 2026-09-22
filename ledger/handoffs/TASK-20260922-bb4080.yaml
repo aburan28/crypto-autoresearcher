@@ -10,7 +10,7 @@ handoff:
   hypothesis_id: H-ICPERF-7d24fd
   experiment_id: EXP-ICPERF-783e9e
   decision_id: DEC-20260922-925da8
-  state: running
+  state: completed
   title: >-
     Implement and run EXP-ICPERF-783e9e: the forced arity, the cost of forming
     the descended system, and the solver exponent that remains
@@ -23,24 +23,20 @@ handoff:
     - experiments/EXP-ICPERF-783e9e/trial-plan-v1.json
     - experiments/EXP-ICPERF-783e9e/impl/
     - experiments/EXP-FROB-ec08b5/impl/ (read-only; supplies the orbit factor R)
-  outputs_committed_so_far:
+  outputs:
     - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/checkpoint/self_test.json
     - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/checkpoint/budget_table.json
     - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/checkpoint/degree_law.json
     - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/command.txt
     - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/environment.json
-  outputs_pending:
     - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/checkpoint/solver_ladder.json
     - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/raw-result.json
     - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/metrics.json
     - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/manifest.yaml
     - experiments/EXP-ICPERF-783e9e/runs/RUN-ICPERF-2f36fd/execution-receipt.json
   state_note: >-
-    Phases 1-3 complete and committed; phase 4 (the solver ladder) still
-    executing at commit time. The stale manifest.yaml, stdout.log and stderr.log
-    left on disk by the SUPERSEDED first attempt are deliberately NOT committed:
-    they describe a run that the cysignals fix below replaced, and committing
-    them would put a `failed` receipt in the archive for a run that is live.
+    All four phases complete, 1391.8 s wall on the final attempt, resumed from
+    the phase 1-3 checkpoints so those were never recomputed.
   run_ids:
     - RUN-ICPERF-2f36fd
   budget:
@@ -68,6 +64,17 @@ handoff:
       while holding 1.9 GB. Exploiting that every Frobenius power is F_2-linear
       keeps intermediate degree at m*min(m-1, l) instead of m*2^(m-1), and the
       same cell then built in 0.12 s. This is an instrument fix, not a result.
+    - >-
+      THREE SUPERSEDED LADDER ATTEMPTS, each an execution failure and none
+      evidence about any cell (AGENTS.md rule 3). (1) A cysignals AlarmInterrupt
+      escaped the handler and killed the phase. (2) With that fixed, a cell ran
+      thirty minutes at 4.2 GB against a 300 s cap, because the alarm wrapped
+      only the Groebner call and left the Weil descent outside the timeout
+      window. (3) The RLIMIT_AS cap added for (2) made things worse: PolyBoRi
+      calls abort() on an allocation failure instead of throwing, so the cap
+      converted an out-of-memory cell into a SIGABRT that killed the run. The
+      fix that held is per-cell isolation in a forked child, where a hang, an
+      out-of-memory and an abort all become an exit status the parent records.
     - >-
       `sage` is not on PATH in a fresh container of this environment; it is at
       /opt/conda-sage/bin/sage (SageMath 10.9). The launcher resolves it rather
