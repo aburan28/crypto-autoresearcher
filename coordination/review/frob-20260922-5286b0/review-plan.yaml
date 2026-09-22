@@ -119,16 +119,28 @@ review_plan:
     - joint: >-
         J2 -- EVERY SCORED ROW CARRIES AN INDEPENDENT UNSAT CERTIFICATE, AND NO
         ROW WAS SCORED WITHOUT ONE. Control C-CERT and an invalidation rule of
-        the frozen contract.
+        the frozen contract. Scored means contributing to `r_s`, `r_r`, or a
+        verdict, per the executor schema. This joint discharges the run-package
+        half: a package that claims `certified` has an independent certificate
+        of that instance. The index half -- no other
+        `unsat_certificate_status` enters those quantities -- is J3, the only
+        owner that reads RESULTS.json. Defining scored as "the package already
+        says certified" would make the second half true by construction.
       assigned_to: TASK-20260922-ba4a2f
       attack_plan: >-
         (i) Enumerate the rows from runs/ ALONE -- never from RESULTS.json,
         which is in J6's blind_from and outside your read scope. Every
         runs/<RUN-ID>/ whose manifest or raw-result.json places it at the
-        primary cell is a candidate row, and it is a scored row if and only if
-        it records `unsat_certificate_status: certified`. For every scored row
-        confirm a certificate artifact exists on disk in that run directory; a
-        run recorded as certified with no certificate beside it is a break.
+        primary cell is a candidate row. A scored row is a cell that
+        contributes to `r_s`, `r_r`, or a verdict; it is NOT a row that
+        already records `unsat_certificate_status: certified`. You cannot see
+        which cells were scored, so you do not treat the status flag as that
+        definition. For every candidate whose own package records
+        `certified`, confirm a certificate artifact exists on disk in that
+        run directory; a run recorded as certified with no certificate beside
+        it is a break. The invalidation the flag cannot see -- a cell that is
+        not `certified` and yet contributes to `r_s`, `r_r`, or a verdict --
+        is J3 (v).
         (ii) Confirm the certificate was produced by something
         that is NOT WDSat -- the contract names a Macaulay2/Singular unit-ideal
         certificate on the descended system, or exhaustion on a declared reduced
@@ -139,21 +151,30 @@ review_plan:
         reduction of it; if it is a reduced fixture, confirm the reduction is the
         one the contract declares. (v) Check for the specific failure in my
         prior as far as the run package alone can show it: a run whose own
-        raw-result.json says `certified` with no certificate on disk. Its other
-        half -- a row marked `certified` in RESULTS.json whose run_id carries no
-        certificate under runs/ -- is J3 (v), owned by the red team, which
-        reads RESULTS.json; it is not yours, and you do not open the index to
-        perform it. WHERE I THINK IT BREAKS: (ii) and (iv). This is the most
-        expensive requirement in the contract.
+        raw-result.json says `certified` with no certificate on disk. The
+        index halves are J3 (v), owned by the red team, which reads
+        RESULTS.json: a row marked `certified` whose run_id carries no
+        certificate under runs/, and any cell that contributes to `r_s`,
+        `r_r`, or a verdict with any other `unsat_certificate_status`. Those
+        are not yours, and you do not open the index to perform them. WHERE I
+        THINK IT BREAKS: (ii) and (iv). This is the most expensive requirement
+        in the contract.
       breaking_artifact: >-
-        One scored row without a verifying independent certificate, or a
-        certificate whose object is not the scored instance.
+        A primary-cell run recorded `certified` without a verifying independent
+        certificate, or a certificate whose object is not that instance. A
+        cell that is not `certified` and yet contributes to `r_s`, `r_r`, or a
+        verdict is J3's artifact, read from RESULTS.json.
     - joint: >-
         J3 -- THE NULL IS COMPUTED CORRECTLY AND THE AMENDED RULE IS APPLIED AS
-        WRITTEN. 2^{ml}/m! per cell; both modes present; `pruning` only with
-        r_r > 0.5 in the same mode on the same replicates; `null_loose` named
-        rather than absorbed into `inconclusive`; a mode disagreement reported as
-        `inconclusive` with `resolved: false`.
+        WRITTEN, AND THE INDEX HALF OF C-CERT HOLDS. 2^{ml}/m! per cell; both
+        modes present; `pruning` only with r_r > 0.5 in the same mode on the
+        same replicates; `null_loose` named rather than absorbed into
+        `inconclusive`; a mode disagreement reported as `inconclusive` with
+        `resolved: false`. A cell whose `unsat_certificate_status` is not
+        `certified` does not contribute to `r_s`, `r_r`, or a verdict, and a
+        row the index marks `certified` has its certificate on disk. The
+        certificate clauses are instrument failures: they invalidate the
+        measurement, and they are not repaired by re-binning.
       assigned_to: TASK-20260922-e62294
       attack_plan: >-
         (i) Recompute 2^{ml}/m! from the (m, l) recorded for each cell and
@@ -166,20 +187,32 @@ review_plan:
         SPECIFIC amendment obligations: is there a row where r_s <= 0.5 and
         r_r <= 0.5 that was reported as anything other than `null_loose`? Is
         there a mode disagreement that was resolved rather than reported? Was any
-        mode dropped, averaged, or preferred? (v) Check A-5's invariant and the
-        index against the disk: every cell planned in trial-plan.json appears in
-        RESULTS.json, every absent run carries a `not_run_reason`, every row's
-        `run_id` names a runs/<RUN-ID>/ that exists, and every row whose
-        `unsat_certificate_status` is `certified` has a certificate artifact
-        under that run -- the bookkeeping failure the prior names, checked here
-        because this joint's owner reads RESULTS.json and the validator does
-        not. WHERE I THINK IT BREAKS: (v), and then
+        mode dropped, averaged, or preferred? (v) Check A-5's invariant, the
+        index against the disk, and the C-CERT invalidation rule. This owner
+        reads RESULTS.json; J2 does not, so the rule is otherwise unowned. Every cell planned in trial-plan.json
+        appears in RESULTS.json, every absent run carries a `not_run_reason`,
+        and every row's `run_id` names a runs/<RUN-ID>/ that exists. Enumerate
+        the scored rows from RESULTS.json: a scored row is a cell that
+        contributes to `r_s`, `r_r`, or a verdict in the per-cell rows or in
+        `per_mode_summary`. Each scored row must record
+        `unsat_certificate_status: certified` and have a certificate artifact
+        under its run. Any other status (`uncertified`, `not_applicable`, or
+        absent) entering those quantities was scored without a certificate,
+        which the frozen contract forbids. Separately, every row the index
+        marks `certified` must have that certificate on disk; the mark is not
+        itself the certificate. Both certificate failures are breaks of this
+        joint, and both are instrument failures -- do not remediate them by
+        recomputing the bin. WHERE I THINK IT BREAKS: (v), and then
         (iv) -- a `null_loose` reported as `inconclusive` would be the amendment
         failing silently, which is the outcome the amendment exists to make
         visible.
       breaking_artifact: >-
         A recomputed ratio or bin that differs from RESULTS.json, a planned cell
-        missing without a reason, or a mode disagreement recorded as resolved.
+        missing without a reason, a mode disagreement recorded as resolved, a
+        cell that is not `certified` contributing to `r_s`, `r_r`, or a verdict,
+        or a row marked `certified` with no certificate on disk. The last two
+        invalidate the measurement. Re-binning from the raw counts does not
+        restore C-CERT.
     - joint: >-
         J4 -- THE INSTRUMENT IS SIZED AND LABELLED CORRECTLY. MAX_ID equals the
         ANF-derived value on every run (C-SIZE, an invalidation rule); the search
@@ -230,14 +263,17 @@ review_plan:
     `blind_from` covered those outputs, so its own completion gate could not be
     met honestly.
 
-    TASK-20260922-ba4a2f (validator) owns J1, J2, J4 and J6, and can discharge
-    all four from `runs/` plus the frozen contract and the amendment. IT NEVER
-    NEEDS `implementation/`, `RESULTS.json`, `trial-plan.json` OR THE PRODUCER'S
-    REPORT -- which is precisely the set J6 must be blind from. The independence
-    is therefore structural rather than promised.
+    TASK-20260922-ba4a2f (validator) owns J1, J2, J4 and J6. J1, J4, J6, and
+    the run-package half of J2 are discharged from `runs/` plus the frozen contract
+    and the amendment. The index half of C-CERT -- which cells contributed to
+    `r_s`, `r_r`, or a verdict -- is J3, because it lives on RESULTS.json.
+    IT NEVER NEEDS `implementation/`, `RESULTS.json`, `trial-plan.json` OR THE
+    PRODUCER'S REPORT -- which is precisely the set J6 must be blind from. The
+    independence is therefore structural rather than promised.
 
-    TASK-20260922-e62294 (red team) owns J3 and J5, which are the interpretation
-    joints, and reads everything including `implementation/` and `RESULTS.json`.
+    TASK-20260922-e62294 (red team) owns J3 and J5. J3 is the null, the amended
+    rule, and the RESULTS.json half of C-CERT; J5 is proves-too-much. It reads
+    everything including `implementation/` and `RESULTS.json`.
     It performs no re-derivation, so no `blind_from` binds it.
 
   blindness:
@@ -365,9 +401,17 @@ review_plan:
         The measured object is not the contracted object. Same consequence as
         J2 and the same prohibition: an instrument defect is never a result.
       J3_breaks: >-
-        The binning is wrong; the Coordinator re-bins from the raw counts and the
-        amended rule, and records a correction against RESULTS.json rather than
-        editing it.
+        Split by which clause broke. A wrong null, a wrong bin, a missing
+        planned cell, or a resolved mode disagreement: the binning is wrong;
+        the Coordinator re-bins from the raw counts and the amended rule, and
+        records a correction against RESULTS.json rather than editing it. A
+        (v) certificate break -- a cell that is not `certified` contributing
+        to `r_s`, `r_r`, or a verdict, or a row marked `certified` with no
+        certificate on disk -- has the same consequence as J2_breaks. The
+        conflict figures are not evidence, no bin may be quoted, and the
+        primary cell is re-run under a repaired certificate path. Re-binning
+        does not restore C-CERT, and a correction that leaves those figures
+        in play is the wrong remedy.
       J5_breaks_on_a_pruning_verdict: >-
         The pruning is an artifact of the null. The verdict is restated as
         `null_loose` or `inconclusive` and the finding becomes one about
