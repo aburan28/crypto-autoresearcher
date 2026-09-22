@@ -22,6 +22,12 @@ Build only (permitted before process admission):
 python3 experiments/EXP-KIC-3df18c/code/runner.py --phase build
 ```
 
+This is the additive **v2** pre-launch build. The original committed
+`source_closure.json`, `build/search_final`, environment and readiness files
+remain byte-for-byte preserved. `source_custody_supersession.json` binds the
+v2 source closure, binary, compiler receipt and the original commit. All
+admitted process phases read the v2 closure and `build_v2/search_final`.
+
 The following three commands are **templates**. Root supplies each exact
 committed admission path and commit, and is the sole launch owner. Do not run
 them before its explicit phase assignment:

@@ -43,7 +43,13 @@ TASK = "TASK-20260921-5c43c7"
 EXPERIMENT = "EXP-KIC-3df18c"
 RUN_ID = "RUN-KIC-234d11"
 SOURCE_FILES = ("search.cpp", "check.py", "runner.py", "README.md")
-BINARY = RUN / "build/search_final"
+BINARY = RUN / "build_v2/search_final"
+CLOSURE = RUN / "source_closure_v2.json"
+ENVIRONMENT = RUN / "environment_v2.json"
+READINESS = RUN / "implementation_readiness_v2.json"
+OLD_COMMIT = "917ed4d0f7"
+OLD_CLOSURE_SHA = "0eb4532ef27bea873746cef570b7a9e60103aaa94a64094895b905531ba3341f"
+OLD_BINARY_SHA = "a7ba20a3b4d228b6a03218a399a1950cbb5e3f2f8a0740af788206c11e0a10d7"
 CAP_BYTES = 8 * 1024**3
 WATCHDOG = {"controls": 900, "science": 1800, "checker": 1800}
 PHASE_FILES = {
@@ -108,10 +114,13 @@ def normalized_tar(files: list[tuple[Path, str]], destination: Path) -> None:
 def build() -> None:
     verify_inputs()
     RUN.mkdir(parents=True, exist_ok=True)
-    folder = RUN / "build"
+    folder = RUN / "build_v2"
     folder.mkdir(parents=True, exist_ok=True)
-    require(not BINARY.exists() and not (RUN / "source_closure.json").exists(),
-            "final build already exists; preserve it and request additive correction")
+    require(not BINARY.exists() and not CLOSURE.exists(),
+            "v2 build already exists; preserve it and request additive correction")
+    require(sha(RUN / "source_closure.json") == OLD_CLOSURE_SHA and
+            sha(RUN / "build/search_final") == OLD_BINARY_SHA,
+            "immutable original source/binary custody changed")
     compiler = Path("/usr/bin/clang++")
     require(compiler.is_file(), "Apple clang++ absent")
     version = subprocess.run([str(compiler), "--version"], capture_output=True, check=False)
@@ -156,7 +165,7 @@ def build() -> None:
     require(b"arm64" in binary_file.stdout, "compiled binary architecture is not arm64")
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO, capture_output=True,
                           text=True, check=True).stdout.strip()
-    closure = {"schema": "crypto.autoresearch.n19_source_closure.v1",
+    closure = {"schema": "crypto.autoresearch.n19_source_closure.v2",
                "task_id": TASK, "experiment_id": EXPERIMENT, "run_id": RUN_ID,
                "source_sha256": code_hashes(), "binary_sha256": sha(BINARY),
                "binary_bytes": BINARY.stat().st_size,
@@ -171,9 +180,9 @@ def build() -> None:
                "execution_head_at_build": head,
                "scientific_processes": 0, "native_control_processes": 0,
                "independent_checker_processes": 0}
-    atomic_json(RUN / "source_closure.json", closure)
-    atomic_json(RUN / "environment.json", {
-        "schema": "crypto.autoresearch.n19_environment.v1",
+    atomic_json(CLOSURE, closure)
+    atomic_json(ENVIRONMENT, {
+        "schema": "crypto.autoresearch.n19_environment.v2",
         "platform": platform.platform(), "machine": platform.machine(),
         "python": sys.version, "compiler": version.stdout.decode(errors="replace").strip(),
         "python_executable": str(Path(sys.executable).resolve()),
@@ -184,28 +193,53 @@ def build() -> None:
         "resolved_model_id": "gpt-5.6-sol", "reasoning_effort": "high",
         "fallback_used": False, "degraded_used": False, "model_verified": False,
     })
-    atomic_json(RUN / "implementation_readiness.json", {
-        "schema": "crypto.autoresearch.n19_implementation_readiness.v1",
+    atomic_json(READINESS, {
+        "schema": "crypto.autoresearch.n19_implementation_readiness.v2",
         "status": "SOURCE_AND_BUILD_READY_NO_PROCESS_ADMISSION",
-        "source_closure_sha256": sha(RUN / "source_closure.json"),
-        "environment_sha256": sha(RUN / "environment.json"),
+        "source_closure_sha256": sha(CLOSURE),
+        "environment_sha256": sha(ENVIRONMENT),
         "binary_sha256": sha(BINARY),
         "holds": {"controls": "committed process admission and explicit root sole launch",
                   "science": "accepted controls plus committed science admission",
                   "checker": "science completion plus committed checker admission"},
         "planned_processes": {"native_controls": 1, "science": 1, "checker": 1},
     })
-    print(json.dumps({"status": "implementation_ready_only",
-                      "source_closure_sha256": sha(RUN / "source_closure.json"),
+    old = json.loads((RUN / "source_closure.json").read_text())
+    atomic_json(RUN / "source_custody_supersession.json", {
+        "schema": "crypto.autoresearch.n19_preadmission_source_supersession.v1",
+        "reason": "add triple-region, pair-region, and sorted-target-key custody before first native process",
+        "original_implementation_commit": OLD_COMMIT,
+        "preserved_predecessor_manifest_path": "build/preserved_pre_cache_manifest/preservation.json",
+        "preserved_predecessor_manifest_sha256": sha(RUN / "build/preserved_pre_cache_manifest/preservation.json"),
+        "original": {"source_closure_path": "source_closure.json", "source_closure_sha256": OLD_CLOSURE_SHA,
+                     "binary_path": "build/search_final", "binary_sha256": OLD_BINARY_SHA,
+                     "source_sha256": old["source_sha256"],
+                     "build_receipt_path": "build/build_receipt.json",
+                     "build_receipt_sha256": sha(RUN / "build/build_receipt.json"),
+                     "readiness_path": "implementation_readiness.json",
+                     "readiness_sha256": sha(RUN / "implementation_readiness.json")},
+        "successor": {"source_closure_path": CLOSURE.name, "source_closure_sha256": sha(CLOSURE),
+                      "binary_path": BINARY.relative_to(RUN).as_posix(), "binary_sha256": sha(BINARY),
+                      "source_sha256": code_hashes(),
+                      "build_receipt_path": "build_v2/build_receipt.json",
+                      "build_receipt_sha256": sha(folder / "build_receipt.json"),
+                      "environment_path": ENVIRONMENT.name, "environment_sha256": sha(ENVIRONMENT),
+                      "readiness_path": READINESS.name, "readiness_sha256": sha(READINESS)},
+        "native_control_processes_before_successor": 0,
+        "science_processes_before_successor": 0,
+        "checker_processes_before_successor": 0,
+    })
+    print(json.dumps({"status": "implementation_ready_only_v2",
+                      "source_closure_sha256": sha(CLOSURE),
                       "binary_sha256": sha(BINARY)}, sort_keys=True))
 
 def verify_closure() -> dict[str, Any]:
     verify_inputs()
-    closure = json.loads((RUN / "source_closure.json").read_text())
+    closure = json.loads(CLOSURE.read_text())
     require(closure["source_sha256"] == code_hashes(), "live source changed after build")
     require(closure["binary_sha256"] == sha(BINARY), "compiled binary changed")
     require(closure["input_sha256"]["specification"] == sha(SPEC), "specification changed")
-    require(closure["build_receipt_sha256"] == sha(RUN / "build/build_receipt.json"),
+    require(closure["build_receipt_sha256"] == sha(RUN / "build_v2/build_receipt.json"),
             "build receipt changed")
     return closure
 
@@ -222,9 +256,9 @@ def verify_admission(path: Path, commit: str, phase: str) -> dict[str, Any]:
     admission = json.loads(blob.stdout)
     require(admission.get("status") == "admitted" and admission.get("phase") == phase and
             admission.get("task_id") == TASK and admission.get("run_id") == RUN_ID and
-            admission.get("source_closure_sha256") == sha(RUN / "source_closure.json"),
+            admission.get("source_closure_sha256") == sha(CLOSURE),
             "admission role/phase/source mismatch")
-    for current in [RUN / "source_closure.json", BINARY] + [CODE / name for name in SOURCE_FILES]:
+    for current in [CLOSURE, BINARY] + [CODE / name for name in SOURCE_FILES]:
         item = current.relative_to(REPO).as_posix()
         committed = subprocess.run(["git", "show", f"{commit}:{item}"], cwd=REPO,
                                    capture_output=True, check=False)
@@ -483,7 +517,7 @@ def finalize() -> None:
         "code": {"commit": implementation_commit, "source_sha256": code_hashes(),
                  "binary_sha256": sha(BINARY), "dirty_scope_at_finalize": dirty,
                  "command": [r["argv"] for r in receipts]},
-        "environment": {"path": "environment.json", "sha256": sha(RUN / "environment.json")},
+        "environment": {"path": ENVIRONMENT.name, "sha256": sha(ENVIRONMENT)},
         "inputs": {"parameters": {"n": 19, "pool_orbits": 37,
                                    "public_target_orbits": 6909, "four_orbit_bases": 66045},
                    "pool_sha256": POOL_SHA, "historical_global_jsonl_sha256": HISTORICAL_SHA,
@@ -492,7 +526,7 @@ def finalize() -> None:
                    "scope": "three distinct owned child Popen-to-wait4-reap intervals, excluding supervisor verification/archive",
                    "parent_promotion_seconds": {r["phase"]: r["parent_promotion_seconds"] for r in receipts},
                    "supervisor_total_wall_cpu_rss": "external root phase measurements; child wall sum is not whole cold search"},
-        "artifacts": {"command": "command.txt", "environment": "environment.json",
+        "artifacts": {"command": "command.txt", "environment": ENVIRONMENT.name,
                       "stdout": "stdout.log", "stderr": "stderr.log",
                       "raw_result": "raw-result.json",
                       "stdout_stderr_scope": "byte-exact concatenation of actual child streams in controls, science, checker order"},

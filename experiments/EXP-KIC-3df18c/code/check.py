@@ -486,6 +486,15 @@ def run(pool_path: Path, run_path: Path, historical_path: Path, out_path: Path) 
     cache_path = run_path / "support_cache.bin"
     cache_manifest = json.loads((run_path / "support_cache_manifest.json").read_text())
     require(cache_manifest["cache_sha256"] == digest(cache_path), "cache manifest hash mismatch")
+    cache_blob = cache_path.read_bytes()
+    for region_name in ("triple_region", "pair_region"):
+        region = cache_manifest[region_name]
+        span = cache_blob[region["offset_bytes"]:region["offset_bytes"] + region["bytes"]]
+        require(len(span) == region["bytes"] and hashlib.sha256(span).hexdigest() == region["sha256"],
+                f"cache {region_name} custody mismatch")
+    require(cache_manifest["target_keys_sha256"] == hashlib.sha256(
+        json.dumps(sorted(target_keys), separators=(",", ":")).encode()).hexdigest(),
+        "cache sorted-target-key binding mismatch")
     triples, pairs = cache_rows(cache_path, target_keys)
     indexed_keys = {key: i for i, key in enumerate(sorted(target_keys))}
     historical = historical_at_most(historical_path)

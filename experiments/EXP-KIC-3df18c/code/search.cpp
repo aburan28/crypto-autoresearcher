@@ -235,15 +235,20 @@ struct Cache {
         }
         need(triple.size()==9139,"triple support count");triple_seconds=seconds(start);
     }
-    void save(const string& path,const string& manifest)const{
+    void save(const string& path,const string& manifest,const vector<uint32_t>& target_keys)const{
         ofstream o(path,ios::binary);need(bool(o),"cannot create support cache");
         o.write("KIC19S01",8);write_u32(o,1);write_u32(o,TARGETS);write_u32(o,WORDS);write_u32(o,triple.size());write_u32(o,pair.size());
         for(auto& b:triple)for(auto x:b.w)write_u64(o,x);
         for(auto& b:pair)for(auto x:b.w)write_u64(o,x);
         o.close();need(bool(o),"support cache write failed");
+        string bytes=readall(path);size_t triple_bytes=triple.size()*WORDS*8,pair_bytes=pair.size()*WORDS*8;
+        need(bytes.size()==28+triple_bytes+pair_bytes,"support cache serialization size mismatch");
         ofstream m(manifest);m<<"{\n  \"schema\": \"crypto.autoresearch.n19_support_cache.v1\",\n  \"byte_order\": \"little_endian\",\n";
         m<<"  \"target_orbits\": "<<TARGETS<<", \"words_per_support\": "<<WORDS<<", \"triple_supports\": "<<triple.size()<<", \"pair_supports\": "<<pair.size()<<",\n";
         m<<"  \"triple_order\": \"i<=j<=k lexicographic\", \"pair_order\": \"i<=j lexicographic\",\n";
+        m<<"  \"target_keys_sha256\": \""<<sha_bytes(nums_json(target_keys))<<"\",\n";
+        m<<"  \"triple_region\": {\"offset_bytes\":28,\"bytes\":"<<triple_bytes<<",\"sha256\":\""<<sha_bytes(bytes.substr(28,triple_bytes))<<"\"},\n";
+        m<<"  \"pair_region\": {\"offset_bytes\":"<<28+triple_bytes<<",\"bytes\":"<<pair_bytes<<",\"sha256\":\""<<sha_bytes(bytes.substr(28+triple_bytes,pair_bytes))<<"\"},\n";
         m<<"  \"cache_bytes\": "<<filesystem_size(path)<<", \"cache_sha256\": \""<<sha_file(path)<<"\"\n}\n";
     }
     static uint64_t filesystem_size(const string& path){ifstream f(path,ios::binary|ios::ate);return uint64_t(f.tellg());}
@@ -341,7 +346,7 @@ static void science(const string& input,const string& out,const string& historic
     ofstream progress(out+"/progress.jsonl",ios::app);progress<<"{\"stage\":\"prepared\",\"seconds\":"<<setprecision(17)<<seconds(start)<<"}\n";progress.flush();
     auto gstart=chrono::steady_clock::now();Geometry g=enumerate_planes(prep.xs,37);save_geometry(out,g,prep,seconds(gstart));
     progress<<"{\"stage\":\"geometry\",\"seconds\":"<<seconds(gstart)<<",\"planes\":"<<g.planes.size()<<"}\n";progress.flush();
-    auto cstart=chrono::steady_clock::now();Cache cache(prep);cache.save(out+"/support_cache.bin",out+"/support_cache_manifest.json");
+    auto cstart=chrono::steady_clock::now();Cache cache(prep);cache.save(out+"/support_cache.bin",out+"/support_cache_manifest.json",prep.target_keys);
     progress<<"{\"stage\":\"support_cache\",\"seconds\":"<<seconds(cstart)<<",\"triple_supports\":"<<cache.triple.size()<<"}\n";progress.flush();
     save_scores(out,prep,cache,g,historical);progress<<"{\"stage\":\"frontier_complete\",\"seconds\":"<<seconds(start)<<"}\n";progress.flush();
 }
