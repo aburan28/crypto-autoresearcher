@@ -163,3 +163,299 @@ output. Part C draws a random `V'`, so its subspace-level facts (all booleans
 and the orbit sizes) reproduce while the particular `V'` does not; parts A, B
 and D's cost sweep are fully deterministic, and part D's `mu` is determined by
 the curve, not the draw.
+
+---
+
+# Part 2 — measuring the one unmeasured number: cost of a single decomposition solve
+
+**Status: analysis note, not evidence — same standing as Part 1.** Everything
+below was produced by `solve_cost_ladder.py`, `gf2_131_mul_bench.c` and
+`collect_results.py` in this directory, inside one interactive session. **It is
+not a harness run**: there is no `RUN-*` manifest and none is invented
+(AGENTS.md rule 5). It changes no hypothesis status, closes nothing, and
+supports no claim beyond the parameters it names.
+
+**It is an instrument measurement, not an attack.** It prices *one decomposition
+solve*. It performs no relation search, computes no discrete logarithm, and
+makes **no progress whatsoever toward the ECC2K-130 challenge** — Part 1 already
+shows the `m = 2` pipeline needs `2^58.5` relations and `2^116.9` linear
+algebra against rho's `2^60.9`, so the cell measured here is one that the cost
+model has *already* ruled out. Precedent for solver runs on this public curve:
+`EV-ICPERF-10c5fc`.
+
+Part 1 ended on a single open quantity: the per-solve cost of decomposition,
+never measured above `n = 23` (`EV-FROB-b6e1e9` / `KN-FIND-47da4e`, which states
+that gap itself). Part 2 pushes that measurement as far up the `n` ladder as
+this machine allows, and reports exactly where it stops.
+
+## The instrument control: `n = 23` reproduces EXACTLY
+
+Before any new cell, the prior instrument was re-run unchanged at its recorded
+cell:
+
+```sh
+python3 ../frobenius-orbit-union/frob_union_m2.py \
+        --n 23 --targets 16 --seed 7 --no-linear --out logs/control_n23_repro.json
+```
+
+| quantity (15 refuted targets) | recorded `union_n23.json` | reproduced here |
+|---|---|---|
+| baseline conflicts (sum over `n` systems) | 99563.533 | 99563.533 |
+| one-hot conflicts | 114540.667 | 114540.667 |
+| **one-hot / baseline** | **1.150428** | **1.150428** |
+| one-hot seconds | 31.79 | 34.71 |
+
+**PASS.** All 16 target rows agree in **every non-timing field** — conflicts,
+decisions, propagations and every SAT/UNSAT verdict are bit-identical (0
+differences over all rows); only wall clock differs, this machine being about
+9% slower. `python-sat` here is 1.9.dev15 against the prior work's earlier
+version, and `Cadical153` (CaDiCaL 1.5.3) was chosen to match; the match is
+exact, so the solver identity is confirmed rather than assumed. Everything
+below is therefore reported by an instrument that reproduces the recorded
+number it is being extended from.
+
+## `S_3` is derived, not recalled
+
+Every cell derives the third summation polynomial before using it, by fitting
+the ansatz `sum_{i,j,k<=2} c_ijk x1^i x2^j x3^k` against real curve triples
+with `P1 + P2 + P3 = O` on the cell's own curve, and refusing to proceed unless
+the kernel is one-dimensional. At `n = 131` on `y^2 + xy = x^3 + 1` the fit
+returns, from 80 samples, kernel dimension exactly 1 and support
+
+```
+S_3 = (x1 x2)^2 + (x1 x3)^2 + (x2 x3)^2 + x1 x2 x3 + 1
+    = (x1 x2 + x1 x3 + x2 x3)^2 + x1 x2 x3 + b,   b = 1
+```
+
+verified on **200/200** fresh real triples (vanishes) and **200/200** random
+triples (does not vanish). The Weil descent is checked the same way: the
+descended `F_2` system is evaluated against field arithmetic on random
+assignments — **0 mismatches** in every cell. At the toy cells exhaustive
+ground truth over `V'` is retained, and the solver verdict matched it on every
+target in every cell that ran it.
+
+Field and curve at the `n = 131` cell are the real ones, re-derived per run:
+modulus exponents `[131, 13, 2, 1, 0]`, `#E = 2722258935367507707729280517973639940516`,
+`r = 680564733841876926932320129493409985129`, `h = 4` — identical to Part 1
+and to `EV-ICPERF-10c5fc`.
+
+## The encoding is a first-order confound, and it had to be measured
+
+The prior instrument expands `S_3(X1, X2, c)` symbolically over `F_{2^n}` and
+descends it (`direct`). In the one-hot arm that costs `l'^2 * n` cubic
+monomials — at `n = 131`, `58^2 * 131 = 440684` monomials, whose XOR chains do
+not fit in memory. So `n = 131` forces intermediate `F_2` variable vectors:
+
+- `stagew` — stage `w = x2` only (`n` bits); `x1 * x2` stays a direct quadratic
+  ANF in `{t_a, w_i}`.
+- `staged` — stage both `w = x2` and `p = x1 * x2`.
+
+Both are correct and both are far worse for CDCL. Measured at `n = 19`, 4
+targets, same subspace and targets throughout (`logs/enc_n19_*.json`):
+
+| encoding | branching order | baseline conflicts | one-hot conflicts | ratio | one-hot CNF (vars/clauses) |
+|---|---|---|---|---|---|
+| direct | default | 4566 | 7080 | **1.55** | 6075 / 24300 |
+| direct | shift-first | 4566 | 6292 | **1.38** | 6075 / 24300 |
+| stagew | default | 18688 | 863213 | 46.19 | 2217 / 8735 |
+| stagew | shift-first | 18688 | 437314 | 23.40 | 2217 / 8735 |
+| staged | default | 32067 | 784364 | 24.46 | 2231 / 8753 |
+| staged | shift-first | 32067 | 1592267 | 49.65 | 2231 / 8753 |
+
+Three things follow, and all three matter for reading the `n = 131` row:
+
+1. **Staging costs one to two orders of magnitude.** The encoding that makes
+   `n = 131` buildable is ~60x worse in one-hot conflicts at `n = 19`. The
+   `n = 131` numbers are therefore **not comparable to the `direct` ladder**,
+   and are an upper bound for the encoding used, not a property of the algebra.
+2. **A smaller CNF is not a cheaper solve.** The staged CNFs are 3x *smaller*
+   and 60–200x *harder*. Clause count is not a cost model here.
+3. **The shift-bit branching prefix is not uniformly good.** It helps `direct`
+   (1.55 -> 1.38) and `stagew` (46.2 -> 23.4) and **hurts** `staged`
+   (24.5 -> 49.7). The prefix is realised here as variable renumbering (the
+   shift bits take the lowest indices), which is a weaker instrument than
+   WDSat's `-g`: `python-sat` exposes no decision-priority API for CaDiCaL.
+
+## The ladder
+
+`direct` encoding, shift-first order, fresh random `V'` per cell,
+`l' = ceil(n/2) - ceil(log2 n)` as in the prior instrument. Ratios are one-hot
+conflicts over the summed `n`-system baseline, on refuted targets.
+
+| n | l' | log2 \|S\| | baseline conflicts | one-hot conflicts | ratio | source |
+|---|---|---|---|---|---|---|
+| 13 | 3 | 6.5 | 166.9 | 169.7 | 1.017 | prior `EV-FROB-b6e1e9` |
+| 17 | 4 | 8.0 | 950.4 | 966.2 | 1.017 | prior |
+| 19 | 5 | 9.2 | 4773.3 | 7001.4 | 1.467 | prior |
+| 19 | 5 | 9.2 | 4566 | 6292 | 1.38 | here, fresh `V'`, shift-first |
+| 23 | 7 | 11.5 | 99563.5 | 114540.7 | **1.150** | prior, **reproduced exactly here** |
+| 29 | 9 | 13.9 | — | — | — | **did not complete** (below) |
+| 131 | 58 | 65.0 | censored | censored | — | ECC2K-130 cell (below) |
+
+**`n = 29` did not complete, and that is the honest top of the ladder.** The
+cell was launched with a `4 * 10^6` conflict budget per solve and a 2400 s cell
+wall; the baseline arm finished, and the single one-hot solve was still running
+after **39 minutes of CPU** without reaching its budget, so no target row was
+emitted. A conflict budget is the only censoring mechanism available:
+`Cadical153.interrupt()` raises `NotImplementedError` in `python-sat`
+1.9.dev15, so a per-solve wall clock cannot be imposed on this solver, and the
+instrument now **refuses** `--solve-wall` rather than silently ignoring it.
+This is a resource outcome and is **not** negative mathematical evidence
+(AGENTS.md rule 3). The reachable range of this instrument with complete
+ratios is thus still `n <= 23` — the gap `KN-FIND-47da4e` declared is narrowed
+in scale but not closed.
+
+## The `n = 131` ECC2K-130 cell
+
+Real curve, real field, `l' = 58`, `|S| = 2^65.0`, planted decomposition so
+that a satisfying assignment provably exists, one-hot arm in `stagew`, baseline
+arm in `direct`, baseline sampled at `j = 45` (`logs/cell_n131_smallbudget.json`).
+
+| | baseline (one gauge-fixed system) | one-hot (all 131 shifts) |
+|---|---|---|
+| CNF variables | 231151 | 1024605 |
+| CNF clauses | 921038 | 4090753 |
+| build time | 0.83 s | 4.84 s |
+| conflicts at cutoff | 501 (budget) | 501 (budget) |
+| seconds for those conflicts | 1.86 | 10.14 |
+| propagations | 2.09e7 | 6.69e7 |
+| conflict rate | 270 /s | 49 /s |
+| verdict | **censored** | **censored** |
+
+Peak resident memory for the whole cell: **645 MiB**, well inside the 8 GiB
+cap. The cell wall was 46 s.
+
+So the object is real and the instance is buildable and runnable at the true
+ECC2K-130 parameters — but **neither arm terminated**, at any budget reached
+here. A second cell with a 20000-conflict budget was also run; its outcome is
+in `solve-cost-results.json` if it completed and is recorded as non-completing
+if it did not. Two rules bind how this is read:
+
+- **No UNSAT at `n = 131` is ground truth.** Exhaustive enumeration over `V'`
+  is `2^58` and was not attempted; the instrument sets `ground_truth: false`
+  for this cell and asserts nothing. Any UNSAT here would be
+  **solver-asserted and uncertified**. The planted construction is what makes a
+  *positive* answer certifiable: every SAT model at every cell is re-decoded and
+  re-checked against `S_3`, against `x1 in V'` and against `x2 in S` before it
+  counts, and the staged `w` vector is cross-checked against the decoded `x2`.
+  No SAT model was returned at `n = 131`, so no certificate is claimed.
+- **Censoring is a resource outcome.** It bounds the cost from below and says
+  nothing about solvability.
+
+## Conflicts to field operations: the conversion, stated in the open
+
+The Part 1 budgets (`2^1.43` per solve at `m = 2`, `2^30.6` at `m = 4`) are in
+`F_{2^131}` operations; solver work is in conflicts. The conversion is an
+assumption and is numbered so it can be attacked:
+
+> **Assumption C1 (unit).** Solver work is counted in CaDiCaL *conflicts*,
+> which are deterministic for a fixed CNF and solver — this is why the control
+> above reproduces bit-exactly, and it is the unit the prior work reports.
+>
+> **Assumption C2 (conversion).** One `F_{2^131}` multiplication costs
+> **23.55 ns** on this machine, measured — not assumed — by
+> `gf2_131_mul_bench.c` (PCLMULQDQ 3x3 schoolbook plus sparse reduction mod
+> `z^131+z^13+z^2+z+1`; median of five runs of `2*10^7` multiplications; 23.53 /
+> 23.63 / 24.49 ns spread; 49.5 cycles at the nominal 2.1 GHz). Its correctness
+> is cross-checked by `check_mul_bench.py` against the same Python
+> `GF(2^131)` the measurement instrument uses. Solver work is then converted by
+> **measured seconds on the same machine**: `field_ops = t_solve / 23.55 ns`.
+>
+> **Why this direction is conservative.** The benchmark is a dependent chain,
+> so it is latency-bound and is the *slowest* reasonable optimised multiplier;
+> a pipelined one (~5–8 ns) would multiply every field-op figure below by 3–5.
+> C2 therefore **understates** the cost of a solve. It also charges the solver
+> nothing for its own memory traffic beyond elapsed time.
+
+Applying C2 to the measured rows:
+
+| measured quantity | measured | converted (modelled via C2) |
+|---|---|---|
+| one conflict, `n = 131` one-hot | 20.24 ms | 8.6e5 field ops = `2^19.7` |
+| one conflict, `n = 131` baseline system | 3.71 ms | 1.6e5 field ops = `2^17.3` |
+| building the `n = 131` one-hot CNF | 4.84 s | `2^27.6` field ops |
+| 501 conflicts, `n = 131` one-hot, **not terminated** | 10.14 s | **> `2^28.7` field ops** |
+| `n = 23` baseline, complete solve (16 targets) | 2.20 s | `2^26.5` field ops |
+
+**What that does and does not license.**
+
+- Against the `m = 2` budget of `2^1.43 ≈ 2.7` field operations per solve: the
+  measurement clears nothing. A single `n = 131` solve had already spent more
+  than `2^28.7` field operations *without finishing*, and merely **constructing**
+  the instance costs `2^27.6`. The miss is by more than `2^27`, and the same
+  miss is already visible at `n = 23` (`2^26.5` for a complete solve). This
+  does not rescue or change Part 1's verdict on `m = 2`, which was decided on
+  linear algebra (`2^116.9`) before any solve was charged.
+- Against the `m = 4` budget of `2^30.6`: **not measured, and not claimed.**
+  `m = 4` is a different system — `S_5`, ~103 `F_2` unknowns, a different
+  factor base — and nothing here was run at `m = 4`. The `m = 2` figure exceeds
+  `2^30.6` in trend but that is an observation about a different cell.
+- If C2 is rejected, the raw numbers stand on their own and the comparison is
+  simply **not available**: 501 conflicts / 10.14 s / 4.09e6 clauses,
+  non-terminating.
+
+## Wall clock, memory, budget
+
+Advisory budget 4 hours, single worker per cell, memory cap 8 GiB. Observed:
+about 3.2 hours to this point, peak resident memory **645 MiB** in the heaviest
+cell (`n = 131` one-hot, 4.09e6 clauses), never above 2 GiB across all
+concurrent cells. Some cells ran two or three at a time on a 4-core machine;
+that perturbs **seconds** and not **conflicts**, which are deterministic — and
+it is why the control is reported on conflicts, where it is exact.
+
+## What Part 2 does NOT claim
+
+- **No attack and no progress toward the challenge.** No relation search, no
+  discrete logarithm, no certificate of any solve. The `m = 2` cell measured
+  here is one Part 1 already priced out at `2^116.9` linear algebra.
+- **Nothing is validated or refuted about the orbit-union heuristic.** The
+  numbers are observations; whether they support or undercut anything is a
+  Reviewer and Coordinator judgement, not this note's.
+- **The ladder did not reach `n = 131` with a complete ratio, or even `n = 29`.**
+  The largest `n` with a complete one-hot/baseline ratio is still 23. Every
+  incomplete cell is reported as incomplete with its cost accounting.
+- **No UNSAT at `n = 131` is ground truth**, and none is asserted; exhaustive
+  ground truth stops at `l' <= 16`.
+- **The `n = 131` ratio is an encoding artefact if read as algebra.** The
+  measured 23x–200x staging penalty at `n = 19` bounds how much of any large-`n`
+  ratio belongs to the CNF rather than the mathematics.
+- **A conflict is not a solving degree and not a lower bound on the algebra.**
+  A better encoding, a better solver, or an algebraic method (Groebner, WDSat's
+  XORGAUSS) could move every row here. WDSat was not built for this pass.
+- **C2 is an assumption, not a measurement of the attack.** It converts elapsed
+  solver time to field operations on one machine; it is not a cost model for
+  any implementation an adversary would write.
+- **Nothing here scores `H-FROB-a5bf86` / `EXP-FROB-30006a`** or any other
+  hypothesis, and no ledger record was written.
+
+## Reproducing Part 2
+
+```sh
+# 0. instrument control -- must reproduce 1.150428 on conflicts, exactly
+python3 ../frobenius-orbit-union/frob_union_m2.py \
+        --n 23 --targets 16 --seed 7 --no-linear --out logs/control_n23_repro.json
+
+# 1. field-operation denominator for assumption C2
+gcc -O3 -mpclmul -msse4.1 -o gf2_131_mul_bench gf2_131_mul_bench.c
+./gf2_131_mul_bench --selftest | python3 check_mul_bench.py     # correctness
+./gf2_131_mul_bench 20000000                                    # ns per multiply
+
+# 2. encoding / branching-order confound at n = 19
+sh run_encoding_confound.sh
+
+# 3. the ladder (direct encoding, shift-first order)
+sh run_ladder.sh
+
+# 4. the real ECC2K-130 cell
+sh run_131_probe.sh      # small budget: always completes, gives rates and sizes
+sh run_131.sh            # larger budget
+
+# 5. index the raw per-cell outputs
+python3 collect_results.py                  # writes solve-cost-results.json
+```
+
+Raw per-target rows live in `logs/cell_*.json` and `logs/enc_*.json`;
+`solve-cost-results.json` indexes them with their sha256. Each cell draws its
+own random `V'`, generator and targets from its `--seed`, so a rerun with the
+same seed reproduces that cell exactly, and the derived `S_3`, the modulus, the
+curve order and `r` are determined by the parameters rather than the draw.
