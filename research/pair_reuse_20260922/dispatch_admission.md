@@ -6,7 +6,7 @@ Determine whether the accepted orbit-canonical pair representation saves total c
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260922-89d6e6` | executor | running | 50 | TASK-20260922-01282b | experiments/EXP-KIC-d9c828/code/native.cpp, experiments/EXP-KIC-d9c828/code/checker.py, experiments/EXP-KIC-d9c828/code/runner.py, experiments/EXP-KIC-d9c828/code/analyze.py, experiments/EXP-KIC-d9c828/code/README.md, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/source_closure.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/build_receipt.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/environment.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/case_manifest.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/native_controls.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/bases.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/public_panels.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/oracle_metadata.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/pair_tables.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/control_queries.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/control_receipt.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/independent_replay.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/checker_receipt.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/benchmark_receipts.jsonl, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/analysis.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/manifest.yaml, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/command.txt, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/stdout.log, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/stderr.log, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/raw-result.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/raw_outputs.tar.gz, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/raw_manifest.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/execution_report.md | experiments/EXP-KIC-d9c828/code, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9 |
+| `TASK-20260922-89d6e6` | executor | running | 50 | TASK-20260922-01282b | experiments/EXP-KIC-d9c828/code/native.cpp, experiments/EXP-KIC-d9c828/code/checker.py, experiments/EXP-KIC-d9c828/code/runner.py, experiments/EXP-KIC-d9c828/code/analyze.py, experiments/EXP-KIC-d9c828/code/README.md, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/source_closure.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/build_receipt.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/environment.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/case_manifest.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/native_controls.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/bases.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/public_panels.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/oracle_metadata.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/pair_tables.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/control_queries.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/control_receipt.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/independent_replay.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/checker_receipt.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/benchmark_receipts.jsonl, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/analysis.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/manifest.yaml, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/command.txt, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/stdout.log, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/stderr.log, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/raw-result.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/raw_outputs.tar.gz, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/raw_manifest.json, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/execution_report.md, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/stage_a_attempt_01_preserved.tar.gz, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/stage_a_attempt_01_manifest.json | experiments/EXP-KIC-d9c828/code, experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9 |
 
 ## Deferred or Blocked
 
@@ -22,7 +22,7 @@ it is listed under Ready Tasks as `running` so you do not start it.
 Start only Ready Tasks whose `claim` is null, and claim them first.
 
 - `TASK-20260922-01282b`: released (owner `pair-reuse-20260922`, epoch 1, expires 2026-09-23T00:52:42Z) -> ignored:queue_state_completed
-- `TASK-20260922-89d6e6`: live (owner `pair-reuse-20260922`, epoch 1, expires 2026-09-23T02:55:43Z) -> running_with_lease
+- `TASK-20260922-89d6e6`: live (owner `pair-reuse-20260922`, epoch 2, expires 2026-09-23T03:09:36Z) -> running_with_lease
 
 ## Archives verified on CONTENT
 
@@ -51,4 +51,24 @@ contains a record allowed to change after the archive.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `efc69d73975cf5042e93c07dbfa232c8fbdb75f0a2c3a2f9aa4e8eb83277ca65`
+## Unlanded producer output
+
+These declared artifacts exist in this working tree and are ABSENT
+from `HEAD`. They exist on one machine. When it goes away they go with
+it, which is what happened to two blind source reads and a completed
+run on 2026-09-21 (`ledger/corrections/CORR-20260921-942a62.yaml`).
+
+A running producer legitimately appears here, so this is a report and
+not a gate. Land anything whose producer has already returned.
+
+- `TASK-20260922-89d6e6` (executor, running):
+  - `experiments/EXP-KIC-d9c828/code/README.md`
+  - `experiments/EXP-KIC-d9c828/code/analyze.py`
+  - `experiments/EXP-KIC-d9c828/code/checker.py`
+  - `experiments/EXP-KIC-d9c828/code/native.cpp`
+  - `experiments/EXP-KIC-d9c828/code/runner.py`
+  - `experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/stage_a_attempt_01_manifest.json`
+  - `experiments/EXP-KIC-d9c828/runs/RUN-KIC-ba86d9/stage_a_attempt_01_preserved.tar.gz`
+  - remedy: `python3 tools/producer_landing.py <queue> TASK-20260922-89d6e6 --push`
+
+Plan SHA-256: `c5654b77849d0668f2a4411615df6dbdd5fc67d74d35db12c9a5daa33ba3791c`
