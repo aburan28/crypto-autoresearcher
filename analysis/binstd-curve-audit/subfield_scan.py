@@ -14,7 +14,7 @@ def hexblob(body, label):
             # not as a colon-hex blob. Without this branch A = 0 reads as absent
             # and c2pnb208w1 reports "A in no subfield", which is backwards:
             # 0 lies in every subfield. Mirrors subfield_certify.blob.
-            m = re.search(re.escape(label) + r':\s*(\d+)\s*\n', body)
+            m = re.search(re.escape(label) + r':\s*(\d+)(?:\s*\(0x[0-9a-fA-F]+\))?\s*\n', body)
             if m: return int(m.group(1))
             return None
     h = re.sub(r'[^0-9a-f]', '', m.group(1))

@@ -67,9 +67,28 @@ group order **exactly**:
 | `c2pnb368w1` | 368 | 23 | yes | 65392 | 145 | yes |
 
 Every other curve in the dump has **prime** extension degree — `m ∈ {131, 163,
-191, 193, 233, 239, 283, 359, 409, 431, 571}` — and no proper subfield contains
-`A` or `B`. That includes every NIST/FIPS binary curve (`K-163` … `B-571`,
-`m ∈ {163, 233, 283, 409, 571}`) and the ANSI `c2tnb*` family.
+191, 193, 233, 239, 283, 359, 409, 431, 571}` — so `F_{2^m}` has no subfield
+other than `F_2` and itself, and there is no *intermediate* field to descend to.
+
+Within that half the coefficients still split three ways, and the split is the
+K/B distinction made precise:
+
+| family | `A` | `B` | reading |
+| --- | --- | --- | --- |
+| Koblitz `sect163k1`, `sect233k1`, `sect283k1`, `sect409k1`, `sect571k1`, `sect239k1` | `∈ F_2` | `∈ F_2` | subfield curves over `F_2` — this is what "Koblitz" means |
+| pseudorandom `sect163r2`, `sect233r1`, `sect283r1`, `sect409r1`, `sect571r1` | `= 1 ∈ F_2` | in **no** proper subfield | only `B` is pseudorandom |
+| `sect131r1/r2`, `sect193r1/r2`, `c2pnb163v1/v2/v3`, all `c2tnb*` | in no proper subfield | in no proper subfield | neither coefficient is subfield-rational |
+
+**An earlier revision of this file claimed no proper subfield contained `A` or
+`B` anywhere in this half. That was wrong**, and wrong in the direction that
+matters: it read the Koblitz curves as having no subfield structure when being
+subfield curves over `F_2` is their defining property. The cause was the same
+parser gap as the `A: 0` case — OpenSSL prints a small coefficient as
+`A:    1 (0x1)`, and the decimal branch required the line to end after the
+digits, so every `A = 1` and `B = 1` silently became "absent" and printed as
+`-`, the same glyph used for genuine non-membership. Parse failure and true
+non-membership shared one column. Both scripts now accept the `N (0xN)` form
+and the table above is regenerated output.
 
 ## Why it matters to RQ-BINSTD-b6f698
 
