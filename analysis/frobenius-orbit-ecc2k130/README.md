@@ -290,6 +290,7 @@ conflicts over the summed `n`-system baseline, on refuted targets.
 | 19 | 5 | 9.2 | 4566 | 6292 | 1.38 | here, fresh `V'`, shift-first |
 | 23 | 7 | 11.5 | 99563.5 | 114540.7 | **1.150** | prior, **reproduced exactly here** |
 | 29 | 9 | 13.9 | — | — | — | **did not complete** (below) |
+| 31 | 10 | 14.9 | — | — | — | **did not complete** (below) |
 | 131 | 58 | 65.0 | censored | censored | — | ECC2K-130 cell (below) |
 
 **`n = 29` did not complete, and that is the honest top of the ladder.** The
@@ -304,6 +305,18 @@ This is a resource outcome and is **not** negative mathematical evidence
 (AGENTS.md rule 3). The reachable range of this instrument with complete
 ratios is thus still `n <= 23` — the gap `KN-FIND-47da4e` declared is narrowed
 in scale but not closed.
+
+**`n = 31` did not complete either, the same way.** Launched alongside the
+rest, it was stopped during review after **1h40m of CPU**, still inside the
+*single* one-hot solve for target 0 and still short of the same `4 * 10^6`
+conflict budget — the baseline arm had finished, and a stack dump put it in
+`build_and_solve -> solve_limited`. No `cell_n31.json` was emitted, so nothing
+is reported for it beyond the cost accounting in `logs/incomplete_cells.json`.
+Two cells failing identically at `n = 29` and `n = 31`, both inside one
+uninterruptible solve, is the clearest statement of this instrument's ceiling:
+what stops the ladder is not the algebra and not memory, but that
+`Cadical153` cannot be interrupted and a conflict budget of `4 * 10^6` is
+already too coarse a censor at these sizes.
 
 ## The `n = 131` ECC2K-130 cell
 
