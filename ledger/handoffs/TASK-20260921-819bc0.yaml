@@ -1,0 +1,206 @@
+handoff:
+  id: TASK-20260921-819bc0
+  from: coordinator
+  to: executor
+
+  objective: >-
+    Execute EXP-FROB-91ee9c specification.yaml version 1 AS AMENDED by
+    experiments/EXP-FROB-91ee9c/amendments/DEC-20260921-e81e25.yaml (v2) and
+    experiments/EXP-FROB-91ee9c/amendments/DEC-20260921-2f89d4.yaml (v3):
+    recompute the object arm (consistency check only) and control
+    C2_non_stable_matched_dimension, USING THE CORRECTED PER-SLOT-INDEPENDENT
+    SUBSPACE CONSTRUCTION v3 specifies, against the SAME two (cell, curve)
+    pairs RUN-FROB-91ee9c-51bc02 already covers: FROB-SPLIT-q11n5 (A=1, B=2,
+    N=10061) and FROB-EQDEG-q19n5 (A=1, B=1, N=117991). Do NOT recompute
+    C3 or C4 -- both are out of scope for this run (see constraints).
+
+  uncertainty_reduced: >-
+    Whether control C2's cost_ratio_neg spread on the `[2,2]` partition --
+    the only non-trivial partition either cell reaches -- changes once each
+    of the two same-dimension slots is assigned a genuinely independent
+    non-pi-stable subspace, instead of the SAME cached subspace summed with
+    itself (the construction defect ledger/corrections/CORR-20260921-9dc350
+    correction C2 documents, found independently by this session via
+    code-reading and U_neg arithmetic, and confirmed independently again by
+    NA-1's validator and red-team reports). This does not by itself
+    determine H-FROB-d93575's status: C3/C4's ties already independently
+    suffice for falsification_criterion clause (c)'s trigger regardless of
+    C2's corrected outcome (CORR-20260921-9dc350 correction C2's own
+    conclusion). What this run answers is narrower and purely instrumental:
+    does the FIXED C2 retain, lose, or reverse its role as independent
+    support for "the instrument retains general discriminating power" (round
+    2's PTM-2(i), which the defective C2 could not actually establish)?
+
+  inputs:
+    - >-
+      experiments/EXP-FROB-91ee9c/specification.yaml (FROZEN v1; read
+      controls.C2_non_stable_matched_dimension's ORIGINAL text verbatim --
+      the amendment below extends it, it does not replace it)
+    - >-
+      experiments/EXP-FROB-91ee9c/amendments/DEC-20260921-2f89d4.yaml (this
+      run's authorizing amendment; defines the EXACT per-slot-pool
+      construction to implement -- read it before writing any code)
+    - >-
+      experiments/EXP-FROB-91ee9c/amendments/DEC-20260921-e81e25.yaml (the
+      prior amendment establishing the two (cell, curve) targets and their
+      parameters; unchanged by this one)
+    - >-
+      experiments/EXP-FROB-91ee9c/runs/TASK-20260921-51bc02/ (the completed
+      run this one corrects the C2 arm of; IMMUTABLE, read-only reference
+      for: the exact curve/field construction already used
+      (fixtures.json, certificates.json), the DEFECTIVE
+      non_stable_subspace_of_dim function and C2 construction loop in
+      implementation.py lines ~222-238 and ~429-470 -- read these to
+      understand EXACTLY what must change, not merely that something must --
+      and the object-arm consistency targets in metrics.json. Do NOT edit,
+      re-run, or re-derive anything under this path.)
+    - >-
+      ledger/corrections/CORR-20260921-9dc350.yaml (correction C2: the full
+      diagnosis of the defect, in both code-reading and U_neg-arithmetic
+      form, and next_action NA-1 naming this exact fix)
+    - >-
+      experiments/EXP-FROB-91ee9c/redteam-20260921-round2.md (section 3(b):
+      the red-team's own code-reading of the defect, independent of this
+      session's)
+
+  constraints:
+    - >-
+      WRITE SCOPE: experiments/EXP-FROB-91ee9c/runs/TASK-20260921-819bc0/
+      only. Never write to runs/TASK-20260914-7119f2/,
+      runs/TASK-20260921-51bc02/, specification.yaml, or any file under
+      ledger/ other than this handoff's own status field if the harness
+      requires it.
+    - >-
+      Use the EXACT curve parameters already recorded for these two curves
+      in RUN-FROB-91ee9c-51bc02's certificates.json (FROB-SPLIT-q11n5
+      A=1,B=2,N=10061; FROB-EQDEG-q19n5 A=1,B=1,N=117991) and the same field
+      construction. Do not re-run the object-curve search; these two curves
+      are already identified and eligible.
+    - >-
+      IMPLEMENT THE CORRECTED C2 CONSTRUCTION EXACTLY AS
+      DEC-20260921-2f89d4's `changes` block specifies: for a dimension d
+      with multiplicity k in a partition's slot_dims, maintain ONE
+      canonical, deterministic pool per (cell, curve, dimension d), grown
+      lazily via `non_stable_subspace_of_dim(d, M, F, n, exclude=<index
+      tuples already in the pool>)` -- the same lexicographic
+      combinations(range(n), d) search order as the existing function, only
+      skipping combos already assigned -- until the pool has k entries. A
+      partition needing k slots of dimension d takes the pool's first k
+      entries, in pool order. This is a MINIMAL, mechanical change to
+      `non_stable_subspace_of_dim` (add an `exclude` parameter) and to the
+      C2 construction loop (replace the per-distinct-dimension single cache
+      with a per-dimension LIST grown on demand); it does not change the
+      search order, the certification test (non-pi-stability), or anything
+      else about C2.
+    - >-
+      C3 and C4 are OUT OF SCOPE. Do not compute them, do not write their
+      arms to any deliverable. Their constructions do not share C2's defect
+      (both draw independently per slot already) and both were independently
+      re-verified correct by NA-1; recomputing them here would exceed this
+      amendment's authorized scope.
+    - >-
+      Object arm for both curves MUST be recomputed (not copied) and MUST
+      exactly match RUN-FROB-91ee9c-51bc02's already-recorded values for
+      these curves (I(FROB-SPLIT-q11n5)=2055/451, coarsest ratio 206733/41,
+      argmin ratio 5533/5, argmin slot_dims [2,2];
+      I(FROB-EQDEG-q19n5)=6152/861, coarsest ratio 12097908/205, argmin
+      ratio 82593/10, argmin slot_dims [2,2] -- these are the same
+      CONSISTENCY_TARGETS already in RUN-FROB-91ee9c-51bc02's
+      implementation.py). A mismatch is an instrument invalidation (report
+      it as such per invalidation_rules IR-1..IR-9) -- do not silently
+      adjust either run's numbers to agree.
+    - >-
+      REPORT THE OLD AND NEW C2 RESULT SIDE BY SIDE for each cell's `[2,2]`
+      partition: U_neg, p_m, cost_ratio_neg (extra=0), and spread, both as
+      RUN-FROB-91ee9c-51bc02 recorded them (defective) and as this run
+      measures them (corrected) -- so the delta is directly readable without
+      cross-referencing a second run's files. Also report, per cell, whether
+      the corrected C2 spread IS or IS NOT strictly smaller than the object
+      arm's spread (the same success_criterion clause (6) comparison,
+      updated for C2 only).
+    - >-
+      All arithmetic exact (Python fractions.Fraction or equivalent); no
+      floating point in any reported ratio (IR-1).
+    - >-
+      FROB-NOLATTICE-q13n5 and FROB-EXT-q13n7 are out of scope, unchanged
+      from the prior amendment's exclusions.
+    - >-
+      Reuse the memory/worker caps unchanged (maximum_memory_gb: 8,
+      maximum_workers: 1). Advisory wall-clock/CPU estimates may be null.
+
+  deliverables:
+    - >-
+      experiments/EXP-FROB-91ee9c/runs/TASK-20260921-819bc0/manifest.yaml
+      (complete run.artifacts hash-binding dict -- bytes+sha256 for EVERY
+      declared artifact except the manifest itself, including
+      environment/code.commit/code.command top-level fields matching
+      validate_ledger.py's RUN_REQUIRED_TOP from the first attempt, not a
+      second schema-fix commit)
+    - >-
+      experiments/EXP-FROB-91ee9c/runs/TASK-20260921-819bc0/metrics.json
+      (measured/modelled/derived_from_measured, mutually exclusive per IR-6;
+      include the OLD (cited, from RUN-FROB-91ee9c-51bc02) and NEW (measured
+      here) C2 values per cell)
+    - experiments/EXP-FROB-91ee9c/runs/TASK-20260921-819bc0/cost-model.json
+    - experiments/EXP-FROB-91ee9c/runs/TASK-20260921-819bc0/certificates.json
+    - >-
+      experiments/EXP-FROB-91ee9c/runs/TASK-20260921-819bc0/report.md,
+      stating explicitly, for each of the two (cell, curve) pairs: the
+      object-arm consistency check result, the OLD (defective) C2 spread,
+      the NEW (corrected) C2 spread, whether the new C2 spread is strictly
+      smaller than the object arm's, and a plain-language note on whether
+      the fix changed the strictly-smaller verdict versus the old (defective)
+      result
+    - >-
+      implementation code (a corrected copy of RUN-FROB-91ee9c-51bc02's
+      implementation.py with `non_stable_subspace_of_dim` and the C2
+      construction loop fixed as specified above -- everything else,
+      including the object-arm and C1/C5-C8 logic, copied unchanged),
+      checker code (must not import the driver, per C8), stdout.log,
+      stderr.log, command.txt, environment.json, raw-result.json,
+      fixtures.json (or a pointer to the reused one)
+
+  artifact_paths:
+    - experiments/EXP-FROB-91ee9c/runs/TASK-20260921-819bc0/
+
+  archived_by: TASK-20260921-5e9726
+
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+
+  budget:
+    wall_clock_seconds: null
+    memory_gb: 8
+    maximum_runs: 1
+
+  completion_gate:
+    - manifest.yaml exists with a complete run.artifacts hash-binding dict
+      for every declared artifact except itself, including the
+      environment/code.commit/code.command top-level fields
+    - object arm for both curves reproduces RUN-FROB-91ee9c-51bc02's
+      recorded values exactly, or the mismatch is reported as an instrument
+      invalidation
+    - corrected C2 spread computed and reported for both (cell, curve)
+      pairs, side by side with the old (defective) value, with an explicit
+      strictly-smaller/not-strictly-smaller verdict per pair
+    - the two slots of the `[2,2]` partition are verifiably assigned
+      DISTINCT subspaces (different basis_indices / index tuples) in the
+      new run's C2_raw output, for both cells
+    - report.md and metrics.json present with measured/modelled/
+      derived_from_measured kept separate
+    - isolated snapshot archive commit made under TASK-20260921-5e9726 and
+      its post-commit receipt verified before this handoff is marked
+      complete
+
+  return_format: >-
+    Report: per (cell, curve) pair, the object-arm consistency result, the
+    old and new C2 U_neg/p_m/cost_ratio_neg/spread values, and the
+    strictly-smaller verdict for each; explicit confirmation that the two
+    `[2,2]` slots now use distinct subspaces; any instrument invalidation
+    encountered; and the exact paths and hashes of every artifact written.
+
+  review_plan: null

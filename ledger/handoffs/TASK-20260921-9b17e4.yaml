@@ -1,0 +1,157 @@
+handoff:
+  id: TASK-20260921-9b17e4
+  from: coordinator
+  to: executor
+  objective: >-
+    Under EXP-ECDLP-e36df2 v2 (protocol_amendment
+    experiments/EXP-ECDLP-e36df2/amendments/v1_to_v2_new_curve_extension.yaml),
+    select exactly ONE new, non-engineered curve via the identical seeded
+    procedure/criteria already frozen for this experiment under a NEW seed
+    (20260921), generate its 4 reduction primes, and run the extended trial
+    set (RUN-ECDLP-e36df2-029..032) through the existing v1 driver
+    unmodified, producing evidence for the NEW hypothesis H-ECDLP-c48f2a
+    only. This is EXPLORATORY, user-requested supplementary data
+    collection on an already-decided hypothesis -- it does NOT reopen,
+    and must not be treated as new evidence for, DEC-20260912-2a626b,
+    EV-ECDLP-5b61eb, or H-ECDLP-09125b's existing immutable content.
+  uncertainty_reduced: >-
+    Whether the "no systematic linearity" reading H-ECDLP-09125b found on
+    the original six curves (5 global + 1 engineered) extends to one
+    additional, independently and randomly selected curve -- a genuinely
+    new data point, explicitly scoped as insufficient on its own to revise
+    the closed program-level reading (H-ECDLP-c48f2a).
+  inputs:
+    - ledger/hypotheses/H-ECDLP-c48f2a.yaml
+    - ledger/hypotheses/H-ECDLP-09125b.yaml (READ-ONLY reference; do not modify)
+    - experiments/EXP-ECDLP-e36df2/specification.yaml (READ-ONLY, frozen v1; do not modify)
+    - experiments/EXP-ECDLP-e36df2/amendments/v1_to_v2_new_curve_extension.yaml
+    - "experiments/EXP-ECDLP-e36df2/driver/ (READ-ONLY reference: reuse orchestrate.py, instance_runner.py, sections.py, fastseries.py, poisson_stats.py, run_gate.py, pooled_summary.py, frozen_ref.py, stage0_regression.py, positive_control.py UNMODIFIED; positive_control.py's structure -- seeded curve fix + find_primes_for_curve -- is the template for the new curve-selection script, adapted for a genuinely searched rather than engineered curve)"
+    - "experiments/EXP-ECDLP-a26bde/driver/curves.py (READ-ONLY reference: `_candidate_curves`, `_find_primes_for_curve` seeded search procedure and criteria)"
+    - experiments/EXP-ECDLP-e36df2/frozen_positive_control_curve.json (READ-ONLY reference for the required per-curve artifact shape)
+    - experiments/EXP-ECDLP-e36df2/orchestrate_manifest_summary.json (READ-ONLY reference for the existing 28 run IDs; new runs continue from 029)
+  constraints:
+    - >-
+      Do not modify experiments/EXP-ECDLP-e36df2/specification.yaml (v1
+      stays byte-identical); the amendment file governs every v2 addition.
+    - >-
+      Do not modify, append to, or add any file under
+      experiments/EXP-ECDLP-e36df2/runs/RUN-ECDLP-e36df2-001 through -028,
+      or edit stage0_regression_transcript.json, frozen_positive_control_curve.json,
+      pooled-summary.json, or design_note.md -- all are frozen v1 artifacts
+      underlying EV-ECDLP-5b61eb / DEC-20260912-2a626b.
+    - >-
+      New curve selection: adapt the seeded search
+      (`_candidate_curves`/`_find_primes_for_curve`, imported read-only or
+      copied-with-attribution from frozen_ref.py / EXP-ECDLP-a26bde's
+      curves.py, exactly as positive_control.py did for the engineered
+      curve) with SEED=20260921 (new, distinct from 20260905 and
+      20260911), requesting exactly 1 new candidate curve, with an `avoid`
+      set containing the (A,B,x0,y0) keys of ALL SIX existing curves (the 5
+      original global curves plus the engineered positive control) so the
+      new candidate cannot coincide with any already-used curve even by
+      chance. Assign it curve_idx=6. This curve must NOT be engineered or
+      hand-picked for any coincidence; it is an ordinary output of the same
+      random-search family used for the original five curves, not a repeat
+      of the positive-control pattern.
+    - >-
+      Then call find_primes_for_curve(A, B, x0, y0, seed=20260921,
+      curve_idx=6, count=4) exactly as done for the positive control,
+      same criteria (p in [2**10,2**14), good ordinary reduction,
+      gcd(n,p)=1, #E(F_p) != p).
+    - >-
+      Freeze the selected curve and its 4 primes into
+      experiments/EXP-ECDLP-e36df2/frozen_new_curve_c6_seed20260921.json
+      (idx, A, B, x0, y0, seed, primes: [{p, order, trace, n}], engineered:
+      false) BEFORE spending any per-instance compute, mirroring
+      frozen_positive_control_curve.json's schema.
+    - >-
+      Run each of the 4 (curve,prime) instances through the EXISTING v1
+      driver code, entirely unmodified, at mu0_target=20, identical
+      procedure and statistic definitions as specification.yaml v1's Stage
+      2/3 (m=1 baseline computed once, outside the loop; cross-prime
+      +-1-degeneracy screen; N_i=ceil(20*p_i); s_x/s_y/s_rand sections;
+      on-curve verification with (40,60,75) margin escalation), producing
+      raw-result.json in the identical schema as the existing 24 main
+      instances (aggregate n_agree/n_total-after-exclusion, mu_0_i per
+      section, flagged-degenerate-m census, chi-square goodness-of-fit,
+      wall-clock/CPU time -- never a full per-m raw table).
+    - >-
+      Number these runs RUN-ECDLP-e36df2-029, -030, -031, -032, continuing
+      from the existing -001..-028, each with a schema-complete
+      manifest.yaml (command, commit, dirty-tree state, environment,
+      inference block), command.txt, environment.json, stdout.log,
+      stderr.log, raw-result.json -- the same required_artifacts shape as
+      the existing 28 runs.
+    - >-
+      Compute this new curve's OWN pooled rho_hat_x/rho_hat_y/rho_hat_rand
+      (pooled ONLY over its 4 instances) with 95% exact-Poisson CIs and
+      one-sided Poisson p-values, and its own cross-prime-screen flagged-m
+      census, into a NEW file
+      experiments/EXP-ECDLP-e36df2/pooled-summary-new-curve-c6.json. Do
+      NOT edit, append to, or re-derive totals into the existing
+      pooled-summary.json -- H-ECDLP-09125b's own closed statistic (24+4
+      instances) must not be touched, and this new curve's data must never
+      be pooled into it, per PA-ECDLP-e36df2-v1-to-v2's
+      confirmatory_status: exploratory_only.
+    - >-
+      Document the new curve's selection (seed, candidate search
+      trajectory, avoid-set check, primes found) and any protocol
+      deviations encountered in a NEW file
+      experiments/EXP-ECDLP-e36df2/design_note_v2_addendum.md. Do not edit
+      design_note.md itself (frozen v1 artifact).
+    - >-
+      If the new curve's own seeded candidate-curve search or its
+      prime-search is exhausted without finding a valid instance within a
+      generous budget, STOP and report as a design/infrastructure defect,
+      not a finding -- mirrors the original design's own stopping rule for
+      the positive-control curve (specification.yaml v1 stopping_rules).
+    - >-
+      Timeouts, crashes, and precision-margin exhaustion are infrastructure
+      per AGENTS.md rule 5 -- report as failed_infrastructure /
+      attempted_and_inconclusive, never as a negative finding.
+    - >-
+      This task may not modify H-ECDLP-09125b, EV-ECDLP-5b61eb, or
+      DEC-20260912-2a626b, and cannot change H-ECDLP-09125b's status; it
+      produces evidence only for H-ECDLP-c48f2a.
+  deliverables:
+    - experiments/EXP-ECDLP-e36df2/frozen_new_curve_c6_seed20260921.json
+    - "experiments/EXP-ECDLP-e36df2/runs/RUN-ECDLP-e36df2-029/{manifest.yaml,command.txt,environment.json,stdout.log,stderr.log,raw-result.json}"
+    - "experiments/EXP-ECDLP-e36df2/runs/RUN-ECDLP-e36df2-030/{manifest.yaml,command.txt,environment.json,stdout.log,stderr.log,raw-result.json}"
+    - "experiments/EXP-ECDLP-e36df2/runs/RUN-ECDLP-e36df2-031/{manifest.yaml,command.txt,environment.json,stdout.log,stderr.log,raw-result.json}"
+    - "experiments/EXP-ECDLP-e36df2/runs/RUN-ECDLP-e36df2-032/{manifest.yaml,command.txt,environment.json,stdout.log,stderr.log,raw-result.json}"
+    - experiments/EXP-ECDLP-e36df2/pooled-summary-new-curve-c6.json
+    - experiments/EXP-ECDLP-e36df2/design_note_v2_addendum.md
+  artifact_paths:
+    - experiments/EXP-ECDLP-e36df2/frozen_new_curve_c6_seed20260921.json
+    - experiments/EXP-ECDLP-e36df2/runs/RUN-ECDLP-e36df2-029
+    - experiments/EXP-ECDLP-e36df2/runs/RUN-ECDLP-e36df2-030
+    - experiments/EXP-ECDLP-e36df2/runs/RUN-ECDLP-e36df2-031
+    - experiments/EXP-ECDLP-e36df2/runs/RUN-ECDLP-e36df2-032
+    - experiments/EXP-ECDLP-e36df2/pooled-summary-new-curve-c6.json
+    - experiments/EXP-ECDLP-e36df2/design_note_v2_addendum.md
+  archived_by: null
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 4460
+    memory_gb: 6
+    maximum_runs: 4
+  completion_gate:
+    - "The new curve and its 4 primes are frozen and committed as frozen_new_curve_c6_seed20260921.json, with engineered: false and the avoid-set check documented, before any per-instance compute begins."
+    - "All 4 new runs (029-032) reach a terminal status (completed_valid, completed_invalid, attempted_and_inconclusive, or failed_infrastructure) with schema-complete manifest.yaml files (command, commit, dirty-tree state, environment, inference block)."
+    - "pooled-summary-new-curve-c6.json reports this new curve's own rho_hat_x/rho_hat_y/rho_hat_rand with 95% exact-Poisson CIs, one-sided Poisson p-values, and its own cross-prime-screen flagged-m census, pooled ONLY over its own 4 instances."
+    - "No file under experiments/EXP-ECDLP-e36df2/runs/RUN-ECDLP-e36df2-001 through -028, specification.yaml, pooled-summary.json, design_note.md, stage0_regression_transcript.json, or frozen_positive_control_curve.json shows any diff from its currently committed state."
+    - "design_note_v2_addendum.md documents the new curve's selection (seed, avoid-set, primes) and any deviations from the v1 procedure encountered while adapting it to a searched (not engineered) curve."
+  return_format: >-
+    A completion report citing every produced artifact path, the new
+    curve's parameters (A, B, x0, y0, seed, curve_idx), its 4 reduction
+    primes, and its own pooled rho_hat_x/rho_hat_y/rho_hat_rand with CIs
+    and p-values, plus any deviation from protocol encountered during
+    implementation. Explicitly state that this task's output is NOT
+    submitted as new evidence for H-ECDLP-09125b, EV-ECDLP-5b61eb, or
+    DEC-20260912-2a626b.
+  review_plan: null

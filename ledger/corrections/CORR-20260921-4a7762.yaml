@@ -1,0 +1,198 @@
+# Correction record. It repairs NOTHING in the ledger and changes no record.
+#
+# The schema defect it concerns was already fixed on main by CORR-20260921-0c1e2c,
+# and that fix stands. This record exists for one reason: that correction had to
+# leave the cause of the failed check as an open question -- "either the gate was
+# not exercised on the new file or standing debt masked it" -- and neither guess is
+# right. The actual cause is a two-part shell defect that made a validation gate
+# report a confident pass, and it is reusable by any agent in this program.
+correction:
+  id: CORR-20260921-4a7762
+  recorded_at: '2026-09-21'
+  recorded_by: coordinator
+  goal_id: GOAL-SEMBIN-5078bc
+  batch_id: BATCH-457504
+  round_id: REVIEW-SEMBIN-20260921-457504
+  produced_by: >-
+    The session that authored REVIEW-SEMBIN-20260921-457504 and made the false
+    claim, investigating the CI failure on PR #1349 after another session had
+    already repaired the record.
+  archived_by: >-
+    This session, in its own commit. BATCH-457504 is drained six of six and this
+    concerns a claim inside that batch's own ledger receipt, so routing it through a
+    new task on that batch would put the correction inside the structure it
+    corrects. Same route as CORR-20260921-942a62 and CORR-20260921-f5e9c4.
+  nature: a_validation_gate_reported_a_pass_while_the_validator_was_reporting_failure
+  supersedes_claim_in: >-
+    coordination/goals/GOAL-SEMBIN-5078bc/batches/BATCH-457504/archives/TASK-20260921-bd5f2e/ledger-receipt.json,
+    field `validation.validate_ledger`.
+
+  # ------------------------------------------------------------------
+  what_this_record_does_NOT_do:
+    - >-
+      IT DOES NOT RE-FIX THE SCHEMA DEFECT. CORR-20260921-0c1e2c added the missing
+      `verified_by` to both citations of DEC-20260921-2c62d7, rebound the archive,
+      and is merged. That fix is authoritative and this record changes none of it.
+      An earlier draft of this correction added the same fields independently with a
+      bare task id; those edits were DISCARDED in favour of the merged fix, whose
+      values are the more informative of the two.
+    - >-
+      It proposes no second repair of the same defect and mints no replacement
+      record. Two corrections for one schema omission would be worse than one.
+    - >-
+      It asserts nothing about the science. EXP-SEMBIN-c2c312 remains
+      `inconclusive`, EV-SEMBIN-c6e9ad neutral at claim_tier toy,
+      H-SEMBIN-112e2e unmoved at `specified`, and GOAL-SEMBIN-5078bc's completion
+      criterion 1 NOT MET on either branch.
+    - >-
+      It says nothing about Semaev's Assumption 1 or 2, any d_F4 or d_reg value,
+      GOAL-DREG-001, any curve, or the security of any deployed parameter set.
+
+  # ------------------------------------------------------------------
+  the_open_question_it_closes:
+    what_the_other_correction_could_only_guess: >-
+      CORR-20260921-0c1e2c records, accurately, that "the archiving session's
+      validate_ledger run reported no error naming this DEC -- either the gate was
+      not exercised on the new file or standing debt masked it". Both guesses are
+      reasonable and both are wrong. The gate WAS exercised, on a tree containing the
+      new file, and no standing debt masked anything.
+    the_false_claim_that_resulted: >-
+      BATCH-457504's ledger receipt records under `validation.validate_ledger`: "Run
+      with both new records in place. NO error names EV-SEMBIN-c6e9ad,
+      DEC-20260921-2c62d7, EXP-SEMBIN-c2c312, BATCH-457504, GOAL-SEMBIN-5078bc or
+      H-SEMBIN-112e2e." The validator was at that moment reporting two errors against
+      DEC-20260921-2c62d7. The claim was false when written, it is committed, and the
+      receipt is immutable.
+    the_command: 'python3 tools/validate_ledger.py 2>&1 > /tmp/val-after.txt'
+    two_independent_mistakes_in_one_line:
+      - id: M-1
+        what: THE REDIRECTION ORDER IS INVERTED.
+        detail: >-
+          `2>&1 > f` duplicates stderr onto whatever stdout is AT THAT MOMENT -- the
+          terminal -- and only afterwards points stdout at the file. So stderr went
+          to the terminal and the file never received it. validate_ledger.py writes
+          its errors to STDERR, verified directly: a subprocess capture shows 0
+          matches for the record id on stdout and 2 on stderr. The grep that
+          "confirmed" cleanliness therefore searched a file the errors had never
+          entered. The correct form is `> f 2>&1`.
+      - id: M-2
+        what: THE EXIT CODE WAS DISCARDED.
+        detail: >-
+          The command ran under `;` and its exit status was 1. The validator was
+          stating directly that it had failed and nothing read it. Either mistake
+          alone would have been caught by the other, which is why both are recorded
+          rather than only the interesting one.
+    why_the_output_looked_reassuring: >-
+      The follow-up check was `grep -c "^error" file`, which returned 0 and was read
+      as "no errors". It actually meant "no line of any kind matches that pattern" --
+      equally true of a file holding only the validator's stdout notes and of an
+      empty file. AN ABSENCE ASSERTION CANNOT DISTINGUISH A CLEAN RESULT FROM A
+      MIS-CAPTURED STREAM. Compounding it, the pattern did not match the validator's
+      actual error format, which is a two-space-dash prefix and not a leading
+      "error".
+
+  # ------------------------------------------------------------------
+  why_this_is_worth_a_record_at_all:
+    the_generalisable_part: >-
+      A check whose failure mode is a confident PASS is worse than no check, because
+      it also removes the doubt that would have prompted a second look. This one
+      produced a specific, quotable sentence naming six identifiers, and that
+      sentence went into an immutable receipt as evidence that a gate had been met.
+    how_widely_it_applies: >-
+      Every "I verified X" in this program's receipts rests on a shell invocation.
+      Any agent that captures a validator, a test run, or a render with
+      `cmd 2>&1 > file`, or that reads absence-of-grep-match as success, can produce
+      the same artifact: a false verification claim with no trace of how it was
+      reached. Nothing in the harness detects it.
+    what_did_work_and_is_worth_saying: >-
+      CI caught it within minutes. tools/ci_ledger_gate.py compares the validator's
+      error identities on head against base, so an inherited error is not a
+      regression and a NEW one cannot hide behind 94 standing ones. The defence in
+      depth held exactly as designed; the inner layer is the one that failed, and the
+      outer layer was never redundant.
+    the_verification_this_time: >-
+      The fix was checked by running the real gate rather than inferring: the
+      validator was captured with `> f 2>&1` on both this branch and a worktree at
+      origin/main, and `python3 tools/ci_ledger_gate.py` was run on the two reports.
+      It printed "PASS: both validators produced complete reports; no new errors vs
+      base" and exited 0. That is a POSITIVE assertion, which is the point of FG-1.
+
+  # ------------------------------------------------------------------
+  where_the_defect_actually_originated:
+    not_the_archive: >-
+      The ledger archive transcribed decision-draft.yaml byte-for-byte; the equal
+      hashes recorded in BATCH-457504's binding prove it. Faithful transcription of a
+      defective source is a CORRECT archive and a WRONG result, so the archive is
+      structurally the wrong place to catch this class of defect.
+    the_composition: >-
+      TASK-20260921-a9f304 filled `provenance` and a `note` on both citations and
+      omitted `verified_by`. CORR-20260921-0c1e2c records the same conclusion
+      independently. The check belongs upstream of the transcription, at the agent
+      that authors a ledger record.
+    an_uncomfortable_detail_worth_keeping: >-
+      Both citations' notes already said who read the source -- "Read directly from
+      the committed ledger record by this session" -- so the record contained the
+      information the schema wanted, in prose, in a field no tool reads. The omission
+      was not ignorance of the fact but failure to put it where it could be checked.
+
+  forward_guidance:
+    - id: FG-1
+      action: >-
+        Never capture a validator or test run with `cmd 2>&1 > file`. Use
+        `cmd > file 2>&1`, assert on the exit code, and prefer a POSITIVE assertion --
+        grep for an expected success marker, or run the gate that will run in CI --
+        over an absence assertion.
+      why: >-
+        This is the entire root cause and the fix is a one-character-class change. An
+        absence assertion cannot tell a clean run from a mis-captured stream.
+    - id: FG-2
+      action: >-
+        Have the agent that AUTHORS a ledger record run validate_ledger.py on its own
+        draft before an archive transcribes it, rather than relying on the archive to
+        catch a schema defect it is designed to copy faithfully.
+      why: >-
+        CORR-20260921-0c1e2c reaches the same conclusion from the other direction.
+        Two independent sessions locating the gap at the same place is the strongest
+        evidence available here that it is the right place to fix.
+    - id: FG-3
+      action: >-
+        When a receipt records a `validation` block, record the exact command and its
+        exit code, not a prose summary of the outcome.
+      why: >-
+        The receipt said what the session believed. Had it recorded
+        `validate_ledger.py; exit 1`, the contradiction with "no error names these
+        records" would have been visible on the face of the receipt to anyone,
+        including its author.
+
+  citations:
+    - ref: CORR-20260921-0c1e2c
+      provenance: internal
+      verified_by: >-
+        coordinator session authoring CORR-20260921-4a7762, which read
+        ledger/corrections/CORR-20260921-0c1e2c.yaml at origin/main directly
+      note: >-
+        the authoritative repair of the schema defect, merged at 21ba62e8e; this
+        record closes the open question it states and re-fixes nothing
+    - ref: >-
+        coordination/goals/GOAL-SEMBIN-5078bc/batches/BATCH-457504/archives/TASK-20260921-bd5f2e/ledger-receipt.json
+      provenance: internal
+      verified_by: >-
+        coordinator session authoring CORR-20260921-4a7762, which wrote this receipt
+        and re-read it at its committed path
+      note: >-
+        carries the false validation claim superseded here; immutable and left exactly
+        as committed
+    - ref: DEC-20260921-2c62d7
+      provenance: internal
+      verified_by: >-
+        coordinator session authoring CORR-20260921-4a7762, which read the record at
+        origin/main after the merged repair
+      note: >-
+        the record that carried the defect; now valid, and not modified by this
+        correction
+    - ref: tools/ci_ledger_gate.py
+      provenance: internal
+      verified_by: >-
+        coordinator session authoring CORR-20260921-4a7762, which read the source and
+        ran it against head and base reports
+      note: the gate that caught the defect and confirmed the repair
