@@ -14,13 +14,13 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 24 |
-| — of those with the artifact committed | 23 |
+| Frozen source packages (`SRC-*`) | 27 |
+| — of those with the artifact committed | 26 |
 | Per-URL retrieval attempts | 42 |
 | — succeeded | 28 |
 | — failed or blocked | 14 |
-| Source artifacts under `inputs/` | 47 |
-| — hash recomputed and matching | 43 |
+| Source artifacts under `inputs/` | 52 |
+| — hash recomputed and matching | 48 |
 | — hash MISMATCH | 0 |
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
@@ -43,9 +43,11 @@ decides whether a later session can re-read what was read here.
 |  |  |  |  | `inputs/SAFECURVES-20260825` | yes | package_contents |  |  |
 | SRC-BAILEY-2009-541-ECC2K130 | Breaking ECC2K-130 |  |  | `inputs/BAILEY-2009-541-ECC2K130` | yes | declared | https://eprint.iacr.org/2009/541.pdf | 825f19a11b489ee8 |
 | SRC-BENNETT-WEAKNESS-2023 | The Optimal Choice of Hypothesis Is the Weakest, Not the Shortest | Michael Timothy Bennett | 2023 | `inputs/BENNETT-WEAKNESS-2023` | yes | declared |  |  |
+| SRC-CERTICOM-CHALLENGE-2009 | The Certicom ECC Challenge (2009 revision of the November 1997 document) | Certicom Research | 2009 | `inputs/CERTICOM-CHALLENGE-2009` | yes | frozen_path |  |  |
 | SRC-DCP-SIMON-2026 | A Polynomial-Time Quantum Algorithm for the Dihedral Coset Problem [Preliminary Draft] | Daniel R. Simon | 2026 | `inputs/DCP-SIMON-2026` | yes | package_contents |  |  |
 | SRC-ECMASFP5-HACKMD-2025 | Elliptic Curves over Goldilocks (EcMasFp5 design note) |  | 2025 | `inputs/ECMASFP5-HACKMD-2025` | yes | frozen_path |  |  |
 | SRC-EULER-PETIT-2019-QSP | New Results on Quasi-Subfield Polynomials |  | 2020 | `inputs/EULER-PETIT-2019-QSP` | yes | frozen_path |  |  |
+| SRC-FIPS186-4-BINARY-CURVES | FIPS PUB 186-4, Digital Signature Standard -- Appendix D.1.3, Curves over Binary Fields (the B- and K- curves at degrees 163, 233, 283, 409, 571) | National Institute of Standards and Technology | 2013 | `inputs/FIPS186-4-BINARY-CURVES` | yes | frozen_path |  |  |
 | SRC-GORLA-MASSIERER-2014-1403 | Point compression for the trace zero subgroup over a small degree extension field |  | 2014 | `inputs/GORLA-MASSIERER-2014-1403` | yes | frozen_path |  |  |
 | SRC-HUANG-2020-JMC-QSP | Quasi-subfield Polynomials and the Elliptic Curve Discrete Logarithm Problem |  | 2020 | `inputs/HUANG-2020-JMC-QSP` | yes | frozen_path |  |  |
 | SRC-ICPERF-TRIMOSKA-ECICB-2024 | EC Index Calculus Benchmarks (instance generator and benchmark set for the point-decomposition problem from a Weil descent of the fourth summation polynomial) | Monika Trimoska |  | `inputs/TRIMOSKA-ECICB-2024` | yes | package_contents |  |  |
@@ -60,6 +62,7 @@ decides whether a later session can re-read what was read here.
 | SRC-P13-PANNY-POC | Proof-of-concept implementation of the Wesolowski 2026 p^{1/3+o(1)} attack on OneEnd | Lorenz Panny |  | `inputs/P13-PANNY-POC` | yes | frozen_path | https://yx7.cc/files/p-one-third.py | 4f43780404a7ab5d |
 | SRC-P13-WESOLOWSKI-2026 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | Benjamin Wesolowski | 2026 | `inputs/P13-WESOLOWSKI-2026` | yes | package_contents |  |  |
 | SRC-PORNIN-2022-274-ECGFP5 | EcGFp5: a Specialized Elliptic Curve |  | 2022 | `inputs/PORNIN-2022-274-ECGFP5` | yes | frozen_path |  |  |
+| SRC-RFC2409-OAKLEY-EC2N | The Internet Key Exchange (IKE), RFC 2409 -- sections 6.3 and 6.4, the Third and Fourth Oakley Groups (EC2N groups over GF[2^155] and GF[2^185]) | D. Harkins, D. Carrel | 1998 | `inputs/RFC2409-OAKLEY-EC2N` | yes | frozen_path |  |  |
 | SRC-SATIC-TRIMOSKA-2019 | A SAT-Based Approach for Index Calculus on Binary Elliptic Curves |  | 2019 | `inputs/SATIC-TRIMOSKA-2019` | yes | package_contents |  |  |
 | SRC-SEMAEV-2015-310 | New algorithm for the discrete logarithm problem on elliptic curves | Igor Semaev | 2015 | `inputs/SEMAEV-2015-310` | yes | declared |  |  |
 | SRC-SHA2-LI-39STEPS-2026 | Pushing Collision Attacks on SHA-2 to 39 Steps |  | 2026 | `inputs/SHA2-LI-39STEPS-2026` | yes | package_contents |  |  |
@@ -151,6 +154,8 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/BAILEY-2009-541-ECC2K130/talk-35minutes_text.md` | 19496 | match | a21e56eff611c58f |  |
 | `inputs/BAILEY-2009-541-ECC2K130/talk-ecc2010_text.md` | 29583 | match | 383ba966149035e5 |  |
 | `inputs/BENNETT-WEAKNESS-2023/arxiv-2301.12987v4.pdf` | 211063 | match | b664a4074578629b |  |
+| `inputs/CERTICOM-CHALLENGE-2009/challenge-2009.pdf` | 363054 | match | 3a0cff3f84e933e9 |  |
+| `inputs/CERTICOM-CHALLENGE-2009/challenge-2009_text.md` | 97216 | match | 6156e34251c14d71 |  |
 | `inputs/ECMASFP5-HACKMD-2025/ecmasfp5-goldilocks.html` | 53421 | match | 76181c593915d92c |  |
 | `inputs/ECMASFP5-HACKMD-2025/note_fulltext.md` | 11496 | match | d973bd2e683d9aa4 |  |
 | `inputs/ECTD-TESKE-20260731/sources/defeo-1711.04062.pdf` | 901036 | match | ca0e70abad06f732 |  |
@@ -164,6 +169,8 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/EULER-PETIT-2019-QSP/arxiv-1909.11326-abs.html` | 40822 | match | 6405189206f2c680 |  |
 | `inputs/EULER-PETIT-2019-QSP/arxiv-1909.11326v2.pdf` | 350817 | match | f080c3ab72a2a553 |  |
 | `inputs/EULER-PETIT-2019-QSP/paper_fulltext.md` | 67096 | match | 7f7c88574961189b |  |
+| `inputs/FIPS186-4-BINARY-CURVES/NIST.FIPS.186-4.pdf` | 941581 | match | 081dcccbcd8a1ffe |  |
+| `inputs/FIPS186-4-BINARY-CURVES/fips186-4_text.md` | 236200 | match | 8355c8072618bdbb |  |
 | `inputs/GORLA-MASSIERER-2014-1403/arxiv-1403.0126.pdf` | 334485 | match | a2304df39b4c59ab |  |
 | `inputs/GORLA-MASSIERER-2014-1403/paper_fulltext.md` | 74241 | match | 9aed23dacb161831 |  |
 | `inputs/HUANG-2020-JMC-QSP/bham-landing.html` | 53651 | match | b33cb5336d996c78 |  |
@@ -185,6 +192,7 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/PORNIN-2022-274-ECGFP5/eprint-2022-274-abs.html` | 13503 | match | d0dfd7e1cb3ef9ba |  |
 | `inputs/PORNIN-2022-274-ECGFP5/eprint-2022-274.pdf` | 400863 | match | 09ed2e5b9dae1b94 |  |
 | `inputs/PORNIN-2022-274-ECGFP5/paper_fulltext.md` | 49661 | match | 8afc2dc78e354190 |  |
+| `inputs/RFC2409-OAKLEY-EC2N/rfc2409.txt` | 94949 | match | 5b19aab3886800c3 |  |
 | `inputs/SEMAEV-2015-310/eprint-2015-310.pdf` | 271506 | match | d6636436e2e9254d |  |
 | `inputs/SEMAEV-2015-310/paper_fulltext.md` | 38979 | match | 3b3bea4c24c6265e |  |
 | `inputs/VOW-1996-PCS/paper_fulltext.md` | 91499 | match | 3be42e6d5001c4de |  |
