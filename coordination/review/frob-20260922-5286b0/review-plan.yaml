@@ -1,0 +1,415 @@
+# =============================================================================
+# REVIEW-FROB-20260922-5286b0 -- review plan for the EXP-FROB-30006a primary
+# cell, written BEFORE ANY REVIEWER RUNS and before the measurement exists.
+#
+# WRITTEN AT BATCH OPENING, AND THAT IS DELIBERATE. Its joints are the
+# CONTRACT's load-bearing steps, not the run's outputs: what the run will
+# measure is unknown, but what it must get right to have measured anything is
+# fully determined by the frozen specification and the amendment. This follows
+# BATCH-cbb416's practice on GOAL-SEMBIN-fcb7a2 and corrects this batch's
+# procedure_deviations PD-3, which claimed the plan could not be written yet --
+# it could not be OWNED yet, for want of reviewer identifiers, which is a
+# different thing and is now resolved.
+#
+# THE ONE ADVANTAGE OF WRITING IT THIS EARLY: the quantity the blind
+# re-derivation targets DOES NOT EXIST. It cannot be pre-leaked because nobody
+# knows it -- the failure CORR-20260916-292e53 records, where a document written
+# to protect a blind quantity leaked it.
+# =============================================================================
+review_plan:
+  id: REVIEW-FROB-20260922-5286b0
+  goal_id: GOAL-FROB-6333a9
+  batch_id: BATCH-5286b0
+  experiment_id: EXP-FROB-30006a
+  hypothesis_id: H-FROB-a5bf86
+  question_id: RQ-FROB-7d8dd4
+  opened_by_decision: DEC-20260922-e9d35a
+  written_at: '2026-09-22'
+  written_before_any_reviewer_ran: true
+  written_before_the_measurement_existed: true
+  written_before_the_measurement_existed_basis: >-
+    experiments/EXP-FROB-30006a/runs/ contains only .gitkeep at the time this
+    plan is committed, bound by that name in TASK-20260920-956d12's receipt at
+    commit 14ef07b83. Checkable with `git ls-tree`, not asserted in prose.
+
+  claim_under_review: >-
+    STATED AS THE PRODUCER WILL STATE IT, not as this Coordinator would restate
+    it: "For binary Koblitz y^2 + xy = x^3 + a x^2 + 1 over F_{2^41} at m = 2
+    with l = 20, the median WDSat conflict ratio against the null 2^{ml}/m! on
+    at least three independently certified-UNSAT point-decomposition instances
+    is r_s for a Frobenius-stable factor base V = ker f(sigma) and r_r for a
+    size-matched non-stable random V, reported per search mode, yielding the
+    verdict <basis_blind | pruning | null_loose | inconclusive> per mode under
+    the decision rule of experiments/EXP-FROB-30006a/specification.yaml as
+    amended by AMD-EXP-FROB-30006a-20260922-nullcontrol."
+  claim_under_review_note: >-
+    THE VERDICT IS LEFT AS A VARIABLE ON PURPOSE. Writing a specific bin here
+    would prejudge the run and would make every joint below read as an attack on
+    one outcome. The joints attack the MEASUREMENT, which is the same object
+    whichever bin fires.
+
+  # ---------------------------------------------------------------------------
+  # THE PRIOR. Recorded first, before any report returns.
+  # ---------------------------------------------------------------------------
+  coordinator_prior:
+    what_i_expect_the_RUN_to_find: >-
+      `basis_blind` on both search modes -- r_s and r_r both within 1% of 1 --
+      unchanged from DEC-20260920-cf8ded's preregistered prior and restated in
+      DEC-20260922-e9d35a ITEM-3. Second most likely: `null_loose` under
+      wdsat_xg_ext with `basis_blind` under wdsat_default, which is a MODE
+      DISAGREEMENT and therefore `inconclusive` under A-1, not a finding in
+      either direction. I consider `pruning` under the amended rule -- r_s <= 0.5
+      AND r_r > 0.5 on the same mode -- the least likely of the four, and the one
+      that would most change this program's direction.
+    what_i_expect_the_REVIEW_to_find: >-
+      That the measurement is sound and the binning correct, with ONE joint
+      carrying most of the risk: J2, the independent UNSAT certificates. At
+      n = 41, m = 2, l = 20 the null is 2^40 and the instances are large; an
+      independent certificate is the most expensive requirement in the contract
+      and therefore the most likely place for a shortcut -- a certificate
+      produced by the same solver, a certificate covering a reduced fixture that
+      is not the scored instance, or a row scored because its neighbours were
+      certified. I expect J1, J3 and J4 to hold, and J5 to be the joint most
+      likely to produce a surprise if the verdict is `pruning`.
+    where_i_think_it_breaks_if_it_breaks: >-
+      Not in the algebra. In the bookkeeping between `runs/<RUN-ID>/` and
+      RESULTS.json: a cell present in one and absent from the other, or an
+      `unsat_certificate_status` that does not match what is on disk. That is
+      why A-5's invariant -- a planned cell that was not run is recorded with its
+      reason and never silently absent -- is a named joint obligation rather than
+      a formatting preference.
+    a_prior_this_review_overturns_is_among_the_most_valuable_results_available: >-
+      Stated so it is not a formality. If J2 breaks, the conflict figures are not
+      evidence about anything and the campaign's primary cell must be re-run
+      before any bin is quoted. If J5 breaks on a `pruning` verdict, the pruning
+      is an artifact of the null and the amendment's `null_loose` bin was the
+      right control and fired late. Both outcomes are more informative than
+      concurrence and neither is recoverable if this prior is written afterwards.
+
+  # ---------------------------------------------------------------------------
+  # JOINTS. Each has exactly ONE owner.
+  # ---------------------------------------------------------------------------
+  joints:
+    - joint: >-
+        J1 -- THE OBJECT IS THE ONE THE CONTRACT NAMES. The "stable" arm's V is
+        genuinely ker f(sigma) for an irreducible degree-20 factor f of
+        (T^41 - 1)/(T - 1), of F_2-dimension exactly 20 and closed under sigma;
+        and the "random" arm's V is genuinely NOT Frobenius-stable and is
+        size-matched at dimension 20.
+      assigned_to: TASK-20260922-ba4a2f
+      attack_plan: >-
+        Do not read the producer's description of V; read the basis actually
+        recorded in each run manifest, in the representation that manifest
+        declares. (i) Recompute the factorisation of (T^41 - 1)/(T - 1) over F_2
+        and confirm f is irreducible of degree 20. (ii) Compute dim_F2 V from the
+        recorded basis and confirm it is 20 on both arms. (iii) Apply sigma to
+        every recorded basis vector and confirm sigma V = V on the stable arm and
+        sigma V != V on the random arm -- the contract says the random V is
+        rejected and resampled if the stability test passes, so a random arm that
+        IS stable means the resampling never ran. WHERE I THINK IT BREAKS: the
+        random arm. A "random subspace" drawn inside a Frobenius-stable ambient
+        object, or drawn once and reused across seeds, would be stable or
+        near-stable without anyone noticing, and it would drag r_r toward r_s and
+        make `basis_blind` the default outcome for a reason that has nothing to
+        do with the mathematics.
+      breaking_artifact: >-
+        A recorded basis whose span is Frobenius-stable on the arm labelled
+        random, or whose dimension is not 20, or an f that is reducible or not a
+        factor of (T^41 - 1)/(T - 1).
+    - joint: >-
+        J2 -- EVERY SCORED ROW CARRIES AN INDEPENDENT UNSAT CERTIFICATE, AND NO
+        ROW WAS SCORED WITHOUT ONE. Control C-CERT and an invalidation rule of
+        the frozen contract.
+      assigned_to: TASK-20260922-ba4a2f
+      attack_plan: >-
+        (i) For every cell in RESULTS.json contributing to any r_s, r_r or
+        verdict, open the corresponding runs/<RUN-ID>/ and confirm a certificate
+        artifact exists. (ii) Confirm the certificate was produced by something
+        that is NOT WDSat -- the contract names a Macaulay2/Singular unit-ideal
+        certificate on the descended system, or exhaustion on a declared reduced
+        fixture. A certificate emitted by the same solver whose conflicts are
+        being scored is not independent and does not satisfy C-CERT. (iii)
+        Re-verify at least one certificate end to end yourself. (iv) Confirm that
+        the fixture a certificate covers IS the scored instance and not a
+        reduction of it; if it is a reduced fixture, confirm the reduction is the
+        one the contract declares. (v) Check for the specific failure in my
+        prior: a row whose `unsat_certificate_status` is `certified` in
+        RESULTS.json with no certificate on disk. WHERE I THINK IT BREAKS: (ii)
+        and (iv). This is the most expensive requirement in the contract.
+      breaking_artifact: >-
+        One scored row without a verifying independent certificate, or a
+        certificate whose object is not the scored instance.
+    - joint: >-
+        J3 -- THE NULL IS COMPUTED CORRECTLY AND THE AMENDED RULE IS APPLIED AS
+        WRITTEN. 2^{ml}/m! per cell; both modes present; `pruning` only with
+        r_r > 0.5 in the same mode on the same replicates; `null_loose` named
+        rather than absorbed into `inconclusive`; a mode disagreement reported as
+        `inconclusive` with `resolved: false`.
+      assigned_to: TASK-20260922-e62294
+      attack_plan: >-
+        (i) Recompute 2^{ml}/m! from the (m, l) recorded for each cell and
+        compare with `null_value`; at the primary cell it is 2^40/2 =
+        549755813888 and at the decisive cell 2^42/6, which the contract says to
+        report as an exact rational -- check it was not silently floated. (ii)
+        Recompute r_s, r_r and r_s/r_r from the RAW conflict counts in
+        runs/<RUN-ID>/raw-result.json, not from the producer's summary. (iii)
+        Re-apply the amended rule yourself and compare the bin. (iv) Check the
+        SPECIFIC amendment obligations: is there a row where r_s <= 0.5 and
+        r_r <= 0.5 that was reported as anything other than `null_loose`? Is
+        there a mode disagreement that was resolved rather than reported? Was any
+        mode dropped, averaged, or preferred? (v) Check A-5's invariant: every
+        cell planned in trial-plan.json appears in RESULTS.json, and every absent
+        run carries a `not_run_reason`. WHERE I THINK IT BREAKS: (v), and then
+        (iv) -- a `null_loose` reported as `inconclusive` would be the amendment
+        failing silently, which is the outcome the amendment exists to make
+        visible.
+      breaking_artifact: >-
+        A recomputed ratio or bin that differs from RESULTS.json, a planned cell
+        missing without a reason, or a mode disagreement recorded as resolved.
+    - joint: >-
+        J4 -- THE INSTRUMENT IS SIZED AND LABELLED CORRECTLY. MAX_ID equals the
+        ANF-derived value on every run (C-SIZE, an invalidation rule); the search
+        mode recorded in config_used.json is the mode the cell claims (EX-7); two
+        builds, if two were used, are reported as two; and the C-REG regression
+        row is within 2x of the archived ICPERF/Trimoska reference.
+      assigned_to: TASK-20260922-ba4a2f
+      attack_plan: >-
+        (i) Derive MAX_ID from each ANF input in runs/<RUN-ID>/ independently and
+        compare with the value in config_used.json; a mismatch makes the run
+        INVALID under the contract and must be reported as invalid rather than
+        dropped. (ii) Confirm the recorded search mode matches the binary's
+        actual configuration and that the same instance was solved in both modes
+        -- identical ANF, identical target, differing only in mode. (iii) Confirm
+        the regression row cites a real archived reference and that the 2x bound
+        is met on the number, not asserted. WHERE I THINK IT BREAKS: (ii). The
+        amendment's whole content is a per-mode comparison, so a mode label that
+        does not match the binary would make both verdicts meaningless while
+        every other check passes.
+      breaking_artifact: >-
+        A run whose MAX_ID disagrees with its ANF, a pair of "same instance, two
+        modes" rows that are not the same instance, or a regression pass asserted
+        without a comparable number.
+    - joint: >-
+        J5 -- PROVES TOO MUCH. The pipeline must not deliver the claim's
+        conclusion on objects where that conclusion is known false. Required
+        control; see proves_too_much below.
+      assigned_to: TASK-20260922-e62294
+      attack_plan: See proves_too_much.failure_signature; it is stated there in full.
+      breaking_artifact: >-
+        A `pruning` verdict reachable on an arm with no Frobenius structure, or a
+        conflict reduction that survives destroying the algebraic structure it is
+        attributed to.
+    - joint: >-
+        J6 -- BLIND RE-DERIVATION of the load-bearing quantity. See
+        blind_rederivation below.
+      assigned_to: TASK-20260922-ba4a2f
+      attack_plan: See blind_rederivation; the whole point is that it is not told how.
+      breaking_artifact: >-
+        A re-derived median r_s that differs from RESULTS.json beyond the stated
+        tolerance, which localises the error to one of two named implementations.
+
+  joint_ownership_note: >-
+    SIX JOINTS, TWO OWNERS, NO JOINT UNOWNED AND NO JOINT SHARED. The split is by
+    ACCESS, not by seniority, and it is chosen to avoid the exact defect
+    BATCH-cbb416 had to repair mid-round by addendum: a reviewer that owned both
+    a joint requiring the producer's outputs AND a blind re-derivation whose
+    `blind_from` covered those outputs, so its own completion gate could not be
+    met honestly.
+
+    TASK-20260922-ba4a2f (validator) owns J1, J2, J4 and J6, and can discharge
+    all four from `runs/` plus the frozen contract and the amendment. IT NEVER
+    NEEDS `implementation/`, `RESULTS.json`, `trial-plan.json` OR THE PRODUCER'S
+    REPORT -- which is precisely the set J6 must be blind from. The independence
+    is therefore structural rather than promised.
+
+    TASK-20260922-e62294 (red team) owns J3 and J5, which are the interpretation
+    joints, and reads everything including `implementation/` and `RESULTS.json`.
+    It performs no re-derivation, so no `blind_from` binds it.
+
+  blindness:
+    mutual: true
+    lifted_for: []
+    rationale: >-
+      Not lifted. Neither reviewer may read the other's report within this round.
+      A later hardening round may legitimately lift it -- that would be an
+      addendum with its own rationale, never drift.
+
+  proves_too_much:
+    objects:
+      - >-
+        THE RANDOM-V ARM ITSELF, at the same n, m, l, mode and replicate count.
+        The claim's conclusion -- that Frobenius stability causes a conflict
+        reduction below the null -- is KNOWN FALSE for a factor base with no
+        Frobenius structure, by construction.
+      - >-
+        A VARIABLE-ORDER SCRAMBLE of the stable arm, if the instruments permit
+        it without a protocol change: the same instance with the solver's
+        branching order permuted, which preserves instance size and destroys any
+        structure-dependent search advantage. EV-FROB-b6e1e9 measured branching
+        order moving costs by 2.5x to 15x on a neighbouring family, so this is
+        not hypothetical. IF IT REQUIRES A PROTOCOL CHANGE, DO NOT RUN IT --
+        record it as not performed with the reason. An unauthorised extra arm is
+        worse than a missing control.
+    failure_signature: >-
+      A CORRECT ARGUMENT MUST SHOW r_r > 0.5 ON THE RANDOM ARM whenever it
+      reports `pruning`, and must NOT report `pruning` on any object in the list
+      above. If the pipeline yields `pruning` on the random arm, or if both arms
+      fall at or below 0.5 and the result is reported as anything other than
+      `null_loose`, then the conclusion is a property of the NULL 2^{ml}/m! and
+      of the search mode rather than of the factor base -- and the argument has
+      proved too much. Equally: if a conflict reduction on the stable arm
+      survives scrambling the branching order, it is not coming from the algebra.
+    assigned_to: TASK-20260922-e62294
+    why_this_control_exists_here: >-
+      Because the frozen decision rule could reach `pruning` without ever reading
+      r_r, and EV-FROB-b6e1e9 measured a factor base with NO Frobenius
+      specialness sitting 12x and 24x BELOW its own orbit-naive enumeration bound
+      under an XOR-native mode. 2^{ml}/m! is an enumeration-naive bound of
+      exactly that kind. A-2 added the r_r conjunct for this reason; J5 is the
+      check that the conjunct was not merely written down.
+
+  blind_rederivation:
+    required: true
+    quantity: >-
+      THE STATEMENT ONLY, and deliberately no method: the median, over the
+      independently certified-UNSAT replicates of the stable arm at the primary
+      cell in a single named search mode, of (WDSat conflicts on that replicate)
+      divided by (2^{m l} / m!). Report the median, the per-replicate values, and
+      the null you used.
+    parameters: >-
+      n = 41, m = 2, l = 20, arm = stable, mode = as named in the extracted input
+      file. The per-replicate raw conflict counts and the replicate identifiers
+      come from the extracted file named in `blind_from_exception` below and from
+      nowhere else.
+    blind_from:
+      - experiments/EXP-FROB-30006a/implementation/
+      - experiments/EXP-FROB-30006a/implementation.md
+      - experiments/EXP-FROB-30006a/RESULTS.json
+      - experiments/EXP-FROB-30006a/trial-plan.json
+      - the executor's return report for TASK-20260922-cd6f21
+      - coordination/goals/GOAL-FROB-6333a9/batches/BATCH-5286b0/reviews/TASK-20260922-e62294/
+    blind_from_exception:
+      path: coordination/review/frob-20260922-5286b0/blind-inputs.yaml
+      what_it_contains: >-
+        ONLY the declared parameters and the raw per-replicate conflict counts
+        with their replicate identifiers and search mode, transcribed from
+        runs/<RUN-ID>/raw-result.json. No ratio, no median, no null value, no
+        verdict, no bin, and nothing from RESULTS.json.
+      who_writes_it: >-
+        THE COORDINATOR, after TASK-20260922-98729f's snapshot verifies and
+        BEFORE TASK-20260922-ba4a2f is dispatched. This mirrors BATCH-cbb416,
+        where the Coordinator extracted the instance description the blind
+        re-deriver needed rather than pointing it at the producer's tree.
+      why_the_extraction_is_necessary: >-
+        Without it the re-deriver must open RESULTS.json to find which runs are
+        the certified replicates, and RESULTS.json carries the answer. The
+        extraction is what keeps agreement informative: it supplies the inputs
+        and withholds the output.
+      standing_obligation: >-
+        NO CARD, QUEUE NOTE, BUS MESSAGE, RECEIPT OR REPORT IN THIS BATCH MAY
+        QUOTE A MEASURED CONFLICT RATIO, MEDIAN OR VERDICT BEFORE THIS
+        RE-DERIVATION RETURNS. The Coordinator re-greps the tree -- including
+        whatever the dispatch itself writes -- before dispatching ba4a2f.
+        Omitting exactly that step is what caused CORR-20260916-292e53.
+    assigned_to: TASK-20260922-ba4a2f
+    agreement_tolerance: >-
+      Exact on the null. On the median ratio, agreement means identical to the
+      precision the raw counts support; conflict counts are integers, so any
+      disagreement is a real disagreement and is not rounded away.
+    what_disagreement_means: >-
+      NOT that the producer is wrong. It localises the error to one of two named
+      implementations -- the producer's aggregation or the re-deriver's -- and the
+      Coordinator resolves it by reading both, never by preferring the producer's.
+      This is the check that replication cannot perform: recomputing from the
+      producer's own implementation reproduces a wrong-but-self-consistent
+      implementation faithfully.
+
+  composition:
+    who: >-
+      THE COORDINATOR, in the compose card named in this batch's queue. Neither
+      reviewer votes on the claim: each owns a strict subset of the joints and
+      cannot see the others by construction, so a whole-claim verdict from either
+      is an opinion formed from a fraction of the evidence.
+    independence_check: >-
+      `python3 tools/check_review_independence.py --batch <dir>` before the round
+      is treated as complete: every joint owned, every assigned reviewer
+      attested, no undeclared sibling reads, and no re-deriver whose declared
+      sources intersect its `blind_from`.
+    what_each_outcome_means:
+      all_joints_hold: >-
+        The measurement stands at its declared scope: toy, n = 41, m = 2, one
+        curve family, one solver at one commit, two modes, three certified
+        replicates per arm. An evidence record may then be written AT THAT SCOPE.
+        It does NOT by itself move H-FROB-a5bf86; that is a separate committed
+        decision.
+      J2_breaks: >-
+        The conflict figures are not evidence about anything and no bin may be
+        quoted. The primary cell is re-run under a repaired certificate path.
+        This is an instrument failure, NOT negative mathematical evidence about
+        Frobenius-stable factor bases.
+      J1_or_J4_breaks: >-
+        The measured object is not the contracted object. Same consequence as
+        J2 and the same prohibition: an instrument defect is never a result.
+      J3_breaks: >-
+        The binning is wrong; the Coordinator re-bins from the raw counts and the
+        amended rule, and records a correction against RESULTS.json rather than
+        editing it.
+      J5_breaks_on_a_pruning_verdict: >-
+        The pruning is an artifact of the null. The verdict is restated as
+        `null_loose` or `inconclusive` and the finding becomes one about
+        HEUR-FROB-WDSAT-NULL, which is the contract's own declared
+        heuristic_under_test.
+      J6_disagrees: >-
+        Neither number is used until the disagreement is localised. See
+        what_disagreement_means.
+    rule_12_status: >-
+      NOT TRIGGERED AND PRE-DECLARED. If a `pruning` verdict were later promoted
+      as CONTRADICTING prior FROB negatives, AGENTS.md rule 12 requires
+      review-breakthrough at `max`, which is `degradable: false` and CANNOT BE
+      SERVED in this environment. The CLAIM would then stay un-promoted while the
+      campaign stays active. No cheaper tier is pre-authorised here for a result
+      nobody has seen, and substituting this round for that one would be the
+      exact silent downgrade the policy layer forbids.
+
+  procedure_deviations:
+    - id: PD-R1
+      severity: material
+      what: >-
+        THE PRIOR ABOVE IS CONTAMINATED, AND CONCURRENCE WITH IT IS NOT
+        INDEPENDENT CORROBORATION. The same Coordinator session that wrote this
+        plan also composed EV-FROB-b6e1e9, ruled on KN-FIND-47da4e's promotion
+        gate, and FOUND BOTH CONTRACT DEFECTS that
+        AMD-EXP-FROB-30006a-20260922-nullcontrol repairs. So the expectations in
+        `coordinator_prior` are downstream of that session's own reading of a
+        neighbouring measurement, and J5's proves-too-much control was designed
+        by the same agent that decided the confound was worth controlling for.
+      why_it_is_disclosed_rather_than_cured: >-
+        It cannot be cured from here. An uncontaminated prior would need a
+        Coordinator that had not read EV-FROB-b6e1e9, and the whole reason this
+        plan exists at batch opening is that reading. The honest move is the one
+        `coordination/goals/GOAL-ECDLP-001/batches/BATCH-b4b83a/review_plan.yaml`
+        records as PD-S3R1: say who wrote the prior, so a later reader discounts
+        concurrence by the right amount instead of by none.
+      what_it_costs_a_later_reader: >-
+        If both reviewers return `holds` on every joint, that is evidence the
+        MEASUREMENT is sound. It is NOT independent evidence that the amendment's
+        two defects were real or that the control was the right one -- the same
+        session raised the defects, designed the control and wrote the expectation
+        that the control would not fire. Read those three as one judgement, not
+        three.
+      what_it_does_not_contaminate: >-
+        The joints themselves, which are the frozen contract's load-bearing steps
+        and would be the same under any prior; the blind re-derivation, whose
+        independence is structural and enforced by `blind_from`; and the
+        reviewers, who are independent sessions that did not originate the claim.
+      revisit_condition: >-
+        If the run returns `pruning` -- the outcome this prior calls least likely
+        -- a red-team pass by an agent that has read neither this plan nor
+        EV-FROB-b6e1e9 is owed before any promotion, and that pass is where the
+        contamination gets tested rather than merely declared.
+  procedure_deviations_note: >-
+    One at writing, disclosed above. Further departures -- acting before a report
+    returns, reassigning a joint, dropping a control, lifting blindness -- are
+    recorded here or in an addendum, never quietly absorbed. An undocumented
+    deviation leaves a protocol that still reads as rigorous while no longer
+    being it.
