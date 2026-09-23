@@ -248,6 +248,20 @@ collisions were the first instance of it and are already fixed the same way.
   (`CORR-20260802-a1f151`). Enforce it in repository settings: **Settings →
   General → Pull Requests → allow merge commits only**, with squash and rebase
   merging disabled.
+- **Auto-merge a PR once its CI passes.** User instruction, 2026-09-23. A
+  session that opened or drives a PR merges it into `main` without asking for
+  further approval once all of these hold on the current head: every CI check
+  has concluded `success` (or `skipped`) and none is pending; there is no merge
+  conflict; and no red-circle or other blocking review thread is left open.
+  Where the repository runs the Claude Approvals check, it must also pass. Mark
+  a draft ready for review first. Prefer GitHub auto-merge
+  (`enable_pr_auto_merge`) so the merge fires when checks go green; otherwise
+  merge directly at the check-in that finds it green. **Use the merge-commit
+  method only, never squash or rebase** (rule above). Never merge a red,
+  pending, or conflicted head, and never skip or re-run a check to make it
+  green. A merge is a git operation, not a research-state transition:
+  Coordinator authority over approvals and statuses and the snapshot-archive
+  verification are unchanged.
 - **Archive receipts bind to CONTENT first.** `research_dispatch.py` verifies
   `path_sha256` and treats commit reachability as advisory: when a commit cannot
   be reached it verifies the declared hashes against the tree and reports the
