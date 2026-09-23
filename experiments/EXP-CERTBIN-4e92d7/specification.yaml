@@ -1,0 +1,821 @@
+# =============================================================================
+# EXP-CERTBIN-4e92d7 -- STAGE 1 of IDEA-20260923-5d0b8e. Regime-A trace
+# stability of the fixed-shape Macaulay elimination on the m = 2 direct S_3
+# Weil descent, n = 17, l = 9, D in {3, 4}.
+#
+# ID PROVENANCE (disclosed): minted by the Coordinator subagent without a shell
+# (random 6-hex token, checked free only by path glob). The top-level session
+# must run `python3 tools/allocate_id.py --check EXP-CERTBIN-4e92d7` (and for
+# RUN-CERTBIN-3b7e05) before the design snapshot archive TASK-20260923-91d4a8.
+#
+# CLAIM TIER: toy. This is a scoped measurement of trace stability of THIS
+# solver on THIS family. It is never an ECDLP cost claim. sota_delta is zero;
+# parallel Pollard rho dominates.
+# =============================================================================
+experiment:
+  id: EXP-CERTBIN-4e92d7
+  version: 1
+  hypothesis_id: H-CERTBIN-a73f1c
+  question_id: RQ-CERTBIN-836ce2
+  question_ids: [RQ-CERTBIN-836ce2, RQ-ICPERF-94c86e]
+  proposal_id: IDEA-20260923-5d0b8e
+  proposal_stage: 1
+  goal_ids: []
+  goal_ids_note: >-
+    No goal head is edited. See H-CERTBIN-a73f1c goal_ids_note. There is no
+    batch queue, so this contract has no queue card. See dispatch_note.
+  title: >-
+    Does one learned elimination trace of the per-attempt Macaulay matrix
+    replay unchanged across relation attempts? Regime A (Weil descent to F_2
+    with field equations): n = 17, m = 2, l = 9, D in {3, 4}. Stratified by
+    exact satisfiability, against same-support null families, with full and
+    pruned matrix sizes recorded.
+  status: approved
+  frozen: true
+  execution_authorized: true
+  assigned_to: executor
+  approved_by: coordinator
+  approved_at: '2026-09-23'
+  approval_decision: DEC-20260923-b85c30
+  approval_basis: >-
+    The standing user authorization of 2026-09-06 (AGENTS.md "Standing user
+    authorization for ideas and experiments") supplies authorization. The
+    Coordinator supplies the readiness finding in DEC-20260923-b85c30:
+    controls, metrics, seeds, budget, stopping and invalidation rules, success
+    and falsification criteria, artifact paths and the executor handoff
+    TASK-20260923-6f1ad4 are all present below. Approval asserts nothing about
+    whether H-CERTBIN-a73f1c is true.
+
+  objective: >-
+    Decide, at one cell, between E1 (generic F_2 coefficient degeneracy: the
+    learned trace is unstable under re-targeting) and E2 (structural stability
+    from the target-independent block of S_3). Check Proposition S as an
+    instrument. Measure the constant a trace could save over trace-free masked
+    elimination, and the matrix sizes a GPU would face. This is the cheapest
+    valid discriminator for the P-GPU premise. It is not a GPU experiment and
+    not a cost claim.
+
+  claim_tier_and_scope:
+    claim_tier: toy
+    statement: >-
+      Scoped measurement of the trace stability of the declared fixed-shape
+      Macaulay (XL-type) elimination, with the declared row order, column order
+      and pivot rule. The family is the m = 2 direct S_3 Weil descent over
+      F_2[t]/(t^17 + t^3 + 1), with V = {deg < 9} and D in {3, 4}, on one
+      random ordinary curve.
+    sota_delta: >-
+      Zero on every ECDLP cost axis. At best the downstream consequence is a
+      per-attempt constant bounded by the measured saving ratio.
+    dominated_by: >-
+      Parallel Pollard rho with the negation map (Frobenius on Koblitz curves),
+      at every Certicom binary size (about 2^{60.9} at ECC2K-130, from KN-LIT-096
+      via IDEA-20260922-37e02e) and trivially at n = 17. Trace-free per-attempt
+      engines (FES GPU exhaustive search KN-LIT-287; WDSat) are not compared,
+      so no per-attempt Pareto claim is made.
+    certificate_kind: none
+    certificate_note: >-
+      No discrete logarithm is solved and no relation is claimed as a result.
+      Satisfiability witnesses ARE independently re-verified (see controls
+      C-WIT), because arm membership is load-bearing, but they are instrument
+      checks, not claimed relations.
+    affected_vs_safe: >-
+      No deployed or standardised curve is touched or affected. n = 17 is a
+      measurement sibling of the prime-degree Certicom family and makes no
+      statement about any challenge.
+
+  # ---------------------------------------------------------------------------
+  # OBJECT DEFINITIONS (frozen; the executor implements exactly these)
+  # ---------------------------------------------------------------------------
+  object:
+    field: >-
+      F_{2^17} = F_2[t]/(f), f = t^17 + t^3 + 1. Element <-> 17-bit integer,
+      bit j = coefficient of t^j. The self-test must verify that f is
+      irreducible (e.g. gcd(t^{2^i} - t, f) = 1 for i = 1..8 and
+      t^{2^17} = t mod f). If it is not, STOP before any draw and report a
+      contract defect. Do not substitute a modulus.
+    target_bits: r = (r_0, ..., r_16), r_j = coefficient of t^j in x_R.
+    factor_base_subspace: >-
+      V = span_F2{1, t, ..., t^8} (l = 9), i.e. the elements of degree < 9.
+    unknowns: >-
+      x_1 = sum_{j<9} v_j t^j and x_2 = sum_{j<9} v_{9+j} t^j. Boolean variables
+      v_0..v_17 are ordered v_0 > v_1 > ... > v_17.
+    curve: >-
+      E_{A,B}: Y^2 + XY = X^3 + A X^2 + B over F_{2^17}. Draw (A, B) from seed
+      S_curve (B != 0). Count #E exactly by enumeration: 1 point at infinity,
+      1 point with x = 0, and 2 points for each x != 0 with
+      Tr(x + A + B/x^2) = 0. Accept the first (A, B) with #E = h*q, h in {2, 4},
+      q prime. Record A, B, #E, h, q and the number of draws rejected.
+    subgroup_points: >-
+      P = [h] * (a point lifted from a uniformly drawn x, seed S_pts), redrawn
+      until P != O. Q = [k_Q] P with k_Q uniform in [1, q-1] from S_pts. A curve
+      target is R = [a]P + [b]Q with a, b uniform in [0, q-1] from the family's
+      stream, redrawn if R = O.
+    summation_polynomial: >-
+      S_3(x_1, x_2, x_3) = (x_1x_2 + x_1x_3 + x_2x_3)^2 + x_1x_2x_3 + B
+      (KN-TECH-b18366); x_3 = x_R.
+    descended_system: >-
+      Expand S_3(x_1, x_2, x_R) over F_{2^17} in v_0..v_17 and multilinearize
+      (v^2 = v). Equation k (k = 0..16) is the coefficient of t^k: a Boolean
+      polynomial of degree <= 2 over the 1 + 18 + 153 = 172 multilinear
+      monomials of degree <= 2. Write E(r) for the 17 x 172 coefficient matrix.
+    affine_decomposition: >-
+      E(r) = E^0 + sum_j r_j E^j over F_2, with E^0 = E(x_R = 0) and
+      E^j = E(x_R = t^j) - E^0. This is exact, because x_R enters S_3 only as
+      x_R^2 and x_R, both F_2-linear in r. It is CHECKED for every instance
+      (control C-AFF).
+    macaulay_matrix: >-
+      M_D(E) for D in {3, 4}. ROWS: one row per pair (mu, k), where mu runs over
+      the multilinear monomials of degree <= D-2 in v_0..v_17 and k over 0..16.
+      Row index = (index of mu) * 17 + k. The mu are ordered by (deg mu
+      ascending, then the ascending sorted index tuple, lexicographically). The
+      row content is the multilinear reduction of mu * f_k. Zero rows are
+      RETAINED, so the shape is fixed. COLUMNS: every multilinear monomial of
+      degree <= D, in DESCENDING degrevlex order, constant monomial LAST. Here
+      a > b iff deg a > deg b; or deg a = deg b and, at the largest variable
+      index i where a and b differ, a does NOT contain v_i. The executor emits
+      both orders as artifacts.
+    fixture_dimensions: >-
+      BASELINE FIXTURE (from the idea's Stage 0 arithmetic): D = 3 gives
+      323 x 988, and D = 4 gives 2924 x 4048. A mismatch is a stop (INV-1).
+    elimination: >-
+      THE SOLVER. Deterministic forward elimination, column-major. For each
+      column c in order: among rows not yet used as pivot rows, pick the one
+      with the smallest ORIGINAL row index that has a 1 in column c of the
+      current matrix. If there is none, c is a non-pivot column. Otherwise
+      record step (p, c) and XOR row p into every other unused row with a 1 in
+      column c, recording that row set X. Rows never move; indices are
+      original. rank_D = number of steps.
+    zero_reduction_set: >-
+      Z_D = {i : row i of M_D lies in the span of rows 0..i-1}. It is computed
+      by a SEPARATE row-sequential pass (incremental echelon basis in original
+      row order). The leading-column set of that basis must equal the pivot
+      column set of the column pass, and |Z_D| = R_D - rank_D (control C-PASS).
+    traces:
+      T_rank: rank_D
+      T_set: (sorted pivot column set, sorted Z_D)
+      T_strict: the ordered list of (p_k, c_k)
+      T_ops: the ordered list of (p_k, c_k, sorted X_k)
+      encoding: >-
+        Each trace is canonical JSON (no whitespace, integer lists) hashed with
+        sha256. Traces are compared by hash, and on equal hashes also by
+        content for references.
+      nesting: T_ops equal => T_strict equal => T_set equal => T_rank equal. Any violation is INV-6.
+    constant_in_row_space: >-
+      "1 in R_D" iff the constant column (the last one) is a pivot column.
+      D*(instance) = the smallest D in {3, 4} with 1 in R_D. Otherwise the
+      instance is recorded as "not reached at D <= 4", which is a scope limit
+      and not a value.
+    fixed_schedule_replay: >-
+      For a reference with op log (p_k, c_k, X_k), the replay applies exactly
+      those XORs to a target's M_D, with no data-dependent choice. The replayed
+      pivot entry e_k is the entry (p_k, c_k) of the replayed matrix
+      immediately BEFORE step k's XORs. For the S_3, random-x and affine-null
+      families, e_k(r) = a_{k,0} + <a_k, r> is computed EXACTLY by replaying the
+      op log once on M_D(E^0) and on each M_D(E^j), j = 0..16. For the random
+      F_2 null (no r-structure), the replay runs directly per target and stops
+      at the first k with e_k = 0.
+    strata:
+      degenerate: >-
+        x_R in V (this includes x_R = 0). Reported as its own stratum and
+        EXCLUDED from every arm statistic and entropy. F-AFF instances inherit
+        the stratum of their paired x_R. F-NULLF2 has no x_R and therefore no
+        degenerate stratum.
+      sat: s >= 1 (algebraic satisfiability of the descended Boolean system)
+      unsat: s = 0
+      rational_flag: >-
+        Secondary. The number of Boolean solutions (x_1, x_2) whose x_i are both
+        x-coordinates of F_{2^17}-points, and for which some sign choice gives
+        +-P_1 +- P_2 = +-R by point arithmetic. Recorded; not a stratification
+        variable.
+
+  # ---------------------------------------------------------------------------
+  # FAMILIES, SEEDS AND COUNTS (fixed; never extended or trimmed on results)
+  # ---------------------------------------------------------------------------
+  seeds:
+    generator: numpy.random.Generator(numpy.random.PCG64(seed)), one generator per stream
+    S_curve: 20260923101
+    S_pts: 20260923102
+    S_ref: 20260923103
+    S_test: 20260923104
+    S_plant: 20260923105
+    S_randx_ref: 20260923106
+    S_randx_test: 20260923107
+    S_nullF2_ref: 20260923108
+    S_nullF2_test: 20260923109
+    S_nullAff_draw1: 20260923110
+    S_nullAff_draw2: 20260923111
+    S_nullAff_draw3: 20260923112
+    S_selftest: 20260923199
+    seed_rule: >-
+      Seeds are frozen here. No stream is re-seeded, skipped or reordered after
+      any output is seen. A stream's draws are consumed in order. Every
+      rejection (duplicate x_R, R = O, degenerate reference, curve rejection) is
+      counted and recorded.
+
+  families:
+    - id: F-S3
+      role: primary
+      instances: >-
+        Curve targets R = [a]P + [b]Q. References come from S_ref, and 1000 test
+        targets from S_test. Test targets are sampled WITHOUT replacement in
+        x_R and exclude every reference x_R.
+    - id: F-S3-REV
+      role: replicate (confounder "elimination order")
+      instances: >-
+        The F-S3 references and targets, identical bytes, with the row order
+        exactly reversed (row index i -> R_D - 1 - i). Everything else is
+        unchanged.
+    - id: F-PLANT
+      role: control (planted-solution arm, per IDEA-20260913-191ed2)
+      instances: >-
+        200 targets z = x(P_1 + P_2), with P_1, P_2 uniform from the exactly
+        enumerated factor base F_V = {P in E(F_{2^17}) : x(P) in V}, from
+        S_plant. Require P_1 != +-P_2, z not in V, z distinct, and z not an F-S3
+        target or reference. Scored against the F-S3 references.
+    - id: F-RANDX
+      role: control (random-x; the generic-group analogue)
+      instances: >-
+        x_R uniform in F_{2^17}, distinct, with the S_3 algebra unchanged. Own
+        references from S_randx_ref, and 1000 targets from S_randx_test. Also
+        scored against the F-S3 references (secondary).
+    - id: F-AFF-1, F-AFF-2, F-AFF-3
+      role: null (proves-too-much; same-support random AFFINE family)
+      instances: >-
+        For draw d: E'^0 is random on supp(E^0), and E'^j on supp(E^j),
+        entrywise iid Bernoulli(1/2) on the support positions (from
+        S_nullAff_draw{d}). This is drawn ONCE per draw. Instance(r) =
+        E'^0 + sum_j r_j E'^j. It uses the r bits of the F-S3 reference
+        sequence (the first 3 unsatisfiable and 2 satisfiable under THIS
+        family's oracle-B classification) and of the 1000 F-S3 test targets.
+        This gives paired target bytes.
+    - id: F-NULLF2
+      role: null (same-support random F_2; generic coefficients)
+      instances: >-
+        Each instance draws equation k's coefficients iid Bernoulli(1/2) on
+        U_k = supp(E^0_k) union (union over j of supp(E^j_k)), redrawn per
+        instance. Own references from S_nullF2_ref, and 1000 targets from
+        S_nullF2_test.
+  reference_rule: >-
+    Per family, scan its reference stream in order. Classify each non-
+    degenerate, non-duplicate instance by the family's oracle. Take the first
+    3 unsatisfiable and the first 2 satisfiable. Stop at 5, or after 500 draws
+    with a recorded shortfall; the family then runs with the references it has,
+    flagged. References are fixed before any test target is drawn.
+  modal_reference_rule: >-
+    Per family and D: the modal T_set is the most frequent T_set among test
+    targets 1..100 (draw order, non-degenerate). A tie goes to the T_set whose
+    first occurrence has the lowest index. The modal reference instance is the
+    lowest-index target among 1..100 with that T_set. Modal-reference scores
+    use targets 101..1000 ONLY.
+  design_time_sizing_note: >-
+    NOT a prediction and not under test; stated only to justify the counts. At
+    l = 9, n = 17 the expected number of ordered Boolean solutions per target is
+    about 2^{18} * 2^{-17} = 2, with solutions paired by symmetry. This
+    suggests roughly a third to a half of F-S3 targets unsatisfiable, i.e. an
+    unsatisfiable arm of O(10^2) to O(10^3). Retention thresholds of 0.01 and
+    0.5 are then separated by many binomial standard errors. Arm sizes are
+    measured, never assumed. See stopping rule SR-3.
+
+  # ---------------------------------------------------------------------------
+  # CONTROLS AND INSTRUMENT CHECKS
+  # ---------------------------------------------------------------------------
+  controls:
+    - id: C-FIX
+      what: Fixture dimensions 323 x 988 (D = 3) and 2924 x 4048 (D = 4), checked before any target.
+    - id: C-SELF
+      what: >-
+        Self-tests before phase 1, each with a fixed seed:
+        - modulus irreducibility;
+        - field axioms on 10^4 random triples;
+        - point counting cross-checked on 3 small curves by an independent naive
+          method;
+        - S_3(x(P_1), x(P_2), x(P_1 + P_2)) = 0 and S_3(x(P_1), x(P_2), x(P_1 - P_2)) = 0
+          for 10^3 random point pairs;
+        - the descended equations evaluated at 10^3 random (v, x_R) equal the
+          coordinates of S_3 evaluated directly in F_{2^17};
+        - the Macaulay row construction checked against a naive polynomial
+          multiply on 50 random rows;
+        - half-trace root finding checked on 10^4 random quadratics.
+    - id: C-ORACLE
+      what: >-
+        Two satisfiability oracles that never use the solver.
+        - Oracle A is O(2^l) root-finding: for each x_1 in V, solve
+          a X^2 + b X + c = 0 with a = x_1^2 + x_R^2, b = x_1 x_R and
+          c = x_1^2 x_R^2 + B. Handle all degenerate cases (a = 0 and/or b = 0).
+          For a, b != 0, the equation is solvable iff Tr(ac/b^2) = 0, with roots
+          from the half-trace (n odd). Count the roots lying in V.
+        - Oracle B is exhaustive evaluation of the 17 descended equations at all
+          2^18 assignments.
+        s(A) must equal s(B) on EVERY F-S3, F-S3 reference, F-PLANT and F-RANDX
+        instance (INV-3). Null families use oracle B only.
+    - id: C-WIT
+      what: >-
+        Every Boolean solution of every satisfiable instance is re-verified. For
+        curve-algebra families, S_3(x_1, x_2, x_R) is evaluated directly in
+        F_{2^17} by code independent of oracle A. For every family, all 17
+        Boolean equations are evaluated at the assignment. Every F-PLANT target
+        must have s >= 1.
+    - id: C-AFF
+      what: >-
+        For every F-S3, F-RANDX and F-AFF instance, E(r) computed directly equals
+        E^0 + sum_j r_j E^j (resp. E'^0 + sum_j r_j E'^j). Also, for 20 targets
+        per family and every reference, the direct fixed-schedule replay equals
+        the affine formula for every e_k.
+    - id: C-DET
+      what: >-
+        Determinism. All F-S3 targets and references at both D are re-eliminated
+        in a SEPARATE process invocation (phase 7). T_ops hashes must match
+        1000 of 1000 (plus the references).
+    - id: C-PASS
+      what: >-
+        The column-pass pivot set equals the row-pass leading-column set, and
+        |Z_D| = R_D - rank_D, on every instance.
+    - id: C-PROPS
+      what: >-
+        Proposition S checks, on every family and at both D.
+        - PS0: every row of M_D vanishes at every Boolean solution of the
+          instance, i.e. M_D times the monomial evaluation vector is 0.
+        - PS1: no satisfiable instance has 1 in R_D.
+        - PS2: for each unsatisfiable reference with 1 in R_D, no satisfiable
+          instance of its family (or F-PLANT, for F-S3 references) has an equal
+          T_set at that D. If no unsatisfiable reference has 1 in R_D, PS2 is
+          recorded as VACUOUS at that D.
+        - PS3: C_D - rank_D >= the rank of the s x C_D evaluation matrix of the
+          degree-<=D multilinear monomials at the s solutions.
+    - id: C-UNIF
+      what: >-
+        On F-RANDX, for each reference, the fraction of targets surviving the
+        whole fixed-schedule replay (all e_k = 1) is compared with the exact
+        2^{-K_rank}. It must lie within the two-sided 99.9% binomial interval.
+        This checks the sampler and the rank computation.
+    - id: C-REV
+      what: The F-S3-REV replicate (reversed row order).
+    - id: C-NULLS
+      what: >-
+        F-AFF-1..3, F-NULLF2 and F-RANDX run through the identical pipeline and
+        report every metric below.
+
+  # ---------------------------------------------------------------------------
+  # METRICS
+  # ---------------------------------------------------------------------------
+  independent_variables:
+    - family (F-S3, F-S3-REV, F-PLANT, F-RANDX, F-AFF-1..3, F-NULLF2)
+    - D in {3, 4}
+    - granularity in {T_rank, T_set, T_strict, T_ops}
+    - reference (3 unsatisfiable, 2 satisfiable, modal)
+    - arm (unsat, sat; degenerate reported separately)
+
+  metrics:
+    primary:
+      - id: M1
+        name: strict_retention_unsat
+        definition: >-
+          retention(g, ref, arm) = #{non-degenerate targets t in arm :
+          T_g(t) = T_g(ref)} / #arm, with a Clopper-Pearson 95% interval. M1 is
+          retention(T_strict, ref, unsat) at D = 4, for each unsatisfiable
+          reference and the modal reference. The family statistic is
+          retention_family = the max over those 4 references. The same is
+          reported at D = 3 and at every granularity.
+      - id: M2
+        name: replay_pivot_hazard
+        definition: >-
+          From the fixed-schedule replay. Survivors S_k = #{non-degenerate
+          targets, both arms pooled : e_j = 1 for all j < k}. h_k =
+          #{t in S_k : e_k = 0} / S_k, with a Wilson 95% interval. A pivot is
+          r-dependent (sampled) if e_k is nonconstant over the family's
+          non-degenerate targets. The P2 evaluation set is the union over the 5
+          F-S3 references at D = 4 of (reference, pivot) pairs that are
+          r-dependent (sampled) with S_k >= 200. Report the median h and the
+          fraction of the set with h in [0.4, 0.6], pooled and per reference.
+          An empty set is "not evaluable".
+      - id: M3
+        name: affine_null_ratio
+        definition: >-
+          At D = 4 and T_strict: the numerator is retention_family(F-S3); the
+          denominator is the mean over d = 1..3 of retention_family(F-AFF-d).
+          Per-draw ratios are also reported. RATIO RULE, fixed now:
+          - numerator count 0: the ratio is 0 and E2's >= 10x clause is NOT met;
+          - denominator counts all 0 and numerator count >= 1: report a lower
+            bound, numerator / (pooled Clopper-Pearson 95% upper bound);
+          - both 0: "not estimable", and E1's [0.5, 2] clause is recorded
+            "not evaluable";
+          - otherwise: the point estimate plus a bootstrap 95% interval
+            (10^4 resamples, seed S_selftest).
+      - id: M4
+        name: trace_entropy
+        definition: >-
+          The plug-in entropy H(T_g) in bits and the distinct-trace count over
+          the non-degenerate test targets (N is reported), per family, D and
+          granularity. The comparison values are h(P_sat) (the binary entropy of
+          the empirical sat fraction over the same set) and the fixed E1
+          threshold 8.97 bits.
+      - id: M5
+        name: instrument_checks
+        definition: >-
+          The pass/fail count for every control C-* above, with each violation
+          listed by instance.
+    secondary:
+      - >-
+        K (the count of r-dependent pivots, sampled), K / rank, K_exact (a_k != 0)
+        and K_rank (the F_2-rank of {a_k : a_k != 0}), per reference and D.
+        K_exact and K_rank exist for the affine-route families only; for
+        F-NULLF2, K is taken over the replay survivors and is marked as such.
+        Plus
+        the predicted fixed-schedule pivot retention 2^{-K_rank} beside the
+        measured one, on curve targets (F-S3) and uniform targets (F-RANDX).
+      - >-
+        The unconditional zero density of every nonconstant e_k over all
+        non-degenerate targets. Balance on curve targets is compared with
+        F-RANDX.
+      - >-
+        The strict own-elimination hazard: Pr[step k != reference step k |
+        steps < k equal], per reference.
+      - >-
+        f_div. Let k be the first index at which T_strict(t) and T_strict(ref)
+        differ; if one is a prefix of the other, k is the shorter length.
+        f_div = k / L_ref. An identical trace has f_div = 1 and match = true; a
+        proper extension has f_div = 1 and match = false. Record k, the
+        divergence column (the reference's c_k if k < L_ref, else the target's)
+        and that column's monomial degree. Report the distributions per arm; the
+        median f_div per arm; and the arm difference (Mann-Whitney U with its
+        p-value, descriptive).
+      - >-
+        Sat-arm retention against the satisfiable references. Cross-family
+        scores: F-PLANT and F-RANDX targets against the F-S3 references.
+      - >-
+        D* distribution per arm (HEUR-CERTBIN-TS4 read-out); the 1-in-R_D rate
+        per arm and D; rank_D distribution per arm.
+      - >-
+        Saving ratios per reference and D. The unit is one full-row XOR (C_D
+        bits).
+        - ops_masked_full = C_D * R_D.
+        - ops_strict = sum_k |X_k| over the reference op log.
+        - ops_set = |pivot cols| * (R_D - |Z_D|) = rank_D^2.
+        - saving_strict = ops_masked_full / ops_strict.
+        - saving_set = ops_masked_full / ops_set, which must equal
+          C_D R_D / rank_D^2 exactly (identity check).
+        - T_rank prunes nothing, so its saving ratio is 1 by definition.
+        Word-level counts (ceil(C_D/64) words per row) are reported beside
+        these.
+      - >-
+        Sizes per reference and D. Full: R_D x C_D, dense bytes R_D C_D / 8,
+        nnz, and CSR bytes 4 nnz + 4 (R_D + 1). Pruned: rows = R_D - |Z_D|;
+        cols = the columns with a nonzero entry in those rows of the ORIGINAL
+        M_D; nnz; dense and CSR bytes. Compared with 32 B per system and with
+        228 KB = 233,472 B per SM.
+      - >-
+        P_sat, the rational_flag rate, degenerate-stratum count, and the rejection
+        counts per stream.
+      - Wall time and peak RSS per family and D (reported; not a primary unit).
+    primary_unit: GF(2) full-row XOR operations
+
+  preregistered_prediction:
+    quantity: The predictions P1-P9 of H-CERTBIN-a73f1c, restated from IDEA-20260923-5d0b8e without change of threshold.
+    formula: >-
+      H1: strict retention is about 2^{-K}, with per-pivot hazard in [0.4, 0.6]
+      (HEUR-CERTBIN-TS1). E1: M1 <= 0.01, M3 in [0.5, 2], H(T_strict) >= 8.97.
+      E2: M1 >= 0.5 and M3 >= 10. P-GPU needs H(T_strict) <= h(P_sat) + 0.1.
+      Saving ratio <= 10, and < 1.5 closes.
+    source: >-
+      IDEA-20260923-5d0b8e (predictions, falsification_conditions,
+      heuristic_assumptions H1 and H4); Proposition S (proved in that record's
+      mechanism). Written before any run of this contract. Not informed by the
+      top-level session's exploratory scratch script, whose output this
+      Coordinator has not seen.
+  heuristic_under_test: HEUR-CERTBIN-TS1
+  scale_relevance:
+    tier: toy
+    justification: >-
+      n = 17 is the smallest planned regime-A cell. Nothing transfers beyond
+      n = 17 without HEUR-CERTBIN-TS3, which is untested here. Any statement
+      about n = 131 is extrapolation and is labelled as such.
+    correspondence: null
+  tail_checks:
+    - >-
+      Extreme hazards: the minimum and maximum h_k in the P2 set compared with
+      the binomial extremes expected for that many pivots at p = 0.5.
+    - >-
+      Independence: the measured fixed-schedule retention compared with (a) the
+      product of the per-pivot survivals and (b) 2^{-K_rank}.
+    - >-
+      The largest trace-class size per granularity compared with its expected
+      maximum under a uniform-over-distinct-traces null.
+
+  replication:
+    seeds: [20260923101, 20260923102, 20260923103, 20260923104, 20260923105, 20260923106, 20260923107, 20260923108, 20260923109, 20260923110, 20260923111, 20260923112, 20260923199]
+    independent_instances: 1000
+    plan: >-
+      Within-run replication: 5 references plus the modal per family, the
+      F-S3-REV row-order replicate, 3 independent affine-null draws, and the
+      C-DET separate-process re-run. A single curve is a declared limitation.
+      Cross-curve replication belongs to a later contract.
+
+  # ---------------------------------------------------------------------------
+  # DECISION RULES (fixed now; applied mechanically at the D = 4 cell of F-S3)
+  # ---------------------------------------------------------------------------
+  decision_rules:
+    - id: DR-1
+      rule: >-
+        STRICT P-GPU FALSIFIED at this cell iff M1 < 0.5 for all 3
+        unsatisfiable references and the modal reference. Otherwise it is not
+        falsified.
+    - id: DR-2
+      rule: >-
+        E1 FALSIFIED iff any one of the following holds:
+        - retention_family >= 0.5;
+        - the M2 median over the P2 set is < 0.2;
+        - M3 (or its lower bound) is >= 10.
+        E1 is CONSISTENT iff all of the following hold:
+        - retention_family <= 0.01;
+        - at least 90% of the P2 set has h in [0.4, 0.6];
+        - M3 is in [0.5, 2] or "not evaluable".
+        Anything else is "between".
+    - id: DR-3
+      rule: >-
+        E2 SUPPORTED iff retention_family >= 0.5 and M3 >= 10 and K <= 1 for
+        the maximizing reference. It is falsified iff retention_family < 0.5 or
+        M3 < 10.
+    - id: DR-4
+      rule: >-
+        H1 (HEUR-CERTBIN-TS1): FALSIFIED iff the M2 median < 0.2. SUPPORTED at
+        this cell iff >= 90% of the P2 set has h in [0.4, 0.6]. Otherwise
+        "not supported, not falsified". Not evaluable if the set is empty.
+    - id: DR-5
+      rule: >-
+        If 0.01 < retention_family < 0.5, the reading is "E2-leaning" if
+        M3 >= 10, "E1-leaning" if M3 <= 2, and otherwise "undetermined". This
+        is reported as it falls and is not a verdict.
+    - id: DR-6
+      rule: >-
+        Sizing: "one system per SM" SURVIVES at this cell iff the pruned D = 4
+        dense bytes <= 233,472 for the maximizing reference. "Thousands per
+        warp" FAILS iff the pruned D = 4 dense bytes > 32.
+    - id: DR-7
+      rule: >-
+        Trace idea closure: saving_strict < 1.5 closes strict replay, and
+        saving_set < 1.5 closes T_set-level replay, as not worth a GPU port at
+        this cell (per reference; the verdict uses the maximizing reference).
+    - id: DR-8
+      rule: >-
+        Every verdict names its granularity and D. Every verdict drawn at D = 3
+        or at T_set / T_rank / T_ops is secondary.
+
+  # ---------------------------------------------------------------------------
+  # BUDGET, STOPPING, INVALIDATION
+  # ---------------------------------------------------------------------------
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    watchdog_seconds: 86400
+    total_cpu_hours: null
+    maximum_memory_gb: 4
+    maximum_runs: 2
+    maximum_workers: 1
+    budget_note: >-
+      CERTBIN is a declared ECC area (orchestration/research-priority.yaml), so
+      research time is unbudgeted (CLAUDE.md rule 11). The watchdog and memory
+      cap are machine protection. On watchdog expiry, the run checkpoints and
+      resumes under the same run id; that is not a result. maximum_runs = 2
+      means one run plus one permitted re-run after an INFRASTRUCTURE failure,
+      and the failed attempt is retained. maximum_workers may rise to 3 only
+      after per-target outputs of the first 20 F-S3 targets are shown to be
+      byte-identical between serial and sharded execution. That demonstration
+      is recorded in the manifest.
+    dominant_cost: >-
+      The D = 4 eliminations (2924 x 4048 bit-packed) over about 8,200
+      instances, plus the row-pass for Z_D and the phase-7 re-run.
+
+  stopping_rules:
+    - id: SR-1
+      rule: >-
+        Sample counts are fixed. No early stopping on results. No extension of
+        any family after seeing any output.
+    - id: SR-2
+      rule: >-
+        Any C-SELF, C-FIX or modulus failure stops the run before phase 1 as an
+        implementation or contract defect. Do not tune until it passes silently
+        and in a new attempt; the failed attempt is retained.
+    - id: SR-3
+      rule: >-
+        An arm with fewer than 100 non-degenerate targets is reported with its
+        intervals and flagged UNDERPOWERED. It is not resampled.
+    - id: SR-4
+      rule: >-
+        A reference shortfall under reference_rule is recorded, and the family
+        runs with the references found.
+    - id: SR-5
+      rule: >-
+        Watchdog expiry, a crash or an out-of-memory event checkpoints the run
+        (one checkpoint per phase per family) and resumes with --resume. It is
+        never a result.
+
+  invalidation_rules:
+    - id: INV-1
+      rule: C-FIX mismatch. The run is void (stop).
+    - id: INV-2
+      rule: C-SELF failure. The run is void (stop).
+    - id: INV-3
+      rule: >-
+        C-ORACLE disagreement or a C-WIT failure on any instance voids every
+        metric that depends on arm membership, for every family.
+    - id: INV-4
+      rule: >-
+        Any PS0, PS1, PS2 or PS3 violation (C-PROPS) falsifies the INSTRUMENT.
+        The run is void and is NOT evidence about H-CERTBIN-a73f1c.
+    - id: INV-5
+      rule: >-
+        A C-AFF failure voids M2, K and K_rank for the affected family. If the
+        failure is in the shared affine code path, they are void for all
+        affine-route families.
+    - id: INV-6
+      rule: A nesting violation, a C-PASS failure or a C-DET mismatch voids the run.
+    - id: INV-7
+      rule: >-
+        A C-UNIF failure voids M2, K_rank and the independence tail check pending
+        explanation. It does not void M1, M3 or M4.
+    - id: INV-8
+      rule: >-
+        A void run is an implementation failure (AGENTS.md core rule 5). It says
+        nothing about S_3, the traces or P-GPU.
+
+  success_criterion: >-
+    The run is informative, and succeeds, iff all of the following hold:
+    - C-FIX, C-SELF, C-ORACLE, C-WIT, C-AFF, C-DET, C-PASS and C-PROPS pass
+      (C-UNIF passes or is explained per INV-7);
+    - every family reports every primary metric at both D, or names each
+      missing cell and why;
+    - DR-1 through DR-7 are each applied and return a verdict or "not
+      evaluable" with its reason.
+    Either direction on DR-1/DR-2/DR-3 is a success. "Strict P-GPU survives"
+    and "strict P-GPU is falsified" are both decision-changing outcomes.
+  falsification_criterion: >-
+    - H-CERTBIN-a73f1c C2 under E1 is falsified per DR-2.
+    - E2 is falsified per DR-3.
+    - HEUR-CERTBIN-TS1 is falsified per DR-4.
+    - The strict P-GPU premise is falsified at this cell per DR-1.
+    - The sizing premise is decided per DR-6.
+    NOT falsification: a void run (INV-1..INV-8); a watchdog expiry; an
+    underpowered arm; a vacuous PS2.
+
+  # ---------------------------------------------------------------------------
+  # PRIOR (recorded before any run; per agents/coordinator.md)
+  # ---------------------------------------------------------------------------
+  coordinator_prior: >-
+    Written before any run, and without having seen any output of the top-level
+    session's exploratory scratch script. This is a prior, not a prediction
+    under test. It changes no threshold above.
+
+    (a) T_strict. I expect E1-like instability. At D = 4, M1 <= 0.01 for every
+    reference, and H(T_strict) >= 8.97 bits. The pivot-row choice adds
+    degeneracy on top of the pivot-column set.
+
+    (b) The count K will overstate independence. Every replayed pivot entry is
+    exactly affine in r in F_2^17, so K_rank <= 17 whatever K is. I expect
+    K >> K_rank at D = 4. The retention a replay sees is then 2^{-K_rank} and
+    not 2^{-K}. H1's independence clause fails as stated, while its balance
+    clause can still hold.
+
+    (c) The hazard clause (DR-4) is the one I hold with LEAST confidence. The
+    P2 set is small: only the first one or two r-dependent pivots per reference
+    reach 200 survivors. A form whose linear part depends on earlier forms has
+    a conditional hazard of 0 or 1. So I expect medians near 0.5, but the
+    90%-in-band fraction could fail.
+
+    (d) Coarser granularities. I expect T_rank retention to be high within an
+    arm (>= 0.9) and T_set to fall between T_rank and T_strict. If so, the
+    P-GPU verdict is granularity-dependent: strict replay dies and masked T_set
+    replay may not.
+
+    (e) The constant column. The semi-regular Boolean Hilbert series
+    (1+z)^18/(1+z^2)^17 has coefficients 1, 18, 136, 510, 612, -2550, so the
+    semi-regular degree of regularity is 5. I therefore expect most
+    unsatisfiable instances NOT to reach 1 in R_4. PS2 may then be vacuous at
+    this cell, and D* mostly "not reached". S_3 systems are structured, so this
+    could fail in either direction.
+
+    (f) saving_set = C_D R_D / rank_D^2 exactly, which is >= 1.38 at D = 4 and
+    >= 3.06 at D = 3. At D = 4, saving_set >= 1.5 iff |Z_4| >= 115 (rank_4 <=
+    2809). The generic trivial row dependencies at D = 4 are the Koszul pairs
+    f_i f_j = f_j f_i (C(17,2) = 136) and the Boolean idempotency relations
+    f_k^2 = f_k (17). If all 153 are independent, rank_4 <= 2771 and
+    saving_set >= about 1.54. So I expect saving_set just above the 1.5
+    closure threshold at D = 4, too close to call with confidence. I expect
+    saving_strict between 2 and 10.
+
+    (g) M3: both families near zero, so the ratio is "not estimable" or in
+    [0.5, 2].
+
+    Most likely to be overturned: (d) and (e). If T_set is as unstable as
+    T_strict, masked replay also dies at this cell. If S_3's structure puts 1
+    in R_4 for the unsatisfiable arm, Proposition S bites at D = 4 and E3-style
+    localisation becomes testable in regime A sooner than the idea planned.
+
+  # ---------------------------------------------------------------------------
+  # EXECUTION
+  # ---------------------------------------------------------------------------
+  execution:
+    entry_point: experiments/EXP-CERTBIN-4e92d7/impl/driver.py
+    selftest: experiments/EXP-CERTBIN-4e92d7/impl/selftest.py
+    interpreter: python3 (numpy required; Sage optional, used only for recorded cross-checks if present)
+    trial_plan: experiments/EXP-CERTBIN-4e92d7/trial-plan-v1.json
+    trial_plan_rule: >-
+      The executor writes the trial plan before the first elimination. It
+      lists families, seeds, counts, phases and output paths, all derived from
+      this specification alone. Its sha256 is recorded in the manifest. It
+      contains no drawn value.
+    command: >-
+      python3 experiments/EXP-CERTBIN-4e92d7/impl/selftest.py --out
+      experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05/selftest.json &&
+      python3 experiments/EXP-CERTBIN-4e92d7/impl/driver.py --spec
+      experiments/EXP-CERTBIN-4e92d7/specification.yaml --plan
+      experiments/EXP-CERTBIN-4e92d7/trial-plan-v1.json --run-id RUN-CERTBIN-3b7e05
+      --out experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05 [--resume]
+    determinism_command: >-
+      python3 experiments/EXP-CERTBIN-4e92d7/impl/driver.py --spec
+      experiments/EXP-CERTBIN-4e92d7/specification.yaml --plan
+      experiments/EXP-CERTBIN-4e92d7/trial-plan-v1.json --run-id RUN-CERTBIN-3b7e05
+      --out experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05 --phase determinism
+      (a separate process, run after phases 1-6)
+    phases:
+      - 0 selftest and fixture (C-SELF, C-FIX)
+      - 1 curve, points, references and targets for every family, plus both oracles and witnesses (C-ORACLE, C-WIT)
+      - 2 F-S3 eliminations at D = 3, 4, the row pass, reference op logs, affine replays, and F-PLANT
+      - 3 F-RANDX
+      - 4 F-AFF-1..3
+      - 5 F-NULLF2
+      - 6 F-S3-REV
+      - 7 determinism re-run (separate process; C-DET)
+      - 8 aggregation, decision rules, run report
+    checkpointing: One checkpoint per (phase, family, D) under <run-dir>/checkpoint/; --resume continues from the last complete one.
+    output_bound: >-
+      Per-target records are gzipped JSONL, with trace HASHES only. Full T_ops
+      logs are kept for the F-S3 references alone (gzipped). The total run
+      package must stay below 50 MiB. No per-assignment or per-monomial stream
+      is written.
+    dispatch_note: >-
+      There is no batch queue for this lane, so tools/experiment_execution.py
+      (which needs a queue and a claim) is not the launch path. The executor
+      launches the command above directly under TASK-20260923-6f1ad4, after the
+      design snapshot archive TASK-20260923-91d4a8 verifies.
+
+  constraints:
+    - No deployed curve is an attack instance. No discrete logarithm is attempted.
+    - A timeout, crash or environment restart is execution status and never negative mathematical evidence.
+    - >-
+      The top-level session's exploratory scratch script (outside the
+      repository) is not a run of this contract. It must not be read,
+      imported, copied or used to choose any implementation parameter, and it
+      may not be cited by any run, review or evidence record for this
+      experiment.
+    - The implementation is written from this specification. src/macaulay_export.py's dynamic column set is not used.
+
+  artifact_paths:
+    - experiments/EXP-CERTBIN-4e92d7/specification.yaml
+    - experiments/EXP-CERTBIN-4e92d7/trial-plan-v1.json
+    - experiments/EXP-CERTBIN-4e92d7/impl/
+    - experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05/
+
+  required_artifacts:
+    - trial-plan-v1.json (written before the first elimination)
+    - selftest.json (C-SELF, C-FIX)
+    - curve.json (A, B, #E, h, q, P, k_Q, rejections)
+    - column-order-D3.json, column-order-D4.json, row-order-D3.json, row-order-D4.json
+    - references.json (per family; x_R or instance seed, arm, s, D*, full T_strict per D)
+    - F-S3-reference-oplogs-D{3,4}.jsonl.gz
+    - targets-<family>.jsonl.gz (per target and D; stratum, s, sat, rational_flag, rank, 1-in-R_D, four trace hashes, per-reference match flags, f_div, divergence step, column and degree, first replay-divergence index)
+    - pivot-hazards.json (per family, reference, D and pivot; a_k nonzero flag, S_k, zeros, h_k, Wilson CI, sampled r-dependence)
+    - cell-summary.json (M1-M4 and every secondary metric, per family and D)
+    - instrument-checks.json (M5; every C-* with pass/fail and any violating instances)
+    - decision-rules.json (DR-1..DR-8 applied, with inputs)
+    - sizing.json (full and pruned sizes; the saving-ratio identity check)
+    - manifest.yaml, raw-result.json, command.txt, environment.json, stdout.log, stderr.log
+    - >-
+      run-report.md: which of P1-P9 held, failed or were not evaluable; each
+      DR verdict with its granularity and D; and which parts (a)-(g) of the
+      coordinator_prior were overturned.
+
+  claim_tier_and_review:
+    review_required: true
+    default: >-
+      review-adversarial. The validator must run a blind re-derivation of the
+      load-bearing quantities on a 100-target F-S3 subsample, written from this
+      specification without reading impl/ or any run output: s by an
+      independent oracle, and T_strict / T_set at D = 4 with retention against
+      the 3 unsatisfiable references.
+    escalation: >-
+      None is expected. No outcome here bears on any deployed curve or moves
+      an exponent. If a run report characterises any result as a cost
+      improvement for ECDLP, that is itself a scope violation for review, not a
+      trigger.
+
+  dependencies: []
+  dependencies_note: >-
+    None. Stage 0's paper items are not prerequisites: the n = 17 sizing rows are
+    reproduced here as C-FIX, and Proposition S is checked here as C-PROPS.
+
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
