@@ -1,0 +1,974 @@
+# =============================================================================
+# AMD-EXP-GFPN-05ff43-20260923-paristack  --  DRAFT, NOT APPROVED
+#
+# An ADDITIVE engineering-repair addendum to EXP-GFPN-05ff43 protocol v2
+# (the frozen specification read with AMD-EXP-GFPN-05ff43-20260923-reanchor-arm-iii,
+# sha256 e02d4976a5e773b9eee95aa4c376d6154e9c0a9da4e6c6118ed58748054924d3,
+# approved with AC-1..AC-6 by DEC-20260923-e788a1) and to its addendum
+# AMD-EXP-GFPN-05ff43-20260923-rung31 (sha256
+# 2c5e052468e37111023dd116706149fb05d691e7188e26ae1e2c069bad792d0c, approved
+# with AA-1..AA-8 by DEC-20260923-8b2dbf). Written under the Coordinator ruling
+# act TASK-20260923-6b492f (DEC-20260923-c1fb69), AFTER the v2 gate failed and
+# BEFORE any repaired package exists.
+#
+# WHY. The v2 blocking gate failed at RUN-GFPN-3377f1 (F-1..F-3 fixture at
+# p' = 16777291): PARI ellcard over GF(16777291^3), called IN-PROCESS in the
+# uncapped driver, overflowed a PARI stack whose ceiling nothing in
+# implementation-v2/ configures (8003584 bytes). No D was computed. Under the
+# frozen v2 and v2-a1 wrappers no gate_required package can ever run again,
+# because both hard-require the v2 gate ids, one of which is a permanent
+# failure (v2_run_wrapper.py lines 115-123 and 141; a1_run_wrapper.py lines
+# 20-22 and 168-174).
+#
+# WHAT. Exactly one fix -- a PARI stack configuration for the in-process
+# cypari2 calls (primary branch P-A), or, only on a named infrastructure
+# trigger, the same calls moved into a capped gp child (fallback P-B) -- plus a
+# new wrapper/plan layer that runs the UNCHANGED v2 and v2-a1 drivers with that
+# fix and with the redirection needed to read new plans and new run ids. The
+# gate is re-run in full under new ids, with a byte-level regression of the
+# 4111 fixture against RUN-GFPN-ac4487. Nothing else changes.
+#
+# WHAT IT IS NOT: approved, evidence, a prediction, a hypothesis status move,
+# or a security statement about EcGFp5 or EcMasFp5. It changes no byte of the
+# frozen specification, either amendment, implementation/, implementation-v2/,
+# implementation-v2.md, trial-plan-v2.json, implementation-v2-a1/,
+# implementation-v2-a1.md or trial-plan-v2-a1.json.
+# Approval is a later, separate Coordinator decision (reserved:
+# DEC-20260923-80e280 under TASK-20260923-b2ab1b). That decision reads the
+# ARCHIVED bytes of this file (snapshot TASK-20260923-e830a0).
+# =============================================================================
+amendment:
+  id: AMD-EXP-GFPN-05ff43-20260923-paristack
+  experiment_id: EXP-GFPN-05ff43
+  hypothesis_id: H-GFPN-9a29be
+  heuristic_under_test: HEUR-GFPN-DFLAT
+  goal_id: GOAL-GFPN-380702
+  question_id: RQ-GFPN-c01af8
+  decision_id: DEC-20260923-c1fb69
+  decision_id_note: >-
+    The ruling that ORDERED this draft (ruling R-5). It does not approve it.
+  amends:
+    - id: AMD-EXP-GFPN-05ff43-20260923-reanchor-arm-iii
+      sha256: e02d4976a5e773b9eee95aa4c376d6154e9c0a9da4e6c6118ed58748054924d3
+      approval: DEC-20260923-e788a1
+    - id: AMD-EXP-GFPN-05ff43-20260923-rung31
+      sha256: 2c5e052468e37111023dd116706149fb05d691e7188e26ae1e2c069bad792d0c
+      approval: DEC-20260923-8b2dbf
+  recorded_at: '2026-09-23'
+  written_under_task: TASK-20260923-6b492f
+  archived_by: TASK-20260923-e830a0
+  kind: additive_protocol_amendment
+  kind_note: >-
+    An engineering repair to EXECUTION. It adds a layer, two plans, new run
+    ids and development checks. It removes, loosens or rewrites nothing in
+    protocol v2 or v2-a1. The only gate-level change (REG-1, change PS-4) is
+    STRICTER.
+  authored_by: coordinator
+  status: draft
+  approved_by: null
+  approval_decision: null
+  approval_note: >-
+    DRAFT. TASK-20260923-6b492f constraint RA3-2 forbids approving it in the
+    act that writes it. Until a committed Coordinator decision approves it, no
+    task may cite this record as authority, and no v2 or v2-a1 package can run
+    (the frozen wrappers refuse, DEC-20260923-c1fb69 R-1).
+  protocol_version_before: 2 (v2 packages) and 2-a1 (addendum packages)
+  protocol_version_after: 2-r1 (repaired v2 packages) and 2-a1-r1 (repaired addendum packages)
+  protocol_version_note: >-
+    "2-r1" names protocol v2 read with this addendum; "2-a1-r1" names v2-a1
+    read with it. Every scientific rule of v2 and v2-a1 applies unchanged. The
+    labels exist so that a repaired package can never be read as having run
+    under the frozen wrappers. v2_lift.make_certificate hard-codes
+    protocol_version 2 inside certificate bodies (implementation-v2-a1.md
+    X-7); that is not changed, and the manifest and plan carry the r1 label.
+
+  id_form_note: >-
+    The identifier is DERIVED from the experiment id, the date and a slug,
+    following the id_form_note of AMD-EXP-GFPN-05ff43-20260923-rung31.
+    tools/allocate_id.py has no amendment type and none was invented. The file
+    name is the path TASK-20260923-6b492f declares in its write_scope.
+
+  does_not_rewrite:
+    - experiments/EXP-GFPN-05ff43/specification.yaml
+    - experiments/EXP-GFPN-05ff43/amendments/v1_to_v2_reanchor_and_arm_iii.yaml
+    - experiments/EXP-GFPN-05ff43/amendments/v2_addendum_rung31.yaml
+    - experiments/EXP-GFPN-05ff43/implementation/ (v1, including ladder.json)
+    - experiments/EXP-GFPN-05ff43/implementation.md
+    - experiments/EXP-GFPN-05ff43/trial-plan.json
+    - experiments/EXP-GFPN-05ff43/implementation-v2/
+    - experiments/EXP-GFPN-05ff43/implementation-v2.md
+    - experiments/EXP-GFPN-05ff43/trial-plan-v2.json
+    - experiments/EXP-GFPN-05ff43/implementation-v2-a1/
+    - experiments/EXP-GFPN-05ff43/implementation-v2-a1.md
+    - experiments/EXP-GFPN-05ff43/trial-plan-v2-a1.json
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-ac4487/
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-3377f1/
+    - experiments/EXP-GFPN-05ff43/execution-report-v2.yaml
+    - ledger/decisions/DEC-20260923-e788a1.yaml
+    - ledger/decisions/DEC-20260923-8b2dbf.yaml
+    - ledger/handoffs/TASK-20260923-cd932c.yaml
+    - ledger/handoffs/TASK-20260923-6c7f55.yaml
+
+  pre_run_status: >-
+    Two v2 packages exist: RUN-GFPN-ac4487 (completed_valid, gate_pass true)
+    and RUN-GFPN-3377f1 (failed before any measurement), both archived by
+    phase B of TASK-20260923-0fa03f (commit f9188ae34). No v2 package at any
+    ladder cell exists, no D at p' = 16777291 exists for any arm, no v2-a1
+    package exists, and no m = 5 degree has been measured anywhere. The
+    v2-a1 run set (trial-plan-v2-a1.json) was fixed and hash-bound by phase A
+    of TASK-20260923-4ff597 before any v2 measurement. This addendum changes
+    no threshold, set, stream or cell, and chooses its fix on facts about the
+    failure, not on any measured value.
+
+  cites:
+    - DEC-20260923-c1fb69
+    - CORR-20260923-bb8fa5
+    - CORR-20260923-fb1be8
+    - DEC-20260923-e788a1
+    - DEC-20260923-034ba0
+    - DEC-20260923-8b2dbf
+    - AMD-EXP-GFPN-05ff43-20260923-reanchor-arm-iii
+    - AMD-EXP-GFPN-05ff43-20260923-rung31
+    - TASK-20260923-cd932c
+    - RUN-GFPN-ac4487
+    - RUN-GFPN-3377f1
+
+  # ---------------------------------------------------------------------------
+  # THE DEFECT
+  # ---------------------------------------------------------------------------
+  defect:
+    id: D-PS-1
+    statement: >-
+      implementation-v2/v2_common.py curve_order_pari (lines 249-261) computes
+      #E(F_q) by PARI ellcard through `cypari2.Pari()` (line 253) IN THE
+      DRIVER PROCESS. Nothing in implementation-v2/ configures PARI's stack
+      (no allocatemem, parisize or parisizemax; this act's search and the
+      Executor's grep, execution-report-v2.yaml lines 76-82). At GF(4111^3)
+      the call completes (RUN-GFPN-ac4487, order 69477519282,
+      execution-report-v2.yaml line 100). At GF(16777291^3) it raises
+      "PariError: ellcard: the PARI stack overflows (current size: 8003584;
+      maximum size: 8003584)" (RUN-GFPN-3377f1 stderr.log lines 1-20), before
+      any build, solve or capped child.
+    call_sites_found_by_this_act: >-
+      Three, all in v2_driver.py, all reaching v2_common.curve_order_pari:
+      - line 308, fixture_core, reached from cmd_fixture (line 279) at
+        p' = 4111 and p' = 16777291, n = 3 (gate packages 1 and 2);
+      - line 542, cmd_fixture4, n = 4 fixture field (post-gate F-4 package);
+      - line 771, cmd_controls, fixture_n3(4111) (line 764), n = 3 (gate
+        package 4).
+      No other use of PARI was found in implementation-v2/ (search for
+      `cypari2|pari|ellcard|gp `). v2-a1 uses PARI only through /usr/bin/gp in
+      a capped child (implementation-v2-a1/a1_pari.py lines 36-39, 87-96).
+      DV-1 re-establishes this inventory; it does not rely on this act's
+      search.
+    class: >-
+      implementation_error (CORR-20260923-bb8fa5): a resource-configuration
+      defect of the implementation, deterministic at GF(16777291^3). Never
+      evidence about D.
+    consequence_for_the_frozen_wrappers: >-
+      - v2_run_wrapper.py W-6 (lines 115-123) admits a gate_required package
+        only when every id in trial-plan-v2.json gate.blocking_packages
+        (lines 70-76) is completed_valid with gate_pass true. RUN-GFPN-3377f1
+        is permanently failed, and W-3 (lines 100-102) and line 141 forbid
+        re-running any gate package. No gate_required v2 package can run.
+      - a1_run_wrapper.py A-6 (lines 20-22, 168-174) requires the same four
+        v2 ids through a1_common.V2_GATE_PACKAGES (a1_common.py line 62). No
+        gate_required addendum package can run.
+      - Every v2 and v2-a1 path is frozen and archive-bound (phase A of
+        TASK-20260923-0fa03f; phase A of TASK-20260923-4ff597).
+      A new layer with new plans and ids is therefore the only additive route.
+
+  # ---------------------------------------------------------------------------
+  # v2 / v2-a1 -> r1 MAPPING (explicit, so that no criterion changes silently)
+  # ---------------------------------------------------------------------------
+  amends_fields:
+    - ref: v2_common.curve_order_pari execution environment (v2_common.py lines 249-261)
+      frozen: in-process cypari2 with an unconfigured PARI stack
+      amended: >-
+        P-A: same function, byte-identical, run in a process whose PARI stack
+        is configured to parisize 67108864 / parisizemax 536870912 before any
+        v2 code runs. P-B (only on the PS-1 trigger): the function is replaced
+        in-process by one that evaluates the same PARI expression in a capped
+        gp child.
+      direction: execution environment only; no arithmetic, threshold or rule changes
+    - ref: trial-plan-v2.json run ids (31) and gate.blocking_packages (lines 70-76)
+      frozen: RUN-GFPN-ac4487, RUN-GFPN-3377f1, RUN-GFPN-76420e, RUN-GFPN-b231c1 as the gate; 27 planned + 4 contingency ids
+      amended: >-
+        trial-plan-v2-r1.json, derived mechanically (PS-3): 31 new ids through
+        a recorded id_map; the gate is the images of the four gate packages;
+        every other field equal.
+      direction: identifiers only, plus REG-1 (stricter)
+    - ref: trial-plan-v2-a1.json run ids (11) and its gate on the four v2 ids (a1_run_wrapper.py lines 20-22, 168-174; a1_common.py line 62)
+      frozen: the addendum gate is the four v2 gate ids; 9 planned + 2 contingency ids
+      amended: >-
+        trial-plan-v2-a1-r1.json, derived mechanically: 11 new ids; the
+        addendum's v2-gate dependency RE-POINTED to the repaired gate (the
+        four r1 gate ids plus REG-1); aggregate_a1's v2 inputs mapped through
+        the v2 id_map; controls_a1's image stays the addendum's blocking
+        package.
+      direction: identifiers and gate pointer only
+    - ref: task ids written into manifests (v2_common.py line 46 TASK_ID = TASK-20260923-cd932c; a1_common.py line 56 TASK_ID_RUNS = TASK-20260923-6c7f55; DEC-20260923-8b2dbf AA-5 (a))
+      frozen: v2 manifests record TASK-20260923-cd932c; addendum manifests record TASK-20260923-6c7f55
+      amended: >-
+        Repaired v2 manifests record the stage-R2 run card (reserved
+        TASK-20260923-3aa31e); repaired addendum manifests record the
+        stage-R2b run card that Act 4 names (proposed TASK-20260923-292052).
+        Neither TASK-20260923-cd932c nor TASK-20260923-6c7f55 may appear as a
+        task id on any repaired artifact.
+      direction: identifiers only
+    - ref: v2-a1 aggregate input binding (a1_common.py line 47 RECEIPT_V2_PHASE_B; implementation-v2-a1.md X-9)
+      frozen: every v2 raw-result aggregate_a1 reads must be bound by the TASK-20260923-0fa03f post-run receipt
+      amended: >-
+        Every repaired v2 raw-result aggregate_a1 reads must be bound by the
+        phase-B receipt of the repair archive (reserved TASK-20260923-b53550).
+      direction: re-pointed to the archive that binds the repaired bytes; the rule is unchanged
+    - ref: DC-7 A-7 (v2 amendment lines 991-999) with DEC-20260923-8b2dbf AA-5 (e)
+      frozen: at most 48 run packages, shared by v2 and the addendum
+      amended: >-
+        UNCHANGED CEILING. Counted as run packages that exist or may exist: 2
+        existing + 31 repaired v2 + 11 repaired addendum = 44 of 48. The 40
+        retired unused ids can never produce a package and do not count
+        (PS-3).
+      direction: unchanged
+    - ref: DEC-20260923-e788a1 AC-5 and TASK-20260923-cd932c EC-3 (gate rule)
+      frozen: F-1..F-3 at both primes, the anchor identity and the frozen controls pass
+      amended: >-
+        UNCHANGED, plus REG-1: the repaired 4111 fixture must reproduce
+        RUN-GFPN-ac4487 on its deterministic content before the 16777291
+        fixture is admitted (PS-4).
+      direction: stricter
+    - ref: development checks (TASK-20260923-cd932c EC-2; addendum A1-7)
+      frozen: development checks allowed, with no parameter-coverage requirement
+      amended: >-
+        Every in-process PARI call is exercised under the fix at every
+        (p', field degree, curve) it will meet in the repaired plans (PS-6
+        DV-1, DV-2), with a negative control reproducing the failure (DV-3).
+      direction: stricter (process)
+
+  # ---------------------------------------------------------------------------
+  # THE CHANGE
+  # ---------------------------------------------------------------------------
+  change:
+
+    PS-1_the_fix:
+      primary_branch_P-A:
+        what: >-
+          In every process that the repair layer starts to run a v2 or v2-a1
+          driver command, the entry point configures cypari2's process-wide
+          PARI stack BEFORE it imports any v2 or v2-a1 module that can reach
+          PARI and before it dispatches the command:
+          - parisize    = 67108864 bytes (64 MiB);
+          - parisizemax = 536870912 bytes (512 MiB).
+          v2_common.curve_order_pari is NOT replaced under P-A. It runs
+          byte-identically; only the process state it inherits differs.
+        rule_for_the_values: >-
+          - parisizemax is at most HALF of the declared driver_rss_limit_bytes
+            1073741824 (trial-plan-v2.json line 85; DEC-20260923-e788a1 AC-1),
+            which leaves at least 512 MiB for the Python driver. The recorded
+            rusage maxrss (driver plus children) was 70750208 B in
+            RUN-GFPN-ac4487 and 74854400 B in RUN-GFPN-3377f1
+            (execution-report-v2.yaml lines 130 and 139).
+          - parisize is about 8x the ceiling that overflowed (8003584 B), so
+            ordinary calls need not grow the stack.
+          - The envelope criterion the Executor must demonstrate (DV-2, DV-4):
+            after every in-process call, the driver's VmHWM is at most
+            805306368 B (768 MiB, three quarters of the driver limit), and the
+            RSS reading the v2 code takes before a child launch is below
+            1073741824 B.
+          - No other value may be used without a new Coordinator decision.
+            v1's `pari.allocatemem(2 * 10**9)` (implementation/ladder_select.py
+            lines 23-25) shows the API on this pipeline, but its value exceeds
+            the 1 GiB driver limit and is NOT admissible here.
+        api: >-
+          The Executor chooses the cypari2 call that sets both values (for
+          example allocatemem(size, sizemax), or default('parisizemax', ...)
+          then default('parisize', ...)) and documents it in
+          implementation-v2-r1.md. The read-back below decides whether it
+          worked, not the choice of call.
+        read_back: >-
+          MANDATORY IN EVERY PACKAGE. After configuring and before dispatching
+          the command, the entry obtains a FRESH `cypari2.Pari()` handle,
+          exactly as v2_common.py line 253 does, and reads default(parisize)
+          and default(parisizemax). Unless both equal the configured values,
+          the entry exits before any command runs; the refusal is recorded
+          and is never a result. At exit, normal or by exception, it reads
+          them again, together with /proc/self/status VmHWM and VmRSS, and
+          writes pari-stack.json into the run directory. The wrapper copies it
+          into manifest resources.pari_stack.
+      fallback_branch_P-B:
+        trigger: >-
+          ONLY this infrastructure condition, established in stage R1: DV-2
+          under P-A fails at some (p', degree, curve) point that DV-1 lists,
+          with at least one of:
+          (i) a PARI stack overflow at parisizemax 536870912;
+          (ii) driver VmHWM above 805306368 B after the call;
+          (iii) the read-back through a fresh cypari2.Pari() handle does not
+               equal the configured values, i.e. the configuration does not
+               reach the handle the v2 code obtains;
+          AND the failure reproduces on one re-invocation in a fresh process.
+          The trigger evidence goes into implementation-v2-r1.md verbatim: for
+          each invocation, the command, exit status, the read-backs, VmHWM and
+          the last 50 lines of stderr. No ladder, cell or fixture system solve
+          bears on the trigger. A fault in the layer's own code is fixed
+          within stage R1 and does not trigger P-B.
+        what: >-
+          Inside each entry process, the module attribute
+          v2_common.curve_order_pari (called as C.curve_order_pari at
+          v2_driver.py lines 308, 542 and 771) is replaced by a function with
+          the same signature that computes #E(F_q) by running /usr/bin/gp in a
+          CAPPED CHILD through v2_solver.run_child:
+          - RLIMIT_AS 10737418240 set in the child and read back with getrlimit
+            before exec; a child that cannot set it refuses to start;
+          - one memory-heavy child at a time;
+          - `default(parisize, 256000000); default(parisizemax, 4000000000)`,
+            as implementation-v2-a1/a1_pari.py line 38;
+          - the same ffgen / ellinit / ellcard expression, modulus and
+            coefficient serialisation as v2_common.py lines 254-260;
+          - it returns the integer N parsed from gp's output and raises on any
+            child outcome other than ok.
+          This is the ONLY v2 function any part of the repair may replace, and
+          only under P-B. The child timeout is 7200 s (as a1_pari.py line 28),
+          declared in each r1 plan's `repair` block, NOT in `watchdogs`: it is
+          not a per-(arm, m) watchdog, a group-order child is not a solver
+          cell, and its expiry is a failed parameter computation, never
+          evidence. The child's getrlimit read-back is copied into manifest
+          resources.pari_stack.
+        envelope: >-
+          4000000000 B of gp stack is inside the 10737418240 B child cap
+          (AC-1). The driver's RSS is not affected.
+        prior_signal: >-
+          implementation-v2-a1.md lines 366-375: in stage 1b, /usr/bin/gp in a
+          capped child computed ellcard for the three curves over
+          GF(1073741831^5) with these stack defaults and matched the
+          ladder.json orders. That is a development note on this host, not a
+          run record. DV-2 is still required under P-B.
+        if_P-B_also_fails: >-
+          Stage R1 STOPS and returns the evidence. A new Coordinator decision
+          follows. Nothing runs.
+      finality: >-
+        The branch written into the plans at phase A of the repair archive
+        (P-A, or P-B with its trigger evidence) is final for this protocol
+        version. Changing it needs a new Coordinator decision.
+
+    PS-2_the_layer:
+      paths: >-
+        Stage R1 writes, and phase A of the repair archive binds:
+        - experiments/EXP-GFPN-05ff43/implementation-v2-r1/ (new directory;
+          its exact file list is fixed by the phase-A receipt);
+        - experiments/EXP-GFPN-05ff43/implementation-v2-r1.md;
+        - experiments/EXP-GFPN-05ff43/trial-plan-v2-r1.json;
+        - experiments/EXP-GFPN-05ff43/trial-plan-v2-a1-r1.json.
+        Stage R2 writes runs/<each id reserved in trial-plan-v2-r1.json>/ and
+        experiments/EXP-GFPN-05ff43/execution-report-v2-r1.yaml.
+        Stage R2b writes runs/<each id reserved in trial-plan-v2-a1-r1.json>/
+        and experiments/EXP-GFPN-05ff43/execution-report-v2-a1-r1.yaml.
+      roles_permitted: >-
+        The layer contains exactly these roles (module names are the
+        Executor's):
+        (a) ENTRY POINTS, one for v2 driver commands and one for v2-a1 driver
+            commands. Each applies PS-1, sets the redirections below
+            in-process only, and calls the unchanged driver's main() with the
+            package's driver_args from the r1 plan.
+        (b) the r1 RUN WRAPPER (PS-5);
+        (c) the r1 COMPLETION-GATE CHECKER (PS-5), including the REG-1
+            comparator (PS-4);
+        (d) the PLAN WRITER (PS-3);
+        (e) the DEVELOPMENT CHECKS (PS-6).
+      redirections_permitted: >-
+        Module-level constants, set in-process only, and only these:
+        - v2_common.PLAN_PATH -> trial-plan-v2-r1.json (v2_common.py line 32);
+        - v2_common.TASK_ID -> the stage-R2 run card (v2_common.py line 46);
+        - a1_common.PLAN_A1_PATH -> trial-plan-v2-a1-r1.json (a1_common.py line 40);
+        - a1_common.V2_PLAN_PATH -> trial-plan-v2-r1.json (line 41);
+        - a1_common.RECEIPT_V2_PHASE_B -> the repair archive's phase-B receipt (line 47);
+        - a1_common.V2_GATE_PACKAGES -> the four r1 gate ids (line 62);
+        - a1_common.TASK_ID_RUNS -> the stage-R2b run card (line 56);
+        - a1_common.PROTOCOL_VERSION -> "2-a1-r1" (line 30).
+        Any other redirection is permitted only if it names a plan, receipt,
+        task id, run-id list or protocol-version label that this addendum
+        re-points, and it is listed in implementation-v2-r1.md with its old
+        and new values and a reason. No function, class or computation is
+        replaced, except v2_common.curve_order_pari under P-B.
+      out_of_scope: >-
+        Everything else. In particular: arms, builders, interpolation,
+        solvers and msolve flags, lifting, certificates, verifiers, scoring,
+        reading rules (A1-3, A1-4, A1-5, AA-4), targets and streams,
+        watchdogs, envelope values, the Sage comparator and its inputs, any
+        new package kind, and any fix for anything the DV-1 inventory flags
+        other than in-process PARI. If stage R1 finds that the v2 or v2-a1
+        drivers cannot run from the r1 plans without editing a frozen byte or
+        replacing a further function, it STOPS and returns the reason. It
+        never edits.
+
+    PS-3_plans_ids_and_ceiling:
+      trial_plan_v2_r1: >-
+        Derived mechanically from trial-plan-v2.json (sha256
+        16f33e39b58277734f52b4b3c7353a9878ff6703a638a561541adb8f57e44e16,
+        bound by phase A of TASK-20260923-0fa03f):
+        - each of the 31 v2 packages (27 planned, 4 contingency) receives one
+          new id; the map old -> new is recorded as `id_map` (31 entries);
+        - every occurrence of an old v2 id anywhere in the plan (run_id,
+          requires, gate.blocking_packages, driver_args, cells_enumeration and
+          any other field) is replaced by its image;
+        - declared metadata keys are added or changed: protocol_version
+          "2-r1"; task_id (the stage-R2 card); written_by_task (the stage-R1
+          card); archived_by; a `repair` block (this addendum's id and
+          sha256, its approval decision, the PS-1 branch and values, and
+          pari_child_timeout_s under P-B only); `gate.regression` (REG-1);
+          id_map; v2_ids_never_reused (all 31 v2 ids); a1_ids_never_reused
+          (all 11 v2-a1 ids); retired_ids (PS-3 retirement); a ceiling note;
+        - EVERYTHING ELSE IS EQUAL: after applying the inverse id_map and
+          removing exactly the declared metadata keys, the plan equals
+          trial-plan-v2.json as canonical JSON. The plan writer asserts this
+          and DV-5 re-checks it. The `watchdogs` object is identical to
+          trial-plan-v2.json lines 95-177.
+      trial_plan_v2_a1_r1: >-
+        Derived the same way from trial-plan-v2-a1.json (sha256
+        2a788720bebc2a3848c1c1100aaa31f6c8a196030e668c3e3eb71d0cea255ac6,
+        bound by phase A of TASK-20260923-4ff597):
+        - 11 new ids through its own id_map;
+        - aggregate_a1's --v2-runs and --v2-aggregate arguments mapped through
+          the v2 id_map, and any --prior-run argument through its own map;
+        - the gate's v2 dependency re-pointed to the four r1 gate ids plus
+          REG-1; gate.addendum_blocking_package is the image of controls_a1;
+        - protocol_version "2-a1-r1"; task_id the stage-R2b card;
+          plan_branch "31-bit", unchanged and final (DEC-20260923-8b2dbf
+          AA-3 (e));
+        - everything else equal under the same canonical-JSON assertion, and
+          watchdogs identical to trial-plan-v2.json's.
+      id_minting: >-
+        42 new ids (31 + 11), each minted in stage R1 with `python3
+        tools/allocate_id.py --next run --area GFPN` and confirmed with
+        `--check` on the BARE id (implementation-v2-a1.md X-1 records a void
+        first pass that checked the whole allocator output). None may equal a
+        v1 id (the 49 of trial-plan-v2.json lines 19-68), a v2 id or a v2-a1
+        id.
+      retirement: >-
+        - Used v2 ids, kept as records and never re-run under any wrapper:
+          RUN-GFPN-ac4487, RUN-GFPN-3377f1.
+        - Unused v2 ids, retired and never reusable (29): RUN-GFPN-76420e,
+          RUN-GFPN-b231c1 (gate); RUN-GFPN-a07776, RUN-GFPN-1ad09b,
+          RUN-GFPN-0c7483, RUN-GFPN-4abae0, RUN-GFPN-9e4212, RUN-GFPN-bbbbe3,
+          RUN-GFPN-a521dd, RUN-GFPN-a07b6d, RUN-GFPN-dc1d4e, RUN-GFPN-b9207c,
+          RUN-GFPN-aa56bd, RUN-GFPN-e5b90d, RUN-GFPN-d2f759, RUN-GFPN-745cad,
+          RUN-GFPN-aeff00, RUN-GFPN-3db273, RUN-GFPN-3be8a4, RUN-GFPN-00e64b,
+          RUN-GFPN-c5294d, RUN-GFPN-36cad2, RUN-GFPN-11d2ad, RUN-GFPN-fc5d58,
+          RUN-GFPN-8f86cc (23 post-gate); RUN-GFPN-e26e4b, RUN-GFPN-9da048,
+          RUN-GFPN-59320d, RUN-GFPN-1596f6 (contingency).
+        - Unused v2-a1 ids, retired and never reusable (11): RUN-GFPN-0d91bf,
+          RUN-GFPN-8c772a, RUN-GFPN-569fd7, RUN-GFPN-086463, RUN-GFPN-bab146,
+          RUN-GFPN-7dd55d, RUN-GFPN-47aa51, RUN-GFPN-3a70f1, RUN-GFPN-ae4918,
+          RUN-GFPN-8cfac3, RUN-GFPN-6a7f35.
+        The r1 wrapper refuses all 42 (R-2). The frozen wrappers are never
+        invoked again for this experiment. Every retired id stays listed in
+        the r1 plans and is reported unused in every later accounting.
+      ceiling: >-
+        DC-7 A-7 with DEC-20260923-8b2dbf AA-5 (e): at most 48 run packages
+        across v2, v2-a1 and r1. Existing: 2. Reserved by the r1 plans: 31 +
+        11 = 42. Total 44; 4 unreserved. The r1 wrapper refuses when the run
+        directories that exist under any id of trial-plan-v2.json,
+        trial-plan-v2-a1.json, trial-plan-v2-r1.json or
+        trial-plan-v2-a1-r1.json, plus one, would exceed 48, or when a plan's
+        own count would exceed its package_count.
+
+    PS-4_repaired_gate_and_regression:
+      gate: >-
+        The repaired gate is the r1 images of the four v2 gate packages, in the
+        same order, with the same driver_args, content and requires chain:
+        - G1: F-1..F-3 fixture, n = m = 3, p' = 4111;
+        - G2: F-1..F-3 fixture, n = m = 3, p' = 16777291;
+        - G3: jv_anchor_system_trace_identity, p' = 16777291;
+        - G4: frozen controls.
+        RUN-GFPN-ac4487 is NOT a gate member. It stays a valid, archived pass
+        under the v2 code and the frozen wrapper, and it is REG-1's reference.
+      regression_REG-1: >-
+        G1 must reproduce RUN-GFPN-ac4487 on its deterministic content. The
+        fixture streams are keyed by fixed labels, not run ids
+        ('2026092001:v2:fixture:<p>:fresh' / ':planted',
+        '2026092002:v2:fixture:<p>:basepoint', the build and grid streams;
+        v2_driver.py lines 309 and 316; RUN-GFPN-ac4487 manifest lines
+        70-75), and group orders are unique, so an unchanged pipeline yields
+        the same bytes. Before comparing, the checker verifies every
+        RUN-GFPN-ac4487 file it reads against the TASK-20260923-0fa03f
+        post-run receipt path_sha256; a mismatch is fatal. Compared:
+        (a) every retained solver input under solver/ (*.ms): same file set,
+            byte-identical;
+        (b) from raw-result.json: the D table per target and arm; the
+            structure checks; F-2(a); the F-2(b) tables; F-3; the group order
+            (69477519282); the rescaling (beta, lam, b_is_square_in_Fq); every
+            fresh target's k and x_R; the planted targets;
+            replaced_fresh_targets; certificate and verified counts: equal;
+        (c) every certificate file: same file set, equal as JSON after
+            removing only the fields declared non-deterministic under (e);
+        (d) solver outputs (*.ms.out): byte-identical, unless (e) declares
+            with a reason that msolve output carries non-deterministic
+            content, in which case the parsed solution sets and D are
+            compared;
+        (e) the EXCLUSION LIST is declared in implementation-v2-r1.md in stage
+            R1, before any repaired run, by reading RUN-GFPN-ac4487's archived
+            bytes and the v2 code. Each entry carries its reason. Timestamps,
+            wall and cpu seconds, rusage, pids, absolute paths, host readings
+            and run-id, task-id and protocol-version labels may be excluded.
+            The list may NEVER exclude k, x_R, relation, beta, lam, u_values,
+            relation_mod_T, D, solutions, verified or lifted_points.
+        REG-1 is evaluated by the r1 wrapper before it admits G2. Its outcome
+        and the sha256 of the exclusion list are recorded in the manifest of
+        G2 and of every later package (manifest gate.regression_REG-1). The
+        execution report quotes the comparator output verbatim.
+      gate_pass_rule: >-
+        A gate_required r1 package, and every repaired addendum package, runs
+        only when G1-G4 each have run_status completed_valid with gate_pass
+        true (as the unchanged v2 driver records it) AND REG-1 passed.
+        Repaired addendum packages 2-11 additionally require the image of
+        controls_a1 completed_valid with gate_pass true.
+      failure_reading: >-
+        - A failure of G1-G4 ends stage R2 at the gate, with no post-gate and
+          no addendum package. It is classified per DEC-20260923-e788a1 AC-5,
+          unchanged: a mismatch confined to raw_u = 384 or S3_rescaled = 64 is
+          "implementation or derivation"; anything else is an infrastructure
+          or implementation signal.
+        - A REG-1 failure ends stage R2 at the gate before G2. It is read as
+          "the repair layer is not behaviour-neutral at 4111, or the pipeline
+          is non-deterministic", naming both, and never as a result.
+        - Neither is ever a mathematical result about the quotient. The
+          repair of a repair is a successor task under a new Coordinator
+          decision.
+        - No contingency id is ever used for a gate package (contingency_rule
+          unchanged).
+
+    PS-5_wrapper_manifest_checker:
+      refusals: >-
+        The r1 wrapper reads each package's command from the committed r1
+        plan, evaluates EVERY check below before creating any directory, and
+        refuses (exit 2, nothing written, every failing reason printed)
+        unless all hold. It has a --dry-run mode that evaluates the checks
+        only.
+        R-1  hashes: the v2 amendment (e02d4976...d3), the v2-a1 addendum
+             (2c5e0524...0c) and this addendum (the value Act 4's decision
+             binds) match.
+        R-2  the run id is reserved in the r1 plan the package belongs to,
+             and is none of: a v1 id, any of the 31 v2 ids, any of the 11
+             v2-a1 ids.
+        R-3  runs/<id> does not exist.
+        R-4  implementation-v2/, implementation-v2.md and trial-plan-v2.json
+             match the TASK-20260923-0fa03f phase-A receipt file by file, are
+             tracked and clean, with no unbound file.
+        R-5  implementation-v2-a1/, implementation-v2-a1.md and
+             trial-plan-v2-a1.json match the TASK-20260923-4ff597 phase-A
+             receipt file by file, are tracked and clean, with no unbound
+             file.
+        R-6  implementation-v2-r1/, implementation-v2-r1.md and both r1 plans
+             match the repair archive's phase-A receipt file by file, are
+             tracked and clean, with no unbound file.
+        R-7  the PS-4 gate_pass_rule, for every gate_required repaired v2
+             package and every repaired addendum package; REG-1 before G2.
+        R-8  every package this one `requires` has a manifest.
+        R-9  the plan's watchdogs object equals trial-plan-v2.json's exactly.
+        R-10 no other solver-like process is running (v2_solver.other_solver_processes).
+        R-11 the PS-3 ceiling.
+        R-12 contingency_rule verbatim (trial-plan-v2.json line 185), within
+             one r1 plan: --replaces names a planned, non-contingency,
+             non-blocking package of the same plan whose manifest records
+             failure_class infrastructure_error, not replaced before. Never a
+             gate package; never across plans.
+        R-13 the plan records its protocol_version label, this addendum's id
+             and sha256, and its run card; neither TASK-20260923-cd932c nor
+             TASK-20260923-6c7f55 appears in it as a task id.
+      launch_rule: >-
+        Each package is launched directly through the r1 wrapper, with no
+        outer guard (no shell `timeout`, no wrapper around the wrapper) that
+        is not declared in the plan (CORR-20260923-fb1be8 XD-2). A
+        machine-protection guard of the dispatching session is declared in
+        the task receipt before launch, with its threshold.
+      manifest: >-
+        Each r1 manifest records, as the v2 and v2-a1 manifests do, plus:
+        - task_id (the r1 run card), protocol_version ("2-r1" or "2-a1-r1"),
+          and the amendment blocks for v2, v2-a1 (addendum packages) and this
+          addendum, each with id, sha256 and approval decision;
+        - `derived_from`: the retired id whose place this package takes in
+          the plan;
+        - code.phase_a_commits, LITERALLY, each with its source (receipt
+          commit_sha if backfilled, else git log -1 of the receipt): the
+          TASK-20260923-0fa03f phase-A commit fb4597b2014b44a0c9528d48d3ab9997b46f038c,
+          the repair archive's phase-A commit and, for addendum packages, the
+          TASK-20260923-4ff597 phase-A commit
+          36c3b0d2e05878a8df1209b5048f8ce14515c27f (CORR-20260923-fb1be8
+          XD-1);
+        - clean flags for all three implementation trees;
+        - resources.pari_stack: the branch (P-A or P-B), the configured
+          values, the read-backs at start and at exit, driver VmHWM and VmRSS
+          at exit, and under P-B the gp child's getrlimit read-back;
+        - gate.regression_REG-1 (from G2 on);
+        - child RLIMIT_AS read back with getrlimit, threads executed, host
+          RAM and swap, watchdogs and their equality with trial-plan-v2.json's;
+        - dependency versions, with cypari2's version read through
+          importlib.metadata (the v2 wrapper recorded '', RUN-GFPN-3377f1
+          manifest line 59);
+        - the inference block (requested policy, resolved binding as the
+          session provides it, fallback_used). No model id is invented.
+      checker: >-
+        The r1 completion-gate checker:
+        - runs v2_check_run's checks unchanged on repaired v2 packages, and
+          a1_check_run's checks unchanged on repaired addendum packages, with
+          plan paths redirected in-process;
+        - adds: the r1 manifest fields above; a resources.pari_stack block
+          whose read-backs equal the configured values in every package whose
+          command reaches an in-process PARI call per DV-1 (P-A), or whose gp
+          child read back 10737418240 (P-B); no file of any r1 package
+          carries TASK-20260923-cd932c or TASK-20260923-6c7f55 as a task id;
+          gate.regression_REG-1 recorded from G2 on;
+        - is the REG-1 comparator (PS-4).
+
+    PS-6_development_checks:
+      rules: >-
+        Stage R1 only. Development checks create no run package, report no
+        number as a result, and are listed in implementation-v2-r1.md as
+        development notes, with outputs in the session scratchpad. Each runs
+        under AC-1 (10 GiB child cap read back with getrlimit, driver RSS at
+        most 1 GiB, one memory-heavy process at a time, msolve -t 1) on a
+        quiet machine. No ladder cell, build, fixture system or anchor system
+        is solved at any ladder or fixture prime. Group-order computations of
+        the fixture curves ARE required (DV-2); they are parameters, not
+        results.
+      DV-1_inventory: >-
+        A static and dynamic inventory of EVERY PARI use reachable from every
+        driver command that either r1 plan invokes (v2: fixture,
+        anchor-identity, controls, fixture4, build, cells, aggregate; v2-a1:
+        controls-a1, build, cells, aggregate-a1), in-process or in a child,
+        each with its file:line, its process (driver in-process or capped
+        child), and every (p', field degree, curve) at which the r1 plans
+        will reach it.
+        - Static: a search of implementation-v2/, implementation-v2-a1/ and
+          the layer, plus the call graph from each command.
+        - Dynamic: a trace of the toy integration (DV-7) recording every
+          PARI entry, used only in the development harness, never in a
+          delivered entry point.
+        The list is compared with this addendum's three call sites (defect
+        call_sites_found_by_this_act). Any addition is covered by DV-2. It
+        must be established that no in-process PARI call is reached at a
+        ladder prime (262151, 16777291 or 1073741831 at n = 5); if one is,
+        DV-2 covers it at that exact point.
+        Child-side PARI uses (a1_pari's gp; the Sage comparator run by the
+        anchor-identity command, if it uses PARI) are listed with the stack
+        configuration they run under, read from the code or from a
+        no-computation start-up probe in a capped child. A child-side use left
+        at a library default at its declared parameters is FLAGGED to the
+        Coordinator in the note. It is not fixed here (out of scope) and does
+        not by itself stop stage R1.
+      DV-2_coverage_under_the_fix: >-
+        For EVERY in-process PARI call of DV-1, at EVERY (p', degree, curve)
+        it will meet in the r1 plans -- at least:
+        - (4111, n = 3, the fixture_n3(4111) curve);
+        - (16777291, n = 3, the fixture_n3(16777291) curve);
+        - (4111, n = 4, the fixture_n4 curve);
+        in a FRESH process that runs the layer's own configuration code
+        exactly as an entry point does, call the UNCHANGED
+        v2_common.curve_order_pari (P-A), or its P-B replacement, on the
+        objects built by the unchanged v2_common.fixture_n3 / fixture_n4.
+        Record: N; whether [N]G = O for the basepoint stream the package uses
+        (v2_driver.py lines 309 and 543); the read-backs before and after;
+        VmHWM and VmRSS after; wall time. Repeat once in a second fresh
+        process.
+        PASS iff every call returns, [N]G = O, the read-backs equal the
+        configured values, VmHWM <= 805306368 B, both repetitions agree, and N
+        at (4111, n = 3) equals 69477519282 (RUN-GFPN-ac4487).
+      DV-3_negative_control: >-
+        In a fresh process WITHOUT the layer's configuration, call the
+        unchanged v2_common.curve_order_pari at (16777291, n = 3) on the
+        fixture curve. It must reproduce the RUN-GFPN-3377f1 overflow
+        ("ellcard: the PARI stack overflows", stderr.log line 20). Record the
+        sizes reported. If it does NOT reproduce, the defect is not confirmed
+        on this host: stage R1 STOPS and returns, because the fix's effect
+        could not be demonstrated.
+      DV-4_driver_envelope: >-
+        After each DV-2 call, read the driver RSS with the same function the
+        v2 code uses before a child launch (v2_solver), and confirm it is
+        below 1073741824 B, in addition to DV-2's VmHWM bound.
+      DV-5_plan_derivation: >-
+        Both r1 plans: the canonical-JSON equality of PS-3 after the inverse
+        id_map and removal of the declared metadata keys; watchdogs identical
+        to trial-plan-v2.json's; 31 and 11 ids; no old id anywhere except in
+        id_map, the never-reused lists and retired_ids; no forbidden task id;
+        the plan writer regenerates both files byte-identically.
+      DV-6_wrapper_refusals: >-
+        Dry-runs, each refused with its expected reason, exit 2 and nothing
+        written: R-1 (altered copies); R-2 with RUN-GFPN-ac4487,
+        RUN-GFPN-3377f1, one retired planned v2 id, one retired v2
+        contingency id, one v2-a1 id, one v1 id and an unreserved id; R-3;
+        R-4, R-5 and R-6 (receipt mismatch and dirty tree, simulated
+        in-process as implementation-v2-a1.md X-4 did); R-7 (gate not run,
+        gate failed, REG-1 failed on a synthetic pair, controls_a1 image not
+        passed); R-8; R-9; R-10 (simulated scan); R-11 (synthetic run
+        directories at the ceiling); R-12 (contingency on a gate package,
+        across plans, on a non-infrastructure class, twice); R-13; and an
+        entry point whose PARI read-back does not match.
+      DV-7_toy_integration: >-
+        The layer end to end on a toy ladder with plans, ladder and runs
+        redirected to scratch (precedents: v2 DN-8; implementation-v2-a1.md
+        section 9 (a)): every driver command the r1 plans invoke, through the
+        entry points and the r1 wrapper, or a recorded reason why a command
+        cannot be exercised at toy scale; the r1 checker on every toy
+        package; REG-1 on two toy runs of the same toy package (must pass)
+        and on a copy with one deterministic field perturbed (must fail).
+      DV-8_REG-1_exclusion_list: >-
+        The PS-4 (e) exclusion list, with reasons. The comparator is run on
+        RUN-GFPN-ac4487 against itself (must pass) and against a scratch copy
+        with one deterministic field perturbed in each of (a)-(d) (each must
+        fail).
+      DV-9_no_edit: >-
+        sha256 baselines taken before any write and re-taken after the last
+        check: implementation-v2/, implementation-v2.md, trial-plan-v2.json
+        (equal to the TASK-20260923-0fa03f phase-A receipt);
+        implementation-v2-a1/, implementation-v2-a1.md, trial-plan-v2-a1.json
+        (equal to the TASK-20260923-4ff597 phase-A receipt); implementation/
+        including ladder.json; the specification; all amendment files; both
+        existing run packages. All byte-identical. No byte code is written
+        under any frozen tree (-B and PYTHONDONTWRITEBYTECODE=1).
+      DV-10_ids: >-
+        The 42 ids, each checked as a bare id with `--check`, and none in the
+        v1, v2 or v2-a1 lists.
+
+    PS-7_acceptance_conditions:
+      AR-1_stage_R1: >-
+        Stage R1 is complete, and phase A of the repair archive may run, only
+        if:
+        - DV-1 to DV-10 pass, with DV-3 reproducing the overflow;
+        - P-A passes DV-2 at every point, OR the P-B trigger is met with its
+          recorded evidence and P-B passes DV-2 at every point;
+        - no frozen byte changed and no run package exists;
+        - the four PS-2 paths exist, and implementation-v2-r1.md records: the
+          branch; the values and the API; every read-back; the redirection
+          list with old and new values; the REG-1 exclusion list; the DV-1
+          inventory with any flags; every DV outcome; the id maps and the
+          retirement lists.
+      AR-2_gate: PS-4 gate_pass_rule, evaluated by the r1 wrapper.
+      AR-3_every_package: >-
+        The r1 checker passes on every package, or the package is recorded
+        with the checker's failure verbatim and is not read as evidence. A
+        certificate that fails re-verification makes its package invalid.
+      AR-4_completion: >-
+        The completion gates of TASK-20260923-cd932c (lines 329-339) and
+        TASK-20260923-6c7f55, read through the id maps and the r1 labels:
+        every planned cell ends in a terminal row; the controls are
+        discharged at every prime; F3 is reported undecidable; the norm
+        control carries order 3840; every accepted decomposition has a
+        verified certificate; at most 44 packages exist in the lineage; each
+        execution report classifies every package per agents/executor.md and
+        states no supported or refuted conclusion.
+
+    PS-8_sequencing:
+      replaces: DEC-20260923-8b2dbf AA-2 SQ-5 to SQ-9
+      text: >-
+        NORMATIVE. Archives run alone. RS-3, RS-5 and RS-7 never overlap each
+        other or any other solver-running process on the host (EC-10; AC-6).
+        Each producer runs under a claimed lane, released on return.
+        RS-0  DONE. SQ-5: stage 2 of TASK-20260923-cd932c ran and failed at
+              the gate (RUN-GFPN-3377f1). SQ-6: phase B of
+              TASK-20260923-0fa03f, commit f9188ae34.
+        RS-1  This draft, with DEC-20260923-c1fb69, is archived ALONE by
+              TASK-20260923-e830a0, verified and pushed. The dispatching
+              session then appends the queue revision DEC-20260923-c1fb69
+              authorizes, and runs tools/research_dispatch.py and
+              tools/validate_dispatch_reference.py on it.
+        RS-2  Act 4 (reserved TASK-20260923-b2ab1b) decides this draft on its
+              ARCHIVED bytes, binding the sha256 from TASK-20260923-e830a0's
+              receipt, as DEC-20260923-80e280. If approved, it writes the
+              stage-R1 card (reserved TASK-20260923-a681f9), the two-phase
+              repair archive (reserved TASK-20260923-b53550: phase A the
+              stage-R1 paths, phase B the stage-R2 run packages and
+              execution-report-v2-r1.yaml), the stage-R2 card (reserved
+              TASK-20260923-3aa31e), and, as proposed, the stage-R2b card
+              (spare TASK-20260923-292052) and its snapshot archive (spare
+              TASK-20260923-befe48). It opens the repair batch (proposed
+              BATCH-e409ca) with a validated queue that declares the successor
+              review chain, and cancels BATCH-6b1c29's review-chain
+              placeholders in the same revision. It checkpoints the goal and
+              is ledger-archived by reserved TASK-20260923-8d9ccb.
+        RS-3  Stage R1: implement the layer, write both r1 plans, run DV-1 to
+              DV-10. Zero run packages.
+        RS-4  Phase A of the repair archive binds the stage-R1 paths by
+              sha256. Verified and pushed. Both r1 plans, and so the whole
+              repaired run set, are fixed here, before any repaired
+              measurement.
+        RS-5  Stage R2: G1, then REG-1, then G2, G3, G4; only if the repaired
+              gate passes, the 23 post-gate repaired v2 packages in plan
+              order. execution-report-v2-r1.yaml on any outcome.
+        RS-6  Phase B of the repair archive binds the stage-R2 run packages
+              and the report. Verified and pushed.
+        RS-7  Stage R2b: the repaired addendum packages in plan order, reading
+              the repaired v2 packages from their phase-B bytes. Launched only
+              if the repaired gate passed; otherwise a Coordinator decision
+              records them not_attempted with the reason.
+              execution-report-v2-a1-r1.yaml on any outcome.
+        RS-8  The stage-R2b archive binds its run packages and report.
+        RS-9  The review plan is written FIRST, with its recorded prior,
+              covering execution-report-v2.yaml, execution-report-v2-r1.yaml,
+              execution-report-v2-a1-r1.yaml, implementation-v2-a1/ and
+              implementation-v2-r1/. It owns the joints of
+              DEC-20260923-e788a1, DEC-20260923-034ba0 and DEC-20260923-8b2dbf
+              AA-7, plus the repair joints:
+              RJ-1 the PS-1 branch, its values and every read-back;
+              RJ-2 REG-1 and its exclusion list;
+              RJ-3 plan derivation and the id maps;
+              RJ-4 the addendum re-pointing, including aggregate_a1 reading
+                   the repaired v2 bytes from the repair archive.
+              Independent validator and red-team review follow, then the
+              evidence review.
+      why_this_order: >-
+        - Both r1 plans are fixed and hash-bound before any repaired package
+          runs, so the repaired run set is chosen blind to repaired outcomes.
+        - The v2-a1 run set was already fixed before any v2 measurement
+          (DEC-20260923-034ba0 R-5); the a1-r1 plan changes only its ids and
+          gate pointer, so that property is kept.
+        - REG-1 runs before any spend at 16777291.
+        - aggregate_a1 needs the repaired v2 cell bytes archived before it
+          runs, so stage R2b follows phase B.
+
+    PS-9_failure_handling:
+      - DV-3 does not reproduce the overflow -> stage R1 STOPS and returns; new decision.
+      - P-A fails DV-2 on a non-trigger condition, or P-B also fails -> stage R1 STOPS and returns; new decision.
+      - The drivers cannot run from the r1 plans without a frozen-byte edit or a further function replacement -> stage R1 STOPS and returns.
+      - Any repaired gate failure or REG-1 failure -> stage R2 ends at the gate (PS-4 failure_reading); no post-gate or addendum package; new decision.
+      - Timeout, OOM, crash, positive_dimensional or degenerate_parametrisation outcomes -> recorded with their class and envelope tuple, never evidence about D (EC-7; AGENTS.md core rule 5).
+      - Reaching the 48 ceiling, or a watchdog or budget checkpoint -> an impediment for a new decision, never a result.
+
+  # ---------------------------------------------------------------------------
+  unchanged:
+    - >-
+      Everything in protocol v2 and v2-a1 not named in amends_fields: the
+      frozen specification; AMD-EXP-GFPN-05ff43-20260923-reanchor-arm-iii at
+      its bound sha256 (P-1..P-5, T-1..T-4, F1, F1', F3 undecidable,
+      B-1..B-4, R-1..R-11, A-1..A-7, the DC-3 construction and its
+      invalidation rules); AMD-EXP-GFPN-05ff43-20260923-rung31 at its bound
+      sha256 (A1-1..A1-9); DEC-20260923-e788a1 AC-1..AC-6; DEC-20260923-8b2dbf
+      AA-1..AA-8 except the identifiers and pointers re-pointed above.
+    - ARMS AND CELLS. Every package's arms, cell set, dispositions and refusals, exactly as in trial-plan-v2.json and trial-plan-v2-a1.json.
+    - >-
+      ENVELOPE (trial-plan-v2.json lines 82-93; AC-1): child RLIMIT_AS
+      10737418240 set in the child and read back with getrlimit; driver RSS at
+      most 1073741824; task envelope 11 GiB; msolve -t 1; one memory-heavy
+      process at a time; the lowered-cap rule if the dispatcher's guard
+      threshold is below 12.0 GB.
+    - WATCHDOGS. The trial-plan-v2.json watchdogs object (lines 95-177), verbatim, including builder, callgrind and comparator timeouts.
+    - TARGETS. targets_per_cell 20 (line 80); target streams random.Random('2026092001:v2:targets:<p>:<shape>') (line 81); fixture, basepoint, build and grid streams; seeds 2026092001 and 2026092002; known-scalar targets only.
+    - EARLY STOP. The A-7 pre-declared early stop (line 94).
+    - CONTINGENCY. The contingency_rule (line 185), verbatim, applied within each r1 plan; never for a gate package.
+    - READING RULES. A1-3 evaluation sets, A1-4 off-shape labels, A1-5 aggregate_a1 sections, AA-4 matched-triple figure, R-4 of DEC-20260923-034ba0.
+    - FIXTURE EXPECTATIONS. raw_x 384, raw_u 384, S3 64, S3_rescaled 64, torsion_S3_norm 64 (35 monomials, degree 4), torsion_S3_rq 16 (deg_A 2, deg_B 1, 14 monomials); F-3 ratio 4 (v2_driver.py lines 266-268).
+    - PLAN BRANCH. The v2-a1 31-bit plan, final (DEC-20260923-8b2dbf AA-3 (e)).
+    - HEUR-GFPN-DFLAT's statement and 10% threshold. "the timeout/infra case does not falsify the heuristic" (H-GFPN-9a29be lines 218-222).
+    - The 48-package ceiling.
+
+  budget_impact:
+    what_changes: >-
+      - Stage R1: implementation and development checks, zero run packages.
+        Its PARI calls are three fixture group orders (plus DV-3 and one
+        repetition each).
+      - Stage R2: up to 31 packages (27 planned + 4 contingency), the same
+        work as v2's plan, plus the G1 re-run (79.21 s wall in
+        RUN-GFPN-ac4487, execution-report-v2.yaml line 123).
+      - Stage R2b: up to 11 packages, the same work as the v2-a1 plan.
+    why_it_fits: >-
+      ECC budgets are unlimited (CLAUDE.md rule 11). Memory is machine
+      protection (AC-1). maximum_workers stays 1. 44 of 48 packages.
+    if_it_does_not_fit: >-
+      Exhausting an envelope or checkpoint is an impediment with a recorded
+      clears_when, never a mathematical result and never a silent drop.
+
+  transfer_assumptions: >-
+    (1) The fix changes where and with how much stack PARI runs, not what it
+        computes. A group order is unique, so any correct computation returns
+        the same N. REG-1 checks the whole pipeline at 4111 against
+        RUN-GFPN-ac4487.
+    (2) Nothing at p' = 16777291 was measured before this draft. The failure
+        produced no D, no build and no certificate.
+    (3) Toy scale only. Nothing measured at toy p' transfers to
+        p = 2^64 - 2^32 + 1, except under HEUR-GFPN-DFLAT as frozen.
+    (4) The v2-a1 31-bit plan and its reading rules are unchanged.
+
+  proof_search_map_applicability: >-
+    NOT REQUIRED for this act's kind (agents/coordinator.md "Proof-oriented
+    dispatch gate" applies to theorems, bounds, certificate hierarchies,
+    reductions and closure arguments). This is an engineering repair to
+    execution. It changes no mechanism, observable, quantifier order, method
+    ceiling or nearby object. The section 8 audits of DEC-20260923-e788a1
+    (lines 146-197) and DEC-20260923-8b2dbf (lines 207-345) stand unchanged.
+    The one gate-level addition, REG-1, is a stricter baseline-reproduction
+    check.
+
+  authorization: >-
+    NONE WHILE DRAFT. Once a committed Coordinator decision approves this
+    record, it authorizes only: stage R1 under the card that decision's act
+    writes (reserved TASK-20260923-a681f9), with phase A of its archive
+    (reserved TASK-20260923-b53550); then stage R2 (reserved
+    TASK-20260923-3aa31e) behind the repaired gate; phase B; then stage R2b
+    behind the repaired gate and the controls_a1 image; and its archive. It
+    authorizes NO attack, NO unknown-scalar solve, NO deployed-curve instance,
+    NO wall-time extrapolation, NO use of any retired id, and NO change to
+    H-GFPN-9a29be's status or HEUR-GFPN-DFLAT's statement. Amazon Bedrock is
+    prohibited.
+
+  non_claims:
+    - NOT EVIDENCE. This record measures nothing.
+    - NOT A PREDICTION of any D, of the outcome of the repaired gate, or of any verdict.
+    - NOT A SECURITY CLAIM about EcGFp5 or EcMasFp5 in either direction.
+    - NOT A HYPOTHESIS STATUS MOVE. H-GFPN-9a29be stays inconclusive; HEUR-GFPN-DFLAT stays untested.
+    - NOT APPROVED, and not official until TASK-20260923-e830a0's commit is verified against Git.
+
+  citations:
+    - ref: experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-3377f1/stderr.log
+      provenance: internal
+      claim: the ellcard stack-overflow traceback through v2_driver.py lines 279 and 308 and v2_common.py line 261 (lines 1-21)
+      verified_by: coordinator, TASK-20260923-6b492f, read in full in this act
+    - ref: experiments/EXP-GFPN-05ff43/implementation-v2/v2_common.py
+      provenance: internal
+      claim: PLAN_PATH (line 32), SEED constants (lines 43-44), TASK_ID (line 46), curve_order_pari (lines 249-261)
+      verified_by: coordinator, TASK-20260923-6b492f, read at lines 1-80 and 225-262 in this act
+    - ref: experiments/EXP-GFPN-05ff43/implementation-v2/v2_driver.py
+      provenance: internal
+      claim: fixture expectations (lines 266-268), cmd_fixture (275-281), fixture_core and the curve_order_pari call (284-310), cmd_fixture4 (526-543), cmd_controls (752-772)
+      verified_by: coordinator, TASK-20260923-6b492f, read at those lines in this act
+    - ref: experiments/EXP-GFPN-05ff43/implementation-v2/v2_run_wrapper.py
+      provenance: internal
+      claim: W-1..W-9 (lines 1-24), W-6 (115-123), W-7 (124-127), the gate re-run refusal (line 141), the driver spawn (158, 182) and the infrastructure_error default (193-195)
+      verified_by: coordinator, TASK-20260923-6b492f, read in full in this act
+    - ref: experiments/EXP-GFPN-05ff43/implementation-v2-a1/a1_run_wrapper.py
+      provenance: internal
+      claim: A-6 requires the four v2 gate ids (lines 20-22, 168-174); phase-A commit recording (69-75, 288-290)
+      verified_by: coordinator, TASK-20260923-6b492f, read in full in this act
+    - ref: experiments/EXP-GFPN-05ff43/implementation-v2-a1/a1_common.py
+      provenance: internal
+      claim: module constants PROTOCOL_VERSION (30), PLAN_A1_PATH (40), V2_PLAN_PATH (41), RECEIPT_V2_PHASE_B (47), TASK_ID_RUNS (56), FORBIDDEN_TASK_ID (57), V2_GATE_PACKAGES (62)
+      verified_by: coordinator, TASK-20260923-6b492f, read by search in this act
+    - ref: experiments/EXP-GFPN-05ff43/implementation-v2-a1/a1_pari.py
+      provenance: internal
+      claim: gp in a capped child via v2_solver.run_child (lines 87-96) with parisize 256000000 / parisizemax 4000000000 (line 38) and a 7200 s child timeout (line 28)
+      verified_by: coordinator, TASK-20260923-6b492f, read in full in this act
+    - ref: experiments/EXP-GFPN-05ff43/implementation-v2-a1.md
+      provenance: internal
+      claim: stage-1b development check (c), gp ellcard over GF(1073741831^5) in a capped child (lines 366-375); additive reuse by in-process constants (lines 79-104); X-1 minting lesson (lines 470-475); X-4 simulated states (lines 497-499); X-7 certificate protocol_version (lines 509-515)
+      verified_by: coordinator, TASK-20260923-6b492f, read in full in this act
+    - ref: experiments/EXP-GFPN-05ff43/implementation/ladder_select.py
+      provenance: internal
+      claim: v1 curve selection used `pari = cypari2.Pari(); pari.allocatemem(2 * 10**9)` in-process (lines 23-25)
+      verified_by: coordinator, TASK-20260923-6b492f, read at lines 1-45 in this act
+    - ref: experiments/EXP-GFPN-05ff43/trial-plan-v2.json
+      provenance: internal
+      claim: package ceiling and count (15-17), v1 ids (19-68), gate (70-79), targets_per_cell and streams (80-81), envelope incl. driver_rss_limit_bytes (82-93), early stop (94), watchdogs (95-177), contingency_rule (185), gate packages (193-261)
+      verified_by: coordinator, TASK-20260923-6b492f, read at lines 1-290 in this act; run ids by search
+    - ref: experiments/EXP-GFPN-05ff43/execution-report-v2.yaml
+      provenance: internal
+      claim: gate outcome (24-32), XD-1 and XD-2 (34-46), failure record and Executor observation (57-82), fixture observations at 4111 (94-116), resources (121-141), DN-7 anomaly (153-155)
+      verified_by: coordinator, TASK-20260923-6b492f, read in full in this act
+    - ref: experiments/EXP-GFPN-05ff43/implementation-v2.md
+      provenance: internal
+      claim: DN-7 exercised PARI ellcard only on a toy curve (lines 423-432)
+      verified_by: coordinator, TASK-20260923-6b492f, read by search in this act
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: high
+    resolved_model_id: null
+    fallback_allowed: false
+    degraded_allowed: false
+    bedrock_used: false
