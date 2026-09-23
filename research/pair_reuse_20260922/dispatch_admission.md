@@ -6,12 +6,12 @@ Determine whether the accepted orbit-canonical pair representation saves total c
 
 | ID | Role | State | Priority | Dependencies | Artifacts | Write scope |
 |---|---|---|---:|---|---|---|
-| `TASK-20260922-a0c874` | validator | queued | 50 | TASK-20260922-546d42, TASK-20260922-89d6e6 | research/pair_reuse_20260922/review/source_report.yaml, research/pair_reuse_20260922/review/source_rederive.py | research/pair_reuse_20260922/review/source_report.yaml, research/pair_reuse_20260922/review/source_rederive.py |
-| `TASK-20260922-a5ab4c` | validator | queued | 50 | TASK-20260922-546d42, TASK-20260922-89d6e6 | research/pair_reuse_20260922/review/blind_report.yaml, research/pair_reuse_20260922/review/blind_rederive.py, research/pair_reuse_20260922/review/blind_results.json | research/pair_reuse_20260922/review/blind_report.yaml, research/pair_reuse_20260922/review/blind_rederive.py, research/pair_reuse_20260922/review/blind_results.json |
+| `TASK-20260922-a0c874` | validator | running | 50 | TASK-20260922-546d42, TASK-20260922-89d6e6 | research/pair_reuse_20260922/review/source_report.yaml, research/pair_reuse_20260922/review/source_rederive.py | research/pair_reuse_20260922/review/source_report.yaml, research/pair_reuse_20260922/review/source_rederive.py |
+| `TASK-20260922-a5ab4c` | validator | running | 50 | TASK-20260922-546d42, TASK-20260922-89d6e6 | research/pair_reuse_20260922/review/blind_report.yaml, research/pair_reuse_20260922/review/blind_rederive.py, research/pair_reuse_20260922/review/blind_results.json | research/pair_reuse_20260922/review/blind_report.yaml, research/pair_reuse_20260922/review/blind_rederive.py, research/pair_reuse_20260922/review/blind_results.json |
 
 ## Deferred or Blocked
 
-- `TASK-20260922-c067b4`: dependency_not_completed:TASK-20260922-a0c874:queued, dependency_not_completed:TASK-20260922-a5ab4c:queued
+- `TASK-20260922-c067b4`: dependency_not_completed:TASK-20260922-a0c874:running, dependency_not_completed:TASK-20260922-a5ab4c:running
 
 ## Claims (write-once, tools/goal_lanes.py)
 
@@ -22,6 +22,8 @@ Start only Ready Tasks whose `claim` is null, and claim them first.
 - `TASK-20260922-01282b`: released (owner `pair-reuse-20260922`, epoch 1, expires 2026-09-23T00:52:42Z) -> ignored:queue_state_completed
 - `TASK-20260922-546d42`: released (owner `pair-reuse-20260922`, epoch 1, expires 2026-09-23T02:10:27Z) -> ignored:queue_state_completed
 - `TASK-20260922-89d6e6`: released (owner `pair-reuse-20260922`, epoch 2, expires 2026-09-23T03:09:36Z) -> ignored:queue_state_completed
+- `TASK-20260922-a0c874`: live (owner `pair-reuse-20260922`, epoch 1, expires 2026-09-23T03:14:03Z) -> running_with_lease
+- `TASK-20260922-a5ab4c`: live (owner `pair-reuse-20260922`, epoch 1, expires 2026-09-23T03:14:32Z) -> running_with_lease
 
 ## Archives verified on CONTENT
 
@@ -51,4 +53,4 @@ contains a record allowed to change after the archive.
 - `terminal_noncompleted_tasks_do_not_unblock_successors`: passed
 - `claim_relevant_tasks_have_independent_review`: passed
 
-Plan SHA-256: `6d63112df050ef77ea98996d9c8c5bd8d182cbfb5aab7bd42cd72f352dc15f01`
+Plan SHA-256: `9818c17e5b3ee995625ac2ca6ba743fc6145b4819aa48c01b6dcc2ed860abe05`
