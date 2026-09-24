@@ -307,6 +307,8 @@ def cmd_engines(args: argparse.Namespace) -> int:
         for kind in args.fb:
             done_bases = set()
             for size in args.sizes:
+                if args.max_size and size > args.max_size:
+                    break
                 target_size = size
                 if "subgroup" in args.fb and kind != "subgroup":
                     target_size = len(FactorBase.subgroup(E, size, 0))  # matched size
@@ -493,6 +495,9 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--fb", choices=FACTOR_BASES, nargs="+", default=list(FACTOR_BASES))
     g.add_argument("--sizes", type=int, nargs="+",
                    default=[4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256])
+    g.add_argument("--max-size", type=int, default=0,
+                   help="skip ladder rungs above this size (the curve, which is chosen "
+                        "from the full --sizes ladder, stays the same)")
     g.add_argument("--targets", type=int, default=12, help="targets per cell")
     g.add_argument("--planted", type=float, default=0.5,
                    help="fraction of targets built as sums of m base points")
