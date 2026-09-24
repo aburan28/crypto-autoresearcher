@@ -384,7 +384,11 @@ def engines_report(rows: list[dict], reps: int = 2000, min_seconds: float = 0.05
         fits[name] = {
             "enum_s3": _size_fit(sel, "enum_s3", reps),
             "enum_seconds": _size_fit(sel, "enum_seconds", reps),
-            "msolve_seconds": _size_fit(timed, "msolve_net_seconds", reps)}
+            "msolve_seconds": _size_fit(timed, "msolve_net_seconds", reps),
+            # the same msolve times against the degree of the membership
+            # polynomial (|F| for the dense bases, d ~ 2|F| for subgroup)
+            "msolve_vs_degree": _size_fit(timed, "msolve_net_seconds", reps,
+                                          x_key="member_degree")}
         for size, degree in sorted({(r["fb_size"], r["member_degree"]) for r in sel}):
             c = [r for r in sel if (r["fb_size"], r["member_degree"]) == (size, degree)]
             cok = [r for r in c if r["msolve_status"] in ("ok", "no_solution")]
@@ -403,15 +407,17 @@ def engines_report(rows: list[dict], reps: int = 2000, min_seconds: float = 0.05
             "targets": len(rows)}
 
 
-def _size_fit(rows: list[dict], key: str, reps: int) -> dict:
+def _size_fit(rows: list[dict], key: str, reps: int, x_key: str = "fb_size") -> dict:
     sel = [r for r in rows if r.get(key) and r[key] > 0]
-    xs = [math.log2(r["fb_size"]) for r in sel]
+    xs = [math.log2(r[x_key]) for r in sel]
     ys = [math.log2(r[key]) for r in sel]
-    return bootstrap_slope(xs, ys, [r["fb_size"] for r in sel], reps=reps)
+    return bootstrap_slope(xs, ys, [(r["fb_size"], r["member_degree"]) for r in sel],
+                           reps=reps)
 
 
 def format_engines_report(rep: dict) -> str:
-    lines = ["per-target cost exponents in |F| (slope of log2 cost vs log2 |F|, 95% CI)"]
+    lines = ["per-target cost exponents in |F| (slope of log2 cost vs log2 |F|, 95% CI;"
+             " msolve_vs_degree: vs log2 deg f)"]
     for name, f in rep["fits"].items():
         for metric, fit in f.items():
             lines.append(f"  {name:<14} {metric:<15} {_fmt_fit(fit)}")
