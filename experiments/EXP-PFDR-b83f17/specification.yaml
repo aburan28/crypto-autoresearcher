@@ -1,0 +1,690 @@
+# =============================================================================
+# EXP-PFDR-b83f17 -- Power-residue coset and multiplicative-subgroup factor
+# bases on prime-order E(F_p): exact all-target decomposition census against a
+# matched random null, with the controls battery of IDEA-20260921-da1896, two
+# per-target engines (Semaev root-finding with counted field operations;
+# msolve 0.6.5), and a charged projected index-calculus cost against measured
+# Pollard rho on the same curves.
+# Tests H-PFDR-6c1e94 (from IDEA-20260921-ffd330). Approved by
+# DEC-20260924-7a4c2e; executor card TASK-20260924-e39b50.
+# Written by the Coordinator subagent WITHOUT A SHELL or interpreter: every
+# prose value is a folded block scalar or a quoted scalar; no tabs; no
+# duplicate keys to the author's reading. The dispatching session runs the
+# strict YAML parse, tools/validate_ledger.py and
+# `python3 tools/allocate_id.py --check EXP-PFDR-b83f17` before the archive.
+# =============================================================================
+experiment:
+  id: EXP-PFDR-b83f17
+  hypothesis_id: H-PFDR-6c1e94
+  question_id: RQ-PFDR-ae2fba
+  goal_id: GOAL-CRYPTO-001
+  idea_ids: [IDEA-20260921-ffd330, IDEA-20260921-da1896]
+  related_records: [H-PFDR-8a4f44, EXP-PFDR-1c5939, EV-FB-001, KN-FIND-007, KN-OPEN-020, KN-OPEN-5b3a08]
+  version: 1
+  recorded_at: '2026-09-24'
+  title: >-
+    Do power-residue coset bases (x in g*H_ell, ell in {3,5,7}) and
+    multiplicative-subgroup bases (x in g*mu_d, d | p-1, d about p^(1/m))
+    change the per-target DISTRIBUTION of Semaev decompositions against a
+    matched random base on prime-order E(F_p), log2 p in {14,16,18,20} plus
+    the EV-FB-001 anchor p = 16411, m in {2,3} -- and what does a charged
+    index-calculus projection with these bases cost against Pollard rho
+    measured on the same curves?
+  status: approved
+  approved_by: coordinator
+  approved_at: '2026-09-24'
+  approval_note: >-
+    Approved by the Coordinator under the AGENTS.md standing user
+    authorization of 2026-09-06 ("all is approved. ideas/experiments should be
+    always approved"), exercised on the user direction of 2026-09-24 ("Pursue
+    index calculus over F_p", clarified as ECDLP index calculus on E(F_p));
+    decision record DEC-20260924-7a4c2e. The specification is frozen as of the
+    approving snapshot commit; any change is a versioned protocol_amendment
+    under experiments/EXP-PFDR-b83f17/amendments/, never an edit. The
+    pre-registered predictions, thresholds and readings below are part of the
+    frozen contract and are never adjusted after a run begins. Approval
+    asserts nothing about the truth of H-PFDR-6c1e94.
+  claim_tier: toy
+  assigned_to: executor
+  executor_task: TASK-20260924-e39b50
+
+  objective: >-
+    Decide, at toy scale and with exact all-target counts, whether factor
+    bases defined by a multiplicative coset of the x-coordinate differ from a
+    size-matched random base in the only supply quantities KN-FIND-007 leaves
+    free -- coverage, dispersion, residue-label profile and Fourier bias of
+    the per-target decomposition count -- and, in the index-calculus-sized
+    subgroup regime, what the charged per-relation cost and projected
+    end-to-end cost slope are against Pollard rho measured on the same curves.
+    The mean yield is NOT an outcome: it is fixed by conservation and serves
+    as an instrument gate.
+
+  # ---------------------------------------------------------------------------
+  # NOTATION (binding for every formula below)
+  # ---------------------------------------------------------------------------
+  notation:
+    curve: 'E: y^2 = x^3 + a*x + b over F_p, N = #E(F_p) prime, G = E(F_p), P0 the fixed generator'
+    base: 'for X a subset of F_p, D(X) = {R in G minus O : x(R) in X}; K(X) = number of x in X with x^3+a*x+b a nonzero square; B = |D(X)| = 2*K(X)'
+    count: 'c_m(R) = number of size-m MULTISETS of points of D summing to R (point level, signs included)'
+    conservation: 'sum over R in G of c_m(R) = binomial(B+m-1, m); mu_m(B) = binomial(B+m-1, m)/N'
+    coverage: 'cov = #{R in G minus O : c_m(R) >= 1} / (N-1)'
+    dispersion: 'disp = Var(c_m(R)) / Mean(c_m(R)) over R in G minus O (population variance)'
+    residue_label: 'for regime (a) with index ell: lab(R) = j in {0..ell-1} with x(R)^((p-1)/ell) = zeta^j, zeta = h^((p-1)/ell), h the smallest generator of F_p^*; targets with x(R) = 0 are excluded from the label statistic'
+    label_F: 'one-way ANOVA F statistic of c_m(R) across the ell labels over R in G minus O with x(R) != 0'
+    fourier_bias: 'phi = max over t != 0 mod N of |sum over k in I(D) of exp(2*pi*i*k*t/N)| / B, where I(D) is the set of discrete logs of D to base P0'
+    nominal_size: 'B_nom = (p-1)/ell in regime (a); B_nom = d in regime (b) (each x in the coset lifts with probability 1/2, giving 2 points)'
+    delta: 'delta = B - B_nom (the cover point-count excess)'
+    rho_nom: 'binomial(B+m-1, m) / binomial(B_nom+m-1, m) (B_nom rounded to the nearest even integer)'
+
+  # ---------------------------------------------------------------------------
+  # INPUTS
+  # ---------------------------------------------------------------------------
+  inputs:
+    toolchain: >-
+      python3 (version recorded) with python-flint 0.9 (nmod, nmod_poly,
+      fmpz_poly, fmpz_mpoly or nmod_mpoly as available), numpy, sympy, galois
+      (versions recorded), and msolve 0.6.5 at /usr/bin/msolve, installed from
+      the distribution package (record `msolve -h` verbatim, the version
+      string it prints, and `dpkg -s msolve` or the equivalent package
+      version). NO Sage, Singular, Macaulay2 or Magma. harness/semaev.py is
+      NOT imported (KN-OPEN-5b3a08).
+    primes:
+      anchor: >-
+        p = 16411 exactly (the EV-FB-001 prime). p-1 = 16410 = 2*3*5*547, so
+        regime (a) runs ell in {3, 5} (7 does not divide p-1), regime (b) runs
+        m = 3 only with d = 30 (d3* = (6*16411)^(1/3) = 46.18, ratio 0.65),
+        and regime (b) at m = 2 is NOT CONSTRUCTIBLE at the anchor (no
+        divisor of 16410 in [0.5*d2*, 2*d2*] = [90.6, 362.3]). The executor
+        re-verifies these facts at Stage 0 and stops if any differs.
+      levels: >-
+        For k in {14, 16, 18, 20}: p_k = the smallest prime p >= 2^k + 1 such
+        that (i) p = 1 (mod 210), so 3, 5 and 7 divide p-1; (ii) p-1 has a
+        divisor d with d/d2* in [0.5, 2], d2* = sqrt(2p); (iii) p-1 has a
+        divisor d with d/d3* in [0.5, 2], d3* = (6p)^(1/3). Primality by
+        sympy.isprime (deterministic below 2^64). For each m, d_m = the
+        divisor minimizing |ln(d/d_m*)| within the window, ties to the
+        smaller d.
+      rationale_for_d_star: >-
+        With B about d points, mu_2 = d^2/(2p) and mu_3 = d^3/(6p), so d_m*
+        puts the mean yield per target near 1 and |FB| near p^(1/m), the
+        index-calculus-relevant size (beta = log_p B about 1/m, the operating
+        point of H-PFDR-8a4f44). The window [0.5, 2] bounds mu in
+        [2^(-m), 2^m].
+    curves: >-
+      Three curves per prime (anchor and each level; 15 curves). For curve
+      index j in {1, 2, 3} and attempt t = 0, 1, 2, ...:
+      h = SHA256("EXP-PFDR-b83f17|curve|{p}|{j}|{t}") (UTF-8, 32 bytes);
+      a = int.from_bytes(h[0:16], 'big') mod p; b = int.from_bytes(h[16:32],
+      'big') mod p. Accept the first t with: a != 0 and b != 0 (excludes
+      j = 1728 and j = 0), 4a^3 + 27b^2 != 0 mod p, N = #E(F_p) prime,
+      N != p (not anomalous), N != p + 1 (not supersingular), and
+      j-invariant distinct from the previously accepted curves at that p.
+      Point count: N = p + 1 + sum over x of chi(x^3 + a*x + b) with chi
+      from a precomputed quadratic-residue table (numpy). CERTIFICATE per
+      curve: N prime, N in the Hasse interval, and N*P = O for four points P
+      from the "cert" stream; since N > 4*sqrt(p), this certifies #E = N.
+      Also record the smallest embedding degree k <= 20 with N | p^k - 1, if
+      any (recorded, not an exclusion). Generator P0 = the lift of the
+      smallest x >= 1 that lifts, with y the smaller of its two square roots
+      as an integer in [0, p).
+    bases_regime_a: >-
+      For each ell in {3, 5, 7} dividing p-1: H_ell = the ell-th powers of
+      F_p^*; cosets g in {1, g1, g2} where g1 = the smallest integer >= 2
+      with g1^((p-1)/ell) != 1, and g2 = the smallest integer > g1 lying in
+      neither H_ell nor g1*H_ell. Labels A-ell-g0, A-ell-g1, A-ell-g2.
+      Membership predicate x^((p-1)/ell) = g^((p-1)/ell) (degree (p-1)/ell).
+    bases_regime_b: >-
+      For each m with d_m defined: mu_d = the d-th roots of unity in F_p;
+      cosets g in {1, h1, h2}, h1 = the smallest integer >= 2 not in mu_d,
+      h2 = the smallest integer > h1 in neither mu_d nor h1*mu_d. Labels
+      B-m-g0, B-m-g1, B-m-g2. Membership predicate x^d = g^d (degree d). A
+      regime-(b) base is evaluated at its own m only.
+    targets: >-
+      E0 evaluates EVERY R in G (no target sampling). E1 and E2 evaluate
+      sampled targets: target i of a cell is R = k*P0 with
+      k = (int.from_bytes(SHA256("EXP-PFDR-b83f17|{stream}|{p}|{j}|{label}|{m}|{i}")[0:8], 'big') mod (N-1)) + 1,
+      stream "e1t" for E1 and "e2t" for E2.
+    seed_rule: >-
+      Every random quantity is drawn from a stream keyed by
+      SHA256("EXP-PFDR-b83f17|" + stream + "|" + "|".join(fields)), fields
+      rendered as decimal integers or labels. Streams: curve, cert, rbase
+      (random-K base draw r of cell (p, j, label)), zn (GENERIC-ZN draw r of
+      cell (p, j, label)), rdeg (RANDOM-DEG set of cell (p, j, m, g-index)),
+      e1t, e2t, sval (S_3/S_4 validation triples), cz (Cantor-Zassenhaus
+      splitting randomness in the counted layer), rho (secret s of instance i
+      on curve (p, j)), rhowalk (walk multipliers of instance i, restart r).
+      A random subset of size K from a list L of size n is drawn by a
+      Fisher-Yates shuffle of L driven by Python random.Random seeded with the
+      first 8 bytes of the stream hash as a big-endian integer, taking the
+      first K. The manifest records every stream key used.
+
+  # ---------------------------------------------------------------------------
+  # ENGINES (every returned decomposition is certified by point arithmetic)
+  # ---------------------------------------------------------------------------
+  engines:
+    semaev_polynomials: >-
+      S_3(x1, x2, x3) = (x1 - x2)^2*x3^2 - 2*((x1 + x2)*(x1*x2 + a) + 2*b)*x3
+      + (x1*x2 - a)^2 - 4*b*(x1 + x2). S_4 DERIVED INDEPENDENTLY as
+      Res_T(S_3(x1, x2, T), S_3(x3, x4, T)) with FRESH symbols (no chained
+      non-simultaneous substitution; the harness/semaev.py s4_expr defect of
+      KN-OPEN-5b3a08 is exactly that), by TWO routes sharing no code: (R1)
+      generic over Z[a, b, x1..x4] with sympy (or python-flint fmpz_mpoly),
+      then reduced mod p; (R2) per curve directly over F_p (python-flint
+      nmod_mpoly resultant, or a Sylvester-determinant evaluation). The two
+      must agree coefficientwise on every curve.
+    s_validation_gate: >-
+      BLOCKING, per curve, before any row runs: (i) S_4 has degree 4 in each
+      variable and is invariant under all 24 permutations (exact polynomial
+      identity); (ii) for 1000 random triples (P1, P2, P3) from the "sval"
+      stream, S_4(x(P1), x(P2), x(P3), x(P1+P2+P3)) = 0 and
+      S_3(x(P1), x(P2), x(P1+P2)) = 0 for all; (iii) for 1000 random
+      quadruples of x-coordinates of independent random points,
+      S_4 != 0 in at least 99 percent (a vanishing quadruple is checked by
+      sign enumeration and recorded as a genuine relation if one sums to O);
+      (iv) routes R1 and R2 agree. Any failure STOPS the experiment before
+      any census.
+    E0_census: >-
+      EXACT ALL-TARGET COUNT. Build the discrete-log table by walking
+      k*P0 for k = 1..(N-1)/2 (the negatives give N-k). Map D to its index
+      set I(D) in Z/NZ and its indicator f. Compute, as CYCLIC convolutions
+      mod x^N - 1 with exact integer arithmetic (python-flint fmpz_poly, or
+      nmod_poly modulo a prime q > B^(m-1), exact because every ordered
+      per-target count is at most B^(m-1)):
+      c_2(R) = ((f*f)(R) + f(R/2)) / 2 and
+      c_3(R) = ((f*f*f)(R) + 3*(f2*f)(R) + 2*f(R/3)) / 6, with f2(y) = f(y/2)
+      (halving and thirding are exact since N is an odd prime above 3).
+      Divisibility of the numerators by 2 and 6 is asserted at every R. No
+      floating point enters any count. phi (Fourier bias) is computed by a
+      floating FFT of f and is a secondary metric only.
+    E1_rootfinding: >-
+      EXACT PER-TARGET ENUMERATION (the base set is X; the unknown is z;
+      field elements are compared as integers in [0, p)). m = 2: for each
+      liftable x1 in X, solve the quadratic S_3(x1, z, x_R) = 0 in z over
+      F_p; keep roots z >= x1 with z in X and z liftable; enumerate sign
+      choices of the lifts and keep every point multiset {P1, P2} of D with
+      P1 + P2 = R. m = 3: for each unordered pair x1 <= x2 of liftable
+      elements of X, find the roots of the quartic S_4(x1, x2, z, x_R) in z,
+      keep roots z >= x2 with z in X and liftable, enumerate signs, keep
+      every multiset {P1, P2, P3} of D summing to R. A vanishing or degenerate leading coefficient is resolved by
+      direct point arithmetic and recorded. Every kept multiset is certified
+      by independent point addition. TWO IMPLEMENTATIONS sharing no
+      arithmetic code: E1-fast (python-flint nmod and nmod_poly roots) for
+      all E1 targets, and E1-counted (pure-Python counted layer below) on the
+      declared subsample. They must return identical multiset sets.
+    E1_counted_layer: >-
+      COST CONVENTION (frozen). Unit: M-equivalents = F_p multiplications and
+      squarings. An inversion is computed by Fermat exponentiation a^(p-2)
+      with left-to-right square-and-multiply and charged its multiplications;
+      a square root by Tonelli-Shanks, charged its multiplications; roots of
+      a degree <= 4 polynomial f by gcd(f, X^p - X mod f) followed by
+      Cantor-Zassenhaus splitting (randomness from the "cz" stream), with
+      schoolbook polynomial arithmetic charged coefficient multiplications
+      and inversions as above; the quadratic case by discriminant and
+      Tonelli-Shanks; membership of a root by one exponentiation
+      (x^((p-1)/ell) or x^d) and liftability by Euler's criterion, both
+      charged. Additions and subtractions are counted separately and not
+      charged. Certification of decompositions is counted separately
+      (verification overhead) and not charged to the trial.
+    E2_msolve: >-
+      REGIME (b) ONLY. For target R and base g*mu_d: the zero-dimensional
+      system over F_p in x1..xm: S_{m+1}(x1, .., xm, x_R) = 0 and
+      xi^d - g^d = 0 for every i. Input file: variables line, characteristic
+      line, then the polynomials. Command: `msolve -v 2 -t 1 -P 1 -f IN -o OUT`
+      (the invocation used by this program's GFPN lineage; if `msolve -h`
+      shows different semantics for -P in 0.6.5, the documented
+      parametrization flag is used and the deviation recorded in the
+      manifest). Parse the rational parametrization; take the F_p-roots of
+      the eliminating polynomial with python-flint; recover coordinates;
+      keep solutions whose every xi lifts; enumerate signs; certify by point
+      addition. The resulting multiset set MUST EQUAL E1's for the same
+      target (engine agreement). Record per solve: wall seconds, exit status,
+      the parametrization degree msolve reports, the number of F_p solutions
+      in total and the number with a non-liftable coordinate (twist
+      solutions), peak RSS, and the verbose log verbatim. DEGREE-MATCHED
+      CONTROLS (same targets, same m): RANDOM-DEG, a uniformly random d-subset
+      Y of F_p^* ("rdeg" stream) with dense membership polynomial
+      prod over y in Y of (x - y); INTERVAL-DEG, Y = {1, .., d}. E1 is also
+      run on those sets for the same targets so every E2 solve has an exact
+      reference.
+    msolve_nondeterminism_rule: >-
+      This program has recorded msolve 0.6.5 returning differing outcomes on
+      byte-identical input in parametrization mode (EXP-GFPN-05ff43 lineage,
+      DEC-20260924-bea197 and its predecessors). Here E2 carries COST ONLY and
+      never contributes a yield. An E2 outcome that is an error, a
+      degenerate parametrization, or a solution set disagreeing with E1 is
+      recorded as an engine event with its log, re-solved ONCE with the same
+      argv, and if still failing, that solve's time is CENSORED. Engine events
+      are counted and reported per cell. They are infrastructure or
+      instrument signal, never evidence about any hypothesis.
+    pollard_rho: >-
+      Teske r-adding walk, r = 20, no negation map. Instance i on curve
+      (p, j): secret s from the "rho" stream in [1, N-1], Q = s*P0.
+      Multipliers M_t = alpha_t*P0 + beta_t*Q (t = 0..19) and start
+      Z_0 = alpha_s*P0 + beta_s*Q from the "rhowalk" stream; partition index
+      t(Z) = x(Z) mod 20 (t = 0 for O); Z_(i+1) = Z_i + M_(t(Z_i)). Brent's
+      cycle detection. On detection solve for s mod N; if the beta difference
+      is 0 mod N, restart with restart index r+1, all iterations charged.
+      CERTIFICATE s*P0 = Q. Record total walk steps (point additions) and
+      counted M-equivalents (same counted layer, affine addition).
+
+  # ---------------------------------------------------------------------------
+  # CONTROLS (IDEA-20260921-da1896 battery, one meter for every base)
+  # ---------------------------------------------------------------------------
+  controls:
+    - id: CTRL-IDENTITY
+      blocking: true
+      object: 'X = F_p (all points), every curve, E0 at m = 2 and m = 3; E1 at m = 2 on 16 targets per curve at the anchor and k = 14 only'
+      forced_disposition: >-
+        c_2(R) = (N-1)/2 and c_3(R) = (N^2-1)/6 for EVERY R in G, exactly.
+        Any mismatch halts the run (instrument defect).
+    - id: CTRL-ELL1-TRIVIAL-COSET
+      blocking: true
+      object: 'X = F_p^* (ell = 1), every curve, E0 at m = 2, 3'
+      forced_disposition: >-
+        If b is a non-square, identical to CTRL-IDENTITY at every R. Otherwise
+        c_2(R) in [(N-1)/2 - 2, (N-1)/2] and c_3(R) in
+        [(N^2-1)/6 - (N-1), (N^2-1)/6] for every R, coverage 1. It must read
+        as the unrestricted baseline; any violation halts the run.
+    - id: CTRL-CONSERVATION
+      blocking: true
+      object: 'every base evaluated by E0 (structured, random, interval, GENERIC-ZN, positive control), both m where evaluated'
+      forced_disposition: >-
+        sum over R in G of c_m(R) = binomial(B+m-1, m) exactly, and
+        c_m(R) = c_m(-R) for every R. A single violation halts the run.
+    - id: CTRL-RANDOM-K
+      blocking: false
+      object: 'the matched null: 100 uniformly random K-subsets of the liftable x-values of the same curve per structured cell ("rbase" stream), K = K(X) exactly'
+      forced_disposition: >-
+        Supplies each cell's null mean and standard deviation for every
+        statistic. Sanity reading, not a gate: regime-(b) random coverage mean
+        within 0.03 absolute of the Poisson value 1 - exp(-mu_m(B)).
+    - id: CTRL-GENERIC-ZN
+      blocking: true
+      object: 'the curve-free twin of CTRL-RANDOM-K: 100 uniformly random negation-symmetric subsets of Z/NZ minus 0 with B/2 pairs, drawn by integer RNG ("zn" stream), for every regime-(b) cell and every A-ell-g0 cell'
+      forced_disposition: >-
+        Equal in law to CTRL-RANDOM-K by construction (the discrete-log map
+        sends a uniform K-subset of liftable x-values to a uniform
+        negation-symmetric subset). Two-sample Kolmogorov-Smirnov on coverage
+        and on dispersion, per cell: more than 2 cells with p < 0.001 across
+        the whole experiment invalidates every E0 reading (meter defect).
+    - id: CTRL-INTERVAL-K
+      blocking: false
+      object: 'X = the first K liftable x-values >= 1 in increasing order, K = K(X) of the structured cell; every structured cell'
+      forced_disposition: >-
+        Known mean-invariant structure (degree 1). Its per-cell z-scores are
+        computed by byte-identical routines against the same 100 draws and
+        pooled per family (undirected). A family whose interval-K pooled |Z|
+        is at least 2.0 cannot credit any coset deviation of that family
+        (harness or structure artifact); the family reads inconclusive.
+    - id: CTRL-POSITIVE-SMALLMULT
+      blocking: true
+      object: 'D = {+-k*P0 : 1 <= k <= K} with K = K of the B-m-g0 cell (regime (b) size), every curve, E0 at that m'
+      forced_disposition: >-
+        KNOWN POSITIVE (KN-FIND-007 consequence 3): coverage ratio against the
+        cell's random-K mean at most 0.5 and z at most -10 on every curve.
+        Predicted ratio about 2*B/(N*(1 - exp(-mu))) at m = 2 and
+        3*B/(N*(1 - exp(-mu))) at m = 3, a few percent. If the meter fails
+        this on any curve, every E0 reading of that level is void.
+    - id: CTRL-ANCHOR-EVFB001
+      blocking: false
+      object: 'p = 16411, m = 3, random-B (100 draws) and interval-B bases for B in {6, 8, 10, 12} points (K in {3, 4, 5, 6})'
+      forced_disposition: >-
+        Exact mean yield binomial(B+2,3)/N, predicted 0.00341, 0.00731,
+        0.01341, 0.02218 at N = 16411 (recomputed at each curve's N), against
+        EV-FB-001's recorded random rows 0.00330, 0.00716, 0.01318, 0.02001
+        and interval rows 0.00340, 0.00716, 0.01298, 0.02165. Ratio ours over
+        recorded outside [0.8, 1.25] for any row triggers an instrument
+        investigation before any structured row is read (then blocking).
+        EV-FB-001's Groebner solve-time law is NOT re-run (its engine is not
+        available on this host); this is declared, not hidden.
+    - id: CTRL-NULL-REPLAY
+      blocking: false
+      object: 'for every family, 100 replays in which draw r of each cell plays the structured base and is scored against the other 99 draws by the identical pipeline'
+      forced_disposition: >-
+        The empirical null of each family statistic under the real
+        correlation structure (shared curves and targets). If the replay 95th
+        percentile of |Z_dir| or |Z| exceeds 2.5, or the replay rejection
+        rate of the per-cell Bonferroni test exceeds 0.10 per family, the
+        nominal thresholds are replaced by the replay quantiles at the same
+        levels (pre-registered rule, applied before the structured values are
+        read).
+    - id: CTRL-ENGINE-AGREEMENT
+      blocking: true
+      object: 'every E1 target (E1-fast vs E0 count; E1-fast vs E1-counted set where both run) and every E2 solve (E2 set vs E1-fast set)'
+      forced_disposition: >-
+        E1-fast count = E0 count at every sampled target and E1-fast set =
+        E1-counted set: any mismatch stops that level and quarantines its E0
+        outputs until the fault is located (instrument). E2 mismatches follow
+        msolve_nondeterminism_rule.
+    - id: CTRL-RHO-COMPARATOR
+      blocking: true
+      object: 'Pollard rho, 16 instances per curve, all 15 curves'
+      forced_disposition: >-
+        Every solve certified. Mean walk steps / sqrt(N) per level within
+        [0.8, 4.0] at no fewer than 4 of 5 levels, and the rho slope in
+        [0.4, 0.6]; otherwise the comparator is miscalibrated and the cost
+        reading is void (yield readings stand).
+
+  independent_variables:
+    - 'prime level: anchor p = 16411; p_k for k in {14, 16, 18, 20}'
+    - 'curve j in {1, 2, 3} per prime'
+    - 'arity m in {2, 3}'
+    - 'base: A-ell-g (ell in {3,5,7} dividing p-1; 3 cosets); B-m-g (3 cosets); controls as listed'
+    - 'engine: E0, E1-fast, E1-counted, E2 (msolve)'
+
+  # ---------------------------------------------------------------------------
+  # METRICS
+  # ---------------------------------------------------------------------------
+  metrics:
+    primary:
+      - 'per cell (p, j, m, base): coverage, dispersion index, label_F (regime (a)); each as a z-score z = (value - mean of 100 random-K draws) / (sample sd of the draws, ddof 1)'
+      - 'per family F (eight families: COV-b-m2, COV-b-m3, DISP-a-m2, DISP-a-m3, DISP-b-m2, DISP-b-m3, LAB-a-m2, LAB-a-m3): delta-signed Stouffer Z_dir = sum over cells of sign(delta)*z / sqrt(n) (cells with delta = 0 excluded from Z_dir only); undirected X2 = sum of z^2 against chi-square with n degrees of freedom; per-level Z_dir'
+      - 'anomaly factor per cell: rho_stat = value / random mean, with the 95 percent null band [q2.5, q97.5] of the draws divided by their mean'
+      - 'regime (b) projected charged index-calculus cost C_IC (M-equivalents) and its slope in log2 p; Pollard rho mean walk steps and M-equivalents and their slope; the difference of slopes'
+    secondary:
+      - 'mean yield per base (instrument gate), delta and rho_nom per structured base, delta/sqrt(d) in regime (b)'
+      - 'Fourier bias phi per base with its z against the draws'
+      - 'H-PFDR-8a4f44 coverage-arm reading: coverage(B-m-g0) minus random-K mean coverage, per curve'
+      - 'E1: counted M-equivalents per trial, wall seconds per trial (E1-fast), decompositions per trial, charged cost per relation = cost per trial / decompositions per trial (harvest-all) and / coverage (one per target)'
+      - 'E2: solve seconds per system, parametrization degree reported by msolve, twist-solution count, engine events; solve-time exponent in d and in log2 p for the binomial base versus RANDOM-DEG and INTERVAL-DEG'
+      - 'memory: peak RSS per stage; discrete-log table size'
+    cost_model: >-
+      C_IC = C_pre + C_rel + C_LA + C_desc, all in M-equivalents.
+      C_pre (MEASURED, counted): building the base (enumerating the coset,
+      liftability, square roots). C_rel (MEASURED x EXACT) = (B/2 + 10) *
+      cbar_trial / mu_m(B), cbar_trial the mean E1-counted cost per target
+      trial. C_LA (MODELED) = 3 * (B/2)^2 * (m + 1), a Wiedemann-type count
+      for a sparse (B/2 + 10) x (B/2) system of row weight at most m + 1,
+      formula source recalled (standard sparse linear algebra cost), labelled
+      MODELED in every table and never mixed into a measured column.
+      C_desc (MEASURED x EXACT) = cbar_trial / cov. The one-relation-per-target
+      variant replaces mu_m(B) by cov in C_rel and is reported beside it.
+      The msolve route reports C_rel and C_desc in seconds (t_solve in place
+      of cbar_trial), never mixed with M-equivalents. Slope: ordinary
+      least-squares slope of log2 C_IC per curve on log2 p over the 12
+      main-level curves (anchor excluded from slopes), per m, averaging the
+      three cosets per curve in log space; 95 percent interval from the OLS
+      t distribution with 10 degrees of freedom. Rho slope likewise on log2
+      of the per-curve mean walk steps.
+    optimistic_assumptions:
+      - 'C_LA is modeled, not measured, and ignores the structured-Gaussian-elimination preprocessing and memory traffic (biases C_IC down).'
+      - 'Relations are assumed independent enough that B/2 + 10 suffice (no rank measurement; biases C_IC down).'
+      - 'E1 enumeration is the naive exhaustive decomposition search; a better decomposition algorithm would lower cbar_trial (biases C_IC up). The msolve route is the declared second engine; neither is claimed optimal.'
+      - 'Rho uses no negation map and no parallelism (biases rho up by about sqrt(2) and against parallel speedup).'
+
+  heuristic_under_test: >-
+    HEUR-PFDR-SUBGROUPRANDOM (regime (b) random model) and HEUR-PFDR-COVERSIGN
+    (the delta-sign transfer) of H-PFDR-6c1e94; HEUR-PFDR-SOLVEPOLY is read
+    from the E2 arm.
+
+  preregistered_prediction:
+    quantity: >-
+      (P1) conservation total and mean ratio; (P2) closed forms of the
+      identity and ell = 1 bases; (P3) rho_nom and the sign of delta; (P4)
+      the distributional family statistics against the matched null; (P5) the
+      regime-(b) coverage reading for H-PFDR-8a4f44; (P6) projected cost and
+      rho slopes.
+    formula: >-
+      P1: sum over G of c_m = binomial(B+m-1, m) for every base, hence the
+      coset-to-random-K mean ratio is EXACTLY 1 (population), and the source
+      idea's mean-yield H1 (rho_ell = 1 + Theta(delta_ell/p) at matched
+      |FB|) is refuted by arithmetic. P2: identity c_2 = (N-1)/2,
+      c_3 = (N^2-1)/6 at every R; ell = 1 within the stated bounds. P3:
+      rho_nom = binomial(B+m-1,m)/binomial(B_nom+m-1,m) exactly, sign(rho_nom
+      - 1) = sign(delta); in regime (a) |delta| <= ((3*ell-1)*sqrt(p) + 1)/ell
+      (Hasse-Weil on the genus-(3*ell-1)/2 cover; a violation is an
+      implementation investigation). THE COVER HEURISTIC'S YIELD PREDICTION
+      IS THEREFORE A PURE SIZE EFFECT. P4 (Coordinator prior, recorded before
+      any run): every family |Z_dir| < 2.0 and X2 not significant at 0.05/8;
+      no cell beyond the per-cell Bonferroni threshold. The hypothesis'
+      positive form is Z_dir >= 3.0 in some family with per-level Z_dir >=
+      2.0 at two or more levels. P5: coverage(B-m-g0) minus random mean
+      within the null band at every curve (no additive degeneracy). P6: E1
+      projected slope in [0.9, 1.3] at m = 2 and 3; msolve projected slope
+      at least 2/m - 0.1; rho slope in [0.4, 0.6], predicted 0.5; E1 slope
+      minus rho slope at least 0.3; msolve solve-time exponent in d at least
+      1. WHAT COUNTS AS A DEVIATION FROM P1-P3: any nonzero difference (they
+      are identities); from P4: the thresholds in success_criterion; from P6:
+      a slope outside its band.
+    source: >-
+      P1: KN-FIND-007 (conservation; derivation, established). P2: direct
+      counting (derived in DEC-20260924-7a4c2e, a Burnside count over the
+      symmetric group on m letters). P3: KN-FIND-007 applied at two sizes;
+      Hasse-Weil (recalled; used only as a sanity bound). P4: random-subset
+      model (the null; HEUR-PFDR-SUBGROUPRANDOM) and the source idea's H1
+      (the alternative; HEUR-PFDR-COVERSIGN). P5: H-PFDR-8a4f44 coverage-arm
+      prediction. P6: E1 operation count (B/2 relations times about
+      K^(m-1) root findings per trial with K about p^(1/m)/2 gives about
+      p * log p), rho's sqrt(N). Fixed on 2026-09-24 before any run; never
+      adjusted afterward.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      log2 p in [14, 20] with exact counts over every target; curves are
+      generated, never deployed. Slopes are descriptive over this range. No
+      transfer to medium or cryptographic p is asserted; the regime-(b)
+      random-model reading at the operating point beta about 1/m is what an
+      index-calculus cost model with subgroup bases would need at any size,
+      and this experiment observes it only at toy size.
+    correspondence: >-
+      Discrete-log coordinates on the prime-order group (an isomorphism to
+      Z/NZ computed by enumeration at toy size). It is a measurement device,
+      exact at these sizes, and is not available at scale.
+
+  tail_checks:
+    - 'the cell with the largest |z| in each family, with its curve, base, delta and the full count histogram of the base against the draw envelope'
+    - 'the maximum c_m(R) over targets for each structured base against the maximum over the 100 draws (extreme-value comparison)'
+    - 'the fraction of targets with c_m(R) >= 3 in regime (b) against the Poisson tail 1 - exp(-mu)(1 + mu + mu^2/2), for structured and random bases'
+    - 'regime (b) delta/sqrt(d) across all cells against the random-model scale (about N(0,1) under the random model); an outlier beyond 4 is reported individually'
+    - 'normality of each cell null (Shapiro-Wilk on the 100 draws); cells failing at p < 0.001 are flagged and their z re-read as an empirical rank'
+
+  # ---------------------------------------------------------------------------
+  # SAMPLE SIZES (derived before any run)
+  # ---------------------------------------------------------------------------
+  sample_size_derivation:
+    E0: >-
+      No target sampling: the census is exact over all N targets, so every
+      structured-cell statistic is a population value. Randomness enters only
+      through the null draws.
+    null_draws: >-
+      100 per cell: the null sd is estimated to about 7 percent relative
+      (1/sqrt(2*99)) and the empirical 2.5 / 97.5 percent quantiles to one
+      draw. The per-cell Bonferroni threshold z_crit = Phi^-1(1 - 0.025/Q),
+      Q = the number of primary (cell, statistic) pairs, is computed at Stage
+      0 from the frozen parameter file (about 4.0 for Q about 670).
+    E1_targets: >-
+      Driven by the SMALLEST PREDICTED YIELD. Regime (b): mu_m(B) >= 2^(-m)
+      by the d window, so at m = 3 the smallest predicted hit probability is
+      1 - exp(-0.125) = 0.1175. Per cell T_E1 = min(1000, max(160,
+      ceil(40 / (1 - exp(-mu_m(B)))))) with mu from the REALIZED B (known at
+      Stage 0, before any count), so each cell expects at least 40 targets
+      with a decomposition (at least 341 targets at the nominal worst case;
+      if a realized B is so far below d that the cap of 1000 binds, the
+      expected-hit shortfall is recorded for that cell, and nothing else
+      changes). The
+      same T_E1 applies to the first four random-K draws and the interval-K
+      base of the cell (cost comparison). Regime (a): mu is large (every
+      target has many decompositions); E1 serves agreement and cost only: 16
+      targets per cell at m = 2 at every prime; at m = 3 only at the anchor
+      and k = 14, 4 targets per cell (K^2/2 quartic root findings each, about
+      3.7 million at ell = 3).
+    E1_counted_subsample: >-
+      Regime (b): every E1 target. Regime (a): 2 targets per cell at m = 2
+      at the anchor and k = 14 only.
+    E2_targets: '24 per (curve, regime-(b) base) and per degree-matched control, at every level where not censored'
+    rho_instances: '16 per curve, 48 per prime level; the coefficient of variation of a rho run length is about 0.5, so the per-level mean is resolved to about 7 percent'
+    power_statement: >-
+      Per family, the pooled minimal detectable relative effect at power 0.8
+      for Z_dir >= 3.0 is MDE_F = (3.0 + 0.84) * median over cells of
+      (null sd / |null mean|) / sqrt(n_F). A NULL reading of family F is
+      admissible only if MDE_F is at most its reference effect: regime (a)
+      families, the source idea's Weil ceiling (3*ell - 1)/sqrt(p) minimized
+      over the family's cells (0.0078 at ell = 3, k = 20); regime (b)
+      coverage families 0.01 and dispersion families 0.02 (declared: below
+      the size at which a coverage change could matter for cost, since the
+      one-relation-per-target gain is bounded by 1.582 and the harvest-all
+      gain is zero). An inadmissible family reads UNDERPOWERED.
+
+  replication:
+    seeds:
+      - 'all streams keyed by the SHA256 rule in inputs.seed_rule; no other randomness'
+      - 'curves: attempt counters t from 0 per (p, j)'
+      - 'null draws r = 0..99 per cell; GENERIC-ZN draws r = 0..99'
+      - 'E1 targets i = 0..T_E1-1; E2 targets i = 0..23; rho instances i = 0..15'
+    independent_instances: >-
+      15 curves (3 per prime, 5 primes). Structured regime-(a) bases: 27 per
+      main level (3 curves x 3 ell x 3 cosets) and 18 at the anchor (3 curves
+      x 2 ell x 3 cosets), each evaluated at m = 2 and m = 3. Structured
+      regime-(b) bases: 18 per main level (3 curves x 2 m x 3 cosets) and 9 at
+      the anchor (m = 3 only). Every structured base is scored against 100
+      null draws and its interval control. Replication within the run is
+      across curves and cosets; the independent replication, if a positive
+      reading occurs, is a new experiment on fresh curves (next_actions).
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+    maximum_memory_gb: 8
+    maximum_runs: 14
+    maximum_workers: 1
+    notes: >-
+      Time and CPU are advisory and null by user instruction (CLAUDE.md,
+      2026-09-06; docs/research-budget-policy.md). Seven planned runs (one
+      gate run, five prime-level runs, one zero-compute analysis run); the
+      remaining allowance covers re-runs after infrastructure stops. Memory
+      is machine protection: the parent process stays under 8 GB (the
+      discrete-log table at k = 20 is about 5e5 entries); every msolve child
+      runs under RLIMIT_AS 6 GiB. Process watchdogs, justified as machine
+      protection and never as a scientific budget: 900 s per msolve child;
+      1800 s per E1 target; expiry of a watchdog CENSORS that item. The
+      dominant costs are E1 in regime (a) at m = 3 (anchor and k = 14) and E2
+      at k = 20, m = 2 (d up to about 2900).
+
+  stages:
+    - id: stage-0-parameters
+      run: gate run
+      purpose: >-
+        Select primes and d_m by rule, verify the anchor facts, generate and
+        certify all 15 curves, construct every base, compute K, B, delta,
+        B_nom, rho_nom, mu_m(B), 1 - exp(-mu), the Hasse-Weil sanity bound,
+        T_E1 and Q, and write frozen-parameters.json. Its sha256 is recorded
+        in the gate manifest BEFORE any count is computed; any later change to
+        it invalidates the experiment.
+    - id: stage-1-gates
+      run: gate run
+      purpose: >-
+        s_validation_gate on all 15 curves; CTRL-IDENTITY, CTRL-ELL1,
+        CTRL-CONSERVATION and CTRL-POSITIVE-SMALLMULT on the anchor and k = 14
+        curves; E1-fast versus E1-counted agreement on 20 targets per
+        regime-(b) cell at k = 14; one msolve smoke solve per k = 14
+        regime-(b) base checked against E1; msolve help text and version.
+    - id: stage-2-census
+      run: one run per prime level (anchor, k14, k16, k18, k20)
+      purpose: >-
+        E0 for every structured base, its 100 random-K draws, interval-K,
+        GENERIC-ZN (where declared), identity, ell = 1, positive control;
+        CTRL-ANCHOR-EVFB001 at the anchor. Blocking gates re-applied at every
+        level.
+    - id: stage-3-e1
+      run: same prime-level run
+      purpose: 'E1-fast on T_E1 targets per cell (and controls), E1-counted on the declared subsample; CTRL-ENGINE-AGREEMENT'
+    - id: stage-4-e2
+      run: same prime-level run
+      purpose: 'E2 msolve on regime-(b) bases and the two degree-matched controls, 24 targets each'
+    - id: stage-5-rho
+      run: same prime-level run
+      purpose: 'Pollard rho, 16 certified instances per curve'
+    - id: stage-6-analysis
+      run: analysis run (zero compute beyond reading the archived raw results)
+      purpose: >-
+        Compute every frozen reading mechanically: null replay, per-cell z,
+        family statistics, MDE, the H-PFDR-8a4f44 reading, C_IC and slopes,
+        and the outcome label by the rules below. The official verdict is the
+        Coordinator's after independent review.
+
+  stopping_rules:
+    - 'Stop before Stage 2 if Stage 0 cannot reproduce the declared anchor facts or cannot find three certified curves at a prime; record it (infrastructure or design finding).'
+    - 'Stop before Stage 2 if the s_validation_gate fails on any curve; record it as an instrument finding.'
+    - 'Stop a level before any structured statistic is read if CTRL-IDENTITY, CTRL-ELL1-TRIVIAL-COSET, CTRL-CONSERVATION or CTRL-POSITIVE-SMALLMULT fails there; quarantine its outputs.'
+    - 'Stop a level on any E0 versus E1 count mismatch or E1-fast versus E1-counted set mismatch; locate the fault; no amendment-free repair.'
+    - 'E2: if more than half of the solves in a (level, base) are censored, skip the remaining E2 solves of that base family at that and every larger level; those cost cells are censored, never evidence.'
+    - 'Stop when every planned cell has a terminal state (measured | censored | invalid). No tuning, no added cells, no change of curve, prime, d, g, draw count or threshold after Stage 0.'
+
+  invalidation_rules:
+    - 'A timeout, out-of-memory, crash or msolve error is failed_infrastructure (or a censored item) and is NEVER evidence about any hypothesis (AGENTS.md rule 5).'
+    - 'Any import or call of harness/semaev.py s4_expr invalidates every m = 3 row.'
+    - 'Any count computed with floating point invalidates that count; phi is exempt and secondary.'
+    - 'Any randomness not drawn from a declared stream, or any parameter differing from frozen-parameters.json, invalidates the affected run.'
+    - 'A decomposition failing its point-arithmetic certificate invalidates that target (invalid_measurement) and, if it occurs more than once in a cell, the cell.'
+    - 'CTRL-GENERIC-ZN failure invalidates every E0 reading of the experiment.'
+    - 'CTRL-RHO-COMPARATOR failure voids the cost reading only.'
+    - 'A family whose interval-K pooled |Z| is at least 2.0 is read inconclusive, never supported or null.'
+
+  success_criterion: >-
+    The contract is decisive when all blocking gates pass and every family has
+    a terminal reading. OUTCOME LABELS (applied mechanically at Stage 6, after
+    CTRL-NULL-REPLAY calibration):
+    O-POS (supports H-PFDR-6c1e94 at toy tier): some family F has
+    Z_dir >= 3.0, per-level Z_dir >= 2.0 at two or more of the four main
+    levels, at least one cell beyond the per-cell Bonferroni threshold with
+    sign(z) = sign(delta), and interval-K pooled |Z| < 2.0 in F.
+    O-UNDIR (unexpected observation; mechanism not supported): some family
+    has X2 significant at 0.05/8 or a cell beyond the per-cell threshold,
+    without meeting O-POS.
+    O-NULL (the recorded prior): every family |Z_dir| < 2.0, X2 not
+    significant at 0.05/8, no cell beyond the per-cell threshold, and every
+    family admissible by the power statement.
+    O-UNDERPOWERED / INCONCLUSIVE: anything else.
+    Cost readings, reported separately: C-DOM (predicted) E1 slope minus rho
+    slope >= 0.3 at both m; C-ANOM, a point estimate of an index-calculus
+    slope (either engine, either m) at or below the rho slope, which is an
+    unexpected observation requiring review-breakthrough before any
+    interpretation; otherwise C-OPEN.
+    H-PFDR-8a4f44 reading: DEGENERATE if coverage(B-m-g0) is at least 0.05
+    below the random mean at two or more of three curves in some level;
+    otherwise NOT-DEGENERATE at the tested scope.
+  falsification_criterion: >-
+    H-PFDR-6c1e94 is FALSIFIED at the tested scope by O-NULL (structure
+    invariance extends from the mean to the distribution for these coset
+    classes), and its mechanism (HEUR-PFDR-COVERSIGN) is falsified by
+    O-UNDIR. Both are empirical_only on a single run: the Coordinator's
+    decision on O-NULL is weaken plus replication, never reject_scoped on
+    this run alone. HEUR-PFDR-SUBGROUPRANDOM is falsified by a regime-(b)
+    family reaching |Z_dir| >= 3.0 or |Z| beyond the replay-calibrated 99.9th
+    percentile, or by the DEGENERATE reading. The P1-P3 identities cannot
+    falsify anything: their failure is an instrument defect.
+
+  required_artifacts:
+    - 'experiments/EXP-PFDR-b83f17/implementation/ (all code: params.py, curves.py, semaev_indep.py, e0_census.py, e1_enum.py, e1_counted.py, e2_msolve.py, rho.py, analysis.py, a README with exact commands, and run-ids.json listing the run ids minted before any run)'
+    - 'experiments/EXP-PFDR-b83f17/runs/<RUN-ID>/manifest.yaml for every run (exact command, git commit and dirty-tree state, environment and dependency versions including python-flint, numpy, sympy, galois and the msolve version and help text hash, every stream key and seed, parameters, requested policy / backend / resolved model and probe status, reasoning effort, fallback and degraded fields, timestamps, peak RSS, validity status and reason, the sha256 of this specification, and per-file sha256 of the run package)'
+    - 'experiments/EXP-PFDR-b83f17/runs/<RUN-ID>/command.txt, stdout.log, stderr.log'
+    - 'gate run: frozen-parameters.json, s-validation.json, gate-results.json, msolve-help.txt'
+    - 'each prime-level run: e0-cells.json (per base: K, B, delta, sum, mean, coverage, dispersion, label_F, phi, count histogram, sha256 of the canonical little-endian uint64 count vector), e0-vectors/ (full count vectors, compressed, for the anchor and k = 14 structured bases and draws r = 0, 1 only), e1-targets.jsonl.gz (per target: counts, sha256 of the sorted decomposition list, up to 50 explicit certified decompositions, counted M-equivalents, wall seconds), e2-solves.jsonl.gz (per solve: fields of E2_msolve), e2-logs/ (msolve verbose logs, compressed), rho.jsonl (per instance: secret, recovered value, certificate, steps, M-equivalents, restarts), raw-result.json, metrics.json'
+    - 'analysis run: analysis-readings.json (every frozen reading with inputs) and analysis.md (tables: gates, per-family statistics with MDE, null-replay calibration, tail checks, H-PFDR-8a4f44 reading, cost table with MEASURED and MODELED columns separated, slopes, outcome labels, censoring table, engine-event table)'
+
+  interpretation_limits:
+    - 'Toy tier. Every statement is scoped to the 15 generated curves, the five primes, m in {2, 3}, the named bases and engines (python-flint 0.9, msolve 0.6.5), and the recorded budgets. No crypto-scale claim; slopes are descriptive over log2 p in [14, 20].'
+    - 'KN-OPEN-020 class: high-degree membership (sparse binomials of degree (p-1)/ell and d), fixed per curve. Target-dependent and implicit-membership classes are not tested.'
+    - 'The mean yield carries no information by KN-FIND-007; a distributional anomaly bounds any one-relation-per-target gain at 1.582 and changes harvest-all supply not at all. Only the cost column could bear on an exponent.'
+    - 'The regime-(a) lifted-system solving degree is not measured (positive-dimensional); regime-(b) msolve degree and time are.'
+    - 'This experiment does not test H-PFDR-8a4f44 S1-S3 or its HEUR-001 (union-bound ratio); those remain with EXP-PFDR-1c5939 (draft, unrun). It supplies an empirical coverage reading at that record''s operating point only.'
+    - 'An O-POS reading authorizes replication on fresh curves and a growth-with-p design, nothing else.'
+
+  review_plan_note: >-
+    review_required. The producer task is followed by the Coordinator's
+    snapshot archive, then an independent Validator (run integrity, gates,
+    blind re-derivation of E0 counts for a sample of bases from the frozen
+    parameters alone) and a Red Team pass (null-replay calibration, interval
+    control, cost model and optimistic assumptions), under a review_plan the
+    Coordinator writes on the handoff that opens that round, before any
+    reviewer runs.
+
+  id_allocation_provenance: >-
+    EXP-PFDR-b83f17 drawn by the Coordinator subagent as a random 6-hex token
+    without scanning state (no shell: tools/allocate_id.py could not be run);
+    filename glob and a ledger/coordination content search found no
+    occurrence. The dispatching session runs `python3 tools/allocate_id.py
+    --check EXP-PFDR-b83f17` before the archive commit; on a collision the
+    contract is re-issued under a new id before anything binds it.
