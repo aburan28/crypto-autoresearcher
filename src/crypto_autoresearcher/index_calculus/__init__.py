@@ -1,36 +1,45 @@
 """Index calculus for the ECDLP on elliptic curves over prime fields E(F_p).
 
-A self-contained, standard-library implementation of the Semaev point-
-decomposition route to index calculus:
+A self-contained implementation of the Semaev point-decomposition route to
+index calculus, with Pollard rho as the matched baseline:
 
-* :mod:`.curve`      -- short-Weierstrass arithmetic over F_p and a certified
-  generator of prime-order toy curves;
-* :mod:`.semaev`     -- the summation polynomial S_3 and the root-finding it
-  needs;
-* :mod:`.factor_base` -- pluggable factor bases (small-x interval, multiplicative
-  subgroup coset, random subset);
-* :mod:`.decompose`  -- point decomposition over a factor base for any arity m;
-* :mod:`.linalg`     -- sparse structured Gaussian elimination modulo N;
-* :mod:`.rho`        -- Pollard rho baseline on the same curves;
-* :mod:`.solver`     -- the end-to-end index-calculus solver with charged cost
-  accounting.
+* :mod:`.curve`       -- short-Weierstrass arithmetic over F_p and a certified
+  generator of prime-order toy curves (optionally with a filter on p);
+* :mod:`.semaev`      -- the summation polynomial S_3 and its root-finding;
+* :mod:`.factor_base` -- pluggable factor bases (small-x, multiplicative
+  subgroup coset, random) and their membership polynomials;
+* :mod:`.decompose`   -- exhaustive point decomposition for any arity m, with
+  an optional numpy scan (:mod:`._accel`) that changes speed, not results;
+* :mod:`.msolve`      -- algebraic decomposition through the msolve Groebner
+  basis solver (external binary);
+* :mod:`.linalg`      -- incremental sparse elimination modulo N;
+* :mod:`.rho`         -- Pollard rho with distinguished points;
+* :mod:`.solver`      -- the end-to-end solver with charged cost accounting;
+* :mod:`.stats`       -- exponent fits with bootstrap confidence intervals.
 
-Every returned logarithm is verified by scalar multiplication.  The code is
-meant for toy parameters (p up to roughly 2^32); nothing here threatens any
-deployed curve.
+``python -m crypto_autoresearcher.index_calculus`` runs single solves, sweeps
+against rho, and the msolve-versus-enumeration comparison; see README.md in
+this directory.  Every recovered logarithm is verified by scalar
+multiplication.  The code is meant for toy parameters (p up to about 2^32);
+nothing here threatens any deployed curve.
 """
 
 from .curve import Curve, generate_prime_order_curve
-from .factor_base import FactorBase
-from .solver import ICResult, solve_index_calculus
+from .decompose import decompose, decompose_all
+from .factor_base import FactorBase, default_fb_size, subgroup_prime_filter
 from .rho import RhoResult, pollard_rho
+from .solver import ICResult, solve_index_calculus
 
 __all__ = [
     "Curve",
     "FactorBase",
     "ICResult",
     "RhoResult",
+    "decompose",
+    "decompose_all",
+    "default_fb_size",
     "generate_prime_order_curve",
     "pollard_rho",
     "solve_index_calculus",
+    "subgroup_prime_filter",
 ]
