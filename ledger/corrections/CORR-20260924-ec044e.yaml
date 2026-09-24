@@ -1,0 +1,200 @@
+# =============================================================================
+# CORR-20260924-ec044e -- SUPPLEMENTS AN INCOMPLETE RUN RECORD, EDITS NO FILE:
+# what the G4 package RUN-GFPN-bfe956 (the frozen `controls` command, R2''
+# segment 1, protocol 2-r3) does and does not record about its capped
+# children, and one statement of the execution report that is broader than
+# the package shows.
+# - Its manifest's resources.child_rlimit_as_read_back_by_getrlimit and
+#   msolve_threads_executed are [] although 19 capped children ran (11 builder
+#   children and 8 wrapped msolve solves).
+# - The SC-4 accounting of the package has 0 rows although 8 wrapped S-1
+#   attempts left retained .ms.out files.
+# - The report's "the children's own records show the cap was set and read
+#   back" holds for the 11 builder children only.
+# Found by the Coordinator reading the committed package under
+# TASK-20260924-f6f2ef (ruled in DEC-20260924-1ce186). WRITE-ONCE. Archived by
+# TASK-20260924-9c617a.
+# =============================================================================
+correction:
+  id: CORR-20260924-ec044e
+  recorded_at: '2026-09-24'
+  recorded_by: coordinator
+  goal_id: GOAL-GFPN-380702
+  batch_id: BATCH-e409ca
+  task_id: TASK-20260924-f6f2ef
+  decision_id: DEC-20260924-1ce186
+  archived_by: TASK-20260924-9c617a
+
+  record_type: run_package
+  record_id: RUN-GFPN-bfe956
+  record_path: experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-bfe956/manifest.yaml
+  record_sha256: 518ff5f6a16c4191898d48fb725fe2e300e660c29640300e726a97ed1bca365a
+  record_sha256_note: >-
+    As bound by the TASK-20260924-f1fb0e post-run receipt path_sha256 (receipt
+    line 422; archive commit dd103455380238ec2f20d17414de687acdcc822a). This
+    act computed no hash.
+  field: >-
+    the child RLIMIT_AS read-back and threads-executed record of the package,
+    its SC-4 accounting coverage, and the report's statement of what the
+    children's own records show
+
+  items:
+    - item: 1
+      what: the manifest's child read-back and threads lists
+      records:
+        - id: RUN-GFPN-bfe956
+          path: experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-bfe956/manifest.yaml
+          sha256: 518ff5f6a16c4191898d48fb725fe2e300e660c29640300e726a97ed1bca365a
+          locations:
+            - lines: 176-183
+              context: >-
+                resources: child_rlimit_as_read_back_by_getrlimit: [];
+                child_rlimit_as_requested_bytes: 10737418240;
+                msolve_threads_executed: []
+      prior_value: >-
+        Read alone, the empty lists say no capped child recorded a read-back
+        and no msolve thread count was recorded.
+      corrected_value: >-
+        19 capped children ran; the lists are empty because of WHERE the
+        read-backs are, not because none exists or none was taken:
+        - 11 BUILDER children (child/ctl_identity_n3, ctl_raw_random,
+          ctl_raw_planted, ctl_identity_n5_m3, ctl_raw_n5_m3,
+          ctl_identity_n5_m4, ctl_raw_n5_m4, ctl_S3, ctl_S3_rescaled,
+          ctl_torsion_S3_rq, ctl_torsion_S3_norm): each .meta.json records
+          rlimit_as_child_getrlimit {soft 10737418240, hard 10737418240}
+          (read directly for ctl_S3.meta.json lines 83-86; all 11 per the
+          execution report gate_outcome.g4_checker_failure and the dispatching
+          session's reproduction, receipt dispatcher_checks line 1267).
+        - 8 wrapped msolve solves (solver/ctl_identity_random,
+          ctl_rawx_random, ctl_identity_planted, ctl_rawx_planted,
+          ctl_planted_S3, ctl_planted_S3_rescaled, ctl_planted_torsion_S3_rq,
+          ctl_planted_torsion_S3_norm; solver-events.json counters
+          wrapped_calls 8, attempts_total 8): their read-back pairs are
+          RECORDED NOWHERE in the package. The frozen solve() puts the pair
+          into its returned result (v2_driver.py lines 166-169, _slim lines
+          150-154), and the frozen cmd_controls keeps only D, outcome and
+          solution sets of that result in its checks block (v2_driver.py
+          lines 786-795, 841), so raw-result.json carries no
+          rlimit_as_child_getrlimit key (dispatching session, receipt line
+          1267) and one "threads" key only (raw-result.json line 516, not a
+          per-child record). The msolve child's stdout and stderr go to
+          .ms.log and .ms.err, and the read-back travels by a pipe to the
+          parent (v2_solver.py lines 188-227), so the log files do not carry
+          it (read for ctl_planted_S3.ms.log and .ms.err; the other seven not
+          opened). ctl_planted_S3.ms.err shows "#threads 1" (line 15).
+        - The r3 collector builds the manifest lists only from
+          rlimit_as_child_getrlimit and threads_executed keys in
+          raw-result.json (r3_run_wrapper.py lines 510-511); it reads neither
+          child/*.meta.json nor solver-events.json.
+        WHAT CAN BE SAID OF THE 8 SOLVES' ENVELOPE, AND ON WHAT BASIS: the
+        frozen run_child sets RLIMIT_AS in the child and exits the child
+        before exec if the read-back soft or hard limit differs from the
+        requested cap (v2_solver.py lines 193-201), and the parent refuses to
+        start it on a soft mismatch (lines 228-232). Each of the 8 solves has
+        a retained .ms.out, so each child exec'd msolve. That the cap held for
+        them is therefore an INFERENCE FROM FROZEN CODE, not a recorded
+        observation, and it is labelled so wherever it is used.
+      evidence: >-
+        manifest.yaml lines 176-183 and 344-409; solver-events.json lines
+        11-31; child/ctl_S3.meta.json lines 83-86; solver/ file list (32
+        files, 8 tags); v2_driver.py lines 145-174 and 752-841; v2_solver.py
+        lines 185-234; r3_run_wrapper.py lines 506-511.
+
+    - item: 2
+      what: SC-4 accounting coverage of the package
+      records:
+        - id: EXP-GFPN-05ff43 execution report v2-r3
+          path: experiments/EXP-GFPN-05ff43/execution-report-v2-r3.yaml
+          sha256: d46f284869e0dd1e37b029c8a2a2ad911574763c006b5c553134d5c0b3d9cb4e
+          locations:
+            - lines: 331
+              context: "SC-4 accounting (recorded, never acted on): 0 ok recorded attempts with a retained output {'v2_driver.solve': 0, 'a1_health.run_system': 0}; violations 0"
+            - lines: 6478-6484
+              context: 'RUN-GFPN-bfe956: n_ok_recorded_with_output 0; tags_without_retained_output []; rows []'
+            - lines: 6613
+              context: 'sc4_total: {ok_recorded_with_output: 72, violations: 0}'
+      prior_value: >-
+        G4 has no recorded ok attempt with a retained output, so SC-4 has
+        nothing to account for in it.
+      corrected_value: >-
+        G4 has 8 wrapped S-1 attempts, each with a retained .ms.out, .ms.log
+        and .ms.err under solver/. The r3 checker's SC-4 enumeration reads
+        S-1 attempts ONLY from solve records inside raw-result.json
+        (r3_check_run.py lines 22-24, 128-134), and the frozen controls
+        command writes none, so the 8 attempts are neither accounted nor
+        listed as "without retained output". The segment total of 72 SC-4
+        rows (36 G1, 36 G2) therefore covers 72 of the 80 wrapped S-1
+        attempts of segment 1 (report line 6611), not all of them. Whether
+        the SC-3 invariant holds on the 8 G4 outputs is NOT KNOWN; it is not
+        computed here and is not inferred.
+      evidence: >-
+        r3_check_run.py lines 22-25, 88-150; execution-report-v2-r3.yaml
+        lines 6378, 6478-6484, 6611-6613; solver/ file list.
+
+    - item: 3
+      what: the report's statement of what the children's records show
+      records:
+        - id: EXP-GFPN-05ff43 execution report v2-r3
+          path: experiments/EXP-GFPN-05ff43/execution-report-v2-r3.yaml
+          sha256: d46f284869e0dd1e37b029c8a2a2ad911574763c006b5c553134d5c0b3d9cb4e
+          locations:
+            - lines: 6522-6528
+              context: >-
+                "The children's own records show the cap was set and read back,
+                so this is a recording gap in the frozen controls path, not an
+                envelope breach."
+      prior_value: >-
+        Every child's own record shows the cap was set and read back.
+      corrected_value: >-
+        The 11 builder children's own records show it. The 8 msolve
+        children have no record of their read-back in the package (item 1);
+        for them the cap is shown only by the frozen code's refusal logic.
+        The report's conclusion, "a recording gap in the frozen controls
+        path, not an envelope breach", stands on that basis:
+        DEC-20260924-1ce186 R-2 adopts it and labels the basis for the 8
+        solves as an inference from frozen code.
+      evidence: item 1.
+
+  nothing_else_changes: >-
+    No file changes. RUN-GFPN-bfe956 (manifest, raw-result, solver-events,
+    child and solver files), the execution report and the post-run receipt
+    are unchanged. The package's recorded run_status (completed_valid),
+    gate_pass (true), 45 / 45 control checks and 7 / 7 certificates stand as
+    recorded. The frozen checker's verdict stands as frozen.
+
+  cause: >-
+    The frozen `controls` command had never run in any lineage before this
+    package (execution report line 6519; the v2 gate stopped at G2), and the
+    r3 stage's DV-7 could not exercise it at toy scale, so its G4 role was a
+    SYNTHETIC row (implementation-v2-r3.md lines 534-537). The r3 collector
+    and SC-4 enumeration were therefore validated only on commands whose raw
+    result carries per-solve records.
+
+  what_it_is_not:
+    - NOT A CHANGE TO ANY FILE OR TO ANY RECORDED STATUS.
+    - NOT A FINDING OF AN ENVELOPE BREACH; the builder read-backs equal the requested cap and the frozen code refuses a mismatched child.
+    - NOT EVIDENCE about D, the quotient, H-GFPN-9a29be or HEUR-GFPN-DFLAT.
+
+  evidence_artifacts:
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-bfe956/manifest.yaml
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-bfe956/solver-events.json
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-bfe956/child/ctl_S3.meta.json
+    - experiments/EXP-GFPN-05ff43/runs/RUN-GFPN-bfe956/solver/ctl_planted_S3.ms.err
+    - experiments/EXP-GFPN-05ff43/execution-report-v2-r3.yaml
+    - experiments/EXP-GFPN-05ff43/implementation-v2/v2_driver.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2/v2_solver.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2-r3/r3_run_wrapper.py
+    - experiments/EXP-GFPN-05ff43/implementation-v2-r3/r3_check_run.py
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260924-f1fb0e/post-run-receipt.json
+
+  interpretation_limits:
+    - >-
+      This act opened one builder .meta.json and one msolve .ms.log / .ms.err
+      pair. The other ten builder read-backs are taken from the execution
+      report and the dispatching session's reproduction; the other seven
+      solves are read through the same frozen code path.
+    - >-
+      Whether other commands of the r3 plans have capped children whose
+      read-backs miss raw-result.json is not established here. The zero-run
+      read-back census TASK-20260924-bf5724 establishes it (DEC-20260924-1ce186
+      R-7).
