@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import math
 import random
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 Point = tuple[int, int] | None  # None is the point at infinity
@@ -67,6 +68,40 @@ def sqrt_mod(n: int, p: int) -> int | None:
         m, c = i, b * b % p
         t, r = t * c % p, r * b % p
     return r
+
+
+def factorize(n: int) -> dict[int, int]:
+    """Prime factorisation of n by trial division (toy sizes only)."""
+    f: dict[int, int] = {}
+    for q in (2, 3):
+        while n % q == 0:
+            f[q] = f.get(q, 0) + 1
+            n //= q
+    q = 5
+    while q * q <= n:
+        for r in (q, q + 2):
+            while n % r == 0:
+                f[r] = f.get(r, 0) + 1
+                n //= r
+        q += 6
+    if n > 1:
+        f[n] = f.get(n, 0) + 1
+    return f
+
+
+def divisors(n: int) -> list[int]:
+    divs = [1]
+    for q, e in factorize(n).items():
+        divs = [d * q**k for d in divs for k in range(e + 1)]
+    return sorted(divs)
+
+
+def primitive_root(p: int) -> int:
+    qs = list(factorize(p - 1))
+    g = 2
+    while any(pow(g, (p - 1) // q, p) == 1 for q in qs):
+        g += 1
+    return g
 
 
 @dataclass
@@ -178,20 +213,30 @@ def _seeded_rng(*labels: object) -> random.Random:
     return random.Random(int.from_bytes(digest, "big"))
 
 
-def generate_prime_order_curve(bits: int, seed: int = 0) -> tuple[Curve, Point]:
+def generate_prime_order_curve(bits: int, seed: int = 0,
+                               p_filter: Callable[[int], bool] | None = None,
+                               max_prime_draws: int = 100_000) -> tuple[Curve, Point]:
     """A deterministic ordinary curve E/F_p of prime order, with a generator.
 
     p is a prime of ``bits`` bits.  The order is certified: BSGS finds the
     unique multiple m of a random point P in the Hasse interval, m is prime
     and m > 4 sqrt(p), so m is both ord(P) and #E(F_p).  Curves with a = 0
     or b = 0 (j = 1728 or j = 0) and anomalous curves (#E = p) are rejected.
+
+    ``p_filter`` restricts the field: primes are drawn from the same seeded
+    stream and the first one it accepts is used, so the result is still a
+    deterministic function of (bits, seed, filter).  Without a filter the
+    curve is the one earlier versions produced.
     """
     if bits < 8:
         raise ValueError("bits must be >= 8")
     rng = _seeded_rng("crypto_autoresearcher.index_calculus.curve", bits, seed)
-    p = next_prime(rng.randrange(1 << (bits - 1), 1 << bits) | 1)
-    while p.bit_length() != bits:
+    for _ in range(max_prime_draws):
         p = next_prime(rng.randrange(1 << (bits - 1), 1 << bits) | 1)
+        if p.bit_length() == bits and (p_filter is None or p_filter(p)):
+            break
+    else:
+        raise ValueError(f"no {bits}-bit prime passed the filter in {max_prime_draws} draws")
     while True:
         a, b = rng.randrange(1, p), rng.randrange(1, p)
         if (4 * a**3 + 27 * b**2) % p == 0:
