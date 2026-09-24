@@ -351,9 +351,12 @@ def engines_report(rows: list[dict], reps: int = 2000, min_seconds: float = 0.05
     """Per-(m, base) exponent fits and per-cell medians.
 
     The msolve fit uses only cells whose median msolve time is at least
-    ``min_seconds``: below that the ~4 ms process start-up dominates and the
-    net time is noise.  Rungs of the size ladder that produced the same base
-    (and hence the same targets) are counted once.
+    ``min_seconds`` (below that the ~4 ms process start-up dominates and the
+    net time is noise) and in which at least half the targets finished: a
+    cell where most runs hit the timeout keeps only its fastest targets, so
+    its median would be biased low.  Such a cell is still tabulated, as a
+    lower bound.  Rungs of the size ladder that produced the same base (and
+    hence the same targets) are counted once.
     """
     seen, uniq = set(), []
     for r in rows:
@@ -366,11 +369,17 @@ def engines_report(rows: list[dict], reps: int = 2000, min_seconds: float = 0.05
     for m, kind in sorted({(r["m"], r["fb"]) for r in rows}):
         sel = [r for r in rows if (r["m"], r["fb"]) == (m, kind)]
         ok = [r for r in sel if r["msolve_status"] in ("ok", "no_solution")]
-        slow_cells = {key for key in {(r["fb_size"], r["member_degree"]) for r in ok}
-                      if statistics.median(r["msolve_seconds"] for r in ok
-                                           if (r["fb_size"], r["member_degree"]) == key)
-                      >= min_seconds}
-        timed = [r for r in ok if (r["fb_size"], r["member_degree"]) in slow_cells]
+
+        def cell_of(r):
+            return r["fb_size"], r["member_degree"]
+
+        fit_cells = set()
+        for key in {cell_of(r) for r in ok}:
+            done = [r["msolve_seconds"] for r in ok if cell_of(r) == key]
+            total = sum(1 for r in sel if cell_of(r) == key)
+            if statistics.median(done) >= min_seconds and 2 * len(done) >= total:
+                fit_cells.add(key)
+        timed = [r for r in ok if cell_of(r) in fit_cells]
         name = f"m{m}:{kind}"
         fits[name] = {
             "enum_s3": _size_fit(sel, "enum_s3", reps),
