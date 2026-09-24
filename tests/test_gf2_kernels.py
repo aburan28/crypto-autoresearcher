@@ -14,8 +14,11 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
 import pytest
+
+# numpy is the optional `gf2` extra (the ledger toolchain does not need it),
+# as python-flint is for the fast isogeny engine.
+np = pytest.importorskip("numpy", reason="the gf2 engine needs the optional `gf2` extra (numpy)")
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))

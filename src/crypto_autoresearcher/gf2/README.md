@@ -22,6 +22,12 @@ New experiments import this package instead of copying the engine again.
 | `reference` | numpy definitions copied from the archived engines; the native kernels must equal these |
 | `_kernels.c` | the native kernels (C99 plus GCC builtins); compiled on first use and loaded with ctypes |
 
+## Install
+
+`pip install -e ".[gf2]"` adds numpy, the package's only Python dependency.
+Without numpy the tests skip, as the `fast` extra's tests do without
+python-flint.
+
 ## Backend
 
 On first use `_kernels.c` is compiled with the system C compiler into
