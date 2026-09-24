@@ -96,6 +96,10 @@ class ExecutionTests(unittest.TestCase):
         self.git("init", "-q")
         self.git("config", "user.name", "Execution tests")
         self.git("config", "user.email", "test@example.invalid")
+        # No detached background gc/maintenance: it can still be writing
+        # .git/objects/pack when TemporaryDirectory cleanup runs.
+        self.git("config", "gc.auto", "0")
+        self.git("config", "maintenance.auto", "false")
         self.commit()
 
     def git(self, *args):
