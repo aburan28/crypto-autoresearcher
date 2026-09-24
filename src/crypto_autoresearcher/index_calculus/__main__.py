@@ -18,6 +18,7 @@ percentile bootstrap over instances.
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import math
 import random
@@ -439,7 +440,8 @@ def format_engines_report(rep: dict) -> str:
 def cmd_analyze(args: argparse.Namespace) -> int:
     rows = []
     for path in args.files:
-        with open(path) as fh:
+        opener = gzip.open if path.endswith(".gz") else open
+        with opener(path, "rt") as fh:
             rows.extend(json.loads(line) for line in fh if line.strip())
     sweep_rows = [r for r in rows if "method" in r]
     engine_rows = [r for r in rows if r.get("engine_cell")]
@@ -531,7 +533,7 @@ def main(argv: list[str] | None = None) -> int:
     g.set_defaults(func=cmd_engines)
 
     z = sub.add_parser("analyze", help="refit from JSONL rows")
-    z.add_argument("files", nargs="+")
+    z.add_argument("files", nargs="+", help="sweep / engines JSONL files (.gz is fine)")
     z.add_argument("--reps", type=int, default=2000)
     z.add_argument("--min-seconds", type=float, default=0.05,
                    help="engines: fit msolve only on cells at least this slow")

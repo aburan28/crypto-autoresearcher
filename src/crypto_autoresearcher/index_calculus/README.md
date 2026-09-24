@@ -72,7 +72,185 @@ Costs are counts in separate columns, and columns are never summed.
   in the sweep. Every base in a cell then uses the subgroup base's actual
   size.
 
-## Results
+## Results (2026-09-24)
 
-The 12–32-bit sweep and the msolve comparison are running; their numbers
-land here when they finish.
+These are toy sizes: the sweep uses primes of 12 to 32 bits, and the msolve
+comparison uses one 16-bit prime. The runs were on a 4-core Intel Xeon
+(2.1 GHz) cloud container, with Python 3.11.15, numpy 2.4.6 and msolve
+0.6.5 (the Ubuntu 24.04 package).
+
+The raw rows are in `results/`, and one command regenerates every number
+below:
+
+```sh
+python -m crypto_autoresearcher.index_calculus analyze \
+    results/sweep-20260924.jsonl.gz results/engines-20260924.jsonl.gz
+```
+
+### 1. Index calculus against Pollard rho, 12–32 bits
+
+```sh
+python -m crypto_autoresearcher.index_calculus sweep \
+    --bits 12 14 16 18 20 22 24 26 28 30 32 --m 2 3 \
+    --fb small_x random subgroup --curves 5 --rho-curves 10 --workers 4
+```
+
+- **Runs.** 440 instances: 5 curves per size for each of the six
+  index-calculus configurations, and 10 curves per size for rho. Every
+  recovered logarithm was checked against `kP = Q`, and none failed.
+- **Setup.** `p` was drawn so that `p - 1` hosts the subgroup base at both
+  arities. The three bases in a cell have identical `|F|`.
+
+| method | cost unit | exponent in N [95% CI] |
+|---|---|---|
+| rho | walk group additions | **0.50** [0.48, 0.52] |
+| rho | walk + fixed setup | 0.32 [0.30, 0.34] |
+| IC, m = 2, small_x | S₃ root solves | **0.99** [0.97, 1.00] |
+| IC, m = 2, random | S₃ root solves | 0.98 [0.97, 1.00] |
+| IC, m = 2, subgroup | S₃ root solves | 0.97 [0.95, 0.99] |
+| IC, m = 3, small_x | S₃ root solves | **1.01** [0.99, 1.02] |
+| IC, m = 3, random | S₃ root solves | 1.00 [0.99, 1.01] |
+| IC, m = 3, subgroup | S₃ root solves | 1.00 [0.98, 1.01] |
+
+Median cost per instance. Rho is counted in walk additions; index calculus
+in S₃ solves.
+
+| bits | \|F\| (m=2) | \|F\| (m=3) | rho walk | IC m=2 small_x | m=2 random | m=2 subgroup | IC m=3 small_x | m=3 random | m=3 subgroup |
+|---|---|---|---|---|---|---|---|---|---|
+| 12 | 25 | 11 | 54 | 970 | 1,033 | 586 | 811 | 1,451 | 3,161 |
+| 14 | 60 | 17 | 118 | 2,639 | 2,442 | 3,793 | 9,316 | 9,533 | 6,901 |
+| 16 | 109 | 26 | 318 | 8,961 | 14,348 | 11,789 | 35,393 | 28,124 | 27,463 |
+| 18 | 203 | 44 | 391 | 43,365 | 46,691 | 51,984 | 1.22e5 | 1.42e5 | 1.13e5 |
+| 20 | 410 | 63 | 1,036 | 1.81e5 | 1.31e5 | 1.39e5 | 4.24e5 | 4.27e5 | 4.82e5 |
+| 22 | 914 | 107 | 1,913 | 8.39e5 | 5.82e5 | 7.66e5 | 2.32e6 | 2.38e6 | 2.65e6 |
+| 24 | 1,750 | 160 | 5,034 | 3.03e6 | 3.20e6 | 2.31e6 | 9.18e6 | 9.48e6 | 9.90e6 |
+| 26 | 2,990 | 250 | 4,956 | 8.69e6 | 1.09e7 | 1.09e7 | 3.31e7 | 2.73e7 | 3.34e7 |
+| 28 | 6,485 | 408 | 18,398 | 4.15e7 | 4.36e7 | 4.28e7 | 1.31e8 | 1.48e8 | 1.48e8 |
+| 30 | 12,275 | 699 | 37,854 | 1.56e8 | 1.65e8 | 1.56e8 | 4.62e8 | 4.37e8 | 4.23e8 |
+| 32 | 27,660 | 1,108 | 75,694 | 8.07e8 | 8.60e8 | 8.08e8 | 2.38e9 | 2.31e9 | 2.36e9 |
+
+What the sweep shows:
+
+- **Index calculus is linear in N; rho is √N.**
+  - Exhaustive-decomposition index calculus costs about `N^1.0` at m = 2
+    and at m = 3. Rho costs `N^0.50`.
+  - At 32 bits the gap is about 10⁴ (8.1·10⁸ S₃ solves against 7.6·10⁴
+    walk steps), and it grows like √N.
+  - The two units differ: an S₃ solve is one modular square root, a rho
+    step one point addition. Each is about one modular exponentiation or
+    inversion, which moves constants, not exponents.
+- **The factor base's structure changes nothing measurable at matched
+  `|F|`.**
+  - The confidence intervals overlap.
+  - At 32 bits the three bases are within 7% of each other.
+  - The relation supply is the same for all three: relations needed are
+    0.50·|F| at m = 2 and 0.92·|F| at m = 3, and attempts per relation are
+    2.5–2.7.
+  - So the high-degree subgroup base behaves like a random set of the same
+    size, as the conservation of mean yield (`KN-FIND-007`) predicts.
+  - This extends the earlier toy-scale negative for prime-field index
+    calculus (`ledger/FINDING-PF-IC-001.md`) to that class.
+- **m = 3 has the same exponent as m = 2 and costs 2.7–3.0× more at 32
+  bits.** Its smaller base (N^(1/3) instead of N^(1/2)) is offset by `|F|²`
+  S₃ solves per attempt instead of `|F|`.
+- **Rho's setup cost explains the old 0.30 slope.** The fixed setup (the
+  step table and walk starts) costs 730–2,060 group operations and exceeds
+  the walk itself below about 22 bits. The walk alone scales as 0.50; walk
+  plus setup gives the 0.3 slope measured before this change.
+
+### 2. Algebraic decomposition (msolve) against exhaustive enumeration
+
+```sh
+python -m crypto_autoresearcher.index_calculus engines --bits 16 --m 2 3 \
+    --targets 12 --workers 3 --timeout 900 --max-seconds 60
+python -m crypto_autoresearcher.index_calculus engines --bits 16 --m 3 \
+    --fb subgroup random --max-size 48 --targets 12 --workers 3 --timeout 900 --max-seconds 60
+```
+
+The first run was stopped partway through its m = 3 small-x cell at
+`|F| = 64`. The second finished the m = 3 ladders on the same curve,
+`p = 62401`.
+
+- **Targets.** 687 in all, 345 of them planted as sums of `m` base points.
+  417 have at least one decomposition, 590 decompositions in total.
+- **Agreement.** msolve finished 685 targets and found exactly the same set
+  of decompositions as enumeration on all 685. Every msolve solution lifted
+  back to factor-base points.
+- **Censored.** The other 2 targets hit the 900 s timeout. They are
+  treated as censored, not as "no decomposition".
+
+Per-target exponents below come from cells whose median msolve time is at
+least 0.05 s and where at least half the targets finished. msolve's ~4 ms
+process start-up is subtracted.
+
+| arity, base | enumeration: S₃ solves vs \|F\| | msolve time vs \|F\| | msolve time vs deg f |
+|---|---|---|---|
+| m = 2, small_x | 1.00 | **3.80** [3.73, 3.88] | 3.80 [3.73, 3.88] |
+| m = 2, random | 1.00 | 3.73 [3.67, 3.79] | 3.73 [3.67, 3.79] |
+| m = 2, subgroup | 1.00 | **2.48** [2.44, 2.51] | **2.29** [2.26, 2.32] |
+| m = 3, small_x | 1.90 | **4.41** [4.36, 4.45] | 4.41 [4.36, 4.45] |
+| m = 3, random | 1.90 | 4.39 [4.35, 4.42] | 4.39 [4.35, 4.42] |
+| m = 3, subgroup | 1.89 | 3.54 [3.52, 3.56] | **4.44** [4.42, 4.47] |
+
+Enumeration's m = 3 count is exactly `|F|(|F| + 1)` per target; its slope
+is below 2 only because small `|F|` are in the fit. The subgroup base's
+membership degree is `d`, which is `2|F|` give or take; the dense bases have
+degree `|F|`.
+
+| cell | \|F\| | deg f | enumeration S₃ / target | msolve s / target (median) | msolve finished | agree |
+|---|---|---|---|---|---|---|
+| m = 2 small_x | 104 | 104 | 104 | 0.120 | 12/12 | 12/12 |
+| m = 2 small_x | 258 | 258 | 258 | 3.55 | 12/12 | 12/12 |
+| m = 2 random | 258 | 258 | 258 | 3.72 | 12/12 | 12/12 |
+| m = 2 subgroup | 104 | 192 | 104 | 0.089 | 12/12 | 12/12 |
+| m = 2 subgroup | 258 | 520 | 258 | 0.882 | 12/12 | 12/12 |
+| m = 3 small_x | 25 | 25 | 650 | 6.97 | 12/12 | 12/12 |
+| m = 3 small_x | 39 | 39 | 1,560 | 52.9 | 12/12 | 12/12 |
+| m = 3 small_x | 64 | 64 | 4,160 | ≥ 770 (lower bound) | 1/3 | 1/1 |
+| m = 3 random | 39 | 39 | 1,560 | 50.9 | 12/12 | 12/12 |
+| m = 3 subgroup | 25 | 48 | 650 | 134 | 12/12 | 12/12 |
+
+What the comparison shows:
+
+- **The algebraic route loses to plain enumeration at every size
+  measured.**
+  - msolve's per-target cost grows much faster: `|F|^3.7–3.8` against
+    `|F|^1` at m = 2, and `|F|^4.4` against `|F|^2` at m = 3.
+  - The comparison with rho, which is far cheaper still, doesn't even come
+    into it.
+  - Wall times are C (msolve) against Python/numpy (enumeration), so
+    compare exponents, not times.
+- **The sparse subgroup equation `x^d = g^d` helps msolve at m = 2.**
+  - Cost grows like `deg^2.3` there, against `deg^3.8` for the dense
+    `∏(x − x_j)`.
+  - At `|F| = 258` the subgroup base is 4× faster than a dense base of the
+    same size, despite having twice the degree.
+- **At m = 3 sparsity stops helping.**
+  - Every base costs about `deg^4.4`.
+  - The subgroup base, of degree ≈ 2|F|, is therefore about 2^4.4 ≈ 20×
+    slower than a dense base of the same `|F|` (measured: 134 s against
+    7 s at `|F| = 25`).
+- **Modeled, not measured: the total exponent is well above rho's
+  `N^0.5`.**
+  - Combine the sweep's attempt counts (about 2.7 attempts per relation
+    and 0.5–0.9·|F| relations at the default `|F|`) with a per-target cost
+    of `|F|^γ`. The total is about `N^((1+γ)/m)`.
+  - Enumeration gives `N^1.0`, which matches the sweep.
+  - msolve gives `N^2.4` (m = 2, dense), `N^1.7` (m = 2, subgroup) and
+    `N^1.8` (m = 3, any base).
+  - This extrapolates per-target exponents fitted at `|F| ≤ 258` (m = 2)
+    and `|F| ≤ 39` (m = 3) on one 16-bit field.
+
+### Caveats
+
+- **Toy scale.** Exponents fitted over 12–32 bits include lower-order
+  terms. The operation counts are the primary metric. Wall-time slopes
+  (0.67–0.79 for index calculus) are lower because the vectorised scan gets
+  more efficient on longer arrays.
+- **Linear algebra stops early.** It stops at the first relation that fixes
+  `k`: about 0.5·|F| relations at m = 2 (the first cycle in the relation
+  graph) and 0.92·|F| at m = 3. A full-rank solve needs about `|F|`, a
+  constant factor more.
+- **msolve bound.** The comparison runs below 2^16 because msolve 0.6.5 is
+  wrong above that bound (see `msolve.py`). The per-target exponents concern
+  `|F|`, not `p`.
