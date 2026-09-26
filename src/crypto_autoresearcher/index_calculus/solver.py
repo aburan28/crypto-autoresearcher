@@ -7,12 +7,17 @@
    first relation that determines k.
 4. Verify kP = Q.
 
-Decomposition runs on one of two engines: ``enumerate`` (exhaustive S_3
-search, decompose.py) or ``msolve`` (Groebner bases, msolve.py).  Every stage
+Decomposition runs on one of three engines: ``enumerate`` (exhaustive S_3
+search, decompose.py), ``mitm`` (the same search finishing in a table of
+precomputed h-point tails, tails.py) or ``msolve`` (Groebner bases,
+msolve.py).  ``mitm`` finds the same relation as ``enumerate`` for every
+target, so the two make identical runs and differ only in cost.  Every stage
 is charged in its own column: S_3 root solves, membership tests, group
 operations split into target generation (the scalar multiplications for
 aP + bQ) and decomposition, modular multiply-adds in the linear algebra, and
-for msolve the solver's wall time.  Wall time is reported per phase.
+for msolve the solver's wall time.  The mitm table is built once per run and
+its S_3 solves are inside ``s3_solves`` (and also reported on their own as
+``table_s3_solves``).  Wall time is reported per phase.
 """
 
 from __future__ import annotations
@@ -25,8 +30,9 @@ from .curve import Curve, Point
 from .decompose import DecompStats, decompose, use_acceleration
 from .factor_base import FACTOR_BASES, FactorBase, build_factor_base, default_fb_size
 from .linalg import EliminationState
+from .tails import TailTable, default_table_arity
 
-ENGINES = ("enumerate", "msolve")
+ENGINES = ("enumerate", "mitm", "msolve")
 __all__ = ["ENGINES", "FACTOR_BASES", "ICResult", "build_factor_base",
            "default_fb_size", "solve_index_calculus"]
 
@@ -50,7 +56,11 @@ class ICResult:
     msolve_calls: int
     msolve_seconds: float
     censored_attempts: int
+    table_arity: int
+    table_entries: int
+    table_s3_solves: int
     seconds_factor_base: float
+    seconds_table: float
     seconds_relations: float
     seconds_linalg: float
     seconds_total: float
@@ -64,7 +74,8 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
                          seed: int = 0, max_attempts: int | None = None,
                          engine: str = "enumerate", accelerate: bool | None = None,
                          factor_base: FactorBase | None = None,
-                         msolve_timeout: float | None = 600.0) -> ICResult:
+                         msolve_timeout: float | None = 600.0,
+                         table_arity: int | None = None) -> ICResult:
     N = E.order
     if N is None:
         raise ValueError("curve order must be known")
@@ -79,7 +90,15 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
     fb = factor_base
     if fb is None:
         fb = build_factor_base(E, fb_kind, fb_size or default_fb_size(N, m), seed)
-    accel = engine == "enumerate" and use_acceleration(fb, accelerate)
+    accel = engine in ("enumerate", "mitm") and use_acceleration(fb, accelerate)
+    table = None
+    if engine == "mitm":
+        h = table_arity if table_arity is not None else default_table_arity(m)
+        if not 1 <= h < m:
+            raise ValueError(f"table_arity must be in [1, m - 1] = [1, {m - 1}], got {h}")
+        table = TailTable(E, fb, h, accelerate=accel)
+    elif table_arity not in (None, 1):
+        raise ValueError(f"table_arity applies to the mitm engine, not {engine!r}")
     t1 = time.perf_counter()
 
     stats = DecompStats()
@@ -94,8 +113,8 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
         before = E.ops.group_ops
         R = E.add(E.mul(a, P), E.mul(b, Q))
         target_ops += E.ops.group_ops - before
-        if engine == "enumerate":
-            rel = decompose(E, fb, R, m, stats, accelerate=accel)
+        if engine != "msolve":
+            rel = decompose(E, fb, R, m, stats, accelerate=accel, table=table)
         else:
             rel = _msolve_attempt(E, fb, R, m, seed, stats, msolve_timeout)
             msolve_calls += rel[1]
@@ -118,11 +137,17 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
     return ICResult(
         k=k, verified=verified, m=m, engine=engine, accelerated=accel,
         factor_base=fb.describe(), relations=relations, rank=la.rank,
-        attempts=stats.attempts, s3_solves=stats.s3_solves,
+        attempts=stats.attempts,
+        s3_solves=stats.s3_solves + (table.s3_solves if table else 0),
         membership_tests=stats.membership_tests, group_ops=group_ops,
         target_ops=target_ops, la_ops=la.ops, msolve_calls=msolve_calls,
         msolve_seconds=msolve_seconds, censored_attempts=censored,
-        seconds_factor_base=t1 - t0, seconds_relations=t2 - t1 - t_la,
+        table_arity=table.arity if table else 1,
+        table_entries=table.entries if table else len(fb),
+        table_s3_solves=table.s3_solves if table else 0,
+        seconds_factor_base=t1 - t0 - (table.seconds if table else 0.0),
+        seconds_table=table.seconds if table else 0.0,
+        seconds_relations=t2 - t1 - t_la,
         seconds_linalg=t_la, seconds_total=t2 - t0,
     )
 

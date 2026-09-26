@@ -2,7 +2,8 @@
 
     solve    one instance end to end, JSON out
     sweep    index calculus vs Pollard rho over field sizes: one JSONL row per
-             instance and method, fitted cost exponents in N with bootstrap CIs
+             instance and method, fitted cost exponents in N with bootstrap CIs;
+             --engine enumerate mitm runs both decomposition engines
     engines  per-target decomposition cost of msolve (Groebner) vs exhaustive
              enumeration on a ladder of factor-base sizes, with the check that
              both engines find exactly the same decompositions
@@ -59,7 +60,8 @@ def cmd_solve(args: argparse.Namespace) -> int:
     out = {"curve": {"p": E.p, "a": E.a, "b": E.b, "order": E.order}, "P": P, "Q": Q}
     ic = solve_index_calculus(E, P, Q, m=args.m, fb_kind=args.fb, fb_size=args.fb_size,
                               seed=args.seed, engine=args.engine,
-                              accelerate=False if args.no_accel else None)
+                              accelerate=False if args.no_accel else None,
+                              table_arity=args.table_arity)
     out["index_calculus"] = ic.to_dict() | {"correct": ic.k == k}
     if args.rho:
         rr = pollard_rho(E, P, Q, seed=args.seed)
@@ -95,31 +97,42 @@ def _sweep_job(job: dict) -> list[dict]:
         size = max(4, size)
         for kind in job["fbs"]:
             fb = fbs[kind] if kind in fbs else build_factor_base(E, kind, size, c)
-            E.ops.group_ops = 0
-            ic = solve_index_calculus(E, P, Q, m=m, fb_kind=kind, seed=c,
-                                      factor_base=fb, accelerate=job["accelerate"])
-            rows.append(base | {
-                "method": f"ic_m{m}", "fb": kind, "fb_size": len(fb),
-                "fb_params": {kk: v for kk, v in fb.params.items() if kk != "seed"},
-                "ok": ic.verified and ic.k == k, "s3_solves": ic.s3_solves,
-                "membership_tests": ic.membership_tests, "group_ops": ic.group_ops,
-                "target_ops": ic.target_ops, "decomp_ops": ic.group_ops - ic.target_ops,
-                "la_ops": ic.la_ops, "relations": ic.relations, "attempts": ic.attempts,
-                "rank": ic.rank, "accelerated": ic.accelerated,
-                "seconds": ic.seconds_total})
+            for engine in job.get("engines", ["enumerate"]):
+                if bits > job.get("engine_caps", {}).get(f"{engine}:{m}", 10**9):
+                    continue
+                E.ops.group_ops = 0
+                ic = solve_index_calculus(E, P, Q, m=m, fb_kind=kind, seed=c,
+                                          factor_base=fb, accelerate=job["accelerate"],
+                                          engine=engine)
+                rows.append(base | {
+                    "method": f"ic_m{m}", "fb": kind, "engine": engine, "fb_size": len(fb),
+                    "fb_params": {kk: v for kk, v in fb.params.items() if kk != "seed"},
+                    "ok": ic.verified and ic.k == k, "s3_solves": ic.s3_solves,
+                    "table_arity": ic.table_arity, "table_s3_solves": ic.table_s3_solves,
+                    "table_entries": ic.table_entries,
+                    "membership_tests": ic.membership_tests, "group_ops": ic.group_ops,
+                    "target_ops": ic.target_ops, "decomp_ops": ic.group_ops - ic.target_ops,
+                    "la_ops": ic.la_ops, "relations": ic.relations, "attempts": ic.attempts,
+                    "rank": ic.rank, "accelerated": ic.accelerated,
+                    "seconds": ic.seconds_total})
     return rows
 
 
-def _parse_caps(items: list[str]) -> dict[int, int]:
-    caps = {}
+def _parse_caps(items: list[str]) -> tuple[dict[int, int], dict[str, int]]:
+    """``M=BITS`` caps an arity for every engine, ``ENGINE:M=BITS`` for one engine."""
+    caps, engine_caps = {}, {}
     for it in items:
         m, _, b = it.partition("=")
-        caps[int(m)] = int(b)
-    return caps
+        if ":" in m:
+            engine, _, mm = m.partition(":")
+            engine_caps[f"{engine}:{int(mm)}"] = int(b)
+        else:
+            caps[int(m)] = int(b)
+    return caps, engine_caps
 
 
 def cmd_sweep(args: argparse.Namespace) -> int:
-    caps = _parse_caps(args.m_max_bits)
+    caps, engine_caps = _parse_caps(args.m_max_bits)
     subgroup = "subgroup" in args.fb
     jobs = []
     for bits in args.bits:
@@ -127,11 +140,13 @@ def cmd_sweep(args: argparse.Namespace) -> int:
             ic_ms = [m for m in args.m if c < args.curves and bits <= caps.get(m, 10**9)]
             jobs.append({"bits": bits, "curve": c, "ms": args.m, "ic_ms": ic_ms,
                          "fbs": args.fb, "rho": c < args.rho_curves, "subgroup": subgroup,
-                         "tolerance": args.tolerance,
+                         "tolerance": args.tolerance, "engines": args.engine,
+                         "engine_caps": engine_caps,
                          "accelerate": False if args.no_accel else None})
     jobs.sort(key=lambda j: (-j["bits"] * (1 + len(j["ic_ms"])), j["curve"]))
     rows = _run_jobs(_sweep_job, jobs, args.workers, args.out, args.quiet)
-    rows.sort(key=lambda r: (r["bits"], r["curve"], r["method"], r["fb"]))
+    rows.sort(key=lambda r: (r["bits"], r["curve"], r["method"], r["fb"],
+                             r.get("engine", "")))
     report = sweep_report(rows, args.reps)
     if args.json:
         json.dump({"rows": rows, **report}, sys.stdout, indent=2)
@@ -174,24 +189,38 @@ def _progress_line(r: dict, elapsed: float) -> str:
     if "method" in r:
         cost = r.get("walk_ops") if r["method"] == "rho" else r.get("s3_solves")
         return (f"[{elapsed:7.0f}s] {r['bits']:>3}b c{r['curve']:<2} {r['method']:<6} "
-                f"{r['fb']:<8} |F|={r.get('fb_size', '-')!s:<6} ok={r['ok']!s:<5} "
+                f"{r['fb']:<8} {r.get('engine', '-'):<9} "
+                f"|F|={r.get('fb_size', '-')!s:<6} ok={r['ok']!s:<5} "
                 f"cost={cost:<11} t={r['seconds']:.2f}s")
     return (f"[{elapsed:7.0f}s] m={r['m']} {r['fb']:<8} |F|={r['fb_size']:<4} "
             f"target {r['target']:<3} agree={r['agree']!s:<5} "
             f"enum={r['enum_s3']:<8} msolve={r['msolve_status']}:{r['msolve_seconds']:.3f}s")
 
 
+def _series(r: dict) -> tuple[str, str, str]:
+    """(method, base, engine) of a row; rows from before engines were recorded
+    are exhaustive enumeration."""
+    return r["method"], r["fb"], r.get("engine", "enumerate" if r["method"] != "rho" else "-")
+
+
+def _series_name(method: str, fb: str, engine: str) -> str:
+    if method == "rho":
+        return method
+    return f"{method}:{fb}" if engine == "enumerate" else f"{method}:{fb}:{engine}"
+
+
 def sweep_report(rows: list[dict], reps: int = 2000) -> dict:
     fits, table = {}, {}
-    keys = sorted({(r["method"], r["fb"]) for r in rows})
-    for method, fb in keys:
-        sel = [r for r in rows if (r["method"], r["fb"]) == (method, fb) and r["ok"]]
-        name = method if method == "rho" else f"{method}:{fb}"
+    keys = sorted({_series(r) for r in rows})
+    for method, fb, engine in keys:
+        sel = [r for r in rows if _series(r) == (method, fb, engine) and r["ok"]]
+        name = _series_name(method, fb, engine)
         if method == "rho":
             fits[name] = {"walk_ops": fit_exponent(sel, "walk_ops", reps=reps),
                           "group_ops": fit_exponent(sel, "group_ops", reps=reps)}
         else:
             fits[name] = {"s3_solves": fit_exponent(sel, "s3_solves", reps=reps),
+                          "la_ops": fit_exponent(sel, "la_ops", reps=reps),
                           "seconds": fit_exponent(sel, "seconds", reps=reps)}
         for bits in sorted({r["bits"] for r in sel}):
             cell = [r for r in sel if r["bits"] == bits]
@@ -481,6 +510,8 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--subgroup-prime", action="store_true",
                    help="choose p so that p-1 hosts a subgroup base of the default size")
     s.add_argument("--tolerance", type=float, default=0.15)
+    s.add_argument("--table-arity", type=int, default=None,
+                   help="mitm engine: points per precomputed tail (default (m+1)//2)")
     s.add_argument("--no-accel", action="store_true", help="disable the numpy scan")
     s.add_argument("--rho", action="store_true", help="also run Pollard rho")
     s.set_defaults(func=cmd_solve)
@@ -492,8 +523,11 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--curves", type=int, default=3, help="curves per size for IC")
     w.add_argument("--rho-curves", type=int, default=0,
                    help="curves per size for rho (default: same as --curves)")
-    w.add_argument("--m-max-bits", nargs="*", default=[], metavar="M=BITS",
-                   help="skip IC at arity M above BITS, e.g. 3=28")
+    w.add_argument("--engine", choices=[e for e in ENGINES if e != "msolve"], nargs="+",
+                   default=["enumerate"], help="decomposition engines to run on each base")
+    w.add_argument("--m-max-bits", nargs="*", default=[], metavar="[ENGINE:]M=BITS",
+                   help="skip IC at arity M above BITS, e.g. 3=28, or only for one "
+                        "engine, e.g. enumerate:3=24")
     w.add_argument("--tolerance", type=float, default=0.15,
                    help="subgroup fairness: |d - 2|F|| <= tol * 2|F| for some d | p-1")
     w.add_argument("--workers", type=int, default=1)
