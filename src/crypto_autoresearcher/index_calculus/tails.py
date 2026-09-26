@@ -36,6 +36,16 @@ infinity is charged and dropped.
 
 With numpy and p < 2^32 the prepend step runs as a vector over T for each a;
 the tails, codes and charges are identical to the pure-Python build.
+
+Memory
+------
+The numpy build keeps the table as two sorted arrays and nothing else: the
+x-coordinates as uint32 (p < 2^32 there) and the packed tails as uint32, or
+uint64 when they do not fit.  That is 8 to 12 bytes a tail, against about 185
+in a Python dict.  Tails that share an x sit together with the largest first
+index at the front, so one binary search answers both "which tails have this
+x" and "can any of them follow index i".  The pure-Python build, which runs
+only without numpy, keeps a dict.
 """
 
 from __future__ import annotations
@@ -59,6 +69,40 @@ def default_table_arity(m: int) -> int:
     return max(1, min(m - 1, (m + 1) // 2))
 
 
+class _SortedTails:
+    """The numpy-built table: tails sorted by x, largest first index first."""
+
+    def __init__(self, xs, codes, base: int) -> None:
+        self.x, self.code, self.base, self.n = xs, codes, base, len(xs)
+
+    def lookup(self, vals):
+        """Largest first index among the tails at each x, or -1 (for _accel)."""
+        import numpy as np
+
+        if self.n == 0:
+            return np.full(np.shape(vals), -1, dtype=np.int64)
+        v = np.asarray(vals).astype(self.x.dtype)  # x < p < 2^32: exact
+        pos = np.minimum(np.searchsorted(self.x, v), self.n - 1)
+        first = ((self.code[pos] >> 1) % self.base) >> 1
+        return np.where(self.x[pos] == v, first.astype(np.int64), -1)
+
+    def codes(self, x: int, lo: int) -> list[int]:
+        if x >= 1 << (8 * self.x.itemsize):
+            return []
+        key = self.x.dtype.type(x)
+        i, out = int(self.x.searchsorted(key)), []
+        while i < self.n and self.x[i] == key:
+            c = int(self.code[i])
+            if ((c >> 1) % self.base) >> 1 < lo:
+                break  # the rest of the group starts earlier still
+            out.append(c)
+            i += 1
+        return out
+
+    def items(self):
+        return zip(self.x.tolist(), self.code.tolist())
+
+
 class TailTable:
     """Signed sums of ``arity`` factor-base points, keyed by x-coordinate.
 
@@ -78,22 +122,25 @@ class TailTable:
         self.s3_solves = 0
         self.entries = len(fb) if arity == 1 else 0
         self._map: dict[int, int | list[int]] = {}
+        self._sorted: _SortedTails | None = None
         self._index = None
         t0 = time.perf_counter()
         if arity > 1 and len(fb):
-            accel = _accel.usable(E.p) if accelerate is None else accelerate
+            accel = _accel.usable(E.p) and accelerate is not False
             fits = self.base ** arity < 1 << 61  # packed codes stay int64
             if accel and fits:
                 self._build_numpy(E)
             else:
                 self._build_python(E)
-            if accel:
-                self.arrays()  # the scan's index, so its build is timed with the table
+                if accel:
+                    self.arrays()  # the scan's index, so its build is timed with the table
         self.seconds = time.perf_counter() - t0
 
     # -- lookups -------------------------------------------------------------
     def codes(self, x: int, lo: int) -> list[int]:
         """Packed tails whose sum has x-coordinate x and first index >= lo."""
+        if self._sorted is not None:
+            return self._sorted.codes(x, lo)
         c = self._map.get(x)
         if c is None:
             return []
@@ -112,6 +159,8 @@ class TailTable:
 
     def arrays(self):
         """numpy lookup for the vectorised scan: x -> largest first index."""
+        if self._sorted is not None:
+            return self._sorted
         if self._index is None:
             import numpy as np
 
@@ -122,6 +171,17 @@ class TailTable:
             order = np.argsort(xs, kind="stable")
             self._index = _accel.KeyIndex(xs[order], firsts[order])
         return self._index
+
+    def as_dict(self) -> dict[int, tuple[int, ...]]:
+        """x -> sorted packed tails, whichever way the table is stored."""
+        out: dict[int, list[int]] = {}
+        if self._sorted is not None:
+            for x, c in self._sorted.items():
+                out.setdefault(x, []).append(c)
+        else:
+            for x, c in self._map.items():
+                out[x] = [c] if type(c) is int else list(c)
+        return {x: tuple(sorted(cs)) for x, cs in out.items()}
 
     def describe(self) -> dict:
         return {"arity": self.arity, "entries": self.entries,
@@ -169,8 +229,10 @@ class TailTable:
         FX = np.array([P[0] for P in pts], dtype=np.uint64)
         FY = np.array([P[1] for P in pts], dtype=np.uint64)
         idx = np.arange(len(pts), dtype=np.int64)
+        half = np.uint64(p // 2)
         X, Y, V, NV, FIRST = FX, FY, 2 * idx, 2 * idx + 1, idx
-        for _ in range(2, self.arity + 1):
+        for level in range(2, self.arity + 1):
+            last = level == self.arity
             start = _starts(FIRST.tolist(), len(pts))
             parts = []
             for a in range(len(pts)):
@@ -200,16 +262,27 @@ class TailTable:
                         x1[k], y1[k], ok1[k] = plus[0], plus[1], True
                     if minus is not None:
                         x2[k], y2[k], ok2[k] = minus[0], minus[1], True
+                if last:  # keep only x and the packed tail
+                    for xk, yk, vk in ((x1[ok1], y1[ok1], v[ok1]), (x2[ok2], y2[ok2], nv[ok2])):
+                        parts.append((xk.astype(np.uint32),
+                                      ((2 * a + B * vk) << 1) | (yk > half).astype(np.int64)))
+                    continue
                 parts.append((x1[ok1], y1[ok1], 2 * a + B * v[ok1],
                               2 * a + 1 + B * nv[ok1], np.full(int(ok1.sum()), a)))
                 parts.append((x2[ok2], y2[ok2], 2 * a + B * nv[ok2],
                               2 * a + 1 + B * v[ok2], np.full(int(ok2.sum()), a)))
-            X, Y, V, NV, FIRST = (np.concatenate([q[j] for q in parts]) for j in range(5))
-        half = np.uint64(p // 2)
-        codes = (V << 1) | (Y > half).astype(np.int64)
-        for x, c in zip(X.tolist(), codes.tolist()):
-            self._insert(x, c)
-        self._sort_collisions()
+            if not last:
+                X, Y, V, NV, FIRST = (np.concatenate([q[j] for q in parts]) for j in range(5))
+        # Parts run in increasing first index; reversed, a stable sort by x
+        # leaves each group of equal x with its largest first index in front.
+        xs = np.concatenate([q[0] for q in reversed(parts)])
+        codes = np.concatenate([q[1] for q in reversed(parts)])
+        del parts
+        if codes.size and int(codes.max()) < 1 << 32:
+            codes = codes.astype(np.uint32)
+        order = np.argsort(xs, kind="stable")
+        self._sorted = _SortedTails(xs[order], codes[order], B)
+        self.entries = len(codes)
 
     def _sort_collisions(self) -> None:
         for c in self._map.values():

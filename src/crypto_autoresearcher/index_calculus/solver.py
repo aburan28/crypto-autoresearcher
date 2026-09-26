@@ -15,7 +15,9 @@ target, so the two make identical runs and differ only in cost.  Every stage
 is charged in its own column: S_3 root solves, membership tests, group
 operations split into target generation (the scalar multiplications for
 aP + bQ) and decomposition, modular multiply-adds in the linear algebra, and
-for msolve the solver's wall time.  The mitm table is built once per run and
+for msolve the solver's wall time.  ``la_pivot`` picks the elimination's
+pivot rule (linalg.py); it changes ``la_ops`` and nothing else.  The mitm
+table is built once per run and
 its S_3 solves are inside ``s3_solves`` (and also reported on their own as
 ``table_s3_solves``).  Wall time is reported per phase.
 """
@@ -29,11 +31,11 @@ from dataclasses import asdict, dataclass
 from .curve import Curve, Point
 from .decompose import DecompStats, decompose, use_acceleration
 from .factor_base import FACTOR_BASES, FactorBase, build_factor_base, default_fb_size
-from .linalg import EliminationState
+from .linalg import PIVOT_RULES, EliminationState
 from .tails import TailTable, default_table_arity
 
 ENGINES = ("enumerate", "mitm", "msolve")
-__all__ = ["ENGINES", "FACTOR_BASES", "ICResult", "build_factor_base",
+__all__ = ["ENGINES", "FACTOR_BASES", "ICResult", "PIVOT_RULES", "build_factor_base",
            "default_fb_size", "solve_index_calculus"]
 
 
@@ -53,6 +55,7 @@ class ICResult:
     group_ops: int
     target_ops: int
     la_ops: int
+    la_pivot: str
     msolve_calls: int
     msolve_seconds: float
     censored_attempts: int
@@ -75,7 +78,8 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
                          engine: str = "enumerate", accelerate: bool | None = None,
                          factor_base: FactorBase | None = None,
                          msolve_timeout: float | None = 600.0,
-                         table_arity: int | None = None) -> ICResult:
+                         table_arity: int | None = None,
+                         la_pivot: str = "min_fill") -> ICResult:
     N = E.order
     if N is None:
         raise ValueError("curve order must be known")
@@ -83,6 +87,8 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
         raise ValueError("m must be >= 2")
     if engine not in ENGINES:
         raise ValueError(f"unknown engine {engine!r}; choose from {ENGINES}")
+    if la_pivot not in PIVOT_RULES:
+        raise ValueError(f"unknown pivot rule {la_pivot!r}; choose from {PIVOT_RULES}")
     rng = random.Random(f"ic|{E.p}|{E.a}|{E.b}|{m}|{fb_kind}|{seed}")
     ops0 = E.ops.group_ops
     t0 = time.perf_counter()
@@ -102,7 +108,7 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
     t1 = time.perf_counter()
 
     stats = DecompStats()
-    la = EliminationState(N)
+    la = EliminationState(N, pivot=la_pivot)
     relations = target_ops = msolve_calls = censored = 0
     msolve_seconds = 0.0
     k: int | None = None
@@ -140,7 +146,7 @@ def solve_index_calculus(E: Curve, P: Point, Q: Point, m: int = 2,
         attempts=stats.attempts,
         s3_solves=stats.s3_solves + (table.s3_solves if table else 0),
         membership_tests=stats.membership_tests, group_ops=group_ops,
-        target_ops=target_ops, la_ops=la.ops, msolve_calls=msolve_calls,
+        target_ops=target_ops, la_ops=la.ops, la_pivot=la_pivot, msolve_calls=msolve_calls,
         msolve_seconds=msolve_seconds, censored_attempts=censored,
         table_arity=table.arity if table else 1,
         table_entries=table.entries if table else len(fb),
