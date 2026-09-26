@@ -280,3 +280,41 @@ changed):
     a matched null. That makes it a blog paragraph or a footnote, not a
     standalone claim.
   - Demoted from the shortlist.
+- **I6, ecGFp5 margin: the designer's lower-bound argument does not clear
+  128 bits once the published 2014 symmetry reductions are applied. No attack
+  below 128 bits is shown.**
+  - **Pornin's argument** (ePrint 2022/274 §2, full text):
+    - p^{2−2/5} ≈ 2^102.4 decomposition systems;
+    - each system has ideal degree D ≈ 2^{k(k−1)} = 2^20;
+    - an "even with very optimistic assumptions" per-system bound of
+      D² ≈ 2^40;
+    - hence "at least 2^142". The argument uses no symmetry.
+  - **Reproduced with the symmetry reductions** (arithmetic re-run
+    2026-09-26). Dividing D by the order of the symmetry group:
+    - S₅ (FGHR 2014): D/120 → total ≈ **2^128.6**;
+    - (Z/2)⁴ ⋊ S₅ (FHJRV 2014, 2-torsion): D/1920 → total ≈ **2^120.6**.
+    - The latter is the in-house figure (research/gfp5_deployed_curves_20260920.md).
+  - **Applicability check done here.**
+    - ecGFp5 is y² = x(x² + 2x + 263z) over GF(p)[z]/(z⁵ − 3).
+    - Translation by the rational 2-torsion point (0,0) is x ↦ b/x with
+      b = 263z ∉ GF(p). It does not preserve the factor base
+      {x ∈ GF(p)} directly, and b is a non-square in GF(p⁵) (N(b) is a
+      non-square mod p).
+    - However, x ↦ b/x is conjugate over GF(p⁵) to u ↦ c/u for any
+      non-square c ∈ GF(p): u = x·√(c/b), and c/b is a square in GF(p⁵).
+      For c = 7 this was verified via norms.
+    - So a GF(p)-invariant factor base compatible with the 2-torsion action
+      exists, and the (Z/2)⁴ part is available in principle.
+  - **What this does not show.**
+    - D² is Pornin's optimistic lower-bound proxy, not a measured FGLM/F4
+      cost.
+    - The symmetrised ideal degree 2^{(m−1)²} = 2^16 is still unmeasured
+      (KN-OPEN-9b4a2b), as is the cost of Gröbner work in the invariant
+      ring.
+    - The claim is therefore "the published 2^142 argument is not a 128-bit
+      proof once known techniques are used", not "ecGFp5 has < 128-bit
+      security".
+  - **Recommended.**
+    1. Measure the symmetrised ideal degree and F4 cost at small p
+       (EXP-GFPN-05ff43, queued).
+    2. Then contact the curve's designer with the note before any blog post.
