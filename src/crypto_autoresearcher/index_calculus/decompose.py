@@ -12,6 +12,23 @@ Cost per attempt is about |F|^{m-1} S_3 root solves: this is the exhaustive
 beat.  With numpy installed and p < 2^32 the last level is located by a
 vectorised scan (``_accel``); the relations found and every counter are the
 same as the pure-Python path, only faster.
+
+Meet in the middle
+------------------
+Given a ``TailTable`` of arity h (tails.py: every signed sum of h base points,
+keyed by x), the search fixes only m - h - 1 points, solves S_3 for the next
+one and looks the root up in the table instead of in the base: |F|^(m-h) S_3
+solves per attempt instead of |F|^(m-1), for a table built once per factor
+base.  The exhaustive search is the case h = 1, and it is still the code that
+runs when no table is given.
+
+The table holds exactly the tails the exhaustive search can reach, so
+``decompose_all`` returns the same set with or without it.  ``decompose``
+returns the same relation too: at the first index where the table search
+finds anything it collects every hit and keeps the one the exhaustive search
+would have reached first (``_search_order``), so an index-calculus run makes
+the same relations, attempts and logarithm with either engine and differs
+only in what they cost.
 """
 
 from __future__ import annotations
@@ -22,6 +39,10 @@ from . import _accel
 from .curve import Curve, Point
 from .factor_base import FactorBase
 from .semaev import s3_roots
+from .tails import TailTable, default_table_arity
+
+__all__ = ["DecompStats", "Relation", "TailTable", "canonical", "decompose",
+           "decompose_all", "default_table_arity", "use_acceleration", "verify"]
 
 Relation = list[tuple[int, int]]  # (factor-base index, sign +/-1)
 
@@ -57,13 +78,26 @@ def canonical(rel: Relation) -> tuple[tuple[int, int], ...]:
     return tuple(sorted(rel))
 
 
+def _table(fb: FactorBase, m: int, table: TailTable | None) -> TailTable | None:
+    """The table to search with, or None for the exhaustive search."""
+    if table is None or table.arity == 1:
+        return None
+    if table.fb is not fb:
+        raise ValueError("the table was built for a different factor base")
+    if table.arity >= m:
+        raise ValueError(f"table arity {table.arity} needs m > {table.arity}, got m = {m}")
+    return table
+
+
 def decompose(E: Curve, fb: FactorBase, R: Point, m: int,
               stats: DecompStats | None = None,
-              accelerate: bool | None = None) -> Relation | None:
+              accelerate: bool | None = None,
+              table: TailTable | None = None) -> Relation | None:
     """One decomposition of R into m signed factor-base points, or None."""
     stats = stats if stats is not None else DecompStats()
+    tab = _table(fb, m, table)
     stats.attempts += 1
-    found = _decompose(E, fb, R, m, 0, stats, False, use_acceleration(fb, accelerate))
+    found = _decompose(E, fb, R, m, 0, stats, False, use_acceleration(fb, accelerate), tab)
     if not found:
         return None
     rel = found[0]
@@ -74,15 +108,19 @@ def decompose(E: Curve, fb: FactorBase, R: Point, m: int,
 
 def decompose_all(E: Curve, fb: FactorBase, R: Point, m: int,
                   stats: DecompStats | None = None,
-                  accelerate: bool | None = None) -> list[tuple[tuple[int, int], ...]]:
+                  accelerate: bool | None = None,
+                  table: TailTable | None = None) -> list[tuple[tuple[int, int], ...]]:
     """Every decomposition the search can reach, canonicalised and verified.
 
     A decomposition that needs a cancelling pair F - F (possible only when R
-    itself is +/- a factor-base element) is out of reach of the S_3 search.
+    is a sum of fewer than m base points) is reached only in the orders
+    whose partial remainders all avoid the point at infinity; the S_3 search
+    and the table search reach the same ones.
     """
     stats = stats if stats is not None else DecompStats()
+    tab = _table(fb, m, table)
     stats.attempts += 1
-    found = _decompose(E, fb, R, m, 0, stats, True, use_acceleration(fb, accelerate))
+    found = _decompose(E, fb, R, m, 0, stats, True, use_acceleration(fb, accelerate), tab)
     out = sorted({canonical(r) for r in found})
     for rel in out:
         verify(E, fb, list(rel), R)
@@ -112,24 +150,66 @@ def _m2_at(E: Curve, fb: FactorBase, R: Point, i: int, stats: DecompStats,
     return out
 
 
+def _tail_at(E: Curve, fb: FactorBase, R: Point, i: int, stats: DecompStats,
+             all_: bool, tab: TailTable) -> list[Relation]:
+    """The last S_3 step at one index against a table: R = s F_i + (a tail).
+
+    Charged like ``_m2_at``: one S_3 solve, one lookup per root, and the group
+    operations that fix the sign of F_i only at a root the table knows.
+    """
+    F = fb.points[i]
+    stats.s3_solves += 1
+    out: list[Relation] = []
+    for x2 in s3_roots(E, F[0], R[0]):
+        stats.membership_tests += 1
+        codes = tab.codes(x2, i)
+        if not codes:
+            continue
+        for s in (1, -1):
+            T = E.sub(R, F if s > 0 else E.neg(F))
+            if T is not None and T[0] == x2:
+                out.extend([(i, s)] + tab.orient(c, T[1]) for c in codes)
+                break
+    if all_ or len(out) < 2:
+        return out
+    return [min(out, key=lambda rel: _search_order(fb, rel))]
+
+
+def _search_order(fb: FactorBase, rel: Relation) -> tuple:
+    """Where the exhaustive search meets the end ``rel`` of a relation.
+
+    It loops over (index, sign), + before -, at every level but the last,
+    and over (index, root x) at the last, so its first find among relations
+    sharing a prefix is the least of these keys.
+    """
+    head = tuple((i, s < 0) for i, s in rel[:-2])
+    return head + ((rel[-2][0], fb.points[rel[-1][0]][0]),)
+
+
 def _level2(E: Curve, fb: FactorBase, R: Point, lo: int, stats: DecompStats,
-            all_: bool, accel: bool) -> list[Relation]:
+            all_: bool, accel: bool, tab: TailTable | None = None) -> list[Relation]:
+    """The last S_3 step over i = lo, lo + 1, ... (the m = 2 level when tab is None)."""
     n = len(fb)
     out: list[Relation] = []
     if not accel or n - lo < ACCEL_MIN_SPAN:
         for i in range(lo, n):
-            found = _m2_at(E, fb, R, i, stats, all_)
+            if tab is None:
+                found = _m2_at(E, fb, R, i, stats, all_)
+            else:
+                found = _tail_at(E, fb, R, i, stats, all_, tab)
             if found:
                 out.extend(found)
                 if not all_:
                     return out
         return out
-    cands = _accel.m2_candidates(fb.arrays(), R[0], R[1], lo)
-    return _walk_candidates(E, fb, R, lo, cands, stats, all_)
+    cands = _accel.m2_candidates(fb.arrays(), R[0], R[1], lo,
+                                 None if tab is None else tab.arrays())
+    return _walk_candidates(E, fb, R, lo, cands, stats, all_, tab)
 
 
 def _walk_candidates(E: Curve, fb: FactorBase, R: Point, lo: int, cands,
-                     stats: DecompStats, all_: bool) -> list[Relation]:
+                     stats: DecompStats, all_: bool,
+                     tab: TailTable | None = None) -> list[Relation]:
     """Run the scalar m = 2 step at the scan's marked indices only.
 
     Every index the scan does not mark has x_i != x(R) and no root in the
@@ -143,7 +223,10 @@ def _walk_candidates(E: Curve, fb: FactorBase, R: Point, lo: int, cands,
         stats.s3_solves += c - pos
         stats.membership_tests += 2 * (c - pos)
         pos = c + 1
-        found = _m2_at(E, fb, R, c, stats, all_)
+        if tab is None:
+            found = _m2_at(E, fb, R, c, stats, all_)
+        else:
+            found = _tail_at(E, fb, R, c, stats, all_, tab)
         if found:
             out.extend(found)
             if not all_:
@@ -157,8 +240,8 @@ LEVEL3_BLOCK = 64  # (i, sign) pairs scanned together at m = 3
 
 
 def _level3(E: Curve, fb: FactorBase, R: Point, lo: int, stats: DecompStats,
-            all_: bool) -> list[Relation]:
-    """m = 3 with blocks of (i, s) pairs scanned in one 2-D pass.
+            all_: bool, tab: TailTable | None = None) -> list[Relation]:
+    """m = 3 (m = h + 2 with a table) with blocks of (i, s) pairs scanned in one 2-D pass.
 
     The scalar loop visits (i, +1), (i, -1) for i = lo, lo+1, ... and runs the
     m = 2 level on R - s F_i from index i.  Here the R - s F_i of a block are
@@ -188,14 +271,15 @@ def _level3(E: Curve, fb: FactorBase, R: Point, lo: int, stats: DecompStats,
                 rps.append((int(xs[k]), int(ys[k])))
         live = [k for k, Rp in enumerate(rps) if Rp is not None]
         cands = _accel.m2_candidates_multi(
-            arr, [(rps[k][0], rps[k][1], chunk[k][0]) for k in live])
+            arr, [(rps[k][0], rps[k][1], chunk[k][0]) for k in live],
+            None if tab is None else tab.arrays())
         cand_of = dict(zip(live, cands))
         for k, (i, s) in enumerate(chunk):
             E.ops.group_ops += 1  # the scalar path's E.sub(R, s F_i)
             Rp = rps[k]
             if Rp is None:
                 continue
-            for sub in _walk_candidates(E, fb, Rp, i, cand_of[k], stats, all_):
+            for sub in _walk_candidates(E, fb, Rp, i, cand_of[k], stats, all_, tab):
                 out.append([(i, s)] + sub)
                 if not all_:
                     return out
@@ -203,25 +287,27 @@ def _level3(E: Curve, fb: FactorBase, R: Point, lo: int, stats: DecompStats,
 
 
 def _decompose(E: Curve, fb: FactorBase, R: Point, m: int, lo: int,
-               stats: DecompStats, all_: bool, accel: bool) -> list[Relation]:
+               stats: DecompStats, all_: bool, accel: bool,
+               tab: TailTable | None = None) -> list[Relation]:
     if R is None:
         return []
+    h = 1 if tab is None else tab.arity
     if m == 1:
         stats.membership_tests += 1
         i = fb.lookup(R[0])
         if i is None or i < lo:
             return []
         return [[(i, 1 if R == fb.points[i] else -1)]]
-    if m == 2:
-        return _level2(E, fb, R, lo, stats, all_, accel)
-    if m == 3 and accel and len(fb) - lo >= ACCEL_MIN_SPAN:
-        return _level3(E, fb, R, lo, stats, all_)
+    if m == h + 1:
+        return _level2(E, fb, R, lo, stats, all_, accel, tab)
+    if m == h + 2 and accel and len(fb) - lo >= ACCEL_MIN_SPAN:
+        return _level3(E, fb, R, lo, stats, all_, tab)
     out: list[Relation] = []
     for i in range(lo, len(fb)):
         F = fb.points[i]
         for s in (1, -1):
             Rp = E.sub(R, F if s > 0 else E.neg(F))
-            for sub in _decompose(E, fb, Rp, m - 1, i, stats, all_, accel):
+            for sub in _decompose(E, fb, Rp, m - 1, i, stats, all_, accel, tab):
                 out.append([(i, s)] + sub)
                 if not all_:
                     return out
