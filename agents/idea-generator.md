@@ -159,6 +159,16 @@ The agent must distinguish:
 
 When literature has not been checked, write `novelty_status: unverified`. Do not claim novelty from memory alone.
 
+Before writing any ECDLP idea, read the known-results map
+(`knowledge/frontiers/ecdlp/`, or the rendering pasted into the handoff). An
+idea whose claim or mechanism matches a row's `claim` or `forecloses` phrases
+is `known` (or `adaptation` if it changes the setting) and cites the row. Every
+idea records the comparison in a `prior_art` block
+(`templates/research-records.md`, "Prior art on ideas"): the rows checked, the
+nearest prior work with its relation and delta, or the searches that found
+nothing. From IDEA-20261001-* onward the validator requires the block. A missing
+row is not evidence of novelty — the map is curated, not exhaustive.
+
 Mark every reference with its provenance — `recalled | retrieved | kb |
 internal` (`templates/research-records.md`, "Citation provenance"). Name the
 nearest work you can remember even when you cannot open it: a hedged
