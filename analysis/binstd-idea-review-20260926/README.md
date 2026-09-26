@@ -225,3 +225,27 @@ their optional arms.
   `speculative` or better.
 - Installing `numpy` in the research container is a prerequisite for every
   concrete experiment above; it is an environment fix, not research.
+
+## 7. What `main` gained while this round ran (merged in before the PR)
+
+Seventeen commits landed on `main` during the round; none touches a path
+this branch writes. Three bear on it:
+
+- **PR #1452, a meet-in-the-middle decomposition engine** under
+  `src/crypto_autoresearcher/index_calculus/` (`decompose.py`, `tails.py`,
+  `--engine mitm`). It is over PRIME fields `E(F_p)` and counts cost in
+  `S_3` solves, but it is exactly the two-list, table-of-tails construction
+  the review of `IDEA-20260922-845a77` prices for the binary case and names
+  as a tooling seam; the binary port is now a port of an existing engine, not
+  a new instrument. The review's verdict (dominated on ECC2K-130 by the
+  product law) is unchanged.
+- **The ECDLP known-results map** `knowledge/frontiers/ecdlp/` (one claim
+  per `KR-*` row, with `forecloses` phrases) and
+  `tools/build_frontier_map.py --match "<idea text>"`. This is the novelty
+  screen the 13 new proposals should be run through before any is ranked
+  above `unverified`; it did not exist when the generator lanes ran.
+- **A `prior_art` block on idea records**, validated by
+  `tools/validate_ledger.py` and REQUIRED for ideas minted from
+  `IDEA-20261001` on. The 13 records here predate the cutover, so the block
+  is optional for them; a later superseding record that carries the
+  frontier-map comparison is the right place for it.
