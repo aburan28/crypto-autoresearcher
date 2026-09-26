@@ -268,3 +268,15 @@ changed):
   - No memory-charged crossover against a coherent van Oorschot–Wiener
     baseline (EV-SEMBIN-4125ec: n = 460/520) was found. Replicating
     EXP-SEMBIN-992e73 remains the pre-publication step.
+- **I7, WDSat's gain is branching order, not XOR-GE: mostly known.**
+  - Trimoska–Ionica–Dequen (arXiv 2001.11229, full text, p. 11–15) choose
+    the branching order *deliberately*, by minimum-vertex-cover
+    preprocessing. They conclude that "WDSat without GE is the optimal
+    variant" for S_4 instances and recommend disabling the XG module there.
+  - Their AFRICACRYPT paper (ePrint 2019/313, full text) also compares a
+    custom branching order against the solver's own order in CryptoMiniSat.
+  - What EV-ICPERF-390707 adds is quantitative: a random relabelling costs
+    135× more conflicts on their own instance generator, against 2.14× for
+    a matched null. That makes it a blog paragraph or a footnote, not a
+    standalone claim.
+  - Demoted from the shortlist.
