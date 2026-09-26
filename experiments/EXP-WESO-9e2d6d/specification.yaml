@@ -1,0 +1,794 @@
+# =============================================================================
+# EXP-WESO-9e2d6d -- HEURISTIC-VALIDATION EXPERIMENT for Heuristic 1 of the
+# frozen Wesolowski 2026 source, AS STATED (B-smoothness of delta(E)), using
+# the source's own Section 4.2 Deuring method, staged A (exact ground truth)
+# -> B (sampler mixing control, with positive controls) -> C (heuristic test,
+# log2 p in {64, 96, 128}) -> D (p = 5*2^248 - 1, behind feasibility gate
+# FG-D). Class pattern: .claude/skills/design-experiment/SKILL.md
+# "Heuristic-validation experiment". Frozen on approval by
+# DEC-20260926-ec2847; any change is a versioned protocol_amendment under
+# amendments/, never an edit. Executor card: TASK-20260926-41c7e7.
+# =============================================================================
+experiment:
+  id: EXP-WESO-9e2d6d
+  hypothesis_id: H-WESO-516558
+  question_id: RQ-WESO-8aff57
+  source_idea: IDEA-20260926-4a496f
+  version: 1
+  title: >-
+    Heuristic 1 (smoothness of the minimal conjugate-isogeny degree delta(E))
+    via the Deuring sampler: exact WISDE ground truth, sampler mixing control,
+    test at 64/96/128 bits, and NIST-I behind a feasibility gate
+  status: approved
+  approved_by: coordinator
+  approval:
+    decision_id: DEC-20260926-ec2847
+    approved_at: '2026-09-26'
+    user_authorization: >-
+      AGENTS.md "Standing user authorization for ideas and experiments"
+      (user, 2026-09-06), plus the user's explicit request in this session to
+      run ideate -> design -> run -> review on this target.
+    frozen: true
+    freeze_rule: >-
+      Written before any datum of this experiment exists. Every threshold,
+      grid, sample count, seed, prediction and criterion below is frozen. A
+      change is a versioned protocol_amendment in amendments/; runs already
+      executed are never re-scored against an amended prediction.
+  assigned_to: executor
+  executor_task: TASK-20260926-41c7e7
+  run_ids:
+    stage_A: RUN-WESO-aa2237
+    stage_B: RUN-WESO-f37773
+    stage_C: RUN-WESO-e65afd
+    stage_D: RUN-WESO-0b4b33
+  run_ids_note: >-
+    Pre-allocated by the dispatching session with tools/allocate_id.py and
+    --check'ed free. One run per stage so a gate failure never shares a run
+    record with a passing stage. The Executor mints no other run id; a re-run
+    after an infrastructure failure needs a new Coordinator decision and new
+    ids.
+
+  # ==========================================================================
+  # CONTEXT
+  # ==========================================================================
+  context:
+    why: >-
+      Every conditional result in GOAL-P13-001, GOAL-SSIQ-001 (standing
+      condition SC-1) and GOAL-SSI-001 inherits Heuristic 1. No Heuristic-1
+      measurement has ever completed in this program. The one attempt,
+      EXP-P13-NC36 / RUN-P13-NC36-a, stopped at FG-1 INFEASIBLE (an
+      infrastructure outcome, never evidence; AGENTS.md core rule 5) and its
+      contract described chain smoothness, not delta smoothness
+      (DEC-20260926-ec2847 records the Coordinator's reading).
+      docs/target-result-profile.md and agents/coordinator.md require a
+      heuristic-validation artifact for any conditional result.
+    external_context: >-
+      RELAYED, NOT RELIED ON. The dispatching session reports J. L. Delgado,
+      arXiv 2609.22018v1 (18 Sep 2026, unrefereed), claiming the p^{1/3+o(1)}
+      time-and-memory result for OneEnd WITHOUT Heuristic 1 (its Theorem 1.1 /
+      5.3; squarefree smooth degree family, Chenu-Smith count, collision bound
+      Theorem 3.5). As relayed it neither proves nor refutes Heuristic 1 about
+      delta(E). If it holds up, Heuristic 1 is no longer load-bearing for the
+      exponent and this experiment measures (i) the empirical status of the
+      heuristic as literally stated and (ii) the validity of the walk sampler
+      the source's Section 4.2 leaves unspecified. The scientific test below
+      is unchanged by this context; no criterion or interpretation relies on
+      Delgado being correct.
+
+  objective: >-
+    (A) Build exact curve-weighted ground truth of delta at four toy primes
+    from the AOV/WISDE exhaustive data and verify, type by type, that this
+    experiment's delta extraction (rank-4 minimum of Nrd/p over the two-sided
+    ideal P) equals AOV's independently computed N1. (B) Measure the mixing of
+    the norm-2 ideal-walk sampler against that ground truth as a function of
+    walk length k, with positive controls that must be detected, and fix the
+    walk-length rule. (C) With that rule, sample 10^5 maximal orders at each
+    of three primes of 64, 96 and 128 bits, compute delta and its
+    factorisation, and compare the B-smooth fractions with the source's own
+    frozen prediction rho(u) and with uniform-integer nulls, including tail
+    checks. (D) If FG-D passes, repeat (C) at p = 5*2^248 - 1 with 10^5
+    samples, replicating the scale of the source's Section 4.2.
+
+  what_this_experiment_cannot_do:
+    - Confirm or refute the asymptotic o(1) statement of Heuristic 1. It tests the finite-p operational form the source itself uses (lines 244-254).
+    - Certify anything for primes other than those tested. Mixing transfer from p <= 20011 to 64-250 bits is an extrapolation, labelled as such.
+    - Move any exponent, cost any algorithm, or revisit GOAL-P13-001's concrete-cost bracket.
+    - Test the size law of delta (H-WESO-9dc201); the size distribution is reported descriptively only.
+    - Change any hypothesis status; only a Coordinator decision after independent review does that.
+
+  # ==========================================================================
+  # THE HEURISTIC, STATED EXACTLY
+  # ==========================================================================
+  heuristic_under_test: HEUR-WESO-516558-1
+  heuristics:
+    - id: HEUR-WESO-516558-1
+      role: UNDER TEST
+      statement_verbatim: >-
+        "Heuristic 1. Let p be a prime number, and let E/F_{p^2} be a uniformly
+        random supersingular elliptic curve. The degree of the smallest isogeny
+        phi : E -> E^{(p)} is B-smooth with probability at least
+        u^{-u(1+o(1))}, where u = log(p/2)/(3 log(B)) (uniformly as
+        p -> infinity, if (log p)^eps < u < (log p)^{1-eps} for a fixed
+        constant eps)." (inputs/P13-WESOLOWSKI-2026/paper_fulltext.md line 69)
+      quantifiers: >-
+        For all sufficiently large p; for all B in the stated u-range;
+        probability over E uniform on supersingular curves over F_{p^2}; the
+        o(1) is uniform in that range.
+      interpolates_between: >-
+        Theorem 1.5 (line 81; Aubry-Oyono-Vincent): delta(E) <= (p/2)^{1/3} for
+        every E. Theorem 1.4 (line 77; Canfield-Erdos-Pomerance):
+        Psi(X,B) = X u^{-u(1+o(1))} for u = log X / log B in the same range.
+        Random model (line 83): delta is as smooth as a uniform integer of its
+        size.
+      smoothness_definition: >-
+        "An integer is B-smooth if all its prime factors are smaller than B"
+        (Definition 1.3, line 73). Strict inequality; used exactly.
+    - id: HEUR-WESO-516558-2
+      role: RELIED ON AT STAGES C-D; MEASURED AT STAGE B
+      statement: >-
+        There is a constant c independent of p such that the endpoint of a
+        uniform non-backtracking norm-2 ideal walk of length k >= c log2 p from
+        O_0 is within o(1) total variation of the Eichler mass-weighted curve
+        law; c_hat measured at p <= 20011 transfers to the Stage C/D primes
+        with margin factor 3.
+      support: >-
+        Ramanujan property (Pizer) and non-backtracking cutoff (Lubetzky-Peres),
+        both RECALLED, UNVERIFIED; motivation only.
+
+  # ==========================================================================
+  # PRE-REGISTERED PREDICTION (FROZEN; SOURCE CITED)
+  # ==========================================================================
+  preregistered_prediction:
+    quantity: >-
+      PRED-1 (primary, the source's own curve). The probability that delta is
+      B-smooth, equivalently the CDF of x = ln(largest prime factor of delta)
+      evaluated at x = ln B.
+    formula: >-
+      Pr[delta B-smooth] = rho(u), u = ln(p/2) / (3 ln B), rho the
+      Dickman-de Bruijn function (rho(u) = 1 for 0 <= u <= 1;
+      u rho'(u) = -rho(u - 1) for u > 1). Heuristic 1 asserts a LOWER bound
+      u^{-u(1+o(1))}; the concrete finite-p form under test is rho(u), which
+      the source plots as "the theoretical prediction rho(u) ~ u^{-u(1+o(1))},
+      where u = log(p/2)/(3x)" (Figure 1 caption, line 254) and uses for its
+      tail checks (lines 250-252). u^{-u} is reported alongside as secondary.
+    secondary_prediction: >-
+      PRED-2 (size-matched random model, source line 83): the expected smooth
+      count is SUM_i rho(ln delta_i / ln B), and, model-free, the smooth count
+      of the size-matched uniform-integer null NULL-1 (same N, same bit-lengths).
+    source: >-
+      inputs/P13-WESOLOWSKI-2026/paper_fulltext.md: Heuristic 1 (line 69);
+      Definition 1.3 and Theorem 1.4 (lines 73-77); Theorem 1.5 (line 81);
+      random-model reading (line 83); Section 4.2 method, prediction curve and
+      tail checks (lines 244-254).
+    expected_direction: >-
+      R_max = f_emp / rho(u) is expected >= 1: most delta lie below
+      (p/2)^{1/3} (source Remark 1; H-WESO-9dc201), and rho underestimates
+      Psi(X,B)/X at finite X. A value materially below 1 is the adverse signal.
+    rho_implementation_validation:
+      - V-RHO-1 closed form rho(u) = 1 - ln u on [1, 2], checked at >= 100 points to absolute error <= 1e-10.
+      - V-RHO-2 the value the frozen source relays at its NIST-I tail check -- rho(u) approx 1/69232 at u = ln((5*2^248 - 1)/2) / (3 ln 12589) (line 250) -- reproduced within 2% relative. A larger mismatch STOPS the run for investigation; the prediction is never tuned to the source's number.
+      - V-RHO-3 monotone decreasing and positive on the whole grid; method, step size and implementation recorded (e.g. piecewise power series on unit intervals or ODE integration with step <= 1e-4).
+
+  # ==========================================================================
+  # SCALE ACCESS
+  # ==========================================================================
+  scale_relevance:
+    tier: medium
+    per_stage_tier:
+      stage_A: toy
+      stage_B: toy
+      stage_C: medium
+      stage_D: crypto
+    justification: >-
+      Stages A-B at p <= 20011 are toy by construction (ground truth must be
+      exhaustive). Stage C is capped at `medium` for all three primes: the
+      128-bit prime exceeds the mechanical 96-bit bound of
+      docs/claims-and-verification.md but is not a recognized parameter set,
+      so the Coordinator caps it. Stage D at p = 5*2^248 - 1 (SQIsign NIST-I,
+      source line 248) is the ONLY crypto-scale row, scoped to that exact
+      prime, and exists only if FG-D passes. Transfer assumptions: TA-1 (mixing
+      threshold extrapolated in log p from p <= 20011); TA-2 (the Stage-C
+      primes, chosen as the smallest p = 3 mod 4 above 2^b, are representative
+      of primes of their size for this statistic); TA-3 (the stationary mass
+      law equals the uniform-j law up to O(1/p) at Stage C/D).
+    correspondence: >-
+      Deuring correspondence: supersingular E/F_{p^2} <-> maximal orders of
+      B_{p,inf}; Hom(E, E^{(p)}) with deg is isometric to the two-sided ideal P
+      of reduced norm p in O = End(E) with Nrd/p (source line 244). So
+      delta(E) = min{Nrd(x)/p : 0 != x in P}. Checked, not assumed, by the
+      Stage A interface identity I-1 against AOV's independent N1.
+
+  # ==========================================================================
+  # ENVIRONMENT (DECLARED DEPENDENCIES)
+  # ==========================================================================
+  environment:
+    host: 4 cores, 15 GB RAM (as reported by the dispatching session)
+    python: Python 3 (exact version recorded per run)
+    python_packages: numpy 2.4.x; sympy (and its mpmath dependency); exact versions recorded per run
+    pari_gp:
+      version: 2.15.4
+      path: /usr/bin/gp
+      provenance: >-
+        Installed in this session via apt package `pari-gp`. NOT provisioned
+        by the repository; a DECLARED DEPENDENCY of this experiment. Each run
+        manifest records `gp --version-short` output and the gp binary's
+        sha256. A version other than 2.15.x is an environment deviation: STOP
+        and report (infrastructure, never evidence).
+      used_for: >-
+        alginit / quaternion arithmetic, HNF (mathnf), qflll, qfminim
+        (Fincke-Pohst), qfisom (type labelling), factor, isprime / nextprime.
+      default_stack: parisizemax recorded per run; at most 1 GB per gp process
+    absent: SageMath, Magma, fpylll (not used; not required)
+    network: >-
+      Stage A fetches four files from raw.githubusercontent.com through the
+      pre-configured agent proxy (TLS verification never disabled; HTTPS_PROXY
+      never unset). No other network use.
+
+  # ==========================================================================
+  # INPUTS
+  # ==========================================================================
+  inputs:
+    wisde_dataset:
+      description: >-
+        AOV exhaustive data (github.com/christellevincent/WISDE, results/):
+        per maximal-order type of B_{p,inf}, a Z-basis and successive minima
+        (N1, N2, N3) with N1 = delta_E. Indexed by order TYPE (Galois orbit
+        {E, E^{(p)}}). Not in the repository; the bytes were NOT committed by
+        EXP-SSIQ-4de240 (command.txt cache_dir_note); their per-file SHA-256
+        values ARE committed in
+        experiments/EXP-SSIQ-4de240/runs/RUN-SSIQ-4de240-a/raw-result.json
+        "source_files", fetched via the route recorded in source_access_log.yaml.
+      route_decision: >-
+        DECIDED, NOT OPEN. PRIMARY: re-fetch exactly the four files below from
+        https://raw.githubusercontent.com/christellevincent/WISDE/main/results/results<p>.sage
+        (the route that succeeded for EXP-SSIQ-4de240) and require byte length
+        and SHA-256 equal to the committed values. FALLBACK FB-A (used for a
+        prime ONLY if its fetch fails after 5 attempts or its hash mismatches;
+        the fetch log is kept either way): self-generated exhaustive ground
+        truth by breadth-first enumeration of left O_0-ideal classes of 2-power
+        norm (class equality tested by principality: I ~ J iff I*conj(J)
+        contains an element of reduced norm Nrd(I)Nrd(J), via qfminim), with
+        delta of each class's right order computed by the same rank-4 route.
+        FB-A completeness gate: number of classes = floor(p/12) + e(p mod 12).
+        FB-A COSTS INDEPENDENCE: I-1 (below) becomes NOT AVAILABLE for that
+        prime, Stage B there tests mixing only, and the evidence ceiling for
+        delta-extraction correctness drops to the anchors A-1..A-3. Declared
+        now so the fallback is not a post-hoc choice.
+      files:
+        - p: 1019
+          bytes: 4175
+          sha256: 9b05570a23f511c9bc632686ec4f49f09bc4c31a49150109a33ea622fdca0cdb
+        - p: 4099
+          bytes: 15481
+          sha256: db5ea399baaa8947276b733e64ac8cdcfcb27cc7db130309d40a5cb29b2ff3a0
+        - p: 10007
+          bytes: 39117
+          sha256: 44a404df7c4abc4d345afb6c650813cf7a69795b8003aef274e7ec4f3a95a8e8
+        - p: 20011
+          bytes: 76900
+          sha256: aad258048850de714c0dad546218c6b7e0527b619b18549df7120558f9645f2b
+      files_note: >-
+        Values read from RUN-SSIQ-4de240-a raw-result.json source_files by the
+        design act. All four primes are = 3 mod 4 and lie in the WISDE block
+        that is exhaustive over primes <= 22000 (source_access_log.yaml
+        bulk_acquisition.block_1), so they are not selected on the upper tail
+        of delta. Fetched bytes are kept in the session scratchpad, NOT
+        committed (third-party data; precedent EXP-SSIQ-4de240); the fetch log
+        with URL, HTTP status, UTC timestamp, bytes and SHA-256 IS committed.
+    start_order:
+      O_0: >-
+        For p = 3 mod 4: B_{p,inf} = (-1, -p | Q), i^2 = -1, j^2 = -p, k = ij,
+        O_0 = Z<1, i, (i + j)/2, (1 + k)/2>. Checked in-run (U-0): closed under
+        multiplication, contains 1, reduced discriminant p, and its P-minimum
+        is 1 (j = 1728 is F_p-rational).
+      O_0_prime: >-
+        Second start order for START-1/START-2: the right order of a cyclic
+        left O_0-ideal of norm 3^m, m = ceil(log_3 p) + 2, drawn from the
+        declared seed; the ideal's Z-basis is recorded.
+    primes:
+      stage_A_B: [1019, 4099, 10007, 20011]
+      stage_C_rule: >-
+        p_b = the smallest prime p >= 2^b with p = 3 mod 4, for b in {64, 96,
+        128}; computed with PARI nextprime and PROVEN prime with isprime
+        (flag recorded) BEFORE any sampling; values recorded in the Stage C
+        manifest. The rule is frozen; the values are its deterministic output.
+      stage_D: 5*2^248 - 1 (verified prime with isprime before the pilot; = 3 mod 4)
+    sampler:
+      definition: >-
+        A draw at walk length k is the right order O_R(I) of a UNIFORMLY RANDOM
+        CYCLIC left O_0-ideal I of reduced norm 2^k (cyclic: O_0/I is a cyclic
+        group, i.e. I is not contained in 2*O_0), which is the endpoint law of a
+        uniform non-backtracking walk of length k on norm-2 ideals. Either
+        realization (direct kernel sampling through O_0 (x) Z_2 -> M_2(Z_2)
+        mod 2^k, or stepwise non-backtracking extension) is allowed; the
+        chosen realization is recorded in implementation.md, fixed before
+        Stage B, and used unchanged in Stages B-D.
+      unit_checks:
+        - U-0 O_0 validity as above.
+        - >-
+          U-1 at p = 1019 and k in {1, 2, 3}: the sampler's support is exactly
+          the 3*2^(k-1) cyclic ideals of norm 2^k (enumerated independently),
+          and a chi-square test on 3*10^4 draws does not reject uniformity at
+          the 0.001 level.
+        - U-2 every sampled O is an order containing 1 with reduced discriminant p (maximality).
+    delta_extraction: >-
+      P = the unique two-sided ideal of O of reduced norm p (P = {x in O :
+      p | Nrd(x)}), as a Z-basis via HNF; Gram matrix of Nrd/p on P;
+      qflll then qfminim (Fincke-Pohst) for the EXACT minimum. The LLL output
+      alone is never accepted as the minimum. delta is then factored with
+      PARI factor; every factorisation is verified (product equals delta; each
+      factor passes isprime).
+
+  # ==========================================================================
+  # STAGES AND GATES
+  # ==========================================================================
+  stages:
+    - id: STAGE-A
+      run_id: RUN-WESO-aa2237
+      purpose: exact ground truth and the delta-extraction interface identity
+      procedure: >-
+        Fetch/verify the four files (or FB-A per prime). Parse every type.
+        For each type: compute |O^x| = #{x in O : Nrd(x) = 1} (qfminim);
+        compute delta_rank4 by the delta_extraction route; record N1.
+        Reference laws: curve weight per type c_t = 1 if N1 = 1 else 2;
+        Eichler mass weight per curve 2/|O_t^x|; type probability
+        pi(t) proportional to c_t * 2/|O_t^x|; delta marginal
+        pi_delta(d) = SUM_{t : N1(t) = d} pi(t). Also record the unweighted
+        uniform-j law. Type labels: Gross lattice {x in Z + 2O : Tr(x) = 0}
+        Gram matrix, bucketed by theta-series prefix and separated by qfisom;
+        report any WISDE types sharing a label (they are then merged for the
+        type-level comparison, stated).
+      gates:
+        - >-
+          I-1 EXACT. delta_rank4(t) = N1(t) for EVERY type at every
+          primary-route prime. Any mismatch -> STOP ALL (FC-VOID); no tuning,
+          no re-definition.
+        - >-
+          A-1 EXACT. H_reconstructed(p) = #{N1 = 1} + 2 #{N1 >= 2} =
+          floor(p/12) + e, with e = 0, 1, 1, 2 for p = 1, 5, 7, 11 mod 12. A
+          failing prime is excluded (FC-NORM) and reported; fewer than 3
+          remaining primes -> STOP.
+        - >-
+          A-2 EXACT. max N1 <= floor((p/2)^{1/3}) (Theorem 1.5).
+        - >-
+          A-3 REPORTED, NOT A GATE (the identity is recalled, not verified in
+          this program). Eichler mass SUM_E 1/|Aut(E)| versus (p - 1)/24.
+    - id: STAGE-B
+      run_id: RUN-WESO-f37773
+      purpose: sampler mixing against exact ground truth; walk-length rule
+      procedure: >-
+        At each Stage-B prime and each k in the grid, draw N_B = 10^4 orders
+        and compute delta. TV_delta(p, k) = (1/2) SUM_d |hat pi_delta(d) -
+        pi_delta(d)|. At p in {1019, 4099} also TV_type(p, k) over Gross-lattice
+        labels. Null floor: 1000 multinomial replicates of size N_B from the
+        reference law (seed B-NULL), floor q99.9(p) = 99.9th percentile of the
+        replicate TVs (separately for delta and type level). Consistent-with-
+        mixed at (p, k) iff TV <= q99.9(p) at every applicable level.
+        k*(p) = smallest grid k such that every grid k' >= k is
+        consistent-with-mixed. c_hat = max over Stage-B primes of
+        k*(p)/log2 p. Walk length for Stages C/D: k_C(p) =
+        ceil(3 * c_hat * log2 p).
+      k_grid: [0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 33, 48, 64, 65, 96, 128]
+      k_grid_note: Odd/even pairs (32, 33), (64, 65) detect a parity (bipartite) obstruction.
+      positive_controls:
+        - PC-1 k in {0, 1, 2} at every Stage-B prime MUST have TV_delta > q99.9(p). (k = 0 returns O_0, delta = 1.)
+        - PC-2 contaminated sampler at k = 64 -- each draw replaced with probability 0.05 by an independent k = 2 draw (N_B = 10^4) -- MUST have TV_delta > q99.9(p) at >= 3 of the 4 Stage-B primes.
+      start_order_control:
+        - START-1 at p = 10007, k in {16, 32, 64, 128}, N_B = 10^4 each, walks from O_0_prime. k*' (computed as k* but over these four k) must be <= the smallest grid k >= k*(10007) among these four; if not, reported as a start-dependence finding and FC-S is evaluated with it.
+      gate_G_B:
+        pass_if_all: >-
+          (1) PC-1 and PC-2 pass; (2) k*(p) exists (<= 128) at every Stage-B
+          prime that passed A-1; (3) k*(p_max)/log2 p_max <= 2 * min_p
+          k*(p)/log2 p over Stage-B primes; (4) START-1 passes; (5) U-0..U-2
+          pass.
+        on_fail: >-
+          (1) or (5) fail -> FC-VOID (instrument has no power or is broken).
+          (2), (3) or (4) fail with (1) passing -> FC-S (sampler artifact):
+          Stages C and D are NOT run; recorded as a finding about the walk
+          sampler at the Stage-B primes.
+      analysis_freeze: >-
+        Before Stage C draws its first sample, the Stage-B manifest records
+        the sha256 of every implementation file, including the Stage-C/D
+        analysis code. Any later change to those files requires a
+        protocol_amendment.
+    - id: STAGE-C
+      run_id: RUN-WESO-e65afd
+      purpose: the heuristic test at 64, 96 and 128 bits
+      gated_by: gate_G_B
+      procedure: >-
+        For each p_b: two independent replicate halves of 5*10^4 samples
+        (seeds below) at k_C(p_b), N_C = 10^5 total. Per sample: delta,
+        verified factorisation, ell_max, wall time. Nulls at each prime:
+        NULL-1 size-matched (for each sample i, a uniform integer in
+        [2^{b_i - 1}, 2^{b_i}), b_i = bit-length of delta_i), N = 10^5;
+        NULL-2 maximal-size (uniform integers in [1, floor((p/2)^{1/3})]),
+        N = 10^5. Arms at p_64 only, each N = 2*10^4: KS-1 walk length
+        2*k_C; START-2 walks from O_0_prime at k_C; PC-3 walk length k = 4.
+        SMOOTHNESS STATISTICS ARE COMPUTED ONLY AFTER ALL SAMPLES AT A PRIME
+        ARE COLLECTED (no optional stopping; N is fixed).
+      u_grid: [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 7]
+      B_of_u: B(u) = exp(ln(p/2) / (3u)); smooth means every prime factor < B(u)
+      admissible_cell_rule: >-
+        A (p, u) cell is ADMISSIBLE iff B(u) >= 128 AND N * rho(u) >= 30,
+        both computed from the validated rho BEFORE sampling and recorded in
+        the manifest. Inadmissible cells are reported descriptively and enter
+        no criterion. (Rationale: B >= 128 avoids the tiny-B regime where rho
+        is a poor finite-size model; N*rho >= 30 gives an expected tail count
+        of at least 30, so a factor-2 deficit is resolvable at 99%.)
+    - id: STAGE-D
+      run_id: RUN-WESO-0b4b33
+      purpose: the one crypto-scale row, p = 5*2^248 - 1, replicating the scale of source Section 4.2 (10^5 samples)
+      gated_by: gate_G_B and Stage C completed valid (any verdict)
+      feasibility_gate:
+        id: FG-D
+        procedure: >-
+          Pilot of 1000 samples (seed D-PILOT) at k_C(p_D). Measure per-sample
+          wall time, peak RSS, factorisation outcomes (per-factorisation
+          watchdog 600 s) and the Theorem 1.5 bound on every pilot delta.
+        pass: >-
+          Zero factorisation failures or watchdog hits; every pilot delta <=
+          floor((p_D/2)^{1/3}); projected wall time for 10^5 samples plus
+          NULL-1 and NULL-2 (10^5 each) at 4 workers <= 172800 s.
+        fail: >-
+          INFEASIBLE_AT_DECLARED_RESOURCES. Stage D is checkpointed and not
+          run; the pilot statistics are recorded. THIS IS AN INFRASTRUCTURE
+          OUTCOME AND NEVER EVIDENCE about Heuristic 1 or the sampler
+          (AGENTS.md core rules 5 and 9). Re-dispatch with other resources is a
+          new Coordinator decision.
+        pilot_use: Pilot samples are archived and excluded from every Stage-D statistic.
+      procedure: >-
+        As STAGE-C at p_D with two replicate halves of 5*10^4 (N_D = 10^5),
+        NULL-1 and NULL-2 of 10^5 each; same u_grid and admissible_cell_rule;
+        TC-4 in addition.
+
+  # ==========================================================================
+  # CONTROLS
+  # ==========================================================================
+  controls:
+    - id: I-1
+      kind: exact interface check (Stage A)
+      description: rank-4 P-minimum equals AOV N1 for every WISDE type at four primes; validates delta extraction against an independent external computation.
+    - id: A-1/A-2
+      kind: exact normalisation and anchor (Stage A)
+      description: class-number reconstruction; Theorem 1.5 bound.
+    - id: C-2
+      kind: anchor at every stage
+      description: >-
+        Every sampled delta <= floor((p/2)^{1/3}). A violation is FIRST treated
+        as a bug: recompute that sample's minimum by an independent path
+        (qfminim on the unreduced Gram matrix with the bound set to the found
+        value). An unresolved violation STOPS the run and is escalated to the
+        Coordinator; it is never reported as a claim.
+    - id: PC-1
+      kind: positive control (known-biased sampler)
+      description: k in {0, 1, 2}; must be detected (Stage B).
+    - id: PC-2
+      kind: positive control at realistic effect size
+      description: 5% contamination by k = 2 draws at k = 64; must be detected at >= 3 of 4 primes (Stage B).
+    - id: PC-3
+      kind: positive control at scale
+      description: >-
+        k = 4 at p_64, N = 2*10^4: two-sample KS on ln delta against the main
+        arm must reject at p < 0.001. Failure -> FC-VOID for Stage C.
+    - id: NULL-1
+      kind: synthetic uniform-integer null, size-matched
+      description: >-
+        Same statistic on genuinely uniform integers with delta's bit-lengths;
+        the model-free target of the random-model reading (line 83), and a
+        check on the factorisation/smoothness code.
+    - id: NULL-2
+      kind: synthetic uniform-integer null, maximal size
+      description: >-
+        Uniform integers in [1, floor((p/2)^{1/3})]; their smooth fraction is
+        Psi(X,B)/X. Instrument bound: NULL-2 fraction / rho(u) in [0.7, 2.0]
+        at every admissible cell; outside -> FC-VOID (rho or smoothness code
+        defect), investigated, never tuned.
+    - id: CLS-1
+      kind: code unit test
+      description: >-
+        Smoothness classifier and factorisation verifier on 10^4 integers of
+        known factorisation (products of declared primes, seed CLS), including
+        boundary cases (a prime factor exactly equal to B, B non-integer);
+        100% correct required.
+    - id: SEED-1
+      kind: seed independence
+      description: >-
+        At each Stage-C/D prime the two replicate halves (independent master
+        seeds) are compared: two-sample tests of smooth counts at every
+        admissible u and KS on ln delta, Bonferroni-corrected family-wise
+        alpha 0.01 per prime. A rejection invalidates that prime (not the
+        heuristic).
+    - id: SEED-2
+      kind: duplicate check
+      description: >-
+        Count duplicate order hashes (canonical HNF basis) per Stage-C/D prime;
+        expected ~0 at >= 64 bits. More than 1 duplicate at a prime invalidates
+        that prime (sampler or seed degeneracy). Also: count of delta = 1 at
+        Stage C/D reported (F_p curves have density ~p^{-1/2}; more than 2 at a
+        prime flags under-mixing and invalidates that prime).
+    - id: KS-1
+      kind: k-sensitivity at scale
+      description: >-
+        p_64, walk length 2*k_C, N = 2*10^4: KS on ln delta and two-sample
+        smooth-count tests at admissible u against the main arm must NOT
+        reject (family-wise alpha 0.01). A rejection voids Stage C at p_64 and
+        is reported as a mixing-transfer failure.
+    - id: START-1/START-2
+      kind: start-order control
+      description: Stage B at 10007 (START-1) and at scale at p_64 (START-2, same tests as KS-1).
+    - id: DET-1
+      kind: parallel determinism
+      description: >-
+        Before Stage C, a 2000-sample shard at p_64 run with 1 worker and with
+        4 workers must give byte-identical per-sample records (per-sample
+        seeds are derived from indices, so order-independence is required).
+        Failure -> run with 1 worker.
+    - id: SCALE
+      kind: second and further scales
+      description: Four toy primes (B), three Stage-C primes, one Stage-D prime; no conclusion rests on one scale.
+
+  independent_variables:
+    - p (Stage A/B primes; Stage C primes by frozen rule; Stage D prime)
+    - k (walk length; Stage B grid; Stage C/D rule k_C)
+    - B, through u (frozen u_grid)
+    - sampler variant (main; short-walk PC-1/PC-3; contaminated PC-2; start order O_0 vs O_0_prime; k-sensitivity 2*k_C)
+    - population (delta vs NULL-1 vs NULL-2)
+
+  # ==========================================================================
+  # METRICS
+  # ==========================================================================
+  metrics:
+    primary:
+      - PM-1 TV_delta(p, k), q99.9(p), k*(p), c_hat (Stage B)
+      - PM-2 TV_type(p, k) at p in {1019, 4099} (Stage B)
+      - PM-3 f_emp(p, u) with 99% Wilson interval; rho(u); R_max = f_emp / rho(u), per admissible cell (Stages C, D)
+      - PM-4 T1(p, u) = S_delta / S_NULL1 with a 99% interval (Clopper-Pearson on S_delta / (S_delta + S_NULL1), transformed), per admissible cell
+      - PM-5 I-1 mismatch count (must be 0) and A-1 results (Stage A)
+    secondary:
+      - u^{-u} and R_uu = f_emp / u^{-u} (reported; not in any criterion)
+      - theta_eff(p, u) = -ln f_emp / (u ln u) with interval
+      - trend of ln T1 against u (OLS slope with 99% interval) -- a deficit growing with u is flagged as an asymptotic risk
+      - KS distance between the ECDF of x = ln ell_max and x -> rho(ln(p/2)/(3x)) on the region where the prediction is >= 30/N
+      - size-matched prediction SUM_i rho(ln delta_i / ln B) and its ratio to S_delta
+      - empirical distribution of ln delta against the H-WESO-9dc201 density law (REPORTED, NOT TESTED)
+      - wall time per sample, peak RSS per process, CPU seconds per stage
+      - Stage A delta marginal and type law at each prime; A-3 mass value
+
+  tail_checks:
+    - id: TC-1
+      description: >-
+        Smoothest sample (mirrors source lines 250-252). M = min_i ell_max(delta_i);
+        u* = ln(p/2)/(3 ln M). Under PRED-1 the minimum over N satisfies
+        Pr[min <= M] = 1 - (1 - rho(u*))^N. Consistent iff that value lies in
+        [0.005, 0.995]. Also computed under the size-matched law and against
+        NULL-1's smoothest. Admissible (enters criteria) only if M >= 128.
+    - id: TC-2
+      description: >-
+        Tail counts. For m in {5, 20, 100}, x_m solves N * rho(ln(p/2)/(3 x_m)) = m
+        (computed before sampling). The observed count with ln ell_max < x_m
+        is compared with m: a DEFICIT iff the upper 99% Poisson confidence
+        bound for the observed count is < m. An excess is reported, not a
+        deficit. Admissible only if exp(x_m) >= 128.
+    - id: TC-3
+      description: Upper tail -- fraction of delta that are prime (ell_max = delta) versus NULL-1, two-sample 99% interval. Reported as structure; not in the H-1 criteria.
+    - id: TC-4
+      description: >-
+        Stage D only: compare the smoothest of 10^5 with the source's reported
+        value (12589-smooth; rho approx 1/69232; line 250) through TC-1's
+        extreme-value interval, not by equality.
+
+  # ==========================================================================
+  # SAMPLE-SIZE JUSTIFICATION
+  # ==========================================================================
+  sample_size_justification: >-
+    The smallest probability the experiment must resolve is the smallest rho(u)
+    in an admissible cell. The admissible_cell_rule requires N * rho(u) >= 30,
+    i.e. an expected tail count of at least 30: a factor-2 deficit (expected 30,
+    true 15) is then separated at 99% (Wilson upper bound for 15/10^5 is about
+    2.8e-4 < 3e-4). With N = 10^5 at Stage C/D this admits u up to about 5
+    (rho(5) approx 3.5e-4; value RECALLED here, recomputed by the validated
+    rho before sampling and recorded). The B >= 128 rule further limits p_64
+    to u <= 3, p_96 to u <= about 4.5, p_128 and p_D to the full resolvable
+    range. N = 10^5 at p_D also matches the source's own NIST-I sample count
+    (line 248), making TC-4 a like-for-like comparison. Stage B: N_B = 10^4
+    per cell puts the q99.9 TV floor at an estimated ~0.02 (support <= 22
+    values; the exact floor is computed in-run), below the PC-2 effect (about
+    0.05 * TV(k = 2), expected >= 0.03); PC-2 is the in-run proof of power. Arms at scale
+    (N = 2*10^4) resolve u <= about 3.5 only; their limited tail power is a
+    stated limitation.
+
+  # ==========================================================================
+  # SEEDS AND REPLICATION
+  # ==========================================================================
+  replication:
+    seeds:
+      - {name: U-1, stage: B, value: 2026092600}
+      - {name: B-MAIN, stage: B, value: 2026092601}
+      - {name: B-NULL, stage: B, value: 2026092602}
+      - {name: PC-2, stage: B, value: 2026092603}
+      - {name: START-1, stage: B, value: 2026092604}
+      - {name: CLS, stage: C, value: 2026092605}
+      - {name: DET-1, stage: C, value: 2026092606}
+      - {name: C64-R1, stage: C, value: 2026092611}
+      - {name: C64-R2, stage: C, value: 2026092612}
+      - {name: C64-NULL, stage: C, value: 2026092613}
+      - {name: C64-KS1, stage: C, value: 2026092614}
+      - {name: C64-PC3, stage: C, value: 2026092615}
+      - {name: C64-START2, stage: C, value: 2026092616}
+      - {name: C96-R1, stage: C, value: 2026092621}
+      - {name: C96-R2, stage: C, value: 2026092622}
+      - {name: C96-NULL, stage: C, value: 2026092623}
+      - {name: C128-R1, stage: C, value: 2026092631}
+      - {name: C128-R2, stage: C, value: 2026092632}
+      - {name: C128-NULL, stage: C, value: 2026092633}
+      - {name: D-PILOT, stage: D, value: 2026092640}
+      - {name: D-R1, stage: D, value: 2026092641}
+      - {name: D-R2, stage: D, value: 2026092642}
+      - {name: D-NULL, stage: D, value: 2026092643}
+    derivation: >-
+      Per-draw randomness = SHA-256(master_seed || stage || p || arm || index)
+      in counter mode; the per-draw seed is stored in each per-sample record so
+      any sample can be regenerated alone. NULL-1 and NULL-2 use distinct arm
+      labels under the prime's NULL seed. No other RNG source.
+    independent_instances: 8
+    independent_instances_note: 4 toy primes (A/B) + 3 Stage-C primes + 1 Stage-D prime; within each Stage-C/D prime, 2 seed-independent replicate halves (SEED-1).
+    reproduction_spot_check: >-
+      After each Stage C/D prime, re-derive 100 samples (indices chosen by
+      seed-derived selection recorded in the manifest) from their stored seeds
+      in a fresh process; results must be byte-identical.
+
+  # ==========================================================================
+  # BUDGET (ADVISORY; MACHINE PROTECTION BINDS)
+  # ==========================================================================
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 259200
+    per_stage_watchdog_seconds:
+      stage_A: 3600
+      stage_B: 43200
+      stage_C: 259200
+      stage_D: 259200
+    total_cpu_hours: 48
+    maximum_memory_gb: 8
+    maximum_runs: 4
+    maximum_workers: 4
+    notes: >-
+      docs/research-budget-policy.md: time and CPU figures are advisory
+      estimates (total_cpu_hours 48 is an estimate, not a cap). Watchdog expiry
+      CHECKPOINTS a stage (status failed with an infrastructure reason; the
+      completed samples are preserved but NOT analysed as a smaller N, because
+      N is fixed); it never exhausts the campaign and is never evidence.
+      MACHINE PROTECTION (binding): at most 4 concurrent worker processes
+      (the core count), total resident memory <= 8 GB, each gp process
+      parisizemax <= 1 GB, one experiment stage at a time. maximum_workers 4
+      only after DET-1 passes.
+
+  # ==========================================================================
+  # STOPPING AND INVALIDATION
+  # ==========================================================================
+  stopping_rules:
+    - SR-1 I-1 mismatch at any primary-route prime -> STOP ALL (FC-VOID).
+    - SR-2 fewer than 3 Stage-A primes pass A-1 -> STOP.
+    - SR-3 gate_G_B fails -> STOP; Stages C, D not run (FC-VOID or FC-S as classified).
+    - SR-4 V-RHO-1..3, CLS-1, or NULL-2 bounds fail -> STOP before any criterion is evaluated (FC-VOID).
+    - SR-5 unresolved C-2 anchor violation -> STOP and escalate.
+    - SR-6 FG-D fails -> Stage D checkpointed (infrastructure outcome).
+    - SR-7 gp version not 2.15.x, or gp absent -> STOP (infrastructure).
+    - SR-8 fixed N; no stage ends early on observed smoothness values; no interim smoothness statistic is computed before a prime's sampling completes.
+    - SR-9 watchdog expiry -> checkpoint as above.
+  invalidation_rules:
+    - IV-1 any factorisation not verified (product and isprime of factors) -> that prime invalid until reverified; the count of such cases must be 0.
+    - IV-2 SEED-1 rejection, SEED-2 duplicates > 1, or delta = 1 count > 2 at a Stage-C/D prime -> that prime invalid.
+    - IV-3 reproduction spot-check mismatch -> the run invalid.
+    - IV-4 raw per-sample records and raw-result.json summaries disagree when recomputed by the checker -> the run invalid.
+    - IV-5 any implementation file changed after the Stage-B analysis_freeze without an amendment -> Stages C, D invalid.
+    - IV-6 any run whose manifest lacks seeds, gp/python/numpy/sympy versions, git commit and dirty state, command, timestamps or resource measurements -> invalid (schema-incomplete).
+    - IV-7 a KS-1 or START-2 rejection voids Stage C at p_64 only (mixing-transfer failure; reported as a finding).
+  invalid_prime_rule: >-
+    An invalidated prime contributes nothing to any criterion. The criteria
+    below count only VALID primes; if fewer than 2 Stage-C primes are valid,
+    the verdict is INCONCLUSIVE (instrument limit), never adverse.
+
+  # ==========================================================================
+  # DECISIVE CRITERIA
+  # ==========================================================================
+  instrument_gates: >-
+    IG = all of: I-1 = 0 mismatches (or FB-A declared for the prime), A-1,
+    gate_G_B, PC-3, V-RHO-1..3, CLS-1, NULL-2 bounds, DET-1 (or single worker),
+    and no unresolved C-2 violation.
+  success_criterion: >-
+    SUPPORT OF THE OPERATIONAL FORM AT THE TESTED PRIMES (claim tier `medium`
+    for Stage C). IG passes; at least 2 Stage-C primes are valid; and at EVERY
+    valid Stage-C prime: (a) at every admissible cell the 99% Wilson upper
+    bound of f_emp is >= rho(u); (b) every admissible TC-1 is consistent; (c)
+    at most one admissible TC-2 threshold shows a deficit. The Stage-D row, if
+    FG-D passes and p_D is valid, is evaluated by (a)-(c) at p_D as a SEPARATE
+    crypto-tier row (scoped to 5*2^248 - 1), plus TC-4 reported. A T1 interval
+    excluding 1, or a significant T1 trend in u, is reported as structure in
+    delta's factorisation and does not by itself block success; a significant
+    NEGATIVE T1 trend is flagged as an asymptotic risk in the evidence record.
+  falsification_criterion: >-
+    FC-H1 (SCOPED ADVERSE SIGNAL, operational form). IG passes; and at >= 2
+    valid Stage-C primes, at >= 2 admissible cells each, BOTH (i) the 99%
+    Wilson upper bound of f_emp < rho(u) AND (ii) the 99% upper bound of T1 <
+    1. Requiring (ii) excludes a shortfall explained by rho's finite-size
+    error (NULL-1 is model-free). Scoped to the tested primes; as a single
+    unreplicated empirical run it supports at most `weaken` + replication,
+    never `reject_scoped` (coordinator prompt; docs/claims-and-verification.md
+    "Refutation artifacts": proof_status empirical_only, with the per-sample
+    factorisation records as the checkable basis).
+    FC-S (SAMPLER ARTIFACT): gate_G_B fails on (2), (3) or (4) with PC-1/PC-2
+    passing -> the walk sampler does not reach the reference law at the tested
+    k at the Stage-B primes; Stages C, D blocked; recorded as a finding.
+    FC-VOID: any instrument gate fails for the reasons listed -> no H-1
+    reading of either sign; reported as an instrument limit.
+  inconclusive_criterion: >-
+    Every other outcome with IG passing: e.g. the FC-H1 pattern at only one
+    valid prime; success (a) failing without (ii); fewer than 2 valid Stage-C
+    primes; or success (b)/(c) failing alone. Reported plainly as
+    inconclusive with the cells named.
+  decidability_note: >-
+    Every criterion is decidable from PM-1..PM-5 and TC-1/TC-2, all defined
+    before any run. Both a supporting and an adverse outcome are reachable
+    (the adverse one requires a replicated deficit against both PRED-1 and a
+    model-free null).
+
+  # ==========================================================================
+  # SECTION 8 (proof_search_map) APPLICABILITY
+  # ==========================================================================
+  section_8_assessment:
+    applicable: true
+    reason: >-
+      Empirical validation of a named heuristic, but the proposal and
+      H-WESO-516558 carry a full proof_search_map (bottleneck: sampler law;
+      baseline: exhaustive WISDE slice with exact identities I-1/A-1/A-2;
+      observation collision: biased vs mixed sampler, separated by Stage B and
+      PC-1..PC-3, residual tail-confined bias declared; quantifier order: the
+      sampler measure is inside the quantifier; method ceiling and
+      nearby-object controls stated). Passing these audits claims nothing
+      beyond AGENTS.md core rules 6 and 10.
+
+  # ==========================================================================
+  # ARTIFACTS
+  # ==========================================================================
+  required_artifacts:
+    implementation:
+      - experiments/EXP-WESO-9e2d6d/implementation/ (Python driver, gp scripts, rho module, statistics and checker; unit tests U-0..U-2, CLS-1, V-RHO-1..3)
+      - experiments/EXP-WESO-9e2d6d/implementation.md (sampler realization, delta extraction, rho method, file list with sha256, exact commands, deviations)
+    per_run:
+      files:
+        - manifest.yaml (run id, experiment id, status, code commit and dirty state, exact command, environment incl. gp --version-short and gp sha256, python/numpy/sympy/mpmath versions, parisizemax, workers, all seeds used, inputs, timing, peak RSS, CPU seconds, result validity with reason, inference block with requested_policy executor-implementation, resolved model as provided or null, fallback_used)
+        - command.txt
+        - environment.json
+        - stdout.log
+        - stderr.log
+        - raw-result.json (all summary statistics, gate verdicts, admissible-cell table computed before sampling)
+        - samples.jsonl.gz (Stages B-D; per sample -- arm, index, per-draw seed, ideal descriptor hash, canonical order-basis hash, delta, full factorisation, ell_max, wall seconds)
+        - nulls.jsonl.gz (Stages C-D; per null draw -- arm, index, seed, integer, factorisation)
+        - execution_report.yaml (stage gates, control verdicts, criteria inputs, deviations, anomalies preserved)
+      stage_A_extra:
+        - wisde_fetch_log.yaml (per file -- URL, HTTP status, UTC timestamp, bytes, sha256, equality with the committed value; FB-A use if any)
+        - types.jsonl (per type -- p, index, N1, delta_rank4, |O^x|, Gross-lattice label, weights)
+      stage_D_extra:
+        - fg_d_pilot.jsonl.gz and the FG-D verdict in execution_report.yaml
+    run_dirs:
+      - experiments/EXP-WESO-9e2d6d/runs/RUN-WESO-aa2237/
+      - experiments/EXP-WESO-9e2d6d/runs/RUN-WESO-f37773/
+      - experiments/EXP-WESO-9e2d6d/runs/RUN-WESO-e65afd/
+      - experiments/EXP-WESO-9e2d6d/runs/RUN-WESO-0b4b33/
+    size_note: >-
+      Any single artifact above 50 MiB stays in the session scratchpad and is
+      listed by sha256 and size in the manifest; per-sample records are
+      expected well below that (10^5 lines, gzip).
+
+  non_claims:
+    - A Stage-C pass is `medium`-tier support at the three tested primes; it is not validation at NIST-I.
+    - A Stage-D pass is a crypto-tier row for p = 5*2^248 - 1 only.
+    - No outcome confirms or refutes the o(1) statement.
+    - An INFEASIBLE FG-D, a timeout, crash or implementation failure is never evidence (AGENTS.md core rules 5 and 9).
+    - Nothing here relies on, or bears on the correctness of, Delgado arXiv 2609.22018v1.
+
+  inference_policy:
+    policy: executor-implementation
+    fallback_allowed: false
+    degraded_allowed: false
