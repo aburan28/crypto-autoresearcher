@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7887 |
-| — with a resolvable external identifier | 2274 |
+| Literature entries (`KN-LIT-*`) | 7889 |
+| — with a resolvable external identifier | 2276 |
 | — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1331, doi 152, eprint 753, url 38. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1332, doi 152, eprint 754, url 38. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7509, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 329.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7511, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 329.
 
 ## 1. Frozen source packages
 
@@ -217,7 +217,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2274 of 7887 `KN-LIT-*` entries carry an
+2276 of 7889 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1862,6 +1862,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-597 | Elliptic surfaces over P1 and large class groups of number fields | 2018 | `arxiv:1811.08166` | read |
 | KN-LIT-598 | ENDOMORPHISM ALGEBRAS OF GEOMETRICALLY SPLIT ABELIAN SURFACES OVER Q | 2018 | `arxiv:1807.10010` | read |
 | KN-LIT-599 | EVALUATION OF GAUSSIAN HYPERGEOMETRIC SERIES USING HUFF’S MODELS OF ELLIPTIC CURVES | 2018 | `arxiv:1805.08475` | read |
+| KN-LIT-5d518f | The supersingular endomorphism ring problem given one endomorphism |  | `eprint:2023/1448` | read |
 | KN-LIT-5f3698 | Sloppy Alice attacks! Adaptive chosen ciphertext attacks on the McEliece public-key cryptosystem | 2002 | `doi:10.1007/978-1-4757-3585-7_7` | web |
 | KN-LIT-5f8f0a | Code-based cryptography | 2009 | `doi:10.1007/978-3-540-88702-7_4` | web |
 | KN-LIT-5ff88f | Polynomial time key-recovery attack on high rate random alternant codes (boundary completed: the Goppa exclusion is phase-scoped, present-tense, unproved, and conjectured by its authors to fall) | 2024 | `arxiv:2304.14757v3` | transcription_of_full_text_at_recorded_sha256 |
@@ -1985,6 +1986,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-6dcb5b | Verified fast formulas for control bits for permutation networks | 2020 | `url:cr.yp.to/papers.html#controlbits` | false |
 | KN-LIT-6e036d | WDSat (source release): a statically-allocated DPLL solver for Weil-descent PDP instances, with XORSET/XORGAUSS modules and static branching order | 2024 | `arxiv:2001.11229` | read |
 | KN-LIT-6e1eb5 | A side-channel attack against Classic McEliece when loading the Goppa polynomial | 2023 | `doi:10.1007/978-3-031-37679-5_5` | web |
+| KN-LIT-6fb205 | The Supersingular Isogeny Problem in Time and Memory p^{1/3+o(1)}, Unconditionally | 2026 | `arxiv:2609.22018` | read |
 | KN-LIT-700 | PRIME TORSION IN THE BRAUER GROUP OF AN ELLIPTIC CURVE | 2019 | `arxiv:1909.05317` | read |
 | KN-LIT-701 | PRIMITIVE DIVISORS OF ELLIPTIC DIVISIBILITY SEQUENCES OVER FUNCTION FIELDS WITH CONSTANT j-INVARIANT | 2019 | `arxiv:1904.12393` | read |
 | KN-LIT-702 | Primitive divisors of sequences associated to elliptic curves | 2019 | `arxiv:1906.00632` | read |
