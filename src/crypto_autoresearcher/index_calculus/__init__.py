@@ -8,8 +8,10 @@ index calculus, with Pollard rho as the matched baseline:
 * :mod:`.semaev`      -- the summation polynomial S_3 and its root-finding;
 * :mod:`.factor_base` -- pluggable factor bases (small-x, multiplicative
   subgroup coset, random) and their membership polynomials;
-* :mod:`.decompose`   -- exhaustive point decomposition for any arity m, with
-  an optional numpy scan (:mod:`._accel`) that changes speed, not results;
+* :mod:`.decompose`   -- point decomposition for any arity m: exhaustive, or
+  meet-in-the-middle against a table of precomputed tails (:mod:`.tails`),
+  which finds the same relations; an optional numpy scan (:mod:`._accel`)
+  changes speed, not results;
 * :mod:`.msolve`      -- algebraic decomposition through the msolve Groebner
   basis solver (external binary);
 * :mod:`.linalg`      -- incremental sparse elimination modulo N;
@@ -26,6 +28,7 @@ nothing here threatens any deployed curve.
 
 from .curve import Curve, generate_prime_order_curve
 from .decompose import decompose, decompose_all
+from .tails import TailTable, default_table_arity
 from .factor_base import FactorBase, default_fb_size, subgroup_prime_filter
 from .rho import RhoResult, pollard_rho
 from .solver import ICResult, solve_index_calculus
@@ -35,9 +38,11 @@ __all__ = [
     "FactorBase",
     "ICResult",
     "RhoResult",
+    "TailTable",
     "decompose",
     "decompose_all",
     "default_fb_size",
+    "default_table_arity",
     "generate_prime_order_curve",
     "pollard_rho",
     "solve_index_calculus",

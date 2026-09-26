@@ -12,6 +12,8 @@ import pytest
 
 from crypto_autoresearcher.index_calculus import (
     FactorBase,
+    TailTable,
+    default_table_arity,
     generate_prime_order_curve,
     pollard_rho,
     solve_index_calculus,
@@ -60,6 +62,25 @@ def _planted(E, fb, m, rng):
         F = rng.choice(fb.points)
         R = E.add(R, F if rng.random() < 0.5 else E.neg(F))
     return R
+
+
+def _hard_targets(E, fb, m, count, seed):
+    """Random points, planted sums of m base points, points of +/-F, and sums
+    of m - 1 and m - 2 base points (whose decompositions contain F - F)."""
+    rng = random.Random(seed)
+    out = []
+    while len(out) < count:
+        kind = len(out) % 5
+        if kind == 0:
+            R = E.random_point(rng)
+        else:
+            R = None
+            for _ in range(max(1, (m, 1, m - 1, m - 2)[kind - 1])):
+                F = rng.choice(fb.points)
+                R = E.add(R, F if rng.random() < 0.5 else E.neg(F))
+        if R is not None:
+            out.append(R)
+    return out
 
 
 def _targets(E, fb, m, count, seed):
@@ -233,6 +254,165 @@ def test_elimination_recovers_known_k():
         a = (logs[i] + logs[j] - b * k) % N
         got = la.add_row({i: 1, j: 1}, -b, a)
     assert got == k
+
+
+# -- meet in the middle: tables of tails ----------------------------------------------
+
+def _tail_sum(E, fb, tail):
+    S = None
+    for i, s in tail:
+        S = E.add(S, fb.points[i] if s > 0 else E.neg(fb.points[i]))
+    return S
+
+
+@pytest.mark.parametrize("h", [2, 3])
+def test_tail_table_holds_exactly_the_reachable_tails(curve10, h):
+    E, _ = curve10
+    fb = build_factor_base(E, "random", 8)
+    n = len(fb)
+    tab = TailTable(E, fb, h, accelerate=False)
+    got = set()
+    for x, c in tab._map.items():
+        for code in ([c] if type(c) is int else c):
+            y = E.lift_x(x)[1]
+            tail = tab.orient(code, y)
+            assert _tail_sum(E, fb, tail) == (x, y)
+            assert tail[0][1] == 1 or tab.orient(code, E.p - y)[0][1] == 1
+            got.add(tuple(tab.orient(code, y)))
+    # every ordering with non-decreasing indices whose suffixes all have a
+    # non-zero sum, one of each +/- pair
+    signed = [(i, s) for i in range(n) for s in (1, -1)]
+    want = set()
+    for tail in itertools.product(signed, repeat=h):
+        if any(tail[k][0] > tail[k + 1][0] for k in range(h - 1)) or tail[0][1] < 0:
+            continue
+        sums = [_tail_sum(E, fb, tail[k:]) for k in range(h)]
+        if all(S is not None for S in sums):
+            want.add(tuple(tail) if sums[0][1] == E.lift_x(sums[0][0])[1]
+                     else tuple((i, -s) for i, s in tail))
+    assert got == want and tab.entries == len(want)
+    if h == 2:
+        assert tab.entries == n * n and tab.s3_solves == n * (n + 1) // 2
+
+
+@pytest.mark.parametrize("h", [2, 3])
+def test_tail_table_numpy_build_is_identical(h):
+    pytest.importorskip("numpy")
+    E, _ = generate_prime_order_curve(20, 5)
+    fb = build_factor_base(E, "small_x", 40)
+    a, b = TailTable(E, fb, h, accelerate=False), TailTable(E, fb, h, accelerate=True)
+    assert a._map == b._map
+    assert (a.entries, a.s3_solves) == (b.entries, b.s3_solves)
+
+
+def _reachable(E, fb, m):
+    """sum -> the decompositions the search reaches, by brute force.
+
+    The search visits orderings with non-decreasing indices and abandons one
+    whose remainder is the point at infinity, so a decomposition is reached
+    when some such ordering has a non-zero sum on every suffix of length
+    2 .. m - 1.  Off the sums of fewer than m base points that is every
+    decomposition; on them it leaves out orders that cancel F - F last.
+    """
+    signed = [(i, s) for i in range(len(fb)) for s in (1, -1)]
+    out: dict = {}
+    for combo in itertools.product(signed, repeat=m):
+        if any(combo[k][0] > combo[k + 1][0] for k in range(m - 1)):
+            continue
+        sums = [_tail_sum(E, fb, combo[k:]) for k in range(m - 1)]
+        if all(S is not None for S in sums):
+            out.setdefault(sums[0], set()).add(canonical(list(combo)))
+    return out
+
+
+@pytest.mark.parametrize("m", [3, 4])
+@pytest.mark.parametrize("kind", KINDS)
+def test_table_search_matches_brute_force(curve10, kind, m):
+    E, _ = curve10
+    fb = build_factor_base(E, kind, 8)
+    reach = _reachable(E, fb, m)
+    tables = [None] + [TailTable(E, fb, h) for h in range(2, m)]
+    for R in _hard_targets(E, fb, m, 20, seed=10 + m):
+        for tab in tables:
+            assert decompose_all(E, fb, R, m, table=tab) == sorted(reach.get(R, ()))
+
+
+@pytest.mark.parametrize("m", [3, 4, 5])
+@pytest.mark.parametrize("kind", KINDS)
+def test_table_search_finds_what_enumeration_finds(curve10, kind, m):
+    """Same relation first, same set in all, on every kind of target -- including
+    the ones on the base and the sums of fewer points, whose decompositions
+    contain cancelling pairs and are reached only in some orders."""
+    E, _ = curve10
+    fb = build_factor_base(E, kind, 8)
+    tables = [TailTable(E, fb, h) for h in range(2, m)]
+    for R in _hard_targets(E, fb, m, 20, seed=m):
+        one = decompose(E, fb, R, m, accelerate=False)
+        every = decompose_all(E, fb, R, m, accelerate=False)
+        for tab in tables:
+            st = DecompStats()
+            assert decompose(E, fb, R, m, st, accelerate=False, table=tab) == one
+            assert decompose_all(E, fb, R, m, accelerate=False, table=tab) == every
+            assert st.successes == (one is not None)
+
+
+@pytest.mark.parametrize("m,h,size", [(3, 2, 90), (4, 2, 60), (5, 3, 50)])
+def test_table_search_accelerated_is_identical(m, h, size):
+    """The numpy scan with a table (the m = h + 1 level and the m = h + 2 block
+    pass) changes nothing: relations, S_3 solves, lookups and group ops."""
+    pytest.importorskip("numpy")
+    E, _ = generate_prime_order_curve(20, 5, p_filter=subgroup_prime_filter([], sizes=[size]))
+    fb = build_factor_base(E, "small_x", size)
+    tab = TailTable(E, fb, h)
+    for t, R in enumerate(_hard_targets(E, fb, m, 10, seed=size)):
+        results = []
+        for accelerate in (False, True):
+            for fn in (decompose, decompose_all) if t < 3 else (decompose,):
+                stats = DecompStats()
+                E.ops.group_ops = 0
+                rel = fn(E, fb, R, m, stats, accelerate=accelerate, table=tab)
+                results.append((rel, stats, E.ops.group_ops))
+        half = len(results) // 2
+        assert results[:half] == results[half:]
+    if m == 3:  # and against the exhaustive search, which is affordable here
+        for R in _hard_targets(E, fb, m, 5, seed=1):
+            assert decompose(E, fb, R, m, table=tab) == decompose(E, fb, R, m)
+
+
+def test_table_arguments_are_checked(curve10):
+    E, _ = curve10
+    fb = build_factor_base(E, "small_x", 8)
+    R = E.random_point(random.Random(0))
+    with pytest.raises(ValueError, match="needs m > 3"):
+        decompose(E, fb, R, 3, table=TailTable(E, fb, 3))
+    other = build_factor_base(E, "random", 8)
+    with pytest.raises(ValueError, match="different factor base"):
+        decompose(E, fb, R, 3, table=TailTable(E, other, 2))
+    # arity 1 is the factor base itself: the exhaustive search, nothing built
+    one = TailTable(E, fb, 1)
+    assert one.entries == len(fb) and one.s3_solves == 0
+    assert decompose_all(E, fb, R, 3, table=one) == decompose_all(E, fb, R, 3)
+    assert [default_table_arity(m) for m in range(2, 8)] == [1, 2, 2, 3, 3, 4]
+
+
+@pytest.mark.parametrize("m,kind", [(3, "small_x"), (3, "subgroup"), (4, "random")])
+def test_mitm_engine_makes_the_same_run_for_less(curve14, m, kind):
+    E, P = curve14
+    k = 4242 % E.order
+    Q = E.mul(k, P)
+    runs = {eng: solve_index_calculus(E, P, Q, m=m, fb_kind=kind, seed=1, engine=eng)
+            for eng in ("enumerate", "mitm")}
+    a, b = runs["enumerate"], runs["mitm"]
+    assert a.verified and b.verified and b.k == k
+    same = ("k", "relations", "attempts", "rank", "target_ops", "la_ops", "factor_base")
+    assert all(getattr(a, f) == getattr(b, f) for f in same)
+    assert (a.table_arity, a.table_s3_solves) == (1, 0)
+    assert b.table_arity == default_table_arity(m) and b.table_s3_solves > 0
+    assert b.table_s3_solves < b.s3_solves < a.s3_solves  # the table is charged
+    with pytest.raises(ValueError, match="mitm engine"):
+        solve_index_calculus(E, P, Q, m=m, engine="enumerate", table_arity=2)
+    with pytest.raises(ValueError, match="table_arity must be"):
+        solve_index_calculus(E, P, Q, m=m, engine="mitm", table_arity=m)
 
 
 # -- the vectorised scan --------------------------------------------------------------
@@ -424,6 +604,22 @@ def test_cli_sweep_is_deterministic_across_workers(tmp_path, capsys):
     ic = [r for r in outs[0] if r["method"] == "ic_m2"]
     for bits in (10, 12):
         assert len({r["fb_size"] for r in ic if r["bits"] == bits}) == 1
+
+
+def test_cli_sweep_runs_both_engines(tmp_path, capsys):
+    out = tmp_path / "rows.jsonl"
+    assert main(["sweep", "--bits", "12", "14", "--curves", "1", "--m", "3",
+                 "--engine", "enumerate", "mitm", "--m-max-bits", "enumerate:3=12",
+                 "--out", str(out), "--quiet", "--reps", "50", "--json"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    rows = [json.loads(line) for line in out.read_text().splitlines()]
+    ic = {(r["bits"], r["engine"]): r for r in rows if r["method"] == "ic_m3"}
+    assert set(ic) == {(12, "enumerate"), (12, "mitm"), (14, "mitm")}  # the cap
+    a, b = ic[12, "enumerate"], ic[12, "mitm"]
+    assert (a["attempts"], a["relations"], a["la_ops"]) == \
+        (b["attempts"], b["relations"], b["la_ops"])
+    assert b["table_arity"] == 2 and 0 < b["table_s3_solves"] < b["s3_solves"] < a["s3_solves"]
+    assert {"ic_m3:small_x", "ic_m3:small_x:mitm"} <= set(report["fits"])
 
 
 def test_cli_analyze_reports_fits(tmp_path, capsys):
