@@ -1,0 +1,147 @@
+# J2 section of TASK-20260926-0f8aec validation-report.yaml, written BEFORE any
+# J3 work and before any J5/J6 aggregation (RV-4; see ../ORDER.log).
+J2:
+  joint: J2 -- CONSTRUCTION AND DRAW FIDELITY
+  verdict: holds
+  verdict_basis: >-
+    The archived impl/ builds exactly the frozen families on every kept system
+    and its streams are the frozen streams. Clause by clause, construct.py,
+    draws.py, common.py and the phase-2 code of driver.py implement
+    object.E_layout, object.parts, object.union_support,
+    instance_sets.fresh_arms, generator_rule and keep_rule as written. My own
+    replay from the specification text reproduces every attempt record of all
+    four fresh arms, not only the required prefixes, and every kept system. The
+    full sweep over the 1440 archived systems finds no violation of any kept
+    part, S_L confinement, slot binding or archived identity. No breaking
+    artifact of the plan was found.
+  written_at: '2026-09-26 (UTC, see ../ORDER.log)'
+  what_i_built:
+    - >-
+      j2_replay_sweep.py. Imports nothing from impl/, verifier/ or
+      src/crypto_autoresearcher/; numpy only as container and for the frozen
+      PCG64 stream. It has its own F_{2^17}. Its E_S3(x_R) comes from a
+      DIFFERENT ROUTE than construct.py: Mobius inversion of direct F_{2^17}
+      evaluations of S_3(x_1(v), x_2(v), x_R) at the 1 + 18 + 153 points of
+      Hamming weight <= 2, where construct.py uses symbolic expansion. It
+      also has its own union support, its own exhaustive 2^18 evaluator
+      (bit-sliced Python ints) and its own draw/keep loop written from the
+      keep_rule text.
+    - >-
+      Self-tests (S0), all pass. t^(2^17) = t and gcd(t^(2^i) - t, f) = 1 for
+      i <= 8. S_3 vanishes on 30/30 triples (x(P), x(Q), x(P+Q)) of random
+      points of the archived curve (own point addition and half-trace); it is
+      nonzero on 30/30 random triples. The interpolated descent matches direct
+      evaluation at 200/200 random (x_R, v), which confirms degree <= 2. The
+      exhaustive evaluator agrees with naive evaluation and finds a planted
+      solution on 20/20 systems.
+  artifacts_read:
+    - experiments/EXP-CERTBIN-ddfe75/specification.yaml (object, instance_sets, keep_rule, generator_rule)
+    - experiments/EXP-CERTBIN-ddfe75/impl/construct.py, draws.py, common.py, gf2n.py, satcount.py, README.md
+    - experiments/EXP-CERTBIN-ddfe75/impl/driver.py (phase 1 archived_systems lines 138-161, phase 2 lines 336-391, main 702-744)
+    - experiments/EXP-CERTBIN-ddfe75/runs/RUN-CERTBIN-6ebb0e/draws-N-CONV.jsonl.gz, draws-N-CONVL.jsonl.gz, draws-N-CONV17.jsonl.gz, draws-N-ELL144.jsonl.gz
+    - experiments/EXP-CERTBIN-ddfe75/runs/RUN-CERTBIN-6ebb0e/instances.jsonl.gz, support.json
+    - experiments/EXP-CERTBIN-e94b27/runs/RUN-CERTBIN-c417e0/instance-sets.json
+    - experiments/EXP-CERTBIN-4e92d7/runs/RUN-CERTBIN-3b7e05/curve.json, checkpoint/p1-instances.json.gz
+    - coordination/review/certbin-20260924-3d7e1a/reviews/TASK-20260924-d95e70/j9-ptm/o2-declaration.yaml (draw, union_support), n-ell-instances.json
+  commands_run:
+    - PYTHONDONTWRITEBYTECODE=1 python3 j2-construction/j2_replay_sweep.py $WT   (required prefixes + full sweep; 3.2 s; exit 0; j2-results.json, j2-stdout.txt)
+    - PYTHONDONTWRITEBYTECODE=1 python3 j2-construction/j2_replay_sweep.py $WT --full   (extension, full streams of all four arms; 9.5 s; exit 0; j2-results-full.json, j2-stdout-full.txt)
+    - WT = sparse worktree at c7f5e3dfa76be62a43f5f689c11bf55eba9bfa0c; numpy 2.4.6; Python 3.11.15
+  stream_replays:
+    required:
+      - {arm: N-CONV, seed: 2026092450101, slots: 0..9, attempts_own: 72, attempts_logged: 72, attempt_record_mismatches: 0, kept_systems_compared: 20, kept_mismatches: 0, fields_compared: [slot, attempt, E_sha256, s, outcome, E_hex, solutions]}
+      - {arm: N-CONVL, seed: 2026092450102, slots: 0..4, attempts_own: 11, attempts_logged: 11, attempt_record_mismatches: 0, kept_systems_compared: 10, kept_mismatches: 0, fields_compared: [slot, attempt, E_sha256, s, outcome, bprime, E_hex, solutions]}
+    extension_full_streams:
+      - {arm: N-CONV, slots: 0..143, attempts_own: 1181, whole_log_equal: true, kept_mismatches: 0}
+      - {arm: N-CONVL, slots: 0..143, attempts_own: 482, whole_log_equal: true, kept_mismatches: 0}
+      - {arm: N-CONV17, seed: 2026092450103, slots: 0..143, attempts_own: 1134, whole_log_equal: true, kept_mismatches: 0}
+      - {arm: N-ELL144, seed: 2026092450104, slots: 0..143, attempts_own: 1190, whole_log_equal: true, kept_mismatches: 0, note: c and E_sha256 per attempt equal}
+    first_satisfiable_before_first_unsatisfiable: >-
+      Handled as the keep_rule text says: the first s >= 1 draw is kept as the
+      control whether or not it precedes the first s = 0 draw. The loop then
+      continues until the unsatisfiable role is filled (draws.py 113-129). My
+      loop was written from the text and reproduces the kept attempt indices
+      in every slot. In N-CONV, 131 of the 144 slots have the control before
+      the unsatisfiable instance; in N-CONV slots 0..9, all except slot 7.
+    rejections_and_exhausted: >-
+      No draw of any arm was rejected (identity, b' = 0 or duplicate), and no
+      slot is EXHAUSTED. This holds in the logs and, independently, in my
+      replay. The rejection branches (draws.py 52, 65-68, 103-104) are
+      therefore VACUOUS ON THIS DATA. I checked them by reading only. They
+      cannot have changed any kept system, because a divergent rejection would
+      have shifted the stream against my replay.
+  support_check:
+    own_U_equals_support_json: true
+    own_S_L_equals_support_json_row_major: true
+    S_L_size: 317
+    S_L_constant_positions_k: [0, 1, 3, 5, 8, 10, 11, 13, 14, 15, 16]
+    own_sizes_equal_archived_p1_union_support_size_per_eq: true
+    coordinator_reading_true: true
+    NULL_F262_systems_outside_own_U: 0
+  own_construction_vs_archived:
+    own_E_S3_vs_instance_sets_E_hex: 144/144 equal (U62, S62, C20)
+    E_sha256_convention: sha256(json.dumps(E_hex)) reproduces the archived E_sha256 on all 144 S_3 records and all 124 null records
+    E_S3_support: >-
+      Only bilinear, linear and constant columns, with constant bit k equal
+      to bit k of B, on all 144 (object.parts).
+  full_sweep:
+    systems: 1440
+    per_arm: {S3-U62: 62, S3-C20: 20, S3-S62: 62, NULL-AFF62: 62, NULL-F262: 62, NELL-A20: 20, N-CONV: 288, N-CONVL: 288, N-CONV17: 288, N-ELL144: 288}
+    checks: >-
+      N-CONV: quadratic columns 19..171 equal own E_S3(x_R) at the slot's x_R;
+      no bit of columns 0..18 outside S_L; not the identity. N-CONVL:
+      quadratic and linear columns equal own E_S3(x_R); constant bits only on
+      S_L's constant positions; b' is neither B nor 0; the recorded b' equals
+      the constant bits. N-CONV17: quadratic columns equal own Q_k; low bits
+      inside S_L; x_R null. N-ELL144: rows 0..15 inside own U; row 16 =
+      v_0 + v_9 + c with the recorded c. S3-* and NULL-*: E_hex and E_sha256
+      equal the archived instance-sets.json record. S3-* also equal own
+      E_S3(x_R), and slot to (set, idx, x_R) equals the xr144 order. NELL-A20:
+      E_hex equals n-ell-instances.json. For every arm: slot to x_R binding;
+      no duplicate kept system; role equals (s == 0).
+    violations: 0
+  clause_by_clause:
+    - {clause: "object.E_layout: 172 columns, mu_order(2,18), constant, v_0..v_17, 153 pairs in ascending sorted tuple order", code: "impl/common.py 36-38 (COLS = [()] + singles + combinations(range(18), 2))", status: implemented; own layout reproduces archived E_hex 144/144}
+    - {clause: "E_hex bit j (LSB first) = column j; row k = f_k", code: "impl/construct.py 35-41 (coeffs_to_rows: bit k of each coefficient into row k); impl/common.py 116-117 (lowercase hex, no prefix)", status: implemented}
+    - {clause: "E_sha256 = RC-1 convention", code: "impl/common.py 124-125 (sha256(json.dumps(E_hex)))", status: implemented; convention reproduces 268 archived RC-1 digests}
+    - {clause: "object.parts: bilinear v_i v_{9+j} coefficient phi_{x_R}(t^{i+j}) = t^{2(i+j)} + x_R t^{i+j}; linear x_R^2 t^{2j} on v_j and v_{9+j}; constant B", code: "impl/construct.py 21-32 (coeffs_s3)", status: implemented; equals my interpolated descent}
+    - {clause: "Qpart = quadratic columns only; Lpart = columns 1..18", code: "impl/construct.py 48-55 (qpart: col >= 19; lpart: 1 <= col <= 18)", status: implemented}
+    - {clause: "object.union_support: U_k = supp(E^0_k) cup_j supp(E^j_k), E^0 = E_S3(0), E^j = E_S3(t^j) xor E^0, j = 0..16", code: "impl/construct.py 62-71", status: implemented; equals my U}
+    - {clause: "S_L = U cap columns 0..18, row-major (k ascending, then column)", code: "impl/construct.py 74-76", status: implemented; equals my S_L (317)}
+    - {clause: "N-CONV kept part Qpart(x_R), exactly as in E_S3(x_R)", code: "impl/draws.py 22 (qp = construct.qpart(x), B = 0 so no constant), 51", status: implemented; full sweep 288/288}
+    - {clause: "N-CONV drawn part: bits = g.integers(0, 2, size=|S_L|), one call per attempt, placed on S_L; other columns 0..18 zero", code: "impl/draws.py 50-51, _place 38-43 (zip(positions, bits) in S_L order)", status: implemented; stream replay exact}
+    - {clause: "N-CONV identity rejection (draw equal to E_S3(x_R))", code: "impl/draws.py 52 (rows == ctx.s3[slot], full-row comparison)", status: implemented by reading; vacuous on data (0 occurrences, own replay agrees)}
+    - {clause: "N-CONVL kept Qpart + Lpart; bits = g.integers(0, 2, size=|S_L cap column 0|) on the constant positions", code: "impl/draws.py 19 (const_pos), 23-27 (qlp), 57-64", status: implemented; stream replay exact; sweep 288/288}
+    - {clause: "N-CONVL identity (B's own bits) and b' = 0 rejections, logged", code: "impl/draws.py 35, 65-68", status: implemented by reading; vacuous on data (0 occurrences)}
+    - {clause: "N-CONV17 kept Q_k = sum_{i+j=k} v_i v_{9+j}; drawn as N-CONV; x_R null", code: "impl/construct.py 79-85; impl/draws.py 53-56; impl/driver.py 354-358 (bound only for N-CONV, N-CONVL)", status: implemented; sweep 288/288}
+    - {clause: "N-ELL144: M = zeros(17*172); M[Upos] = g.integers(0, 2, size=Upos.size), Upos = flatnonzero(U) row-major; then c = int(g.integers(0, 2)); rows 0..15 kept; row 16 = v_0 + v_9 + c", code: "impl/draws.py 28-34 (Upos), 71-84", status: implemented; stream replay exact including c}
+    - {clause: "generator_rule: one Generator(PCG64(seed)) per fresh arm, slot then attempt order, no other call touches it", code: "impl/draws.py 92 (local generator in run_arm), 97-100; impl/common.py 56-57 (seeds); impl/driver.py 344-348", status: implemented; stream replay exact for all four arms}
+    - {clause: "keep_rule: attempts 0..255; rejections (identity, b' = 0, duplicate of an already-kept system of the same arm by E_sha256) before s; s by exhaustive 2^18; first s = 0 -> unsat, first s >= 1 -> control; others discarded; stop when both filled; EXHAUSTED after attempt 255", code: "impl/common.py 61 (MAX_ATTEMPTS = 256); impl/draws.py 93, 96-133; impl/satcount.py 46-64", status: implemented; exact on data}
+    - {clause: "every attempt logged (slot, attempt, E_sha256, s, outcome, b' for N-CONVL)", code: "impl/draws.py 105-110, 127; impl/driver.py 350", status: implemented (N-ELL144 additionally logs c)}
+    - {clause: "instance_record: key, arm, role, slot, source set, idx, x_R (or null), attempt, E_hex, E_sha256, s, solutions for controls", code: "impl/driver.py 352-362, 370-381", status: "implemented, except the key format <ARM>:<slot>:<role> in place of <ARM>:<slot> (implementation.md deviation 1, disclosed; it does not affect construction)"}
+    - {clause: "xr144: U62 (listed order, ascending idx), then S62, then C20; sizes 62 + 62 + 20 else STOP", code: "impl/driver.py 141-146, 189-190", status: implemented; listed order verified ascending for all three sets}
+    - {clause: "archived arms are the archived systems", code: "impl/driver.py 147-160", status: implemented; sweep equal for all 288 archived systems}
+    - {clause: "development overrides cannot reach experiments/", code: "impl/common.py 67-70; impl/draws.py 95-96; impl/driver.py 712-714", status: "guard present; an override would change the seeds or truncate the slots, and the exact replay from the frozen seeds over all 144 slots shows none was in effect for the archived draws"}
+  where_the_coordinator_expected_a_break:
+    row_major_placement_on_S_L: no break (replay exact; S_L equal to own)
+    identity_rejection_comparison: no break by reading; vacuous on data
+    stream_consumption_order: no break (one call per attempt, slot then attempt; N-ELL144 two calls per attempt)
+    keep_rule_roles: no break
+  limitations:
+    - >-
+      NOT BLIND. I read draws.py before writing my replay. It is written from
+      the specification text and its descent uses another route, but a shared
+      misreading of the text by producer and validator would not show here.
+      The blind replay is J7's.
+    - >-
+      Identity, b' = 0 and duplicate rejections and EXHAUSTED handling never
+      fired, so their correctness rests on reading, not on data. On this data
+      they cannot have mattered.
+    - >-
+      My S_3 formula, (x_1x_2 + x_1x_3 + x_2x_3)^2 + x_1x_2x_3 + B for
+      y^2 + xy = x^3 + Ax^2 + B, is recalled. It is checked here only by the
+      point-addition self-test on the archived curve (30/30) and by agreement
+      with the archived E_hex (144/144).
+  instrument_note_RV-6: >-
+    J2 is a statement about the measurement, not about H-CERTBIN-be6cbd,
+    E-TENSOR or E-LINEAR (INV-10).
