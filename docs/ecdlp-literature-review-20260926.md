@@ -215,3 +215,29 @@ changed):
 - The bibliography (122 entries, identifiers seen on fetched pages) is the
   source of every new `KN-LIT` entry.
 - Claims marked "abstract" were relayed, not re-derived.
+
+## 5. Adjudication addendum (full text read, 2026-09-26)
+
+- **I1, Nagao 2015/984 Lemma 4: plausibly novel; the counterexample is verified.**
+  - ePrint lists a single version (2015-10-12), never revised.
+  - Definitions 5 and 6 and Lemma 4 were read in the PDF (p. 4–5).
+  - The witness f₁ = X²Y, f₂ = XY + X over F₂ was re-checked by hand. The
+    true first fall degree is 3: at degree 2 only f₂ is available, and
+    f₁ + X·f₂ = X² falls at degree 3. This still holds with the field
+    equations added to the system. The fake first fall degree is 2: modulo
+    the field equations, f₁ + f₂ ≡ X. So d_F ≤ d'_F fails.
+  - No remark on Lemma 4 was found in these full texts: HKY 2015/573,
+    Galbraith–Gaudry 2015/1022 (§9.4 discusses only Nagao's decomposition
+    method), HPST 2015/358, Kousidis–Wiemers 2015/1121, Kosters–Yeo
+    1503.08001, Caminata–Gorla 2021/1611.
+  - A web search finds only this program's own PR #1202.
+  - Recommended: a short note, stated with the equality reading of condition
+    (1), noting that Nagao's applications use the inside form (KN-FIND-936151).
+- **I4, quasi-subfield bound: plausibly novel; it is not covered by Euler–Petit.**
+  - Euler–Petit (arXiv 1909.11326v2, full text) prove β ≥ 3/4 only for
+    *linearized* complete splitters (Thm 1, p. 4). For general λ they quote
+    HKPYY Lemma 4.1: ⌊n/n'⌋ℓ + (n mod n') ≥ n' (p. 2).
+  - KN-FIND-617d78's (q+1)ℓ ≥ n' for every non-degenerate λ with n' ∤ n is
+    therefore not in either paper.
+  - Remaining check: whether the FFA 2021 journal version differs from
+    arXiv v2 (not read).
