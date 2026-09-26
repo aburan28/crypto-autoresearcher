@@ -244,6 +244,18 @@ this branch writes. Three bear on it:
   `tools/build_frontier_map.py --match "<idea text>"`. This is the novelty
   screen the 13 new proposals should be run through before any is ranked
   above `unverified`; it did not exist when the generator lanes ran.
+  The screen was run after the merge and its output is in
+  `novelty-screen-frontier-map.md`. No proposal's top hit is a row stating
+  its mechanism; the top hits are framing rows (the ECC2K-130 record, the
+  generic-group bound, Frobenius classes, "choosing V", Semaev
+  polynomials). The one row a reviewer must read against a record is
+  `KR-IC-b0fcda` (Frobenius-invariant factor bases for subfield curves)
+  against `IDEA-20260926-b6cc43`, which positions itself against that
+  structure explicitly (`KN-FIND-47da4e`, `IDEA-20260918-9abf42`). The
+  updated `propose-ideas` skill on `main` now asks that an idea whose top
+  hit is uncited be sent back for a `prior_art` block; that step landed
+  after the generator lanes ran and is left to the next selection point
+  rather than applied by editing committed records.
 - **A `prior_art` block on idea records**, validated by
   `tools/validate_ledger.py` and REQUIRED for ideas minted from
   `IDEA-20261001` on. The 13 records here predate the cutover, so the block
