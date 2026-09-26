@@ -1,0 +1,142 @@
+# =============================================================================
+# TASK-20260926-e8779d -- Coordinator RE-DERIVATION AND VERIFICATION SNAPSHOT
+# ARCHIVE for REVIEW-CERTBIN-20260926-d7249d. Commits the sealed outputs of the
+# blind re-deriver (TASK-20260926-f0736e) and of the author-independent
+# verifier (TASK-20260926-401771) ALONE, before the comparator
+# TASK-20260926-f50294 may read them. Interprets nothing, compares nothing and
+# runs no trial.
+#
+# ID PROVENANCE: pre-minted by the dispatching session; re-checked by
+# TASK-20260926-5d1557 SC-1.
+# =============================================================================
+handoff:
+  id: TASK-20260926-e8779d
+  from: coordinator
+  to: coordinator
+  archive_kind: snapshot
+  kind: snapshot_archive
+  recorded_at: '2026-09-26'
+  opened_by_decision: DEC-20260926-f6a749
+  source_task_ids:
+    - TASK-20260926-f0736e
+    - TASK-20260926-401771
+  review_plan_id: REVIEW-CERTBIN-20260926-d7249d
+  experiment_id: EXP-CERTBIN-060020
+  depends_on:
+    - TASK-20260926-f0736e
+    - TASK-20260926-401771
+    - TASK-20260926-5d1557
+  state: written_not_executed
+
+  objective: >-
+    After BOTH source tasks have returned, commit exactly their two
+    directories and write a receipt with per-path sha256, the parent, the
+    origin/main base commit, the merge outcome and the independence checks.
+    The comparator then reads both as archived bytes. Push, and refresh the PR.
+
+  uncertainty_reduced: Whether the re-derivation and the verification the comparator reads are the ones their authors sealed, and whether their independence held.
+
+  inputs:
+    - ledger/handoffs/TASK-20260926-f0736e.yaml
+    - ledger/handoffs/TASK-20260926-401771.yaml
+    - coordination/review/certbin-20260926-d7249d/review-plan.yaml (blind_rederivation.blind_from; author_independent_verification.must_not_read)
+    - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/
+    - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-401771/
+    - coordination/review/certbin-20260926-d7249d/blind-phase-hygiene.yaml
+    - origin/main
+
+  constraints:
+    - id: SC-1
+      text: >-
+        Check mechanically before staging, and list every defect in the
+        receipt:
+        - f0736e: seal.txt's sha256 values equal those of rederivation.json,
+          wdag.jsonl.gz and ann.jsonl.gz; attestation.yaml exists with task_id
+          TASK-20260926-f0736e and joints_owned [J6]; by
+          tools/check_review_independence.py's prefix rule its sources_read
+          does not intersect the plan's blind_from; blind_from_respected is
+          true; `grep -rn crypto_autoresearcher` over its code/ is empty;
+        - 401771: seal.txt's sha256 values equal those of verification.json and
+          m4-witnesses.jsonl.gz; attestation.yaml exists with task_id
+          TASK-20260926-401771 and joints_owned [J1]; its sources_read, by the
+          same prefix rule, does not intersect the plan's
+          author_independent_verification.must_not_read; the same grep over its
+          code/ is empty;
+        - run and record verbatim `python3 tools/check_review_independence.py
+          --plan coordination/review/certbin-20260926-d7249d/review-plan.yaml
+          --reports coordination/review/certbin-20260926-d7249d/reviews`;
+          problems naming joints of TASK-20260926-42be88, -fee7a9 or -f50294
+          (not yet filed) are expected; any problem naming J1 or J6 is a
+          defect;
+        - git status shows no file written by either task outside its own
+          directory.
+        An output with defects is still ARCHIVED as produced; nothing is
+        repaired in place. A seal mismatch, a blind_from or must_not_read
+        intersection, blind_from_respected not true, or a
+        crypto_autoresearcher import BLOCKS TASK-20260926-f50294 until the
+        Coordinator decides.
+    - id: SC-2
+      text: >-
+        RUN ALONE. No other archive commit may be in progress; reviewer tasks
+        still running in the worktree are not staged. MERGE origin/main, NEVER
+        REBASE, and record the base and the outcome.
+    - id: SC-3
+      text: >-
+        STAGE ONLY the two source directories and this task's receipt
+        directory. Exclude __pycache__.
+    - id: SC-4
+      text: >-
+        OUTCOME HYGIENE. The commit message, the PR text and any bus message
+        carry no computed value, no verdict of either task and none of the H-1
+        verdict words. After the commit, re-run `python3
+        tools/check_review_independence.py --blind-history
+        fe1080a84f640b3503c6cf5da140ff0c29686e89..HEAD --protected-from
+        coordination/review/certbin-20260926-d7249d/blind-phase-hygiene.yaml
+        --max-commits 5000` on the new HEAD and record the output; a FAIL is
+        handled by DEC-20260926-f6a749 R-7 through the extraction script's
+        --classify-history mode, never by editing the hygiene file by hand.
+    - id: SC-5
+      text: Launch nothing. maximum_runs is 0.
+
+  deliverables:
+    - one commit naming TASK-20260926-e8779d, TASK-20260926-f0736e, TASK-20260926-401771 and REVIEW-CERTBIN-20260926-d7249d
+    - coordination/review/certbin-20260926-d7249d/archives/TASK-20260926-e8779d/snapshot-receipt.json
+
+  record_ids:
+    - TASK-20260926-f0736e
+    - TASK-20260926-401771
+    - TASK-20260926-e8779d
+
+  artifact_paths:
+    - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-f0736e/
+    - coordination/review/certbin-20260926-d7249d/reviews/TASK-20260926-401771/
+    - coordination/review/certbin-20260926-d7249d/archives/TASK-20260926-e8779d/snapshot-receipt.json
+  write_scope:
+    - coordination/review/certbin-20260926-d7249d/archives/TASK-20260926-e8779d/
+  write_scope_note: This task writes only its receipt. The reviewers' files are STAGED here, not written.
+
+  archived_by: TASK-20260926-e8779d
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: true
+    fallback_reason: Runtime inheritance (DEC-20260923-4d7a19 R-1 forward rule). Not a tier downgrade.
+    degraded_allowed: false
+    independent_session_required: false
+
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 2
+    maximum_runs: 0
+
+  completion_gate:
+    - the archive commit changes exactly the declared paths, and path_sha256 covers every file under both directories and matches the committed tree
+    - the receipt lists every SC-1 defect, or states that none was found, records the --plan/--reports output verbatim, and says whether TASK-20260926-f50294 is blocked
+    - the receipt records the origin/main base commit, the merge outcome and the range blind-history output
+    - the branch is pushed, and the PR names the records without any computed value
+    - no scientific trial was launched
+
+  return_format: The receipt, the archive commit sha, the SC-1 defect list, whether the comparator is blocked, and the PR URL. No computed value.
+
+  review_plan: null
