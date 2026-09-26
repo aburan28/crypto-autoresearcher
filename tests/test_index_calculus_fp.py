@@ -39,7 +39,7 @@ from crypto_autoresearcher.index_calculus.factor_base import (
     default_fb_size,
     subgroup_prime_filter,
 )
-from crypto_autoresearcher.index_calculus.linalg import EliminationState
+from crypto_autoresearcher.index_calculus.linalg import PIVOT_RULES, EliminationState
 from crypto_autoresearcher.index_calculus.semaev import s3, s3_roots
 from crypto_autoresearcher.index_calculus.stats import bootstrap_slope
 
@@ -272,8 +272,8 @@ def test_tail_table_holds_exactly_the_reachable_tails(curve10, h):
     n = len(fb)
     tab = TailTable(E, fb, h, accelerate=False)
     got = set()
-    for x, c in tab._map.items():
-        for code in ([c] if type(c) is int else c):
+    for x, cs in tab.as_dict().items():
+        for code in cs:
             y = E.lift_x(x)[1]
             tail = tab.orient(code, y)
             assert _tail_sum(E, fb, tail) == (x, y)
@@ -301,8 +301,18 @@ def test_tail_table_numpy_build_is_identical(h):
     E, _ = generate_prime_order_curve(20, 5)
     fb = build_factor_base(E, "small_x", 40)
     a, b = TailTable(E, fb, h, accelerate=False), TailTable(E, fb, h, accelerate=True)
-    assert a._map == b._map
+    assert a._sorted is None and b._sorted is not None  # a dict, and sorted arrays
+    assert a.as_dict() == b.as_dict()
     assert (a.entries, a.s3_solves) == (b.entries, b.s3_solves)
+    # the arrays answer lookups exactly as the dict does
+    rng = random.Random(h)
+    xs = list(a.as_dict())[:200] + [rng.randrange(E.p) for _ in range(200)]
+    for x in xs:
+        for lo in (0, len(fb) // 2, len(fb) - 1):
+            assert sorted(a.codes(x, lo)) == sorted(b.codes(x, lo))
+    import numpy as np
+    vals = np.array(xs, dtype=np.uint64)
+    assert (a.arrays().lookup(vals) == b.arrays().lookup(vals)).all()
 
 
 def _reachable(E, fb, m):
@@ -413,6 +423,73 @@ def test_mitm_engine_makes_the_same_run_for_less(curve14, m, kind):
         solve_index_calculus(E, P, Q, m=m, engine="enumerate", table_arity=2)
     with pytest.raises(ValueError, match="table_arity must be"):
         solve_index_calculus(E, P, Q, m=m, engine="mitm", table_arity=m)
+
+
+# -- the elimination's pivot rule ------------------------------------------------------
+
+def test_pivot_rules_stop_at_the_same_row_with_the_same_k():
+    """Where elimination stops is a property of the rows, so every pivot rule
+    stops on the same one, with the same k; only the cost may differ."""
+    N, k = 1_000_003, 424_242
+    for seed in range(6):
+        rng = random.Random(seed)
+        logs = [rng.randrange(N) for _ in range(40)]
+        states = {rule: EliminationState(N, pivot=rule) for rule in PIVOT_RULES}
+        stopped = {}
+        for t in range(400):
+            cols = rng.sample(range(40), rng.choice((2, 3, 3, 4)))
+            coeffs = {c: rng.choice((1, -1, 2)) for c in cols}
+            b = rng.randrange(1, N)
+            a = (sum(v * logs[c] for c, v in coeffs.items()) - b * k) % N
+            for rule, st in states.items():
+                if rule not in stopped:
+                    got = st.add_row(coeffs, -b, a)
+                    if got is not None:
+                        stopped[rule] = (t, got, st.rank)
+            if len(stopped) == len(states):
+                break
+        assert len(stopped) == len(states)
+        assert len(set(stopped.values())) == 1 and stopped["min_fill"][1] == k
+    with pytest.raises(ValueError, match="unknown pivot rule"):
+        EliminationState(N, pivot="random")
+
+
+def test_min_index_reproduces_the_recorded_linear_algebra():
+    """``la_pivot="min_index"`` gives the la_ops recorded in the 2026-09-26
+    results, and the default min_fill makes the same run for less."""
+    import gzip
+    import pathlib
+
+    from crypto_autoresearcher.index_calculus.__main__ import _sweep_job
+
+    path = (pathlib.Path(__file__).parents[1] / "src/crypto_autoresearcher/index_calculus"
+            / "results/sweep-mitm-20260926.jsonl.gz")
+    with gzip.open(path, "rt") as fh:
+        stored = [json.loads(line) for line in fh]
+    stored = [r for r in stored if r["bits"] <= 16 and r.get("engine") == "mitm"
+              and r["curve"] < 2]
+    assert stored
+    same = ("p", "N", "fb_size", "attempts", "relations", "rank", "s3_solves",
+            "table_s3_solves", "target_ops", "ok")
+    fewer = checked = 0
+    for bits, curve in sorted({(r["bits"], r["curve"]) for r in stored}):
+        rows = {}
+        for pivot in PIVOT_RULES:  # the stored sweep's configuration, with each rule
+            job = {"bits": bits, "curve": curve, "ms": [2, 3], "ic_ms": [3],
+                   "fbs": ["small_x", "random", "subgroup"], "rho": False, "subgroup": True,
+                   "tolerance": 0.15, "accelerate": None, "engines": ["mitm"],
+                   "la_pivot": pivot}
+            rows[pivot] = {row["fb"]: row for row in _sweep_job(job)}
+        for r in stored:
+            if (r["bits"], r["curve"]) != (bits, curve):
+                continue
+            old, new = rows["min_index"][r["fb"]], rows["min_fill"][r["fb"]]
+            assert all(old[f] == r[f] == new[f] for f in same)
+            assert old["la_ops"] == r["la_ops"]
+            assert (old["la_pivot"], new["la_pivot"]) == ("min_index", "min_fill")
+            fewer += new["la_ops"] < old["la_ops"]
+            checked += 1
+    assert checked == len(stored) and fewer >= checked // 2
 
 
 # -- the vectorised scan --------------------------------------------------------------
@@ -619,6 +696,7 @@ def test_cli_sweep_runs_both_engines(tmp_path, capsys):
     assert (a["attempts"], a["relations"], a["la_ops"]) == \
         (b["attempts"], b["relations"], b["la_ops"])
     assert b["table_arity"] == 2 and 0 < b["table_s3_solves"] < b["s3_solves"] < a["s3_solves"]
+    assert a["la_pivot"] == b["la_pivot"] == "min_fill"
     assert {"ic_m3:small_x", "ic_m3:small_x:mitm"} <= set(report["fits"])
 
 

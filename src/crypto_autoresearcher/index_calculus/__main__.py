@@ -33,7 +33,7 @@ from .decompose import DecompStats, decompose_all
 from .factor_base import (FACTOR_BASES, FactorBase, build_factor_base,
                           default_fb_size, subgroup_prime_filter)
 from .rho import pollard_rho
-from .solver import ENGINES, solve_index_calculus
+from .solver import ENGINES, PIVOT_RULES, solve_index_calculus
 from .stats import bootstrap_slope, fit_exponent
 
 
@@ -61,7 +61,7 @@ def cmd_solve(args: argparse.Namespace) -> int:
     ic = solve_index_calculus(E, P, Q, m=args.m, fb_kind=args.fb, fb_size=args.fb_size,
                               seed=args.seed, engine=args.engine,
                               accelerate=False if args.no_accel else None,
-                              table_arity=args.table_arity)
+                              table_arity=args.table_arity, la_pivot=args.la_pivot)
     out["index_calculus"] = ic.to_dict() | {"correct": ic.k == k}
     if args.rho:
         rr = pollard_rho(E, P, Q, seed=args.seed)
@@ -103,7 +103,8 @@ def _sweep_job(job: dict) -> list[dict]:
                 E.ops.group_ops = 0
                 ic = solve_index_calculus(E, P, Q, m=m, fb_kind=kind, seed=c,
                                           factor_base=fb, accelerate=job["accelerate"],
-                                          engine=engine)
+                                          engine=engine,
+                                          la_pivot=job.get("la_pivot", "min_fill"))
                 rows.append(base | {
                     "method": f"ic_m{m}", "fb": kind, "engine": engine, "fb_size": len(fb),
                     "fb_params": {kk: v for kk, v in fb.params.items() if kk != "seed"},
@@ -112,7 +113,8 @@ def _sweep_job(job: dict) -> list[dict]:
                     "table_entries": ic.table_entries,
                     "membership_tests": ic.membership_tests, "group_ops": ic.group_ops,
                     "target_ops": ic.target_ops, "decomp_ops": ic.group_ops - ic.target_ops,
-                    "la_ops": ic.la_ops, "relations": ic.relations, "attempts": ic.attempts,
+                    "la_ops": ic.la_ops, "la_pivot": ic.la_pivot,
+                    "relations": ic.relations, "attempts": ic.attempts,
                     "rank": ic.rank, "accelerated": ic.accelerated,
                     "seconds": ic.seconds_total})
     return rows
@@ -141,6 +143,7 @@ def cmd_sweep(args: argparse.Namespace) -> int:
             jobs.append({"bits": bits, "curve": c, "ms": args.m, "ic_ms": ic_ms,
                          "fbs": args.fb, "rho": c < args.rho_curves, "subgroup": subgroup,
                          "tolerance": args.tolerance, "engines": args.engine,
+                         "la_pivot": args.la_pivot,
                          "engine_caps": engine_caps,
                          "accelerate": False if args.no_accel else None})
     jobs.sort(key=lambda j: (-j["bits"] * (1 + len(j["ic_ms"])), j["curve"]))
@@ -197,24 +200,29 @@ def _progress_line(r: dict, elapsed: float) -> str:
             f"enum={r['enum_s3']:<8} msolve={r['msolve_status']}:{r['msolve_seconds']:.3f}s")
 
 
-def _series(r: dict) -> tuple[str, str, str]:
-    """(method, base, engine) of a row; rows from before engines were recorded
-    are exhaustive enumeration."""
-    return r["method"], r["fb"], r.get("engine", "enumerate" if r["method"] != "rho" else "-")
+def _series(r: dict) -> tuple[str, str, str, str]:
+    """(method, base, engine, pivot rule) of a row.  Rows from before engines
+    were recorded are exhaustive enumeration, and rows from before pivot rules
+    were recorded were eliminated with min_index."""
+    if r["method"] == "rho":
+        return r["method"], r["fb"], "-", "-"
+    return r["method"], r["fb"], r.get("engine", "enumerate"), r.get("la_pivot", "min_index")
 
 
-def _series_name(method: str, fb: str, engine: str) -> str:
+def _series_name(method: str, fb: str, engine: str, pivot: str) -> str:
     if method == "rho":
         return method
-    return f"{method}:{fb}" if engine == "enumerate" else f"{method}:{fb}:{engine}"
+    name = f"{method}:{fb}" if engine == "enumerate" else f"{method}:{fb}:{engine}"
+    return name if pivot == "min_fill" else f"{name}:la={pivot}"
 
 
 def sweep_report(rows: list[dict], reps: int = 2000) -> dict:
     fits, table = {}, {}
     keys = sorted({_series(r) for r in rows})
-    for method, fb, engine in keys:
-        sel = [r for r in rows if _series(r) == (method, fb, engine) and r["ok"]]
-        name = _series_name(method, fb, engine)
+    for key in keys:
+        method = key[0]
+        sel = [r for r in rows if _series(r) == key and r["ok"]]
+        name = _series_name(*key)
         if method == "rho":
             fits[name] = {"walk_ops": fit_exponent(sel, "walk_ops", reps=reps),
                           "group_ops": fit_exponent(sel, "group_ops", reps=reps)}
@@ -245,13 +253,13 @@ def format_sweep_report(rep: dict) -> str:
     lines = ["fitted exponents: slope of log2(cost) vs log2(N), 95% bootstrap CI"]
     for name, f in rep["fits"].items():
         for metric, fit in f.items():
-            lines.append(f"  {name:<20} {metric:<10} {_fmt_fit(fit)}")
+            lines.append(f"  {name:<32} {metric:<10} {_fmt_fit(fit)}")
     names = sorted({n for cells in rep["table"].values() for n in cells})
     lines.append("")
     lines.append("median cost per instance (rho: walk group ops; ic: S_3 solves)")
-    lines.append("  bits " + " ".join(f"{n:>20}" for n in names))
+    lines.append("  bits " + " ".join(f"{n:>32}" for n in names))
     for bits, cells in rep["table"].items():
-        vals = [f"{cells[n]['median']:>20.0f}" if n in cells else " " * 20 for n in names]
+        vals = [f"{cells[n]['median']:>32.0f}" if n in cells else " " * 32 for n in names]
         lines.append(f"  {bits:>4} " + " ".join(vals))
     lines.append(f"instances: {rep['instances']}, failed: {rep['failed']}")
     return "\n".join(lines)
@@ -510,6 +518,9 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--subgroup-prime", action="store_true",
                    help="choose p so that p-1 hosts a subgroup base of the default size")
     s.add_argument("--tolerance", type=float, default=0.15)
+    s.add_argument("--la-pivot", choices=PIVOT_RULES, default="min_fill",
+                   help="elimination pivot rule; min_index reproduces the la_ops of rows "
+                        "recorded before min_fill existed")
     s.add_argument("--table-arity", type=int, default=None,
                    help="mitm engine: points per precomputed tail (default (m+1)//2)")
     s.add_argument("--no-accel", action="store_true", help="disable the numpy scan")
@@ -525,6 +536,9 @@ def main(argv: list[str] | None = None) -> int:
                    help="curves per size for rho (default: same as --curves)")
     w.add_argument("--engine", choices=[e for e in ENGINES if e != "msolve"], nargs="+",
                    default=["enumerate"], help="decomposition engines to run on each base")
+    w.add_argument("--la-pivot", choices=PIVOT_RULES, default="min_fill",
+                   help="elimination pivot rule; min_index reproduces the la_ops of rows "
+                        "recorded before min_fill existed")
     w.add_argument("--m-max-bits", nargs="*", default=[], metavar="[ENGINE:]M=BITS",
                    help="skip IC at arity M above BITS, e.g. 3=28, or only for one "
                         "engine, e.g. enumerate:3=24")
