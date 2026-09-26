@@ -318,3 +318,17 @@ changed):
     1. Measure the symmetrised ideal degree and F4 cost at small p
        (EXP-GFPN-05ff43, queued).
     2. Then contact the curve's designer with the note before any blog post.
+- **I3, "the ANF is too big to write down": plausibly new as a quantitative
+  statement; related remarks are qualitative.**
+  - The FFD-based crossovers are n ≈ 2000 (Petit–Quisquater 2012/146 p. 1;
+    Shantz–Teske 2013/596 p. 2).
+  - Petit–Quisquater's experiments "were limited more by the memory
+    requirements than by the computation time" (2012/146).
+  - Galbraith–Gebregiyorgis call one formulation "not practical as the
+    number N of binary variables is too large" (2014/806, l. 609 of the
+    extracted text).
+  - None of the three bounds the descended ANF against the rho budget per
+    curve. The claim of EV-ICPERF-784b25 (+6.3 to +40.8 bits for
+    n ≤ 283; sign change in (283, 409]) is not in them. It remains
+    conditional on the dense-ANF charge and the linear-algebra cap, which a
+    write-up must state first.
