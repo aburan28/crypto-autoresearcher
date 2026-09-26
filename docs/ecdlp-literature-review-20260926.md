@@ -241,3 +241,30 @@ changed):
     therefore not in either paper.
   - Remaining check: whether the FFA 2021 journal version differs from
     arXiv v2 (not read).
+- **I5, Galois structure of Semaev polynomials (KN-FIND-a8990a): partly known.**
+  - *Known:* absolute irreducibility (Semaev ePrint 2004/031, main
+    theorem, proved in the paper). The finding's transitivity statement
+    re-derives it, as the finding itself notes.
+  - *Different object:* FGHR (ePrint 2012/199) study the symmetry group
+    (Z/2)^{m−1} ⋊ S_m acting on the *variables*, not the Galois group of
+    S_m(t, T) over K(t).
+  - *Not found* in Semaev 2004, FGHR 2012/199, Kosters–Yeo 1503.08001,
+    Karabina 2015/319, Courtois 2016/003 (full texts), or by web search:
+    - the Galois group (Z/2)^{m−2};
+    - the linear-versus-quadratic factorization dichotomy over F_q;
+    - complete splitting on the factor-base locus.
+  - Remaining check: Diem 2011 (Compositio, not open access) and a
+    function-field expert for Lemmas 2.3/3.2. As submission material it is
+    a short note, and the "census obstruction" corollary is its best selling
+    point.
+- **I2, Semaev 2015 with memory charged: the quantitative audit is plausibly new.**
+  - Semaev (2015/310, full text) compares **time only** against Pollard rho
+    and declares n = 409 and 571 "theoretically broken" (p. 6), conditional
+    on d_F4 ≤ 4.
+  - Galbraith–Gaudry (2015/1022, §10) remark only qualitatively that "the
+    running time and the memory usage would be extremely high for any key
+    size currently in use".
+  - Courtois (2016/003) gives a splitting algorithm, not a cost audit.
+  - No memory-charged crossover against a coherent van Oorschot–Wiener
+    baseline (EV-SEMBIN-4125ec: n = 460/520) was found. Replicating
+    EXP-SEMBIN-992e73 remains the pre-publication step.
