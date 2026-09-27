@@ -26,7 +26,22 @@ def vanishes(rows, assignment):
                for row in rows)
 
 
-def certify(nvars, equations, basis):
+def monomial_key(mask, nvars, blocks=None):
+    """Boolean grevlex, or ordered degree-reverse-lex blocks."""
+    if blocks is None:
+        return (mask.bit_count(), -mask)
+    sizes = []
+    shift = 0
+    for length in blocks:
+        piece = (mask >> shift) & ((1 << length) - 1)
+        sizes.extend((piece.bit_count(), -piece))
+        shift += length
+    if shift != nvars:
+        raise ValueError("block sizes do not cover the ring")
+    return tuple(sizes)
+
+
+def certify(nvars, equations, basis, *, blocks=None):
     """Prove ideal equality AND the GB property in the Boolean quotient.
 
     If G vanishes on all input zeros Z, <G> is contained in I(Z).
@@ -39,7 +54,7 @@ def certify(nvars, equations, basis):
     equations = terms(equations, nvars)
     basis = terms(basis, nvars)
     roots = [a for a in range(1 << nvars) if vanishes(equations, a)]
-    leading = [max(row, key=lambda m: (m.bit_count(), -m))
+    leading = [max(row, key=lambda m: monomial_key(m, nvars, blocks))
                for row in basis if row]
     dimension = sum(not any(m & a == m for m in leading)
                     for a in range(1 << nvars))

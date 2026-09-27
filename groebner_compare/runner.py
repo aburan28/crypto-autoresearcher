@@ -14,7 +14,7 @@ import subprocess
 import sys
 import time
 
-from .certificate import Rank, certify, terms
+from .certificate import Rank, certify, terms, vanishes
 
 
 def encoded(value):
@@ -52,6 +52,10 @@ def validate(manifest):
             raise ValueError("identities must be unique nonempty strings")
     for instance in instances:
         terms(instance["equations"], n)
+        blocks = instance.get("blocks")
+        if blocks is not None and (not isinstance(blocks, list) or not blocks
+                or any(type(k) is not int or k < 1 for k in blocks) or sum(blocks) != n):
+            raise ValueError("blocks must be positive lengths covering all variables")
     for backend in backends:
         command = backend["command"]
         if not isinstance(command, list) or not command or any(
@@ -68,6 +72,11 @@ def validate(manifest):
                 or any(not isinstance(x, str) or not x for x in relation["command"])
                 or not relation.get("provenance")):
             raise ValueError("independent verifier command and provenance required")
+    curve = manifest.get("witness_verifier")
+    if curve is not None and (not isinstance(curve.get("command"), list)
+            or not curve["command"] or any(not isinstance(x, str) or not x
+            for x in curve["command"]) or not curve.get("provenance")):
+        raise ValueError("independent curve witness verifier command and provenance required")
     return manifest
 
 
@@ -171,13 +180,14 @@ def run_backend(manifest, backend, directory):
     parent_cpu_started = time.process_time()
     children_started = resource.getrusage(resource.RUSAGE_CHILDREN)
     events = []
-    worker, verifier = None, None
+    worker, verifier, curve_worker = None, None, None
     trace = None
     serial = 0
     peak_rss = None
     phases = {}
     results = []
     relation = manifest.get("relation_verifier")
+    curve = manifest.get("witness_verifier")
     rank = Rank(relation["modulus"], relation["width"]) if relation else None
     relation_complete = True
     certified_applies = 0
@@ -206,7 +216,7 @@ def run_backend(manifest, backend, directory):
                 active = launch(command)
             response = active.request(payload)
             status = response.get("status")
-            if status not in ("ok", "incompatible", "unavailable", "error"):
+            if status not in ("ok", "incompatible", "unavailable", "error", "unknown"):
                 raise ValueError("invalid worker status")
         except (OSError, ValueError, RuntimeError, TimeoutError) as error:
             status = ("timeout" if isinstance(error, TimeoutError) else
@@ -230,8 +240,23 @@ def run_backend(manifest, backend, directory):
             return None
         begin = time.perf_counter()
         try:
-            certificate = certify(manifest["ring"]["nvars"], instance["equations"],
-                                  response["basis_terms"])
+            n = manifest["ring"]["nvars"]
+            if "basis_terms" in response:
+                certificate = certify(n, instance["equations"], response["basis_terms"],
+                                      blocks=response.get("basis_blocks"))
+                if response.get("basis_blocks") not in (None, instance.get("blocks")):
+                    certificate = {"verified": False, "reason": "basis block order differs from instance"}
+            else:
+                solutions = response["solutions"]
+                if (not isinstance(solutions, list) or not solutions
+                        or any(type(a) is not int or not 0 <= a < (1 << n) for a in solutions)
+                        or len(solutions) != len(set(solutions))):
+                    raise ValueError("solutions must be distinct in-range assignment masks")
+                original = terms(instance["equations"], n)
+                valid = all(vanishes(original, a) for a in solutions)
+                certificate = {"verified": valid, "method": "direct-input-equation-replay",
+                               "complete": False, "root_count": None,
+                               "solutions": solutions if valid else None}
         except (KeyError, TypeError, ValueError) as error:
             certificate = {"verified": False, "error": str(error)}
         duration = time.perf_counter() - begin
@@ -265,9 +290,27 @@ def run_backend(manifest, backend, directory):
                                         {"operation": "solve"})
                 certificate = check(instance, response)
             result = {"instance_id": instance["id"], "input_sha256": digest(instance),
-                      "status": "verified" if certificate else "unknown",
+                      "status": ("verified" if certificate and certificate["root_count"] is not None
+                                 else "verified_witness" if certificate else "unknown"),
                       "root_count": certificate["root_count"] if certificate else None,
                       "relation_rank_increment": None}
+            if curve is not None:
+                result["curve_witness"] = "unknown"
+                if certificate and certificate["solutions"] is not None:
+                    reply, curve_worker = call("verify_witnesses", instance, curve_worker,
+                                               curve["command"],
+                                               {"solutions": certificate["solutions"]})
+                    try:
+                        candidates = certificate["solutions"]
+                        confirmed = reply["verified_solutions"]
+                        if (reply.get("status") != "ok" or not isinstance(confirmed, list)
+                                or any(type(a) is not int or a not in candidates for a in confirmed)
+                                or len(confirmed) != len(set(confirmed))):
+                            raise ValueError("invalid curve witness verification")
+                        result["curve_witness"] = "verified" if confirmed else "none"
+                        result["curve_verified_solutions"] = confirmed
+                    except (KeyError, TypeError, ValueError):
+                        result["curve_witness"] = "unknown"
             if rank is not None and certificate is None:
                 relation_complete = False
             if certificate and rank is not None:
@@ -287,7 +330,7 @@ def run_backend(manifest, backend, directory):
                         "seconds": duration, "increment": result["relation_rank_increment"]})
             results.append(result)
     finally:
-        for active in (worker, verifier):
+        for active in (worker, verifier, curve_worker):
             if active is not None:
                 active.close()
         journal.close()
@@ -297,8 +340,21 @@ def run_backend(manifest, backend, directory):
            + children_finished.ru_utime + children_finished.ru_stime
            - children_started.ru_utime - children_started.ru_stime)
     verified = sum(row["status"] == "verified" for row in results)
+    witnesses = sum(row["status"] == "verified_witness" for row in results)
     metrics = [event.get("response", {}).get("metrics", {}) for event in events]
     metrics = [m for m in metrics if isinstance(m, dict)]
+    # Preserve progress from workers killed at a watchdog or matrix budget.
+    # Stderr is an archived append-only stream, and its markers are advisory
+    # solver telemetry rather than correctness certificates.
+    for stderr_path in sorted(directory.glob("worker-*.stderr")):
+        for line in stderr_path.read_text(errors="replace").splitlines():
+            if line.startswith("GROEBNER_TELEMETRY "):
+                try:
+                    report = json.loads(line[len("GROEBNER_TELEMETRY "):])
+                    if isinstance(report, dict):
+                        metrics.append(report)
+                except ValueError:
+                    pass
 
     def maximum(name):
         values = [m[name] for m in metrics if type(m.get(name)) is int and m[name] >= 0]
@@ -314,6 +370,11 @@ def run_backend(manifest, backend, directory):
                "parent_and_reaped_children_cpu_seconds": cpu,
                "unattributed_wall_seconds": total - sum(phases.values()),
                "verified_instances": verified, "attempted_instances": len(results),
+               "verified_witness_instances": witnesses,
+               "verified_curve_witness_instances": (
+                   sum(row.get("curve_witness") == "verified" for row in results)
+                   if curve is not None else None),
+               "verified_witness_instances_per_total_second": witnesses / total,
                "trace_apply_attempts": sum(e["operation"] == "apply" for e in events),
                "certified_trace_applies": certified_applies,
                "fallback_attempts": sum(e["operation"] == "fallback" for e in events),

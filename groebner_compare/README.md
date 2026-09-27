@@ -80,7 +80,51 @@ belong to the same matrix. They are never inferred from output basis degree.
 | Existing Boolean F5B | `python -m groebner_compare.worker repository-f5b`; available in `cryptanalysis/experiments/pdp-scaling` |
 | Sage / PolyBoRi | `sage -python -m groebner_compare.worker polybori`; requires a Sage installation |
 | Groebner.jl F4 | `julia --project=YOUR_PINNED_ENV groebner_compare/worker.jl`; cold and learn/apply |
-| Magma Boolean F4, msolve, M4GB, hybrid XL/Crossbred | Not implemented here; use the worker contract below only after a field-correct adapter and independent regression checks exist |
+| XOR-aware SAT | `python -m groebner_compare.research_worker cryptominisat` uses `pycryptosat`'s native XOR clauses, Tseitin AND gates, and a *witness* receipt; `xor-sat` is a bounded pure-Python XOR control |
+| Block-aware batch F4 prototype | `python -m groebner_compare.research_worker block-f4` chooses the explicitly frozen ordered blocks; independently certified in the Boolean quotient |
+| ElimLin → F4 | `python -m groebner_compare.research_worker elimlin-f4` derives affine ideal consequences with a bounded Macaulay scan, then runs global Boolean F4; zero derived consequences is a valid negative result |
+| Hybrid guess → F4 | `python -m groebner_compare.research_worker hybrid-f4` fixes the three most involved variables on the ECC fixture, checks each branch basis, and returns a *witness* |
+| Hybrid guess → CryptoMiniSat | `python -m groebner_compare.research_worker hybrid-cryptominisat` specializes the same variables and sends each surviving Boolean system to native XOR SAT; all failed branches are charged, but their UNSAT result is not independently certified |
+| Original M5GB C++ | `python -m groebner_compare.research_worker m5gb` invokes an **externally built** bridge for the actual upstream source at `manschga/M5GB` commit `2d063f748e8a16ac5a1d74641c79725df29f67ac`; missing binary, upstream errors, uncertified output and watchdog exits are recorded, not replaced with F5 |
+| Magma Boolean F4, msolve, hybrid XL/Crossbred | Not implemented here; use the worker contract below only after field-correct adapters and independent checks exist |
+
+Build and select the M5GB bridge from separately obtained upstream source:
+
+```sh
+git clone https://github.com/manschga/M5GB.git /tmp/m5gb-upstream
+git -C /tmp/m5gb-upstream checkout 2d063f748e8a16ac5a1d74641c79725df29f67ac
+python -m groebner_compare.build_m5gb /tmp/m5gb-upstream /tmp/m5gb-bridge
+export M5GB_BINARY=/tmp/m5gb-bridge
+python -m unittest groebner_compare.test_research -v
+```
+
+The published M5GB source host returned HTTP 502 when checked; this separate
+public author repository builds but has a hardcoded sample-file `main.cpp`.
+Our bridge supplies frozen GF(2) equations to its unmodified algorithm.
+The upstream process may crash or return an output that fails certification;
+neither is a verified result. Do not extrapolate this prototype to ECC2K83/131.
+
+`cryptanalysis` additionally freezes three planted ECC2K17, three-summand,
+three-coordinate Weil-descended inputs in `ecc2k17_five_way.json`. Run that
+manifest after versioning the fixture and solver code:
+
+```sh
+python -m groebner_compare.runner groebner_compare/ecc2k17_five_way.json \
+  --output /tmp/ecc2k17-five-way-fresh
+```
+
+This compares identical equations and watchdogs and charges every failed
+target. `pdp_verifier.py` independently regenerates each system and checks
+the curve point-sum relation after each algebraic root. The derived metrics
+are verified bases, verified algebraic witnesses, and verified curve witnesses.
+The planted inputs are correctness controls. They cannot establish ordinary
+relation yield, independent rank, a 2× cost-per-new-relation improvement, or a
+full DLP speedup. Missing worker binaries remain `unavailable` in the journal.
+For this Boolean stage protocol, generated fixtures and full preprocessing are
+outside the charged interval, as shown in every receipt. At scale, account for
+them separately before making an IC claim.
+`freeze_pdp.py --include-hybrid-sat OUTPUT` adds the specialization + native
+XOR challenger to a second frozen manifest without altering first-pass inputs.
 
 Julia dependencies are Groebner, AbstractAlgebra and JSON3. CI resolves them
 and retains its Project/Manifest; scientific runs must pin and archive their
@@ -107,9 +151,9 @@ in `cryptanalysis/experiments/pdp-scaling/boolean_basis.py`.
 Commands are argv arrays, executed directly from the repository root, never
 shell strings. Only run trusted local workers. Each stdin JSON line contains
 `schema`, `request_id`, `operation`, `ring`, `encoding`, and `instance`.
-Operations are `solve`, `learn`, `apply`, or `verify_relations`; apply includes
+Operations are `solve`, `learn`, `apply`, `verify_witnesses`, or `verify_relations`; apply includes
 `trace_id`. Return exactly one flushed JSON line echoing `request_id` and
-`status` (`ok`, `incompatible`, `unavailable`, `error`). Diagnostics go to stderr.
+`status` (`ok`, `unknown`, `incompatible`, `unavailable`, `error`). Diagnostics go to stderr.
 Requests/responses are bounded to one MiB. Unexpected IDs, malformed messages,
 partial lines, exits, and watchdog expiries fail the attempt.
 
@@ -118,6 +162,18 @@ masks, with optional `solver_version` and `metrics` (`highest_degree`,
 `largest_matrix_rows`, `largest_matrix_columns`). Learn also supplies an opaque
 nonempty string `trace_id`. Traces are process-local; they are never loaded from
 pickle or used across rings. The runner independently checks every `ok` basis.
+Alternatively, a solver can return `solutions` with distinct assignment masks;
+the runner checks them against the original Boolean equations and records
+`verified_witness` instead of claiming a complete Gröbner basis. `basis_blocks`
+must match the frozen instance's `blocks` and is certified with the block order.
+F4 progress markers are copied to archived stderr and included as optional
+highest degree and matrix maxima, even if a later watchdog kills the worker.
+
+`witness_verifier` independently checks the original mathematical relation
+for every returned algebraic root. In the cryptanalysis fixture the verifier
+rebuilds the original PDP by seed, compares every equation and the target,
+and checks actual lifted curve-point sums. An unknown or empty group check
+cannot become a verified curve witness.
 
 An optional manifest `relation_verifier` contains `command`, `provenance`,
 `modulus`, and `width`. It receives certified `solutions` plus the original

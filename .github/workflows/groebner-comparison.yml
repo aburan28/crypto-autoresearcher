@@ -16,13 +16,29 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install sympy==1.14.0
-      - run: python -m unittest groebner_compare.test_protocol -v
+      - run: python -m pip install pycryptosat==5.16.0
+      - run: python -m unittest groebner_compare.test_protocol groebner_compare.test_research -v
       - run: python -m groebner_compare.runner groebner_compare/smoke.json --output /tmp/groebner-smoke
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: boolean-protocol-smoke
           path: /tmp/groebner-smoke
+  m5gb-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: git clone --depth 1 https://github.com/manschga/M5GB.git /tmp/m5gb-upstream
+      - run: git -C /tmp/m5gb-upstream checkout 2d063f748e8a16ac5a1d74641c79725df29f67ac
+      - run: python -m groebner_compare.build_m5gb /tmp/m5gb-upstream /tmp/m5gb-bridge
+      - name: Check original M5GB basis against independent Boolean certificate
+        env:
+          M5GB_BINARY: /tmp/m5gb-bridge
+        run: python -m unittest groebner_compare.test_research.SolverTrials.test_upstream_m5gb_basis -v
   julia-adapter:
     runs-on: ubuntu-latest
     timeout-minutes: 20
