@@ -102,6 +102,10 @@ draft's substantive assertions or promote it to a verified finding.
   by ePrint/arXiv ID or normalized title. The single bot branch keeps pending
   records between runs even after they fall outside the feed's lookback. It
   merges main into that branch and refuses substantive merge conflicts.
+  Deduplication does not inspect **other** open literature PRs. Merge any
+  overlapping manual curation PR (including the September 2026 literature
+  review PR #1460, if still open) before the first dispatch; otherwise the
+  bot may propose a duplicate for human review.
 - The workflow fails instead of silently dropping results if over 20 **new**
   matches appear or arXiv fills the 800-result API page within the lookback.
   Widen the limits and rerun manually. The IACR RSS feed is a rolling feed;
