@@ -131,6 +131,32 @@ def test_one_invocation_designs_runs_and_reconciles(tmp_path: Path) -> None:
     assert metrics["verified_discoveries"] is None
 
 
+def test_daily_throughput_and_handoff_latency_are_observed_not_inferred(
+        tmp_path: Path) -> None:
+    rows = [
+        {"time": 1000, "event": "finished", "action": {"kind": "portfolio"},
+         "result": {"ok": True, "attempts": []}},
+        {"time": 90000, "event": "finished", "action": {"kind": "design"},
+         "result": {"ok": True, "attempts": [{"cost_usd": 0.004,
+             "input_tokens": 100, "output_tokens": 20}]}},
+        {"time": 90005, "event": "started", "action": {"kind": "run"}},
+        {"time": 90020, "event": "finished", "action": {"kind": "run"},
+         "result": {"ok": True, "attempts": [{}]}},
+        {"time": 90030, "event": "started", "action": {"kind": "review"}},
+    ]
+    events = tmp_path / "events.jsonl"
+    events.write_text("\n".join(json.dumps(row) for row in rows) + "\n{partial",
+                      encoding="utf-8")
+    metrics = autopilot.report(tmp_path, now=100000)
+    assert metrics["actions_attempted"] == 3
+    assert metrics["actions_last_24h"] == 2
+    assert metrics["design_actions_last_24h"] == 1
+    assert metrics["run_actions_last_24h"] == 1
+    assert metrics["next_action_latency_seconds_median_24h"] == 7.5
+    assert metrics["cost_coverage"] == "1/2"
+    assert metrics["verified_discoveries"] is None
+
+
 def test_restart_reconciles_interrupted_action(tmp_path: Path) -> None:
     state_dir = tmp_path / "state"
     state_dir.mkdir()

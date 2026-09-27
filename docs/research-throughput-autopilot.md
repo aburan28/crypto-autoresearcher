@@ -86,6 +86,13 @@ the supervisor's backend failover covers a different failure boundary.
 | Input/output tokens, cost, retry rate and source coverage | model JSONL + task manifests | Efficiency; null when missing |
 | Median time from result to next ranked action | supervisor and archive timestamps | Continuation latency |
 
+The local report now shows design, run, and total actions over the trailing
+24 hours, plus the median delay from a worker finishing to the next action
+starting. It streams the append-only event log, so a long-running service does
+not load its entire history into memory. These measure scheduling throughput;
+verified discoveries and independent relations stay null until the separate
+receipt joiner is implemented.
+
 Use matched seeds, curves, solver settings, and hardware for factor-base
 comparisons. Charge base construction, orbit/phase lookup, failed decomposition
 searches, solving, relation verification, sparse rank, descent, and any

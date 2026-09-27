@@ -12,6 +12,7 @@ import json
 import os
 import signal
 import shutil
+import statistics
 import subprocess
 import time
 import uuid
@@ -437,24 +438,71 @@ def supervise(repo: Path, state_dir: Path, *, backends: list[str],
         return state
 
 
-def report(state_dir: Path) -> dict:
-    """Report outcomes and costs without counting a worker exit as a discovery."""
+def report(state_dir: Path, *, now: float | None = None) -> dict:
+    """Stream action telemetry, keeping unknown scientific outcomes explicit."""
+    if now is None:
+        now = time.time()
     events = state_dir / "events.jsonl"
-    rows = [json.loads(line) for line in events.read_text().splitlines()] if events.exists() else []
-    finished = [row for row in rows if row["event"] == "finished"]
-    attempts = [a for row in finished for a in row["result"].get("attempts", [])]
-    known_cost = [a["cost_usd"] for a in attempts if a.get("cost_usd") is not None]
-    tokens = [a for a in attempts if a.get("input_tokens") is not None
-              and a.get("output_tokens") is not None]
-    return {"actions_attempted": len(finished),
-            "workers_returned": sum(bool(row["result"].get("ok")) for row in finished),
-            "no_progress_actions": sum(row["event"] == "no_progress" for row in rows),
-            "interrupted_actions": sum(row["event"] == "interrupted_action" for row in rows),
+    actions = workers = no_progress = interrupted = model_attempts = failovers = 0
+    recent_actions = recent_designs = recent_runs = 0
+    known_cost = cost_total = token_coverage = tokens_in = tokens_out = 0
+    last_finished: float | None = None
+    handoff_delays: list[float] = []
+    if events.exists():
+        with events.open(encoding="utf-8") as stream:
+            for line in stream:
+                try:
+                    row = json.loads(line)
+                except ValueError:
+                    # A killed writer may leave a trailing partial line. Its
+                    # successor is reconciled from the checkpoint on restart.
+                    continue
+                kind = row.get("event")
+                stamp = row.get("time")
+                recent = isinstance(stamp, (int, float)) and now - 86400 <= stamp <= now
+                if kind == "started":
+                    if last_finished is not None and isinstance(stamp, (int, float)):
+                        if recent and stamp >= last_finished:
+                            handoff_delays.append(stamp - last_finished)
+                    last_finished = None
+                elif kind == "finished":
+                    last_finished = stamp if isinstance(stamp, (int, float)) else None
+                    actions += 1
+                    workers += bool(row.get("result", {}).get("ok"))
+                    if recent:
+                        recent_actions += 1
+                        action_kind = row.get("action", {}).get("kind")
+                        recent_designs += action_kind == "design"
+                        recent_runs += action_kind == "run"
+                    for attempt in row.get("result", {}).get("attempts", []):
+                        model_attempts += 1
+                        failovers += bool(attempt.get("fallback_used"))
+                        if attempt.get("cost_usd") is not None:
+                            known_cost += 1
+                            cost_total += attempt["cost_usd"]
+                        if (attempt.get("input_tokens") is not None
+                                and attempt.get("output_tokens") is not None):
+                            token_coverage += 1
+                            tokens_in += attempt["input_tokens"]
+                            tokens_out += attempt["output_tokens"]
+                elif kind == "no_progress":
+                    no_progress += 1
+                elif kind == "interrupted_action":
+                    interrupted += 1
+    return {"actions_attempted": actions,
+            "actions_last_24h": recent_actions,
+            "design_actions_last_24h": recent_designs,
+            "run_actions_last_24h": recent_runs,
+            "next_action_latency_seconds_median_24h": (
+                round(statistics.median(handoff_delays), 3) if handoff_delays else None),
+            "workers_returned": workers,
+            "no_progress_actions": no_progress,
+            "interrupted_actions": interrupted,
             "verified_discoveries": None, "independent_relations": None,
-            "model_attempts": len(attempts),
-            "failovers": sum(bool(a.get("fallback_used")) for a in attempts),
-            "measured_cost_usd": round(sum(known_cost), 8) if known_cost else None,
-            "cost_coverage": f"{len(known_cost)}/{len(attempts)}",
-            "measured_input_tokens": sum(a["input_tokens"] for a in tokens) if tokens else None,
-            "measured_output_tokens": sum(a["output_tokens"] for a in tokens) if tokens else None,
-            "token_coverage": f"{len(tokens)}/{len(attempts)}"}
+            "model_attempts": model_attempts,
+            "failovers": failovers,
+            "measured_cost_usd": round(cost_total, 8) if known_cost else None,
+            "cost_coverage": f"{known_cost}/{model_attempts}",
+            "measured_input_tokens": tokens_in if token_coverage else None,
+            "measured_output_tokens": tokens_out if token_coverage else None,
+            "token_coverage": f"{token_coverage}/{model_attempts}"}
