@@ -57,8 +57,8 @@ def validate(manifest):
         if not isinstance(command, list) or not command or any(
                 not isinstance(x, str) or not x for x in command):
             raise ValueError("worker command must be a nonempty argv list")
-        if backend.get("mode") not in ("cold", "learn_apply"):
-            raise ValueError("backend mode must be cold or learn_apply")
+        if backend.get("mode") not in ("cold", "warm", "learn_apply"):
+            raise ValueError("backend mode must be cold, warm, or learn_apply")
         if not backend.get("provenance"):
             raise ValueError("backend version/source provenance required")
     relation = manifest.get("relation_verifier")
@@ -180,6 +180,7 @@ def run_backend(manifest, backend, directory):
     relation = manifest.get("relation_verifier")
     rank = Rank(relation["modulus"], relation["width"]) if relation else None
     relation_complete = True
+    certified_applies = 0
     journal = (directory / "events.jsonl").open("x")
 
     def record(event):
@@ -250,6 +251,8 @@ def run_backend(manifest, backend, directory):
             response, worker = call(operation, instance, worker, backend["command"],
                                     {"trace_id": trace} if operation == "apply" else None)
             certificate = check(instance, response)
+            if operation == "apply" and certificate is not None:
+                certified_applies += 1
             if operation == "learn" and certificate and isinstance(response.get("trace_id"), str):
                 trace = response["trace_id"] or None
             if operation in ("learn", "apply") and certificate is None:
@@ -311,6 +314,9 @@ def run_backend(manifest, backend, directory):
                "parent_and_reaped_children_cpu_seconds": cpu,
                "unattributed_wall_seconds": total - sum(phases.values()),
                "verified_instances": verified, "attempted_instances": len(results),
+               "trace_apply_attempts": sum(e["operation"] == "apply" for e in events),
+               "certified_trace_applies": certified_applies,
+               "fallback_attempts": sum(e["operation"] == "fallback" for e in events),
                "verified_instances_per_total_second": verified / total,
                "verified_relation_rank": len(rank.pivots) if rank is not None else None,
                "relation_verification_complete": relation_complete if rank is not None else None,

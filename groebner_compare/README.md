@@ -31,6 +31,9 @@ The shipped smoke data are correctness controls, not performance evidence.
    `solve`. For `learn_apply`, learn on the first instance, then apply its
    in-memory trace to subsequent instances in the same worker. The learning
    instance is part of the same workload and is charged once.
+   A `warm` baseline performs ordinary solves in one persistent worker without
+   tracing; compare it to `learn_apply` to avoid attributing process/package
+   startup savings to the trace algorithm.
 3. Independently prove each returned basis has the original Boolean zeros and
    the correct leading ideal using exhaustive zeros plus staircase dimension.
    A backend's completion flag or its own `isgroebner` result is insufficient.
@@ -55,6 +58,10 @@ explicitly outside this solver-stage boundary. Compare paired instance lists;
 run repetitions and reversed backend order under a separate frozen experiment
 contract before making performance claims. There is no automatic winner or
 extrapolation to degree 19, n=131, or full DLP cost.
+CPU seconds include the runner plus reaped worker children; descendants that
+detach or outlive their worker are not guaranteed to be accounted by that OS
+counter. Use external cgroup accounting when complete process-tree telemetry
+is required.
 
 `peak_worker_process_rss_bytes` is Linux VmHWM for the largest observed worker
 process, not simultaneous process-tree RSS or host memory. It is null where
@@ -83,6 +90,13 @@ and leaves output certification to Python. Over GF(2), fixed nonzero support
 fixes the coefficients: an identical-support repeat is only a reuse control,
 not evidence of useful speedup across distinct targets. Changed constants can
 invalidate support and must count as rejected applications.
+
+`candidates.json` is a ready-to-run synthetic adapter comparison, including
+both warm F4 and learn/apply. It expects the pinned Julia environment at
+`.groebner-julia`; absent programs produce explicit unavailable attempts.
+The identical-system repeat is labeled a control. Provision the environment
+first and retain its lockfile with scientific receipts. Magma and other
+unimplemented adapters are deliberately absent from this runnable matrix.
 
 Reference API: [Groebner.jl learn/apply](https://sumiya11.github.io/Groebner.jl/interface/).
 The exact certificate follows the zeros-and-staircase argument already used

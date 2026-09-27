@@ -112,6 +112,13 @@ class ProtocolTests(unittest.TestCase):
         _, _, output = self.run_case(manifest(mode="cold"))
         self.assertEqual(len(list((output / "backend-0").glob("*.requests.jsonl"))), 2)
 
+    def test_warm_baseline_uses_same_worker_without_traces(self):
+        result, events, output = self.run_case(manifest(mode="warm"))
+        self.assertEqual(len(list((output / "backend-0").glob("*.requests.jsonl"))), 1)
+        self.assertEqual(result["trace_apply_attempts"], 0)
+        self.assertEqual([e["operation"] for e in events if e["operation"] != "basis_verification"],
+                         ["solve", "solve"])
+
     def test_rank_counts_independence_in_declared_field(self):
         rank = Rank(3, 2)
         self.assertEqual(rank.add([[1, 1], [2, 2], [0, 0]]), 1)
