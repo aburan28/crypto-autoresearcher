@@ -1,0 +1,334 @@
+implementation_review:
+  task_id: TASK-20260912-87064e
+  experiment_id: EXP-CRYPTO-9225d2
+  review_kind: zero-run static independent re-review (review_plan joints C6, C8, C9, C11, C12)
+  reviewer_role: validator
+  recorded_at_utc: '2026-09-27T01:05:30Z'
+  overall_verdict: PASSED
+  overall_scope_note: >-
+    PASSED means each of the five owned joints is closed in source on the
+    reviewed bytes. It is not a whole-claim verdict, asserts no measurement
+    readiness, does not authorize any of the 40 scientific jobs, and leaves
+    specification.yaml scientific_execution_authorized: false unchanged.
+
+  reviewed_revision:
+    worktree: .worktrees/ecdlp-9225d2-revise-20260927
+    head_commit: dadf0e64a03fcf376dbbae8328da597f74032ee6
+    base_checked: 1ef5f05bd1 (ancestor of HEAD)
+    diff_check: >-
+      `git diff 1ef5f05bd1 -- arithmetic.py rho.py driver.py` is empty, and
+      `git status --short -- experiments/EXP-CRYPTO-9225d2/` is clean, so the
+      reviewed worktree bytes equal the 1ef5f05bd1 / HEAD bytes.
+    file_sha256:
+      experiments/EXP-CRYPTO-9225d2/implementation/arithmetic.py: f46b5a5a1109eb3b320267679c1273709ae4969310410758f0279b0e5a3142a6
+      experiments/EXP-CRYPTO-9225d2/implementation/rho.py: d5f4ff8a313a18c2c9a5777a0e2568d4ba5cd714112de5d21e0d7d5614557245
+      experiments/EXP-CRYPTO-9225d2/implementation/driver.py: 79c1527090056de2c7bd669338d7d232f804bf284085534c5ac8958240fb127f
+
+  blind_y3_rederivation:
+    recorded_before_blind_from_opened: true
+    recorded_at_utc: '2026-09-27T01:03:30Z'
+    procedure: >-
+      This block was written to this same file as its first contents, before
+      any blind_from path was opened. Sources read up to that point:
+      docs/agent-runtime-core.md, agents/validator.md,
+      ledger/handoffs/TASK-20260912-87064e.yaml, and
+      experiments/EXP-CRYPTO-9225d2/specification.yaml lines 118-195,
+      256-280 and 347-380.
+    spec_token_string: 'Y3=M(j,B-X3)-M(V1,C-B)  (specification.yaml line 158)'
+    first_product: {op: M, operand_1: j, operand_2: 'B - X3'}
+    second_product: {op: M, operand_1: V1, operand_2: 'C - B'}
+    combination: first_product minus second_product
+    token_definitions: >-
+      h=U2-U1; j=V2-V1; A=S(h); B=M(U1,A)=U1*h^2; C=M(U2,A)=U2*h^2; D=S(j);
+      X3=D-B-C (spec lines 157-158).
+    consistency_check: >-
+      C-B=(U2-U1)h^2=h^3, so X3=j^2-h^3-2*U1*h^2 and
+      Y3=j*(U1*h^2-X3)-V1*h^3, which is the standard Jacobian common-Z
+      addition. The first product's second operand is B-X3. Only the second
+      product's second operand is C-B.
+    agreement_with_implementation: >-
+      Agrees. arithmetic.py lines 322-326 (point_add) and 548-552
+      (point_add_planted) compute M(j, B-X3) - M(V1, C-B), with the operand
+      order confirmed by FieldElement.sub returning self-other (line 195-197).
+      No disagreement.
+
+  joints:
+    - joint: C6 generic ADD Y3
+      verdict: PASSED
+      spec_citation: 'specification.yaml line 158: Y3=M(j,B-X3)-M(V1,C-B)'
+      source_citations:
+        - 'arithmetic.py:320  X3 = D.sub(B, counters).sub(C, counters)'
+        - 'arithmetic.py:322  BX3 = B.sub(X3, counters)'
+        - 'arithmetic.py:323  CB = C.sub(B, counters)'
+        - 'arithmetic.py:324-326  Y3 = _top_level_mul(j, BX3, ...).sub(_top_level_mul(V1, CB, ...), counters)'
+        - 'arithmetic.py:548-552  point_add_planted, same dataflow through planted_mul'
+      argument: >-
+        Dataflow trace, not text match. BX3 and CB are each assigned exactly
+        once in each function and are not rebound before use. BX3 is bound to
+        B.sub(X3), where B=M(U1,A) (line 317) and X3=D-B-C (line 320). The
+        first product's second operand is BX3=B-X3. The second product is
+        M(V1, C-B). sub is self-other (lines 195-197), so the operand order
+        matches. Per-call-site count: point_add has 12 top-level M call sites
+        (lines 295-301, 317, 318, 324, 325, 327) and 4 S call sites (293, 294,
+        316, 319), matching spec lines 159-160 (generic full ADD is twelve M
+        and four S).
+      breaking_artifact_found: false
+
+    - joint: C8 scalar_multiply normalization ownership
+      verdict: PASSED
+      spec_citation: >-
+        specification.yaml lines 140-144 (scalar_algorithm, "Normalize the final
+        R once") and line 172 (normalization: zi=I(Z), z2=S(zi), z3=M(z2,zi),
+        x=M(X,z2), y=M(Y,z3); three M, one S, one I).
+      source_citations:
+        - 'arithmetic.py:419-433  docstring: normalization is a deliberate caller responsibility; returns the raw unnormalized Jacobian point R'
+        - 'arithmetic.py:442  return R  (no normalize call inside scalar_multiply)'
+        - 'arithmetic.py:387-403  normalize(): inv 398, sqr 399, _top_level_mul 400/401/402, i.e. 3M+1S+1I; identity returns (None, None) with no inversion'
+        - 'arithmetic.py:615-617  scalar_multiply_planted docstring inherits the same contract; 628 returns raw R'
+      call_site_search: >-
+        rg over driver.py, rho.py, fixture_generator.py, count_predictor.py and
+        independent_checker.py found no call to scalar_multiply,
+        scalar_multiply_planted, scalar_multiply_null or normalize outside
+        arithmetic.py. The only hit is independent_checker.py:148
+        affine_scalar_multiply, which is the checker's own affine routine and
+        does not consume Jacobian output. No call site treats the raw return
+        as affine.
+      argument: >-
+        Closed as a documented caller-responsibility contract, not a behavior
+        change. This matches the coordinator prior. The docstring no longer
+        claims in-routine normalization, and normalize() matches spec line 172
+        exactly.
+      carried_conditions:
+        - >-
+          The spec's scalar routine includes a single final normalization,
+          and the planted exact_count_identity (spec line 179) compares whole
+          routines. The future composing launcher must therefore call
+          normalize() exactly once per scalar on the same counters object. For
+          the planted routine it must pass planted_sink=sink_state; normalize
+          accepts that argument at line 389. Otherwise M_planted=2*M_reference
+          fails by 3 M per scalar. No composing call site exists yet, so this
+          cannot be checked now and must be checked when the launcher is
+          reviewed.
+        - >-
+          Wording inconsistency, not a defect: scalar_multiply calls the
+          choice deliberate (line 419), while scalar_multiply_planted calls it
+          "the same caller-composition gap C8 recorded" (lines 615-616). Both
+          describe the same behavior.
+      breaking_artifact_found: false
+
+    - joint: C9 planted scalar composition
+      verdict: PASSED
+      spec_citation: >-
+        specification.yaml lines 173-179: replace each top-level M(a,b) by two M
+        evaluations, compare, sink, return first; do not duplicate inside S or
+        I; M_planted=2*M_reference, S and I unchanged.
+      source_citations:
+        - 'arithmetic.py:257-265  _top_level_mul routes to planted_mul when planted_sink is not None, else FieldElement.mul'
+        - 'arithmetic.py:456-481  planted_mul: two a.mul calls (470, 471), comparison 472, SHA-256 sink 477-480, returns r1'
+        - 'arithmetic.py:606-628  scalar_multiply_planted: point_double(..., planted_sink=sink_state) 624, point_add(..., planted_sink=sink_state) 627'
+        - 'arithmetic.py:507-555  point_add_planted: planted_mul at 527-533, 544, 545, 550, 551, 553 (12 sites), sqr at 525, 526, 543, 546'
+        - 'arithmetic.py:558-598  point_double_planted: planted_mul at 593 (1 site)'
+      ast_call_inventory: >-
+        AST walk of arithmetic.py. FieldElement .mul is called only inside
+        _top_level_mul (264, unplanted branch) and planted_mul (470, 471). In
+        point_add, point_double and normalize, every M goes through
+        _top_level_mul: 12, 1 and 3 sites. point_add's exceptional branch
+        forwards planted_sink to point_double (307). point_add_planted and
+        point_double_planted call planted_mul directly, 12 and 1 sites, and
+        point_add_planted recurses to point_double_planted (538). S (sqr) and I
+        (inv) never enter _top_level_mul or planted_mul.
+      argument: >-
+        All three planted routines exist. Every top-level M on the planted
+        composition path (scalar_multiply_planted, then point_add/point_double
+        with planted_sink) resolves to planted_mul, with no leftover
+        FieldElement.mul. S and I are unchanged. The explicit mirror routines
+        are not the entry point that scalar_multiply_planted uses (comment,
+        lines 499-503). Both paths have identical call structure, so the
+        mirrors add no count divergence.
+      carried_conditions:
+        - Planted normalization depends on the caller passing planted_sink (see C8 carried condition).
+      breaking_artifact_found: false
+
+    - joint: C11 EndpointTable.insert_if_absent
+      verdict: PASSED
+      spec_citation: >-
+        specification.yaml line 276 (table.key: full canonical affine endpoint;
+        linear probing; retain earliest on equality) and lines 258-262
+        (distinguish full point equality from table-hash collision).
+      source_citations:
+        - 'rho.py:196  idx = self._probe_index(key_hash)'
+        - 'rho.py:198  while idx in self.slots:'
+        - 'rho.py:201-202  if occupant.x == slot.x and occupant.y == slot.y: return False, occupant'
+        - 'rho.py:203-210  full-table guard, then idx = (idx + 1) % capacity; probes += 1'
+        - 'rho.py:211-220  post-loop: load/resize guard, then insert into the empty idx; no `if idx in self.slots` dead branch remains'
+      argument: >-
+        On an occupied slot the stored 32-byte x and y are compared with the
+        candidate's x and y. A match returns (False, occupant) immediately and
+        keeps the earliest endpoint. A mismatch, meaning a real table-hash
+        collision at a different endpoint, continues linear probing. The
+        comparison uses stored coordinates, not key_hash, so a hash collision
+        is never reported as an endpoint collision.
+      observations_non_blocking:
+        - >-
+          The equality test does not compare `status`. The spec says identity
+          is encoded by status with zero coordinates (spec line 278). An
+          identity endpoint and a finite endpoint with x=y=0 would therefore
+          compare equal. The order-two point (0,0) exists only on the reduced
+          a=1 curves and is outside an odd prime-order rho subgroup, so this
+          only matters if the future walk can store the identity or a
+          2-torsion endpoint. It is recorded for the rho launcher review and
+          does not match this joint's breaking_artifact.
+        - >-
+          Table doubling is not implemented; the method refuses rather than
+          resizes (211-217). That behavior is outside C11 and is not silent
+          data loss.
+      breaking_artifact_found: false
+
+    - joint: C12 cgroup cpu.max and exact pids.max==3
+      verdict: PASSED
+      spec_citation: >-
+        specification.yaml lines 352-356: memory.max=8*2^30, memory.swap.max=0,
+        "Freeze pids.max=3", "Set cpu.max to 300000 100000 for rho or 100000
+        100000 for arithmetic"; line 360 missing delegation/readback refuses.
+      source_citations:
+        - 'driver.py:193  REQUIRED_PIDS_MAX = 3'
+        - 'driver.py:194-197  REQUIRED_CPU_MAX_BY_JOB = {"arithmetic": "100000 100000", "rho": "300000 100000"}'
+        - 'driver.py:236-247  _read_int_file returns None for missing file, "max", or parse error'
+        - 'driver.py:278  if pids_max != REQUIRED_PIDS_MAX: refuse'
+        - 'driver.py:288-298  unknown job_kind refuses'
+        - 'driver.py:299  if cpu_max != required_cpu: refuse'
+        - 'driver.py:223-225  job_type alias overrides job_kind when supplied'
+      argument: >-
+        The pids.max predicate is `!= 3`, so 1, 2, None ("max", missing, or
+        unparseable) and any value above 3 all refuse. cpu.max is read as a
+        stripped string and must exactly equal the per-job string, and an
+        unknown job type refuses. memory.max and memory.swap.max are also
+        exact-match readbacks.
+      alias_behavior_as_coded: >-
+        job_kind defaults to "arithmetic". The keyword-only job_type, when not
+        None, replaces job_kind (job_type wins if both are given).
+      observations_non_blocking:
+        - >-
+          Because job_kind defaults to "arithmetic", a future rho caller that
+          omits the selector would require "100000 100000". That fails closed
+          on a correctly configured rho cgroup (300000 100000). It admits a
+          rho job only if the cgroup was itself misconfigured to the
+          arithmetic quota. The launcher review should require an explicit
+          selector.
+      breaking_artifact_found: false
+
+  proves_too_much:
+    - object: Pre-repair Y3 using C-B for both products (Y3 = M(j, C-B) - M(V1, C-B))
+      matching_argument: >-
+        The first product's second operand must be bound by dataflow to
+        B.sub(X3), where X3 = D-B-C and B = M(U1,A).
+      result_on_object: FAILS
+      detail: >-
+        In the old form the first product's second operand is C.sub(B), not
+        B.sub(X3). The argument rejects it. The algebraic check also rejects
+        it: j*(C-B)-V1*(C-B) = (j-V1)*h^3 is not j*(U1*h^2-X3)-V1*h^3 in
+        general. The argument does not prove too much.
+    - object: Pre-repair insert_if_absent whose while-loop exits only on an empty slot
+      matching_argument: >-
+        The body of `while idx in self.slots` must contain a return path
+        taken when the occupant's stored (x, y) equals the candidate's (x, y),
+        and must advance idx only on mismatch.
+      result_on_object: FAILS
+      detail: >-
+        The old loop has no in-loop return on equality. It always advances to
+        an empty slot and inserts a duplicate, and its post-loop
+        `if idx in self.slots` branch is unreachable. The argument rejects it.
+        The argument does not prove too much.
+
+  compile_check:
+    method: >-
+      In-memory builtin compile(source, path, "exec") on each of the three
+      files with PYTHONDONTWRITEBYTECODE=1, plus an ast.parse call inventory.
+      This is the same syntax check as `python3 -m py_compile`, without
+      writing a __pycache__/*.pyc into the implementation directory, which is
+      outside this task's write scope, or into the full /tmp volume.
+      `python3 -m py_compile` itself was not invoked.
+    result: all three files compile without error
+    modules_imported: false
+
+  zero_scientific_run_attestation:
+    scientific_runs_performed: 0
+    maximum_runs: 0
+    modules_imported_or_executed: false
+    not_called: [driver.main, fixture_generator constructors, rho.run_worker, rho.run_coordinator, check_cgroup_admission, Timer, point_add, scalar_multiply]
+    no_fixtures_curves_walks_timers_or_cgroup_admission: true
+    implementation_or_specification_edited: false
+    commits_made: false
+    scientific_execution_authorized: false (unchanged)
+
+  limitations:
+    - >-
+      Static review only. Formula conformance is established by dataflow and
+      algebra, not by numeric execution, and no output correctness is
+      measured.
+    - >-
+      The C8 and C9 planted normalization composition, and the C11 identity
+      versus (0,0) key distinction, depend on launcher code that does not yet
+      exist. They are carried conditions, not verified properties.
+    - >-
+      Inference route: the ledger handoff sets fallback_allowed: false. The
+      committed dispatch-queue inference_amendment (commit 906aefff11) cites
+      decision DEC-20260927-4a7e70, but no ledger/decisions/DEC-20260927-4a7e70
+      record exists in this worktree. It is referenced only from dispatch
+      queues and TASK-20260927-ab9a41. The Coordinator should commit that
+      decision before archiving this review. This is a procedural gap. It is
+      not a joint defect.
+    - >-
+      The resolved model identifier is reported as the Cursor session's
+      "Auto" routing label. This session cannot see the concrete underlying
+      model identifier, and it is not probe-verified.
+
+  inference:
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    independent_session: true
+    fallback_used: true
+    fallback_reason: >-
+      Policy default backend is anthropic and ANTHROPIC_API_KEY is unset. The
+      route is declared by inference_amendment DEC-20260927-4a7e70 in
+      coordination/design/BATCH-468520/dispatch_queue.json (commit 906aefff11).
+    degraded_allowed: false
+    degraded_requirements: []
+    resolved_runtime: cursor
+    resolved_model_id: cursor-auto (Cursor "Auto" routing; concrete underlying model identifier not exposed to this session)
+    model_verified: false
+    bedrock_used: false
+
+  review_attestation:
+    task_id: TASK-20260912-87064e
+    joints_owned: [C6, C8, C9, C11, C12]
+    joint_verdicts: {C6: PASSED, C8: PASSED, C9: PASSED, C11: PASSED, C12: PASSED}
+    verdict: PASSED
+    proves_too_much_owned: true
+    blind_rederivation_owned: true
+    blind_from_respected: true
+    blind_from_opened_after_derivation:
+      - experiments/EXP-CRYPTO-9225d2/implementation/arithmetic.py
+    blind_from_never_opened:
+      - experiments/EXP-CRYPTO-9225d2/implementation/repair-report.yaml
+      - experiments/EXP-CRYPTO-9225d2/implementation/repair-manifest.yaml
+      - experiments/EXP-CRYPTO-9225d2/implementation/preparation-report.yaml
+      - coordination/design/BATCH-bb548b/reviews/TASK-20260908-30ce59/implementation-review.yaml
+    read_sibling_reports: false
+    sources_read:
+      - docs/agent-runtime-core.md
+      - agents/validator.md
+      - ledger/handoffs/TASK-20260912-87064e.yaml
+      - experiments/EXP-CRYPTO-9225d2/specification.yaml (lines 1-118 via key grep; full lines 118-195, 256-280, 347-380)
+      - experiments/EXP-CRYPTO-9225d2/implementation/arithmetic.py (lines 137-670, after blind derivation; AST walk of whole file)
+      - experiments/EXP-CRYPTO-9225d2/implementation/rho.py (full)
+      - experiments/EXP-CRYPTO-9225d2/implementation/driver.py (full)
+      - experiments/EXP-CRYPTO-9225d2/implementation/implementation-manifest.yaml (rg hits only, lines 68 and 80-86, to confirm the C8 reference cited by the arithmetic.py docstring)
+      - 'rg call-site search only: fixture_generator.py, count_predictor.py, independent_checker.py'
+      - git show 906aefff11 (dispatch_queue.json inference_amendment diff)
+      - git diff 1ef5f05bd1 --stat / git status / git log for the reviewed paths
+    not_read:
+      - ledger/decisions/DEC-20260908-ffb734.yaml, DEC-20260912-34c82d.yaml, DEC-20260912-be822c.yaml
+      - ledger/handoffs/TASK-20260912-f821b2.yaml, TASK-20260912-c08c1b.yaml
+    independent_session: true
+    producer_transcript_inherited: false
