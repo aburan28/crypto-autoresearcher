@@ -57,6 +57,9 @@ attested here; do not infer it from the policy. A `0` exit means only that the
 worker returned. The
 report leaves verified discoveries and independent relations **null** until
 linked scientific receipts provide those values.
+If every eligible model fails before a tool or checkout effect, the action
+retries after `--retry-seconds` (default five minutes), without inventing a
+partial experiment or suppressing the queue for a day.
 
 OpenCode uses `opencode run --model provider/model --format json` ([CLI
 reference](https://opencode.ai/docs/cli/)); local vLLM
@@ -88,10 +91,15 @@ the supervisor's backend failover covers a different failure boundary.
 
 The local report now shows design, run, and total actions over the trailing
 24 hours, plus the median delay from a worker finishing to the next action
-starting. It streams the append-only event log, so a long-running service does
-not load its entire history into memory. These measure scheduling throughput;
-verified discoveries and independent relations stay null until the separate
-receipt joiner is implemented.
+starting. A run also records the before/after count of hash-validated runner
+outputs under the **same frozen trial-plan SHA-256**. The report sums that
+signed delta for the last 24 hours, includes its observation coverage, and
+shows daily measured model cost with its own coverage. A changed plan or
+unavailable receipt leaves the trial delta unknown. It streams the append-only
+event log, so a long-running service does not load its entire history into
+memory. Runner output validation is not scientific review or publication:
+verified discoveries and independent relations remain null until an archive
+and benchmark receipt joiner can substantiate them.
 
 Use matched seeds, curves, solver settings, and hardware for factor-base
 comparisons. Charge base construction, orbit/phase lookup, failed decomposition
@@ -160,8 +168,9 @@ or ECC relation generation. The live comparison is gate 2 below.
 2. Enable a supervised live OpenCode trial only after model probes, a full
    checkout, and resource claims are available. Compare cost and completion
    with the prior manually prompted day using identical work.
-3. Add a receipt joiner for archived experiment IDs and IC benchmark runs;
-   populate the null discovery/relation fields only from verified receipts.
+3. Join archived experiment IDs to independent review and IC benchmark runs;
+   populate the null discovery/relation fields only from verified scientific
+   receipts. The runner trial delta is a separate lower-level measure.
 4. Benchmark a cheap draft/coordinator candidate against the present strong
    policy on a held-out suite, including state-transition errors and token
    cost. Bind a cheaper Coordinator only after that capability test.

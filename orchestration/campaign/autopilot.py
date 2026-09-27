@@ -153,6 +153,26 @@ def _execution_snapshot(repo: Path, exp_id: str) -> str:
         return f"unavailable:{type(exc).__name__}"
 
 
+def _trial_coverage_transition(before: str, after: str) -> dict:
+    """Count only hash-validated runner output on the same frozen trial plan.
+
+    The runner deliberately leaves publication and scientific review unverified;
+    this transition cannot establish a discovery or an independent relation.
+    """
+    try:
+        previous, current = json.loads(before), json.loads(after)
+        left, right = previous["coverage"], current["coverage"]
+        if left["plan_sha256"] != right["plan_sha256"]:
+            return {"output_validated_delta": None, "reason": "trial plan changed"}
+        return {"output_validated_delta":
+                right["output_validated"] - left["output_validated"],
+                "before": left["output_validated"],
+                "after": right["output_validated"],
+                "plan_sha256": right["plan_sha256"]}
+    except (ValueError, TypeError, KeyError):
+        return {"output_validated_delta": None, "reason": "coverage unavailable"}
+
+
 def _usage(event_file: Path) -> dict[str, float | int | None]:
     """Read OpenCode JSON events; unknown usage remains null, never zero."""
     tokens_in = tokens_out = 0
@@ -394,22 +414,26 @@ def supervise(repo: Path, state_dir: Path, *, backends: list[str],
             except Exception as exc:
                 result = {"ok": False, "reason": f"supervisor error: {type(exc).__name__}: {exc}",
                           "attempts": []}
+            after = _execution_snapshot(repo, action.target) if action.kind == "run" else None
             event = {"time": clock(), "event": "finished", "action": action.as_dict(),
                      "attempt_id": attempt_id, "wall_seconds": round(time.monotonic()-started, 3),
                      "result": result}
+            if after is not None:
+                event["trial_coverage"] = _trial_coverage_transition(
+                    state["inflight"]["execution_before"], after)
             _event(state_dir, event)
             state["attempts"] += 1
             state["completed_actions"] += int(bool(result.get("ok")))
-            if action.kind == "run" or result.get("reason", "").startswith(
-                    "ambiguous partial action"):
+            ambiguous = result.get("reason", "").startswith("ambiguous partial action")
+            run_changed = (action.kind == "run" and
+                           state["inflight"].get("execution_before") != after)
+            if ambiguous or (action.kind == "run" and
+                             (result.get("ok") or run_changed)):
                 state["pending_reconcile"] = state["inflight"]
-                advanced = (action.kind == "run" and
-                    state["inflight"].get("execution_before") !=
-                    _execution_snapshot(repo, action.target))
-                state["pending_reconcile"]["execution_advanced"] = advanced
+                state["pending_reconcile"]["execution_advanced"] = run_changed
                 state["pending_reconcile"]["worker_ok"] = bool(result.get("ok"))
                 state["cooldowns"][action.key] = clock() + (
-                    retry_seconds if advanced and result.get("ok") else 86400)
+                    retry_seconds if run_changed and result.get("ok") else 86400)
             elif action.kind == "review" and result.get("ok"):
                 prior = state.get("pending_reconcile") or {}
                 if prior.get("worker_ok") and prior.get("execution_advanced"):
@@ -422,7 +446,8 @@ def supervise(repo: Path, state_dir: Path, *, backends: list[str],
                 state["cooldowns"][action.key] = clock() + retry_seconds
             # Avoid buying the identical proposal every five minutes when a
             # successful worker exit did not actually change the worklist.
-            if action.kind != "review" and state.get("pending_reconcile") is None:
+            if (result.get("ok") and action.kind != "review"
+                    and state.get("pending_reconcile") is None):
                 successor = selector(repo, excluded=set())
                 if successor is not None and successor.key == action.key:
                     state["cooldowns"][action.key] = clock() + 86400
@@ -445,7 +470,10 @@ def report(state_dir: Path, *, now: float | None = None) -> dict:
     events = state_dir / "events.jsonl"
     actions = workers = no_progress = interrupted = model_attempts = failovers = 0
     recent_actions = recent_designs = recent_runs = 0
+    recent_validated_delta = recent_coverage_known = recent_coverage_unknown = 0
     known_cost = cost_total = token_coverage = tokens_in = tokens_out = 0
+    recent_known_cost = recent_cost_total = recent_model_attempts = 0
+    recent_token_coverage = recent_tokens_in = recent_tokens_out = 0
     last_finished: float | None = None
     handoff_delays: list[float] = []
     if events.exists():
@@ -474,17 +502,32 @@ def report(state_dir: Path, *, now: float | None = None) -> dict:
                         action_kind = row.get("action", {}).get("kind")
                         recent_designs += action_kind == "design"
                         recent_runs += action_kind == "run"
+                        if action_kind == "run":
+                            delta = row.get("trial_coverage", {}).get("output_validated_delta")
+                            if isinstance(delta, int):
+                                recent_validated_delta += delta
+                                recent_coverage_known += 1
+                            else:
+                                recent_coverage_unknown += 1
                     for attempt in row.get("result", {}).get("attempts", []):
                         model_attempts += 1
+                        recent_model_attempts += recent
                         failovers += bool(attempt.get("fallback_used"))
                         if attempt.get("cost_usd") is not None:
                             known_cost += 1
                             cost_total += attempt["cost_usd"]
+                            if recent:
+                                recent_known_cost += 1
+                                recent_cost_total += attempt["cost_usd"]
                         if (attempt.get("input_tokens") is not None
                                 and attempt.get("output_tokens") is not None):
                             token_coverage += 1
                             tokens_in += attempt["input_tokens"]
                             tokens_out += attempt["output_tokens"]
+                            if recent:
+                                recent_token_coverage += 1
+                                recent_tokens_in += attempt["input_tokens"]
+                                recent_tokens_out += attempt["output_tokens"]
                 elif kind == "no_progress":
                     no_progress += 1
                 elif kind == "interrupted_action":
@@ -493,6 +536,10 @@ def report(state_dir: Path, *, now: float | None = None) -> dict:
             "actions_last_24h": recent_actions,
             "design_actions_last_24h": recent_designs,
             "run_actions_last_24h": recent_runs,
+            "runner_output_validated_trial_delta_24h": (
+                recent_validated_delta if recent_coverage_known else None),
+            "runner_coverage_24h": f"{recent_coverage_known}/{recent_runs}",
+            "runner_coverage_unknown_24h": recent_coverage_unknown,
             "next_action_latency_seconds_median_24h": (
                 round(statistics.median(handoff_delays), 3) if handoff_delays else None),
             "workers_returned": workers,
@@ -503,6 +550,15 @@ def report(state_dir: Path, *, now: float | None = None) -> dict:
             "failovers": failovers,
             "measured_cost_usd": round(cost_total, 8) if known_cost else None,
             "cost_coverage": f"{known_cost}/{model_attempts}",
+            "measured_cost_usd_last_24h": (
+                round(recent_cost_total, 8) if recent_known_cost else None),
+            "cost_coverage_last_24h": f"{recent_known_cost}/{recent_model_attempts}",
             "measured_input_tokens": tokens_in if token_coverage else None,
             "measured_output_tokens": tokens_out if token_coverage else None,
-            "token_coverage": f"{token_coverage}/{model_attempts}"}
+            "token_coverage": f"{token_coverage}/{model_attempts}",
+            "measured_input_tokens_last_24h": (
+                recent_tokens_in if recent_token_coverage else None),
+            "measured_output_tokens_last_24h": (
+                recent_tokens_out if recent_token_coverage else None),
+            "token_coverage_last_24h":
+                f"{recent_token_coverage}/{recent_model_attempts}"}

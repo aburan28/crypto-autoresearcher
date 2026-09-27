@@ -154,7 +154,40 @@ def test_daily_throughput_and_handoff_latency_are_observed_not_inferred(
     assert metrics["run_actions_last_24h"] == 1
     assert metrics["next_action_latency_seconds_median_24h"] == 7.5
     assert metrics["cost_coverage"] == "1/2"
+    assert metrics["measured_input_tokens_last_24h"] == 100
+    assert metrics["measured_output_tokens_last_24h"] == 20
+    assert metrics["token_coverage_last_24h"] == "1/2"
+    assert metrics["runner_coverage_24h"] == "0/1"
+    assert metrics["runner_output_validated_trial_delta_24h"] is None
     assert metrics["verified_discoveries"] is None
+
+
+def test_runner_coverage_is_counted_only_under_the_same_frozen_plan(
+        tmp_path: Path, monkeypatch) -> None:
+    stage = [0]
+    def snapshot(*_args):
+        return json.dumps({"coverage": {"plan_sha256": "a" * 64,
+                            "output_validated": stage[0]}})
+    monkeypatch.setattr(autopilot, "_execution_snapshot", snapshot)
+    action = autopilot.Action("run", "EXP-1", "run", "executor")
+    def invoke(*_args, **_kwargs):
+        stage[0] = 2
+        return {"ok": True, "attempts": [{"cost_usd": 0.003}]}
+    autopilot.supervise(tmp_path, tmp_path / "state", backends=["local"],
+        max_actions=1, selector=lambda *_args, **_kwargs: action, invoke=invoke)
+    metrics = autopilot.report(tmp_path / "state")
+    assert metrics["runner_output_validated_trial_delta_24h"] == 2
+    assert metrics["runner_coverage_24h"] == "1/1"
+    assert metrics["measured_cost_usd_last_24h"] == 0.003
+    assert metrics["verified_discoveries"] is None
+    assert metrics["independent_relations"] is None
+
+    changed = json.dumps({"coverage": {"plan_sha256": "b" * 64,
+                          "output_validated": 100}})
+    assert autopilot._trial_coverage_transition(snapshot(), changed) == {
+        "output_validated_delta": None, "reason": "trial plan changed"}
+    assert autopilot._trial_coverage_transition("unavailable", changed) == {
+        "output_validated_delta": None, "reason": "coverage unavailable"}
 
 
 def test_restart_reconciles_interrupted_action(tmp_path: Path) -> None:
@@ -203,3 +236,27 @@ def test_new_verified_trial_coverage_can_continue_after_review(
         max_actions=2, selector=select, invoke=invoke)
     assert state["pending_reconcile"] is None
     assert "run:EXP-ICEX-abcdef" not in state["cooldowns"]
+
+
+def test_all_models_down_before_tools_retries_without_reconciliation(
+        tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(autopilot, "_execution_snapshot", lambda *_args: "unchanged")
+    action = autopilot.Action("run", "EXP-1", "run", "executor")
+    select = lambda _repo, *, excluded: None if action.key in excluded else action
+    state_dir = tmp_path / "state"
+    failed = autopilot.supervise(tmp_path, state_dir, backends=["local"],
+        max_actions=2, selector=select, retry_seconds=300,
+        invoke=lambda *_args, **_kwargs: {
+            "ok": False, "reason": "all eligible models failed before a tool effect",
+            "attempts": []}, clock=lambda: 1000.0)
+    assert failed["attempts"] == 1
+    assert failed["pending_reconcile"] is None
+    assert failed["cooldowns"][action.key] == 1300
+    assert autopilot.report(state_dir, now=1000)["runner_coverage_unknown_24h"] == 1
+
+    retried = autopilot.supervise(tmp_path, state_dir, backends=["local"],
+        max_actions=1, selector=select, retry_seconds=300,
+        invoke=lambda *_args, **_kwargs: {"ok": True, "attempts": []},
+        clock=lambda: 1400.0)
+    assert retried["attempts"] == 2
+    assert retried["pending_reconcile"]["target"] == "EXP-1"
