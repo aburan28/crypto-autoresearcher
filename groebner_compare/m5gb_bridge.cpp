@@ -13,8 +13,8 @@ int main() {
   int n, count;
   if (!(std::cin >> n >> count) || n < 1 || n > 9 || count < 1 || count > 256)
     return 2;
-  binom_table = Create_binom_table(n + 13, n + 13);
-  table = Create_table(n, 12);  // Bounded trial; watchdog handles overflow/failure.
+  binom_table = Create_binom_table(n + 17, n + 17);
+  table = Create_table(n, 15);  // Bounded upstream table parameter d=15.
   std::vector<polynomial> system;
   for (int row = 0; row < count; ++row) {
     int size;

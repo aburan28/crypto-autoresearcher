@@ -16,6 +16,9 @@ def m5gb(equations, n):
     binary = os.environ.get("M5GB_BINARY")
     if not binary or not Path(binary).is_file():
         return {"status": "unavailable", "reason": "set M5GB_BINARY to the pinned upstream bridge binary"}
+    version = ("upstream-m5gb-2d063f7+binary-sha256:"
+               + hashlib.sha256(Path(binary).read_bytes()).hexdigest())
+    budget = {"monomial_table_parameter_d": 15}
     rows = [row for row in equations if row]
     if not rows:
         return {"status": "unavailable", "reason": "upstream M5GB requires nonempty inputs"}
@@ -25,15 +28,21 @@ def m5gb(equations, n):
                           stderr=subprocess.STDOUT, text=True) as process:
         process.stdin.write(input_data)
         process.stdin.close()
-        output = None
+        output, bounded_table = None, False
         for line in process.stdout:
             if line.startswith("M5GB_RESULT "):
                 output = line.split()[1:]
             else:
+                if "Assertion '__n < this->size()' failed" in line:
+                    bounded_table = True
                 print(line, end="", file=sys.stderr, flush=True)
         code = process.wait()
     if code or output is None:
-        return {"status": "error", "reason": f"upstream M5GB exit {code}; no complete basis"}
+        return {"status": "unknown" if bounded_table else "error",
+                "reason": ("bounded M5GB bridge monomial table exceeded; no basis"
+                           if bounded_table else
+                           f"M5GB bridge/solver exit {code}; no complete basis"),
+                "solver_version": version, "metrics": budget}
     numbers = [int(x) for x in output]
     count = numbers[0]
     basis, offset = [], 1
@@ -46,8 +55,7 @@ def m5gb(equations, n):
     if count < 0 or offset != len(numbers):
         raise ValueError("malformed upstream M5GB basis")
     return {"status": "ok", "basis_terms": basis,
-            "solver_version": "upstream-m5gb-2d063f7+binary-sha256:"
-            + hashlib.sha256(Path(binary).read_bytes()).hexdigest(), "metrics": {}}
+            "solver_version": version, "metrics": budget}
 
 
 def native_xor_sat(equations, n):

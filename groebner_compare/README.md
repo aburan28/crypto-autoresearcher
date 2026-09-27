@@ -101,8 +101,11 @@ python -m unittest groebner_compare.test_research -v
 The published M5GB source host returned HTTP 502 when checked; this separate
 public author repository builds but has a hardcoded sample-file `main.cpp`.
 Our bridge supplies frozen GF(2) equations to its unmodified algorithm.
-The upstream process may crash or return an output that fails certification;
-neither is a verified result. Do not extrapolate this prototype to ECC2K83/131.
+An initial bridge used an undersized monomial table and exited with signal 11
+on the ECC fixture. The checked bridge now uses upstream term-table parameter `d=15`
+and reports exhaustion as `unknown`; this is an adapter resource limit, not
+evidence that the published M5GB algorithm fails. A returned basis is always
+independently certified. Do not extrapolate this prototype to ECC2K83/131.
 
 `cryptanalysis` additionally freezes three planted ECC2K17, three-summand,
 three-coordinate Weil-descended inputs in `ecc2k17_five_way.json`. Run that

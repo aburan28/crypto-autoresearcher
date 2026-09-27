@@ -23,7 +23,14 @@ def main():
                                         "rev-parse", "HEAD"], text=True).strip()
     if revision != COMMIT:
         raise ValueError(f"expected pinned M5GB commit {COMMIT}; got {revision}")
-    subprocess.run(["g++", "-std=c++17", "-O2", "-I", str(args.source),
+    dirty = subprocess.check_output(["git", "-C", str(args.source), "status",
+                                     "--porcelain", "--untracked-files=no"], text=True).strip()
+    if dirty:
+        raise ValueError("upstream M5GB tree must be clean to retain pinned provenance")
+    # Checked std::vector indexing turns exhausted upstream term tables into
+    # an explicit bounded-trial failure instead of undefined memory access.
+    subprocess.run(["g++", "-std=c++17", "-O2", "-D_GLIBCXX_ASSERTIONS",
+                    "-I", str(args.source),
                     str(Path(__file__).with_name("m5gb_bridge.cpp")),
                     *(str(args.source / file) for file in SOURCES),
                     "-o", str(args.output)], check=True)
