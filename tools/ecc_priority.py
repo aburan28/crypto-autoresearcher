@@ -127,9 +127,9 @@ def _goal_of(path):
 # open ideas
 # --------------------------------------------------------------------------
 
-def _rq_area_index() -> dict[str, str]:
+def _rq_area_index(repo: Path = REPO) -> dict[str, str]:
     idx = {}
-    for p in glob.glob(str(REPO / "ledger" / "questions" / "*.yaml")):
+    for p in glob.glob(str(repo / "ledger" / "questions" / "*.yaml")):
         try:
             with open(p) as fh:
                 d = yaml.safe_load(fh)
@@ -144,7 +144,7 @@ def _rq_area_index() -> dict[str, str]:
     return idx
 
 
-def _taken_idea_ids() -> set[str]:
+def _taken_idea_ids(repo: Path = REPO) -> set[str]:
     """Idea ids referenced by any hypothesis or experiment specification."""
     taken: set[str] = set()
     # The legacy three-digit suffix (IDEA-20260801-002) STAYS VALID FOREVER --
@@ -156,7 +156,7 @@ def _taken_idea_ids() -> set[str]:
     # that caught it. Match 3 characters and up.
     pat = re.compile(r"IDEA-\d{8}-[0-9a-zA-Z]{3,8}|[A-Z]+-IDEA-\d+")
     for g in ("ledger/hypotheses/*.yaml", "experiments/*/specification.yaml"):
-        for p in glob.glob(str(REPO / g)):
+        for p in glob.glob(str(repo / g)):
             try:
                 taken.update(pat.findall(Path(p).read_text()))
             except Exception:
@@ -182,24 +182,25 @@ def _taken_idea_ids() -> set[str]:
 PROPOSAL_DIRS = ("proposals", "ideas")
 
 
-def _proposal_paths() -> list[str]:
+def _proposal_paths(repo: Path = REPO) -> list[str]:
     paths: list[str] = []
     for sub in PROPOSAL_DIRS:
-        paths.extend(glob.glob(str(REPO / "ledger" / sub / "*.yaml")))
+        paths.extend(glob.glob(str(repo / "ledger" / sub / "*.yaml")))
     return sorted(paths)
 
 
-def open_ecc_ideas(policy: dict | None = None, area: str | None = None) -> list[dict]:
+def open_ecc_ideas(policy: dict | None = None, area: str | None = None,
+                   *, repo: Path = REPO) -> list[dict]:
     """Open ECC ideas: status `proposed`, and no hypothesis/experiment cites them.
 
     These are ranked work under instruction 3, not backlog.
     """
-    pol = policy if policy is not None else load_policy()
+    pol = policy if policy is not None else load_policy(repo / "orchestration" / "research-priority.yaml")
     areas = ecc_areas(pol)
-    rq_area = _rq_area_index()
-    taken = _taken_idea_ids()
+    rq_area = _rq_area_index(repo)
+    taken = _taken_idea_ids(repo)
     out = []
-    for p in _proposal_paths():
+    for p in _proposal_paths(repo):
         try:
             with open(p) as fh:
                 d = yaml.safe_load(fh)
@@ -228,7 +229,7 @@ def open_ecc_ideas(policy: dict | None = None, area: str | None = None) -> list[
             "question_id": qid,
             "added": str(i.get("added") or ""),
             "title": (i.get("title") or "").replace("\n", " ").strip(),
-            "path": os.path.relpath(p, REPO),
+            "path": os.path.relpath(p, repo),
             "recommended_priority": i.get("recommended_priority"),
         })
     order = {"high": 0, "medium": 1, "low": 2}
