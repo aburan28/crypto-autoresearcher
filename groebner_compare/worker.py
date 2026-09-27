@@ -45,10 +45,27 @@ def solve(name, request):
                         monomial *= variables[i]
                 polynomial += monomial
             polys.append(polynomial)
-        basis = ring.ideal(polys).groebner_basis()
-        rows = [[sum(1 << i for i, variable in enumerate(variables)
-                     if variable in monomial.variables())
-                 for monomial in polynomial.monomials()] for polynomial in basis]
+        # Sage's BooleanPolynomialRing(..., order="degrevlex") returns monomial
+        # .variables() tuples whose *name* is reversed relative to the ring's own
+        # gens() (variables[i] reports as variables()[n-1-i]); matching by object
+        # or name against `variables` silently mismasks every non-palindromic
+        # monomial. The monomial's own string form is not affected, so mask
+        # from that instead. An explicit empty-generator groebner_basis() call
+        # also raises IndexError in this Sage/PolyBoRi version; the zero ideal's
+        # basis is the empty list by definition, so skip the call entirely.
+        basis = ring.ideal(polys).groebner_basis() if polys else []
+        names = {f"x{i}": i for i in range(n)}
+        def mask_of(monomial):
+            mask = 0
+            for token in str(monomial).split("*"):
+                token = token.strip()
+                if token in names:
+                    mask |= 1 << names[token]
+                elif token != "1":
+                    raise ValueError(f"unrecognized PolyBoRi monomial token: {token!r}")
+            return mask
+        rows = [[mask_of(monomial) for monomial in polynomial.monomials()]
+                for polynomial in basis]
         version = SAGE_VERSION
     elif name == "repository-f5b":
         source = Path(__file__).resolve().parents[1] / "experiments/pdp-scaling"
