@@ -1,0 +1,59 @@
+name: Groebner comparison protocol
+on:
+  pull_request:
+    paths: ['groebner_compare/**', '.github/workflows/groebner-comparison.yml']
+  push:
+    paths: ['groebner_compare/**', '.github/workflows/groebner-comparison.yml']
+permissions:
+  contents: read
+jobs:
+  protocol:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install sympy==1.14.0
+      - run: python -m unittest groebner_compare.test_protocol -v
+      - run: python -m groebner_compare.runner groebner_compare/smoke.json --output /tmp/groebner-smoke
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: boolean-protocol-smoke
+          path: /tmp/groebner-smoke
+  julia-adapter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.11'
+      - name: Resolve adapter dependencies (not benchmark evidence)
+        run: julia --project=.ci-julia -e 'using Pkg; Pkg.add(["Groebner", "AbstractAlgebra", "JSON3"]); Pkg.status()'
+      - name: Check real learn, apply, support rejection, and fresh solve
+        env:
+          TEST_GROEBNER_JULIA: '1'
+        run: python -m unittest groebner_compare.test_protocol.ProtocolTests.test_julia_adapter -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: julia-adapter-environment
+          path: .ci-julia/*toml
+  polybori-adapter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: sagemath/sagemath:10.6
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check real PolyBoRi output against original Boolean equations
+        env:
+          TEST_GROEBNER_SAGE: '1'
+        run: sage -python -m unittest groebner_compare.test_protocol.ProtocolTests.test_polybori_adapter -v
