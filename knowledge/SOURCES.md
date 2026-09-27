@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7981 |
-| — with a resolvable external identifier | 2368 |
+| Literature entries (`KN-LIT-*`) | 8001 |
+| — with a resolvable external identifier | 2388 |
 | — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1340, doi 175, eprint 811, url 42. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1342, doi 175, eprint 829, url 42. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7520, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 412.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7520, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 432.
 
 ## 1. Frozen source packages
 
@@ -217,7 +217,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2368 of 7981 `KN-LIT-*` entries carry an
+2388 of 8001 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -239,6 +239,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-014 | The number of roots of a system of equations (Bernstein / BKK bound) | 1975 | `doi:10.1007/bf01075595` | web |
 | KN-LIT-015 | A polyhedral method for solving sparse polynomial systems | 1995 | `doi:10.1090/s0025-5718-1995-1297471-4` | web |
 | KN-LIT-016 | Solving sparse linear equations over finite fields | 1986 | `doi:10.1109/tit.1986.1057137` | web |
+| KN-LIT-016039 | Provable dual attack on LWE via lattice projection | 2026 | `eprint:2026/2117` | web |
 | KN-LIT-017 | Solving homogeneous linear equations over GF(2) via block Wiedemann algorithm | 1994 | `doi:10.1090/s0025-5718-1994-1192970-7` | web |
 | KN-LIT-018 | The Tate pairing via elliptic nets | 2007 | `eprint:2006/392` | web |
 | KN-LIT-019 | On the number of incidences between points and planes in three dimensions | 2018 | `arxiv:1407.0426` | web |
@@ -482,6 +483,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-1127 | MAZUR’S MAIN CONJECTURE AT EISENSTEIN PRIMES | 2023 | `arxiv:2303.04373` | read |
 | KN-LIT-1128 | Minimizing CNOT-count in quantum circuit of the extended Shor’s algorithm for ECDLP | 2023 | `arxiv:2305.11410` | read |
 | KN-LIT-1129 | Modular algorithms for Gross–Stark units and Stark–Heegner points arXiv:2301.08977v1 [math.NT] 21 Jan 2023 Håvard Damm-Johnsen | 2023 | `arxiv:2301.08977` | read |
+| KN-LIT-112bad | Exposing SIMD Parallelism in SQIsign: An AVX-512 Implementation | 2026 | `eprint:2026/1713` | web |
 | KN-LIT-113 | Revisiting Lattice Attacks on Overstretched NTRU Parameters | 2017 | `doi:10.1007/978-3-319-56620-7_1` | web |
 | KN-LIT-1130 | Mordell-Weil groups as Galois modules | 2023 | `arxiv:2306.13365` | read |
 | KN-LIT-1131 | MULTIPLICATION POLYNOMIALS FOR ELLIPTIC CURVES OVER FINITE LOCAL RINGS | 2023 | `arxiv:2302.03650` | read |
@@ -1658,6 +1660,8 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-397 | In memory of Andrei Zelevinsky | 2013 | `arxiv:1310.2581` | read |
 | KN-LIT-398 | International Journal of Computer Science and Business Informatics IJCSBI.ORG | 2013 | `arxiv:1309.0245` | read |
 | KN-LIT-399 | Modularity and integral points on moduli schemes | 2013 | `arxiv:1310.7263` | read |
+| KN-LIT-3b006a | Incomplete Ciphertext Comparison in ML-KEM: From an IND-CCA2 Break to Key Recovery | 2026 | `eprint:2026/1682` | web |
+| KN-LIT-3b271a | The ePrint:2026/1591 Quantum Algorithm Does Not Solve DCP | 2026 | `eprint:2026/1693` | web |
 | KN-LIT-3bccde | Index Calculus Attacks on Hyperelliptic Jacobians with Effective Endomorphisms | 2021 | `eprint:2021/721` | web |
 | KN-LIT-3c87b9 | RACE: a Rapid ARM Cryptographic Engine for code-based Classic McEliece PQC scheme | 2025 | `eprint:2025/2310` | web |
 | KN-LIT-3c9f21 | A distinguisher for high rate McEliece cryptosystems | 2010 | `eprint:2010/331` | web |
@@ -1746,6 +1750,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-468 | GALOIS REPRESENTATIONS ATTACHED TO ABELIAN VARIETIES OF CM TYPE by Davide Lombardo | 2015 | `arxiv:1506.04734` | read |
 | KN-LIT-469 | GENERALIZED HEEGNER CYCLES AT EISENSTEIN PRIMES AND THE KATZ p-ADIC L-FUNCTION | 2015 | `arxiv:1512.05032` | read |
 | KN-LIT-469ff0 | The Certicom Challenges ECC2-X | 2009 | `eprint:2009/466` | web |
+| KN-LIT-46aae8 | Square Root of All Evil: The Dangers of Falcon's Superfluous Square Roots | 2026 | `eprint:2026/2046` | web |
 | KN-LIT-470 | HORIZONTAL ISOGENY GRAPHS OF ORDINARY ABELIAN | 2015 | `arxiv:1506.00522` | read |
 | KN-LIT-471 | INDEPENDENCE OF THE ZEROS OF ELLIPTIC CURVE L-FUNCTIONS OVER FUNCTION FIELDS | 2015 | `arxiv:1502.05294` | read |
 | KN-LIT-472 | INTEGRAL IWASAWA THEORY OF GALOIS REPRESENTATIONS FOR NON-ORDINARY PRIMES | 2015 | `arxiv:1511.06986` | read |
@@ -1813,6 +1818,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-520 | PREDICTING THE ELLIPTIC CURVE CONGRUENTIAL GENERATOR LÁSZLÓ MÉRAI | 2016 | `arxiv:1609.03305` | read |
 | KN-LIT-521 | Ranks of the Rational Points of Abelian Varieties over Ramified Fields, and Iwasawa Theory for Primes with Non-Ordinary Reduction | 2016 | `arxiv:1608.03315` | read |
 | KN-LIT-522 | REDUCTIONS OF POINTS ON ALGEBRAIC GROUPS | 2016 | `arxiv:1612.02847` | read |
+| KN-LIT-5228f3 | Too Small to Hide: Single-Trace Key Recovery from ML-KEM Key Generation | 2026 | `eprint:2026/2137` | web |
 | KN-LIT-523 | REMARKS ON AUTOMORPHY OF RESIDUALLY DIHEDRAL REPRESENTATIONS | 2016 | `arxiv:1607.04750` | read |
 | KN-LIT-524 | Root numbers and parity of local Iwasawa invariants | 2016 | `arxiv:1608.08078` | read |
 | KN-LIT-525 | SHADOW LINES IN THE ARITHMETIC OF ELLIPTIC CURVES | 2016 | `arxiv:1610.08729` | read |
@@ -2002,6 +2008,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-684 | Leveraging Linear Decryption: Rate-1 Fully-Homomorphic Encryption and Time-Lock Puzzles? | 2019 | `eprint:2019/720` | read |
 | KN-LIT-6847 | Structure-Preserving Cryptography |  | `doi:10.1007/s00145-014-9196-7` | read |
 | KN-LIT-685 | Mixture Integral Attacks on Reduced-Round AES with a Known/Secret S-Box | 2019 | `eprint:2019/772` | read |
+| KN-LIT-68585e | Quantum Algorithm for Elliptic Curve Discrete Logarithms with Space-Efficient Point Addition | 2026 | `arxiv:2607.13816` | web |
 | KN-LIT-686 | Modularity of GL2(Fp)-representations over CM fields | 2019 | `arxiv:1910.12986` | read |
 | KN-LIT-687 | MORDELL-WEIL RANKS AND TATE-SHAFAREVICH GROUPS OF ELLIPTIC CURVES WITH MIXED-REDUCTION TYPE OVER CYCLOTOMIC EXTENSIONS | 2019 | `arxiv:1911.10643` | read |
 | KN-LIT-688 | MÖBIUS FORMULAS FOR DENSITIES OF SETS OF PRIME IDEALS | 2019 | `arxiv:1907.02914` | read |
@@ -2203,6 +2210,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-7667 | Careful with the Ring: Enhanced Hybrid Decoding Attacks against Module/Ring-LWE | 2026 | `eprint:2026/366` | web |
 | KN-LIT-7668 | Sharper and Closed-Form Attacks on SIS When Modulus Is Small | 2026 | `eprint:2026/1349` | web |
 | KN-LIT-7669 | Solving SIS in any norm via Gaussian sampling | 2026 | `eprint:2026/225` | web |
+| KN-LIT-766b4e | Computing 256-bit elliptic curve discrete logarithms in 26 days on a fault-tolerant trapped-ion quantum computer with 20,000 qubits | 2026 | `eprint:2026/1916` | web |
 | KN-LIT-767 | Fixslicing AES-like Ciphers New bitsliced AES speed records on ARM-Cortex M and RISC-V | 2020 | `eprint:2020/1123` | read |
 | KN-LIT-7670 | Cryptanalysis of HAWK: a Guessing Game | 2026 | `eprint:2026/1318` | web |
 | KN-LIT-7671 | Exploiting the complexity of Lattice Isomorphism Problem via Irreducible Decomposition | 2026 | `eprint:2026/1139` | web |
@@ -2233,6 +2241,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-788 | New (k, l, m)-verifiable multi-secret sharing schemes based on XTR public key system | 2020 | `arxiv:2011.08648` | read |
 | KN-LIT-789 | New Representations of the AES Key Schedule | 2020 | `eprint:2020/1253` | read |
 | KN-LIT-790 | NIZK from LPN and Trapdoor Hash via Correlation Intractability for Approximable Relations ? | 2020 | `eprint:2020/258` | read |
+| KN-LIT-7909ee | Every Signing Leaks: Breaking Falcon via Floating-Point Conversion Leakage | 2026 | `eprint:2026/2124` | web |
 | KN-LIT-791 | nordita 2020-007 | 2020 | `arxiv:2009.14513` | read |
 | KN-LIT-792 | ON 2-SELMER GROUPS AND QUADRATIC TWISTS OF ELLIPTIC CURVES | 2020 | `arxiv:2001.02263` | read |
 | KN-LIT-793 | ON BLOCH–KATO SELMER GROUPS AND IWASAWA THEORY OF p-ADIC GALOIS REPRESENTATIONS | 2020 | `arxiv:2010.10251` | read |
@@ -2277,6 +2286,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-817 | SPANNING THE ISOGENY CLASS OF A POWER OF AN ELLIPTIC CURVE | 2020 | `arxiv:2004.08315` | read |
 | KN-LIT-818 | SUPERSINGULAR MAIN CONJECTURES, SYLVESTER’S CONJECTURE AND GOLDFELD’S CONJECTURE | 2020 | `arxiv:2002.04767` | read |
 | KN-LIT-819 | TAMAGAWA NUMBER DIVISIBILITY OF CENTRAL L-VALUES OF TWISTS OF THE FERMAT ELLIPTIC CURVE | 2020 | `arxiv:2003.02772` | read |
+| KN-LIT-81c4b3 | Recovering SNOVA Secret Keys from Biased Vinegar Sampling | 2026 | `eprint:2026/2154` | web |
 | KN-LIT-820 | TAMELY RAMIFIED COVERS OF THE PROJECTIVE LINE WITH | 2020 | `arxiv:2007.12299` | read |
 | KN-LIT-821 | Tandem Deep Learning Side-Channel Attack Against FPGA Implementation of AES | 2020 | `eprint:2020/373` | read |
 | KN-LIT-822 | The absolute discriminant of the endomorphism ring of most reductions of a non-CM elliptic curve is close to maximal | 2020 | `arxiv:2003.01253` | read |
@@ -2487,6 +2497,8 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-99dfe4 | On the discrete logarithm problem for prime-field elliptic curves | 2018 | `eprint:2017/609` | web |
 | KN-LIT-9a915c | Isogenous hyperelliptic and non-hyperelliptic Jacobians with maximal complex multiplication | 2022 | `arxiv:2104.04919` | read |
 | KN-LIT-a24b73 | Triple Cryptanalysis of Isogeny-Based VRFs from Asiacrypt 2025 | 2026 | `eprint:2026/1623` | read |
+| KN-LIT-a25516 | Quantum Resource Optimization for CSIDH | 2026 | `eprint:2026/1707` | web |
+| KN-LIT-a2a423 | Rigorous Statements and Proofs of the Lemmas in Simon's Algorithm for the Dihedral Coset Problem and Their Underlying Hypothesis | 2026 | `eprint:2026/1714` | web |
 | KN-LIT-a2f7b3 | Last fall degree of semi-local polynomial systems | 2023 | `arxiv:2311.02804` | web |
 | KN-LIT-a409fc | New approaches to reduced complexity decoding | 1991 | `doi:10.1016/0166-218x(91)90107-8` | web |
 | KN-LIT-a4b3d8 | RCKangaroo (SOTA/SOTA+ kangaroo with symmetry) and Kang-1/Kang-2 method write-ups | 2024 | `url:github.com/retiredc/rckangaroo` | web |
@@ -2512,6 +2524,8 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-b777d1 | Algebraic approach for code equivalence | 2018 | `doi:10.70675/4409179fzb277z4e80z8334z16f39e22980c` | web |
 | KN-LIT-b8093a | Solving the Shortest Vector Problem in 2^{0.6039n} Time via Mid-point Hessian | 2026 | `eprint:2026/1597` | read |
 | KN-LIT-b8a8be | Memory-efficient quantum information set decoding algorithm | 2023 | `doi:10.1007/978-3-031-35486-1_20` | web |
+| KN-LIT-b901b9 | Optimal Bucket Set Construction for Multi-scalar Multiplication with Endomorphisms | 2026 | `eprint:2026/1902` | web |
+| KN-LIT-b97b9f | Quasipolynomial Cryptanalysis of the McEliece Cryptosystem (or: PIR Meets McEliece) — August revision | 2026 | `eprint:2026/1630` | web |
 | KN-LIT-b9d3e0 | How to backdoor (Classic) McEliece and how to guard against backdoors | 2022 | `eprint:2022/362` | web |
 | KN-LIT-b9e1a8 | Hamming Quasi-Cyclic (HQC) | 2025 | `url:pqc-hqc.org/doc/hqc_specifications_2025_08_22.pdf` | read |
 | KN-LIT-bb53c1 | A non asymptotic analysis of information set decoding | 2013 | `eprint:2013/162` | web |
@@ -2524,7 +2538,9 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-c14d68 | An Efficient Variant of F4 Algorithm for Solving MQ Problem | 2026 | `eprint:2023/1650` | web |
 | KN-LIT-c2c4d0 | Reaction attacks against several public-key cryptosystems | 1999 | `url:cypherpunks.ca/~iang/pubs/paper-reaction-attacks.pdf` | false |
 | KN-LIT-c41d8b | Polynomial time key-recovery attack on high rate random alternant codes (boundary corrected: generic alternant only, Goppa codes explicitly excluded) | 2024 | `arxiv:2304.14757` | transcription_of_full_text_at_recorded_sha256 |
+| KN-LIT-c42d33 | When Module Lattice Leaks: Horizontal Fusion Attacks on ML-DSA Implementation | 2026 | `eprint:2026/1904` | web |
 | KN-LIT-c4974d | Analysis of backdoored (Classic) McEliece in a multi-user setting | 2024 | `doi:10.1007/978-981-95-0172-4_1` | web |
+| KN-LIT-c5966a | An Attack on High Rate McEliece Cryptosystems Using Generalized Reed Solomon Codes with Weight 2 Mask | 2026 | `arxiv:2607.25027` | web |
 | KN-LIT-c5d918 | Improving the parallelized Pollard lambda search on anomalous binary curves | 2000 | `doi:10.1090/s0025-5718-99-01119-9` | web |
 | KN-LIT-c5dceb | Equations System coming from Weil descent and subexponential attack for algebraic curve cryptosystem (Draft) | 2013 | `eprint:2013/549` | read |
 | KN-LIT-c75942 | ECC2K-130 on NVIDIA GPUs | 2010 | `eprint:2012/002` | web |
@@ -2532,15 +2548,18 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-c8e485 | On the Correct Use of the Negation Map in the Pollard rho Method | 2011 | `eprint:2011/003` | read |
 | KN-LIT-c9a235 | A New Method for Geometric Interpretation of Elliptic Curve Discrete Logarithm Problem | 2019 | `eprint:2019/1059` | web |
 | KN-LIT-caabe2 | Two decoding algorithms for linear codes | 1989 | `url:www.mathnet.ru/eng/ppi635` | false |
+| KN-LIT-cc9e69 | New algorithms for quaternion ideals in SQIsign | 2026 | `eprint:2026/2153` | web |
 | KN-LIT-cd29fd | Quantum sieving for code-based cryptanalysis and its limitations for ISD | 2025 | `eprint:2024/1358` | web |
 | KN-LIT-cd9880 | McEliece cryptosystem implementation: theory and practice | 2008 | `doi:10.1007/978-3-540-88403-3_4` | web |
 | KN-LIT-ced593 | On the complexity of some cryptographic problems based on the general decoding problem | 2002 | `doi:10.1109/isit.1998.709047` | web |
 | KN-LIT-d0370b | New Exchanged Boomerang Distinguishers for 5-Round AES | 2025 | `eprint:2025/248` | read |
+| KN-LIT-d053a1 | Keep Track of Your Errors: Solving ILWE and Improving Attacks on ML-DSA | 2026 | `eprint:2026/2091` | web |
 | KN-LIT-d15818 | FPGA-based Niederreiter cryptosystem using binary Goppa codes | 2018 | `eprint:2017/1180` | web |
 | KN-LIT-d3ec68 | Preimage Attacks on 3-Pass HAVAL and Step-Reduced MD5 | 2008 | `eprint:2008/183` | read |
 | KN-LIT-d4f467 | Embedded Elliptic Curves and Embedded Families for SNARK-Friendly Elliptic Curves | 2024 | `eprint:2024/1737` | read |
 | KN-LIT-d5b1a7 | Fast hardware architecture with efficient matrix computations for the key generation of Classic McEliece | 2025 | `doi:10.1109/tcsi.2025.3528119` | web |
 | KN-LIT-d5baac | Post-quantum WireGuard | 2021 | `eprint:2020/379` | web |
+| KN-LIT-d5f69c | Faster SVP in Polynomial Space | 2026 | `eprint:2026/2084` | web |
 | KN-LIT-d6d510 | An attack on the CFS scheme and on TII McEliece challenges | 2026 | `eprint:2026/430` | web |
 | KN-LIT-d78021 | AI for code-based cryptography | 2025 | `eprint:2025/440` | web |
 | KN-LIT-d82a53 | A note on the Goppa code distinguishing problem | 2025 | `eprint:2025/1661` | web |
@@ -2563,6 +2582,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-ebd657 | Decomposition formula of the Jacobian group of plane curve (Draft) | 2013 | `eprint:2013/548` | read |
 | KN-LIT-edd7ba | Point compression for the trace zero subgroup over a small degree extension field (read at source) | 2014 | `arxiv:1403.0126` | read |
 | KN-LIT-ef4327 | Concrete time/memory trade-offs in generalised Stern's ISD algorithm | 2023 | `eprint:2023/1940` | web |
+| KN-LIT-f0a590 | A Forgery Attack against Frobenius-UOV | 2026 | `eprint:2026/1927` | web |
 | KN-LIT-f1073f | On breaking McEliece keys using brute force | 2025 | `eprint:2025/632` | web |
 | KN-LIT-f1eb40 | Algebraic key-recovery side-channel attack on Classic McEliece | 2025 | `doi:10.1007/978-3-032-10536-3_20` | web |
 | KN-LIT-f28b46 | Revisiting nearest-neighbor-based information set decoding | 2022 | `eprint:2022/1328` | web |
@@ -8256,6 +8276,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `eprint:2025/248` | KN-LIT-1424, KN-LIT-d0370b |
 | `eprint:2025/531` | KN-LIT-6b1fc8, KN-LIT-7ee1a9 |
 | `eprint:2026/1318` | KN-LIT-7670, KN-LIT-7674 |
+| `eprint:2026/1630` | KN-LIT-7baf07, KN-LIT-b97b9f |
 | `eprint:2026/366` | KN-LIT-7667, KN-LIT-7c2620 |
 | `eprint:2026/500` | KN-LIT-1642, KN-LIT-3f24a6 |
 | `url:cdn.openai.com/pdf/ten-proofs-oai.pdf` | KN-LIT-7637, KN-LIT-7640 |
