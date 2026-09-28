@@ -1,0 +1,161 @@
+task_id: TASK-20260926-9fef40
+kind: blind_rederivation
+recorded_at: "2026-09-26"
+script: coordination/review/icperf-aa2efc-20260926/reviews/TASK-20260926-9fef40/rederive.py
+script_sha256: 000abe25ecc3f80b464e6274a754e81c0383c626809fe084b0d84938c33653f0
+environment:
+  python: "3.11.15"
+  mpmath: "1.3.0"
+  determinism_check: "script run twice; outputs byte-identical"
+
+parameters_verbatim: |
+  r = 680564733841876926932320129493409985129. n = 131. m ranges over {2, 3, 4, 5, 6, 8}.
+  C(a, b) is the exact binomial coefficient (for non-integer a, use the falling-factorial
+  form a(a-1)...(a-b+1)/b!; state which form you use where l is real). Report every
+  logarithmic value in bits (log base 2) to 4 decimal places.
+
+quantities_verbatim: |
+  Q1. F(m; N, s) = min over real l >= 1 of [ 2^(l-s) * N / C(2^(l-s), m)  +  m * 2^(2(l-s)) ],
+  for each m, at (N, s) = (4r, 0) and at (N, s) = (r, 2). Report for each (m, N, s): the
+  optimising l (call it l*), the two summands at l*, and log2 F. Also report the same minimum
+  over INTEGER l only.
+  Q2. T(m; N, s) = 2^(l*-s) * N / C(2^(l*-s), m) at the real-l optimum l* of Q1 (the first
+  summand alone), in bits; and B(m; N, s) = log2(R) - log2(T(m; N, s)) in bits, where R is Q3.
+  Q3. R = sqrt(pi * r / (4 * 131)), in bits.
+  Q4. The exact ratio C(2^l*, m-1) / C(2^l*, m) at the (N, s) = (4r, 0) optimum l* of Q1 (use
+  the integer l nearest l* so the binomials are exact), compared with m / 2^l: report both and
+  their ratio.
+  Q5. For the curve y^2 + x y = x^3 + 1 over F_2 (so a = 0, b = 1): compute #E(F_2) by hand
+  (list the points), obtain the trace t = 2 + 1 - #E(F_2), and use the recurrence for
+  #E(F_{2^k}) = 2^k + 1 - (alpha^k + beta^k) where alpha, beta are the roots of X^2 - t X + 2
+  (equivalently the integer recurrence s_k = t s_{k-1} - 2 s_{k-2}, s_0 = 2, s_1 = t) to
+  compute #E(F_{2^131}) exactly. Report whether #E(F_{2^131}) equals 4 * r, and test r for
+  primality with a deterministic-enough Miller-Rabin (at least 40 random bases, plus the small
+  primes), reporting the result.
+
+method_notes:
+  binomial_form: >
+    For real l the binomial C(x, m) with x = 2^(l-s) is the falling-factorial form
+    x(x-1)...(x-m+1)/m!. For integer l (and s <= l) x is an integer and this equals
+    math.comb(x, m); the integer-l minimum and Q4/Q5 use exact Python integers and
+    fractions.Fraction.
+  domain: >
+    The falling-factorial C(x, m) is zero at x in {0,...,m-1} and negative on some
+    sub-intervals below m-1, where the objective is undefined or unbounded below. The
+    real-l minimisation is therefore taken over l >= max(1, s + log2(m-1)) + 1e-9, i.e.
+    2^(l-s) > m-1 and l >= 1. The optimum lies at 2^(l*-s) ~ N^(1/(m+1)) (2^16 .. 2^43),
+    far inside that domain, so the restriction never binds. Integer-l candidates with
+    C(x, m) <= 0 are skipped for the same reason (only l=1 at s=2 is affected).
+  real_l_minimisation: >
+    mpmath at 60 decimal digits. The objective is convex in x and x = 2^(l-s) is monotone
+    in l, so it is unimodal in l; golden-section search over l in [domain floor, 400] for
+    260 iterations (bracket width ~1e-50), followed by a secant polish (mpmath.findroot) on
+    the numerical derivative, accepted only when it lowers the objective; a final check
+    asserts the objective is not lower at l* +/- 1e-6. Sanity: the first-order condition
+    x^(m+1) = (m-1)!(m-1) N / 2 predicts l* = 130/3 (m=2, 4r,0), 33 (m=3, 4r,0) and
+    l*-2 = 128/3 (m=2, r,2), matching the search.
+  integer_l_minimisation: >
+    Exhaustive over integer l in [1, 400] with exact Fraction arithmetic; log2 taken with
+    mpmath at 60 digits on the exact fraction.
+  logs: "All bits values are log2 computed at 60 digits and rounded to 4 decimals."
+  q4: >
+    l_int = nearest integer to l* from Q1 at (4r, 0). The exact ratio
+    C(2^l, m-1)/C(2^l, m) = m/(2^l - m + 1) (verified by computing both binomials with
+    math.comb and comparing to the closed form); compared with m/2^l, whose quotient is
+    2^l/(2^l - m + 1).
+  q5: >
+    Points enumerated over F_2 by direct substitution; trace from #E(F_2); s_k by the
+    exact integer recurrence; Hasse bound checked. Primality of r: trial division by all
+    primes < 10000, then Miller-Rabin with 65 bases = the 25 smallest primes plus 40
+    bases drawn from random.Random(20260926).randrange(2, r-2) (fixed seed, so the run
+    is reproducible).
+
+results:
+  Q3:
+    r_minus_2_pow_129: 5570914629873562217
+    log2_r_bits: 129.0000
+    log2_R_bits: 60.8090
+    R_value: 2019965784670703549.472754
+  Q1:
+    "(N,s)=(4r,0)":
+      m2: {real_l: {l_star: 43.3333333333, term1_log2: 88.6667, term2_log2: 87.6667, log2_F: 89.2516}, integer_l: {l_int: 43, term1_log2: 89.0000, term2_log2: 87.0000, log2_F: 89.3219}}
+      m3: {real_l: {l_star: 33.0000000002, term1_log2: 67.5850, term2_log2: 67.5850, log2_F: 68.5850}, integer_l: {l_int: 33, term1_log2: 67.5850, term2_log2: 67.5850, log2_F: 68.5850}}
+      m4: {real_l: {l_star: 26.8339850196, term1_log2: 55.0830, term2_log2: 55.6680, log2_F: 56.4049}, integer_l: {l_int: 27, term1_log2: 54.5850, term2_log2: 56.0000, log2_F: 56.4594}}
+      m5: {real_l: {l_star: 22.7641608387, term1_log2: 46.8502, term2_log2: 47.8502, log2_F: 48.4352}, integer_l: {l_int: 23, term1_log2: 45.9069, term2_log2: 48.3219, log2_F: 48.5699}}
+      m6: {real_l: {l_star: 19.8898350602, term1_log2: 41.0427, term2_log2: 42.3646, log2_F: 42.8501}, integer_l: {l_int: 20, term1_log2: 40.4919, term2_log2: 42.5850, log2_F: 42.8887}}
+      m8: {real_l: {l_star: 16.1230233138, term1_log2: 33.4386, term2_log2: 35.2460, log2_F: 35.6086}, integer_l: {l_int: 16, term1_log2: 34.2998, term2_log2: 35.0000, log2_F: 35.6920}}
+    "(N,s)=(r,2)":
+      m2: {real_l: {l_star: 44.6666666667, log2_x_star: 42.6666666667, term1_log2: 87.3333, term2_log2: 86.3333, log2_F: 87.9183}, integer_l: {l_int: 45, term1_log2: 87.0000, term2_log2: 87.0000, log2_F: 88.0000}}
+      m3: {real_l: {l_star: 34.5000000003, log2_x_star: 32.5000000003, term1_log2: 66.5850, term2_log2: 66.5850, log2_F: 67.5850}, integer_l: {l_int: 35, term1_log2: 65.5850, term2_log2: 67.5850, log2_F: 67.9069}}
+      m4: {real_l: {l_star: 28.4339850257, log2_x_star: 26.4339850257, term1_log2: 54.2830, term2_log2: 54.8680, log2_F: 55.6049}, integer_l: {l_int: 28, term1_log2: 55.5850, term2_log2: 54.0000, log2_F: 56.0000}}
+      m5: {real_l: {l_star: 24.4308276150, log2_x_star: 22.4308276150, term1_log2: 46.1836, term2_log2: 47.1836, log2_F: 47.7685}, integer_l: {l_int: 24, term1_log2: 47.9069, term2_log2: 46.3219, log2_F: 48.3219}}
+      m6: {real_l: {l_star: 21.6041216108, log2_x_star: 19.6041216108, term1_log2: 40.4713, term2_log2: 41.7932, log2_F: 42.2786}, integer_l: {l_int: 22, term1_log2: 38.4919, term2_log2: 42.5850, log2_F: 42.6671}}
+      m8: {real_l: {l_star: 17.9008130609, log2_x_star: 15.9008130609, term1_log2: 32.9942, term2_log2: 34.8016, log2_F: 35.1642}, integer_l: {l_int: 18, term1_log2: 32.2998, term2_log2: 35.0000, log2_F: 35.2065}}
+    note: "term1 = 2^(l-s) N / C(2^(l-s), m); term2 = m 2^(2(l-s)); log2_x_star = l* - s. At (4r,0) log2_x_star equals l_star."
+  Q2:
+    "(N,s)=(4r,0)":
+      m2: {log2_T: 88.6667, B_bits: -27.8576}
+      m3: {log2_T: 67.5850, B_bits: -6.7759}
+      m4: {log2_T: 55.0830, B_bits: 5.7260}
+      m5: {log2_T: 46.8502, B_bits: 13.9588}
+      m6: {log2_T: 41.0427, B_bits: 19.7663}
+      m8: {log2_T: 33.4386, B_bits: 27.3704}
+    "(N,s)=(r,2)":
+      m2: {log2_T: 87.3333, B_bits: -26.5243}
+      m3: {log2_T: 66.5850, B_bits: -5.7759}
+      m4: {log2_T: 54.2830, B_bits: 6.5260}
+      m5: {log2_T: 46.1836, B_bits: 14.6255}
+      m6: {log2_T: 40.4713, B_bits: 20.3378}
+      m8: {log2_T: 32.9942, B_bits: 27.8149}
+    note: "B = log2(R) - log2(T) with log2(R) = 60.8090 (Q3)."
+  Q4:
+    m2: {l_int: 43, exact_ratio: "2/8796093022207", exact_ratio_log2: -42.0000, m_over_2l_log2: -42.0000, quotient_exact_over_naive: 1.00000000000011368683772162895, quotient_minus_1: 1.1368684e-13}
+    m3: {l_int: 33, exact_ratio: "3/8589934590", exact_ratio_log2: -31.4150, m_over_2l_log2: -31.4150, quotient_exact_over_naive: 1.00000000023283064370807973754, quotient_minus_1: 2.3283064e-10}
+    m4: {l_int: 27, exact_ratio: "4/134217725", exact_ratio_log2: -25.0000, m_over_2l_log2: -25.0000, quotient_exact_over_naive: 1.00000002235174229037185662326, quotient_minus_1: 2.2351742e-8}
+    m5: {l_int: 23, exact_ratio: "5/8388604", exact_ratio_log2: -20.6781, m_over_2l_log2: -20.6781, quotient_exact_over_naive: 1.00000047683738557690886350101, quotient_minus_1: 4.7683739e-7}
+    m6: {l_int: 20, exact_ratio: "6/1048571", exact_ratio_log2: -17.4150, m_over_2l_log2: -17.4150, quotient_exact_over_naive: 1.00000476839431950721505744485, quotient_minus_1: 4.7683943e-6}
+    m8: {l_int: 16, exact_ratio: "8/65529", exact_ratio_log2: -12.9998, m_over_2l_log2: -13.0000, quotient_exact_over_naive: 1.00010682293335775000381510476, quotient_minus_1: 1.0682293e-4}
+    note: "C(2^l, m-1)/C(2^l, m) = m/(2^l - m + 1) exactly; its quotient by m/2^l is 2^l/(2^l - m + 1), i.e. 1 + (m-1)/(2^l - m + 1)."
+  Q5:
+    curve: "y^2 + x y = x^3 + 1 over F_2 (a = 0, b = 1)"
+    points_by_hand: >
+      x=0: y^2 = 1 -> y = 1, point (0,1). x=1: y^2 + y = 1 + 1 = 0 -> y in {0,1}, points
+      (1,0), (1,1). Plus the point at infinity.
+    affine_points_F2: [[0, 1], [1, 0], [1, 1]]
+    E_F2_order: 4
+    trace_t: -1
+    characteristic_polynomial: "X^2 + X + 2"
+    s_131: -22283658519494248867
+    hasse_bound_ok: true
+    E_F2_131_order: 2722258935367507707729280517973639940516
+    four_r: 2722258935367507707729280517973639940516
+    order_equals_4r: true
+    order_div_4: 680564733841876926932320129493409985129
+    primality_of_r:
+      trial_division_primes_below_10000_no_factor: true
+      miller_rabin_bases: 65
+      miller_rabin_base_selection: "25 smallest primes + 40 bases from random.Random(20260926).randrange(2, r-2)"
+      miller_rabin_witnesses_found: 0
+      r_probable_prime: true
+      error_bound_note: "Miller-Rabin with 65 independent-ish bases; a composite passes with probability at most 4^-40 for the random bases alone. Not a primality certificate."
+
+review_attestation:
+  task_id: TASK-20260926-9fef40
+  joints_owned: [Q1, Q2, Q3, Q4, Q5]
+  sources_read:
+    - coordination/review/icperf-aa2efc-20260926/reviews/TASK-20260926-9fef40/rederive.py
+    - coordination/review/icperf-aa2efc-20260926/reviews/TASK-20260926-9fef40/rederivation-report.yaml
+  sources_read_note: >
+    Only the two files written by this task were opened (the script, to write and execute
+    it; this report, to write it). No other repository, note, or web source was opened,
+    grepped, or searched. Two scratch copies of the script's stdout were written under the
+    session scratchpad (/tmp/claude-0/.../scratchpad/run1.txt, run2.txt) solely for the
+    determinism byte-comparison; they are not part of the deliverable.
+  read_sibling_reports: false
+  blind_from_respected: true
+  verdict:
+    Q1: derived
+    Q2: derived
+    Q3: derived
+    Q4: derived
+    Q5: derived
