@@ -1,0 +1,272 @@
+CC  ?= clang
+LD  = $(CC)
+
+
+ifndef PROJ
+PROJ = ref
+#PROJ = amd64
+#PROJ = ssse3
+#PROJ = avx2
+#PROJ = gfni
+endif
+
+
+SRC_DIR  = ./src
+UTIL_DIR = ./utils
+
+
+# A command line CFLAGS replaces the flags below instead of extending them.
+ifeq ($(origin CFLAGS),command line)
+$(error CFLAGS on the command line replaces the build flags; use EXTRA_CFLAGS=... instead)
+endif
+
+CFLAGS   := -O3 $(CFLAGS) -std=c99 -Wall -Wextra -Wpedantic -Werror -fno-omit-frame-pointer
+INCPATH  := -I/usr/local/include -I/opt/local/include -I/usr/include -I$(SRC_DIR) -I$(UTIL_DIR) -Iunit_tests -Ibenchmark
+LIBS     = -lcrypto
+
+
+ifdef ASAN
+CFLAGS  += -fsanitize=address -fno-sanitize-recover=all
+LDFLAGS += -fsanitize=address -fno-sanitize-recover=all
+endif
+
+ifdef UBSAN
+CFLAGS  += -fsanitize=undefined -fno-sanitize-recover=all
+LDFLAGS += -fsanitize=undefined -fno-sanitize-recover=all
+endif
+
+OS := $(shell uname -s)
+ARCH := $(shell uname -m)
+ifeq  ($(OS), Darwin)
+ifeq  ($(ARCH), arm64)
+CFLAGS    +=  -D_APPLE_SILICON_
+endif
+endif
+
+
+ifeq ($(PROJ),ref)
+
+SRC_EXT_DIRS  = ./src/ref
+INCPATH      += -I./src/ref
+
+else ifeq ($(PROJ),amd64)
+
+SRC_EXT_DIRS  = ./src/ref ./src/amd64
+INCPATH      += -I./src/ref -I./src/amd64
+
+CFLAGS    += -D_BLAS_UINT64_
+
+else ifeq ($(PROJ),neon)
+
+ifeq ($(OS), Darwin)
+SRC_EXT_DIRS  = ./src/ref ./src/amd64 ./src/neon  ./utils/neon_aesinst
+INCPATH      += -I./src/ref -I./src/amd64 -I./src/neon  -I./utils/neon_aesinst
+CFLAGS    += -D_BLAS_NEON_ -D_UTILS_NEONAES_ -flax-vector-conversions -march=armv8-a+crypto+aes
+ifeq ($(CPU),m1)
+CFLAGS    += -mcpu=apple-m1 -mtune=apple-m1
+endif
+else
+SRC_EXT_DIRS  = ./src/ref ./src/amd64 ./src/neon  ./utils/neon_aesffs
+INCPATH      += -I./src/ref -I./src/amd64 -I./src/neon  -I./utils/neon_aesffs
+CFLAGS    += -D_BLAS_NEON_ -D_UTILS_NEONBSAES_
+ifeq ($(CPU),a72)
+CFLAGS    += -march=armv8-a+crc -mcpu=cortex-a72 -mtune=cortex-a72 -flax-vector-conversions
+else
+CFLAGS    += -march=armv8-a -flax-vector-conversions
+endif
+endif
+
+ifeq ($(PARAM),1)
+CFLAGS    += -D_MUL_WITH_MULTAB_
+endif
+
+else ifeq ($(PROJ),ssse3)
+
+SRC_EXT_DIRS  = ./src/ref ./src/amd64 ./src/ssse3
+INCPATH      += -I./src/ref -I./src/amd64 -I./src/ssse3
+
+CFLAGS    += -mssse3  -D_BLAS_SSE_ -D_MUL_WITH_MULTAB_
+
+else ifeq ($(PROJ),avx2)
+
+SRC_EXT_DIRS  = ./src/ref ./src/amd64 ./src/ssse3 ./src/avx2 ./utils/x86aesni
+INCPATH      += -I./src/ref -I./src/amd64 -I./src/ssse3 -I./src/avx2 -I./utils/x86aesni
+CFLAGS       += -mavx2 -maes -D_BLAS_AVX2_ -D_MUL_WITH_MULTAB_ -D_UTILS_AESNI_
+
+else ifeq ($(PROJ),gfni)
+
+SRC_EXT_DIRS  = ./src/ref ./src/amd64 ./src/ssse3 ./src/avx2 ./src/gfni ./utils/x86aesni
+INCPATH      += -I./src/ref -I./src/amd64 -I./src/ssse3 -I./src/avx2 -I./src/gfni -I./utils/x86aesni
+CFLAGS       += -mavx2 -mgfni -maes -D_BLAS_AVX2_ -D_BLAS_GFNI_ -D_UTILS_AESNI_
+
+ifeq ($(PARAM),1)
+CFLAGS    += -D_MUL_WITH_MULTAB_
+endif
+
+endif
+
+
+SRCS    :=  $(foreach dir, $(SRC_EXT_DIRS), $(wildcard  $(dir)/*.c) )
+SRCS    +=  $(wildcard $(SRC_DIR)/*.c)   $(wildcard $(UTIL_DIR)/*.c)
+
+SRCS_O         :=  $(SRCS:.c=.o)
+SRCS_O_NOTDIR  :=  $(notdir $(SRCS_O))
+
+
+ifdef PARAM
+ifeq ($(PARAM),3)
+CFLAGS    += -D_OV256_119_45
+else ifeq ($(PARAM),4)
+CFLAGS    += -D_OV256_193_72
+else ifeq ($(PARAM),5)
+CFLAGS    += -D_OV256_259_96
+else
+CFLAGS    += -D_OV16_160_64
+endif
+else
+PARAM=3
+endif
+
+
+ifdef VARIANT
+ifeq ($(VARIANT),2)
+CFLAGS += -D_OV_PKC
+else ifeq ($(VARIANT),3)
+CFLAGS += -D_OV_PKC_SKC
+else ifeq ($(VARIANT),4)
+CFLAGS += -D_OV_CLASSIC -D_4ROUND_AES_
+else ifeq ($(VARIANT),5)
+CFLAGS += -D_OV_PKC -D_4ROUND_AES_
+else ifeq ($(VARIANT),6)
+CFLAGS += -D_OV_PKC_SKC -D_4ROUND_AES_
+else
+CFLAGS += -D_OV_CLASSIC
+endif
+else
+VARIANT=1
+endif
+
+
+
+OBJ = $(SRCS_O_NOTDIR)
+
+ifeq  ($(OS), Darwin)
+ifeq  ($(ARCH), arm64)
+  OBJ += m1cycles.o
+endif
+endif
+
+
+EXE= sign_api-test sign_api-benchmark rec-sign-benchmark
+
+ifdef DEBUG
+        CFLAGS+=  -D_DEBUG_ -g
+endif
+
+ifdef KAT
+	CFLAGS       += -D_NIST_KAT_
+	SRC_EXT_DIRS += ./utils/nistkat
+	INCPATH      += -I./utils/nistkat
+	OBJ          += rng.o
+	EXE          += PQCgenKAT_sign
+endif
+
+ifdef AVX2
+	CFLAGS += -mavx2 -D_USE_AVX2_
+endif
+
+ifdef AVX
+	CFLAGS += -mavx -D_USE_AVX_
+endif
+
+# Benchmark in wall-clock micro seconds instead of cycles.
+ifdef BENCH_SYSTIME
+	CFLAGS   += -DCONFIG_BENCH_SYSTIME
+endif
+
+ifdef GPROF
+	CFLAGS += -pg
+	LDFLAGS += -pg
+endif
+
+ifdef VALGRIND
+	CFLAGS   += -D_VALGRIND_ #-g
+	CFLAGS   := $(CFLAGS:-O%=-O1)
+endif
+
+# Appended last so user flags win over the defaults above.
+CFLAGS   += $(EXTRA_CFLAGS)
+
+
+.INTERMEDIATE:  $(OBJ)
+
+.PHONY: all tests tables clean format
+
+all: $(EXE)
+
+%-test: $(OBJ) %-test.o
+	$(LD) $(LDFLAGS) $(LIBPATH) -o $@ $^ $(LIBS)
+
+%-benchmark: $(OBJ) %-benchmark.o
+	$(LD) $(LDFLAGS) $(LIBPATH) -o $@ $^ $(LIBS)
+
+PQCgenKAT_sign: $(OBJ) PQCgenKAT_sign.o
+	$(LD) $(LDFLAGS) $(LIBPATH) -o $@ $^ $(LIBS)
+
+PQCgenKAT_sign.o: nist-submission-project/PQCgenKAT_sign.c
+	$(CC) $(CFLAGS) $(INCPATH) -c $<
+
+%.o: $(SRC_DIR)/%.c
+	$(CC) $(CFLAGS) $(INCPATH) -c $<
+
+%.o: $(UTIL_DIR)/%.c
+	$(CC) $(CFLAGS) $(INCPATH) -c $<
+
+%.o: unit_tests/%.c
+	$(CC) $(CFLAGS) $(INCPATH) -c $<
+
+%.o: benchmark/%.c
+	$(CC) $(CFLAGS) $(INCPATH) -c $<
+
+m1cycles.o: benchmark/m1cycles.c
+	$(CC) $(CFLAGS) $(INCPATH) -c $<
+
+%.s: unit_tests/%.c
+	$(CC) $(CFLAGS) $(INCPATH) -S -c $<
+
+%.s: benchmark/%.c
+	$(CC) $(CFLAGS) $(INCPATH) -S -c $<
+
+
+define GEN_O
+%.o: $(1)/%.c
+	$(CC) $(CFLAGS) $(INCPATH) -c $$<
+endef
+$(foreach dir, $(SRC_EXT_DIRS), $(eval $(call GEN_O,$(dir))))
+
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(INCPATH) -c $<
+
+test: sign_api-test
+	./sign_api-test
+
+
+
+check-NISTKAT: PQCgenKAT_sign
+	./check-vector.sh $(PARAM) $(VARIANT)
+
+tests:
+	cd tests; make
+
+tables:
+	cd supplement; make
+
+valgrind: sign_api-test
+	valgrind --leak-check=yes --track-origins=yes -s ./sign_api-test
+
+format:
+	astyle --project src/*.[chs] src/**/*.[chs] utils/*.[chs] utils/**/*.[chs] unit_tests/*.[chs] benchmark/*.[chs]
+
+clean:
+	-rm -f *.o *-test *-benchmark massif.out.* *.req *.rsp PQCgenKAT_sign $(EXE);

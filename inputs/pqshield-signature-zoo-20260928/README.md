@@ -12,9 +12,9 @@ This is a frozen **external reference**, transcribed from the user-supplied PQSh
 - Method: median over 1,000 iterations, fewer for slow schemes; `rdpmc CPU_CYCLES` for real core cycles in user space; `clock_gettime(CLOCK_MONOTONIC)` for wall time.
 - The table's prose contains conflicting license labels: “benchmark data” CC-BY-4.0 and “data” CC BY-SA 4.0. Upstream's [repository README](https://github.com/PQShield/nist-sigs-zoo) says data CC BY-SA 4.0. Preserve attribution and recheck the applicable license before redistribution.
 
-## Implementation pins supplied separately by the user
+## Pinned implementation source snapshots
 
-These are source revision references supplied with the benchmark method. Their relationship to each individual timing row has not been independently established. `fndsa` corresponds to the zoo's Falcon rows; `sdith` and `sdith2` are separate revisions of the same repository.
+All 13 user-supplied source revisions are vendored under [`sources/`](sources/) as extracted GitHub commit archives. [`source_manifest.json`](source_manifest.json) records each full commit ID, archive URL, archive SHA-256, file count, and size. Each source snapshot retains its upstream license file. The archive URLs are commit-addressed; this import did not run or benchmark the implementations. Their relationship to each individual timing row has not been independently established. `fndsa` corresponds to the zoo's Falcon rows; `sdith` and `sdith2` are separate revisions of the same repository.
 
 | Label | Source commit |
 | --- | --- |
