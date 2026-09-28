@@ -5,7 +5,7 @@ const path = require('node:path');
 const { JSDOM } = require('../ui/node_modules/jsdom');
 const root = path.resolve(__dirname, '..');
 const app = fs.readFileSync(path.join(root, 'ui/static/app.js'), 'utf8')
-  .replace(/initChrome\(\);\s*renderNav\(\);\s*route\(\);\s*boot\(\);\s*$/, 'window.ui = {viewRecord, state, opsPanel, fmtIops, fmtCount, fmtBytes};');
+  .replace(/initChrome\(\);\s*renderNav\(\);\s*route\(\);\s*boot\(\);\s*$/, 'window.ui = {viewRecord, state, opsPanel, fmtIops, fmtCount, fmtBytes, progressPanel, viewCompare, comparisonReasons, viewExperiments};');
 const raw = '---\nid: KN-FIND-test\n---\n# Finding\n<script>alert(1)</script>\n';
 const detail = {
   summary: { id: 'KN-FIND-test', kind: 'KN', area: 'FIND', title: 'A scoped finding', path: 'knowledge/findings/KN-FIND-test.md' },
@@ -152,5 +152,94 @@ test('a live hour shows writes and reads per second, not a zero placeholder', ()
   assert.match(el.textContent, /1\.7k\/s/);
   assert.match(el.textContent, /11\.6k\/s/);
   assert.doesNotMatch(el.textContent, /No samples in this window/);
+  dom.window.close();
+});
+
+test('progress shows missing and stale telemetry honestly and preserves zero cost', () => {
+  const {dom} = setup();
+  const ui = dom.window.ui;
+  assert.match(ui.progressPanel({available:false}).textContent, /unavailable/);
+  assert.doesNotMatch(ui.progressPanel({available:false}).textContent, /\$0/);
+  const p = {available:true, generated_at:'2020-01-01T00:00:00Z', source_updated_at:'2020-01-01T00:00:00Z',
+    metrics:{actions_last_24h:0, design_actions_last_24h:0, run_actions_last_24h:0,
+      measured_cost_usd_last_24h:0, runner_coverage_24h:'0/0', cost_coverage_last_24h:'1/2',
+      runner_output_validated_trial_delta_24h:-1}};
+  const panel = ui.progressPanel(p);
+  assert.match(panel.textContent, /Stale snapshot/);
+  assert.match(panel.textContent, /\$0\.0000/);
+  assert.match(panel.textContent, /Cost coverage: 1\/2/);
+  assert.match(panel.textContent, /not yet measured/);
+  dom.window.close();
+});
+
+function comparisonFixture(id) {
+  return {id, label:id, manifest_sha256:'a'.repeat(64), scope:'bounded-Boolean-solver-stage',
+    timing_boundary:'same boundary', excluded_costs:['setup'], complete:true, verification:'recorded_verified',
+    environment:{python:'fixture',platform:'fixture',harness_sha256:'c'.repeat(64)},
+    metrics:{total_wall_seconds:0}, backend:{id:'fixture',mode:'cold'}, outcomes:{verified:1},
+    attempt_status:{timeout:1}, sources:{summary:{path:'fixtures/summary.json',sha256:'b'.repeat(64)}}};
+}
+
+test('comparison gates mismatched, incomplete, unknown and fixture receipts', () => {
+  const {dom} = setup();
+  const reasons = dom.window.ui.comparisonReasons;
+  const a = comparisonFixture('a'), b = comparisonFixture('b');
+  assert.equal(reasons(a,b).length, 0);
+  assert.match(reasons(a,{...b,manifest_sha256:'different'}).join(' '), /manifests differ/);
+  assert.match(reasons(a,{...b,complete:false}).join(' '), /incomplete/);
+  assert.match(reasons(a,{...b,verification:'unknown'}).join(' '), /Verification/);
+  assert.match(reasons(a,{...b,fixture:true}).join(' '), /not performance evidence/);
+  assert.match(reasons(a,a).join(' '), /different receipts/);
+  dom.window.close();
+});
+
+test('comparison is selectable, deep linked, source linked, and safe to render', async () => {
+  const {dom, calls} = setup();
+  dom.window.ui.state.ready = true;
+  const a = comparisonFixture('a'), b = comparisonFixture('b');
+  b.label = '<script>unsafe</script>';
+  dom.window.fetch = async url => { calls.push(url); return {ok:true,json:async()=>({receipts:[a,b],errors:[]})}; };
+  await dom.window.ui.viewCompare(new dom.window.URLSearchParams('a=a&b=b'));
+  const doc = dom.window.document;
+  assert.match(calls[0], /\/crypto-autoresearcher\/data\/comparisons.json$/);
+  assert.match(doc.querySelector('table').textContent, /0s/);
+  assert.match(doc.querySelector('table').textContent, /1 timeout/);
+  assert.equal(doc.querySelector('table script'), null);
+  assert.match(doc.querySelector('table a').href, /\/blob\/abc123\/fixtures\/summary\.json$/);
+  const second = doc.querySelector('[aria-label="Second run"]');
+  second.value = 'a'; second.dispatchEvent(new dom.window.Event('change', {bubbles:true}));
+  assert.match(dom.window.location.hash, /a=a&b=a/);
+  assert.match(doc.querySelector('[aria-live]').textContent, /different receipts/);
+  dom.window.close();
+});
+
+test('comparison empty state and transient failure are recoverable', async () => {
+  const {dom} = setup();
+  dom.window.ui.state.ready = true;
+  let fail = true;
+  dom.window.fetch = async () => { if (fail) { fail=false; throw new Error('offline'); }
+    return {ok:true,json:async()=>({receipts:[],errors:[]})}; };
+  await dom.window.ui.viewCompare();
+  assert.match(dom.window.document.querySelector('[role=alert]').textContent, /could not be loaded/);
+  [...dom.window.document.querySelectorAll('button')].find(b=>b.textContent==='Retry').click();
+  await settle();
+  assert.match(dom.window.document.querySelector('.empty').textContent, /No archived comparison receipts/);
+  dom.window.close();
+});
+
+test('experiment totals render recorded zero as zero and unknown as a dash', async () => {
+  const {dom} = setup();
+  const ui = dom.window.ui;
+  ui.state.ready = true;
+  const common = {status:'completed',run_count:1,runs_timed:0,runs_measured:1,dated:'',contract:'specification.yaml',
+    runs:[{id:'zero',status:'completed',duration_seconds:0}]};
+  ui.state.experimentsPayload = {experiments:[{...common,id:'EXP-ZERO',title:'zero duration',total_seconds:0},
+    {...common,id:'EXP-UNKNOWN',title:'unknown duration',total_seconds:null}],
+    timing:{runs:2,runs_with_duration:1,total_measured_seconds:0,git:{available:false}}};
+  await ui.viewExperiments(new dom.window.URLSearchParams());
+  const rows = [...dom.window.document.querySelectorAll('tr')];
+  assert.match(rows.find(r=>r.textContent.includes('EXP-ZERO')).textContent, /0s/);
+  assert.doesNotMatch(rows.find(r=>r.textContent.includes('EXP-UNKNOWN')).textContent, /0s/);
+  assert.match(dom.window.document.querySelector('.stat-row').textContent, /0stotal measured/);
   dom.window.close();
 });

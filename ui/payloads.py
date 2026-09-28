@@ -25,6 +25,7 @@ from typing import Any
 from .index import (KIND_LABELS, KIND_ORDER, TERMINAL_GOAL_STATUSES, Finding, OpenProblem,
                     ResearchIndex, _neg_date, _epoch)
 from .scan import RECORD_ID_RE, STRUCTURED, id_kind
+from . import progress, comparisons
 
 # `data/index.json` rows are positional, not objects. At 14.6k records the
 # repeated key names cost more than the values do: as objects the file is
@@ -275,7 +276,7 @@ def experiments_payload(index: ResearchIndex) -> dict[str, Any]:
     rows = []
     for e in index.experiments:
         first_run, last_run = e.run_span
-        measured = [r["duration_seconds"] for r in e.runs if r.get("duration_seconds")]
+        measured = [r["duration_seconds"] for r in e.runs if r.get("duration_seconds") is not None]
         rows.append({
             "id": e.record_id, "title": e.title, "status": e.status, "area": e.area,
             "path": e.path, "hypothesis_id": e.hypothesis_id, "question_id": e.question_id,
@@ -306,7 +307,7 @@ def experiment_timing(index: ResearchIndex) -> dict[str, Any]:
     """
     runs = [r for e in index.experiments for r in e.runs]
     stamps = [t for r in runs for t in (r.get("started_epoch"), r.get("committed")) if t]
-    measured = [r["duration_seconds"] for r in runs if r.get("duration_seconds")]
+    measured = [r["duration_seconds"] for r in runs if r.get("duration_seconds") is not None]
     return {
         "runs": len(runs),
         "runs_with_declared_start": sum(1 for r in runs if r.get("started")),
@@ -732,3 +733,11 @@ def jsonable(value: Any, depth: int = 0) -> Any:
     if isinstance(value, (list, tuple, set)):
         return [jsonable(v, depth + 1) for v in value]
     return str(value)
+
+
+def progress_payload(index: ResearchIndex, snapshot=None) -> dict[str, Any]:
+    return progress.payload(snapshot if snapshot is not None else index.repo / "ui" / "progress.json")
+
+
+def comparisons_payload(index: ResearchIndex) -> dict[str, Any]:
+    return comparisons.payload(index.repo)
