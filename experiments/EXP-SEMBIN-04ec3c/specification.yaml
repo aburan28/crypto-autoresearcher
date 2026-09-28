@@ -1,0 +1,259 @@
+experiment:
+  id: EXP-SEMBIN-04ec3c
+  hypothesis_id: H-SEMBIN-8e7ae3
+  version: 1
+  title: >-
+    Charge the decomposition oracle's MEMORY, symmetrically with the rho
+    baseline: the minimum store an m-summand index calculus needs to reach rho
+    on a binary curve, swept over every summand count and every declared memory
+    budget
+  status: specified
+  status_note: >-
+    `specified`. Approval is a separate Coordinator act and NO RUN MAY EXECUTE
+    UNTIL IT IS RECORDED. This ordering is not ceremony: DEC-20260918-4b7e21
+    closed EXP-SEMBIN-992e73 to approval permanently because its run preceded
+    any approval, and the reasoning there applies verbatim here. The predictions
+    in this contract are frozen before the code that tests them exists.
+  objective: >-
+    Settle, for the whole decomposition-oracle family rather than one oracle,
+    whether ANY summand count can put index calculus below rho on a binary
+    curve once the oracle's memory is charged on the same footing as the
+    baseline's.
+
+    THE ASYMMETRY THIS CLOSES. H-SEMBIN-97ea23 (status: supported) established
+    that the rho baseline must be costed at a single coherent operating point on
+    van Oorschot-Wiener's own time-memory curve, and that doing so moves the
+    crossover by +85 in n and -29.0 bits. That discipline was applied to the
+    BASELINE only. The index-calculus side has been costed with its oracle's
+    store treated as free. A meet-in-the-middle decomposition oracle is exactly
+    the kind of algorithm whose apparent advantage lives in its store, so
+    charging one side and not the other is the single largest unexamined
+    asymmetry in this program's comparison.
+
+    WHY THIS IS THE RANKED ACT, and not more oracle engineering. Three committed
+    results interlock. The product law is independent of dim V, so with the
+    oracle charged NOTHING the m = 3 floor is already 2^68.58 against rho's
+    2^60.8090 (EV-ICPERF-10c5fc, KN-FIND-aa2efc). The Riemann-Roch oracle
+    realises the generic Theta(|F|^2) cost of 3SUM with constant near 2 and
+    LOSES to structureless pair enumeration at 0.494x field operations on
+    identical solution sets. And the family's measured implicit base of 2^132.58
+    is, to within constants, exactly what a generic oracle predicts at n = 131.
+    Read together those say the family achieves generic search and nothing
+    better, and that at m = 3 generic search makes the total independent of the
+    factor-base dimension, so tuning the base cannot move it. The only escape in
+    the arithmetic is larger m. This contract prices that escape.
+
+    Derivation only. No curve is instantiated, no factor base is built, no
+    polynomial system is solved, no security statement is made in either
+    direction. Every n is a parameter label in a cost formula.
+  cost_model:
+    relations_needed: >-
+      |F| = 2^d, taking one relation per factor-base element and ignoring the
+      small excess, which is a constant factor and is declared as such.
+    decomposition_probability: >-
+      p = |F|^m / (m! * N) for a uniform target, with N the prime subgroup order
+      rather than #E. Using #E would overstate rho, which is the error
+      DEC-20260915-428a17 already records for a sibling lane.
+    trials_per_relation: 1/p = m! * N / |F|^m
+    oracle_models:
+      - id: FREE
+        cost: 1
+        memory: 0
+        role: >-
+          CONTROL, not a candidate. Reproduces the committed free-oracle floor
+          table, which is the only external check this contract has on its own
+          arithmetic.
+      - id: ENUM
+        cost: "|F|^(m-1)"
+        memory: "O(1) beyond the factor base"
+        role: >-
+          Fix m-1 summands and test whether the remainder lies in F. The
+          honest memory-free baseline for m-SUM over a group.
+      - id: MITM
+        cost: "|F|^ceil(m/2)"
+        memory: "|F|^floor(m/2)"
+        role: >-
+          Generalised birthday: tabulate sums of floor(m/2) elements, probe with
+          sums of the complement. Time is the larger side, store is the smaller.
+          At m = 3 this degenerates to |F|^2 time either way, which is why the
+          measured m = 3 result and the generic prediction coincide.
+      - id: MITM_CAPPED
+        cost: "|F|^(m-s), s = min(floor(m/2), floor(log2(B)/d))"
+        memory: "|F|^s <= B"
+        role: >-
+          Partial meet-in-the-middle under a declared store budget B: tabulate
+          what fits, enumerate the rest. This is the model the whole question
+          turns on.
+    linear_algebra:
+      time: "|F|^2 (sparse, Wiedemann)"
+      memory: "~m * |F| (m nonzeros per row)"
+    baseline: >-
+      rho total work W = 0.886 * 2^(n/2) from H-SEMBIN-97ea23's HEUR-VOW-CURVE
+      (status: unvalidated). Work is INVARIANT along vOW's curve, so the
+      baseline's operation count does not improve with memory -- store buys
+      parallel wall-clock efficiency, not work. That invariance is what makes
+      the comparison meaningful: the index-calculus side's store buys TIME, the
+      baseline's does not, so charging memory cannot disadvantage rho unfairly.
+      For ECC2K-130 the published 2^60.8090 with the <-1> x <pi> speedup is
+      carried as a second baseline column.
+  procedure:
+    - >-
+      Reproduce the committed free-oracle floor table under the FREE model and
+      assert agreement in shape and ordering. Abort on disagreement: without
+      this gate a divergence anywhere else is uninterpretable.
+    - >-
+      For each oracle model and each m, minimise total cost over the
+      factor-base dimension d, reporting the optimising d, the total cost, the
+      store required, and the margin against both baselines.
+    - >-
+      Sweep declared store budgets B in {2^30, 2^40, 2^50, 2^60, 2^70, 2^80,
+      2^90, 2^100, unlimited} under MITM_CAPPED and report, per (m, B), whether
+      any cell falls below either baseline.
+    - >-
+      Compute the MINIMUM STORE that admits a sub-rho cell at each m, by solving
+      the margin condition for d and reading the store exponent off it. Report
+      the m that minimises that store, which is the family's cheapest possible
+      entry point.
+    - >-
+      Repeat at every binary curve degree already in the program's scope: the
+      Certicom binary challenge degrees 97, 109, 131, 163, 191, 239 and the FIPS
+      binary degrees 163, 233, 283, 409, 571, all prime.
+  controls:
+    - id: C-FLOOR-REPRO
+      what: FREE model against the committed free-oracle floor table
+      why: the only external check on this contract's own arithmetic
+      pass_criterion: >-
+        ordering preserved and each row within 5 bits of the committed value,
+        the slack being the m! and excess-relation constants this contract
+        states explicitly and the committed table folds in
+    - id: C-M3-ANCHOR
+      what: >-
+        ENUM and MITM at m = 3 against the MEASURED implicit base of 2^132.58
+        and against the d-independence the measurement found
+      why: >-
+        This is a measured anchor, not a derived one. If the derivation does not
+        reproduce d-independence at m = 3 it has the wrong oracle exponent, and
+        every larger-m row inherits the error.
+      pass_criterion: >-
+        total cost at m = 3 varies by less than 1 bit across d in [10, 60] under
+        both models, and lands within 5 bits of 2^132.58
+    - id: C-NULL-NO-MEMORY-CHARGE
+      what: >-
+        NULL OBJECT. Re-run the whole sweep with the store charged at zero, so
+        MITM_CAPPED collapses to MITM at every B.
+      why: >-
+        Controls before belief. If the sub-rho cells are the same with and
+        without the memory charge, the charge is buying nothing and the result is
+        about the product law alone, not about memory.
+      pass_criterion: >-
+        diagnostic, reported either way; a null that matches the charged sweep
+        REFUTES this contract's premise and must be reported as such
+    - id: C-DEGENERATE-M
+      what: flag any cell whose optimising d makes k = n/m fall below 2, or m > n
+      why: >-
+        a factor base of dimension 1 is not a factor base, and an argmin at a
+        degenerate parameter is a boundary reading dressed as an optimum
+      pass_criterion: diagnostic; every flagged cell reported as flagged
+  metrics:
+    - total cost in log2 operations, per (curve degree, m, oracle model, store budget)
+    - the optimising factor-base dimension, and whether it sits at a sweep bound
+    - store required, in log2 entries and log2 bits
+    - margin in bits against vOW total work and against the published ECC2K-130 reference
+    - the minimum store admitting a sub-rho cell at each m, and the m minimising it
+  success_criterion: >-
+    The sweep completes for every listed curve degree with C-FLOOR-REPRO and
+    C-M3-ANCHOR passing and every degenerate cell flagged. SATISFIED EQUALLY BY
+    EITHER OUTCOME: a sweep in which no cell beats rho satisfies this contract
+    exactly as well as one in which some cell does. There is no result this
+    contract is trying to reach.
+  preregistered_predictions:
+    provenance_of_these_predictions: >-
+      STATED HONESTLY BECAUSE IT CHANGES HOW THEY SHOULD BE WEIGHED. These are
+      not blind guesses. The session author derived them by hand before writing
+      this contract, and the contract exists to check that hand derivation
+      exactly, sweep it properly, and expose any cell it missed. A confirmation
+      is therefore WEAK evidence -- it says the arithmetic was done twice by the
+      same mind. A refutation is STRONG, and is the outcome this contract is
+      most useful for. Treat P1 through P5 as conjectures under test, never as
+      results this run reproduced.
+    predictions:
+      - id: P1
+        statement: >-
+          Under ENUM the total cost is m! * 2^n INDEPENDENT of both d and m, so
+          no memory-free enumeration oracle beats rho at any summand count or any
+          factor-base size. The d and m exponents cancel exactly.
+        falsified_if: >-
+          the ENUM total varies with d by more than the stated constants, or any
+          ENUM cell falls below either baseline
+      - id: P2
+        statement: >-
+          Under MITM with the store free, the cost is 2^(2n/(floor(m/2)+1)) and
+          the first m strictly below the published ECC2K-130 reference is m = 8,
+          with m = 6 landing near it rather than under it.
+        falsified_if: a different m is the first strictly-below row at n = 131
+      - id: P3
+        statement: >-
+          THE LOAD-BEARING ONE. The store exponent required for any sub-rho cell
+          is bounded below by n/2 at EVERY m, so beating rho always costs at
+          least as much memory as rho's entire work. The bound tightens as m
+          grows because the m! term grows faster than the store exponent falls.
+        falsified_if: >-
+          any m admits a sub-rho cell with store exponent below n/2
+      - id: P4
+        statement: >-
+          That minimum store is minimised near m = 8 at roughly 2^108 entries
+          for ECC2K-130, against rho's total work of about 2^61 -- so the store
+          alone exceeds the attack it is trying to beat by more than 40 bits.
+        falsified_if: >-
+          the minimising m is not in {6, 8, 10}, or the minimum store exponent
+          is below 95 or above 125
+      - id: P5
+        statement: >-
+          No cell with a store budget at or below 2^80 falls below either
+          baseline at any listed curve degree.
+        falsified_if: any such cell is found
+  budget:
+    wall_clock_cap_seconds: 900
+    memory_cap_bytes: 2147483648
+    cpu_note: >-
+      Seconds of standard-library arithmetic over an integer parameter sweep. No
+      Groebner engine, no solver, no quiet host, so this contends with no
+      measurement lane. That is why it is doable now and why it ranks ahead of
+      anything needing the machine.
+  scope:
+    claim_tier: heuristic_estimate
+    what_this_is: >-
+      Arithmetic on a cost model, sweeping a parameter the model already had and
+      the program had left free. Not a measurement, not a new algorithm, not an
+      attack, and not a statement about the security of any curve.
+    inherited_assumptions:
+      - >-
+        HEUR-VOW-CURVE (unvalidated) for the vOW baseline column.
+      - >-
+        That m-SUM over a group admits no better generic time-store tradeoff
+        than partial meet-in-the-middle. THIS IS THE ASSUMPTION THE WHOLE RESULT
+        RESTS ON and it is an assumption, not a theorem: a sub-generic m-SUM
+        algorithm exploiting the curve's group structure would void every row.
+        The contract's own conclusion is therefore conditional in exactly the
+        place where a breakthrough would live, and says so.
+      - >-
+        Sparse linear algebra at |F|^2 time and m|F| memory.
+      - >-
+        Semaev's Assumption 1 is NOT inherited: no degree bound and no Groebner
+        cost enters any model here. That is deliberate. Every other cost table
+        this program holds is conditional on an assumption checked only at n <= 21
+        (EV-ICPERF-a8080e), and this contract is designed to be independent of
+        it, which is most of why it is worth running.
+    what_it_does_not_touch:
+      - >-
+        The security of any Certicom challenge curve or any FIPS curve, in either
+        direction.
+      - >-
+        Whether a sub-generic m-SUM oracle exists. A negative here bounds the
+        family GIVEN generic m-SUM, and names the sub-generic oracle as the one
+        surviving route rather than closing it.
+      - >-
+        Prime-field curves, and Weil descent or cover attacks, which every
+        listed degree being prime already blocks.
+  owner: coordinator
+  created_at: '2026-09-28'
