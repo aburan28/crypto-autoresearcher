@@ -1,0 +1,74 @@
+name: Benchmarks
+
+# One job per file: this is called by daily.yml (nightly) and daily_trigger.yml (manual), and can also be dispatched
+# on its own from the Actions tab.
+on:
+  workflow_call:
+    inputs:
+      commit_sha:
+        description: 'The commit SHA to run the workflow on (optional; defaults to the caller ref)'
+        required: false
+        default: ''
+        type: string
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'The commit SHA to run the workflow on (optional; defaults to the checked-out ref)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  # Declared here rather than in the caller: workflow-level env does not propagate into a called workflow.
+  BUILD_TYPE: Release
+
+jobs:
+  benchmarks:
+    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
+    strategy:
+      matrix:
+        platform: [x64, arm64]
+        toolchain: [""]
+        sqisign_build_type: [ref]
+        include:
+          - platform: x64
+            toolchain: ""
+            sqisign_build_type: broadwell
+            sqisign_test_reps: 10
+          - platform: x64
+            toolchain: .cmake/32bit.cmake
+            sqisign_build_type: ref
+            sqisign_test_reps: 10
+
+    runs-on: [self-hosted, "${{ matrix.platform }}"]
+
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        # An empty ref means the ref that triggered the run, so this covers both the unset and the set case. The
+        # `inputs` context, not `github.event.inputs`: the latter is empty when this workflow is called rather than
+        # dispatched. A SHA here must be the full 40 characters.
+        ref: ${{ inputs.commit_sha }}
+
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DSQISIGN_BUILD_TYPE=${{ matrix.sqisign_build_type }} ${{ matrix.toolchain && format('-DCMAKE_TOOLCHAIN_FILE={0}', matrix.toolchain) || '' }}
+
+    - name: Build
+    # Build your program with the given configuration
+      run: |
+        cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Run benchmarks in apps folder
+      run: |
+        build/apps/benchmark_p324_3 50
+        build/apps/benchmark_p500_27 20
+        build/apps/benchmark_p664_17 10
+
+    - name: Run Benchmarks (make bm)
+      run: cd build && make bm

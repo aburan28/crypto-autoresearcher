@@ -1,0 +1,117 @@
+# Specialized Makefile for ARM Cortex-M4.
+#
+# This Makefile assumes the availability of a "generic" C compiler with
+# a libc and able to compile standalone binaries; as such, it compiles
+# 'test_fndsa' which runs the tests. One possible setup is to obtain that
+# C compiler and libc as part of Buildroot: https://buildroot.org/
+# The resulting binaries can then be run with QEMU on a non-ARM system.
+#
+# The use of the specialized assembly routines is triggered by the
+# CFLAGS option '-DFNDSA_ASM_CORTEXM4=1'. If this option is not set (or
+# is defined with value 0), then plain C is used; in that case, the
+# compilation of the external assembly files must be disabled, by emptying
+# the OBJ_ASM variable below.
+
+CC = arm-linux-gcc
+CFLAGS = -W -Wextra -Wundef -Wshadow -O2 -DFNDSA_ASM_CORTEXM4=1
+LD = arm-linux-gcc
+LDFLAGS =
+LIBS =
+
+OBJ_COMM = codec.o mq.o sha3.o sysrng.o util.o
+OBJ_COMM_ASM = codec_cm4.o mq_cm4.o sha3_cm4.o
+OBJ_KGEN = kgen.o kgen_fxp.o kgen_gauss.o kgen_mp31.o kgen_ntru.o kgen_poly.o kgen_zint31.o
+OBJ_SIGN = sign.o sign_core.o sign_fpoly.o sign_fpr.o sign_sampler.o
+OBJ_SIGN_ASM = sign_fpr_cm4.o sign_sampler_cm4.o
+OBJ_VRFY = vrfy.o
+OBJ_ASM = $(OBJ_COMM_ASM) $(OBJ_SIGN_ASM)
+OBJ = $(OBJ_COMM) $(OBJ_KGEN) $(OBJ_SIGN) $(OBJ_VRFY) $(OBJ_ASM)
+TESTOBJ = test_fndsa.o test_sampler.o test_sign.o
+
+all: test_fndsa
+
+clean:
+	-rm -f $(OBJ) $(TESTOBJ) test_fndsa test_fndsa.gdb
+
+test_fndsa: $(OBJ) $(TESTOBJ)
+	$(LD) $(LDFLAGS) -o test_fndsa $(OBJ) $(TESTOBJ) $(LIBS)
+
+# -----------------------------------------------------------------------
+
+codec.o: codec.c fndsa.h inner.h
+	$(CC) $(CFLAGS) -c -o codec.o codec.c
+
+codec_cm4.o: codec_cm4.s
+	$(CC) $(CFLAGS) -c -o codec_cm4.o codec_cm4.s
+
+mq.o: mq.c fndsa.h inner.h
+	$(CC) $(CFLAGS) -c -o mq.o mq.c
+
+mq_cm4.o: mq_cm4.s
+	$(CC) $(CFLAGS) -c -o mq_cm4.o mq_cm4.s
+
+sha3.o: sha3.c fndsa.h inner.h
+	$(CC) $(CFLAGS) -c -o sha3.o sha3.c
+
+sha3_cm4.o: sha3_cm4.s
+	$(CC) $(CFLAGS) -c -o sha3_cm4.o sha3_cm4.s
+
+sysrng.o: sysrng.c fndsa.h inner.h
+	$(CC) $(CFLAGS) -c -o sysrng.o sysrng.c
+
+util.o: util.c fndsa.h inner.h
+	$(CC) $(CFLAGS) -c -o util.o util.c
+
+kgen.o: kgen.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen.o kgen.c
+
+kgen_fxp.o: kgen_fxp.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen_fxp.o kgen_fxp.c
+
+kgen_gauss.o: kgen_gauss.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen_gauss.o kgen_gauss.c
+
+kgen_mp31.o: kgen_mp31.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen_mp31.o kgen_mp31.c
+
+kgen_ntru.o: kgen_ntru.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen_ntru.o kgen_ntru.c
+
+kgen_poly.o: kgen_poly.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen_poly.o kgen_poly.c
+
+kgen_zint31.o: kgen_zint31.c fndsa.h kgen_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o kgen_zint31.o kgen_zint31.c
+
+sign.o: sign.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o sign.o sign.c
+
+sign_core.o: sign_core.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o sign_core.o sign_core.c
+
+sign_fpoly.o: sign_fpoly.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o sign_fpoly.o sign_fpoly.c
+
+sign_fpr.o: sign_fpr.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o sign_fpr.o sign_fpr.c
+
+sign_fpr_cm4.o: sign_fpr_cm4.s
+	$(CC) $(CFLAGS) -c -o sign_fpr_cm4.o sign_fpr_cm4.s
+
+sign_sampler.o: sign_sampler.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o sign_sampler.o sign_sampler.c
+
+sign_sampler_cm4.o: sign_sampler_cm4.s
+	$(CC) $(CFLAGS) -c -o sign_sampler_cm4.o sign_sampler_cm4.s
+
+vrfy.o: vrfy.c fndsa.h inner.h
+	$(CC) $(CFLAGS) -c -o vrfy.o vrfy.c
+
+test_fndsa.o: test_fndsa.c fndsa.h inner.h kgen_inner.h sign_inner.h
+	$(CC) $(CFLAGS) -c -o test_fndsa.o test_fndsa.c
+
+test_sampler.o: test_sampler.c sign_sampler.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o test_sampler.o test_sampler.c
+
+test_sign.o: test_sign.c sign_sampler.c sign_core.c fndsa.h sign_inner.h inner.h
+	$(CC) $(CFLAGS) -c -o test_sign.o test_sign.c
