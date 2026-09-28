@@ -1176,6 +1176,57 @@ function comparisonTable(a, b) {
       h('th', { scope: 'row' }, label), h('td', {}, render(a)), h('td', {}, render(b)))))));
 }
 
+function benchmarkPanel(data = {}) {
+  const section = h('section', { class: 'stack' }, h('h2', {}, 'Curve benchmark archive'));
+  section.append(h('p', { class: 'muted' },
+    'Archived toy-curve measurements. Verification is reported by the source, not rerun here. This is an evidence table, with no cross-curve ranking or inferred speedup.'));
+  if (data.error) { section.append(h('div', {class:'banner warn', role:'alert'}, data.error)); return section; }
+  const rows = data.rows || [];
+  section.append(h('p', {class:'faint'}, data.coverage || 'No snapshot supplied.'));
+  if (!rows.length) return section;
+  section.append(h('p', {class:'mono receipt-hash'}, `Source: ${data.source_repository} @ ${data.source_commit}`));
+  const choose = h('select', {class:'field', 'aria-label':'Filter benchmark curve'},
+    h('option', {value:''}, 'All recorded curves'),
+    Object.entries(data.identities || {}).map(([uid, value]) => h('option', {value:uid}, value.curve_id)));
+  const host = h('div', {class:'stack', 'aria-live':'polite'});
+  const number = value => value == null ? '—' : String(value);
+  const draw = () => {
+    const selected = rows.filter(row => !choose.value || row.curve_uid === choose.value);
+    fill(host, h('p', {class:'muted'}, `${selected.length} recorded runs`),
+      ...selected.map(r => {
+        const identity = data.identities[r.curve_uid];
+        const details = h('details', {}, h('summary', {}, 'Identity, accounting and sources'),
+          h('dl', {class:'benchmark-details'},
+            h('dt', {}, 'Global curve ID'), h('dd', {class:'mono receipt-hash'}, r.curve_uid),
+            h('dt', {}, 'Candidate / workload'), h('dd', {class:'mono receipt-hash'}, `${r.candidate_id} / ${r.workload_id}`),
+            h('dt', {}, 'Full candidate / workload digests'), h('dd', {class:'mono receipt-hash'}, `${r.candidate_sha256} / ${r.workload_sha256}`),
+            h('dt', {}, 'Field and curve record'), h('dd', {}, h('pre', {class:'raw'}, JSON.stringify({field:identity.field, curve:identity.curve}, null, 2))),
+            h('dt', {}, 'Factor base points / enumerated-set digest'), h('dd', {class:'mono receipt-hash'}, `${number(r.factor_base_points)} / ${r.factor_base_sha256 || 'unknown'}`),
+            h('dt', {}, 'Receipt factor-base artifact digest (separate namespace)'), h('dd', {class:'mono receipt-hash'}, r.receipt_factor_base_sha256 || 'unknown'),
+            h('dt', {}, 'Isogeny route'), h('dd', {}, r.isogeny || 'unknown'),
+            h('dt', {}, 'Scope'), h('dd', {}, r.scope),
+            h('dt', {}, 'Online interval'), h('dd', {}, r.online_boundary || 'Not recorded'),
+            h('dt', {}, 'Total recorded operations / unit'), h('dd', {}, `${number(r.total_operations)} / ${r.operation_unit || 'unknown'}`),
+            h('dt', {}, 'Calibration / resource envelope'), h('dd', {class:'mono receipt-hash'}, `${r.calibration_id || 'unknown'} / ${r.resource_envelope_id || 'unknown'}`)),
+          ...r.sources.map(path => {const source = data.sources[path]; return h('p', {},
+            h('a', {href:source.url, target:'_blank', rel:'noopener noreferrer'}, path),
+            h('span', {class:'mono receipt-hash'}, ` SHA-256: ${source.sha256}`));}));
+        return h('article', {class:'card stack'},
+          h('h3', {class:'mono receipt-hash'}, r.curve_id),
+          h('p', {class:'mono receipt-hash'}, r.run_id),
+          h('p', {}, `${r.method} · ${r.suite || 'unknown suite'} · ${r.status} · ${r.verification === 'recorded_verified' ? 'source reports verified' : 'verification unknown'} · targets ${number(r.targets_verified)}/${number(r.target_count)}`),
+          h('div', {class:'row'},
+            statCard(r.ic_online_ns == null ? '—' : `${(r.ic_online_ns / 1e6).toFixed(3)} ms`, 'IC online (recorded)'),
+            statCard(r.rho_online_ns == null ? '—' : `${(r.rho_online_ns / 1e6).toFixed(3)} ms`, 'Paired rho online (recorded)')),
+          details);
+      }));
+  };
+  choose.addEventListener('change', draw);
+  section.append(h('label', {}, 'Curve ', choose), host);
+  draw();
+  return section;
+}
+
 async function viewCompare(params = new URLSearchParams()) {
   setCrumb('Compare run receipts');
   const root = fill(view(), loading('Reading archived receipts…'));
@@ -1210,7 +1261,7 @@ async function viewCompare(params = new URLSearchParams()) {
     ...(data.errors || []).map(e => h('div', { class: 'banner warn' }, `${e.id}: ${e.reason}`)),
     receipts.length ? controls : h('div', { class: 'empty' }, 'No archived comparison receipts are registered in this snapshot.'),
     receipts.length ? h('p', { class: 'faint', style: 'font-size:12px' }, 'On narrow screens, scroll the table horizontally to see both runs.') : null,
-    host));
+    host, benchmarkPanel(data.benchmarks)));
   if (receipts.length) draw();
 }
 

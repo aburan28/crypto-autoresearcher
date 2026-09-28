@@ -427,3 +427,6 @@ No solver runs or automatic winner claims occur in the reader.
 Both hosts serve `data/progress.json` and `data/comparisons.json`. See
 [`docs/ui-research-readers.md`](../docs/ui-research-readers.md) for the exporter,
 catalog contract, deployment inputs, evidence boundaries and regression checks.
+
+Compare also includes a pinned, offline curve benchmark archive with exact EC1 /
+global identities and recorded IC/rho timings. See [the cross-repository contract](../docs/curve-identities.md).

@@ -5,7 +5,7 @@ const path = require('node:path');
 const { JSDOM } = require('../ui/node_modules/jsdom');
 const root = path.resolve(__dirname, '..');
 const app = fs.readFileSync(path.join(root, 'ui/static/app.js'), 'utf8')
-  .replace(/initChrome\(\);\s*renderNav\(\);\s*route\(\);\s*boot\(\);\s*$/, 'window.ui = {viewRecord, state, opsPanel, fmtIops, fmtCount, fmtBytes, progressPanel, viewCompare, comparisonReasons, viewExperiments};');
+  .replace(/initChrome\(\);\s*renderNav\(\);\s*route\(\);\s*boot\(\);\s*$/, 'window.ui = {viewRecord, state, opsPanel, fmtIops, fmtCount, fmtBytes, progressPanel, viewCompare, comparisonReasons, viewExperiments, benchmarkPanel};');
 const raw = '---\nid: KN-FIND-test\n---\n# Finding\n<script>alert(1)</script>\n';
 const detail = {
   summary: { id: 'KN-FIND-test', kind: 'KN', area: 'FIND', title: 'A scoped finding', path: 'knowledge/findings/KN-FIND-test.md' },
@@ -241,5 +241,27 @@ test('experiment totals render recorded zero as zero and unknown as a dash', asy
   assert.match(rows.find(r=>r.textContent.includes('EXP-ZERO')).textContent, /0s/);
   assert.doesNotMatch(rows.find(r=>r.textContent.includes('EXP-UNKNOWN')).textContent, /0s/);
   assert.match(dom.window.document.querySelector('.stat-row').textContent, /0stotal measured/);
+  dom.window.close();
+});
+
+
+test('benchmark archive renders pinned IDs safely and filters without network', () => {
+  const {dom} = setup();
+  const data = JSON.parse(fs.readFileSync(path.join(root, 'ui/benchmarks/cryptanalysis-primary.json'), 'utf8'));
+  data.rows[0].run_id = '<script>bad()</script>';
+  data.rows[0].ic_online_ns = 0;
+  data.rows[0].rho_online_ns = null;
+  const panel = dom.window.ui.benchmarkPanel(data);
+  dom.window.document.body.append(panel);
+  assert.equal(panel.querySelectorAll('article').length, 9);
+  assert.equal(panel.querySelector('script'), null);
+  assert.match(panel.textContent, /0.000 ms/);
+  assert.match(panel.textContent, /urn:ec-record:1:sha256:/);
+  assert.match(panel.textContent, /separate namespace/);
+  const select = panel.querySelector('select');
+  select.value = Object.keys(data.identities)[0];
+  select.dispatchEvent(new dom.window.Event('change'));
+  assert.equal(panel.querySelectorAll('article').length, 9);
+  assert.match(panel.querySelector('a').href, /blob\/[a-f0-9]{40}\//);
   dom.window.close();
 });

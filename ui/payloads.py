@@ -740,4 +740,5 @@ def progress_payload(index: ResearchIndex, snapshot=None) -> dict[str, Any]:
 
 
 def comparisons_payload(index: ResearchIndex) -> dict[str, Any]:
-    return comparisons.payload(index.repo)
+    from . import benchmarks
+    return {**comparisons.payload(index.repo), "benchmarks": benchmarks.payload(index.repo)}
