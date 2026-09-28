@@ -1,0 +1,316 @@
+# Hand-written part of implementation_report.yaml (merged by make_report.py).
+inference:
+  runtime: cursor
+  role: executor
+  requested_policy: executor-implementation
+  resolved_model_id: cursor-auto (inherited session model; exact identifier not exposed to the subagent)
+  model_verified: false
+  fallback_used: true
+  fallback_reason: 'Cursor runtime: subagents run on the inherited session model (handoff fallback_allowed:
+    true).'
+  reasoning_effort: null
+  degraded_requirements: []
+completion_gate:
+  fixture_generator_reproduces_frozen_json_byte_for_byte: PASS (see smoke.fixture_reproduction)
+  s4_s5_identity_checks_pass_at_L8: PASS (1000 tuples, S3/S4/S5 exact iff vs point arithmetic)
+  b0_b1_oracle_agree_on_all_smoke_queries: PASS (see smoke.totals)
+  no_write_outside_write_scope: PASS -- all files are under experiments/EXP-SDEG-85eefd/implementation/;
+    scratch timing scripts lived in $TMPDIR (/Volumes/SSD990/.tmp-agent), outside the repo. The pre-existing
+    experiments/EXP-SDEG-85eefd/runs/.gitkeep (dated 2026-09-26) was not touched and no RUN-* directory
+    was created.
+deviations:
+- id: D-1
+  what: Pseudo-remainder computed as lc(b)^(delta+1) * (F_T mod b) using one charged inversion, not by
+    term-by-term fraction-free scaling.
+  why: Over F_p the values are identical coefficient for coefficient; the literal term-by-term form rescales
+    the whole remainder at each of ~|T| steps (quadratic in |T|) and would charge an artifact of the representation
+    rather than the PRS. The subresultant exact divisions by g*h^delta are multiplications by charged
+    inverses.
+- id: D-2
+  what: Forward table built by point arithmetic x(P1 +- P2) rather than by solving the quadratic S3(x1,
+    x2, u) = 0.
+  why: Same set by Semaev's theorem; smoke checks S3(x1, x2, u) = 0 for every table entry. Cost is charged
+    in both cases.
+- id: D-3
+  what: B2 Sage cross-check runs the literal Singular elimination (GB degrevlex + FGLM to lex) on a subset
+    of L = 8 queries and a Sage 'split' eliminant (rad lcm over V^3 of the S5 specializations) on all
+    L = 8 queries.
+  why: Literal elimination costs ~10 min/query at |V| = 8 (see OQ-5).
+- id: D-4
+  what: driver.py has a --smoke-dry-run mode (smoke namespace, L8-s1, output confined to implementation/smoke/).
+  why: Only way to exercise the driver's run path without a scientific run.
+- id: D-5
+  what: Smoke cell JSONs omit per-triple op logs; the accounting audit ran on all smoke receipts in memory.
+  why: Repository volume repeatedly reached 0 bytes free during the task (infrastructure_incidents).
+- id: D-6
+  what: The final smoke and driver dry-run ran with TMPDIR=/private/tmp/sdeg-agent (system disk) instead
+    of the requested /Volumes/SSD990/.tmp-agent.
+  why: Sage failed with ENOSPC creating a temp file on /Volumes/SSD990 (0 bytes free); the system disk
+    had ~20 GB free at that time. Only Sage's small temp files go there.
+- id: D-7
+  what: B2's split cross-check on the charged host uses b2split.py (plain Python over F_p, uncharged,
+    derived S5 only) and compares by 'deg rad == |X| and rad vanishes on every x in X' instead of listing
+    the radical's roots.
+  why: No Sage on the pod; for a squarefree rad the two conditions are equivalent to root-set equality.
+    The Sage split method remains in sage_b2_crosscheck.py and the Mac smoke compares both.
+- id: D-8
+  what: On Linux the per-process memory guard is peak RSS (ru_maxrss) > 8 GiB checked once per i3 iteration,
+    not a psutil current-RSS poll.
+  why: Peak RSS is the stricter bound and needs no extra dependency; checked at the same points as on
+    the Mac.
+open_questions:
+- id: OQ-1
+  topic: How b(u) = S5(u, x3, x4, x5, x(R)) is formed and charged in B1
+  literal_reading_implemented: 'Charged Horner specialization of the dense 9^5 S5 array: x(R) once per
+    query (52,488 mults), x3 per i3 (5,832 each), x4 per (i3, i4) (648 each), x5 per triple (72).'
+  consequence: 'Modeled: at L = 8 these terms are the majority of B1''s per-query W; at L = 32 a small
+    share. A large fixed term at the smallest size lowers a 3-point log-log slope, i.e. biases beta_work(B1)
+    DOWNWARD, toward the 0.30 gate. B1 records W_components (S5_specialization vs prs_and_rest) so the
+    split is visible, but the protocol does not say which W enters beta_work. Needs a Coordinator ruling
+    (e.g. keep literal; or charge only the PRS; or charge a sparse specialization) BEFORE the run.'
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: B1 W is total (incl. S5 specialization); outcome A must also pass on W_triple = W minus the
+    per-query fixed x(R) specialization; both slopes always reported.
+- id: OQ-2
+  topic: Weights inside W
+  literal_reading_implemented: W = mul + inv + gcd_steps + probes, unit weights ('inversion charged as
+    1 mult plus a counted extended-gcd step count'). All components stored separately.
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Literal reading accepted as written; now frozen.
+- id: OQ-3
+  topic: Amortization base for table (and deck-construction) cost
+  literal_reading_implemented: Amortized over the deck's 32 queries (T depends on the deck), also reported
+    unamortized. 'fixture's queries' could be read as 96/128 per fixture. Deck construction is charged
+    under spec v1 charging_rule ('Charge FB construction').
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Literal reading accepted as written; now frozen.
+- id: OQ-4
+  topic: Full triple enumeration vs stop at first hit
+  literal_reading_implemented: B0 and B1 enumerate every triple ('for each unordered triple'); W_query_to_first_hit
+    (deterministic lexicographic triple order) is recorded too. rho_c depends strongly on this choice
+    (full enumeration makes W nearly class-independent).
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Primary W = decision cost (W_query_to_first_hit; non-members pay full enumeration); full-enumeration
+    W secondary; rho_c on primary W.
+- id: OQ-5
+  topic: Coverage of B2's L = 8 Sage/Singular cross-check
+  literal_reading_implemented: 'Driver default: ''split'' on all 384 L = 8 queries; literal ''fglm'' on
+    every |V| <= 4 query and the first query of every other L = 8 cell (--b2-fglm-per-cell 1). Full literal
+    coverage would cost roughly 50-60 h of Singular time at the measured smoke rate.'
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Driver default accepted (split on all L = 8 queries; FGLM on every |V| <= 4 query and the first
+    query of each other L = 8 cell).
+- id: OQ-6
+  topic: Point at infinity in the forward set
+  literal_reading_implemented: T carries an explicit INF element (U = P - P), seen by B0 as a backward
+    point equal to O and by B1 as a degree drop of b(u). Without it B0/B1 disagree with the exact oracle
+    on every target that is a signed 3-sum (repetition allowed), which C-5 makes a stop.
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Explicit point-at-infinity element in T accepted; P1 = -P2 allowed.
+- id: OQ-7
+  topic: Seed-label shapes the amendment elides or omits
+  literal_reading_implemented: 'random target ''<ns>|random|L<L>|<seed>|<deck>|<j>'' (deck included by
+    analogy with planted); rho target ''<ns>|rho|L<L>|<seed>|<t>''; rho walk multipliers and start ''<ns>|rho_walk|L<L>|<seed>|<t>|<restart>.<j>{c,d}'';
+    identity tuples ''<ns>|identity|L<L>|<seed>|<i>|<field>''; audit selection ''<ns>|audit|<query_id>'';
+    query index j = 0..15 per kind. Planted term: r = uniform(label, 2|V|), index r // 2, sign + iff r
+    even. A single-label draw in the 2^256 rejection zone raises (p < 2^-250).'
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Literal reading accepted as written; now frozen.
+- id: OQ-8
+  topic: Ordering of V
+  literal_reading_implemented: Sorted ascending for every deck; fixes planted index mapping and triple
+    order.
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Literal reading accepted as written; now frozen.
+- id: OQ-9
+  topic: Statistics used inside the C-7 conditions
+  literal_reading_implemented: 'A: ''B1 below the random_x deck''s beta_work'' compares (all, worst) point
+    estimates; ''medians non-increasing or flat'' is implemented as non-increasing (no tolerance for ''flat'').
+    B: both the median and the worst beta_work(B1, all, interval_x) lower CIs >= 0.30. Calibration: B0
+    (interval_x, all, median) point estimate in [0.5, 0.7].'
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: 'Flat: each per-size median of log W / log q may exceed the previous size''s by at most 0.02.
+    Other literal readings stand.'
+- id: OQ-10
+  topic: beta_sub definition
+  literal_reading_implemented: Per query D = sum over triples of deg gcd(F_T, b) (the number of hits);
+    beta_sub = slope of log median D on log q per class; undefined (not zero) when a median is 0, which
+    is expected for non-members.
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Literal reading accepted as written; now frozen.
+- id: OQ-11
+  topic: Abscissa of beta fits
+  literal_reading_implemented: Mean log q over the pooled queries at each L (the three seeds' q differ).
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Literal reading accepted as written; now frozen.
+- id: OQ-12
+  topic: Watchdog stop 'charged at the cap as a LOWER bound'
+  literal_reading_implemented: The cap is in seconds and W is in operations; the op count at the stop
+    is recorded as a flagged lower bound in class (iii); no seconds-to-ops conversion is invented.
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Literal reading accepted as written; now frozen.
+- id: OQ-13
+  topic: Progression control deck queries
+  literal_reading_implemented: 32 queries per fixture (labels with deck 'progression'), run under B0,
+    B1, B2 and the oracle; excluded from primary beta_work; beta_elim(progression) < 0.30 checked.
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Literal reading accepted as written; now frozen.
+- id: OQ-14
+  topic: Witness verification cost
+  literal_reading_implemented: Excluded from W (certification by independent verifier code).
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Literal reading accepted as written; now frozen.
+- id: OQ-15
+  topic: Random target R = O (k = 0 mod q, probability 1/q per query)
+  literal_reading_implemented: 'Handled: B1 uses S4(u, x3, x4, x5); B0/B2/oracle handle O natively.'
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Literal reading accepted as written; now frozen.
+- id: OQ-16
+  topic: Rho walk details
+  literal_reading_implemented: Partition index x mod 32; every visited canonical point stored; fruitless
+    cycle escape by doubling the cycle's min-x point; walk + escape group ops / sqrt(q) reported against
+    0.886; precompute reported separately.
+  status: ruled
+  ruled_by: AMD-20260928-7ce387 (DEC-20260928-6b03c5)
+  ruling: Literal reading accepted as written; now frozen.
+infrastructure_incidents:
+- Repository volume /Volumes/SSD990 fell from ~30 GB free at task start to 0 bytes several times (writers
+  in other worktrees, e.g. /Volumes/SSD990/pr-merge/*). Two smoke attempts died with ENOSPC and were rerun;
+  one pytest attempt failed on ENOSPC in tmp_path and passed on rerun. Not caused by this task (implementation
+  dir ~ 6 MB).
+- First derive_semaev.py attempt failed after derivation on a JSON serialization bug (Sage Integer); fixed
+  and rerun. Two backgrounded jobs were killed by the shell and relaunched.
+- An exploratory literal Singular elimination_ideal() call ran > 9 min on one L = 8 query and was killed;
+  replaced by GB + FGLM (same ideal, same result).
+- 'v3 follow-up: the pod''s SSH endpoint (213.173.110.47:19497) refused TCP connections at every attempt
+  during this session (see pod_smoke in the report). The pod smoke could not be run; see blocking_for_scientific_run.'
+- 'v3 follow-up: a Mac smoke was started before audit.py was updated for the v3 decision cost and was
+  killed and rerun; the charged driver dry run showed the old audit rejecting 18/32 member receipts (W
+  != full W + share), which is the intended audit behaviour for the old rule.'
+blocking_for_scientific_run:
+- 'Pod reachability: the pod smoke (non-Sage path at L=8 seed 1 on the pod, op-count identity against
+  the Mac) has not been performed because the SSH endpoint refused connections; rerun implementation/pod_sync.sh
+  smoke when the pod is up.'
+- C-9 on the pod at claim time (15-min load <= 23, run volume >= 20 GiB, / >= 5 GiB) and on the Mac for
+  the Sage part (load <= 14, / >= 5 GiB, repo volume >= 20 GiB; the repo volume had ~20 GB free during
+  this session, at the threshold).
+- Snapshot archive (TASK-20260928-a3269a), independent implementation audit (TASK-20260928-796dfe) and
+  a Coordinator run-admission decision.
+- Rulings on OQ-17..OQ-19 (non-blocking if the literal readings are accepted).
+v3_changes:
+- id: V3-1
+  ruling: OQ-1, OQ-4
+  change: cellrun records carry W (primary, decision cost + amortized share), W_full (full enumeration
+    + share, secondary), W_fixed_xR (B1's charged specialization at x(R); 0 for B0) and W_triple = W -
+    W_fixed_xR. backends.b1_query reports W_components.fixed_xR_specialization. For a watchdog-stopped
+    B1 query W_fixed_xR is recomputed on a fresh counter (cellrun.fixed_xR_cost).
+  files:
+  - backends.py
+  - cellrun.py
+- id: V3-2
+  ruling: OQ-1, OQ-4, OQ-9
+  change: 'analysis.compute_metrics reports beta_work (primary W), beta_work_full (secondary) and beta_work_triple
+    (B1). rho_c uses primary W. outcome A adds B1_triple_all_worst_upper_ci_lt_gate; outcome B uses total
+    primary W. Flat check: per-size median of log W / log q (per_L[*].median_logW_over_logq) may rise
+    by <= FLAT_TOL = 0.02; applied to B1 (interval_x, all) and to the known-false B0 gate. Both slopes
+    are always in the outcome block.'
+  files:
+  - analysis.py
+  - tests/test_analysis.py
+- id: V3-3
+  ruling: OQ-4
+  change: accounting audit recomputes W (prefix of the op log through the lexicographically first hit
+    triple), W_full and W_triple/W_fixed_xR from the op log; a receipt reporting full enumeration as a
+    member's decision cost is rejected.
+  files:
+  - audit.py
+- id: V3-4
+  ruling: execution_host
+  change: 'hostinfo.py: host-aware C-9. Linux: /proc/loadavg 15-min load <= floor(quota/period) from /sys/fs/cgroup/cpu.max
+    (os.cpu_count() if ''max''), run volume >= 20 GiB, / >= 5 GiB. macOS: load <= 14, / >= 5 GiB, repo
+    volume >= 20 GiB. Every part manifest records host identity (hostname, container id, cgroup cpu quota,
+    python, numpy, psutil, platform).'
+  files:
+  - hostinfo.py
+  - driver.py
+- id: V3-5
+  ruling: execution_host
+  change: 'driver.py --mode charged|sage|merge|full. charged: identity, decks, oracle, B0, B1, B2, no-Sage
+    B2 split (b2split.py), witness replay, rho -> runs/<RUN>/charged/. sage (Mac): fixture reproduction
+    + literal FGLM -> runs/<RUN>/sage/ (decks/targets regenerated deterministically). merge: cross-part
+    consistency (run id, plan sha, decision, namespace, implementation sha256 per file, no sage import
+    in the charged process), FGLM vs B2 per query, audit, metrics, C-7 mapping, cell_provenance.json with
+    per-cell host. No charged module imports sage (AST test).'
+  files:
+  - driver.py
+  - celltask.py
+  - b2split.py
+  - tests/test_hosts_split.py
+- id: V3-6
+  ruling: execution_host (maximum_workers 16 on the pod)
+  change: charged part runs identity, cell and rho tasks in up to 16 spawn processes on Linux (1 elsewhere,
+    enforced); each task is single-threaded (BLAS/OpenMP thread env = 1), writes only its own file, and
+    results are sorted before aggregation. Per-process 8 GiB peak-RSS guard (backends._mem_guard). No
+    new task starts after a defect or task error. Optional --after-cell-cmd hook for copy-back; pod_sync.sh
+    pull copies a charged part back.
+  files:
+  - driver.py
+  - celltask.py
+  - pod_sync.sh
+- id: V3-7
+  ruling: n/a (plan header only)
+  change: trial-plan-v2.json keeps its name (no cell, query, label or draw changed); header now protocol_version
+    3, amendment_v3 path/sha256, per-host C-9 rules and execution_hosts. check_plan also verifies amendment_v3_sha256
+    and protocol_version == 3.
+  files:
+  - make_trial_plan.py
+  - trial-plan-v2.json
+  - fixtures.py
+- id: V3-8
+  ruling: verification
+  change: smoke.py --no-sage and --out-dir; writes canonical per-query op counts (opcounts.json, sorted,
+    compact JSON) for the cross-host identity check; runs the no-Sage split on every smoke query.
+  files:
+  - smoke.py
+  - cellrun.py
+open_questions_v3:
+- id: OQ-17
+  question: 'Decision cost of a member stops at the END of the first hit triple (B0: all 8 sign candidates
+    of that triple probed; B1: the full PRS of that triple), and the per-cell amortized share is added
+    to the decision cost as to the full cost. Literal reading of ''stops at the first verified hit in
+    the lexicographic triple order''; confirm.'
+  impact: small constant per member query; no effect on non-members, which govern (all, worst).
+- id: OQ-18
+  question: The flat criterion is applied to the (interval_x, all) per-size median of log W / log q for
+    B1 total W only, not additionally to W_triple. The ruling adds only the upper-CI condition for W_triple;
+    confirm that flatness is not also required on W_triple.
+  impact: could change an outcome-A verdict only if W_triple per-size betas rise by > 0.02 while its slope
+    CI stays < 0.30.
+- id: OQ-19
+  question: 'Copy-back ''after each cell'': the pod cannot reach the Mac, so the implementation offers
+    (a) --after-cell-cmd on the pod and (b) pod_sync.sh pull RUN-ID run from the Mac (e.g. in a loop).
+    Which mechanism the Coordinator uses is operational, not in the code.'
+  impact: durability only.
+completion_gate_v3:
+  unit_tests: see tests
+  no_sage_import_on_charged_path: PASS (tests/test_hosts_split.py::test_charged_path_never_imports_sage;
+    charged part manifest sage_imported false)
+  mac_three_part_driver_dry_run: see driver_smoke_dry_run_v3
+  pod_smoke_and_opcount_identity: see pod_smoke
+  no_frozen_label_evaluated: PASS -- smoke namespace only on the Mac; nothing ran on the pod
+  no_runs_directory: PASS -- no RUN-* directory; pod_sync.sh pull (which would create one) was not executed
