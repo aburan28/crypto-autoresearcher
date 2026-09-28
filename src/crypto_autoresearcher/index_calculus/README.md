@@ -17,10 +17,10 @@ how the classical prime-field index calculus scales.
 | `semaev.py` | the summation polynomial `S_3` and its roots |
 | `factor_base.py` | factor bases: `small_x` (smallest x-coordinates), `subgroup` (x in a coset `g·mu_d` of `F_p^*`), `random` (control); their membership polynomials; the prime filter that makes the subgroup base fair |
 | `decompose.py` | decomposition of a point into `m` signed factor-base points: exhaustive (fix `m-2`, solve the last two with `S_3`), or meet-in-the-middle against a table of tails (fix `m-h-1`, solve one with `S_3`, look the rest up); both find the same relations |
-| `tails.py` | the table of tails: every signed sum of `h` factor-base points the search can reach, keyed by x-coordinate and built once per factor base |
+| `tails.py` | the table of tails: every signed sum of `h` factor-base points the search can reach, keyed by x-coordinate and built once per factor base; with numpy, two sorted arrays at 8 bytes a tail |
 | `_accel.py` | optional numpy scan that locates the useful `S_3` roots (in the base or in a table of tails); relations and every counter are identical to the pure-Python path |
 | `msolve.py` | algebraic decomposition: the Semaev system solved by the msolve Gröbner-basis engine |
-| `linalg.py` | incremental sparse elimination mod `N`, stopping at the first relation that fixes the target log |
+| `linalg.py` | incremental sparse elimination mod `N`, stopping at the first relation that fixes the target log; pivots on the column the fewest pivot rows hold (`min_fill`) or, as before, the lowest index (`min_index`) |
 | `rho.py` | Pollard rho with distinguished points and a Teske 20-adding walk |
 | `solver.py` | the end-to-end solver and its cost columns |
 | `stats.py` | exponent fits with a stratified bootstrap confidence interval |
@@ -73,6 +73,10 @@ Costs are counts in separate columns, and columns are never summed.
   shared inversion. That is the pair of x-coordinates one `S_3` solve
   yields, so it is charged as one `S_3` solve, although it needs no square
   root. `table_entries` is the table's size.
+- **Pivot rule.** `la_ops` depends on the elimination's pivot rule, and
+  every row records it as `la_pivot`. Rows written before the field existed
+  used `min_index`; `--la-pivot min_index` reproduces their `la_ops`.
+  `analyze` fits each rule as its own series, so the two are never mixed.
 - **Rho.** The primary unit is one group addition of the walk (`walk_ops`).
   The fixed scalar multiplications for the step table and the walk starts
   are reported separately as `setup_ops`. At toy sizes that setup term rivals
@@ -87,7 +91,7 @@ Costs are counts in separate columns, and columns are never summed.
   in the sweep. Every base in a cell then uses the subgroup base's actual
   size.
 
-## Results (2026-09-24; section 3 2026-09-26)
+## Results (2026-09-24; sections 3 and 4 2026-09-26)
 
 These are toy sizes: the sweep uses primes of 12 to 32 bits, and the msolve
 comparison uses one 16-bit prime. The runs were on a 4-core Intel Xeon
@@ -380,17 +384,116 @@ What the sweeps show:
     2.56·10⁶ S₃ solves, and both grow like N^(2/3).
   - A multiply-add is cheaper than an S₃ solve (a square root). But a
     further decomposition gain is capped by the linear algebra unless the
-    elimination improves too.
+    elimination improves too. Section 4 does that: with its pivot rule,
+    elimination is 12% of the S₃ count at 32 bits.
 - **The table trades memory for time.**
   - The m = 3 table holds `|F|²` tails, 1.23·10⁶ at 32 bits. One 32-bit
     solve peaked at 430 MB resident (the whole Python process).
   - So memory grows like N^(2/3), where rho needs almost none.
   - m = 5 needs about a third of that table (4.5·10⁵ tails at 32 bits)
     and is also the cheapest arity in S₃ solves there.
+  - Section 4 stores the table in 8 bytes a tail instead of a dict.
 - **msolve (§2) is further behind.** §2 compared msolve with exhaustive
   enumeration. At m = 3, mitm spends `|F|` S₃ solves per target plus a
   share of the table, so msolve's `|F|^4.4` per target loses to it by more.
   This is inferred from the exponents; it was not re-measured.
+
+### 4. Cheaper elimination and a smaller table (2026-09-26)
+
+Section 3 left two costs behind: elimination as large as decomposition, and
+a table stored at about 185 bytes a tail.
+
+- **Elimination.** `linalg.py` used to pivot each new row on its lowest
+  column index. It now pivots on the column the fewest stored pivot rows
+  contain (`min_fill`), breaking ties by the least-seen column and then the
+  lowest index. A later row is reduced by a pivot row whenever it holds that
+  pivot's column, directly or through fill. So a column few pivot rows carry
+  is one later rows rarely need cleared.
+  - Where elimination stops is a property of the rows received, not of the
+    order they are eliminated in. Every pivot rule therefore stops at the
+    same relation with the same logarithm; only `la_ops` changes.
+  - `--la-pivot min_index` keeps the old rule.
+- **Table.** A numpy-built table is now two sorted arrays: x-coordinates as
+  uint32, and packed tails as uint32 (uint64 when they don't fit). Tails
+  that share an x sit together with the largest first index in front, so one
+  binary search answers both of the search's lookups. The pure-Python build,
+  used only without numpy, keeps its dict.
+
+```sh
+python -m crypto_autoresearcher.index_calculus sweep \
+    --bits 12 14 16 18 20 22 24 26 28 30 32 --m 2 3 \
+    --fb small_x random subgroup --curves 5 --rho-curves 10 \
+    --engine mitm --m-max-bits 2=0 --workers 4 \
+    --out results/sweep-minfill-20260926.jsonl
+python -m crypto_autoresearcher.index_calculus sweep \
+    --bits 12 14 16 18 20 22 24 26 28 30 32 --m 3 4 5 --fb small_x \
+    --curves 5 --rho-curves 10 --engine mitm --workers 4 \
+    --out results/sweep-arity-minfill-20260926.jsonl
+gzip -n results/sweep-minfill-20260926.jsonl results/sweep-arity-minfill-20260926.jsonl
+python -m crypto_autoresearcher.index_calculus analyze results/sweep-minfill-20260926.jsonl.gz
+python -m crypto_autoresearcher.index_calculus analyze results/sweep-arity-minfill-20260926.jsonl.gz
+```
+
+- **Runs.** The two sweeps re-solve section 3's instances with the new
+  defaults, on the same host. Every logarithm was checked; none failed.
+- **Same runs, checked.**
+  - On all 330 index-calculus rows, every count except `la_ops` equals
+    section 3's stored row: attempts, relations, rank, S₃ solves, table and
+    target operations.
+  - Re-running section 3's first sweep with `--la-pivot min_index`
+    reproduces all 380 of its stored rows, `la_ops` included.
+  - Replaying recorded relation streams, the new code performs the same
+    reductions, in the same order, as a reference implementation of each
+    rule.
+
+Elimination at m = 3 (first sweep): medians over the 15 instances of each
+size, in modular multiply-adds.
+
+| bits | `min_index` (§3) | `min_fill` | ratio | elimination / S₃, before | after |
+|---|---|---|---|---|---|
+| 12 | 155 | 145 | 0.89 | 0.86 | 0.78 |
+| 16 | 537 | 416 | 0.86 | 0.39 | 0.28 |
+| 20 | 2,026 | 1,233 | 0.64 | 0.25 | 0.15 |
+| 24 | 12,175 | 6,014 | 0.49 | 0.18 | 0.08 |
+| 28 | 1.03e5 | 33,582 | 0.31 | 0.25 | 0.08 |
+| 30 | 4.41e5 | 91,824 | 0.27 | 0.48 | 0.12 |
+| 32 | 1.57e6 | 3.31e5 | 0.20 | 0.61 | 0.12 |
+
+| series | elimination exponent, `min_index` (§3) | `min_fill` | S₃ exponent |
+|---|---|---|---|
+| m = 3, small_x | 0.65 [0.63, 0.67] | **0.55** [0.53, 0.56] | 0.67 |
+| m = 3, random | 0.66 [0.64, 0.69] | **0.55** [0.54, 0.57] | 0.67 |
+| m = 3, subgroup | 0.64 [0.62, 0.66] | **0.54** [0.52, 0.55] | 0.67 |
+| m = 4, small_x (second sweep) | 0.52 [0.51, 0.53] | 0.45 [0.44, 0.46] | 0.75 |
+| m = 5, small_x (second sweep) | 0.42 [0.41, 0.43] | 0.36 [0.35, 0.37] | 0.60 |
+
+The table, on one 32-bit m = 3 solve: the subgroup base of curve 4, with
+|F| = 1,247 and 1.56·10⁶ tails.
+
+| | dict (§3) | sorted arrays |
+|---|---|---|
+| table storage | resident size grew 288 MB (~185 bytes a tail) | 12.4 MB of arrays (8 bytes a tail) |
+| peak resident size of the whole solve | 446 MB | 90 MB |
+| table build time | 4.4 s | 0.6 s |
+| S₃ solves | 2,380,184 | 2,380,184 |
+
+At m = 5 and 32 bits the table is 2.1 MB (2.6·10⁵ tails).
+
+What the changes show:
+
+- **Elimination is no longer a co-bottleneck.**
+  - At m = 3 and 32 bits it falls from 61% of the S₃ count to 12%.
+  - Its fitted exponent, 0.54–0.55, is now below decomposition's 0.67. The
+    m = 3 total therefore still grows as N^(2/3), and decomposition sets it.
+  - The elimination exponent is a fit over 12–32 bits, not a derived bound,
+    and may not hold at larger sizes.
+- **Neither change moves the method against rho.** S₃ counts are
+  unchanged, so m = 3 still costs 34× rho's walk at 32 bits. Both changes
+  lower costs without moving the method's exponent: engineering, not an
+  advance.
+- **Memory no longer limits the sizes run here.** A 32-bit m = 3 table
+  takes 12 MB. The numpy path, and with it the array storage, stops at
+  p < 2^32, as the vectorised scan always has.
 
 ### Caveats
 
@@ -401,8 +504,9 @@ What the sweeps show:
 - **Linear algebra stops early.** It stops at the first relation that fixes
   `k`: about 0.5·|F| relations at m = 2 (the first cycle in the relation
   graph) and 0.92·|F| at m = 3. A full-rank solve needs about `|F|`, a
-  constant factor more. With mitm decomposition that constant lands on a
-  phase that is already as large as decomposition (section 3).
+  constant factor more. With mitm decomposition and the old `min_index`
+  pivot rule, that constant lands on a phase already as large as
+  decomposition (section 3). With `min_fill` it does not (section 4).
 - **msolve bound.** The comparison runs below 2^16 because msolve 0.6.5 is
   wrong above that bound (see `msolve.py`). The per-target exponents concern
   `|F|`, not `p`.
