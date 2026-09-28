@@ -1,0 +1,581 @@
+idea:
+  id: IDEA-20260926-d3c5a5
+  question_id: RQ-CERTBIN-836ce2
+  added: '2026-09-26'
+  status: proposed
+  approved_by: null
+  title: >-
+    A BINARY PORT OF THE PRIME-FIELD MEET-IN-THE-MIDDLE ENGINE (table of
+    tails keyed by abscissa, one shared inversion per pair) as the solver-free,
+    certificate-producing ground-truth oracle for the m = 3 and m = 4 CERTBIN
+    cells, with the exact calibration line theta_mitm = floor(m/2)/m at the
+    cap locus that every algebraic oracle on the (1/2 - 1/m) ladder is read
+    against
+  class: tooling
+
+  claim: >-
+    CEILING FIRST. No exponent moves and nothing here bears on ECC2K-130
+    except negatively. Representation R1 (abscissa in polynomial basis on the
+    CERTBIN cells); the attack stage served is RELATION DECOMPOSITION, as an
+    exact ORACLE for measurement, not as an attack. Target arity m in {3, 4}
+    on toy cells; on ECC2K-130 the per-attempt budget at the cap locus is
+    about 2^11 (m = 4) and 2^32 (m = 5) group-op equivalents
+    (IDEA-20260926-4b65e3 (B)) and the MITM oracle misses both by tens of
+    bits, as computed below.
+
+    THE GAP. RQ-CERTBIN-836ce2's decision target (1) asks for the fully
+    charged per-relation cost as a function of m; IDEA-20260926-4b65e3 fixes
+    the locus (d_cap = ceil((n + log2 m!)/m)) and the line (1/2 - 1/m) and
+    proposes cells at n in {17, 19, 23, 29, 31}, m in {3, 4}; its ground truth
+    is the (m-1)-fold loop of IDEA-20260904-96c4f3 at 2^{(m-1) d}/(m-1)! group
+    operations per target, which at its top cell (n, m, d) = (31, 4, 9) is
+    2^27/6 additions per target, "hours to a day in pure Python and the
+    largest single item". A two-list meet-in-the-middle over the same
+    subspace base costs 2^{2d} table entries once and 2^{2d}/2 probes per
+    target at m = 4 (about 2^18 at d = 9), so the same cell costs seconds and
+    the whole ladder becomes affordable at 200 targets per cell rather than
+    40. The prime-field engine that does exactly this landed on main
+    (src/crypto_autoresearcher/index_calculus/tails.py, decompose.py,
+    --engine mitm): every signed h-fold sum stored once per factor base, keyed
+    by x-coordinate, with F + S and F - S obtained from one shared inversion,
+    and a proven-identical relation set against exhaustive search on every
+    target kind. The review of IDEA-20260922-845a77 named the binary port as
+    "the natural ground-truth control for the m = 3 and m = 4 CERTBIN cells".
+    This record specifies the port and its calibration content.
+
+    WHAT CHANGES IN CHARACTERISTIC 2 (the port is not a transliteration).
+    (i) Negation is (x, y) -> (x, x + y), so the stored orientation bit is
+    the least significant bit of y/x (the two roots z of z^2 + z = c differ by
+    1), not "y above p/2". (ii) The one-inversion pair trick holds: for
+    P = (x_1, y_1), S = (x_2, y_2), x(P + S) and x(P - S) both come from
+    lambda_+ = (y_1 + y_2)/(x_1 + x_2) and lambda_- = (y_1 + y_2 + x_2)/(x_1 +
+    x_2), one inversion of x_1 + x_2, so a table level costs one inversion,
+    four multiplications and two squarings per (F, T) pair (my count from
+    curve.py add; recheck). (iii) Membership is a GF(2) linear test (x in V)
+    rather than a set lookup, so the probe half can be VECTORISED over the
+    whole base: at m = 3 with h = 2 the probe for a target R is "for each F in
+    V-points, is x(R - F) in the table", 2^d probes; at m = 4 with h = 2 it is
+    2^{2d}/2 probes of x(R - F_1 - F_2). (iv) The order-4l or 2l group has
+    2-torsion: the tail rule "every suffix has nonzero sum" is kept verbatim
+    and the 2-torsion point (x = 0) is a legal base element only if 0 in V,
+    which it is for every {deg < d}; the engine must reproduce the loop's
+    decomposition MULTISET including sums that use it. (v) Unit: the
+    prime-field engine charges one "S_3 solve" per stored pair; the port
+    charges field inversions, multiplications and squarings separately and
+    reports group-op equivalents through the exchange-rate rows of
+    IDEA-20260926-c98e92 (this lane), so the column is in the boundary
+    table's unit from the first run.
+
+    THE CALIBRATION LINE, DERIVED (zero compute, my arithmetic). At the cap
+    locus |V| = B_cap = (m! 2^n)^{1/m}, table arity h = ceil(m/2), the probe
+    half costs |V|^{m-h} = |V|^{floor(m/2)} per target and the table
+    |V|^{ceil(m/2)} once, amortised over about B_cap targets, so the
+    per-attempt cost exponent in n is theta_mitm(m) = floor(m/2)/m: 1/3 at
+    m = 3, 1/2 at m = 4, 2/5 at m = 5, 1/2 at m = 6; the README's model
+    N^{max(h, m-h+1)/m} for the TOTAL at |F| = N^{1/m} agrees (3/4 measured
+    0.75 at m = 4, 3/5 measured 0.60 at m = 5). Against 4b65e3's budget line
+    1/2 - 1/m the generic MITM oracle sits 1/m above it at even m and 1/(2m)
+    above it at odd m; in bits at n = 131 that is 2^{n/m} = 2^32.75 at m = 4
+    and 2^{131/10} x const = 2^13 at m = 5 above the budget in exponent
+    alone (and further by the constants sqrt(m!)), so the MITM oracle is
+    CLOSED on ECC2K-130 at every m by the product law, as the 845a77 review
+    already found at the free-oracle optimum; the new statement is the
+    exponent form, which is exactly the gap a structural oracle must close:
+    a generic oracle costs 2^{floor(m/2) n/m} per attempt, the line asks for
+    2^{(1/2 - 1/m) n}, and the difference is 2^{n/m} at even m, i.e. exactly
+    one factor B_cap. On the toy ladder this is a KNOWN-ANSWER line the
+    fitted theta of the port must read to within 0.05 (with the loop at
+    1 - 1/m as the second known answer), which is what makes the port a
+    calibration arm and not only a speed-up.
+
+    THE TWO READINGS. E-EXACT: the port's relation multiset equals the loop's
+    on every target of every cell (400 targets per cell at m in {3, 4}, n in
+    {17, 19}), its certificates verify, and its fitted theta reads
+    floor(m/2)/m within 0.05 on both E and the relabelled Z/NZ control with
+    identical operation counts; the port is then the ground-truth oracle for
+    every m = 3, 4 CERTBIN design and 4b65e3's ladder is re-costed with it.
+    E-DEFECT: any multiset disagreement, certificate failure, or an E-versus-
+    Z/NZ count ratio other than 1 (a curve-specific shortcut crept in); the
+    port is rejected until localised. There is no third reading; a tooling
+    record either reproduces ground truth or it does not.
+
+  mechanism: >-
+    OBJECT FRAME. Representation R1; Sigma = translation by factor-base
+    elements (Class I, partial action), unchanged; no tracked object is
+    added. TRICHOTOMY: Class I, as for every F2 solver; the oracle is a
+    SOLVER CHOICE inside the family (the 845a77 review's reading), not an
+    object. LOSSY-PROJECTION TEST: not applicable; the table is keyed by the
+    exact abscissa, discards nothing relative to the loop, and finds the same
+    multiset by construction (both search the same equation). WHY IT IS
+    GENERIC AND WHY THAT IS THE POINT: the engine uses the group law only to
+    add points and equality only to match abscissae, so it runs identically
+    on the relabelled Z/NZ with a random base of the same size; the identical
+    count is the tell that no curve structure is used, and it is what
+    qualifies the port as the structureless null every structural oracle in
+    RQ-CERTBIN-836ce2 must beat (the same role brute-force pair enumeration
+    played in KN-FIND-aa2efc, where it beat the Riemann-Roch oracle by 2x).
+    THE ONE OPEN NUMBER is the measured operation count per target at each
+    cell in group-op equivalents, which becomes the "generic oracle" row of
+    the boundary table. OFF-LIMITS COMPONENTS: F2 (the family) and the
+    textbook Horowitz-Sahni split (recalled, as in 845a77); nothing new is
+    claimed about either.
+
+  novelty_status: unverified
+
+  origin:
+    kind: generator_search
+    date: '2026-09-26'
+    scope: >-
+      Lane TASK-20260926-e93f77 (round 2, seam S6). Seeded by the
+      successor_seam of the review of IDEA-20260922-845a77 (credited: "the
+      two-list MITM is an exact, solver-free, certificate-producing
+      decomposition oracle ... the natural ground-truth control for the m = 3
+      and m = 4 CERTBIN cells"), by BRIEF-ROUND2 section 1's note that the
+      prime-field engine now exists so "the binary port is now a port of an
+      existing engine, not a new instrument", and by IDEA-20260926-4b65e3's
+      cost driver at its top loop cell. OWNERSHIP (R2 rule): RQ-CERTBIN-836ce2,
+      because the deliverable is a measured decomposition oracle on the
+      prime-degree toy siblings and the cells are that question's; the count
+      row is handed to RQ-ICPERF-94c86e's table in the c98e92 unit. This
+      record deliberately does NOT re-file "theta(m) at the cap locus for
+      m in {3, 4}" (a seam-S6 candidate): that measurement is already the
+      minimal_test of IDEA-20260926-4b65e3, and duplicating it would be the
+      defect BRIEF-ROUND2 warns against; this record is the instrument that
+      makes that ladder affordable and adds its second known-answer line.
+    overlap_review: >-
+      Grepped ledger/proposals and knowledge/ for "MITM", "meet-in-the-middle",
+      "table of tails", "two-list", "subset-sum", "claw". Nearest, read:
+      IDEA-20260922-845a77 and its review (the two-list MITM proposed for the
+      pdp, priced at the QSP cell, closed on ECC2K-130 by the product law;
+      review's Stage-1 toy at the n = 19 cell, m = 3, |V| = 64);
+      IDEA-20260922-faa8d2 and its review (the solver-per-entry hybrid, a
+      strawman; not this construction); IDEA-20260904-96c4f3 (the (m-1)-fold
+      loop, the ground truth this port must match and the second calibration
+      line theta = 1 - 1/m); IDEA-20260808-2ef5c8 (a MITM deficit 1/(2(m-1))
+      on prime fields, cited in 4b65e3); src/crypto_autoresearcher/
+      index_calculus/README.md section 3 (the prime-field engine, measured
+      exponents 0.67, 0.75, 0.60 at m = 3, 4, 5, table memory N^{2/3});
+      KN-FIND-aa2efc (pair enumeration as the null that beat Riemann-Roch).
+      No record ports the engine to binary curves, states the floor(m/2)/m
+      line at the cap locus, or uses the port as the ground truth for W_D
+      refutation rates at m >= 3.
+
+  citations:
+    - ref: src/crypto_autoresearcher/index_calculus/README.md
+      provenance: internal
+      claim: >-
+        Section 3: the mitm engine, table of tails keyed by x, one shared
+        inversion per stored pair charged as one S_3 solve, identical
+        relations to exhaustive search on 165 + 60 instances, exponents
+        0.67 [0.66, 0.69] at m = 3, 0.75 at m = 4, 0.60 at m = 5; table memory
+        N^{2/3}, 430 MB peak at 32 bits.
+      verified_by: idea-generator, this session, README read in full.
+    - ref: src/crypto_autoresearcher/index_calculus/tails.py and decompose.py
+      provenance: internal
+      claim: >-
+        Tail = ordered list with non-decreasing indices and nonzero suffix
+        sums; one of each +-T stored with an orientation bit; default_table_
+        arity = max(1, min(m - 1, (m + 1)//2)); decompose_all returns the same
+        canonicalised, verified set with or without the table.
+      verified_by: idea-generator, this session, module docstrings and the first 120 lines of decompose.py read.
+    - ref: IDEA-20260926-4b65e3
+      provenance: internal
+      claim: >-
+        d_cap(n, m) = ceil((n + log2 m!)/m); the line log2 C_budget = (1/2 -
+        1/m) n + const; the corrected budgets 2^11, 2^32.4, 2^36.7, 2^42.2 at
+        m = 4, 5, 6, 8; the loop at (31, 4, 9) as the ladder's cost driver.
+      verified_by: idea-generator, this session, record read in full.
+    - ref: IDEA-20260904-96c4f3
+      provenance: internal
+      claim: The (m-1)-fold loop at 2^{(m-1)l}/(m-1)! group operations, exact and complete over a subspace base.
+      verified_by: idea-generator, this session, title and claim read via Grep; body not reopened.
+    - ref: analysis/binstd-idea-review-20260926/reviews/IDEA-20260922-845a77.yaml
+      provenance: internal
+      claim: >-
+        Table C(2402, 2) entries, probe half 2^21.46 per attempt, the
+        target-independent table amortises; MITM is generic (identical on
+        Z/NZ); closed on ECC2K-130 at every m by the product law; the toy
+        cell (n = 19, m = 3, l = 6, |V| = 64, 400 targets) and the successor
+        seam.
+      verified_by: idea-generator, this session, review read in full.
+    - ref: KN-FIND-aa2efc
+      provenance: internal
+      claim: Brute-force pair enumeration (the structureless null) cost 0.494x the Riemann-Roch oracle at d = 6 on identical solution sets.
+      verified_by: idea-generator, this session, finding read in full.
+    - ref: experiments/EXP-CERTBIN-e94b27/impl/curve.py
+      provenance: internal
+      claim: Binary affine addition with one div, two mul, one squaring; neg(P) = (x, x + y); lift_x via half-trace.
+      verified_by: idea-generator, this session, module read in full.
+    - ref: >-
+        Horowitz and Sahni, "Computing partitions with applications to the
+        knapsack problem", JACM 1974 (two-list subset-sum split)
+      provenance: recalled
+      claim: RECALLED, NOT RETRIEVED. The textbook two-list construction; as in IDEA-20260922-845a77, not load-bearing.
+      verified_by: null
+
+  citation_note: >-
+    No web search. The characteristic-2 operation counts and the
+    floor(m/2)/m line are this session's arithmetic on the code paths and on
+    4b65e3's locus; both are to be recomputed before use.
+
+  assumptions:
+    - >-
+      The subspace base V = {deg < d} in polynomial basis on the CERTBIN
+      curves; the base's points are the lifts of every abscissa in V that is
+      an abscissa, with both signs.
+    - >-
+      The loop of IDEA-20260904-96c4f3 is implemented beside the port as the
+      ground truth on every target; the port is never its own ground truth.
+    - >-
+      Costs are counted (inversions, multiplications, squarings, table
+      probes, table entries), never timed, and converted with the c98e92
+      exchange-rate rows; wall-clock is secondary.
+    - >-
+      OFF-LIMITS COMPONENTS DECLARED: F2 as the family; the textbook split as
+      the construction.
+
+  proof_search_map:
+    bottleneck: >-
+      An exact, cheap, solver-free ground truth for m >= 3 decomposition
+      attempts on the CERTBIN cells, without which every W_D refutation rate
+      and every theta(m) fit at m >= 3 has no oracle to be checked against
+      but the (m-1)-fold loop, whose cost caps the ladder at n = 31, m = 4.
+    baseline_embedding:
+      parameter_slice: >-
+        The prime-field engine's own frozen regression (identical relations
+        on every stored instance of results/sweep-mitm-20260926) is the
+        baseline the port's LOGIC must reproduce; the binary baseline is the
+        loop's multiset on every target of the n = 19 cell at m = 3, l = 6
+        (the 845a77 review's cell) before any other cell is run.
+      reproduction_check: >-
+        Frozen fixture: 400 targets (40 planted) at (19, 3, 6): multiset
+        agreement 400/400 with the loop; every relation re-verified by
+        schoolbook curve arithmetic independent of the table code
+        (s3_eval_school-style, no shared import); the exact tail count
+        C(2 x 64 + 1, 2)-style prediction against the built table size.
+    observation_collision:
+      observable: The relation multiset per target and the operation count per target.
+      distinct_preimage_search: >-
+        Two engines can agree on the multiset and differ in count (that is
+        the point); two can agree in count and differ in multiset only if one
+        is wrong. A count on E equal to the count on the relabelled Z/NZ
+        certifies genericity; a smaller count on E would mean a curve-specific
+        shortcut was used and the port is not the null it claims to be.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          The h-fold sumset of the base, materialised once as a table keyed
+          by abscissa with an orientation bit, replacing the inner (m-1-h)
+          levels of the loop by a probe.
+        predicted_gain: >-
+          Per-target cost |V|^{m-h} instead of |V|^{m-1}; at (31, 4, 9) about
+          2^18 probes instead of 2^27/6 additions; theta_mitm = floor(m/2)/m
+          at the cap locus, a known answer.
+    quantifier_order: >-
+      FOR ALL targets of the named cells, the port's multiset equals the
+      loop's (a correctness claim, checked exhaustively at toy scale); FOR the
+      named cells the fitted theta is as measured. NOT CLAIMED: anything about
+      a structural oracle; the port is the generic baseline such an oracle is
+      compared to.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        "On the named cells the port is exact, generic (E and Z/NZ counts
+        equal), and costs [counts] per target, with fitted theta [value]
+        against floor(m/2)/m." It can never certify a cost below the generic
+        line and it says nothing at n = 131 beyond the closed-form closure
+        already stated.
+      nearby_object_control: >-
+        The relabelled Z/NZ with a random base of matched size (the object
+        where the count must be identical) and a random 2^d-element subset of
+        abscissae in place of V (the null base, where the linear membership
+        test is replaced by a set lookup and the counts must again match).
+    proof_obligations:
+      - claim: Multiset agreement with the loop on every target of every cell, including targets that are sums of fewer than m base points and targets using the 2-torsion point.
+        responsibility: correctness
+      - claim: Every relation re-verified by independent schoolbook arithmetic.
+        responsibility: correctness
+      - claim: E and Z/NZ operation counts identical at matched |V| and targets.
+        responsibility: correctness
+      - claim: Table size equals the exact tail count predicted from |V| and h.
+        responsibility: size
+      - claim: theta_mitm reads floor(m/2)/m within 0.05 on the ladder and theta_loop reads 1 - 1/m.
+        responsibility: runtime
+      - claim: No figure at n = 131 beyond the closed-form closure.
+        responsibility: scope
+    not_applicable_reason: null
+
+  predictions:
+    - metric: relation_multiset_agreement (fraction of targets)
+      direction: same
+      minimum_effect: 'exactly 1.0 on every cell; any disagreement is E-DEFECT'
+    - metric: generic_group_count_ratio (E count over Z/NZ count at matched |V| and targets)
+      direction: same
+      minimum_effect: 'exactly 1; any other value is E-DEFECT'
+    - metric: theta_mitm (fitted slope of log2 per-target probes against n at fixed m, cap locus)
+      direction: same
+      minimum_effect: 'floor(m/2)/m within 0.05 (1/3 at m = 3, 1/2 at m = 4)'
+    - metric: probe_count_per_target at (31, 4, 9)
+      direction: lower
+      minimum_effect: 'about 2^18 against the loop''s 2^27/6, a factor of order 2^7 (estimate)'
+    - metric: table_entries at (n, m, d)
+      direction: same
+      minimum_effect: 'equal to the exact count of stored tails predicted from |V| and h to the entry'
+
+  minimal_test:
+    design: >-
+      CELLS. (a) The 845a77-review cell: n = 19, f = t^19 + t^5 + t^2 + t + 1,
+      A = 46693, B = 306147, h = 2, m = 3, l = 6, |V| = 64, 400 subgroup
+      targets of which 40 planted. (b) 4b65e3's cap-locus cells at n in {17,
+      19}: (17, 3, 7), (19, 3, 8), (17, 4, 6), (19, 4, 6), on RC-1 and the
+      n = 19 ordinary curve, 400 targets each, plus the Koblitz siblings
+      y^2 + xy = x^3 + x^2 + 1 at n = 17 and y^2 + xy = x^3 + 1 at n = 19
+      (orders recounted at setup). (c) Optional extension to n in {23, 29,
+      31} once a general-n field module exists (a 4b65e3 prerequisite, not
+      this record's). TABLE ARITY h = ceil(m/2) (2 at both m). INSTRUMENT.
+      experiments/EXP-CERTBIN-e94b27/impl/gf2n.py and curve.py; the
+      prime-field engine's tails.py and decompose.py as the specification to
+      port (about 250 lines new: binary tail packing with the y/x orientation
+      bit, one-inversion pair step, vectorised linear-membership probe,
+      operation counters, the loop beside it, a schoolbook verifier with no
+      shared import). Nothing missing. PROCEDURE. (1) Build V-points and the
+      loop; run the loop on every target (ground truth, multisets stored).
+      (2) Build the table; check table_entries against the exact count.
+      (3) Run the port on every target; compare multisets; verify every
+      relation independently. (4) Run the identical port on the relabelled
+      Z/NZ (N = #E) with a random base of size |V-points| and on the random-
+      subset null base; compare counts. (5) Fit theta_mitm and theta_loop
+      across the cells at fixed m; report against floor(m/2)/m and 1 - 1/m.
+      (6) Convert counts to group-op equivalents with the c98e92 rows and
+      emit the "generic oracle" row per cell. SEEDS: one PCG64 stream per cell
+      for targets and controls, recorded. METRICS (units): agreement
+      (fraction); inversions, multiplications, squarings, probes, entries
+      (counts) per target and per table; group-op equivalents (via c98e92);
+      theta (dimensionless, with interval); wall-clock (secondary).
+      CONTROLS. Loop ground truth on every target (blocking). Relabelled Z/NZ
+      generic control (blocking; a group-structure claim is made, that none
+      is used). Random-subset null base (counts must match V's). Koblitz
+      versus ordinary arms (counts must match). Independent verifier on every
+      relation. OUTCOME TABLE. POSITIVE (E-EXACT): the port is accepted as the
+      ground-truth oracle for m in {3, 4} CERTBIN designs; 4b65e3's ladder is
+      re-costed; the generic-oracle row is filed per cell. NEGATIVE: none as a
+      research outcome; a tooling record's negative is E-DEFECT. ARTIFACT
+      (E-DEFECT): multiset disagreement, verifier failure, table size off, or
+      E/Z/NZ count ratio not 1; the port is rejected until localised, and any
+      later rate that used it is void. FALSIFICATION THRESHOLD, FIXED NOW:
+      one multiset disagreement or one verifier failure on any target, or a
+      count ratio other than exactly 1. COST (estimate): implementation
+      medium (about 250 lines plus the port's test battery mirroring the
+      prime-field tests); compute minutes per cell in pure Python at n <= 19
+      (the loop at (19, 4, 6): 2^12 x 2^12 / 6 about 2^22 additions per
+      target x 400 targets is the largest item, order an hour; the port's
+      probes are seconds).
+    controls:
+      - 'The (m-1)-fold loop as ground truth on every target (blocking).'
+      - 'Relabelled Z/NZ generic-group control with identical operation counts (blocking).'
+      - 'Random-subset null base of matched size (counts must match the subspace base).'
+      - 'Koblitz-form siblings at n in {17, 19} (counts must match the ordinary curves).'
+      - 'Independent schoolbook verification of every relation; exact tail-count check of the table.'
+    required_metrics:
+      - 'relation_multiset_agreement per cell'
+      - 'per-target and per-table operation counts by kind, and in group-op equivalents'
+      - 'generic_group_count_ratio per cell'
+      - 'theta_mitm and theta_loop per m with intervals'
+      - 'table_entries and peak table bytes per cell'
+
+  falsification_conditions:
+    - 'E-EXACT falsified iff any target shows a multiset disagreement with the loop or a verifier failure.'
+    - 'Genericity falsified iff the E count differs from the Z/NZ count at matched |V| and targets.'
+    - 'The calibration line is falsified for the port iff theta_mitm deviates from floor(m/2)/m by more than 0.05 with the loop reading 1 - 1/m; then the counter or the amortisation accounting is wrong, localised first.'
+
+  confounders:
+    - >-
+      The table half is target-independent and amortises over the cell's
+      targets; per-target cost is reported with and without the amortised
+      table share (the 845a77 review's correction).
+    - >-
+      At m = 3 with h = 2 the port's per-target probe is |V|, the same order
+      as oracle A at m = 2; the saving over the loop is one factor |V|, not
+      two, and the record says so.
+    - >-
+      Memory: the table holds about (2|V|)^2/4 tails at h = 2 (2^17 entries
+      at d = 9), trivial at toy scale but the resource that grows as
+      N^{h/m}; reported in bytes beside the counts.
+    - >-
+      Targets that are sums of fewer than m base points are reached only in
+      orders whose partial sums avoid infinity (tails.py rule); the loop and
+      the port must apply the identical rule, which the multiset check
+      enforces.
+
+  interpretation_limits:
+    - 'Tooling at toy scale; no attack; on ECC2K-130 the MITM oracle is closed at every m by the product law (per-attempt 2^{floor(m/2) n/m} against a budget of 2^{(1/2 - 1/m) n}).'
+    - 'KN-OPEN-020 class of V: scoped-out linear subspace, inherited.'
+    - 'The port is the generic null for structural oracles; it never certifies anything about them beyond the ratio measured beside it.'
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (Amortisation count.) At the cap locus a cell tries about B_cap
+        targets (one relation per target at mu about 1), so the table's
+        |V|^h cost divided by B_cap = |V| is |V|^{h-1} per target, which is
+        what makes theta_mitm = floor(m/2)/m rather than ceil(m/2)/m.
+      rigorous_support: >-
+        Exact bookkeeping given the target count; the Poisson decomposition
+        count H1 of IDEA-20260926-4b65e3 supplies the target count and is
+        validated there.
+      validation_plan: >-
+        SAMPLE: the measured sat fraction and target count per cap-locus
+        cell (4b65e3's gate). COMPARISON: per-target cost with the table
+        amortised over the ACTUAL target count against the |V|^{h-1}
+        prediction. TAIL: the smallest cell, where the table dominates.
+        TRANSFER: the exponent identity is exact; nothing numerical transfers
+        to n = 131.
+
+  heuristic_note: >-
+    Correctness is exact (multiset agreement on every target); H1 concerns
+    only how the table's one-time cost is attributed per target in the
+    theta fit and is reported both ways.
+
+  target_complexity:
+    time_exponent: >-
+      NO EXPONENT ON THE ECDLP MOVES. Per attempt at the cap locus the port
+      costs 2^{floor(m/2) n/m} (times sqrt(m!)-type constants), the generic
+      line; on ECC2K-130 that is about 2^67.8 at m = 4 against a budget of
+      2^11 and about 2^55 at m = 5 against 2^32 (my arithmetic, recompute),
+      closed at every m.
+    memory_exponent: >-
+      Table of about |V|^{ceil(m/2)} entries, N^{ceil(m/2)/m} at the cap:
+      2^17 entries at the toy top cell; 2^67.8 at ECC2K-130 m = 4, which is
+      why the port is a toy instrument only.
+    best_known: Matched rho 2^60.81 on ECC2K-130; the loop at 2^{(m-1)d}/(m-1)! on the toy cells.
+    hidden_overhead: The sqrt(m!) and the both-signs factor 2 in the table, disclosed; the amortisation attribution H1.
+    tradeoff_note: >-
+      The classic memory-for-time split; both halves are embarrassingly
+      parallel; no van Oorschot-Wiener interpolation applies.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+    qualification: >-
+      Estimate. About 250 lines porting tails.py and decompose.py to the
+      binary group law with counters, plus a test battery; minutes per cell
+      for the port, up to an hour for the loop ground truth at (19, 4, 6).
+
+  asymptotic_claim:
+    problem: Exact generic decomposition oracle for m in {3, 4} on prime-degree binary siblings (RQ-CERTBIN-836ce2)
+    prior_best: The (m-1)-fold loop (IDEA-20260904-96c4f3) at 2^{(m-1)d}/(m-1)!; rho 2^60.81 on ECC2K-130
+    time_exponent: 'per attempt 2^{floor(m/2) d} probes after a one-time 2^{ceil(m/2) d} table, the generic line floor(m/2)/m at the cap locus; ECDLP cost unchanged'
+    memory_exponent: 2^{ceil(m/2) d} table entries
+    hidden_cofactor: sqrt(m!), the sign factor 2, the amortisation attribution
+    claim_kind: instrument_port_plus_calibration_line
+
+  dominated_by: >-
+    Checked row by row. At the toy cells the port dominates the loop on time
+    (by about |V|^{m-1-floor(m/2)}) and is dominated by it on memory
+    (O(1) against |V|^{ceil(m/2)}); it is the intermediate Pareto row the
+    845a77 review identified against IDEA-20260904-96c4f3's loop and table
+    variants. On the DLP, rho dominates everything at every cell. On
+    ECC2K-130, rho at 2^60.81 dominates the MITM oracle at every m by the
+    product law (per-attempt 2^67.8 at m = 4 against a 2^11 budget). n/a
+    (no attack claimed) is the honest Pareto answer for the record as a
+    whole.
+
+  sota_delta:
+    time: >-
+      Zero on the ECDLP. Against the program's prior state: the first
+      binary-curve MITM decomposition oracle, the first exact ground truth
+      cheaper than the loop at m in {3, 4}, and the closed-form generic line
+      floor(m/2)/m at the cap locus beside the budget line 1/2 - 1/m.
+    memory: Zero on the ECDLP; the table's N^{ceil(m/2)/m} disclosed.
+    data_queries: Not applicable.
+
+  frontier_check:
+    status: pending
+    note: >-
+      No web search. Meet-in-the-middle subset-sum over a group is textbook
+      (Horowitz-Sahni, recalled); the README's prime-field engine is the
+      in-repo prior; a binary-curve port with the one-inversion pair step
+      and linear membership probe is engineering on both.
+
+  recommended_priority: medium
+  priority_rationale: >-
+    It is the enabling instrument for the one round-1 record ranked high on
+    this seam (IDEA-20260926-4b65e3's cap-locus ladder), it converts that
+    ladder's cost driver from hours to seconds, and it supplies the generic
+    null every structural oracle at m >= 3 must beat; medium because it is
+    tooling and moves no number itself.
+
+  first_deliverable: >-
+    The port passing the (19, 3, 6) frozen fixture against the loop with
+    400/400 multiset agreement, verified relations, and the Z/NZ count
+    ratio exactly 1.
+
+  next_gate: >-
+    Coordinator decision on building the port as the ground-truth arm of
+    any EXP-CERTBIN-* contract derived from IDEA-20260926-4b65e3 or
+    IDEA-20260926-89886c at m >= 3, and on promoting it to tools/ under
+    GOAL-ICPERF-e6b6a4's library criterion after a validator has run it.
+
+  discriminated_from: >-
+    IDEA-20260922-845a77 proposed the two-list MITM as a solver for the pdp
+    and priced it on ECC2K-130 (closed); this record ports the now-existing
+    prime-field engine to binary curves as a measurement oracle and states
+    the generic exponent line at the cap locus. IDEA-20260922-faa8d2's
+    solver-per-entry hybrid is a different (dominated) construction.
+    IDEA-20260904-96c4f3's loop is the ground truth here, not a competitor.
+    IDEA-20260926-4b65e3 owns the theta(m) measurement; this record supplies
+    its oracle and its second known-answer line without re-filing the
+    measurement.
+
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked: [KR-RHO-13bf67, KR-RHO-5b1c0a, KR-RHO-fbd582, KR-RHO-cb1c58, KR-IC-5a43e5, KR-IC-1fcdbc, KR-IC-73db3f, KR-IC-46d822]
+    nearest:
+      - ref: KR-RHO-fbd582
+        provenance: retrieved
+        relation: adjacent
+        delta: >-
+          "Nearly free P - Q alongside P + Q with a shared inversion" is the
+          published prime-field trick the table build uses; this record
+          applies it in characteristic 2 inside a decomposition table, which
+          no row records.
+      - ref: KR-RHO-13bf67
+        provenance: retrieved
+        relation: special_case
+        delta: >-
+          The port is a generic algorithm and therefore bounded by the
+          generic lower bound; the record adds the exponent form of that
+          bound at the cap locus (floor(m/2)/m per attempt) and claims
+          nothing below it.
+      - ref: KR-RHO-5b1c0a
+        provenance: retrieved
+        relation: adjacent
+        delta: >-
+          Representation/subset-sum techniques do not beat rho over F_{p^2};
+          this record's MITM is a toy instrument and agrees that no generic
+          split beats rho.
+    searched:
+      corpus_grep: ['MITM', 'meet-in-the-middle', 'table of tails', 'two-list', 'subset-sum', 'claw']
+      web: []
+      blocked: []
+
+  source_refs:
+    - RQ-CERTBIN-836ce2
+    - RQ-ICPERF-94c86e
+    - IDEA-20260922-845a77
+    - IDEA-20260922-faa8d2
+    - IDEA-20260904-96c4f3
+    - IDEA-20260926-4b65e3
+    - IDEA-20260926-89886c
+    - IDEA-20260926-c98e92
+    - KN-FIND-aa2efc
+    - src/crypto_autoresearcher/index_calculus/README.md
+    - src/crypto_autoresearcher/index_calculus/tails.py
+    - src/crypto_autoresearcher/index_calculus/decompose.py
+    - experiments/EXP-CERTBIN-e94b27/impl/curve.py
+    - analysis/binstd-idea-review-20260926/reviews/IDEA-20260922-845a77.yaml
+    - analysis/binstd-idea-review-20260926/BRIEF-ROUND2.md
+
+  id_allocation_provenance: >-
+    ID pre-minted and assigned by the dispatching session (top-level,
+    2026-09-26, round 2) for lane TASK-20260926-e93f77; not minted by this
+    agent.
