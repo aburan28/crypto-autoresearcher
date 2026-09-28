@@ -1,6 +1,6 @@
-# Frontier-map novelty screen of the round-2 proposals (2026-09-26 ids, filed 2026-09-28)
+# Frontier-map novelty screen of the round-2 proposals (2026-09-26 ids, filed 2026-09-28; re-run after the lanes' prior_art additions)
 
-Command per record: `python3 tools/build_frontier_map.py --match "<title + claim>" --limit 5`. A screen, not a verdict: a matching row means a reviewer reads that row against the record before any novelty label above `unverified`; no match is not evidence of novelty. Each record's own `prior_art.rows_checked` is listed beside the top hits so an uncited top hit is visible.
+Command per record: `python3 tools/build_frontier_map.py --match "<title + claim>" --limit 5`. A screen, not a verdict: a matching row means a reviewer reads that row against the record before any novelty label above `unverified`; no match is not evidence of novelty. Each record's `prior_art.rows_checked` is listed beside the top hits; after the send-back round every top hit is cited.
 
 ## IDEA-20260926-0d1d74 (RQ-CERTBIN-836ce2, algorithm)
 rows_checked: ['KR-IC-081a58', 'KR-IC-1fcdbc', 'KR-IC-46d822', 'KR-IC-49c882', 'KR-IC-5931ee', 'KR-IC-5a43e5', 'KR-IC-73db3f', 'KR-IC-a4dd54', 'KR-IC-b0fcda', 'KR-RHO-13bf67']
@@ -36,7 +36,7 @@ KR-RHO-037e22  score=23  [known_mechanism/proven]  Frobenius classes on Koblitz 
 ```
 
 ## IDEA-20260926-1ddce2 (RQ-ICPERF-94c86e, control)
-rows_checked: ['KR-IC-1fcdbc', 'KR-IC-5765d2', 'KR-IC-5a43e5', 'KR-IC-73db3f', 'KR-IC-889857', 'KR-IC-8b9daa', 'KR-IC-e847d1', 'KR-IC-fbdb61', 'KR-RHO-18cc42']  <-- top hit not in rows_checked
+rows_checked: ['KR-IC-1fcdbc', 'KR-IC-5765d2', 'KR-IC-5a43e5', 'KR-IC-73db3f', 'KR-IC-889857', 'KR-IC-8b9daa', 'KR-IC-e847d1', 'KR-IC-f5c584', 'KR-IC-fbdb61', 'KR-RHO-18cc42']
 
 ```
 KR-IC-f5c584  score=27  [known_mechanism/proven]  The trace morphism forces a linear equation (first fall degree 2 for S_3)
@@ -58,7 +58,7 @@ KR-IC-9e610d  score=26  [textbook_fact/reported]  Survey consensus (2016)
 ```
 
 ## IDEA-20260926-20ba8f (RQ-BINSTD-b6f698, mechanism)
-rows_checked: ['KR-IC-081a58', 'KR-IC-46d822', 'KR-RHO-13bf67', 'KR-RHO-18cc42', 'KR-RHO-46c2c6', 'KR-RHO-7d93f6', 'KR-RHO-ea34b8']  <-- top hit not in rows_checked
+rows_checked: ['KR-IC-081a58', 'KR-IC-46d822', 'KR-IC-5931ee', 'KR-RHO-13bf67', 'KR-RHO-18cc42', 'KR-RHO-46c2c6', 'KR-RHO-7d93f6', 'KR-RHO-ea34b8']
 
 ```
 KR-IC-5931ee  score=32  [known_negative/proven]  Naive Semaev index calculus over prime fields cannot beat generic methods
@@ -69,7 +69,7 @@ KR-RHO-ea34b8  score=26  [known_bound/proven]  Precomputation: l^{1/3} online af
 ```
 
 ## IDEA-20260926-3c6a19 (RQ-CERTBIN-836ce2, mechanism)
-rows_checked: ['KR-IC-0d2021', 'KR-IC-1fcdbc', 'KR-IC-46d822', 'KR-IC-5a43e5', 'KR-IC-fbdb61', 'KR-RHO-13bf67']  <-- top hit not in rows_checked
+rows_checked: ['KR-IC-0d2021', 'KR-IC-1fcdbc', 'KR-IC-46d822', 'KR-IC-5931ee', 'KR-IC-5a43e5', 'KR-IC-fbdb61', 'KR-RHO-13bf67']
 
 ```
 KR-IC-5931ee  score=24  [known_negative/proven]  Naive Semaev index calculus over prime fields cannot beat generic methods
@@ -80,7 +80,7 @@ KR-RHO-18cc42  score=20  [record/reported]  ECC2K-130: expected work and 2009–
 ```
 
 ## IDEA-20260926-3cc0b8 (RQ-ICPERF-94c86e, control)
-rows_checked: ['KR-IC-ae532f', 'KR-RHO-18cc42', 'KR-RHO-6239aa', 'KR-RHO-7d93f6', 'KR-RHO-cb1c58', 'KR-RHO-e7f98e']  <-- top hit not in rows_checked
+rows_checked: ['KR-IC-73db3f', 'KR-IC-ae532f', 'KR-RHO-18cc42', 'KR-RHO-6239aa', 'KR-RHO-7d93f6', 'KR-RHO-cb1c58', 'KR-RHO-e7f98e']
 
 ```
 KR-IC-73db3f  score=24  [known_mechanism/heuristic]  Choosing the factor-base vector space V (small product spaces)
@@ -91,7 +91,7 @@ KR-RHO-13bf67  score=17  [textbook_fact/proven]  Generic-group lower bound for d
 ```
 
 ## IDEA-20260926-5c26f9 (RQ-BINSTD-b6f698, measurement)
-rows_checked: ['KR-IC-49c882', 'KR-IC-5ea2f8', 'KR-IC-73db3f', 'KR-IC-a4dd54', 'KR-IC-b0fcda']  <-- top hit not in rows_checked
+rows_checked: ['KR-IC-49c882', 'KR-IC-5ea2f8', 'KR-IC-73db3f', 'KR-IC-a4dd54', 'KR-IC-b0fcda', 'KR-IC-f5c584']
 
 ```
 KR-IC-f5c584  score=26  [known_mechanism/proven]  The trace morphism forces a linear equation (first fall degree 2 for S_3)
@@ -101,7 +101,17 @@ KR-RHO-755e35  score=25  [textbook_fact/proven]  Isogenous curves are equally ha
 KR-IC-73db3f  score=22  [known_mechanism/heuristic]  Choosing the factor-base vector space V (small product spaces)
 ```
 
-## ledger/proposals/IDEA-20260926-6f2601.yaml (does not parse yet; screened later)
+## IDEA-20260926-6f2601 (RQ-BINSTD-b6f698, control)
+rows_checked: ['KR-IC-49c882', 'KR-IC-73db3f', 'KR-IC-b0fcda', 'KR-IC-f5c584']
+
+```
+KR-IC-73db3f  score=28  [known_mechanism/heuristic]  Choosing the factor-base vector space V (small product spaces)
+KR-IC-5a43e5  score=24  [known_mechanism/proven]  Semaev summation polynomials
+KR-RHO-13bf67  score=24  [textbook_fact/proven]  Generic-group lower bound for discrete logarithms
+KR-IC-f5c584  score=23  [known_mechanism/proven]  The trace morphism forces a linear equation (first fall degree 2 for S_3)
+KR-IC-5931ee  score=19  [known_negative/proven]  Naive Semaev index calculus over prime fields cannot beat generic methods
+```
+
 ## IDEA-20260926-80209d (RQ-BINSTD-b6f698, control)
 rows_checked: ['KR-IC-1fcdbc', 'KR-IC-73db3f', 'KR-IC-a4dd54', 'KR-IC-b0fcda']
 
@@ -114,7 +124,7 @@ KR-IC-5a43e5  score=21  [known_mechanism/proven]  Semaev summation polynomials
 ```
 
 ## IDEA-20260926-9c5694 (RQ-CERTBIN-836ce2, control)
-rows_checked: ['KR-IC-1fcdbc', 'KR-IC-5a43e5', 'KR-IC-8b9daa', 'KR-IC-955fd6', 'KR-IC-b0fcda', 'KR-IC-f3da82', 'KR-RHO-037e22']  <-- top hit not in rows_checked
+rows_checked: ['KR-IC-1fcdbc', 'KR-IC-5a43e5', 'KR-IC-73db3f', 'KR-IC-8b9daa', 'KR-IC-955fd6', 'KR-IC-b0fcda', 'KR-IC-f3da82', 'KR-RHO-037e22']
 
 ```
 KR-IC-73db3f  score=30  [known_mechanism/heuristic]  Choosing the factor-base vector space V (small product spaces)
@@ -169,7 +179,7 @@ KR-IC-73db3f  score=13  [known_mechanism/heuristic]  Choosing the factor-base ve
 ```
 
 ## IDEA-20260926-beb5b6 (RQ-BINSTD-b6f698, control)
-rows_checked: ['KR-IC-5a43e5', 'KR-IC-73db3f', 'KR-RHO-037e22', 'KR-RHO-13bf67', 'KR-RHO-18cc42', 'KR-RHO-38be82', 'KR-RHO-46c2c6', 'KR-RHO-6239aa', 'KR-RHO-7d93f6', 'KR-RHO-ea34b8']  <-- top hit not in rows_checked
+rows_checked: ['KR-IC-5931ee', 'KR-IC-5a43e5', 'KR-IC-73db3f', 'KR-RHO-037e22', 'KR-RHO-13bf67', 'KR-RHO-18cc42', 'KR-RHO-38be82', 'KR-RHO-46c2c6', 'KR-RHO-6239aa', 'KR-RHO-7d93f6', 'KR-RHO-ea34b8']
 
 ```
 KR-IC-5931ee  score=41  [known_negative/proven]  Naive Semaev index calculus over prime fields cannot beat generic methods
@@ -191,7 +201,7 @@ KR-IC-955fd6  score=18  [known_mechanism/heuristic]  Symmetries and torsion spee
 ```
 
 ## IDEA-20260926-d06324 (RQ-CERTBIN-836ce2, control)
-rows_checked: ['KR-IC-73db3f', 'KR-RHO-037e22', 'KR-RHO-13bf67', 'KR-RHO-38be82', 'KR-RHO-5b1c0a', 'KR-RHO-cd86f5', 'KR-RHO-fb88e6']  <-- top hit not in rows_checked
+rows_checked: ['KR-IC-73db3f', 'KR-IC-f5c584', 'KR-RHO-037e22', 'KR-RHO-13bf67', 'KR-RHO-38be82', 'KR-RHO-5b1c0a', 'KR-RHO-cd86f5', 'KR-RHO-fb88e6']
 
 ```
 KR-IC-f5c584  score=30  [known_mechanism/proven]  The trace morphism forces a linear equation (first fall degree 2 for S_3)
