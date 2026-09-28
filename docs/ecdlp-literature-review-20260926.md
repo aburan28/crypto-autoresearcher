@@ -241,3 +241,94 @@ changed):
     therefore not in either paper.
   - Remaining check: whether the FFA 2021 journal version differs from
     arXiv v2 (not read).
+- **I5, Galois structure of Semaev polynomials (KN-FIND-a8990a): partly known.**
+  - *Known:* absolute irreducibility (Semaev ePrint 2004/031, main
+    theorem, proved in the paper). The finding's transitivity statement
+    re-derives it, as the finding itself notes.
+  - *Different object:* FGHR (ePrint 2012/199) study the symmetry group
+    (Z/2)^{m−1} ⋊ S_m acting on the *variables*, not the Galois group of
+    S_m(t, T) over K(t).
+  - *Not found* in Semaev 2004, FGHR 2012/199, Kosters–Yeo 1503.08001,
+    Karabina 2015/319, Courtois 2016/003 (full texts), or by web search:
+    - the Galois group (Z/2)^{m−2};
+    - the linear-versus-quadratic factorization dichotomy over F_q;
+    - complete splitting on the factor-base locus.
+  - Remaining check: Diem 2011 (Compositio, not open access) and a
+    function-field expert for Lemmas 2.3/3.2. As submission material it is
+    a short note, and the "census obstruction" corollary is its best selling
+    point.
+- **I2, Semaev 2015 with memory charged: the quantitative audit is plausibly new.**
+  - Semaev (2015/310, full text) compares **time only** against Pollard rho
+    and declares n = 409 and 571 "theoretically broken" (p. 6), conditional
+    on d_F4 ≤ 4.
+  - Galbraith–Gaudry (2015/1022, §10) remark only qualitatively that "the
+    running time and the memory usage would be extremely high for any key
+    size currently in use".
+  - Courtois (2016/003) gives a splitting algorithm, not a cost audit.
+  - No memory-charged crossover against a coherent van Oorschot–Wiener
+    baseline (EV-SEMBIN-4125ec: n = 460/520) was found. Replicating
+    EXP-SEMBIN-992e73 remains the pre-publication step.
+- **I7, WDSat's gain is branching order, not XOR-GE: mostly known.**
+  - Trimoska–Ionica–Dequen (arXiv 2001.11229, full text, p. 11–15) choose
+    the branching order *deliberately*, by minimum-vertex-cover
+    preprocessing. They conclude that "WDSat without GE is the optimal
+    variant" for S_4 instances and recommend disabling the XG module there.
+  - Their AFRICACRYPT paper (ePrint 2019/313, full text) also compares a
+    custom branching order against the solver's own order in CryptoMiniSat.
+  - What EV-ICPERF-390707 adds is quantitative: a random relabelling costs
+    135× more conflicts on their own instance generator, against 2.14× for
+    a matched null. That makes it a blog paragraph or a footnote, not a
+    standalone claim.
+  - Demoted from the shortlist.
+- **I6, ecGFp5 margin: the designer's lower-bound argument does not clear
+  128 bits once the published 2014 symmetry reductions are applied. No attack
+  below 128 bits is shown.**
+  - **Pornin's argument** (ePrint 2022/274 §2, full text):
+    - p^{2−2/5} ≈ 2^102.4 decomposition systems;
+    - each system has ideal degree D ≈ 2^{k(k−1)} = 2^20;
+    - an "even with very optimistic assumptions" per-system bound of
+      D² ≈ 2^40;
+    - hence "at least 2^142". The argument uses no symmetry.
+  - **Reproduced with the symmetry reductions** (arithmetic re-run
+    2026-09-26). Dividing D by the order of the symmetry group:
+    - S₅ (FGHR 2014): D/120 → total ≈ **2^128.6**;
+    - (Z/2)⁴ ⋊ S₅ (FHJRV 2014, 2-torsion): D/1920 → total ≈ **2^120.6**.
+    - The latter is the in-house figure (research/gfp5_deployed_curves_20260920.md).
+  - **Applicability check done here.**
+    - ecGFp5 is y² = x(x² + 2x + 263z) over GF(p)[z]/(z⁵ − 3).
+    - Translation by the rational 2-torsion point (0,0) is x ↦ b/x with
+      b = 263z ∉ GF(p). It does not preserve the factor base
+      {x ∈ GF(p)} directly, and b is a non-square in GF(p⁵) (N(b) is a
+      non-square mod p).
+    - However, x ↦ b/x is conjugate over GF(p⁵) to u ↦ c/u for any
+      non-square c ∈ GF(p): u = x·√(c/b), and c/b is a square in GF(p⁵).
+      For c = 7 this was verified via norms.
+    - So a GF(p)-invariant factor base compatible with the 2-torsion action
+      exists, and the (Z/2)⁴ part is available in principle.
+  - **What this does not show.**
+    - D² is Pornin's optimistic lower-bound proxy, not a measured FGLM/F4
+      cost.
+    - The symmetrised ideal degree 2^{(m−1)²} = 2^16 is still unmeasured
+      (KN-OPEN-9b4a2b), as is the cost of Gröbner work in the invariant
+      ring.
+    - The claim is therefore "the published 2^142 argument is not a 128-bit
+      proof once known techniques are used", not "ecGFp5 has < 128-bit
+      security".
+  - **Recommended.**
+    1. Measure the symmetrised ideal degree and F4 cost at small p
+       (EXP-GFPN-05ff43, queued).
+    2. Then contact the curve's designer with the note before any blog post.
+- **I3, "the ANF is too big to write down": plausibly new as a quantitative
+  statement; related remarks are qualitative.**
+  - The FFD-based crossovers are n ≈ 2000 (Petit–Quisquater 2012/146 p. 1;
+    Shantz–Teske 2013/596 p. 2).
+  - Petit–Quisquater's experiments "were limited more by the memory
+    requirements than by the computation time" (2012/146).
+  - Galbraith–Gebregiyorgis call one formulation "not practical as the
+    number N of binary variables is too large" (2014/806, l. 609 of the
+    extracted text).
+  - None of the three bounds the descended ANF against the rho budget per
+    curve. The claim of EV-ICPERF-784b25 (+6.3 to +40.8 bits for
+    n ≤ 283; sign change in (283, 409]) is not in them. It remains
+    conditional on the dense-ANF charge and the linear-algebra cap, which a
+    write-up must state first.
