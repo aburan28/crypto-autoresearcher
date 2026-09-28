@@ -58,7 +58,8 @@ from hostinfo import check_admission, parse_loadavg  # noqa: E402,F401
 
 EXP_DIR = HERE.parent
 REPO_ROOT_DEFAULT = EXP_DIR.parent.parent
-PROTOCOL_VERSION = 3
+PROTOCOL_VERSION = 4
+ADMISSION_TARGET = "EXP-SDEG-85eefd"
 MAX_WORKERS_LINUX = 16
 MAX_WORKERS_OTHER = 1
 
@@ -76,13 +77,31 @@ def admission_readings(repo_root: Path, run_volume: Path | None = None) -> dict:
 
 
 def check_decision(repo_root: Path, dec_id: str) -> tuple[bool, str]:
+    """FX-1 (AMD-20260928-d3ed9e): admit only the explicitly named decision,
+    and only if it is a coordinator_decision whose id matches, whose
+    target_ids include EXP-SDEG-85eefd, and whose
+    execution_admission.currently_admitted is exactly true."""
+    import yaml
     if not dec_id or not re.fullmatch(r"DEC-\d{8}-[0-9a-f]{6}", dec_id):
         return False, f"invalid decision id {dec_id!r}"
     path = repo_root / "ledger" / "decisions" / f"{dec_id}.yaml"
     if not path.exists():
         return False, f"{path} does not exist"
-    if "EXP-SDEG-85eefd" not in path.read_text():
-        return False, f"{path} does not mention EXP-SDEG-85eefd"
+    try:
+        doc = yaml.safe_load(path.read_text())
+    except yaml.YAMLError as e:
+        return False, f"{path} does not parse: {e}"
+    dec = doc.get("coordinator_decision") if isinstance(doc, dict) else None
+    if not isinstance(dec, dict):
+        return False, f"{path} has no coordinator_decision mapping"
+    if dec.get("id") != dec_id:
+        return False, f"{path} id {dec.get('id')!r} != {dec_id}"
+    if ADMISSION_TARGET not in (dec.get("target_ids") or []):
+        return False, f"{path} target_ids do not include {ADMISSION_TARGET}"
+    adm = dec.get("execution_admission")
+    if not isinstance(adm, dict) or adm.get("currently_admitted") is not True:
+        return False, (f"{path} execution_admission.currently_admitted is "
+                       f"{(adm or {}).get('currently_admitted') if isinstance(adm, dict) else adm!r}, not true")
     return True, str(path)
 
 
@@ -91,6 +110,7 @@ def check_plan(plan: dict) -> tuple[bool, list]:
     want = {"specification_sha256": fixtures.sha256_file(fixtures.SPECIFICATION),
             "amendment_sha256": fixtures.sha256_file(fixtures.AMENDMENT),
             "amendment_v3_sha256": fixtures.sha256_file(fixtures.AMENDMENT_V3),
+            "amendment_v4_sha256": fixtures.sha256_file(fixtures.AMENDMENT_V4),
             "fixtures_sha256": fixtures.sha256_file(fixtures.FIXTURE_JSON),
             "fixture_generator_sha256": fixtures.sha256_file(fixtures.FIXTURE_GEN)}
     bad = [k for k, v in want.items() if plan["protocol"].get(k) != v]
@@ -140,14 +160,57 @@ def sage_version() -> str | None:
     return subprocess.run([fixtures.SAGE, "--version"], capture_output=True, text=True).stdout.strip()
 
 
+def _env_bool(name):
+    v = os.environ.get(name)
+    if v is None or not v.strip():
+        return None
+    return v.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _env_list(name):
+    v = os.environ.get(name)
+    if v is None:
+        return None
+    v = v.strip()
+    if not v:
+        return []
+    try:
+        out = json.loads(v)
+        if isinstance(out, list):
+            return [str(x) for x in out]
+    except ValueError:
+        pass
+    return [x.strip() for x in v.split(",") if x.strip()]
+
+
+def inference_block() -> dict:
+    """FX-5: inference provenance from the launch environment only. Unset
+    variables stay null (resolved model 'unverified'); nothing is filled in."""
+    env = os.environ.get
+    model = env("AUTORESEARCH_RESOLVED_MODEL_ID") or env("AUTORESEARCH_MODEL_ID")
+    return {"requested_policy": env("AUTORESEARCH_REQUESTED_POLICY") or env("AUTORESEARCH_POLICY") or None,
+            "backend": env("AUTORESEARCH_BACKEND") or None,
+            "runtime": env("AUTORESEARCH_RUNTIME") or None,
+            "resolved_model_id": model or "unverified",
+            "model_verified": _env_bool("AUTORESEARCH_MODEL_VERIFIED") is True,
+            "reasoning_effort": env("AUTORESEARCH_REASONING_EFFORT") or None,
+            "fallback_allowed": _env_bool("AUTORESEARCH_FALLBACK_ALLOWED"),
+            "fallback_used": _env_bool("AUTORESEARCH_FALLBACK_USED"),
+            "fallback_reason": env("AUTORESEARCH_FALLBACK_REASON") or None,
+            "degraded_allowed": _env_bool("AUTORESEARCH_DEGRADED_ALLOWED"),
+            "degraded_requirements": _env_list("AUTORESEARCH_DEGRADED_REQUIREMENTS"),
+            "independent_session": _env_bool("AUTORESEARCH_INDEPENDENT_SESSION"),
+            "source": "AUTORESEARCH_* environment variables at launch; unset -> null / 'unverified'"}
+
+
+INFERENCE_KEYS = ("requested_policy", "resolved_model_id", "reasoning_effort", "fallback_used",
+                  "degraded_requirements")
+
+
 def environment(with_sage: bool) -> dict:
     return {"host": hostinfo.host_identity(sage_version() if with_sage else None),
             "implementation_sha256": implementation_hashes(),
-            "inference": {"requested_policy": "executor-implementation",
-                          "backend": os.environ.get("AUTORESEARCH_BACKEND"),
-                          "policy_env": os.environ.get("AUTORESEARCH_POLICY"),
-                          "resolved_model_id": os.environ.get("AUTORESEARCH_MODEL_ID"),
-                          "model_verified": False}}
+            "inference": inference_block()}
 
 
 def peak_rss_bytes() -> int:
@@ -194,7 +257,9 @@ class Part:
             "implementation_sha256": self.env["implementation_sha256"],
             "seeds": {"namespace": None, "label_rules": "see labels.py and trial plan"},
             "started_at": _now(), "status": "running", "validity": None,
-            "requested_policy": "executor-implementation", "smoke_dry_run": dry,
+            "inference": self.env["inference"],
+            **{k: self.env["inference"][k] for k in INFERENCE_KEYS},
+            "smoke_dry_run": dry,
         }
         self.write()
 
@@ -230,21 +295,18 @@ def _selection(plan, dry):
 
 # ------------------------------------------------------------------ charged part
 def _schedule(specs, workers, on_result, stop_flag):
-    """Run task specs with at most `workers` processes. No new task starts
+    """Run task specs with at most `workers` processes, each task in its own
+    fresh process. No new task starts
     once stop_flag() is true. Results are handed to on_result as they arrive;
     callers sort before aggregating, so outputs do not depend on the order."""
     import celltask
-    if workers <= 1:
-        for s in specs:
-            if stop_flag():
-                break
-            on_result(s, celltask.run_task(s))
-        return
     import multiprocessing as mp
     from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
     ctx = mp.get_context("spawn")
     pending = list(specs)
-    with ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as ex:
+    # FX-4: one fresh spawn process per task (max_tasks_per_child=1), also
+    # when workers == 1, so a task's ru_maxrss is that task's own peak RSS.
+    with ProcessPoolExecutor(max_workers=workers, mp_context=ctx, max_tasks_per_child=1) as ex:
         running = {}
         while pending or running:
             while pending and len(running) < workers and not stop_flag():
@@ -547,8 +609,10 @@ def merge(args, plan, dry) -> int:
         "opcounts_sha256": ch["opcounts_sha256"], "smoke_dry_run": dry,
         "certificate": {"kind": "witness_replay_and_A5_oracle"},
         "status": "completed", "validity": {"status": status, "reason": reason},
-        "outcome_C7": oc["outcome"], "requested_policy": "executor-implementation",
+        "outcome_C7": oc["outcome"], "inference": inference_block(),
+        "parts_inference": {k: m.get("inference") for k, m in mans.items()},
     }
+    manifest.update({k: manifest["inference"][k] for k in INFERENCE_KEYS})
     (run_dir / "manifest.yaml").write_text(yaml.safe_dump(manifest, sort_keys=False))
     print(json.dumps({"validity": manifest["validity"], "outcome_C7": oc["outcome"],
                       "fglm_checks": len(fglm_cmp), "fglm_ok": fglm_ok}, default=str))

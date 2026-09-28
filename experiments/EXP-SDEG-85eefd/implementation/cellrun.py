@@ -143,6 +143,8 @@ def run_cell(fx, deck, sem, ns, n_planted, n_random, audit_ids=frozenset(),
             if not agree:
                 cell["defects"].append(f"{qd['query_id']}: B0/B1/oracle disagreement "
                                        f"({b0['member']}, {b1['member']}, {member})")
+            if not same_triples:  # FX-3 (AMD-20260928-d3ed9e): stops the run like a disagreement
+                cell["defects"].append(f"{qd['query_id']}: B0/B1 hit-triple set mismatch")
         else:
             qrec["agreement"] = {"decision": None, "hit_triple_sets_equal": None}
         for be in ("B0", "B1"):

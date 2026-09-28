@@ -29,9 +29,11 @@ sync() {
       "$EXP/specification.yaml" \
       "$EXP/amendments/AMD-20260926-3479cf.yaml" \
       "$EXP/amendments/AMD-20260928-7ce387.yaml" \
+      "$EXP/amendments/AMD-20260928-d3ed9e.yaml" \
       "$EXP/amendments/ic_leads_fixtures_v2.json" \
       "$EXP/amendments/ic_leads_fixtures_v2.py" \
       ledger/decisions/DEC-20260928-6b03c5.yaml \
+      ledger/decisions/DEC-20260928-48a648.yaml \
       "$IMPL" \
       "$POD_HOST:$POD_ROOT/")
   # the pod has no git checkout: record what was synced
@@ -54,12 +56,18 @@ case "${1:-sync}" in
         --runs-dir smoke/driver_dryrun_pod --dry-per-deck 4 --workers 4 \
         --source-commit \$(cat $POD_ROOT/SOURCE_COMMIT) > smoke/driver_dryrun_pod.log 2>&1; \
       echo driver_exit=\$?; \
-      (python3 -m pytest -q > smoke/pod_pytest.txt 2>&1 || true); tail -2 smoke/pod_pytest.txt"
+      TP=$POD_ROOT/.pytest_pkgs; echo 'pytest target (isolated from the run interpreter site-packages): '\$TP \
+        > smoke/pod_pytest_install.txt; \
+      python3 -c 'import pytest' 2>/dev/null || [ -d \$TP/pytest ] || \
+        python3 -m pip install -q --target \$TP pytest >> smoke/pod_pytest_install.txt 2>&1 || true; \
+      (PYTHONPATH=\$TP python3 -m pytest -q -p no:cacheprovider > smoke/pod_pytest.txt 2>&1 || true); \
+      tail -3 smoke/pod_pytest.txt"
     rm -rf "$HERE/smoke/pod"; mkdir -p "$HERE/smoke/pod"
     rsync -a -e "$SSH" "$POD_HOST:$POD_ROOT/$IMPL/smoke/pod/" "$HERE/smoke/pod/smoke/"
     rsync -a -e "$SSH" "$POD_HOST:$POD_ROOT/$IMPL/smoke/driver_dryrun_pod" "$HERE/smoke/pod/"
     rsync -a -e "$SSH" "$POD_HOST:$POD_ROOT/$IMPL/smoke/pod.stdout" "$POD_HOST:$POD_ROOT/$IMPL/smoke/pod.stderr" \
       "$POD_HOST:$POD_ROOT/$IMPL/smoke/driver_dryrun_pod.log" "$POD_HOST:$POD_ROOT/$IMPL/smoke/pod_pytest.txt" \
+      "$POD_HOST:$POD_ROOT/$IMPL/smoke/pod_pytest_install.txt" \
       "$HERE/smoke/pod/"
     ;;
   pull)

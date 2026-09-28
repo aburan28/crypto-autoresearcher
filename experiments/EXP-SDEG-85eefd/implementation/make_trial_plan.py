@@ -1,4 +1,4 @@
-"""Generate trial-plan-v2.json (C-5, C-8, C-9; protocol v3 header fields). Enumerates cells and seed LABELS
+"""Generate trial-plan-v2.json (C-5, C-8, C-9; protocol v4 header fields). Enumerates cells and seed LABELS
 only; evaluates no frozen label. Usage: python3 make_trial_plan.py OUT.json"""
 
 from __future__ import annotations
@@ -56,8 +56,11 @@ def build() -> dict:
     primary = sum(c["n_queries"] for c in cells if c["role"] == "primary")
     control = sum(c["n_queries"] for c in cells if c["role"] != "primary")
     return {
-        "trial_plan": "EXP-SDEG-85eefd protocol version 3 (cells unchanged from version 2)",
-        "protocol_version": 3,
+        "trial_plan": "EXP-SDEG-85eefd protocol version 4 (cells unchanged from version 2)",
+        "protocol_version": 4,
+        "protocol_v4_note": ("AMD-20260928-d3ed9e accepts D-1 and OQ-17..OQ-19 as implemented and adds "
+                             "driver fixes FX-1..FX-5; it changes no cell, query, label, draw, threshold, "
+                             "statistic or outcome mapping."),
         "protocol_v3_note": ("AMD-20260928-7ce387 changes the analysis (primary W = decision cost, "
                              "W_triple condition, flat tolerance 0.02) and the execution host; it changes "
                              "no cell, query, label or draw, so the plan keeps its v2 file name and the "
@@ -71,6 +74,9 @@ def build() -> dict:
             "amendment_v3": f"{REL}/amendments/AMD-20260928-7ce387.yaml",
             "amendment_v3_sha256": fixtures.sha256_file(fixtures.AMENDMENT_V3),
             "amendment_v3_decision": "ledger/decisions/DEC-20260928-6b03c5.yaml",
+            "amendment_v4": f"{REL}/amendments/AMD-20260928-d3ed9e.yaml",
+            "amendment_v4_sha256": fixtures.sha256_file(fixtures.AMENDMENT_V4),
+            "amendment_v4_decision": "ledger/decisions/DEC-20260928-48a648.yaml",
             "fixtures": f"{REL}/amendments/ic_leads_fixtures_v2.json",
             "fixtures_sha256": fixtures.sha256_file(fixtures.FIXTURE_JSON),
             "fixture_generator_sha256": fixtures.sha256_file(fixtures.FIXTURE_GEN),

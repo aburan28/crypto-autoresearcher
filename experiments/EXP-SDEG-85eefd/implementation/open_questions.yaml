@@ -202,16 +202,18 @@ infrastructure_incidents:
 - 'v3 follow-up: a Mac smoke was started before audit.py was updated for the v3 decision cost and was
   killed and rerun; the charged driver dry run showed the old audit rejecting 18/32 member receipts (W
   != full W + share), which is the intended audit behaviour for the old rule.'
+- 'v4 follow-up: pod SSH endpoint 213.173.110.47:19497 refused all 90 probes 18:56-19:41 UTC plus spot
+  checks; pod pytest and v4 pod smoke not performed. The earlier (v3) pod smoke in smoke/pod had run smoke
+  and driver dry run but its pytest step failed: the pod image has no pytest.'
 blocking_for_scientific_run:
-- 'Pod reachability: the pod smoke (non-Sage path at L=8 seed 1 on the pod, op-count identity against
-  the Mac) has not been performed because the SSH endpoint refused connections; rerun implementation/pod_sync.sh
-  smoke when the pod is up.'
-- C-9 on the pod at claim time (15-min load <= 23, run volume >= 20 GiB, / >= 5 GiB) and on the Mac for
-  the Sage part (load <= 14, / >= 5 GiB, repo volume >= 20 GiB; the repo volume had ~20 GB free during
-  this session, at the threshold).
-- Snapshot archive (TASK-20260928-a3269a), independent implementation audit (TASK-20260928-796dfe) and
-  a Coordinator run-admission decision.
-- Rulings on OQ-17..OQ-19 (non-blocking if the literal readings are accepted).
+- 'Pod: v4-code pod smoke + pod pytest not yet run (endpoint unreachable). Run implementation/pod_sync.sh
+  smoke (it now installs pytest into an isolated target dir) and confirm opcounts sha 79e80dd1...ca80651;
+  then rename smoke/pod to smoke/pod_v4 or re-point make_report.py.'
+- 'Run-admission decision DEC-20260928-ad6451 with coordinator_decision.execution_admission.currently_admitted:
+  true and target_ids including EXP-SDEG-85eefd (FX-1 refuses every mode until it exists).'
+- Re-snapshot and targeted re-check of the FX diff (DEC-20260928-48a648 next_actions).
+- C-9 at claim time on the pod (load <= 23, run volume >= 20 GiB, / >= 5 GiB) and on the Mac for the sage
+  part.
 v3_changes:
 - id: V3-1
   ruling: OQ-1, OQ-4
@@ -314,3 +316,76 @@ completion_gate_v3:
   pod_smoke_and_opcount_identity: see pod_smoke
   no_frozen_label_evaluated: PASS -- smoke namespace only on the Mac; nothing ran on the pod
   no_runs_directory: PASS -- no RUN-* directory; pod_sync.sh pull (which would create one) was not executed
+fx_v4:
+  amendment: AMD-20260928-d3ed9e (DEC-20260928-48a648)
+  unchanged: No threshold, statistic, backend cost accounting or outcome mapping changed; opcounts identity
+    re-checked (see smoke).
+  fixes:
+  - id: FX-1
+    change: driver.check_decision parses the named ledger/decisions/<DEC>.yaml and admits only if coordinator_decision.id
+      equals the passed id, target_ids include EXP-SDEG-85eefd and execution_admission.currently_admitted
+      is exactly true (YAML boolean). Applies to every mode (charged, sage, merge, full).
+    tests:
+    - tests/test_fx.py::test_fx1_real_non_admitting_decisions_refused[DEC-20260928-6b03c5]
+    - tests/test_fx.py::test_fx1_real_non_admitting_decisions_refused[DEC-20260928-48a648]
+    - tests/test_fx.py::test_fx1_future_admission_decision_absent_today
+    - tests/test_fx.py::test_fx1_only_explicit_true_for_this_experiment
+    - tests/test_fx.py::test_fx1_charged_and_full_refuse_today
+    files:
+    - driver.py
+  - id: FX-2
+    change: 'Linux admission fails closed: unreadable or unparseable /sys/fs/cgroup/cpu.max (including
+      non-positive quota/period) or unparseable /proc/loadavg leaves load_limit null and check_admission
+      refuses. ''max <period>'' remains parseable (limit = os.cpu_count()).'
+    tests:
+    - tests/test_fx.py::test_fx2_linux_cpu_max_fails_closed
+    - tests/test_fx.py::test_fx2_linux_valid_cpu_max_admits
+    files:
+    - hostinfo.py
+  - id: FX-3
+    change: 'cellrun: a B0/B1 hit-triple set mismatch appends a procedure defect; with stop_on_defect
+      the cell stops and the driver stops the run (procedure_defect, exit 7), exactly like a decision
+      disagreement.'
+    tests:
+    - tests/test_fx.py::test_fx3_hit_triple_mismatch_is_defect_and_stops
+    files:
+    - cellrun.py
+  - id: FX-4
+    change: driver._schedule always uses a spawn ProcessPoolExecutor with max_tasks_per_child=1 (also
+      for --workers 1), so every identity/cell/rho task runs in a fresh process and its recorded peak_rss_bytes
+      (ru_maxrss at task end) and the 8 GiB guard are that task's own. Requires Python >= 3.11 (Mac 3.12.8,
+      pod 3.12).
+    tests:
+    - tests/test_fx.py::test_fx4_fresh_process_per_task_and_per_task_peak
+    smoke: 'smoke/driver_dryrun/DRYRUN-v4-mac: 4 cells, 4 distinct pids, per-cell peak RSS recorded'
+    files:
+    - driver.py
+  - id: FX-5
+    change: driver.inference_block() reads AUTORESEARCH_REQUESTED_POLICY|AUTORESEARCH_POLICY, AUTORESEARCH_RESOLVED_MODEL_ID|AUTORESEARCH_MODEL_ID,
+      AUTORESEARCH_REASONING_EFFORT, AUTORESEARCH_FALLBACK_USED, AUTORESEARCH_DEGRADED_REQUIREMENTS (JSON
+      list or comma list), plus backend/runtime/model_verified/fallback_allowed/degraded_allowed/independent_session.
+      Unset -> null, resolved_model_id 'unverified', model_verified false. Every part manifest and the
+      merged manifest carry the block and the five keys at top level; the hardcoded requested_policy was
+      removed.
+    tests:
+    - tests/test_fx.py::test_fx5_unset_env_gives_null_unverified
+    - tests/test_fx.py::test_fx5_env_values_recorded_verbatim
+    - tests/test_fx.py::test_fx5_part_manifest_carries_inference
+    files:
+    - driver.py
+  - id: V4-header
+    change: PROTOCOL_VERSION = 4 in driver.py; trial-plan-v2.json header protocol_version 4 with amendment_v4
+      path/sha256/decision; check_plan also verifies amendment_v4_sha256. Cells unchanged.
+    files:
+    - driver.py
+    - fixtures.py
+    - make_trial_plan.py
+    - trial-plan-v2.json
+    - tests/test_driver_plan.py
+  - id: pod_sync
+    change: pod_sync.sh also syncs AMD-20260928-d3ed9e.yaml and DEC-20260928-48a648.yaml, and the pod
+      pytest step installs pytest into an isolated --target directory (/workspace/sdeg/.pytest_pkgs, used
+      via PYTHONPATH only for tests) because the pod image has no pytest; the earlier pod pytest step
+      had failed with 'No module named pytest'.
+    files:
+    - pod_sync.sh

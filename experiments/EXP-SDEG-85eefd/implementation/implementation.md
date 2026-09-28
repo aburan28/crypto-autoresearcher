@@ -1,4 +1,4 @@
-# EXP-SDEG-85eefd — implementation (protocol version 3)
+# EXP-SDEG-85eefd — implementation (protocol version 4)
 
 Task: `TASK-20260928-c7aad3` (implementation only; `DEC-20260928-54db4a`), with the
 v3 follow-up after `AMD-20260928-7ce387` (`DEC-20260928-6b03c5`).
@@ -37,6 +37,30 @@ labels). No beta was computed across sizes.
 | `sage_b2_crosscheck.py` | Sage B2 cross-check (`fglm` literal Singular elimination; `split` eliminant) |
 | `smoke.py` | the L = 8 smoke checks → `smoke/` |
 | `tests/` | pytest unit tests |
+
+## Protocol v4 (AMD-20260928-d3ed9e): FX-1..FX-5
+
+v4 accepts D-1 and OQ-17..OQ-19 as implemented. No threshold, statistic,
+cost accounting or outcome mapping changed. The v4 Mac smoke's
+`opcounts.json` is byte-identical to v3 (sha `79e80dd1…`).
+
+- **FX-1:** every mode admits only the explicitly named decision. It must be
+  a `coordinator_decision` with a matching `id`, with `EXP-SDEG-85eefd` in
+  `target_ids`, and with `execution_admission.currently_admitted: true` (a
+  YAML boolean). Mentioning the experiment is not enough.
+- **FX-2:** on Linux, an unreadable or unparseable `cpu.max` or load average
+  refuses admission (fail closed).
+- **FX-3:** a B0/B1 hit-triple set mismatch is a procedure defect that stops
+  the run.
+- **FX-4:** every task runs in a fresh spawn process (`max_tasks_per_child=1`,
+  also with one worker). Its `peak_rss_bytes` and the 8 GiB guard therefore
+  cover that task alone.
+- **FX-5:** inference provenance comes from `AUTORESEARCH_*` variables only;
+  unset variables are null, and the resolved model is `unverified`
+  (`driver.inference_block`).
+
+`PROTOCOL_VERSION = 4`. The trial plan's header carries the v4 amendment
+sha256; its cells are unchanged.
 
 ## Protocol v3 (AMD-20260928-7ce387)
 

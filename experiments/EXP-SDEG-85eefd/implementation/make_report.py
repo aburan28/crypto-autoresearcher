@@ -34,8 +34,10 @@ def run_tests() -> dict:
             "passed": len(passed), "failed": len(failed), "failed_ids": failed, "test_ids": passed}
 
 
-SMOKE_MAC = HERE / "smoke" / "mac"
+SMOKE_MAC = HERE / "smoke" / "mac_v4"
+SMOKE_MAC_V3 = HERE / "smoke" / "mac"
 SMOKE_POD = HERE / "smoke" / "pod"
+SMOKE_POD_V3 = HERE / "smoke" / "pod_v4"  # written only if the v4 pod smoke ran
 DRY_MAC = HERE / "smoke" / "driver_dryrun" / "DRYRUN-v3-mac"
 
 
@@ -159,6 +161,24 @@ def v2_identity() -> dict:
     return {"rows_compared": n, "rows_differing": diff}
 
 
+def fx_identity() -> dict:
+    def h(p):
+        return sha(p) if p.exists() else None
+    out = {"mac_v4": h(SMOKE_MAC / "opcounts.json"), "mac_v3": h(SMOKE_MAC_V3 / "opcounts.json"),
+           "pod_v4": h(SMOKE_POD_V3 / "smoke" / "opcounts.json"),
+           "pod_v4_note": ("None = pod smoke with the v4 code not performed (pod SSH endpoint refused every "
+                           "probe; see pod_smoke.endpoint_probes)"),
+           "pod_v3": h(SMOKE_POD / "smoke" / "opcounts.json"),
+           "pod_v3_note": "smoke/pod holds the v3-code pod smoke (before FX-1..FX-5); its pytest step had failed "
+                          "with 'No module named pytest', so no pod test count exists",
+           "reference": "79e80dd11f48c5c6553e1782e74605656ca6c2a1178b2428c5c35eb00ca80651"}
+    p = SMOKE_MAC / "opcounts.json"
+    out["mac_v4_rows"] = len(json.loads(p.read_text())) if p.exists() else None
+    tp = SMOKE_POD / "pod_pytest.txt"
+    out["pod_pytest_tail"] = tp.read_text().strip().splitlines()[-1] if tp.exists() and tp.read_text().strip() else None
+    return out
+
+
 def main():
     files = sorted(p for p in HERE.rglob("*") if p.is_file() and "__pycache__" not in p.parts
                    and ".pytest_cache" not in p.parts and p.name not in (REPORT.name,))
@@ -167,7 +187,8 @@ def main():
     sm = smoke_summary()
     sm["v2_opcount_identity"] = v2_identity()
     rep = {"implementation_report": {
-        "task_id": "TASK-20260928-c7aad3", "experiment_id": "EXP-SDEG-85eefd", "protocol_version": 3,
+        "task_id": "TASK-20260928-c7aad3", "experiment_id": "EXP-SDEG-85eefd", "protocol_version": 4,
+        "protocol_v4_amendment": "AMD-20260928-d3ed9e", "protocol_v4_decision": "DEC-20260928-48a648",
         "approval_decision_id": "DEC-20260928-54db4a", "batch_id": "BATCH-656ba1",
         "protocol_v3_amendment": "AMD-20260928-7ce387", "protocol_v3_decision": "DEC-20260928-6b03c5",
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -178,6 +199,7 @@ def main():
         "files": [{"path": f"{REL}/{p.relative_to(HERE)}", "sha256": sha(p), "bytes": p.stat().st_size}
                   for p in files],
         "tests": tests,
+        "fx_v4": dict(q["fx_v4"], opcounts_identity=fx_identity()),
         "v3_changes": q["v3_changes"],
         "smoke": sm,
         "driver_smoke_dry_run_v3": dryrun_v3_summary(),

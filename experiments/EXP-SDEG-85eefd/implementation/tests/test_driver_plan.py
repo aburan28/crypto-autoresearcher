@@ -52,7 +52,9 @@ def test_refuses_existing_run_dir_and_bad_plan(tmp_path, monkeypatch):
                                                                          read_at="t"))
     dec = tmp_path / "ledger" / "decisions"
     dec.mkdir(parents=True)
-    (dec / "DEC-20260928-abcdef.yaml").write_text("target: EXP-SDEG-85eefd\n")
+    (dec / "DEC-20260928-abcdef.yaml").write_text(
+        "coordinator_decision:\n  id: DEC-20260928-abcdef\n  target_ids: [EXP-SDEG-85eefd]\n"
+        "  execution_admission:\n    currently_admitted: true\n")
     plan = make_trial_plan.build()
     pf = tmp_path / "plan.json"
     pf.write_text(json.dumps(plan))
@@ -97,7 +99,7 @@ def test_trial_plan_counts():
         assert sum(q["kind"] == "planted" for q in c["queries"]) == 16
         for q in c["queries"]:
             assert all(lb.startswith("EXP-SDEG-85eefd/v2|") for lb in q["labels"])
-    assert plan["protocol_version"] == 3 and plan["protocol"]["amendment_v3_sha256"]
+    assert plan["protocol_version"] == 4 and plan["protocol"]["amendment_v4_sha256"]
     assert plan["execution_hosts"]["charged"]["maximum_workers"] == 16
     assert plan["protocol"]["fixtures_sha256"] == \
         "543f49ca5304f4e61085305ca2ea01ccc0085298db26368d7362f96b1b6a5a45"

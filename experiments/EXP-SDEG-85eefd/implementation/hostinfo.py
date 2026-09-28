@@ -46,11 +46,15 @@ def parse_cpu_max(text: str, ncpu: int | None = None) -> dict:
     if len(parts) != 2:
         raise ValueError(f"cannot parse cpu.max: {text!r}")
     period = int(parts[1])
+    if period <= 0:
+        raise ValueError(f"non-positive cpu.max period: {text!r}")
     if parts[0] == "max":
         n = ncpu if ncpu is not None else (os.cpu_count() or 1)
         return {"quota": None, "period": period, "cpus": float(n), "load_limit": n,
                 "source": "cpu.max unlimited; os.cpu_count()"}
     quota = int(parts[0])
+    if quota <= 0:
+        raise ValueError(f"non-positive cpu.max quota: {text!r}")
     return {"quota": quota, "period": period, "cpus": quota / period,
             "load_limit": math.floor(quota / period), "source": "cpu.max"}
 
@@ -91,7 +95,10 @@ def host_identity(sage_version: str | None = None) -> dict:
              "cpu_quota": None, "sage": sage_version}
     if host_kind() == "linux":
         t = _read(CPU_MAX)
-        ident["cpu_quota"] = parse_cpu_max(t) if t else None
+        try:
+            ident["cpu_quota"] = parse_cpu_max(t) if t else None
+        except ValueError as e:
+            ident["cpu_quota"] = {"error": str(e)}
     try:
         import psutil
         ident["psutil"] = psutil.__version__
@@ -107,13 +114,25 @@ def admission_readings(repo_root: Path, run_volume: Path | None = None) -> dict:
     if kind == "linux":
         raw = _read(LOADAVG) or ""
         cpu_raw = _read(CPU_MAX)
-        cq = parse_cpu_max(cpu_raw) if cpu_raw else parse_cpu_max("max 100000")
+        cq, cpu_err = None, None
+        if cpu_raw is None:  # FX-2: fail closed
+            cpu_err = f"{CPU_MAX} unreadable"
+        else:
+            try:
+                cq = parse_cpu_max(cpu_raw)
+            except (ValueError, TypeError) as e:
+                cpu_err = f"{CPU_MAX} unparseable: {e}"
+        try:
+            load15 = parse_loadavg(raw)
+        except ValueError as e:
+            load15, cpu_err = None, (cpu_err or "") + f"; {LOADAVG}: {e}"
         vol = Path(run_volume or repo_root)
         while not vol.exists():
             vol = vol.parent
-        return {"host_kind": kind, "loadavg_raw": raw.strip(), "load_15min": parse_loadavg(raw),
-                "cpu_max_raw": (cpu_raw or "").strip(), "load_limit": cq["load_limit"],
-                "cpu_quota": cq, "run_volume": str(vol),
+        return {"host_kind": kind, "loadavg_raw": raw.strip(), "load_15min": load15,
+                "cpu_max_raw": None if cpu_raw is None else cpu_raw.strip(),
+                "load_limit": cq["load_limit"] if cq else None, "cpu_quota": cq,
+                "cpu_max_error": cpu_err, "run_volume": str(vol),
                 "run_volume_free_gib": shutil.disk_usage(str(vol)).free / 2 ** 30,
                 "root_volume_free_gib": shutil.disk_usage("/").free / 2 ** 30, "read_at": now}
     raw = subprocess.run(["sysctl", "-n", "vm.loadavg"], capture_output=True, text=True).stdout
@@ -126,7 +145,9 @@ def admission_readings(repo_root: Path, run_volume: Path | None = None) -> dict:
 def check_admission(r: dict) -> tuple[bool, list]:
     reasons = []
     if r.get("host_kind") == "linux":
-        if not r["load_15min"] <= r["load_limit"]:
+        if r.get("cpu_max_error") or r.get("load_limit") is None or r.get("load_15min") is None:
+            reasons.append(f"cgroup CPU limit or load unavailable (fail closed): {r.get('cpu_max_error')}")
+        elif not r["load_15min"] <= r["load_limit"]:
             reasons.append(f"15-min load {r['load_15min']} > cgroup limit {r['load_limit']}")
         if not r["run_volume_free_gib"] >= LINUX_RUN_FREE_MIN_GIB:
             reasons.append(f"run volume free {r['run_volume_free_gib']:.1f} GiB < {LINUX_RUN_FREE_MIN_GIB}")
