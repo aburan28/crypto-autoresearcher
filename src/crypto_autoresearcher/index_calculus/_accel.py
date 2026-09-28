@@ -11,6 +11,9 @@ marked index and charges every skipped index exactly what the scalar step
 would have (one S_3 solve, two membership tests, no group operations), so
 relations and operation counts are identical with and without numpy.  All
 arithmetic is on uint64 with p < 2^32, so every product fits.
+
+The roots are looked up in the factor base by default, or in any other
+``KeyIndex`` -- a table of longer tails (tails.py) -- when one is given.
 """
 
 from __future__ import annotations
@@ -29,6 +32,24 @@ def available() -> bool:
 
 def usable(p: int) -> bool:
     return np is not None and p < MAX_P
+
+
+class KeyIndex:
+    """Sorted keys with one integer each; lookup gives that integer or -1.
+
+    For the factor base the integer is the index of the element with that x;
+    for a table of tails it is the largest first index among the tails with
+    that x, so ``lookup(x) >= i`` asks whether any of them may follow index i.
+    """
+
+    def __init__(self, keys, values) -> None:
+        self.keys, self.values, self.n = keys, values, len(keys)
+
+    def lookup(self, vals):
+        if self.n == 0:
+            return np.full(np.shape(vals), -1, dtype=np.int64)
+        pos = np.minimum(np.searchsorted(self.keys, vals), self.n - 1)
+        return np.where(self.keys[pos] == vals, self.values[pos], -1)
 
 
 class FBArrays:
@@ -71,17 +92,18 @@ def batch_inverse(v, p):
     return inv[: v.shape[0]]
 
 
-def m2_candidates(arr: FBArrays, xR: int, yR: int, lo: int):
+def m2_candidates(arr: FBArrays, xR: int, yR: int, lo: int, index=None):
     """Indices i >= lo that the scalar m = 2 step must visit, ascending.
 
     Those are the i where x(R - F_i) or x(R + F_i) is the x-coordinate of a
-    factor-base element F_j with j >= i, plus the (at most one) i with
+    factor-base element F_j with j >= i (of a tail whose first index is
+    >= i, when ``index`` is a table of tails), plus the (at most one) i with
     x_i = x(R), whose S_3 is degenerate and is left to the scalar code.
     """
-    return m2_candidates_multi(arr, [(xR, yR, lo)])[0]
+    return m2_candidates_multi(arr, [(xR, yR, lo)], index)[0]
 
 
-def m2_candidates_multi(arr: FBArrays, targets: list[tuple[int, int, int]]):
+def m2_candidates_multi(arr: FBArrays, targets: list[tuple[int, int, int]], index=None):
     """``m2_candidates`` for several (x(R), y(R), lo) targets in one 2-D pass."""
     n = arr.n
     if not targets:
@@ -104,7 +126,8 @@ def m2_candidates_multi(arr: FBArrays, targets: list[tuple[int, int, int]]):
     lam = (Y + (p - yr)) % p * inv % p                # slope of R + F_i
     x_plus = (lam * lam % p + (p - s)) % p
     idx = np.arange(lo_min, n, dtype=np.int64)[None, :]
-    hit = (arr.lookup(x_minus) >= idx) | (arr.lookup(x_plus) >= idx)
+    look = (arr if index is None else index).lookup
+    hit = (look(x_minus) >= idx) | (look(x_plus) >= idx)
     mask = (idx >= los) & ((hit & ~zero) | zero)
     return [idx[0, mask[k]] for k in range(len(targets))]
 

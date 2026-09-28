@@ -18,7 +18,7 @@ tags: [binary-field, cryptanalysis, dlp, ecdlp, elliptic-curve, finite-field, fi
 confidence: reported
 citation_verified: read
 added: "2026-07-24"
-superseded_by: null
+superseded_by: KN-LIT-8d516e
 ---
 
 ## Contribution
