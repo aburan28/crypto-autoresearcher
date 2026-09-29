@@ -8,6 +8,9 @@
              enumeration on a ladder of factor-base sizes, with the check that
              both engines find exactly the same decompositions
     analyze  refit and tabulate from sweep / engines JSONL files
+    census   the EXP-PFDR-1b78f7 collision-harvest panels (main, rho, j0):
+             every arm in both harvest modes, one JSONL row per instance,
+             plus the harvested rows and the census-rank staircases
 
 Costs are counts, reported in columns that are never summed: S_3 root solves
 for index calculus, group additions of the walk for rho (its fixed setup is a
@@ -33,7 +36,7 @@ from .decompose import DecompStats, decompose_all
 from .factor_base import (FACTOR_BASES, FactorBase, build_factor_base,
                           default_fb_size, subgroup_prime_filter)
 from .rho import pollard_rho
-from .solver import ENGINES, PIVOT_RULES, solve_index_calculus
+from .solver import ENGINES, HARVEST_MODES, PIVOT_RULES, solve_index_calculus
 from .stats import bootstrap_slope, fit_exponent
 
 
@@ -101,10 +104,12 @@ def _sweep_job(job: dict) -> list[dict]:
                 if bits > job.get("engine_caps", {}).get(f"{engine}:{m}", 10**9):
                     continue
                 E.ops.group_ops = 0
+                harvest = job.get("harvest", "off")
                 ic = solve_index_calculus(E, P, Q, m=m, fb_kind=kind, seed=c,
                                           factor_base=fb, accelerate=job["accelerate"],
                                           engine=engine,
-                                          la_pivot=job.get("la_pivot", "min_fill"))
+                                          la_pivot=job.get("la_pivot", "min_fill"),
+                                          harvest=harvest)
                 rows.append(base | {
                     "method": f"ic_m{m}", "fb": kind, "engine": engine, "fb_size": len(fb),
                     "fb_params": {kk: v for kk, v in fb.params.items() if kk != "seed"},
@@ -117,6 +122,8 @@ def _sweep_job(job: dict) -> list[dict]:
                     "relations": ic.relations, "attempts": ic.attempts,
                     "rank": ic.rank, "accelerated": ic.accelerated,
                     "seconds": ic.seconds_total})
+                if harvest != "off":
+                    rows[-1]["harvest"] = ic.harvest
     return rows
 
 
@@ -134,6 +141,9 @@ def _parse_caps(items: list[str]) -> tuple[dict[int, int], dict[str, int]]:
 
 
 def cmd_sweep(args: argparse.Namespace) -> int:
+    if args.harvest != "off" and any(e != "mitm" for e in args.engine):
+        print("--harvest census/on needs --engine mitm only", file=sys.stderr)
+        return 2
     caps, engine_caps = _parse_caps(args.m_max_bits)
     subgroup = "subgroup" in args.fb
     jobs = []
@@ -145,6 +155,7 @@ def cmd_sweep(args: argparse.Namespace) -> int:
                          "tolerance": args.tolerance, "engines": args.engine,
                          "la_pivot": args.la_pivot,
                          "engine_caps": engine_caps,
+                         **({"harvest": args.harvest} if args.harvest != "off" else {}),
                          "accelerate": False if args.no_accel else None})
     jobs.sort(key=lambda j: (-j["bits"] * (1 + len(j["ic_ms"])), j["curve"]))
     rows = _run_jobs(_sweep_job, jobs, args.workers, args.out, args.quiet)
@@ -498,6 +509,420 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+# -- census (EXP-PFDR-1b78f7) ---------------------------------------------------------
+
+MAIN_ARMS = ("subgroup", "dickson", "small_x", "random_sub_r0", "random_sub_r1",
+             "random_sub_r2", "random_dick_r0", "random_dick_r1", "random_dick_r2",
+             "known_log")
+J0_ARMS = ("j0_coset", "j0_random_r0", "j0_random_r1", "j0_random_r2")
+CENSUS_MODES = ("census", "on")
+CENSUS_TARGET_LABEL = "census"
+
+
+class _InstanceTimeout(Exception):
+    pass
+
+
+def j0_prime_filter(tolerance: float = 0.15):
+    """p = 1 mod 3 and some d | p - 1 with 3 | d and |d - 2t| <= tol * 2t, t = default_fb_size(p, 3)."""
+    from .curve import divisors
+
+    def accept(p: int) -> bool:
+        if p % 3 != 1:
+            return False
+        t = default_fb_size(p, 3)
+        return any(d % 3 == 0 and abs(d - 2 * t) <= tolerance * 2 * t for d in divisors(p - 1))
+
+    accept.label = f"j0-subgroup3(m=[3],tol={tolerance})"
+    return accept
+
+
+def _instance_j0(bits: int, curve_seed: int, target_seed: int = 0, p_filter=None):
+    """_instance with the j = 0 generator (same target-log rule)."""
+    from .curve import generate_prime_order_curve_j0
+
+    E, P = generate_prime_order_curve_j0(bits, curve_seed, p_filter=p_filter)
+    k = random.Random(f"target|{bits}|{curve_seed}|{target_seed}").randrange(1, E.order)
+    Q = E.mul(k, P)
+    E.ops.group_ops = 0
+    return E, P, Q, k
+
+
+def _alarm(seconds: int):
+    import signal
+
+    def handler(signum, frame):
+        raise _InstanceTimeout(f"per-instance watchdog {seconds} s expired")
+
+    signal.signal(signal.SIGALRM, handler)
+    signal.alarm(seconds)
+
+
+def _alarm_off():
+    import signal
+
+    signal.alarm(0)
+
+
+def _base_checks(E, P, fb, arm: str) -> dict:
+    """G7 (subgroup / dickson / j0 coset definitions) and G6 (known_log F_j == j P)."""
+    from .curve import Curve
+    from .factor_base import dickson_value
+    from .curve import primitive_root
+
+    p = E.p
+    out: dict = {}
+    if fb.kind == "subgroup":
+        d, g = fb.params["d"], fb.params["coset"]
+        gd = pow(g, d, p)
+        out["G7_subgroup_x_pow_d_eq_coset_pow_d"] = all(pow(Pt[0], d, p) == gd for Pt in fb.points)
+    elif fb.kind == "dickson":
+        d, c, g, lam = fb.params["d"], fb.params["c"], fb.params["coset"], fb.params["lambda"]
+        zeta = pow(primitive_root(p), (p - 1) // d, p)
+        us, u = [], g
+        for _ in range(d):
+            us.append(u)
+            u = u * zeta % p
+        xs = [(v + c * pow(v, -1, p)) % p for v in us]
+        out["G7_dickson_D_d_eq_lambda"] = all(dickson_value(Pt[0], c, d, p) == lam
+                                              for Pt in fb.points)
+        out["G7_dickson_preimages_distinct"] = len(set(us)) == d and len(set(xs)) == d
+        out["G7_dickson_base_in_image"] = {Pt[0] for Pt in fb.points} <= set(xs)
+        out["G7_dickson_c_not_in_g2_mu_d"] = pow(c * pow(g, -2, p) % p, d, p) != 1
+    elif fb.kind == "known_log":
+        Ev = Curve(E.p, E.a, E.b, E.order)
+        out["G6_known_log_Fj_eq_jP"] = all(Ev.mul(j, P) == Pt
+                                           for j, Pt in enumerate(fb.points, 1))
+    return out
+
+
+def _gate_failures(row: dict) -> list[str]:
+    """G4/G5/G6/G7 failures visible in one census row."""
+    bad = []
+    for key, val in (row.get("checks") or {}).items():
+        if val is False:
+            bad.append(key)
+    h = row.get("harvest")
+    if h:
+        for cname in ("TT", "TB", "SS"):
+            st = h[cname]["at_stop"]
+            if st["cert_fail"] != 0 or st["cert_pass"] != st["rows_emitted"]:
+                bad.append(f"G4_{cname}_certificates")
+        if not h["ss_store"]["identity_ok"]:
+            bad.append("G5_ss_store_identity")
+    if row.get("k_found") and not row.get("k_verified"):
+        bad.append("G4_kP_eq_Q")
+    return bad
+
+
+def _census_instance(E, P, Q, k, m, fb, arm, mode, c, A_fix, formal, cap, base, checks,
+                     watchdog, hrows, stairs, extra) -> tuple[dict, bool]:
+    """One solver instance of a census panel; (row, stop_run)."""
+    from .harvest import CertificateFailure
+
+    key = {"bits": base["bits"], "curve": base["curve"], "m": m, "arm": arm, "mode": mode}
+
+    def sink(rec: dict) -> None:
+        hrows.append(key | rec)
+
+    def stair(recs: list) -> None:
+        for r in recs:
+            stairs.append(key | r)
+
+    sink.staircase = stair
+    head = base | {"method": f"ic_m{m}", "fb": fb.kind, "engine": "mitm",
+                   "fb_size": len(fb),
+                   "fb_params": {kk: v for kk, v in fb.params.items() if kk != "seed"}}
+    tail = {"panel": extra["panel"], "arm": arm, "mode": mode,
+            "target_label": CENSUS_TARGET_LABEL, "attempt_cap": cap}
+    E.ops.group_ops = 0
+    t0 = time.perf_counter()
+    try:
+        _alarm(watchdog)
+        ic = solve_index_calculus(E, P, Q, m=m, fb_kind=fb.kind, seed=c, factor_base=fb,
+                                  engine="mitm", la_pivot="min_fill", harvest=mode,
+                                  target_label=CENSUS_TARGET_LABEL, formal_basis=formal,
+                                  attempt_budget=A_fix, max_attempts=cap, harvest_sink=sink)
+    except CertificateFailure as exc:
+        _alarm_off()
+        return head | tail | {"ok": False, "status": "invalid",
+                              "status_reason": f"I-3 certificate failure: {exc}",
+                              "checks": checks, "seconds": time.perf_counter() - t0}, True
+    except (_InstanceTimeout, MemoryError) as exc:
+        _alarm_off()
+        return head | tail | {"ok": False, "status": "failed_infrastructure",
+                              "status_reason": f"{type(exc).__name__}: {exc}",
+                              "checks": checks, "seconds": time.perf_counter() - t0}, False
+    _alarm_off()
+    h = ic.harvest
+    capped = h["terminated_by"] == "attempt_cap"
+    if fb.kind == "known_log":
+        ok = (ic.k is None and capped) or (ic.verified and ic.k == k)
+    else:
+        ok = ic.verified and ic.k == k
+    row = head | {
+        "ok": ok, "s3_solves": ic.s3_solves, "table_arity": ic.table_arity,
+        "table_s3_solves": ic.table_s3_solves, "table_entries": ic.table_entries,
+        "membership_tests": ic.membership_tests, "group_ops": ic.group_ops,
+        "target_ops": ic.target_ops, "decomp_ops": ic.group_ops - ic.target_ops,
+        "la_ops": ic.la_ops, "la_pivot": ic.la_pivot, "relations": ic.relations,
+        "attempts": ic.attempts, "rank": ic.rank, "accelerated": ic.accelerated,
+        "seconds": ic.seconds_total} | tail | {
+        "search_s3": ic.s3_solves - ic.table_s3_solves, "harvest": h,
+        "k_found": ic.k is not None, "k_verified": ic.verified, "checks": checks}
+    bad = _gate_failures(row)
+    if bad:
+        row["status"], row["status_reason"] = "invalid", "gate failure: " + ", ".join(bad)
+        return row, True
+    if not ok:
+        row["status"] = "invalid"
+        row["status_reason"] = "instance stopped without a verified k and without the attempt cap"
+        return row, True
+    row["status"], row["status_reason"] = "completed_valid", None
+    return row, False
+
+
+def _census_rho(E, P, Q, k, base, c, panel, watchdog) -> dict:
+    t0 = time.perf_counter()
+    try:
+        _alarm(watchdog)
+        rr = pollard_rho(E, P, Q, seed=c)
+    except (_InstanceTimeout, MemoryError) as exc:
+        _alarm_off()
+        return base | {"method": "rho", "fb": "-", "ok": False, "panel": panel,
+                       "status": "failed_infrastructure",
+                       "status_reason": f"{type(exc).__name__}: {exc}",
+                       "seconds": time.perf_counter() - t0}
+    _alarm_off()
+    ok = rr.verified and rr.k == k
+    return base | {"method": "rho", "fb": "-", "ok": ok, "walk_ops": rr.walk_ops,
+                   "setup_ops": rr.setup_ops, "group_ops": rr.group_ops, "walks": rr.walks,
+                   "dp_bits": rr.dp_bits, "seconds": rr.seconds, "panel": panel,
+                   "status": "completed_valid" if ok else "invalid",
+                   "status_reason": None if ok else "rho k not verified"}
+
+
+def _census_job(job: dict) -> dict:
+    from .harvest import (FormalBasisFailure, formal_basis_j0, formal_basis_known_log,
+                          j0_omega_lambda)
+
+    bits, c, panel, wd = job["bits"], job["curve"], job["panel"], job["watchdog"]
+    rows: list[dict] = []
+    hrows: list[dict] = []
+    stairs: list[dict] = []
+    if panel in ("main", "rho"):
+        pf = subgroup_prime_filter([3, 4, 5], 0.15)
+        E, P, Q, k = _instance(bits, c, 0, pf)
+    else:
+        pf = j0_prime_filter(0.15)
+        E, P, Q, k = _instance_j0(bits, c, 0, pf)
+    base = _curve_fields(E, bits, c, pf.label)
+    if panel == "rho":
+        rows.append(_census_rho(E, P, Q, k, base, c, "rho", wd))
+        return {"rows": rows, "hrows": hrows, "stairs": stairs, "stop": False}
+    m = job["m"]
+    extra = {"panel": panel}
+    stop = False
+    if panel == "main":
+        size0 = default_fb_size(E.order, m)
+        F_sub = FactorBase.subgroup(E, size0, c)
+        s_sub = max(4, len(F_sub))
+        F_dick = FactorBase.dickson(E, size0, c)
+        s_dick = max(4, len(F_dick))
+        A_fix = s_sub
+        builders = {
+            "subgroup": lambda: F_sub, "dickson": lambda: F_dick,
+            "small_x": lambda: FactorBase.small_x(E, s_sub),
+            "random_sub_r0": lambda: FactorBase.random(E, s_sub, seed=c),
+            "random_sub_r1": lambda: FactorBase.random(E, s_sub, seed=c + 1000),
+            "random_sub_r2": lambda: FactorBase.random(E, s_sub, seed=c + 2000),
+            "random_dick_r0": lambda: FactorBase.random(E, s_dick, seed=c + 3000),
+            "random_dick_r1": lambda: FactorBase.random(E, s_dick, seed=c + 4000),
+            "random_dick_r2": lambda: FactorBase.random(E, s_dick, seed=c + 5000),
+            "known_log": lambda: FactorBase.known_log(E, P, s_sub)}
+        order = [a for a in MAIN_ARMS if a in job["arms"]]
+        omega_lam = None
+    else:
+        size0 = default_fb_size(E.order, 3)
+        try:
+            omega_lam = j0_omega_lambda(E, P)
+        except FormalBasisFailure as exc:
+            for arm in [a for a in J0_ARMS if a in job["arms"]]:
+                for mode in CENSUS_MODES:
+                    rows.append(base | {"panel": panel, "arm": arm, "mode": mode, "ok": False,
+                                        "status": "invalid",
+                                        "status_reason": f"G6 lambda check failed: {exc}"})
+            return {"rows": rows, "hrows": hrows, "stairs": stairs, "stop": True}
+        F_coset = FactorBase.subgroup(E, size0, c, divisor_multiple_of=3)
+        s = len(F_coset)
+        A_fix = s
+        builders = {
+            "j0_coset": lambda: F_coset,
+            "j0_random_r0": lambda: FactorBase.random(E, s, seed=c),
+            "j0_random_r1": lambda: FactorBase.random(E, s, seed=c + 1000),
+            "j0_random_r2": lambda: FactorBase.random(E, s, seed=c + 2000)}
+        order = [a for a in J0_ARMS if a in job["arms"]]
+    census_attempts: dict[str, int] = {}
+    for arm in order:
+        if stop:
+            break
+        if arm == "known_log" and not (m == 3 and bits <= job["known_log_max_bits"]):
+            continue
+        fb = builders[arm]()
+        checks = _base_checks(E, P, fb, arm)
+        if panel == "j0":
+            omega, lam = omega_lam
+            formal = {"kind": "automorphism_j0",
+                      "rows": formal_basis_j0(E, fb, omega, lam)}
+            checks["G6_j0_lambda_on_P"] = True
+            if arm == "j0_coset":
+                checks["G6_j0_coset_size_divisible_by_3"] = len(fb) % 3 == 0
+        elif arm == "known_log":
+            formal = {"kind": "known_log", "rows": formal_basis_known_log(len(fb))}
+        else:
+            formal = {"kind": "none", "rows": []}
+        for mode in CENSUS_MODES:
+            cap = None
+            if arm == "known_log":
+                cap = census_attempts.get("random_sub_r0")
+                if cap is None:
+                    rows.append(base | {"panel": panel, "arm": arm, "mode": mode, "ok": False,
+                                        "status": "failed_infrastructure",
+                                        "status_reason": "attempt cap unavailable: "
+                                                         "random_sub_r0 census instance "
+                                                         "did not complete"})
+                    continue
+            row, stop_run = _census_instance(E, P, Q, k, m, fb, arm, mode, c, A_fix, formal,
+                                             cap, base, checks, wd, hrows, stairs, extra)
+            if row.get("harvest"):
+                h = row["harvest"]
+                if panel == "j0" and arm == "j0_coset":
+                    ok6 = h["formal_basis_rank"] * 3 == 2 * len(fb)
+                    row["checks"] = dict(row["checks"], G6_j0_coset_formal_rank_2F_over_3=ok6)
+                if arm == "known_log":
+                    row["checks"] = dict(row["checks"],
+                                         G6_known_log_formal_rank=h["formal_basis_rank"] == len(fb) - 1)
+                bad = _gate_failures(row)
+                if bad and row["status"] != "invalid":
+                    row["status"], row["status_reason"] = "invalid", "gate failure: " + ", ".join(bad)
+                    stop_run = True
+            rows.append(row)
+            if mode == "census" and row.get("status") == "completed_valid":
+                census_attempts[arm] = row["attempts"]
+            if stop_run:
+                stop = True
+                break
+    if panel == "j0" and not stop and c < job.get("rho_curves", 0):
+        rows.append(_census_rho(E, P, Q, k, base, c, "j0", wd))
+    return {"rows": rows, "hrows": hrows, "stairs": stairs, "stop": stop}
+
+
+def _census_sort_key(r: dict):
+    return (r.get("bits", 0), r.get("curve", 0), r.get("m", int(r["method"][4:]) if
+            str(r.get("method", "")).startswith("ic_m") else 0),
+            r.get("arm", ""), r.get("mode", ""), r.get("method", ""))
+
+
+def cmd_census(args: argparse.Namespace) -> int:
+    arms_all = MAIN_ARMS if args.panel == "main" else J0_ARMS if args.panel == "j0" else ()
+    arms = tuple(args.arms) if args.arms else arms_all
+    unknown = [a for a in arms if a not in arms_all]
+    if unknown:
+        print(f"unknown arms for panel {args.panel}: {unknown}", file=sys.stderr)
+        return 2
+    jobs = []
+    for bits in args.bits:
+        if args.panel == "rho":
+            for c in range(args.curve_offset, args.curve_offset + args.rho_curves):
+                jobs.append({"panel": "rho", "bits": bits, "curve": c,
+                             "watchdog": args.instance_watchdog})
+            continue
+        for m in (args.m if args.panel == "main" else [3]):
+            for c in range(args.curve_offset, args.curve_offset + args.curves):
+                jobs.append({"panel": args.panel, "bits": bits, "curve": c, "m": m,
+                             "arms": list(arms), "known_log_max_bits": args.known_log_max_bits,
+                             "rho_curves": args.rho_curves,
+                             "watchdog": args.instance_watchdog})
+    jobs.sort(key=lambda j: (-j["bits"], j.get("m", 0), j["curve"]))
+    sinks = {name: (open(path, "a") if path else None)
+             for name, path in (("rows", args.out), ("hrows", args.rows_out),
+                                ("stairs", args.staircase_out))}
+    rows: list[dict] = []
+    stopped = None
+    t0 = time.perf_counter()
+
+    def emit(res: dict) -> None:
+        for name in ("rows", "hrows", "stairs"):
+            fh = sinks[name]
+            if fh:
+                for r in res[name]:
+                    fh.write(json.dumps(r) + "\n")
+                fh.flush()
+        rows.extend(res["rows"])
+        if not args.quiet:
+            for r in res["rows"]:
+                print(f"[{time.perf_counter() - t0:7.0f}s] {r.get('panel')} {r['bits']}b "
+                      f"c{r['curve']} {r.get('method', '-')} {r.get('arm', '-')} "
+                      f"{r.get('mode', '-')} {r.get('status')} t={r.get('seconds', 0):.1f}s",
+                      file=sys.stderr)
+
+    def job_failure(job: dict, exc: BaseException) -> dict:
+        arms_j = [None] if job["panel"] == "rho" else job["arms"]
+        out = []
+        for arm in arms_j:
+            for mode in ([None] if arm is None else CENSUS_MODES):
+                out.append({"bits": job["bits"], "curve": job["curve"], "m": job.get("m"),
+                            "panel": job["panel"], "arm": arm, "mode": mode, "ok": False,
+                            "status": "failed_infrastructure",
+                            "status_reason": f"job crashed: {type(exc).__name__}: {exc}"})
+        return {"rows": out, "hrows": [], "stairs": [], "stop": False}
+
+    try:
+        if args.workers <= 1:
+            for job in jobs:
+                try:
+                    res = _census_job(job)
+                except Exception as exc:  # recorded, never read as a result
+                    res = job_failure(job, exc)
+                emit(res)
+                if res["stop"]:
+                    stopped = job
+                    break
+        else:
+            with ProcessPoolExecutor(max_workers=args.workers) as pool:
+                futs = {pool.submit(_census_job, job): job for job in jobs}
+                for fut in as_completed(futs):
+                    try:
+                        res = fut.result()
+                    except Exception as exc:
+                        res = job_failure(futs[fut], exc)
+                    emit(res)
+                    if res["stop"] and stopped is None:
+                        stopped = futs[fut]
+                        for f in futs:
+                            f.cancel()
+    finally:
+        for fh in sinks.values():
+            if fh:
+                fh.close()
+    rows.sort(key=_census_sort_key)
+    summary: dict = {"instances": len(rows), "by_status": {}, "stopped_at_job": stopped,
+                     "certificates": {"cert_pass": 0, "cert_fail": 0, "rows_emitted": 0},
+                     "identity_failures": 0}
+    for r in rows:
+        key = f"{r.get('panel')}|{r.get('arm', r.get('method'))}|{r.get('mode', '-')}|{r.get('status')}"
+        summary["by_status"][key] = summary["by_status"].get(key, 0) + 1
+        h = r.get("harvest")
+        if h:
+            for cname in ("TT", "TB", "SS"):
+                st = h[cname]["at_stop"]
+                for kk in ("cert_pass", "cert_fail", "rows_emitted"):
+                    summary["certificates"][kk] += st[kk]
+            summary["identity_failures"] += not h["ss_store"]["identity_ok"]
+    print(json.dumps(summary, indent=2))
+    return 1 if stopped is not None or any(r.get("status") == "invalid" for r in rows) else 0
+
+
 # -- entry point ------------------------------------------------------------------
 
 def main(argv: list[str] | None = None) -> int:
@@ -550,6 +975,9 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--no-accel", action="store_true")
     w.add_argument("--json", action="store_true")
     w.add_argument("--quiet", action="store_true")
+    w.add_argument("--harvest", choices=HARVEST_MODES, default="off",
+                   help="collision harvest: census (passive, counts only) or on (rows fed); "
+                        "mitm engine only")
     w.set_defaults(func=cmd_sweep)
 
     g = sub.add_parser("engines", help="msolve vs enumeration per target")
@@ -579,6 +1007,27 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--json", action="store_true")
     g.add_argument("--quiet", action="store_true")
     g.set_defaults(func=cmd_engines)
+
+    c = sub.add_parser("census", help="EXP-PFDR-1b78f7 collision-harvest panels")
+    c.add_argument("--panel", choices=("main", "rho", "j0"), required=True)
+    c.add_argument("--m", type=int, nargs="+", default=[3])
+    c.add_argument("--bits", type=int, nargs="+", required=True)
+    c.add_argument("--curves", type=int, default=5)
+    c.add_argument("--curve-offset", type=int, default=0)
+    c.add_argument("--rho-curves", type=int, default=0)
+    c.add_argument("--arms", nargs="+", default=None,
+                   help="default: every arm of the panel, in the fixed arm order")
+    c.add_argument("--known-log-max-bits", type=int, default=0,
+                   help="main panel: run the known_log arm at m = 3 up to this many bits")
+    c.add_argument("--workers", type=int, default=1)
+    c.add_argument("--out", help="instance rows (JSONL, appended)")
+    c.add_argument("--rows-out", help="harvested rows (JSONL, appended)")
+    c.add_argument("--staircase-out", help="census-rank staircases (JSONL, appended)")
+    c.add_argument("--instance-watchdog", type=int, default=7200,
+                   help="per-instance watchdog in seconds (machine protection); an expired "
+                        "instance is recorded failed_infrastructure")
+    c.add_argument("--quiet", action="store_true")
+    c.set_defaults(func=cmd_census)
 
     z = sub.add_parser("analyze", help="refit from JSONL rows")
     z.add_argument("files", nargs="+", help="sweep / engines JSONL files (.gz is fine)")
