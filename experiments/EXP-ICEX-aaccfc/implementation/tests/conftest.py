@@ -22,9 +22,20 @@ def tmp_root():
     return base
 
 
+class HiddenResult(dict):
+    """v4c H-1: a frozen-fixture result whose repr/str show no values, so pytest's
+    funcarg display in a long traceback cannot print them. Behaves as a dict otherwise."""
+
+    def __repr__(self):
+        return "<frozen smoke result: values hidden>"
+
+    __str__ = __repr__
+
+
 @pytest.fixture(scope="session")
 def smoke_primary():
     import common
     import pipeline
     fx = common.fixture(16, 21)
-    return pipeline.run_primary(fx, common.SMOKE_NS + "|tests", n_descents=2, n_heldout=8, log_fn=lambda *a: None)
+    return HiddenResult(pipeline.run_primary(fx, common.SMOKE_NS + "|tests", n_descents=2, n_heldout=8,
+                                             log_fn=lambda *a: None))
