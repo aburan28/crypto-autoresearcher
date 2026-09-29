@@ -43,7 +43,12 @@ class ForwardingTests(unittest.TestCase):
         self.flush()
 
     def git(self, *args):
-        return subprocess.check_output(["git", "-C", str(self.root), *args], text=True)
+        # Auto gc / maintenance may detach a background process that is still
+        # writing into .git when TemporaryDirectory.cleanup() runs, which fails
+        # teardown with "Directory not empty: '.git'" (seen in CI on PR #1453).
+        return subprocess.check_output(
+            ["git", "-C", str(self.root), "-c", "gc.auto=0",
+             "-c", "maintenance.auto=false", *args], text=True)
 
     def write(self, path, value):
         path.parent.mkdir(parents=True, exist_ok=True)

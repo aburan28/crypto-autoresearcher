@@ -1,0 +1,277 @@
+# =============================================================================
+# TASK-20260923-8d9ccb -- Coordinator LEDGER ARCHIVE for the repair-approval
+# act TASK-20260923-b2ab1b (Act 4) on GOAL-GFPN-380702. It binds by SHA-256 and
+# commits the act's decision DEC-20260923-80e280, its seven cards, the
+# BATCH-e409ca dispatch queue and the goal checkpoint. It also binds, by hash
+# only, the archived addendum the decision approves and the two amendments it
+# rests on, so that the receipt proves the approval read those exact bytes.
+# It records ledger-receipt.json. Interprets nothing and launches nothing.
+# Reserved by DEC-20260923-c1fb69 R-7. Written LAST in the act, following
+# TASK-20260923-58a958.
+# =============================================================================
+handoff:
+  id: TASK-20260923-8d9ccb
+  from: coordinator
+  to: coordinator
+  archive_kind: ledger
+  kind: ledger_archive
+  recorded_at: '2026-09-23'
+  source_task_ids:
+    - TASK-20260923-b2ab1b
+  goal_id: GOAL-GFPN-380702
+  question_id: RQ-GFPN-c01af8
+  batch_id: BATCH-e409ca
+  experiment_ids: [EXP-GFPN-05ff43]
+  hypothesis_ids: [H-GFPN-9a29be]
+  record_ids:
+    - DEC-20260923-80e280
+    - TASK-20260923-b2ab1b
+    - TASK-20260923-a681f9
+    - TASK-20260923-b53550
+    - TASK-20260923-3aa31e
+    - TASK-20260923-292052
+    - TASK-20260923-befe48
+    - TASK-20260923-8d9ccb
+    - BATCH-e409ca
+    - GOAL-GFPN-380702
+    - EXP-GFPN-05ff43
+    - AMD-EXP-GFPN-05ff43-20260923-paristack
+  record_ids_note: >-
+    Identical to archive.record_ids of this task's entry in the BATCH-e409ca
+    queue. The commit message must name every one: the queue verifier checks
+    the message under content_at_commit.
+
+  objective: >-
+    Commit the exact products of TASK-20260923-b2ab1b in one isolated commit.
+    Record a post-commit ledger receipt with per-path SHA-256, the parent, the
+    origin/main base commit checked and the merge outcome, and show that the
+    three amendments still hash to the values DEC-20260923-80e280 binds. Until
+    the verifier accepts this commit, the approval is not official,
+    BATCH-e409ca is not open, and TASK-20260923-a681f9 may not be dispatched
+    (CLAUDE.md rule 7; DEC-20260923-80e280 RC-9 RQ-1).
+
+  uncertainty_reduced: >-
+    Whether the approval decision, the cards, the dispatch queue and the goal
+    checkpoint are the bytes that reach the branch, the PR and main, and
+    whether the approved addendum is byte-identical to what
+    TASK-20260923-e830a0 archived.
+
+  inputs:
+    - ledger/handoffs/TASK-20260923-b2ab1b.yaml
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260923-e830a0/snapshot-receipt.json
+    - coordination/goals/GOAL-GFPN-380702/batches/BATCH-e409ca/dispatch_queue.json
+    - coordination/goals/GOAL-GFPN-380702/batches/BATCH-6b1c29/dispatch_queue.json
+    - origin/main
+
+  constraints:
+    - id: LC-1
+      text: >-
+        STAGE ONLY THE DECLARED PATHS in artifact_paths, path by path. `git
+        add -A` is forbidden. The three amendments are bound by hash only
+        (LC-2) and add no diff. knowledge/INDEX.md and any
+        dispatch_plan.{json,md} are generated and are NOT staged. The
+        BATCH-6b1c29 queue is NOT staged by this commit (its revision is a
+        separate, later commit, LC-8 (2)). No knowledge entry changes.
+    - id: LC-2
+      text: >-
+        VERIFY THE APPROVED BYTES BEFORE COMMITTING. These sha256 values must
+        hold:
+        - experiments/EXP-GFPN-05ff43/amendments/v2_addendum_paristack.yaml:
+          856fdc1d7b71da0cd9073634066dcb2a9a66d69cd10adf4ff5a738f2618390c7
+          (and the file still reads status draft, approved_by null);
+        - experiments/EXP-GFPN-05ff43/amendments/v2_addendum_rung31.yaml:
+          2c5e052468e37111023dd116706149fb05d691e7188e26ae1e2c069bad792d0c;
+        - experiments/EXP-GFPN-05ff43/amendments/v1_to_v2_reanchor_and_arm_iii.yaml:
+          e02d4976a5e773b9eee95aa4c376d6154e9c0a9da4e6c6118ed58748054924d3.
+        On any mismatch, STOP. The decision does not bind the bytes on disk.
+        Report it and do not commit.
+    - id: LC-3
+      text: >-
+        VALIDATE THE QUEUE BEFORE COMMITTING (DEC-20260923-80e280 RC-9 RQ-1).
+        Run on
+        coordination/goals/GOAL-GFPN-380702/batches/BATCH-e409ca/dispatch_queue.json:
+        - `python3 tools/research_dispatch.py <queue> --output <scratch> --report <scratch>`;
+        - `python3 tools/validate_dispatch_reference.py <queue> --output <scratch> --report <scratch>`.
+        Both must exit 0. On failure, return the exact error text to the
+        Coordinator for a repair of the queue by a new act. Do not repair it
+        in this task and do not commit.
+    - id: LC-4
+      text: >-
+        EDIT NO RECORD WHILE ARCHIVING: not the amendments, the
+        specification, any implementation, runs, reviewer directories,
+        hypotheses, prior decisions, corrections, receipts, the BATCH-6b1c29
+        queue, lanes, claims, tools/ or other goals. A defect found now
+        becomes a new record, never a repair.
+    - id: LC-5
+      text: >-
+        MERGE origin/main INTO THE BRANCH, NEVER REBASE, before the commit.
+        Record the base commit checked and the merge outcome. Run
+        tools/validate_ledger.py and report any error line beyond the base's
+        pre-existing set. In particular confirm that:
+        - every target_id of DEC-20260923-80e280 that starts with RQ-, H-,
+          EXP- or EV- resolves;
+        - the decision carries a non-empty knowledge_promotion.not_warranted,
+          and no citation has provenance 'recalled';
+        - no handoff written by TASK-20260923-b2ab1b carries a null budget
+          field, and TASK-20260923-a681f9 has maximum_runs 0;
+        - goal.yaml keeps status active, parses, and has exactly one
+          next_action;
+        - no model identifier appears in any file of this commit.
+    - id: LC-6
+      text: >-
+        AN ARCHIVE IS NOT EVIDENCE AND LAUNCHES NOTHING (maximum_runs 0).
+        TASK-20260923-a681f9 is committed as a card and is NOT dispatched by
+        this task.
+    - id: LC-7
+      text: >-
+        After the commit, push the branch and refresh draft PR #1391 on
+        claude/pollard-rho-speedup-hypotheses-yu8qwp against main (or its
+        successor), naming the new records: DEC-20260923-80e280;
+        TASK-20260923-b2ab1b, TASK-20260923-a681f9, TASK-20260923-b53550,
+        TASK-20260923-3aa31e, TASK-20260923-292052, TASK-20260923-befe48 and
+        TASK-20260923-8d9ccb; BATCH-e409ca; the GOAL-GFPN-380702 checkpoint;
+        and the approved AMD-EXP-GFPN-05ff43-20260923-paristack. A record that
+        exists only in a local commit is unpublished.
+    - id: LC-8
+      text: >-
+        AFTER VERIFICATION, in this order and as separate commits
+        (DEC-20260923-80e280 RC-9 RQ-2):
+        (1) Backfill the receipt's commit_sha, as this program's practice.
+            Append a tasks_state_revisions entry to the BATCH-e409ca queue
+            that marks TASK-20260923-8d9ccb completed, with commit_sha,
+            parent_sha and path_sha256 covering every archive and source
+            artifact (binding_mode content_at_commit: the receipt's hash is
+            the hash of its bytes AT the archive commit). research_dispatch.py
+            must pass on the revised queue WITH the repository verifier.
+        (2) Append the BATCH-6b1c29 revision defined in DEC-20260923-80e280
+            batch_6b1c29_revision_authorized (entries 1-3, or its fallback
+            variant), after both tools pass on it.
+        (3) Run `python3 tools/goal_lanes.py close-lane GOAL-GFPN-380702
+            BATCH-6b1c29 --outcome superseded --decision DEC-20260923-80e280
+            ...` and `python3 tools/goal_lanes.py open-lane GOAL-GFPN-380702
+            BATCH-e409ca --queue
+            coordination/goals/GOAL-GFPN-380702/batches/BATCH-e409ca/dispatch_queue.json
+            --decision DEC-20260923-80e280 --objective "..." ...`, and publish
+            both.
+        Only then may TASK-20260923-a681f9 be claimed.
+    - id: LC-9
+      text: >-
+        Amazon Bedrock is prohibited. No model name is written into the
+        receipt beyond the inference block's resolved binding, which the
+        dispatching session records.
+
+  deliverables:
+    - >-
+      One commit whose message names TASK-20260923-8d9ccb,
+      TASK-20260923-b2ab1b, DEC-20260923-80e280, TASK-20260923-a681f9,
+      TASK-20260923-b53550, TASK-20260923-3aa31e, TASK-20260923-292052,
+      TASK-20260923-befe48, BATCH-e409ca, GOAL-GFPN-380702, EXP-GFPN-05ff43
+      and AMD-EXP-GFPN-05ff43-20260923-paristack.
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260923-8d9ccb/ledger-receipt.json
+  artifact_paths:
+    - ledger/handoffs/TASK-20260923-b2ab1b.yaml
+    - ledger/decisions/DEC-20260923-80e280.yaml
+    - ledger/handoffs/TASK-20260923-a681f9.yaml
+    - ledger/handoffs/TASK-20260923-b53550.yaml
+    - ledger/handoffs/TASK-20260923-3aa31e.yaml
+    - ledger/handoffs/TASK-20260923-292052.yaml
+    - ledger/handoffs/TASK-20260923-befe48.yaml
+    - coordination/goals/GOAL-GFPN-380702/batches/BATCH-e409ca/dispatch_queue.json
+    - ledger/goals/GOAL-GFPN-380702/goal.yaml
+    - ledger/handoffs/TASK-20260923-8d9ccb.yaml
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260923-8d9ccb/ledger-receipt.json
+  artifact_paths_note: >-
+    The Coordinator subagent CREATED the decision, the seven handoff cards and
+    the BATCH-e409ca queue. It MODIFIED goal.yaml additively:
+    - updated_at_note, with the prior value kept verbatim under
+      updated_at_note_previous_20260923_gate_failure_ruling;
+    - current_batch_id (BATCH-6b1c29 -> BATCH-e409ca) and its note, with the
+      prior note kept verbatim under
+      current_batch_id_note_previous_20260923_addendum_approval;
+    - dispatch_queue_path and its note, with the prior note kept verbatim
+      under dispatch_queue_path_note_previous_20260923_addendum_approval;
+    - latest_checkpoint_decision (DEC-20260923-c1fb69 -> DEC-20260923-80e280)
+      with a new note latest_checkpoint_decision_note_20260923_repair_approval;
+    - checkpoint_20260923_repair_approval (appended);
+    - next_action, next_action_role, next_action_dispatch and
+      next_action_set_by replaced, with the prior values kept verbatim under
+      previous_next_action_superseded_2026_09_23_repair_approval;
+    - next_action_context_20260923_repair_approval.
+    Impediments IMP-1 to IMP-5 are unchanged in place and rechecked in the
+    checkpoint; none is added. latest_verified_commit is unchanged.
+    Reserved by name and not written by this act (their files belong to later
+    acts): TASK-20260923-387ca1, TASK-20260923-53e1fe, TASK-20260923-5f1901,
+    TASK-20260923-817065, TASK-20260923-90961d, TASK-20260923-9dfb7a,
+    TASK-20260923-bc030b, DEC-20260923-a82492, DEC-20260923-f915e2,
+    EV-GFPN-231303; spares TASK-20260923-bce4b8, TASK-20260923-eaa8b1,
+    TASK-20260923-f7d857 and DEC-20260923-1d796c. The receipt is written by
+    the dispatching session.
+  bound_by_hash_only:
+    experiments/EXP-GFPN-05ff43/amendments/v2_addendum_paristack.yaml: 856fdc1d7b71da0cd9073634066dcb2a9a66d69cd10adf4ff5a738f2618390c7
+    experiments/EXP-GFPN-05ff43/amendments/v2_addendum_rung31.yaml: 2c5e052468e37111023dd116706149fb05d691e7188e26ae1e2c069bad792d0c
+    experiments/EXP-GFPN-05ff43/amendments/v1_to_v2_reanchor_and_arm_iii.yaml: e02d4976a5e773b9eee95aa4c376d6154e9c0a9da4e6c6118ed58748054924d3
+  bound_by_hash_only_note: >-
+    Recorded in the receipt, as TASK-20260923-58a958's receipt did. They are
+    not staged and not in artifact_paths, and the queue gives none a write
+    scope, because all three are frozen and archived by earlier tasks (the
+    paristack draft by TASK-20260923-e830a0).
+  queue_ownership_note: >-
+    In the BATCH-e409ca queue, this task declares
+    ledger/decisions/DEC-20260923-80e280.yaml and its receipt. The other nine
+    paths are declared by TASK-20260923-b2ab1b. research_dispatch.py requires a
+    ledger archive to own its decision, and refuses an artifact owned twice
+    (precedent BATCH-6b1c29 TASK-20260923-58a958). The set this commit stages
+    is the union, which is this card's artifact_paths.
+  write_scope:
+    - coordination/goals/GOAL-GFPN-380702/archives/TASK-20260923-8d9ccb
+  write_scope_note: >-
+    This task writes only its receipt directory. Every other path belongs to
+    the write set of TASK-20260923-b2ab1b and is STAGED by this task, not
+    written.
+
+  archived_by: TASK-20260923-8d9ccb
+  archived_by_note: Self-bound. This is the archive card itself, and it rides its own commit.
+  depends_on:
+    - TASK-20260923-b2ab1b
+    - TASK-20260923-e830a0
+
+  dispatch_preconditions:
+    - every path in artifact_paths except the receipt exists and parses (YAML, or JSON for the queue)
+    - the three amendment files hash to the values in LC-2
+    - the BATCH-e409ca queue passes both tools (LC-3)
+    - no lane on GOAL-GFPN-380702 holds any of the declared paths (tools/goal_lanes.py lanes)
+    - origin/main is fetched and merged (merge, never rebase) before staging, and the base commit is recorded
+    - RUNS ALONE
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: high
+    resolved_model_id: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 2
+    maximum_runs: 0
+
+  completion_gate:
+    - the commit changes exactly the declared paths plus the receipt (or a documented superset listed in the receipt), and nothing under runs/, amendments/ (bytes unchanged), implementation-v2*/, specification.yaml, hypotheses/, the BATCH-6b1c29 queue, tools/ or another goal
+    - the receipt's path_sha256 covers every artifact path and matches the committed tree, and the three amendment hashes equal the LC-2 values
+    - the receipt records the parent, the origin/main base commit, the merge outcome, and the exit status of both queue validators
+    - tools/validate_ledger.py on the head reports no error line beyond the base's pre-existing set
+    - 'the branch is pushed and draft PR #1391 (or its successor) is refreshed, naming the new records'
+    - the LC-8 revisions and lane moves follow the verified commit; no scientific trial was launched and TASK-20260923-a681f9 was not dispatched by this task
+
+  return_format: >-
+    - the receipt path, the archive commit sha, and the base commit and merge
+      outcome;
+    - the three amendment sha256 values as computed;
+    - both queue-validator exit statuses and outputs;
+    - the validate_ledger result;
+    - the PR number;
+    - the commits of the LC-8 revisions and the lane record paths.
+
+  handoff_record: ledger/handoffs/TASK-20260923-8d9ccb.yaml
+  state: written_not_executed

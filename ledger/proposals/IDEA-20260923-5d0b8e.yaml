@@ -1,0 +1,745 @@
+# ID PROVENANCE (disclosed, not a schema field): this idea-generator subagent holds
+# no shell and could not run `python3 tools/allocate_id.py --next idea --date
+# 20260923` or `--check`. The 6-hex token was drawn by the agent and checked free
+# only by path glob (`**/*20260923-5d0b8e*`: no match) and by a grep of ledger/
+# for `IDEA-\d{8}-5d0b8e` (no match). The top-level session must run
+# `python3 tools/allocate_id.py --check IDEA-20260923-5d0b8e` before this record is
+# committed; on a collision, re-mint and rename the file before commit (the record is
+# not official until then).
+idea:
+  id: IDEA-20260923-5d0b8e
+  question_id: RQ-CERTBIN-836ce2
+  question_ids:
+    - RQ-CERTBIN-836ce2
+    - RQ-ICPERF-94c86e
+  added: '2026-09-23'
+  proposed_by: idea-generator
+  status: proposed
+  title: >-
+    Trace-stability test before any GPU work. Does one learned elimination trace
+    of the per-attempt Macaulay matrix replay unchanged across relation attempts?
+    It is measured on prime-degree binary summation systems in two coefficient
+    regimes, stratified by exact satisfiability, against same-support null
+    families, with per-instance matrix sizes recorded. CEILING, STATED FIRST:
+    constant factor at most. No exponent moves, and rho dominates.
+  class: measurement
+
+  claim: >-
+    CEILING FIRST. Best case, this proposal improves the per-attempt cost of
+    index-calculus relation search on F_{2^n}, n prime, by a constant factor. It
+    moves no exponent. The relevant constant is anchored by the only
+    source-verified figure in the corpus: Joux-Vitse's F4' (precomputed
+    critical-pair list, reductions to zero removed) beat their own F4 by 2.43x,
+    3.40x and 2.88x at |p| = 16, 25 and 32 bits. It paid 11.31 s of
+    precomputation, and it was measured over F_{p^5} with large p, not F_2
+    (KN-LIT-673219, frozen text lines 687-709). Parallel Pollard rho with the
+    curve's automorphisms dominates index calculus on prime-degree binary
+    fields in all current evidence (KN-LIT-439, reported). The value of this
+    record is cheap falsification of a GPU design premise, P-GPU:
+    "the Macaulay matrix of each relation attempt has a fixed sparsity pattern;
+    learn the elimination trace once, replay it GPU-batched, branch-free, with
+    XOR and carry-less multiply on every attempt; degenerate pivots are rare and
+    go to a CPU fallback."
+
+    Representation class R1 (field coordinates: F_2 coordinates after Weil
+    descent in regime A, F_{2^n} coordinates in regime B). Attack stage:
+    relation decomposition, the per-attempt solve.
+
+    The claim is in three parts.
+    (C1) THEOREM (Proposition S, proved in `mechanism`). In both regimes, if the
+    reference trace is learned on an UNSATISFIABLE attempt whose degree-D*
+    Macaulay row space contains 1, then EVERY satisfiable attempt differs from
+    it at degree D*: the constant column is a pivot for the reference and
+    cannot be one for any satisfiable instance. So with an unsatisfiable
+    reference, P-GPU's "rare degenerate" fallback receives 100% of the
+    relation-yielding attempts. The open question is WHERE they diverge: only at
+    the final degree, where the missing pivot is itself the relation signal and
+    the fallback is a cheap tail, or earlier.
+    (C2) PREDICTION (heuristic H1). In regime A (descent to F_2 with field
+    equations), every Macaulay entry is an F_2-affine function of the n target
+    bits r = coords(x_R). After the reference row operations are replayed,
+    each pivot entry is a Boolean polynomial e_k(r), and a nonconstant e_k
+    vanishes on about half of the targets. Under strict replay, the retention
+    (the fraction of attempts matching the reference trace) is therefore about
+    2^{-K}, where K is the number of r-dependent pivots. The first divergence
+    comes at the first r-dependent pivot.
+    PREDICTION (H2, a Schwartz-Zippel bound). In regime B (no descent; system
+    over F_{2^n}), the fraction of targets that break the trace before the final
+    degree is at most sum_k d_k / 2^n. There, trace reuse holds for the
+    unsatisfiable arm.
+    (C3) THE PREMISE IS SPLIT ACROSS REGIMES (derived, no compute). "XOR only"
+    arithmetic is regime A, where C2 predicts the trace is unstable.
+    "Carry-less multiply" arithmetic is regime B, where the trace is predicted
+    stable but the system has degree 2^l in each unknown (the subspace
+    polynomial L_V). Its dense Macaulay matrix at the balanced l = 9, n = 17 is
+    about 37.5 GB. The "thousands of systems per warp" assumption already fails
+    for DENSE FULL Macaulay matrices at the smallest cell. For regime A at
+    n = 17, l = 9, one matrix is 38.96 KiB at D = 3 and 1.41 MiB at D = 4. A
+    warp's maximum register file is 32,640 B (255 registers x 32 threads x 4 B),
+    and an H100 SM's shared memory is 228 KB. The premise survives the sizing
+    test only if the matrices F4 actually reduces, after trace pruning, are
+    about 1000x smaller than full Macaulay. That ratio is a recorded metric
+    here.
+
+  mechanism: >-
+    OBJECT FRAME. Representation: R1. In regime A, x_1, x_2 (m = 2), or x_1, x_2,
+    x_3 plus one chain node u (m = 3, chained S_3 per KN-TECH-b18366), are
+    written in F_2 coordinates of a basis of the factor-base subspace V
+    (dim l). The equations are Weil-descended to F_2 and multilinearized by the
+    field equations c^2 = c. In regime B the same unknowns stay in F_{2^n} and
+    are constrained by L_V(x_i) = 0, with no descent.
+    Tracked object: the elimination trace of the degree-D Macaulay matrix under
+    fixed row order and degrevlex column order (constant monomial LAST), at
+    three nested granularities:
+    T_rank (the rank at each degree of the ladder);
+    T_set (the canonical RREF pivot-column set plus the set of rows dependent
+    on earlier rows, i.e. the reductions to zero);
+    T_strict (the exact (pivot row, pivot column) sequence of one fixed
+    deterministic elimination, which is what a branch-free replay needs).
+    T_strict equal implies T_set equal, which implies T_rank equal.
+    Operation set Sigma: RE-TARGETING. A fresh attempt R' = aP + bQ replaces
+    x_R. V, the curve, D, the row order and the column order stay fixed. This is
+    translation by a random element, acting transitively on targets.
+    TRICHOTOMY: BRANCHING. The trace is a function of x(R) (a projection of the
+    group element up to sign, read in a chosen coordinate system). Under
+    re-targeting, a nonconstant lossy projection cannot propagate
+    deterministically (IDEA-20260806-c5d183; KN-FIND-ffe1df Theorem C, the
+    homomorphism form), and Proposition S shows the trace is NOT constant,
+    because it refines the satisfiability indicator. So the trace propagates to
+    a fresh attempt only with a probability, the retention, and that
+    probability is the one open number. The relation vector itself is
+    untouched and remains Class I, partial-action.
+    LOSSY-PROJECTION TEST, AGAINST Sigma = re-targeting. The trace discards
+    every numerical entry of the eliminated matrix and keeps only its pivot
+    pattern. It is lossy if many targets share a trace. The test is
+    quantitative and built into the design: the number of distinct traces
+    among N sampled targets and the empirical trace entropy H(T).
+    P-GPU needs H(T) close to the binary entropy of P_sat, i.e. the trace
+    carries at most the satisfiability bit. C2 predicts H(T) close to log2 N at
+    T_strict in regime A: the projection is effectively INJECTIVE on the
+    sample, which makes it a change of coordinates and useless for replay.
+    Unusually, the desired outcome here is a nearly CONSTANT projection, not an
+    informative one. The test is passed or failed by measurement, and both are
+    informative.
+    PROPOSITION S (proof; applies to both regimes). Let I_r be the ideal
+    generated by the attempt's equations. In regime A it also contains the
+    field equations c_i^2 + c_i, so I_r is radical and zero-dimensional with
+    V(I_r) in F_2^N. In regime B it contains L_V(x_i), which is separable with
+    all roots in V, subset of F_{2^n}, so I_r is again radical with rational
+    points. Every row of the degree-D Macaulay matrix is (the multilinear
+    reduction of) an element of I_r, so every element of its row space R_D
+    vanishes on V(I_r). If the attempt is satisfiable (V(I_r) nonempty), the
+    constant 1 does not vanish there, so 1 is not in R_D for ANY D. With the
+    constant monomial as the last column, "1 in R_D" is equivalent to "the
+    constant column is a pivot column of the RREF". An unsatisfiable reference
+    with 1 in R_{D*} therefore has a pivot that no satisfiable instance has at
+    D*, so T_set, and hence T_strict, differ. In regime A the rank deficit
+    cols_D - rank_D is at least the rank of the evaluation matrix of the
+    degree-<=D multilinear monomials on the s solutions: at least 1, and at
+    least s at D = N. QED. This is exact, costs no compute, and is also an
+    instrument check: a satisfiable instance matching an unsatisfiable
+    reference's T_set at D* means the instrument is broken.
+    THE EXPLANATIONS THE TEST DISCRIMINATES, and what each outcome means.
+    E1 (coefficient degeneracy; the user's hypothesis). Regime-A instability is
+    generic F_2 coefficient behaviour: the per-pivot hazard on r-dependent
+    pivots is in [0.4, 0.6], and the S_3 family is as unstable as a
+    same-support random F_2 family. Regime B is stable. MEANING: P-GPU as
+    stated is dead in regime A. Any GPU design in regime A must be a trace-FREE
+    batched masked elimination of fixed shape (see below), and its gain over a
+    CPU is ordinary SIMD throughput, not replay.
+    E2 (structural stability). The target-independent block x_1^2 x_2^2 + B of
+    S_3 (after descent: kappa(V) quadratic forms, IDEA-20260922-37e02e) fixes
+    most pivots, so K is small and regime-A retention exceeds the null family's
+    by at least 10x. MEANING: a pruned trace, replaying only the
+    r-independent part plus a masked tail, is viable in regime A, and P-GPU
+    survives in modified form.
+    E3 (satisfiability-localised divergence). Unsatisfiable attempts share one
+    trace (E3 holds within regime B, or within regime A under E2), and
+    satisfiable attempts diverge ONLY at degree D* at low-degree columns.
+    MEANING: a "divergence-as-signal" replay is viable. The GPU replays; a
+    missing pivot at D* flags a relation, and its solution is read from the
+    deficient pivots, so the fallback is a tail rather than a full re-solve.
+    WHAT THE TRACE BUYS, as a number. A fixed-shape, branch-free MASKED
+    elimination (the pivot row selected by conditional XOR, with no
+    data-dependent branch) needs no trace at all, because the Macaulay shape is
+    fixed by (n, l, D). A trace saves only the rows that reduce to zero and the
+    structurally-zero blocks. The saving ratio, ops(masked full elimination) /
+    ops(trace replay), is therefore the whole constant at stake, and it is
+    measured per cell.
+
+  novelty_status: adaptation
+  citations:
+    - ref: KN-LIT-673219
+      provenance: retrieved
+      claim: >-
+        The mechanism being tested, read at source in
+        inputs/JOUX-VITSE-2010-157/paper_fulltext.md lines 645-710. Because
+        relation-search systems "always have the same shape", run F4 once on
+        the first system and store the selected critical pairs, removing each
+        pair that reduces to zero. On each later system, do not maintain the
+        pair queue; pick the stored pairs directly. The timings are F4 (own)
+        9.683 / 17.01 / 24.43 s against F4' 3.979 / 5.002 / 8.496 s at
+        |p| = 16 / 25 / 32 bits, with 11.31 s of precomputation. The pair list
+        was "the same for the three cases" and was generated at |p| = 8.
+        Setting: E(F_{p^5}), 5 equations of degree 8 in 4 variables over F_p.
+      verified_by: >-
+        idea-generator, this session (2026-09-23), frozen full text read at
+        the cited lines
+    - ref: KN-LIT-022
+      provenance: internal
+      claim: >-
+        Joux-Vitse J. Cryptology 26 (2013) record of the same work. Cited for
+        the extension-field scoping: its gains do not transfer silently to
+        other field shapes.
+      verified_by: idea-generator, this session, corpus record read
+    - ref: KN-LIT-275
+      provenance: internal
+      claim: >-
+        Joux-Vitse, "A variant of the F4 algorithm" (ePrint 2010/158),
+        abstract-level corpus record: an F4 variant for sets of systems "having
+        the same shape" that "avoids all reductions to zero". This is the
+        standalone F4Precomp/F4Remake paper. Its success-probability analysis
+        was NOT read at source in this session (see assumptions).
+      verified_by: idea-generator, this session, corpus record read (abstract only; eprint landing page abstract also fetched and matches)
+    - ref: KN-LIT-439
+      provenance: internal
+      claim: >-
+        Galbraith-Gebregiyorgis 2014 (ePrint 2014/806), abstract-level: on
+        E(F_{2^n}) with n prime, "Pollard rho is still much faster than index
+        calculus algorithms" at reasonable sizes. The corpus record says the
+        claims are relayed from the abstract only.
+      verified_by: idea-generator, this session, corpus record read
+    - ref: KN-TECH-b18366
+      provenance: internal
+      claim: >-
+        S_3 = (x_1x_2 + x_1x_3 + x_2x_3)^2 + x_1x_2x_3 + B for
+        Y^2 + XY = X^3 + AX^2 + B, and the chained-S_3 Boolean formulation
+        used for the m = 3 cell.
+      verified_by: idea-generator, this session, record read
+    - ref: IDEA-20260913-191ed2
+      provenance: internal
+      claim: >-
+        Stratifies the solving DEGREE (SOLV4 predicate) by exact satisfiability
+        on Semaev's chained cells, with enumeration as the satisfiability
+        oracle and a planted-solution arm. This record stratifies the pivot
+        TRACE at fixed degree by the same indicator. It reuses 191ed2's rule
+        "satisfiability by enumeration, never by solver success" and its planted
+        arm, and does NOT re-measure any degree. At a shared cell the two can
+        be joined per instance as (sat, SOLV4, first-divergence step).
+      verified_by: idea-generator, this session, record read in full
+    - ref: IDEA-20260913-9ba7fc
+      provenance: internal
+      claim: >-
+        Degree-4 Macaulay sizes on Semaev's chained cells, e.g. 35,800 x
+        294,204 (1.23 GiB dense) at n = 25, m = t = 3. These sizes are the
+        chained-formulation counterpart of the sizing check in C3.
+      verified_by: idea-generator, this session, record grepped for the size table
+    - ref: IDEA-20260922-37e02e
+      provenance: internal
+      claim: >-
+        kappa(V) = dim span(V.V) fixes the number of quadratic forms the
+        target-independent block contributes. That block is the candidate
+        source of structural stability (E2). Also the rho figures for the
+        Certicom targets, cited through that record to KN-LIT-096.
+      verified_by: idea-generator, this session, record read in full
+    - ref: KN-LIT-287
+      provenance: internal
+      claim: >-
+        Chou-Niederhagen-Shamir-Yang ePrint 2010/313 (fast exhaustive search
+        over F_2, GPU): the trace-free GPU competitor for the per-attempt solve
+        of a descended Boolean system. Named, not compared.
+      verified_by: idea-generator, this session, corpus record read
+    - ref: https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html
+      provenance: retrieved
+      claim: >-
+        H100 (compute capability 9.0): "shared memory capacity per SM is
+        228 KB"; "maximum shared memory per thread block is 227 KB"; "The
+        register file size is 64K 32-bit registers per SM. The maximum number
+        of registers per thread is 255."
+      verified_by: idea-generator, this session, page fetched 2026-09-23 and the quoted sentences returned
+    - ref: IDEA-20260806-c5d183
+      provenance: internal
+      claim: >-
+        Trichotomy. A projection that propagates deterministically under full
+        translation is constant or injective, which places the trace as a
+        branching object under re-targeting.
+      verified_by: idea-generator, this session, cited through docs/object-frame-ideation.md section 1
+
+  assumptions:
+    - >-
+      POINTERS NOT RELIED ON (stated, so a reviewer can chase them). This
+      session's web search surfaced a secondary summary attributing to
+      Joux-Vitse a heuristic success lower bound c(p)^{n_step} with
+      c(p) = 1 - 1/p + O(1/p^2) for the remake over base field F_p. The same
+      summary says their variant adapts Traverso's "Groebner trace" method. The
+      primary text of ePrint 2010/158 could NOT be extracted in this session
+      (no PDF renderer), so neither statement was read at source. Neither
+      backs any claim here. H2's support is the Schwartz-Zippel argument
+      derived in this record, and H1's is stated from first principles. If
+      c(p)^{n_step} is confirmed at source, regime A is its p = 2 corner, and
+      this record's contribution shrinks to measuring K, the null gap, and the
+      satisfiability localisation on this family. That would still be new
+      data.
+    - >-
+      Off-limits primary lenses, per docs/object-frame-ideation.md section 2:
+      families F1-F7 of IDEA-20260802-002 as the lens. This record uses F2
+      (factor-base decomposition) as a COMPONENT and adds only a solver-side
+      measurement. It also uses F1 (rho) as the comparator named in
+      dominated_by.
+    - >-
+      Factor base V = {x : deg x < l} in a polynomial basis (the standard,
+      kappa-minimal choice), with a random-V replicate at one cell. Curve: a
+      random ordinary binary curve Y^2 + XY = X^3 + AX^2 + B over F_{2^n},
+      n prime, with a large prime-order subgroup. At the n = 17 cell also the
+      Koblitz form (A in {0,1}, B = 1).
+    - >-
+      Engines: in-repo pure-Python/numpy bit-packed GF(2) elimination (reusing
+      the Boolean monomial machinery of src/ic_first_fall_fast.py and
+      src/macaulay_export.py; M4RI-style blocking per src/h012c_block_m4ri.py
+      where it helps), plus a small-field F_{2^n} elimination for regime B. No
+      Magma or PolyBoRi exists here. The primary trace is the MACAULAY (XL-type)
+      trace that P-GPU names. An F4 critical-pair trace in the Joux-Vitse sense
+      is secondary and optional, and it is recorded as not measured if no
+      in-repo F4 can emit it.
+    - >-
+      Hardware figures are H100 figures from the retrieved guide. No GPU is
+      used or measured anywhere in this proposal.
+
+  proof_search_map:
+    bottleneck: >-
+      P-GPU's premise that degenerate pivots are rare. Equivalently, the
+      retention of a learned trace under re-targeting, and where divergence
+      falls relative to the satisfiability event.
+    baseline_embedding:
+      parameter_slice: >-
+        Regime B at matched (n, l) is the large-base-field corner, where
+        Joux-Vitse observed a stable pair list (KN-LIT-673219). The design
+        reproduces "stable trace" there before believing "unstable trace" in
+        regime A. If regime B is ALSO unstable, the instrument or the trace
+        definition is suspect before any regime-A conclusion is drawn.
+      reproduction_check: >-
+        (i) Determinism: re-eliminating the same target must reproduce
+        T_strict exactly (1000/1000). (ii) Proposition S: a satisfiable
+        instance must never match an unsatisfiable reference's T_set at D*.
+        (iii) Regime-B unsatisfiable retention must reach at least 0.9 at
+        n = 17, l = 6.
+    observation_collision:
+      observable: >-
+        The trace T (at each granularity), a lossy projection of the eliminated
+        matrix that discards every numerical entry.
+      distinct_preimage_search: >-
+        Built into the design: count the targets sharing each trace. A
+        collision (two targets, one trace) is exactly what P-GPU needs. The
+        search reports the trace-class sizes and the entropy H(T), with the
+        satisfiable and unsatisfiable arms separated.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          The fibre of the trace map over the sampled targets: the modal trace
+          class, its size, and its composition by satisfiability.
+        predicted_gain: >-
+          Decides between E1, E2 and E3 directly. The largest fibre is the
+          best-case replay coverage.
+      - transform: specialization_pack
+        proposed_object: >-
+          Split the pivots into r-independent ones (post-replay entry constant
+          in r) and r-dependent ones, then price a hybrid: strict replay on the
+          first set and masked elimination on the second.
+        predicted_gain: >-
+          The saving ratio of the hybrid over trace-free masked elimination.
+          It is a constant, bounded above by total ops / r-dependent ops.
+    quantifier_order: >-
+      Proposition S: FORALL cells, FORALL unsatisfiable references r_0 with
+      1 in R_{D*}(r_0), FORALL satisfiable r: T_set(r) != T_set(r_0) at D*.
+      Exact. The empirical claim: FOR the tested cells (n in {17,19,23,29,31},
+      m = 2; n in {17,19}, m = 3), EXISTS a reference such that retention
+      >= 0.5 on the unsatisfiable arm (P-GPU survives), or FORALL tested
+      references retention < 0.5 (P-GPU fails at that cell). References are
+      drawn before any test target, from a disjoint seed stream.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        At the tested (n, m, l, D), with the named row and column orders:
+        retention per granularity and per arm, the hazard per pivot, K, H(T),
+        the first-divergence distribution, the saving ratio, and per-step
+        matrix dimensions and nonzero counts. It certifies nothing about a
+        GPU's speed, about n >= 37, or about F4 pair-selection traces unless
+        those are measured.
+      nearby_object_control: >-
+        PROVES-TOO-MUCH: the same measurement on same-support random families
+        (below). If they retain as well as the S_3 family, "structure" explains
+        nothing. RANDOM-X: targets drawn uniformly from F_{2^n}, not
+        necessarily x-coordinates of curve points. If retention is unchanged,
+        curve membership is irrelevant to the trace.
+    proof_obligations:
+      - claim: Proposition S (1 is never in R_D for a satisfiable attempt; so T_set differs from an unsatisfiable reference at D*).
+        responsibility: correctness
+      - claim: Regime-A Macaulay entries are F_2-affine in the target bits r for the direct m = 2 S_3 system and for the target-carrying S_3 of the m = 3 chain.
+        responsibility: correctness
+      - claim: The nesting T_strict equal implies T_set equal implies T_rank equal, for a fixed deterministic elimination.
+        responsibility: correctness
+      - claim: The sizing arithmetic of C3 (the dimension formulas below).
+        responsibility: size
+      - claim: The saving ratio bounds any trace-based constant over trace-free masked elimination.
+        responsibility: runtime
+    not_applicable_reason: >-
+      This is a measurement proposal and not proof-oriented. The map is filled
+      because Proposition S is a small exact result that the design leans on.
+
+  predictions:
+    - metric: T_strict retention, regime A, unsatisfiable arm, unsatisfiable reference, n = 17, m = 2, l = 9, D = 4
+      direction: lower
+      minimum_effect: >-
+        E1: <= 0.01. E2: >= 0.5. Values in between are reported as they fall,
+        with the null gap deciding the reading.
+    - metric: per-pivot hazard on r-dependent pivots, regime A (the fraction of targets whose replayed pivot entry is 0, given no earlier divergence)
+      direction: different
+      minimum_effect: >-
+        H1: within [0.4, 0.6] on at least 90% of r-dependent pivots with at
+        least 200 surviving targets. A median hazard < 0.2 falsifies H1.
+    - metric: K / total pivots (the fraction of r-dependent pivots), regime A, per cell
+      direction: different
+      minimum_effect: >-
+        No directional prediction. It is the quantity E2 lives or dies on. E2
+        needs K small enough that 2^{-K} >= 0.5, i.e. K <= 1 per trace.
+    - metric: T_strict retention, regime B, unsatisfiable arm, n = 17, l = 6 (and n = 19, l = 6)
+      direction: higher
+      minimum_effect: >-
+        >= 0.99, bounded below by H2 as 1 - sum_k d_k / 2^n. Below 0.9 falsifies
+        the regime-B prediction and flags the instrument.
+    - metric: T_set match of satisfiable instances against an unsatisfiable reference at D* (both regimes)
+      direction: lower
+      minimum_effect: exactly 0 (Proposition S). Any match is an instrument bug.
+    - metric: normalised first-divergence position f_div in [0, 1], satisfiable versus unsatisfiable arm, per regime
+      direction: different
+      minimum_effect: >-
+        E3 (regime B): unsatisfiable arm f_div = 1 (no divergence); for the
+        satisfiable arm, 100% of divergences at degree D* in the lowest-degree
+        column block. Under E1 (regime A): both arms diverge early, with
+        median f_div <= 0.1 and no arm difference.
+    - metric: retention ratio, S_3 family versus same-support random affine family, regime A
+      direction: different
+      minimum_effect: E2 needs >= 10x. E1 predicts within [0.5, 2].
+    - metric: trace entropy H(T) (bits) and distinct-trace count over N = 1000 targets, per granularity
+      direction: different
+      minimum_effect: >-
+        P-GPU needs H(T_strict) <= h(P_sat) + 0.1 bit. E1 predicts
+        H(T_strict) >= log2(1000) - 1 = 8.97 bits in regime A (effectively
+        injective).
+    - metric: saving ratio ops(fixed-shape masked full elimination) / ops(trace replay), per cell and granularity
+      direction: higher
+      minimum_effect: >-
+        Recorded as measured. The prediction is <= 10 (a constant). A saving
+        ratio below 1.5 closes the trace idea as not worth a GPU port,
+        independent of stability.
+    - metric: per-step reduced-matrix dimensions and nnz (rows x cols, bit-packed bytes), per (n, m, D), after trace pruning
+      direction: lower
+      minimum_effect: >-
+        P-GPU's "thousands of systems per warp" needs at most 32 bytes per
+        system (32,640 B / 1000). Its "one system per SM" needs at most
+        228 KB. Predicted: no D >= 4 cell with n >= 17 meets either for dense
+        storage. Dense full-Macaulay figures, derived in advance, are in C3
+        and minimal_test.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (zero compute; answers two thirds of P-GPU on paper). (a) Write
+      out Proposition S. (b) The dense full-Macaulay sizing table, regime A,
+      m = 2 direct S_3 descent: n quadratic equations in N = 2l Boolean
+      variables with l = (n+1)/2. cols(D) = sum_{i<=D} C(N,i),
+      rows(D) = n * sum_{i<=D-2} C(N,i), dense bytes = rows*cols/8. Values:
+      n = 17, D = 3: 323 x 988 = 38.96 KiB; n = 17, D = 4: 2924 x 4048 =
+      1.41 MiB; n = 19, D = 4: 4009 x 6196 = 2.96 MiB; n = 23, D = 4:
+      6923 x 12951 = 10.7 MiB; n = 31, D = 4: 16399 x 41449 = 81.0 MiB.
+      m = 3 chained at n = 17, l = 6 (35 variables; 17 cubic and 17 quadratic
+      equations), D = 4: 11339 x 59536 = 80.5 MiB. Regime B at n = 17,
+      m = 2, degree about 2^l + 2 in 2 unknowns: cols = C(D+2, 2), which is
+      2278 at l = 6 and 132,870 at l = 9 (about 37.5 GB dense over F_{2^17}).
+      So regime B runs only at reduced l.
+      STAGE 1 (the cheapest valid discriminator; minutes on one core). Regime
+      A, n = 17, m = 2, l = 9, D in {3, 4}. Draw 5 references (3 unsatisfiable,
+      2 satisfiable) from seed stream S_ref, then 1000 test targets
+      x_R = x(aP + bQ) from a disjoint stream S_test. The exact satisfiability
+      oracle costs O(2^l) field operations per target: for each x_1 in V,
+      solve the quadratic S_3(x_1, X, x_R) = 0 in X over F_{2^n} and test
+      membership in V. It does not depend on the solver. Per target, record
+      T_rank, T_set, T_strict, f_div, the hazard at each reference pivot, K,
+      and whether 1 is in R_D. Run the identical pipeline on the three null
+      families. Stage 1 alone decides E1 against E2 at this cell, and checks
+      Proposition S.
+      STAGE 2 (regime contrast at matched l). n in {17, 19}, l = 6, m = 2, both
+      regimes on identical target bytes. Regime B is at degree 2^l + 2
+      (2278 columns). Satisfiable targets for the satisfiable arm come by
+      rejection sampling (P_sat is small at l = 6), plus a planted arm.
+      STAGE 3 (ladder). Regime A, m = 2, n in {19, 23, 29, 31}, D in {3, 4}, with
+      1000 targets for n <= 23 and 200 for n in {29, 31}. Regime A, m = 3
+      chained, n in {17, 19}, D in {3, 4}, 200 targets. A random-V replicate
+      at n = 19, m = 2. Report the saving ratio and the per-step
+      dimensions/nnz everywhere.
+    controls:
+      - >-
+        Same-support random F_2 family (regime A): coefficients i.i.d. uniform
+        on the union monomial support of the S_3 family, redrawn per target.
+        This is the pure generic-coefficient null.
+      - >-
+        Same-support random AFFINE family: M(r) = M_0' + sum_j r_j M_j', with
+        M_0', M_j' random on the S_3 family's supports of M_0, M_j. This keeps
+        the "one family indexed by r" structure and separates it from S_3's
+        algebra.
+      - >-
+        Same-support random F_{2^n} family (regime B): random field
+        coefficients on the same support. This is the large-field generic
+        null.
+      - >-
+        Random-x control: x_R uniform in F_{2^n} rather than an x-coordinate
+        of a curve point (the generic-group analogue for this solver-side
+        object).
+      - >-
+        Identity/determinism control: the same target eliminated twice must
+        reproduce T_strict.
+      - >-
+        Reference-choice control: all 5 references are reported separately,
+        plus the MODAL trace (the most frequent T_set among the first 100
+        targets, which are then excluded from scoring).
+      - >-
+        Planted-solution arm (z = x(P_1 + P_2), P_i in the factor base) beside
+        random targets conditioned on satisfiability, per IDEA-20260913-191ed2.
+      - >-
+        Exact satisfiability by the O(2^l) root-finding oracle, never by
+        solver outcome.
+    required_metrics:
+      - per target - exact sat flag and solution count s; 1-in-R_D flag per D
+      - per target and granularity - match/mismatch with each reference; f_div; the step and column of first divergence
+      - per reference pivot - the hazard with a binomial CI; r-dependence flag (the post-replay entry is nonconstant over the sampled targets)
+      - per cell - K, retention per arm, H(T) and the distinct-trace count, the saving ratio
+      - per cell and step - reduced-matrix rows, cols, nnz, and dense and sparse bytes
+      - null-family versions of all of the above
+      - wall time and peak RSS per cell (secondary; the primary unit is GF(2) row operations)
+
+  falsification_conditions:
+    - >-
+      P-GPU as stated (strict replay, rare fallback) is FALSIFIED at a cell if
+      T_strict retention on the unsatisfiable arm is < 0.5 for every
+      reference, including the modal trace. It is also falsified for
+      relation-yielding attempts wherever Proposition S applies, unless E3
+      holds (divergence only at D*).
+    - >-
+      E1 is FALSIFIED if regime-A retention is >= 0.5, or if the median hazard
+      on r-dependent pivots is < 0.2, or if the S_3 family out-retains the
+      same-support affine null by >= 10x.
+    - >-
+      The regime-B stability prediction (H2) is FALSIFIED if unsatisfiable-arm
+      retention is < 0.9 at n = 17, l = 6. That also blocks any regime-A
+      conclusion until the instrument is re-checked.
+    - >-
+      E3 is FALSIFIED if, in regime B, any satisfiable attempt diverges before
+      degree D* in more than 5% of the satisfiable arm.
+    - >-
+      Proposition S (theorem) "failing", i.e. a satisfiable instance matching
+      an unsatisfiable reference's T_set at D*, falsifies the INSTRUMENT, and
+      the run is void.
+    - >-
+      The sizing premise survives if the pruned per-step matrices at n = 17,
+      D = 4 fit in 228 KB (one system per SM). It fails for "thousands per
+      warp" if they exceed 32 bytes per system. Both outcomes are possible
+      before measurement because pruning is unmeasured.
+
+  confounders:
+    - >-
+      Trace granularity: T_strict instability does not imply T_set
+      instability. A masked-pivot-search replay (T_set) may survive where
+      strict replay fails. All three granularities are reported, and a verdict
+      names the one it concerns.
+    - >-
+      Elimination order: T_strict depends on the row order and the pivot rule.
+      Use one fixed rule (column-major; the first available row with a nonzero
+      entry), and replicate once with the reversed row order.
+    - >-
+      The degree ladder: D* may vary per instance (IDEA-20260913-191ed2's
+      satisfiable/unsatisfiable degree gap). The trace is compared at every D
+      in the ladder, not only at one D.
+    - >-
+      Macaulay (XL) trace versus F4 critical-pair trace: P-GPU names the
+      Macaulay matrix, while Joux-Vitse replay F4 pair lists. Results on one do
+      not transfer to the other without measurement.
+    - >-
+      Degenerate targets (x_R in V, x_R = 0, x_R with trace-degenerate S_3) are
+      reported as their own stratum.
+    - >-
+      Factor-base choice: kappa(V) (IDEA-20260922-37e02e) changes the size of
+      the target-independent block. Hence the random-V replicate.
+    - >-
+      Python/numpy elimination cost is not GPU cost. Only op counts, sizes and
+      stability transfer, and wall time is secondary.
+
+  interpretation_limits:
+    - >-
+      KN-OPEN-020 class: the factor base is an F_2-linear subspace, a
+      bounded-degree algebraic description inside the scoped-out class. This
+      record does NOT escape KN-OPEN-020 and does not try to. It is a
+      solver-engineering measurement on the standard factor base.
+    - >-
+      Results hold at n <= 31 (m = 2) and n <= 19 (m = 3), with the named V,
+      orders, D and engine. Anything about n = 131 (ECC2-131, ECC2K-130) rides
+      on H3 and is labelled extrapolation.
+    - >-
+      No GPU is run. A positive stability result makes a GPU port worth
+      designing. It measures no GPU speed-up, and it moves no exponent.
+    - >-
+      A negative result closes STRICT trace replay for regime A on this family
+      and these cells. It does not close fixed-shape trace-free masked
+      batching, SAT/WDSat or exhaustive-search GPU engines (KN-LIT-287), or
+      F4-pair-trace replay unless that is measured.
+    - >-
+      Nothing here asserts anything about the security of any deployed curve.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        (Balanced pivot degeneracy over F_2.) In regime A, with the target bits
+        r uniform over coords(x(R)) for R uniform in the prime-order subgroup,
+        each post-replay pivot entry e_k(r) that is nonconstant in r satisfies
+        Pr_r[e_k(r) = 0 | no earlier divergence] in [0.4, 0.6]. The
+        divergence events at distinct r-dependent pivots are close to
+        independent, so strict retention is about 2^{-K}.
+      rigorous_support: >-
+        Rigorous part: Macaulay entries are F_2-affine in r (from
+        S_3 = x_1^2 x_2^2 + x_R^2 (x_1^2 + x_2^2) + x_1 x_2 x_R + B after
+        descent). An affine nonconstant e_k is balanced EXACTLY, with zero
+        density 1/2. For higher-degree e_k, the only rigorous bound over F_2 is
+        that a nonzero polynomial of degree d is nonzero on at least a 2^{-d}
+        fraction of points, which permits zero densities up to 1 - 2^{-d}. The
+        imitated distribution is that of a uniformly random Boolean function
+        (balanced). It is the p = 2 corner of the per-step 1 - 1/p failure
+        heuristic for trace replay (see assumptions; not read at source).
+      validation_plan: >-
+        Sample 1000 targets at n = 17, 19, 23 (200 at 29, 31). Estimate the
+        hazard at every reference pivot with a binomial CI, and compare its
+        empirical distribution to the point mass at 1/2 (and to the
+        same-support affine null's hazard distribution). Estimate the algebraic
+        degree of e_k by restriction to random affine lines in r-space
+        (exact for degree <= 3 at this sample size) and stratify the hazard by
+        degree. Tail checks: the extreme hazards against the binomial
+        extremes for the number of pivots tested; the independence check
+        compares observed retention against the product of per-pivot
+        survivals. Sampled parameters are recorded per cell. Transfer
+        assumption: none beyond the tested n.
+    - id: H2
+      statement: >-
+        (Large-field stability.) In regime B, each trace-determining pivot
+        entry before degree D* is a rational function of x_R of degree at most
+        d_k (numerator degree, a nonzero polynomial for the reference). The
+        fraction of targets that break the reference trace before D* is at most
+        sum_k d_k / 2^n. The heuristic part is that sum_k d_k is small
+        compared with 2^n at the tested cells.
+      rigorous_support: >-
+        Schwartz-Zippel in one variable: a nonzero univariate polynomial of
+        degree d over F_{2^n} has at most d roots. Given the degree bound, the
+        stability bound is rigorous. The heuristic is only the size of d_k,
+        which imitates the generic-coefficient behaviour of the random
+        F_{2^n} same-support family.
+      validation_plan: >-
+        At n = 17, 19, l = 6, count trace breaks before D* over 10^4 targets,
+        and compare them with the bound, using d_k tracked symbolically
+        (entry degree in x_R through the elimination). Tail check at n = 17:
+        find all bad x_R exactly, by computing the univariate minors and their
+        roots in F_{2^17}, and compare the exact count with the sampled
+        estimate.
+    - id: H3
+      statement: >-
+        (Transfer in n.) Along l = (n+1)/2 with m = 2, K(n) is nondecreasing and
+        the per-pivot hazard distribution does not drift with n. Strict
+        retention at n = 131 is therefore at most the smallest retention
+        measured.
+      rigorous_support: >-
+        None beyond monotone growth of the matrix dimensions with n (the
+        formulas in minimal_test). It imitates the standard assumption that
+        generic-coefficient statistics are scale-free.
+      validation_plan: >-
+        Fit K(n) and the hazard quantiles over n in {17, 19, 23, 29, 31}. Any
+        decrease of K or drift of the median hazard outside [0.4, 0.6] refutes
+        H3 at the tested scale. Extrapolation to n = 131 is stated as
+        extrapolation.
+    - id: H4
+      statement: >-
+        (Fixed-shape batching.) Within a cell, the degree D* at which the
+        unsatisfiable arm reaches 1 in R_D is the same for at least 95% of
+        instances, so one fixed Macaulay shape serves the batch.
+      rigorous_support: >-
+        None rigorous. It imitates the concentration of the degree of
+        regularity of semi-regular systems of fixed shape.
+      validation_plan: >-
+        Report the per-instance distribution of D* per cell and arm. The
+        satisfiable/unsatisfiable degree gap itself belongs to
+        IDEA-20260913-191ed2 and is only read here.
+
+  target_complexity:
+    time_exponent: >-
+      UNCHANGED. There is no exponent claim. Per-attempt relation cost changes
+      by at most the measured saving ratio, a constant, and the relation-search
+      exponent of index calculus on prime-degree binary fields is whatever it
+      was (no subexponential algorithm is measured in this program at these
+      fields).
+    memory_exponent: >-
+      Unchanged. Per-attempt memory is the reduced Macaulay step size, recorded
+      here per cell (dense full-Macaulay figures from 38.96 KiB to 81.0 MiB
+      across the planned regime-A cells).
+    best_known: >-
+      Parallel Pollard rho with the negation map, and on Koblitz curves the
+      Frobenius, at negligible memory: about 2^{60.9} group operations at
+      ECC2K-130 (KN-LIT-096 via IDEA-20260922-37e02e) and about 2^{m/2} at
+      ECC2-m, unconditional.
+    hidden_overhead: >-
+      None hidden. The constant at stake is the saving ratio, which is
+      measured, not assumed. Joux-Vitse's 2.4x-3.4x (large-p, F4 pair
+      replay) is the only source-verified anchor.
+    tradeoff_note: >-
+      Trace replay trades a one-off precomputation (Joux-Vitse: 11.31 s) and
+      the fallback cost for per-attempt savings. With an unsatisfiable
+      reference, the fallback receives every satisfiable attempt (Proposition
+      S), so the fallback cost per RELATION is at least one full solve unless
+      E3 holds. Parallelisation is embarrassingly parallel across attempts in
+      every design. The question is only per-attempt ops and memory.
+
+  dominated_by: >-
+    As a measurement: n/a (no result claimed). As the GPU design premise it
+    tests, if it succeeded completely: still dominated by parallel Pollard rho
+    on time and memory at every Certicom binary size. Rows checked: rho with
+    negation/Frobenius at 2^{60.9} for ECC2K-130; about 2^{65} for ECC2-131,
+    derived from sqrt(pi*l/4) with l about 2^{130}, not re-derived from the
+    frozen challenge document; rho memory is negligible. Index calculus on
+    prime-degree F_{2^n}: no measured row beats rho (KN-LIT-439, reported).
+    Per-attempt engines: FES GPU exhaustive search (KN-LIT-287) and WDSat are
+    trace-free alternatives, NOT compared here, so no per-attempt Pareto
+    claim is made.
+  sota_delta: >-
+    Zero on every ECDLP cost axis. The deliverable is a go/no-go on P-GPU with
+    numbers: retention, hazard, K, H(T), the saving ratio and per-step sizes
+    at n = 17-31. It adds an exact result (Proposition S): with an
+    unsatisfiable reference, trace replay sends 100% of relation-yielding
+    attempts to the fallback. It also shows by arithmetic that dense
+    full-Macaulay matrices miss the "thousands per warp" budget by more than
+    3 orders of magnitude at the smallest cell (38.96 KiB against 32 B per
+    system). The best case for the downstream GPU project is a constant factor
+    bounded by the measured saving ratio.
+
+  test_boundary:
+    instances: >-
+      Regime A, m = 2: n in {17, 19, 23, 29, 31}, l = (n+1)/2, D in {3, 4}.
+      Regime A, m = 3 chained: n in {17, 19}, l = 6, D in {3, 4}. Regime B,
+      m = 2: n in {17, 19}, l = 6, D = 2^l + 2. Matched regime-A cells at
+      l = 6. Random ordinary curve at every cell, plus the Koblitz form at
+      n = 17.
+    parameters:
+      references_per_cell: 5 (3 unsatisfiable, 2 satisfiable) plus the modal trace
+      targets_per_cell: 1000 (n <= 23), 200 (n in {29, 31} and m = 3), 10^4 (regime B, n = 17)
+      null_families: same-support F_2, same-support affine, same-support F_{2^n}, random-x
+      satisfiability_oracle: exact O(2^l) root-finding over V, independent of the solver
+    budget:
+      maximum_memory_gb: 4
+      wall_clock_seconds_per_cell: 14400
+      maximum_runs: 40
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: medium

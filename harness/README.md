@@ -65,3 +65,43 @@ run:
 Results recorded under these fields may be used for direct or conditional
 claims when the tested parameters, evidence scope, and transfer assumptions
 are stated explicitly (AGENTS.md rule 7).
+
+## Compute efficiency (optional, opt-in)
+
+`harness/efficiency.py` adds a wrapper-measured `result.metrics.efficiency`
+block to a run record. It measures how the run used the machine; it is a cost
+observation scoped to this machine and run, never mathematical evidence.
+
+```python
+from harness.efficiency import run_wrapped_measured
+
+run_wrapped_measured(
+    "EXP-...", "AREA", run_fn, status="completed_valid", command=cmd,
+    efficiency={                                   # optional: roofline score
+        "machine": "rtx-pro-6000-blackwell-server",   # third_party/gpueff/profiles
+        "workload": "ecc2k130-packed-walk",
+        "work_units_metric": "iterations",         # key in the run's own metrics
+        "dcgm_url": "http://host:9400/metrics",    # optional, scraped at start and end
+        # "prometheus_url": "http://prom:9090",    # optional, range-queried over the run
+    })
+```
+
+- `cpu` (always): process-tree CPU seconds (own plus waited-for children)
+  over the wrapper's wall seconds, as `parallelism` in cores and
+  `utilization` of the cores this process may use.
+- `roofline` (with a spec): the gpueff score from `third_party/gpueff`, which
+  is vendored from `aburan28/cryptanalysis` at the commit in its
+  `UPSTREAM.json`. It records the achieved/attainable throughput, the
+  `clock x sm_active x in_kernel` loss decomposition, the components, the
+  findings, and the sha256 of both profiles. Throughput is work units over
+  the wrapper's wall clock, never caller-reported.
+- Missing inputs are listed under `missing` with the reason. A scoring
+  failure is recorded as `status: error` in the block and the run is still
+  written. An experiment metric already named `efficiency` is refused, not
+  overwritten.
+
+It is a separate entry point on purpose. `harness/runner.py` and
+`schemas/run-manifest.schema.json` are hash-pinned by locked execution plans,
+so they are unchanged, and runs that do not call this function record exactly
+what they recorded before. Using it in a frozen protocol is an additive
+amendment to that protocol, as for any change of entry point.

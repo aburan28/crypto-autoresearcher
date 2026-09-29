@@ -1353,6 +1353,186 @@ def committed_file_digest(relpath: str = "harness/exp_icinv.py") -> dict:
             "byte_identical": bool(committed == worktree)}
 
 
+# --------------------------------------------------------------------------
+# CONTRACT VERSION 3 -- experiments/EXP-ICINV-4d33aa/amendments/v3.yaml
+# (status: filed_before_re_execution, approved_by: coordinator, 2026-08-10)
+#
+# Everything above stays exactly as version 2 left it, so the version-1 and
+# version-2 run records remain readable and their code paths remain
+# re-executable. The block below is ADDITIVE and implements amendment v3
+# changes A7 and A8 ONLY. Change A9 (data provenance for the p=4001/p=6007
+# reuse and the p=2003 audit) is implemented in harness/run_fullgroup.py,
+# which is where every other reference-provenance block already lives.
+# --------------------------------------------------------------------------
+
+CONTRACT_VERSION_V3 = 3
+AMENDMENT_PATH_V3 = "experiments/EXP-ICINV-4d33aa/amendments/v3.yaml"
+
+
+def chi2_wilson_hilferty_bounds(df: int, z: float = 1.96) -> tuple[float, float]:
+    """CHANGE A8. The Wilson-Hilferty chi2(df) bound arithmetic at
+    harness/exp_icinv.py:binomial_null_verdict lines 428-433, REIMPLEMENTED
+    (never imported -- that file must not be edited) under the exact name
+    amendment v3 change A8 proposes.
+
+    This is NOT a second, independent copy of the formula: it is the same
+    `wilson_hilferty_band` this module has carried since contract version 1
+    (line ~777), which every real measured cell in this experiment already
+    cross-checks against the committed function's own verdict via `nullb`'s
+    AssertionError guard. This function is a thin alias under A8's proposed
+    name so the name is literally importable; `wilson_hilferty_crosscheck`
+    below is change A8's MANDATORY, run-once, artifact-producing self-check,
+    which is the new obligation A8 actually adds.
+    """
+    return wilson_hilferty_band(df, z)
+
+
+def r_true_95pct_ci(ratio: float, n_curves: int, z: float = 1.96
+                    ) -> tuple[float, float]:
+    """CHANGE A7's exact formula, reproduced verbatim from amendment v3.yaml:
+
+        df := n_curves - 1
+        stat := df * variance_ratio_measured
+        lo, hi := chi2_wilson_hilferty_bounds(df, z)      # chi2(df) quantiles
+        r_true_95pct_ci := [stat / hi, stat / lo]
+
+    Returns (ci_lo, ci_hi) for the TRUE variance ratio R_true underlying one
+    row's measured point estimate `ratio`. THE BAND [1.3, 3.6] ITSELF IS NOT
+    TOUCHED HERE -- this function only produces the interval; the caller
+    compares it against the frozen band.
+    """
+    df = n_curves - 1
+    lo, hi = chi2_wilson_hilferty_bounds(df, z)
+    stat = df * ratio
+    return stat / hi, stat / lo
+
+
+def wilson_hilferty_crosscheck(dfs: tuple[int, ...] = (1, 5, 20, 69, 138, 139),
+                               z: float = 1.96, rel_tol: float = 1e-9) -> dict:
+    """CHANGE A8's MANDATORY self-check. Run ONCE at the start of any run that
+    depends on `baseline_reproduction_v3`'s CI-overlap gate, and its result
+    written to wilson-hilferty-crosscheck.json BEFORE any gate result computed
+    from it is interpreted. A mismatch beyond `rel_tol` at ANY probed df makes
+    the run INVALID (amendment v3 change A8) -- the caller is responsible for
+    checking `all_within_tolerance` and stopping before it does.
+
+    METHOD, AND WHY IT IS NOT CIRCULAR. `exp_icinv.binomial_null_verdict`
+    does not return its internal (lo, hi) programmatically -- only a verdict
+    string ("over-dispersed" / "under-dispersed" / "invariant") and a
+    human-readable `detail` string rounded to 2 decimal places, far coarser
+    than the 1e-9 relative tolerance this check needs. Parsing that string is
+    therefore not viable. Instead this function constructs SYNTHETIC per-curve
+    rate data at each probed df (`trials=1`, with the `hits` list holding
+    RATES directly -- an algebraically valid degenerate case of the exact
+    same formula, since `binomial_null_verdict` only ever divides by `trials`
+    to form a rate) and BISECTS for the exact statistic at which the COMMITTED
+    function's own verdict flips between "invariant" and "over-dispersed"
+    (locating `hi`), and, where the analytic `lo` is positive, between
+    "under-dispersed" and "invariant" (locating `lo`). That empirically
+    located boundary IS the committed function's own (lo, hi) BY DEFINITION
+    of its `if stat > hi: ... elif stat < lo: ... else: invariant`
+    classification (lines 434-439) -- this makes no assumption that the
+    committed function's arithmetic matches this module's, only that its
+    verdict classification is internally consistent, so comparing the
+    boundary against `chi2_wilson_hilferty_bounds(df, z)` is a genuine
+    two-implementation cross-check, not a restatement of the same formula
+    against itself.
+
+    At df=1 the analytic `lo` is negative (the chi-square statistic itself is
+    never negative, since `ratio = obs/null >= 0` always, so the
+    "under-dispersed" region [0, lo) is empty when lo < 0). This is reported
+    as `lo_reachable: false` rather than treated as a search failure -- it is
+    a fact about the committed formula at df=1, not a gap in this check.
+    """
+    rows: list[dict] = []
+    all_ok = True
+    for df in dfs:
+        n = df + 1
+        rbar = 0.5
+        local_lo, local_hi = chi2_wilson_hilferty_bounds(df, z)
+
+        def verdict_at(x: float, _n=n, _rbar=rbar, _df=df):
+            rates = [_rbar - x] * (_n - 1) + [_rbar + (_n - 1) * x]
+            return ex.binomial_null_verdict(f"A8-crosscheck-df={_df}", rates, 1)
+
+        def bisect(pred, x0: float, x1: float, iters: int = 300) -> float:
+            for _ in range(iters):
+                xm = (x0 + x1) / 2
+                if xm == x0 or xm == x1:
+                    break
+                if pred(xm):
+                    x1 = xm
+                else:
+                    x0 = xm
+            return x1
+
+        x_hi, steps = 1e-9, 0
+        while verdict_at(x_hi).verdict != "over-dispersed":
+            x_hi *= 2
+            steps += 1
+            if steps > 200:
+                raise RuntimeError(
+                    f"A8 self-check: hi boundary not reached at df={df} after "
+                    f"{steps} doublings (x={x_hi}); refusing to proceed")
+        x_boundary_hi = bisect(lambda x: verdict_at(x).verdict == "over-dispersed",
+                               0.0, x_hi)
+        measured_hi = df * verdict_at(x_boundary_hi).ratio
+        rel_hi = (abs(measured_hi - local_hi) / abs(local_hi) if local_hi
+                  else abs(measured_hi - local_hi))
+
+        lo_reachable = local_lo > 0
+        measured_lo, rel_lo = None, None
+        if lo_reachable:
+            x_hi2, steps = 1e-9, 0
+            while verdict_at(x_hi2).verdict == "under-dispersed":
+                x_hi2 *= 2
+                steps += 1
+                if steps > 200:
+                    raise RuntimeError(
+                        f"A8 self-check: lo boundary not reached at df={df} after "
+                        f"{steps} doublings (x={x_hi2}); refusing to proceed")
+            x_boundary_lo = bisect(lambda x: verdict_at(x).verdict != "under-dispersed",
+                                   0.0, x_hi2)
+            measured_lo = df * verdict_at(x_boundary_lo).ratio
+            rel_lo = (abs(measured_lo - local_lo) / abs(local_lo) if local_lo
+                      else abs(measured_lo - local_lo))
+
+        ok = bool(rel_hi < rel_tol and (rel_lo is None or rel_lo < rel_tol))
+        all_ok = all_ok and ok
+        rows.append({
+            "df": df, "n_synthetic_curves": n, "z": z,
+            "local_lo": local_lo, "local_hi": local_hi,
+            "committed_function_measured_lo": measured_lo,
+            "committed_function_measured_hi": measured_hi,
+            "lo_reachable": lo_reachable,
+            "relative_error_lo": rel_lo, "relative_error_hi": rel_hi,
+            "within_tolerance": ok,
+        })
+    return {
+        "change": "A8",
+        "amendment": AMENDMENT_PATH_V3,
+        "formula_source": "harness/exp_icinv.py:binomial_null_verdict lines 428-433",
+        "reimplementation": ("harness/exp_icinv_fullgroup.py:chi2_wilson_hilferty_bounds "
+                             "(alias of wilson_hilferty_band, continuously cross-checked "
+                             "against every REAL measured cell in this experiment via "
+                             "nullb's AssertionError guard; this self-check additionally "
+                             "and specifically probes the six df floors amendment v3 "
+                             "change A8 names)"),
+        "method": ("empirical bisection of exp_icinv.binomial_null_verdict's own verdict "
+                  "classification boundary on synthetic rate data (trials=1, rates passed "
+                  "directly as `hits`); the boundary IS the committed function's (lo, hi) "
+                  "by construction of its own if/elif classification, not by re-deriving "
+                  "its arithmetic"),
+        "rel_tol": rel_tol,
+        "probed_dfs": list(dfs),
+        "rows": rows,
+        "all_within_tolerance": bool(all_ok),
+        "gate": ("A mismatch beyond the stated relative tolerance at ANY probed df makes "
+                "the run INVALID (amendment v3 change A8); this self-check must pass "
+                "BEFORE any baseline_reproduction_v3 gate result is interpreted."),
+    }
+
+
 __all__ = [
     "EXP_ID", "FB_SIZES", "TARGET_COUNTS", "SEEDS", "PRIMES_REQUIRED",
     "GroupCert", "CyclicBaseCert", "CurvePackage",
@@ -1369,4 +1549,7 @@ __all__ = [
     "CONTRACT_VERSION", "AMENDMENT_PATH", "BASELINE_RUNS_V2",
     "BASELINE_RUNS_SUPERSEDED_V2", "CONTRACT_STATED_OPERATING_VR",
     "read_baseline_record", "load_baseline_v2", "baseline_provenance",
+    # contract version 3 (amendment changes A7 and A8)
+    "CONTRACT_VERSION_V3", "AMENDMENT_PATH_V3", "chi2_wilson_hilferty_bounds",
+    "r_true_95pct_ci", "wilson_hilferty_crosscheck",
 ]
