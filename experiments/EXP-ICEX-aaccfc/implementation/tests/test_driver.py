@@ -76,6 +76,10 @@ def test_decision_rules(tmp_root):
         "DEC-20990101-c6c6c6": {**ADMIT, "execution_admission": {"currently_admitted": True,
                                                                  "superseded_by": "DEC-20990102-ffffff"}},
         "DEC-20990101-c8c8c8": {**ADMIT, "decision": None},
+        # v4b A-2: only `admit_execution` admits
+        "DEC-20990101-c9c9c9": {**ADMIT, "decision": "approve_execution"},
+        "DEC-20990101-cacaca": {**ADMIT, "decision": "admit"},
+        "DEC-20990101-cbcbcb": {**ADMIT, "decision": "approve"},
     }
     for dec_id, body in cases.items():
         _write_dec(root, dec_id, body)
@@ -246,46 +250,46 @@ def _impl_repo(tmp_root):
     return root, impl
 
 
-def _receipt(root, path, files, extra=None):
+ARCH = "coordination/goals/GOAL-X/batches/BATCH-x/archives"
+
+
+def _receipt(root, task, files, extra=None, kind="snapshot", task_id=None, commit=True):
+    """A dispatcher-style receipt committed at ARCH/<task>/snapshot-receipt.json."""
+    path = root / ARCH / task / "snapshot-receipt.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
     pins = {str(f.relative_to(root)): common.sha256_file(f) for f in files}
     pins.update(extra or {})
-    path.write_text(json.dumps({"task_id": "TASK-TEST", "path_sha256": pins}))
+    path.write_text(json.dumps({"task_id": task_id or task, "kind": kind, "path_sha256": pins}))
+    if commit:
+        _commit(root)
     return path
 
 
 def test_verify_snapshot(tmp_root):
     root, impl = _impl_repo(tmp_root)
     files = [impl / "a.py", impl / "tests" / "test_a.py", impl / "trial-plan-v2.json"]
-    rc = _receipt(root, tmp_root / "fx6_receipt.json", files)
+    rc = _receipt(root, "TASK-20990101-000001", files)
     ok, info = driver.verify_snapshot(root, rc)
     assert ok and info["checked"] == 3, info
     assert not driver.verify_snapshot(root, None)[0]
     assert not driver.verify_snapshot(root, tmp_root / "missing.json")[0]
     # unpinned test / plan / .py files
-    for missing in files:
-        rcx = _receipt(root, tmp_root / "fx6_receipt_x.json", [f for f in files if f != missing])
+    for i, missing in enumerate(files):
+        rcx = _receipt(root, f"TASK-20990101-00001{i}", [f for f in files if f != missing])
         ok, info = driver.verify_snapshot(root, rcx)
         assert not ok and info["unpinned"] == [str(missing.relative_to(root))]
     # hash mismatch
-    rcm = _receipt(root, tmp_root / "fx6_receipt_m.json", files,
-                   {str((impl / "a.py").relative_to(root)): "0" * 64})
+    rcm = _receipt(root, "TASK-20990101-000002", files, {str((impl / "a.py").relative_to(root)): "0" * 64})
     ok, info = driver.verify_snapshot(root, rcm)
     assert not ok and info["mismatches"]
     # pinned file missing from the tree
-    rcg = _receipt(root, tmp_root / "fx6_receipt_g.json", files, {common.IMPL_REL + "/gone.py": "0" * 64})
+    rcg = _receipt(root, "TASK-20990101-000003", files, {common.IMPL_REL + "/gone.py": "0" * 64})
     ok, info = driver.verify_snapshot(root, rcg)
     assert not ok and info["missing"] == [common.IMPL_REL + "/gone.py"]
-    # the receipt itself (inside the tree, pinned with any hash) is excluded
-    own = impl / "snapshot-receipt.json"
-    _receipt(root, own, files, {str(own.relative_to(root)): "f" * 64})
-    _commit(root)
-    ok, info = driver.verify_snapshot(root, own)
-    assert ok, info
-    # dirty: modified tracked file (receipt updated to match), then an untracked non-code file
+    # dirty: modified tracked file, then an untracked non-code file
     (impl / "a.py").write_text("A = 2\n")
-    rcd = _receipt(root, tmp_root / "fx6_receipt_d.json", files)
-    ok, info = driver.verify_snapshot(root, rcd)
-    assert not ok and info["dirty"] and not info["mismatches"]
+    ok, info = driver.verify_snapshot(root, rc)
+    assert not ok and info["dirty"]
     _git(root, "checkout", "-q", "--", ".")
     (impl / "scratch.txt").write_text("x\n")
     ok, info = driver.verify_snapshot(root, rc)
@@ -297,6 +301,71 @@ def test_verify_snapshot(tmp_root):
     ok, info = driver.verify_snapshot(root, rc)
     assert not ok and info["unpinned"] == [common.IMPL_REL + "/b.py"]
     shutil.rmtree(root)
+
+
+def test_snapshot_receipt_must_be_committed_dispatcher_receipt(tmp_root):
+    """v4b G-3: kind snapshot, .../archives/TASK-*/snapshot-receipt.json inside
+    the repository, tracked, clean, identical to HEAD; copies and hand-written
+    receipts refused."""
+    root, impl = _impl_repo(tmp_root)
+    files = [impl / "a.py", impl / "tests" / "test_a.py", impl / "trial-plan-v2.json"]
+    good = _receipt(root, "TASK-20990101-aaaaaa", files)
+    assert driver.verify_snapshot(root, good)[0]
+    body = good.read_bytes()
+
+    def refused(path, needle):
+        ok, info = driver.verify_snapshot(root, path)
+        assert not ok and needle in info.get("error", ""), info.get("error")
+
+    # a byte-identical copy outside the repository, and one inside at another path
+    outside = tmp_root / "fx6_copy" / "archives" / "TASK-20990101-aaaaaa" / "snapshot-receipt.json"
+    outside.parent.mkdir(parents=True, exist_ok=True)
+    outside.write_bytes(body)
+    refused(outside, "outside the repository")
+    for rel in ("snapshot-receipt.json", common.IMPL_REL + "/snapshot-receipt.json",
+                ARCH + "/TASK-20990101-aaaaaa/receipt.json", ARCH + "/misc/snapshot-receipt.json"):
+        p = root / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(body)
+        _commit(root)
+        refused(p, "is not .../archives/TASK-*/snapshot-receipt.json")
+        _git(root, "rm", "-q", rel)
+        _commit(root)
+    # committed copy under another TASK directory: task_id does not match
+    other = root / ARCH / "TASK-20990101-bbbbbb" / "snapshot-receipt.json"
+    other.parent.mkdir(parents=True)
+    other.write_bytes(body)
+    _commit(root)
+    refused(other, "!= archive directory")
+    # hand-written: wrong or missing kind
+    refused(_receipt(root, "TASK-20990101-cccccc", files, kind="ledger"), "is not 'snapshot'")
+    refused(_receipt(root, "TASK-20990101-dddddd", files, kind=None), "is not 'snapshot'")
+    # untracked, staged-only, modified after commit
+    refused(_receipt(root, "TASK-20990101-eeeeee", files, commit=False), "not tracked")
+    _git(root, "add", "-A")
+    refused(root / ARCH / "TASK-20990101-eeeeee" / "snapshot-receipt.json", "not clean")
+    _commit(root)
+    assert driver.verify_snapshot(root, root / ARCH / "TASK-20990101-eeeeee" / "snapshot-receipt.json")[0]
+    good.write_text(good.read_text().replace('"snapshot"', '"snapshot" '))
+    refused(good, "not clean")
+    _git(root, "add", "-A")
+    refused(good, "not clean")
+    _git(root, "reset", "-q", "--hard")
+    # symlink to a committed receipt
+    link = tmp_root / "fx6_link.json"
+    link.unlink(missing_ok=True)
+    link.symlink_to(good)
+    refused(link, "symlink")
+    link.unlink()
+    shutil.rmtree(tmp_root / "fx6_copy")
+    shutil.rmtree(root)
+
+
+def test_real_snapshot_receipt_passes_file_checks():
+    p = common.REPO_ROOT / ("coordination/goals/GOAL-ICEX-001/batches/BATCH-227e0d/archives/"
+                            "TASK-20260929-8428ad/snapshot-receipt.json")
+    ok, why = driver.check_receipt_file(common.REPO_ROOT, p, json.loads(p.read_text()))
+    assert ok, why
 
 
 def test_implementation_files_cover_code_tests_and_plan():
@@ -431,6 +500,87 @@ def test_failures_are_recorded(monkeypatch, tmp_root, case, status, cls):
     assert run["timing"]["finished_at"] and run["result"]["valid"] is False and run["result"]["invalid_reason"]
     assert (run_dir / "raw-result.json").exists() and not (run_dir / "metrics.json").exists()
     shutil.rmtree(run_dir)
+
+
+@pytest.mark.parametrize("how", ["exception", "signal"])
+def test_stub_manifest_precedes_environment_probe(monkeypatch, tmp_root, how):
+    """v4b G-4: a stub (status running) exists before the environment / Sage
+    probe; a failure there still leaves failed_infrastructure + raw-result.json."""
+    _stub(monkeypatch)
+    run_id = f"RUN-test-stub-{how}"
+    run_dir = tmp_root / "fx23_runs" / run_id
+    shutil.rmtree(run_dir, ignore_errors=True)
+    seen = {}
+
+    def probe():
+        seen["run"] = _load(run_dir)["run"]
+        seen["raw"] = json.loads((run_dir / "raw-result.json").read_text())
+        if how == "signal":
+            os.kill(os.getpid(), signal.SIGTERM)
+        raise OSError("sage probe failed")
+    monkeypatch.setattr(driver, "environment_info", probe)
+    assert _execute(tmp_root, run_id) == driver.EXIT_INFRASTRUCTURE
+    s = seen["run"]
+    assert s["status"] == "running" and s["stub"] is True and s["timing"]["finished_at"] is None
+    assert s["inputs"]["driver_pid"] == os.getpid() and len(s["inputs"]["run_token_sha256"]) == 64
+    assert seen["raw"]["status"] == "running"
+    m = _load(run_dir)
+    run = m["run"]
+    assert run["status"] == "failed_infrastructure" and run["stub"] is True
+    assert run["failure_class"] == how and run["timing"]["finished_at"] and run["result"]["valid"] is False
+    assert run["failure_reason"] and m["driver"]["traceback"]
+    raw = json.loads((run_dir / "raw-result.json").read_text())
+    assert raw["status"] == "failed_infrastructure" and raw["cells"] == []
+    assert not (run_dir / "environment.json").exists()
+    shutil.rmtree(run_dir)
+
+
+def test_manifest_binds_driver_pid_and_run_token(monkeypatch, tmp_root):
+    """v4b G-2: the full record carries this driver's pid and the sha256 of
+    the per-run token that only the cell environment holds."""
+    _stub(monkeypatch)
+    envs = []
+
+    def cell(task, cell_dir, env=None):
+        envs.append(dict(env))
+        m = _load(cell_dir.parent.parent)["run"]
+        envs[-1]["_manifest"] = m
+        cell_dir.mkdir(parents=True)
+        out = {"task": task, "status": "ok", "result": {"kind": task["kind"]}, "peak_rss_bytes": 1, "seconds": 0.0}
+        (cell_dir / "result.json").write_text(json.dumps(out))
+        return out
+    monkeypatch.setattr(driver, "run_cell_process", cell)
+    monkeypatch.setenv(driver.RUN_TOKEN_ENV, "inherited-must-not-leak")
+    run_dir = tmp_root / "fx23_runs" / "RUN-test-token"
+    shutil.rmtree(run_dir, ignore_errors=True)
+    assert _execute(tmp_root, "RUN-test-token") == 0
+    tokens = {e[driver.RUN_TOKEN_ENV] for e in envs}
+    assert len(tokens) == 1
+    token = tokens.pop()
+    assert token != "inherited-must-not-leak" and len(token) == 64
+    for e in envs:
+        inp = e["_manifest"]["inputs"]
+        assert not e["_manifest"].get("stub")
+        assert inp["run_token_sha256"] == driver.token_sha256(token) and inp["driver_pid"] == os.getpid()
+    assert token not in (run_dir / "manifest.yaml").read_text()
+    shutil.rmtree(run_dir)
+    # a second run draws a fresh token
+    envs.clear()
+    assert _execute(tmp_root, "RUN-test-token") == 0
+    assert envs[0][driver.RUN_TOKEN_ENV] != token
+    shutil.rmtree(run_dir)
+
+
+def test_main_refuses_runs_dir_other_than_experiment_runs(monkeypatch, tmp_root):
+    """v4b G-2: a scientific run is written only under runs/RUN-*."""
+    runs = tmp_root / "runs_elsewhere"
+    monkeypatch.setattr(driver, "admission_readings", lambda root: dict(GOOD))
+    monkeypatch.setattr(driver, "check_decision", lambda root, d: (True, "stub"))
+    monkeypatch.setattr(driver, "verify_snapshot", lambda root, r: (True, {"verified": True}))
+    monkeypatch.setattr(driver, "execute", lambda *a, **k: pytest.fail("execute must not be reached"))
+    code = driver.main(["--run-id", "RUN-test-runsdir", "--admission-decision", "DEC-20990101-aaaaaa",
+                        "--runs-dir", str(runs), "--snapshot-receipt", "x"])
+    assert code == driver.EXIT_REFUSED_RUNS_DIR and not runs.exists()
 
 
 def test_fxa_defect_after_metrics_does_not_touch_metrics(monkeypatch, tmp_root):

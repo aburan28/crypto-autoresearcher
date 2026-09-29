@@ -54,9 +54,19 @@ class NamespaceRefused(RuntimeError):
 FROZEN_ADMITTED = False
 
 
-def _ns_guard(ns):
+# v4b A-1: the only smoke-namespace path allowed to evaluate a frozen fixture is
+# the in-process unit tests (tests/conftest.py, test_charging, test_controls,
+# test_fxa), which call these functions directly and persist nothing.
+TESTS_NS_PREFIX = common.SMOKE_NS + "|tests"
+
+
+def _ns_guard(ns, fx=None):
     if ns == common.FROZEN_NS and not FROZEN_ADMITTED:
         raise NamespaceRefused(f"namespace {ns!r} is frozen; only cellrun.py under an admitted driver run may use it")
+    if (fx is not None and common.is_smoke_ns(ns) and not str(ns).startswith(TESTS_NS_PREFIX)
+            and common.is_frozen_fixture(fx)):
+        raise NamespaceRefused(f"frozen fixture in smoke namespace {ns!r}: only the in-process unit-test "
+                               f"namespace {TESTS_NS_PREFIX}* may evaluate it")
 
 
 def _pt(P):
@@ -303,7 +313,7 @@ def _sum_units(*costs):
 def run_primary(fx, ns, n_descents=common.N_DESCENTS, n_heldout=common.N_HELDOUT,
                 max_attempts=DEFAULT_MAX_ATTEMPTS, max_descent_attempts=DEFAULT_MAX_DESCENT_ATTEMPTS,
                 m=common.M_PRIMARY, log_fn=print):
-    _ns_guard(ns)
+    _ns_guard(ns, fx)
     t0 = time.time()
     vc = VCurve(fx["p"], fx["a"], fx["b"])
     k = target_k(fx, ns)
@@ -362,7 +372,7 @@ def run_primary(fx, ns, n_descents=common.N_DESCENTS, n_heldout=common.N_HELDOUT
 
 
 def run_null_randfb(fx, ns, max_attempts=DEFAULT_MAX_ATTEMPTS, m=common.M_PRIMARY, log_fn=print):
-    _ns_guard(ns)
+    _ns_guard(ns, fx)
     t0 = time.time()
     vc = VCurve(fx["p"], fx["a"], fx["b"])
     k = target_k(fx, ns)
@@ -398,7 +408,7 @@ def run_null_randfb(fx, ns, max_attempts=DEFAULT_MAX_ATTEMPTS, m=common.M_PRIMAR
 
 
 def run_stage_cost(fx, ns, m, n_heldout=common.N_HELDOUT, max_attempts=DEFAULT_MAX_ATTEMPTS, log_fn=print):
-    _ns_guard(ns)
+    _ns_guard(ns, fx)
     t0 = time.time()
     vc = VCurve(fx["p"], fx["a"], fx["b"])
     k = target_k(fx, ns)
@@ -435,7 +445,7 @@ def run_stage_cost(fx, ns, m, n_heldout=common.N_HELDOUT, max_attempts=DEFAULT_M
 
 def run_rho_cell(fx, ns, n_targets=common.N_RHO_TARGETS, log_fn=print):
     import rho
-    _ns_guard(ns)
+    _ns_guard(ns, fx)
     t0 = time.time()
     r = rho.run_rho(fx, ns, n_targets)
     bad = [x["t"] for x in r["targets"] if not x.get("solved") or not x.get("k_true_matches")]

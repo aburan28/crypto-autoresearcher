@@ -1,5 +1,8 @@
 """Controls behave as specified (C-6): known-false scramble, random-x null,
-rho baseline, stage-2 scan agreement; certificates verified."""
+rho baseline, stage-2 scan agreement; certificates verified.
+
+PYTEST_DONT_REWRITE (v4b A-3): this module evaluates frozen fixtures, so assertion
+rewriting is disabled and a failing assert reports no compared values."""
 
 import b0
 import common

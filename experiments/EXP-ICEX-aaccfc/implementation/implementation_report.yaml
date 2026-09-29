@@ -1,7 +1,7 @@
-# EXP-ICEX-aaccfc implementation report, protocol v4 (repair TASK-20260929-1211f7).
+# EXP-ICEX-aaccfc implementation report, protocol v4 (repair TASK-20260929-1211f7; v4b repair TASK-20260929-ffd37e).
 # The protocol-v3 version of this file is in snapshot TASK-20260929-d04f29 (commit d6da4cd606).
 implementation_report:
-  task_id: TASK-20260929-1211f7
+  task_id: TASK-20260929-ffd37e
   experiment_id: EXP-ICEX-aaccfc
   hypothesis_id: H-ICEX-d8e858
   protocol:
@@ -21,7 +21,7 @@ implementation_report:
     amendment_v4_commit: 211f7ed79f
     amendment_v4_sha256: 61926b8c691cfe48a00354939651314a9d5aee62432a4d671c8ec56f7ddb310d
     amendment_v2_sha256: b74b30022eecbb1fae503ef4d9f0a9aad706d1917cbc4f57c981c94f832394b2
-  status: implementation_repaired_for_protocol_v4_not_admitted
+  status: implementation_repaired_for_protocol_v4_v4b_not_admitted
   scientific_runs: 0
   run_directories_created: []
   admission:
@@ -30,7 +30,7 @@ implementation_report:
   git:
     worktree: /Volumes/SSD990/wt-amend-ic
     branch: coord/ic-leads-impl-20260928
-    head_at_report: 37e2e7d72e19a5390883db8ab81634579da5abf8
+    head_at_report: eecc610b3c (v4b); v4 repair was at 37e2e7d72e19a5390883db8ab81634579da5abf8, snapshotted by TASK-20260929-8428ad (commit 9698f4a36a)
     dirty: experiments/EXP-ICEX-aaccfc/implementation/ (this task, uncommitted); other sessions' untracked task directories
   inference:
     requested_policy: executor-implementation
@@ -55,7 +55,7 @@ implementation_report:
   tests:
     command: TMPDIR=/Volumes/SSD990/.tmp-agent PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 -m pytest -q -rs -p no:cacheprovider
       tests
-    passed: 86
+    passed: 103
     failed: 0
     skipped: 0
     xfail: 0
@@ -65,10 +65,12 @@ implementation_report:
       test_la.py: 10
       test_controls.py: 7
       test_analysis.py: 11
-      test_driver.py: 19
+      test_driver.py: 25
       test_fxa.py: 8
-      test_guard.py: 11
+      test_guard.py: 18
+      test_process.py: 4
     previous_count_protocol_v3: 58
+    previous_count_protocol_v4: 86
     covers:
     - fixture regeneration byte-compare (Sage) and frozen hashes
     - 'charging completeness: C-3 units, scalar-mult and B0 op/probe counts vs closed form, B0 vs exact oracle (m=5,6,8),
@@ -85,6 +87,7 @@ implementation_report:
       descent) raises ProcedureDefect; C-5 verdict/ratio/exponent unchanged by the FX-A field (extreme stub and fxa=None,
       4 parametrized cases)'
     - 'v4 FX-1..FX-8: see repair_report_v4.yaml fixes[*].tested_by'
+    - 'v4b G-1..G-4, A-1..A-3 (real cell processes for SIGTERM, exception and driver SIGKILL): see repair_report_v4b.yaml fixes[*].tested_by'
   smoke:
     protocol_version: 4
     command: TMPDIR=/Volumes/SSD990/.tmp-agent PYTHONDONTWRITEBYTECODE=1 nice -n 10 python3 smoke.py --run-id DRYRUN-smoke-v4-00N;
@@ -193,6 +196,7 @@ implementation_report:
     topic: decision values accepted as an admission (FX-1)
     proposed_literal_reading: decision in {admit_execution, approve_execution, admit, approve}; approve_amendment and all
       others refuse
+    resolution: 'v4b instruction A-2 (TASK-20260929-ffd37e): only admit_execution admits'
   - id: OQ-17
     topic: uncommitted superseding decisions (FX-1 says 'later committed decision')
     proposed_literal_reading: 'fail-closed: any decision file present whose supersedes names the admission decision refuses,
@@ -201,11 +205,30 @@ implementation_report:
     topic: pre-existing unit tests evaluate frozen fixture b16-s21 in the smoke|...|tests namespace
     proposed_literal_reading: left as is (nothing committed or printed; FX-5 names smoke runs); moving them to synthetic.py
       needs their fixture-specific assertions rewritten
+    v4b_update: 'A-1: the exempt path is exactly the in-process smoke|EXP-ICEX-aaccfc/v2|tests prefix (persists nothing);
+      cellrun and every other smoke namespace refuse frozen fixtures. A-3: these modules carry PYTEST_DONT_REWRITE and fixed
+      assert messages'
   - id: OQ-19
     topic: FX-6 pinning scope
     proposed_literal_reading: every *.py, tests/*.py and trial-plan*.json in the implementation directory must be pinned;
       other listed implementation files are hash-checked; governing records outside the directory are bound by the protocol-v4
       check; Sage is external and recorded only
+  - id: OQ-20
+    topic: a SIGKILLed driver leaves manifest status running (nothing can write after SIGKILL)
+    proposed_literal_reading: a running manifest whose driver_pid is no longer a live driver.py is a dead run, read as failed_infrastructure;
+      the cell guard refuses it; no reconciler rewrites the immutable record
+  - id: OQ-21
+    topic: G-2 guard requires manifest code.commit == repository HEAD at every cell launch
+    proposed_literal_reading: intended fail-closed; a commit in the run worktree during a run ends it as failed_infrastructure;
+      the run needs a worktree nobody commits to
+  - id: OQ-22
+    topic: orphan exit latency
+    proposed_literal_reading: watcher polls getppid every 0.2 s and the result is renamed into place only after a final parent
+      check; test_process.py bounds the orphan's exit at 3 s under load; meets 'within about 1 s'
+  - id: OQ-23
+    topic: G-3 receipt path form
+    proposed_literal_reading: (.+/)?archives/TASK-<8 digits>-<3..6 hex>/snapshot-receipt.json with task_id equal to that TASK
+      directory; goal/batch prefix not fixed
   files:
   - path: experiments/EXP-ICEX-aaccfc/implementation/analysis.py
     sha256: 07a2de337c599d880e21fab8ffe8edc5f8462385568a3d3c0915e992147a1f12
@@ -220,20 +243,20 @@ implementation_report:
     sha256: c00b0cc2164cfc2360f4157783f4df7659e9a390fe6765c63816e95ba80128bf
     bytes: 8125
   - path: experiments/EXP-ICEX-aaccfc/implementation/cellrun.py
-    sha256: adff0ea6de2f978428e2ad1c7ca05c7e7a2455ae60c44e59e3406c34eadccd91
-    bytes: 5883
+    sha256: 557301d77ed4b005a3d58d90b2d2608250c5b367994b94aa4c65d9310d9676ed
+    bytes: 10843
   - path: experiments/EXP-ICEX-aaccfc/implementation/common.py
     sha256: 37c06853053c72c305aebc686ee9295cdb03c1872cdb162bc84c07d62ec4e8c2
     bytes: 7606
   - path: experiments/EXP-ICEX-aaccfc/implementation/driver.py
-    sha256: 7e5c7df250b3ae5c41fd69862b32c5a0bcf2dc44fadb8dd5101e50b0aea83a51
-    bytes: 38710
+    sha256: 77380eaaba438106d8408363b3973b65a9f9d7c3e2dd38e57256940bc5bd6071
+    bytes: 46604
   - path: experiments/EXP-ICEX-aaccfc/implementation/hostinfo.py
     sha256: bec76f1e933e4a0f8e8b202154e2dfe78f9dbc09800f1e26a7282ab043a26c95
     bytes: 7304
   - path: experiments/EXP-ICEX-aaccfc/implementation/implementation.md
-    sha256: fddcc503af0c7e41cc7a2797cc73c8fa463563b456bb3c0f854c056687ec2110
-    bytes: 23567
+    sha256: c19e56829e0bc85adcddbf601725cb10cf3ffa967670e55007bfdbfa841df98b
+    bytes: 29241
   - path: experiments/EXP-ICEX-aaccfc/implementation/la.py
     sha256: 05150dde73d80439a6778121f21cf34e502c77fbe6314065f290daab1ac432e6
     bytes: 11764
@@ -244,11 +267,14 @@ implementation_report:
     sha256: 4fd5a7ab57b3f39a187bb3b434913f99272bc46588cebf3a53414bc7ecd30176
     bytes: 924
   - path: experiments/EXP-ICEX-aaccfc/implementation/pipeline.py
-    sha256: 2d1abb34dec102c1423ddacae7ffc019371faab08f57297332ae73c9d9ab7a59
-    bytes: 20791
+    sha256: 51f9a3da1159bfe03233073fb8365c1f6bbcf150cac5b32e1b33dc6ac2517822
+    bytes: 21420
   - path: experiments/EXP-ICEX-aaccfc/implementation/rho.py
     sha256: 7554233b1a6c9dd615a278a07d271b72133f7fb38033d8dd15565f62e26534e5
     bytes: 4721
+  - path: experiments/EXP-ICEX-aaccfc/implementation/smoke.py
+    sha256: adf47963f4f7625dcc7cb407720bc1ee184b4b363b57e98b5ac6459e17ff68e8
+    bytes: 7112
   - path: experiments/EXP-ICEX-aaccfc/implementation/smoke/DRYRUN-smoke-001.stderr
     sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
     bytes: 0
@@ -702,39 +728,39 @@ implementation_report:
   - path: experiments/EXP-ICEX-aaccfc/implementation/smoke/v4/driver_dryrun/DRYRUN-smoke-v4-002/stdout.log
     sha256: 9bcce669357a43d3eb8ce22c99b8f8029b3f21445f0309cb898a5a9d22488930
     bytes: 317
-  - path: experiments/EXP-ICEX-aaccfc/implementation/smoke.py
-    sha256: adf47963f4f7625dcc7cb407720bc1ee184b4b363b57e98b5ac6459e17ff68e8
-    bytes: 7112
   - path: experiments/EXP-ICEX-aaccfc/implementation/synthetic.py
     sha256: 73359678b126af5dea66e857ced9309a84e42615d3e4b74e6a8cfdb80013d70f
     bytes: 2501
   - path: experiments/EXP-ICEX-aaccfc/implementation/tests/conftest.py
-    sha256: ead22dd8dd25860b2cda970af5dacf1ec35edb708296fa5d5339127e221cdd25
-    bytes: 700
+    sha256: 677cd9402c040de3d1a7cdf35a0618e002b029107be81a178595db50d26f1c33
+    bytes: 879
   - path: experiments/EXP-ICEX-aaccfc/implementation/tests/test_analysis.py
     sha256: bd3ed96a6c6dbee0b3ad8432a19dfe51c8f041787b7e3b978de6cd44a2ef99d4
     bytes: 5158
   - path: experiments/EXP-ICEX-aaccfc/implementation/tests/test_charging.py
-    sha256: 57abee2871233f2956f4561bf6491ce4b074438ce7d58bf1ff411c8aa7a8db7d
-    bytes: 9046
+    sha256: 67f86ebe6937258dd3999521743868a88355580a3ebae9c02af288b4efb36e9f
+    bytes: 9278
   - path: experiments/EXP-ICEX-aaccfc/implementation/tests/test_controls.py
-    sha256: dfbc207dc882d22ff1fe81742a881da4e19558f2e009a14151e6a80b60c4a7f4
-    bytes: 2864
+    sha256: 9b88c863851e27c4163ef374d0cfad0e02eef39eb9cd10897e032c886542cb6c
+    bytes: 3019
   - path: experiments/EXP-ICEX-aaccfc/implementation/tests/test_driver.py
-    sha256: 4951575eee4f693f041e35cecac2429c32f06cfc410e5f96cdf319dd52f02cbe
-    bytes: 22075
+    sha256: dc07051baf220b8a420773919e7cc61a29d04841c7292b335b8832e96c56b391
+    bytes: 29361
   - path: experiments/EXP-ICEX-aaccfc/implementation/tests/test_fixtures.py
-    sha256: 51c57d12555b9d186dc03ed52fc9092a4007b3ee414c0ea8ec069ede3366097f
-    bytes: 1047
+    sha256: fd97153ebdb1b273b26daadec46570e526a920a03c827ac359685cb0bb2b0a44
+    bytes: 1256
   - path: experiments/EXP-ICEX-aaccfc/implementation/tests/test_fxa.py
-    sha256: a8c8195a279fab222770a7296c6fbc0ceb3f722b515368763e850a99eeb3ff22
-    bytes: 3922
+    sha256: f0a7c920cef945c6354617e7d8f5bf3e2b7d6f2deff33b117d17a753364d8ad7
+    bytes: 4077
   - path: experiments/EXP-ICEX-aaccfc/implementation/tests/test_guard.py
-    sha256: 7b32cbe7c2829700775cd895e6bf201a35b792a66b508b3db528e3253c04f03d
-    bytes: 6500
+    sha256: ad92808ffdff332d18782aca81e3eaa595f832d24575b001ada4b8de360715b9
+    bytes: 14985
   - path: experiments/EXP-ICEX-aaccfc/implementation/tests/test_la.py
     sha256: 118ce2eb9199287b2f667ebbf73c8cb4ea1e63ccf6da5125c9c83f45b44487f1
     bytes: 3329
+  - path: experiments/EXP-ICEX-aaccfc/implementation/tests/test_process.py
+    sha256: e290dba3dcb878c68824524cf441756258915569e9d05baafca0aafc5b2f7dbd
+    bytes: 5412
   - path: experiments/EXP-ICEX-aaccfc/implementation/trial-plan-v2.json
     sha256: 58c36b6d1444dce4f4b539f7bb0175d24d29e30af5abfd81abe7eaef14c2e983
     bytes: 10286
@@ -749,7 +775,8 @@ implementation_report:
   previous_task_ids:
   - TASK-20260929-8586f2 (protocol v3 implementation; snapshot TASK-20260929-d04f29, commit d6da4cd606)
   v4_fixes: FX-1..FX-8 implemented; see repair_report_v4.yaml
-  files_note: every file under the implementation directory except this report and repair_report_v4.yaml (which hashes this
-    one)
+  v4b_fixes: G-1..G-4 and A-1..A-3 implemented; see repair_report_v4b.yaml (supersedes repair_report_v4.yaml by reference)
+  files_note: every tracked or untracked, non-ignored file under the implementation directory except this report, repair_report_v4.yaml
+    and repair_report_v4b.yaml (which hashes this one)
   observations_pre_data:
   - 'm=8 L=1 on b16-s21 and b20-s23 (fixture property from the trial plan): stage-cost cells need ~1e5 / ~1e6 attempts'

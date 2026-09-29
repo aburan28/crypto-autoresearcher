@@ -1,4 +1,7 @@
-"""FX-A (AMD-20260929-143d11): descriptive incremental-R_j figure."""
+"""FX-A (AMD-20260929-143d11): descriptive incremental-R_j figure.
+
+PYTEST_DONT_REWRITE (v4b A-3): this module evaluates frozen fixtures, so assertion
+rewriting is disabled and a failing assert reports no compared values."""
 
 import copy
 import json

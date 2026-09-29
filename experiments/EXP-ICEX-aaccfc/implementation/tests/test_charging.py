@@ -1,4 +1,7 @@
-"""Charging completeness (C-3, C-5, C-6 accounting audit) and B0 fidelity."""
+"""Charging completeness (C-3, C-5, C-6 accounting audit) and B0 fidelity.
+
+PYTEST_DONT_REWRITE (v4b A-3): this module evaluates frozen fixtures, so assertion
+rewriting is disabled and a failing assert reports no compared values."""
 
 import json
 import os
@@ -121,7 +124,7 @@ print(json.dumps(out))
                       "Rs": [None if R is O else list(R) for R in Rs]})
     res = subprocess.run([sys.executable, "-c", script], cwd=str(common.SDEG_DIR / "implementation"),
                          input=inp, capture_output=True, text=True, env=env)
-    assert res.returncode == 0, res.stderr
+    assert res.returncode == 0, "SDEG B0 reference subprocess failed"
     sdeg = json.loads(res.stdout)
     for R, s in zip(Rs, sdeg):
         c = Cost()
@@ -147,7 +150,7 @@ def test_complete_cost_components_and_audit_accepts(smoke_primary):
         assert r[key] > 0 and s1[key] > 0 and r["stage3"][key] > 0 and r["descents"][key] > 0
     receipt = json.loads(json.dumps({"status": "ok", "peak_rss_bytes": r["peak_rss_bytes"], "result": r}))
     a = audit.audit_cell(receipt)
-    assert a["accepted"], a["failures"]
+    assert a["accepted"], "accounting audit rejected (failures withheld: frozen fixture)"
     assert a["stats"]["attempts_replayed"] > 0
     assert a["stats"]["la_steps_checked"] == len(r["stage3"]["rank_log"]) + len(r["stage3"]["la_log"])
 

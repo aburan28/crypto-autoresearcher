@@ -1,3 +1,8 @@
+"""Shared fixtures.
+
+PYTEST_DONT_REWRITE (v4b A-3): this module evaluates frozen fixtures, so assertion
+rewriting is disabled and a failing assert reports no compared values."""
+
 import os
 import sys
 from pathlib import Path

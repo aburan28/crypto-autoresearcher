@@ -1,6 +1,6 @@
 # EXP-ICEX-aaccfc implementation (protocol v4)
 
-Tasks: TASK-20260929-8586f2 (implementation, protocol v3) and TASK-20260929-1211f7 (repair for protocol v4, fixes FX-1 to FX-8; details and file hashes in `repair_report_v4.yaml`). Protocol v4 consists of:
+Tasks: TASK-20260929-8586f2 (implementation, protocol v3), TASK-20260929-1211f7 (repair for protocol v4, fixes FX-1 to FX-8; `repair_report_v4.yaml`) and TASK-20260929-ffd37e (v4b: re-check TASK-20260929-1344ef findings G-1 to G-4 and advisories A-1 to A-3; details and file hashes in `repair_report_v4b.yaml`, which supersedes `repair_report_v4.yaml` by reference). Protocol v4 consists of:
 
 - `specification.yaml` (v1, DEC-20260910-56fad5);
 - `amendments/AMD-20260926-ced670.yaml` (v2, DEC-20260926-6fe1a0);
@@ -26,16 +26,16 @@ free, 15-minute load above 14).
 | `b0.py` | interval and random-x factor bases, forward 2-sum table, B0 membership (m = 5, 6, 8), relation extraction, stage-2 scan |
 | `oracle.py` | exact m-membership oracle (all signed m-multisets; uncharged) |
 | `la.py` | rank tracker, structured Gaussian elimination, Lanczos over Z/q, back-substitution, dense reference |
-| `pipeline.py` | cells: `primary`, `null_randfb`, `stage_cost` (m = 6, 8), `rho` |
+| `pipeline.py` | cells: `primary`, `null_randfb`, `stage_cost` (m = 6, 8), `rho`; namespace guard (frozen namespace; v4b A-1 frozen fixtures only in the unit-test namespace) |
 | `rho.py` | Pollard rho baseline (negation map, r = 32, fruitless cycles), C-3 units |
 | `audit.py` | independent accounting checker (C-6) |
 | `analysis.py` | C-5 ratio, exponent, bootstrap and verdict, verbatim; FX-A non-verdict figure (`fxa_report`, called separately); v4 FX-8 leave-b16-s21-out fit (non-verdict) |
-| `cellrun.py` | one cell per fresh process; per-cell peak RSS; v4 FX-4 admission and namespace guard |
-| `driver.py` | admission (v4 FX-1), C-7 fail-closed, plan and protocol-v4 hash binding, snapshot pinning (v4 FX-6), cells, audit, analysis then FX-A, canonical run record and failure handling (v4 FX-2, FX-3), inference block (v4 FX-7) |
+| `cellrun.py` | one cell per fresh process; per-cell peak RSS; admission and namespace guard (v4 FX-4, bound to the live driver by v4b G-2); parent watcher (v4b G-1) |
+| `driver.py` | admission (v4 FX-1), C-7 fail-closed, plan and protocol-v4 hash binding, snapshot pinning (v4 FX-6), cells, audit, analysis then FX-A, canonical run record and failure handling (v4 FX-2, FX-3; stub first, v4b G-4), inference block (v4 FX-7), cell process groups (v4b G-1), run token and driver pid (v4b G-2), committed-receipt check (v4b G-3) |
 | `make_trial_plan.py` / `trial-plan-v2.json` | 6 fixtures x 5 cells = 30 cells; records protocol v4 and the sha256 of the three amendments and the v3/v4 decisions (plan sha256 `58c36b6d1444dce4f4b539f7bb0175d24d29e30af5abfd81abe7eaef14c2e983`; the file name is kept) |
 | `synthetic.py` | deterministic non-frozen prime-order curves for smoke (v4 FX-5) |
 | `smoke.py` | driver smoke dry-run on a synthetic fixture plus a pass/fail-only full-replay summary (v4 FX-5) |
-| `tests/` | 86 tests |
+| `tests/` | 103 tests (`test_process.py` launches real cell processes) |
 
 ## What is charged (C-3, C-5)
 
@@ -124,24 +124,38 @@ A charged run is refused unless all of these hold, checked in order:
 1. the host is macOS;
 2. C-7 passes fail-closed (15-minute load <= 14, system volume >= 5 GiB free, repository volume >= 20 GiB free; unreadable values refuse);
 3. the run id is `RUN-*`;
-4. the admission decision passes v4 FX-1: a `coordinator_decision` with a matching id; `decision` one of `admit_execution`, `approve_execution`, `admit`, `approve`; `EXP-ICEX-aaccfc` in `target_ids`; `execution_admission.currently_admitted: true`; not superseded or withdrawn (status `superseded`/`withdrawn` at document, decision or `execution_admission` level, a non-null `superseded_by` -- `superseded_by: null` is accepted --, or any other decision file listing it under `supersedes`); and the file tracked by git and identical to HEAD. Any DEC id may be named, because the admission decision did not exist when v4 was frozen; the manifest records this under `inputs.admission_decision_pinning`;
+4. the admission decision passes v4 FX-1: a `coordinator_decision` with a matching id; `decision` exactly `admit_execution` (v4b A-2); `EXP-ICEX-aaccfc` in `target_ids`; `execution_admission.currently_admitted: true`; not superseded or withdrawn (status `superseded`/`withdrawn` at document, decision or `execution_admission` level, a non-null `superseded_by` -- `superseded_by: null` is accepted --, or any other decision file listing it under `supersedes`); and the file tracked by git and identical to HEAD. Any DEC id may be named, because the admission decision did not exist when v4 was frozen; the manifest records this under `inputs.admission_decision_pinning`;
 5. the trial plan's protocol hashes match the files on disk and the plan says protocol version 4;
 6. the protocol v4 records match: the three amendments and the fixtures against their pinned sha256, and the v3 and v4 amendment hashes against `amendment_sha256_at_decision` of DEC-20260929-a8d594 and DEC-20260929-986b4c;
-7. `--snapshot-receipt PATH` (v4 FX-6, required) pins every implementation `.py`, test and trial-plan file, every pinned implementation file matches, and `git status --porcelain --untracked-files=all` of the implementation directory is empty. The receipt file itself is excluded from every comparison;
-8. the run directory does not already exist.
+7. `--snapshot-receipt PATH` (v4 FX-6, required) is the dispatcher's own receipt (v4b G-3): `kind: snapshot`; a regular file (not a symlink) inside the repository at `.../archives/TASK-*/snapshot-receipt.json` whose `task_id` names that TASK directory; tracked by git, clean (`git status` empty, so neither modified nor staged-only) and byte-identical to `HEAD:<path>`. A copy elsewhere, an uncommitted or edited receipt, and a hand-written one are refused. The receipt then pins every implementation `.py`, test and trial-plan file, every pinned implementation file matches, and `git status --porcelain --untracked-files=all` of the implementation directory is empty. The receipt file itself is excluded from every comparison;
+8. `--runs-dir` is `experiments/EXP-ICEX-aaccfc/runs` (v4b G-2; exit 11 otherwise) and the run directory does not already exist.
 
 Then the run:
 
-- `manifest.yaml` is written with status `running` before C-1 and before the first cell, and rewritten after every cell. Its top-level `run:` block (id, experiment_id, hypothesis_id, protocol_version, status, code, environment, inputs, timing, resources, result, inference, artifacts) mirrors `EXP-SDEG-85eefd/runs/RUN-SDEG-3de103/manifest_v2.yaml`; `inputs.protocol` carries the path and sha256 of every governing record; `inputs.snapshot_verification` the FX-6 result. Driver detail (git state, cell list, C-1 result, audit outcome) sits under `driver:`.
+- Immediately after the run directory is created, before `environment.json` and the Sage probe, a stub `manifest.yaml` (`stub: true`, status `running`, driver pid, token hash) and `raw-result.json` are written (v4b G-4). If anything fails before the full record exists, the stub is rewritten as `failed_infrastructure` (failure class `exception` or `signal`, traceback under `driver.traceback`) with `raw-result.json` beside it.
+- The full `manifest.yaml` then replaces the stub with status `running` before C-1 and before the first cell, and is rewritten after every cell. `inputs.driver_pid` is the driver's pid and `inputs.run_token_sha256` the sha256 of a random 256-bit per-run token (`secrets.token_hex(32)`) that exists only in the driver and in the cells' environment (v4b G-2); the token itself is never written. Its top-level `run:` block (id, experiment_id, hypothesis_id, protocol_version, status, code, environment, inputs, timing, resources, result, inference, artifacts) mirrors `EXP-SDEG-85eefd/runs/RUN-SDEG-3de103/manifest_v2.yaml`; `inputs.protocol` carries the path and sha256 of every governing record; `inputs.snapshot_verification` the FX-6 result. Driver detail (git state, cell list, C-1 result, audit outcome) sits under `driver:`.
 - `command.txt`, `environment.json`, `stdout.log` and `stderr.log` are written first; `raw-result.json` (index of the cells attempted so far, with result sha256) is rewritten with every manifest write, so it exists on every path.
 - C-1 fixture reproduction (Sage, byte-compare); a mismatch is a procedure defect.
-- Each of the 30 cells runs in a fresh `nice -n 10` process; the driver passes the admission decision, repository root and run directory to it in the environment (read by the FX-4 guard).
+- Each of the 30 cells runs in a fresh `nice -n 10` process in its own session and process group (`start_new_session`, v4b G-1). The driver passes the admission decision, repository root, run directory, run token and its own pid in the environment, records the child's pid in `cells/<cell>/process.json`, and tracks reaping explicitly: `os.wait4(pid, WNOHANG)` is polled and only a returned pid equal to the child's counts as reaped (a live child returns 0). On every path that leaves without reaping -- an exception, or SIGTERM/SIGHUP/SIGINT raised as `RunInterrupted` -- the whole group is SIGKILLed and the child reaped; stray group members are killed after every cell. A SIGKILL of the driver cannot be caught, so the cell guards itself: see below.
 - Then `audit.json`, `metrics.json` (C-5; verdict withheld if the audit rejects), and after that `fxa_nonverdict.json`.
 - Failure mapping (v4 FX-3): a procedure defect (cell, C-1 mismatch, or an FX-A cross-check) records `invalid`; any other exception, a failed cell of another kind (including a rho crash on a zero target, per the A-3 ruling), or SIGTERM/SIGHUP/SIGINT records `failed_infrastructure`, with the traceback in `stderr.log` and under `driver.traceback`.
 
-## Cell guard (v4 FX-4)
+## Cell guard (v4 FX-4, v4b G-1, G-2, A-1)
 
-`cellrun.run_task` refuses (status `refused`, exit 3, no computation) any namespace that is neither `EXP-ICEX-aaccfc/v2` nor starts with `smoke|`. The frozen namespace is accepted only if the driver's environment names a decision that still passes `driver.check_decision` and a run directory whose manifest is a `running` run for that decision in that namespace. As an extra layer, `pipeline.run_*` raise `NamespaceRefused` for the frozen namespace unless `cellrun` has set `pipeline.FROZEN_ADMITTED` after its guard accepted. An inline fixture in a task is accepted only in a smoke namespace and never if it matches a frozen fixture.
+`cellrun.run_task` refuses (status `refused`, exit 3, no computation) any namespace that is neither `EXP-ICEX-aaccfc/v2` nor starts with `smoke|`. The frozen namespace is accepted only when all of these hold (v4b G-2):
+
+- the environment names the decision, repository root, run directory, run token and driver pid;
+- the run directory is `experiments/EXP-ICEX-aaccfc/runs/RUN-*`;
+- the decision still passes `driver.check_decision`;
+- the manifest is the full record (not the stub), status `running`, `id` equal to the directory name, for that decision and namespace, with `code.commit` equal to the repository HEAD;
+- `inputs.run_token_sha256` equals the sha256 of the token in the environment;
+- `inputs.driver_pid` equals the environment's driver pid, which is this process's live parent (`os.getppid()`) and whose command line runs this implementation directory's `driver.py` (psutil, with a `ps` fallback).
+
+A hand-written manifest cannot carry the hash of a token it never saw, nor name a live `driver.py` parent. As an extra layer, `pipeline.run_*` raise `NamespaceRefused` for the frozen namespace unless `cellrun` has set `pipeline.FROZEN_ADMITTED` after its guard accepted.
+
+Orphan protection (v4b G-1): when `ICEX_AACCFC_DRIVER_PID` is set, the cell refuses at once (exit 9, nothing written) if that pid is not its parent; otherwise a daemon thread polls `os.getppid()` every 0.2 s and calls `os._exit(9)` as soon as the process is re-parented. The result file is written to `result.json.tmp` and renamed into place only after a final parent check, so an orphan leaves no `result.json`.
+
+Fixtures (FX-5, v4b A-1): an inline fixture is accepted only in a smoke namespace and never if it matches a frozen fixture, and a smoke-namespace task may not name a fixture by bits/seed at all, so `cellrun` (which always persists its result) never evaluates a frozen fixture in the smoke namespace. `pipeline._ns_guard` additionally refuses a frozen fixture in any smoke namespace except the prefix `smoke|EXP-ICEX-aaccfc/v2|tests`. That prefix is the one exempt path: the in-process unit tests (`tests/conftest.py` `smoke_primary`, `test_charging`, `test_controls`, `test_fxa`) call `pipeline` directly and persist nothing. Those modules carry `PYTEST_DONT_REWRITE` (v4b A-3), so a failing assertion reports no compared value, and their assert messages are fixed strings.
 
 ## Smoke (implementation check only)
 
@@ -195,10 +209,14 @@ Each question below gives the literal reading this implementation uses. A differ
   - Reading: the named `complete_units_rj_incremental` covers stage-1 attempts only.
   - A supplementary with-descents figure is reported beside it. Both are non-verdict.
   - Ruled by v4 (AMD-20260929-5a84eb, OQ-15 ruling): accepted as implemented; both non-verdict.
-- **OQ-16 (new, v4): decision values accepted as an admission.** FX-1 says "an admission/approve decision". Reading: `decision` in {`admit_execution`, `approve_execution`, `admit`, `approve`}; the SDEG precedent used `admit_execution`. `approve_amendment` and every other value refuse.
+- **OQ-16 (v4): decision values accepted as an admission.** Resolved by the v4b instruction (A-2): only `admit_execution` admits; every other value refuses.
 - **OQ-17 (new, v4): superseding decisions that are not committed.** FX-1 names "a later committed decision". Reading (fail-closed): any decision file present in `ledger/decisions/` whose `supersedes` names the admission decision refuses, committed or not.
-- **OQ-18 (new, v4): tests still exercise frozen fixture b16-s21.** The pre-existing unit tests (`conftest.smoke_primary`, `test_charging`, `test_controls`, `test_fxa`) run pipeline code on frozen fixtures in the `smoke|...|tests` namespace. Nothing is committed or printed, and assertions are structural, but the process does evaluate cost on a frozen fixture at frozen (m, B). FX-5 names smoke runs only; moving these tests to `synthetic.py` would need their fixture-specific assertions rewritten. The Coordinator may rule.
+- **OQ-18 (new, v4): tests still exercise frozen fixture b16-s21.** The pre-existing unit tests (`conftest.smoke_primary`, `test_charging`, `test_controls`, `test_fxa`) run pipeline code on frozen fixtures in the `smoke|...|tests` namespace. Nothing is committed or printed, and assertions are structural, but the process does evaluate cost on a frozen fixture at frozen (m, B). v4b narrows this to the documented exempt path (A-1: only the `smoke|EXP-ICEX-aaccfc/v2|tests` prefix, in process, persisting nothing) and hides values on failure (A-3). Moving these tests to `synthetic.py` would still need their fixture-specific assertions rewritten; the Coordinator may rule.
 - **OQ-19 (new, v4): what the snapshot pins.** FX-6 reading: every `*.py` and `tests/*.py` and `trial-plan*.json` in the implementation directory must be pinned; other pinned implementation files (docs, smoke outputs) are hash-checked if the receipt lists them; governing records outside the directory (specification, amendments, decisions, fixtures) are bound by the protocol-v4 check instead. Sage is an external executable, recorded but not pinned.
+- **OQ-20 (new, v4b): a SIGKILLed driver leaves `status: running`.** Nothing can write after an uncatchable SIGKILL, so the manifest stays `running` while the orphaned cell exits unwritten (G-1). Reading: a `running` manifest whose `inputs.driver_pid` is no longer a live `driver.py` is a dead run and is to be read as `failed_infrastructure` (the cell guard already refuses it). No reconciler rewrites it, because run records are immutable; a Coordinator record would state it.
+- **OQ-21 (new, v4b): HEAD must not move during a run.** The G-2 guard requires `code.commit` to equal the repository HEAD at every cell launch. A commit in the run worktree during a run (for example by another session) refuses the next cell, which ends the run as `failed_infrastructure`. Reading: intended, fail-closed; the run needs a worktree nobody commits to.
+- **OQ-22 (new, v4b): orphan exit latency.** The watcher polls every 0.2 s; the final parent check before the rename leaves a window of microseconds. Measured in `test_process.py` under load: the orphan is gone well inside the test's 3 s bound. Reading: this meets "within about 1 s".
+- **OQ-23 (new, v4b): receipt path form.** G-3 reading: the receipt path must match `(.+/)?archives/TASK-<8 digits>-<3 to 6 hex>/snapshot-receipt.json`, and `task_id` must equal that TASK directory; the goal and batch prefix is not fixed. The legacy three-digit TASK form is accepted.
 - **OQ-14: memory and caps.**
   - The 8 GB limit is an in-process `ru_maxrss` guard, because macOS does not enforce RLIMIT_AS.
   - The machine caps (5,000,000 attempts per cell, 1,000,000 per descent) are machine protection. Reaching one is an infrastructure incompletion, never evidence.
@@ -207,4 +225,4 @@ Each question below gives the literal reading this implementation uses. A differ
 
 - Python 3.12.8, numpy 2.4.4, pytest 9.1.1.
 - Sage: `/Users/adamburan/.local/bin/sage`, which launches `/Volumes/SSD990/cryptanalysis/sage`, with `DOT_SAGE` under `$TMPDIR`. Sage is used only for C-1 reproduction.
-- The worktree is `/Volumes/SSD990/wt-amend-ic`, branch `coord/ic-leads-impl-20260928`. At the v4 repair HEAD was `37e2e7d72e19a5390883db8ab81634579da5abf8`; the tree is dirty only in this directory (plus untracked task directories of other sessions).
+- The worktree is `/Volumes/SSD990/wt-amend-ic`, branch `coord/ic-leads-impl-20260928`. At the v4 repair HEAD was `37e2e7d72e19a5390883db8ab81634579da5abf8`; at the v4b repair it was `eecc610b3c` (v4 snapshot TASK-20260929-8428ad, commit 9698f4a36a). The tree is dirty only in this directory (plus untracked task directories of other sessions). An untracked, git-ignored `__pycache__/` in this directory predates the v4b edits; it is neither pinned nor counted as dirty.

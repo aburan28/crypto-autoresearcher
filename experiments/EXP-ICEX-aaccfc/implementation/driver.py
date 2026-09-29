@@ -9,8 +9,8 @@ A charged run refuses to start unless, in this order:
     readings are recorded in the manifest;
   * --run-id is RUN-...;
   * --admission-decision names ledger/decisions/<DEC>.yaml (v4 FX-1): a
-    coordinator_decision whose id matches, whose `decision` is an admission
-    (ADMIT_DECISIONS), whose target_ids include EXP-ICEX-aaccfc, whose
+    coordinator_decision whose id matches, whose `decision` is exactly
+    admit_execution (v4b A-2), whose target_ids include EXP-ICEX-aaccfc, whose
     execution_admission.currently_admitted is exactly true, which is not
     superseded or withdrawn (a status of superseded/withdrawn, a non-null
     superseded_by -- null is accepted --, or any other decision listing it
@@ -19,19 +19,27 @@ A charged run refuses to start unless, in this order:
   * the protocol v4 records (three amendments, the v3 and v4 approving
     decisions, fixtures) match their pinned sha256, and the v3 and v4
     amendment hashes equal their decisions' amendment_sha256_at_decision;
-  * --snapshot-receipt PATH (v4 FX-6) pins every implementation .py, test and
-    trial-plan file, every pinned implementation file matches, and the
-    implementation tree is clean (the receipt file itself is excluded);
-  * runs/<RUN-ID>/ does not exist (run records are immutable).
+  * --snapshot-receipt PATH (v4 FX-6, v4b G-3) is a committed dispatcher
+    snapshot receipt (kind snapshot, .../archives/TASK-*/snapshot-receipt.json
+    inside the repository, tracked, clean, identical to HEAD) that pins every
+    implementation .py, test and trial-plan file, every pinned implementation
+    file matches, and the implementation tree is clean;
+  * --runs-dir is experiments/EXP-ICEX-aaccfc/runs (v4b G-2) and
+    runs/<RUN-ID>/ does not exist (run records are immutable).
 Then C-1 fixture reproduction (Sage, byte-compare; mismatch = procedure
-defect), each cell in a fresh `nice -n 10` process, the independent audit,
+defect), each cell in a fresh `nice -n 10` process in its own session (v4b
+G-1: killed and reaped with its group on every driver exit path; it exits
+unwritten if the driver disappears), the independent audit,
 the C-5 analysis (metrics.json) and only then the non-verdict FX-A figure
 (fxa_nonverdict.json).
 
 Run record (v4 FX-2/FX-3): manifest.yaml has a top-level `run:` block
 (id, experiment_id, status, code, environment, inputs, timing, resources,
-result, inference, ...) mirroring RUN-SDEG-3de103/manifest_v2.yaml, written
-with status running before the first cell and after every cell; a
+result, inference, ...) mirroring RUN-SDEG-3de103/manifest_v2.yaml. A stub
+(status running) is written immediately after the run directory is created,
+before the environment / Sage probe (v4b G-4); the full record carries the
+driver pid and the sha256 of a random per-run token that only the cells'
+environment holds (v4b G-2), and is rewritten after every cell; a
 ProcedureDefect records `invalid`, any other exception or SIGTERM/SIGHUP/SIGINT
 records `failed_infrastructure`; raw-result.json (index of cells attempted so
 far) is always written.
@@ -53,8 +61,10 @@ import argparse  # noqa: E402
 import datetime as dt  # noqa: E402
 import json  # noqa: E402
 import platform  # noqa: E402
+import hashlib  # noqa: E402
 import re  # noqa: E402
 import resource  # noqa: E402
+import secrets  # noqa: E402
 import signal  # noqa: E402
 import subprocess  # noqa: E402
 import sys  # noqa: E402
@@ -69,10 +79,15 @@ import common  # noqa: E402
 import hostinfo  # noqa: E402
 
 ADMISSION_TARGET = common.EXPERIMENT_ID
-ADMIT_DECISIONS = ("admit_execution", "approve_execution", "admit", "approve")
+ADMIT_DECISIONS = ("admit_execution",)
 DEAD_STATUSES = ("superseded", "withdrawn")
 ADMISSION_ENV, REPO_ENV, RUN_DIR_ENV = ("ICEX_AACCFC_ADMISSION_DECISION", "ICEX_AACCFC_REPO_ROOT",
                                         "ICEX_AACCFC_RUN_DIR")  # read by cellrun.admission_guard
+RUN_TOKEN_ENV = "ICEX_AACCFC_RUN_TOKEN"
+DRIVER_PID_ENV = "ICEX_AACCFC_DRIVER_PID"
+RUNS_ROOT = common.EXP_DIR / "runs"
+RUN_ID_RE = r"RUN-[A-Za-z0-9._-]+"
+RECEIPT_RE = r"(?:.+/)?archives/(TASK-\d{8}-[0-9a-f]{3,6})/snapshot-receipt\.json"
 ADMISSION_PINNING = ("any DEC id is accepted: the admission decision did not exist when protocol v4 was frozen, "
                      "so it cannot be pinned by id; it must instead pass every check_decision rule")
 
@@ -84,6 +99,7 @@ EXIT_PROCEDURE_DEFECT = 7
 EXIT_INFRASTRUCTURE = 8
 EXIT_REFUSED_HOST = 9
 EXIT_REFUSED_SNAPSHOT = 10
+EXIT_REFUSED_RUNS_DIR = 11
 
 # v4 FX-2: governing records -> (repo-relative path, pinned sha256 or None, approving-decision key or None)
 _R = common.REPO_ROOT
@@ -285,6 +301,42 @@ def implementation_files(impl_dir: Path = HERE) -> list:
             + sorted(impl_dir.glob("trial-plan*.json")))
 
 
+def check_receipt_file(repo_root: Path, receipt_path, rec: dict) -> tuple[bool, str]:
+    """v4b G-3: only the dispatcher's own snapshot receipt is accepted: kind
+    'snapshot', a regular file inside the repository at
+    .../archives/TASK-*/snapshot-receipt.json whose task_id names that TASK
+    directory, tracked by git, clean, and byte-identical to HEAD. A copy
+    elsewhere, an uncommitted or edited receipt, or a hand-written one fails."""
+    repo_root = Path(repo_root).resolve()
+    if rec.get("kind") != "snapshot":
+        return False, f"receipt kind {rec.get('kind')!r} is not 'snapshot'"
+    raw = Path(receipt_path)
+    if raw.is_symlink():
+        return False, "receipt is a symlink"
+    rp = raw.resolve()
+    try:
+        own = rp.relative_to(repo_root).as_posix()
+    except ValueError:
+        return False, "receipt is outside the repository"
+    m = re.fullmatch(RECEIPT_RE, own)
+    if not m:
+        return False, f"receipt path {own} is not .../archives/TASK-*/snapshot-receipt.json"
+    if rec.get("task_id") != m.group(1):
+        return False, f"receipt task_id {rec.get('task_id')!r} != archive directory {m.group(1)}"
+    if _git_rc(repo_root, "ls-files", "--error-unmatch", "--", own) != 0:
+        return False, f"receipt {own} is not tracked by git"
+    st = _git(repo_root, "status", "--porcelain", "--", own)
+    if st is None or st:
+        return False, f"receipt {own} is not clean in git ({st!r})"
+    try:
+        head = subprocess.run(["git", "-C", str(repo_root), "show", f"HEAD:{own}"], capture_output=True)
+    except OSError as e:
+        return False, f"git unavailable: {e}"
+    if head.returncode != 0 or head.stdout != rp.read_bytes():
+        return False, f"receipt {own} differs from HEAD"
+    return True, f"{own} is a committed snapshot receipt identical to HEAD"
+
+
 def verify_snapshot(repo_root: Path, receipt_path, impl_rel: str = common.IMPL_REL) -> tuple[bool, dict]:
     """Every receipt entry under the implementation directory matches the
     working tree, every implementation file is pinned, and the implementation
@@ -306,10 +358,12 @@ def verify_snapshot(repo_root: Path, receipt_path, impl_rel: str = common.IMPL_R
         return False, info
     info["receipt_sha256"] = common.sha256_file(rp)
     info["receipt_task_id"] = rec.get("task_id")
-    try:
-        own = str(rp.relative_to(repo_root))
-    except ValueError:
-        own = None
+    ok, why = check_receipt_file(repo_root, receipt_path, rec)
+    info["receipt_file_check"] = why
+    if not ok:
+        info["error"] = why
+        return False, info
+    own = str(rp.relative_to(repo_root))
     info["receipt_excluded"] = own
     prefix = impl_rel.rstrip("/") + "/"
     for rel, want in sorted(pins.items()):
@@ -329,7 +383,7 @@ def verify_snapshot(repo_root: Path, receipt_path, impl_rel: str = common.IMPL_R
     if st is None:
         info["error"] = "git status unavailable (fails closed)"
         return False, info
-    dirty = [ln for ln in st.splitlines() if own is None or not ln.endswith(own)]
+    dirty = [ln for ln in st.splitlines() if not ln.endswith(own)]
     info["dirty"] = bool(dirty)
     info["dirty_paths"] = dirty[:200]
     ok = not (info["mismatches"] or info["missing"] or info["unpinned"] or info["dirty"])
@@ -424,14 +478,55 @@ class Tee:
 
 
 # ------------------------------------------------------------------ cells
+def _kill_group(pgid: int) -> None:
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
 def run_cell_process(task: dict, cell_dir: Path, env=None) -> dict:
+    """v4b G-1: the cell runs in its own session / process group and is told
+    this driver's pid (it exits unwritten once re-parented). Reaping is
+    tracked explicitly (a live child's WNOHANG wait4 returns pid 0); on every
+    exit path that did not reap it -- exception, SIGTERM/SIGHUP/SIGINT via
+    RunInterrupted -- the whole group is SIGKILLed and the child reaped."""
     cell_dir.mkdir(parents=True)
     tpath, opath = cell_dir / "task.json", cell_dir / "result.json"
     tpath.write_text(json.dumps(task, sort_keys=True))
     cmd = ["nice", "-n", "10", sys.executable, str(HERE / "cellrun.py"), "--task", str(tpath), "--out", str(opath)]
     (cell_dir / "command.txt").write_text(" ".join(cmd) + "\n")
+    env = dict(os.environ if env is None else env)
+    env[DRIVER_PID_ENV] = str(os.getpid())
+    proc, reaped, status = None, False, None
     with open(cell_dir / "stdout.log", "w") as so, open(cell_dir / "stderr.log", "w") as se:
-        rc = subprocess.run(cmd, stdout=so, stderr=se, env=env).returncode
+        try:
+            proc = subprocess.Popen(cmd, stdout=so, stderr=se, env=env, start_new_session=True)
+            (cell_dir / "process.json").write_text(json.dumps(
+                {"pid": proc.pid, "pgid": proc.pid, "driver_pid": os.getpid(), "start_new_session": True}))
+            while True:
+                pid, st, _ = os.wait4(proc.pid, os.WNOHANG)
+                if pid == proc.pid:
+                    reaped, status = True, st
+                    break
+                time.sleep(0.2)
+        finally:
+            if proc is not None:
+                if not reaped:
+                    _kill_group(proc.pid)
+                    for _ in range(3):
+                        try:
+                            _, status = os.waitpid(proc.pid, 0)
+                            reaped = True
+                            break
+                        except ChildProcessError:
+                            break
+                        except BaseException:  # noqa: BLE001 - a second signal must not leave a zombie
+                            continue
+                _kill_group(proc.pid)  # stray grandchildren
+                if reaped:
+                    proc.returncode = os.waitstatus_to_exitcode(status)
+    rc = proc.returncode
     if not opath.exists():
         return {"task": task, "status": "infrastructure_incomplete", "reason": f"no result (exit {rc})",
                 "exit_code": rc}
@@ -542,6 +637,40 @@ class RunRecord:
         os.replace(tmp, self.run_dir / "raw-result.json")
 
 
+def token_sha256(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def write_stub_manifest(run_dir: Path, args, command: str, ns: str, dry, started: str, status: str,
+                        token_hash: str | None, failure: str | None = None, failure_class: str | None = None,
+                        tb: str | None = None) -> None:
+    """v4b G-4: minimal run record written immediately after the run
+    directory is created (status running, before the environment / Sage
+    probe) and, if the full RunRecord never came into existence, rewritten as
+    failed with raw-result.json beside it. `stub: true` marks it; the cell
+    guard refuses a stub manifest."""
+    import yaml
+    done = status != "running"
+    run = {"id": args.run_id, "experiment_id": common.EXPERIMENT_ID, "hypothesis_id": common.HYPOTHESIS_ID,
+           "protocol_version": common.PROTOCOL_VERSION, "status": status, "stub": True,
+           "stub_note": "written before the full run record existed",
+           "failure_class": failure_class, "failure_reason": failure,
+           "code": {"command": command},
+           "inputs": {"admission_decision": None if dry else args.admission_decision, "namespace": ns,
+                      "dry_run": bool(dry), "driver_pid": os.getpid(), "run_token_sha256": token_hash},
+           "timing": {"started_at": started, "finished_at": _now() if done else None},
+           "result": {"valid": False if done else None, "invalid_reason": failure, "raw": "raw-result.json",
+                      "certificate": {"kind": "discrete_log", "verified": None}}}
+    doc = {"run": run, "driver": {"traceback": tb[-4000:]} if tb else {}}
+    tmp = run_dir / "manifest.yaml.tmp"
+    tmp.write_text(yaml.safe_dump(doc, sort_keys=False))
+    os.replace(tmp, run_dir / "manifest.yaml")
+    tmp = run_dir / "raw-result.json.tmp"
+    tmp.write_text(json.dumps({"run_id": args.run_id, "status": status, "cells": [],
+                               "note": "stub: no cell was attempted"}, indent=1, sort_keys=True))
+    os.replace(tmp, run_dir / "raw-result.json")
+
+
 def _raise_signal(signum, frame):
     raise RunInterrupted(f"signal {signal.Signals(signum).name}")
 
@@ -551,8 +680,12 @@ def execute(args, plan, readings, decision_path, dry, command: str, binding: dic
     import audit
     import pipeline
     run_dir = Path(args.runs_dir) / args.run_id
-    run_dir.mkdir(parents=True)
     ns, tasks = selection(plan, dry)
+    started = _now()
+    token = secrets.token_hex(32)
+    token_hash = None if dry else token_sha256(token)
+    run_dir.mkdir(parents=True)
+    write_stub_manifest(run_dir, args, command, ns, dry, started, "running", token_hash)
     old_out, old_err = sys.stdout, sys.stderr
     tee_out, tee_err = Tee(old_out, run_dir / "stdout.log"), Tee(old_err, run_dir / "stderr.log")
     sys.stdout, sys.stderr = tee_out, tee_err
@@ -563,6 +696,7 @@ def execute(args, plan, readings, decision_path, dry, command: str, binding: dic
         except ValueError:  # not the main thread
             pass
     rec = None
+    err = None
     code = 0
     try:
         (run_dir / "command.txt").write_text(command + "\n")
@@ -570,11 +704,15 @@ def execute(args, plan, readings, decision_path, dry, command: str, binding: dic
         (run_dir / "environment.json").write_text(json.dumps(env_info, indent=1))
         rec = RunRecord(run_dir, args, command, env_info, common.sha256_file(args.plan), ns, dry, tasks, readings,
                         decision_path, binding, snapshot, git_state(Path(args.repo_root)))
+        rec.started = started
+        rec.run["inputs"]["driver_pid"] = os.getpid()
+        rec.run["inputs"]["run_token_sha256"] = token_hash
         rec.write()
-        child_env = {k: v for k, v in os.environ.items() if k not in (ADMISSION_ENV, REPO_ENV, RUN_DIR_ENV)}
+        child_env = {k: v for k, v in os.environ.items()
+                     if k not in (ADMISSION_ENV, REPO_ENV, RUN_DIR_ENV, RUN_TOKEN_ENV, DRIVER_PID_ENV)}
         if not dry:
             child_env.update({ADMISSION_ENV: args.admission_decision, REPO_ENV: str(Path(args.repo_root).resolve()),
-                              RUN_DIR_ENV: str(run_dir.resolve())})
+                              RUN_DIR_ENV: str(run_dir.resolve()), RUN_TOKEN_ENV: token})
         rep = common.reproduce_fixtures(run_dir / "fixture_reproduction.json.out")
         (run_dir / "fixture_reproduction.json").write_text(json.dumps(rep, indent=1))
         rec.driver["fixture_reproduction"] = {k: rep.get(k) for k in (
@@ -643,12 +781,14 @@ def execute(args, plan, readings, decision_path, dry, command: str, binding: dic
             raise RunProcedureDefect(f"FX-A cross-check: {e}") from e
     except RunProcedureDefect as e:
         code = EXIT_PROCEDURE_DEFECT
+        err = (e, traceback.format_exc())
         traceback.print_exc()
         if rec is not None:
             rec.status = "invalid"
             rec.failure_class = rec.failure_class or "procedure_defect"
             rec.failure_reason = str(e)
     except BaseException as e:  # noqa: BLE001 - exceptions and signals -> failed_infrastructure
+        err = (e, traceback.format_exc())
         traceback.print_exc()
         if isinstance(e, pipeline.ProcedureDefect):
             code = EXIT_PROCEDURE_DEFECT
@@ -663,12 +803,19 @@ def execute(args, plan, readings, decision_path, dry, command: str, binding: dic
             rec.failure_reason = f"{type(e).__name__}: {e}"
             rec.driver["traceback"] = traceback.format_exc()[-4000:]
     finally:
-        if rec is not None:
-            rec.finished = _now()
-            try:
+        try:
+            if rec is not None:
+                rec.finished = _now()
                 rec.write()
-            except Exception:  # noqa: BLE001
-                traceback.print_exc()
+            else:
+                code = code or EXIT_INFRASTRUCTURE
+                exc, tb = err or (None, None)
+                write_stub_manifest(run_dir, args, command, ns, dry, started, "failed_infrastructure", token_hash,
+                                    f"{type(exc).__name__}: {exc}" if exc else "run record not created",
+                                    "signal" if isinstance(exc, (RunInterrupted, KeyboardInterrupt)) else "exception",
+                                    tb)
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
         for s, h in old_handlers.items():
             signal.signal(s, h)
         sys.stdout, sys.stderr = old_out, old_err
@@ -749,7 +896,7 @@ def main(argv=None) -> int:
         return EXIT_REFUSED_ADMISSION
     if args.check_admission_only:
         return 0
-    if not args.run_id or not re.fullmatch(r"RUN-[A-Za-z0-9._-]+", args.run_id):
+    if not args.run_id or not re.fullmatch(RUN_ID_RE, args.run_id):
         print("REFUSED: --run-id RUN-... required", file=sys.stderr)
         return EXIT_REFUSED_DECISION
     dok, decision_path = check_decision(repo_root, args.admission_decision)
@@ -768,6 +915,9 @@ def main(argv=None) -> int:
     if not sok:
         print(f"REFUSED: snapshot receipt check failed: {json.dumps(snapshot)}", file=sys.stderr)
         return EXIT_REFUSED_SNAPSHOT
+    if Path(args.runs_dir).resolve() != RUNS_ROOT.resolve():
+        print(f"REFUSED: a scientific run is written only under {RUNS_ROOT}/RUN-*", file=sys.stderr)
+        return EXIT_REFUSED_RUNS_DIR
     if (Path(args.runs_dir) / args.run_id).exists():
         print(f"REFUSED: {Path(args.runs_dir) / args.run_id} exists (run records are immutable)", file=sys.stderr)
         return EXIT_REFUSED_EXISTS

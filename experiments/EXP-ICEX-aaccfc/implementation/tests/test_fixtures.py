@@ -1,4 +1,7 @@
-"""C-1: fixture regeneration byte-compare and frozen hashes."""
+"""C-1: fixture regeneration byte-compare and frozen hashes.
+
+PYTEST_DONT_REWRITE (v4b A-3): this module evaluates frozen fixtures, so assertion
+rewriting is disabled and a failing assert reports no compared values."""
 
 import json
 
@@ -23,7 +26,7 @@ def test_six_fixtures_as_frozen():
 def test_generator_reproduces_frozen_json_byte_for_byte(tmp_root):
     out = tmp_root / "fixtures_regenerated.json"
     rep = common.reproduce_fixtures(out)
-    assert rep["returncode"] == 0, rep["stderr_tail"]
-    assert rep["byte_identical"], rep
+    assert rep["returncode"] == 0, "Sage fixture regeneration failed"
+    assert rep["byte_identical"], "fixture reproduction not byte-identical"
     assert rep["reproduced_sha256"] == common.FROZEN_JSON_SHA256
     assert json.loads(out.read_text())["EXP-ICEX-aaccfc"] == common.load_fixtures()
