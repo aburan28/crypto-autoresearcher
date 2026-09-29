@@ -4,9 +4,10 @@ of identities, controls, run-record conformance and agreement. The summary
 omits every treatment delta reading, ER-null delta input and subcritical-rule
 input, and never calls the verdict rule.
 
-AMD-20260929-cc7226 FX-6: every smoke budget differs from every frozen A1/A2
-budget of the trial plan (all nine fixtures); a clash is refused here and in
-driver.py. Output goes under smoke/v4/; the earlier smoke/dry/ and
+AMD-20260929-cc7226 FX-6 / OQ-24: every smoke budget differs from every frozen
+A1/A2 budget of the trial plan (all nine fixtures) and lies more than a factor
+1.25 from the same fixture's frozen A1 and A2; a violation is refused here and
+in driver.py. Output goes under smoke/v4/; the earlier smoke/dry/ and
 smoke/smoke_summary.json are immutable and never rewritten.
 
   DRYRUN-v4-tiny      A1'=64,  A2'=256,  4 null replicates, 2 rho targets
@@ -36,9 +37,9 @@ CONFIGS = {"DRYRUN-v4-tiny": (64, 256, 4, 2), "DRYRUN-v4-controls": (400, 1500, 
 RUN_KEYS = ("id", "experiment_id", "status", "code", "environment", "inputs", "timing", "result")
 
 
-def check_budgets(plan: dict, configs=CONFIGS) -> list:
-    frozen = driver.frozen_budgets(plan)
-    return sorted((rid, a) for rid, (a1, a2, _, _) in configs.items() for a in (a1, a2) if a in frozen)
+def check_budgets(plan: dict, configs=CONFIGS, fixture=FIXTURE) -> list:
+    return sorted((rid, v) for rid, (a1, a2, _, _) in configs.items()
+                  for v in driver.smoke_budget_violations(plan, fixture, (a1, a2)))
 
 
 def summarize(run_dir: Path) -> dict:

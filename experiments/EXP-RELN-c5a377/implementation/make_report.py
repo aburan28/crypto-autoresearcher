@@ -141,6 +141,23 @@ OPEN_QUESTIONS = [
      "implementation/ (untracked included, ignored excluded) must be empty. Any file added under "
      "implementation/ after the snapshot (including smoke output) therefore blocks a scientific run until "
      "a new snapshot covers it."),
+    ("OQ-27", "R-3 margin boundary and scope",
+     "'within a factor 1.25' does not say whether exactly 1.25 counts, or whether other fixtures' budgets count.",
+     "Refused when max(b, f) / min(b, f) <= 1.25 against the same fixture's frozen A1 and A2 (inclusive), plus "
+     "exact equality with any fixture's frozen A1/A2. Near values on other fixtures (e.g. 256 vs b16-s11's 249) "
+     "are allowed: different curves."),
+    ("OQ-28", "R-5 strength of the run-provenance check",
+     "What the celltask guard authenticates.",
+     "The manifest must name the live parent process running driver.py (pid = getppid) and carry the sha256 of a "
+     "random per-run token that only the driver's children receive in their environment. This stops a "
+     "hand-written manifest or a hand-launched celltask; it is not a defence against a same-user process that "
+     "reads the child environment. The receipt must be kind 'snapshot', under archives/, tracked, clean and "
+     "equal to its HEAD blob; the admission decision may additionally pin the receipt task id or sha256 "
+     "(not enforced by code)."),
+    ("OQ-29", "Driver SIGKILL",
+     "SIGKILL cannot be caught, so the driver cannot kill its cell or finalise the manifest.",
+     "Each cell watches its parent and exits (code 9) once re-parented, so no cell outlives a killed driver by "
+     "more than about 1 s and it writes no cell JSON. The manifest then stays 'running' (OQ-26)."),
     ("OQ-26", "v4 run status vocabulary",
      "FX-1 names failed_infrastructure; the status for a stopped procedure defect is not named.",
      "completed_valid (all cells, no defect); invalid with failure_class procedure_defect (a failed "
@@ -154,6 +171,8 @@ RULINGS = {
     "OQ-13": "v4 F-4: below the gate-reachable |V| for the fixture's L the known positive is not_exercised "
              "(not a defect, run continues; reported as lacking power confirmation). Implemented in celltask.py "
              "and analysis.py.",
+    "OQ-24": "Re-check TASK-20260929-2ec518 R-3: the same-fixture factor-1.25 margin is now enforced in driver.py "
+             "and smoke.py (see OQ-27).",
     "OQ-14": "v4 FX-4: recovery fraction reported as 'undetermined' where known_false = not_exercised "
              "(analysis.py table).",
 }
@@ -177,10 +196,12 @@ def main():
                    and p != REPORT and p.name != "repair_report_v4.yaml")
     smoke = json.loads((HERE / "smoke" / "v4" / "smoke_summary.json").read_text())
     rep = {"implementation_report": {
-        "task_id": "TASK-20260929-b72e82", "prior_task_ids": ["TASK-20260929-7e6ea7"],
+        "task_id": "TASK-20260929-b81ea5", "prior_task_ids": ["TASK-20260929-7e6ea7", "TASK-20260929-b72e82"],
         "experiment_id": "EXP-RELN-c5a377", "protocol_version": driver.PROTOCOL_VERSION,
         "protocol_files": {k: v for k, v in driver.protocol_binding(driver.REPO_ROOT_DEFAULT)["records"].items()},
-        "repair_report": "repair_report_v4.yaml",
+        "repair_reports": ["repair_report_v4.yaml", "repair_report_v4b.yaml"],
+        "repair_report_note": "repair_report_v4b.yaml supersedes by reference the FX-1 claim 'child process killed on "
+                              "interruption' in repair_report_v4.yaml (false at that snapshot; fixed as R-1).",
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "scientific_runs": 0, "run_directories_created": [],
         "execution_admitted": False,

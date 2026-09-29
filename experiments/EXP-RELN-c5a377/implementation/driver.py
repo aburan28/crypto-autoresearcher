@@ -15,20 +15,31 @@ Protocol v4 = specification.yaml + AMD-20260926-a7d25d + AMD-20260929-988139
     fixture JSON and generator, and the fixture JSON matches the frozen hash;
   * the v3/v4 amendments and their approving decisions exist and the
     amendments carry the hashes pinned here and in the decisions (FX-2);
-  * --snapshot-receipt PATH lists every implementation file with the sha256
-    found in the working tree, and the implementation tree is clean (FX-5).
+  * --snapshot-receipt PATH is a kind 'snapshot' receipt under an archives/
+    directory, committed at HEAD and clean in git, listing every
+    implementation file with the sha256 found in the working tree, and the
+    implementation tree is clean (FX-5, R-5).
 
-Each fixture runs in a fresh process (celltask.py) under nice; its own peak
-RSS comes from os.wait4 and a psutil watchdog kills it above 8 GiB
-(resource_exhaustion, an infrastructure outcome). The run stops at the first
-procedure defect (failed identity or control).
+Each fixture runs in a fresh process (celltask.py) under nice, in its own
+process group; its own peak RSS comes from os.wait4 and a psutil watchdog
+kills the group above 8 GiB (resource_exhaustion, an infrastructure outcome).
+If the driver is interrupted or raises while a cell runs, the group is killed
+and the child reaped before the final manifest is written (R-1). A frozen-
+namespace child gets the decision, run directory and a per-run random token;
+the manifest records the driver pid and the token's sha256 (R-5). Every
+child also gets the driver pid and exits if it is re-parented, which covers
+an uncatchable SIGKILL of the driver. The run
+stops at the first procedure defect (failed identity or control).
 
 Run record (FX-1): manifest.yaml carries the canonical top-level run: block
 (docs/evidence-and-reproducibility.md) plus a driver: companion block; it is
 written with status running before the first cell and rewritten after every
-cell. The driver console is teed to stdout.log / stderr.log in the run
-directory. An exception or SIGTERM/SIGHUP/SIGINT is recorded as
-failed_infrastructure.
+cell. A stub manifest is written before the environment probe and marked
+failed_infrastructure if the full record never came into existence (R-2).
+The driver console is teed to stdout.log / stderr.log in the run directory.
+An exception or SIGTERM/SIGHUP/SIGINT is recorded as failed_infrastructure.
+Smoke budgets must not equal any frozen A1/A2 and must lie more than a factor
+1.25 from the same fixture's frozen A1 and A2 (FX-6, R-3).
 
   python3 driver.py --check-admission-only
   python3 driver.py --run-id RUN-... --admission-decision DEC-... --snapshot-receipt PATH
@@ -44,6 +55,7 @@ import json
 import os
 import platform
 import re
+import secrets
 import signal
 import subprocess
 import sys
@@ -98,6 +110,8 @@ EXIT_REFUSED_SNAPSHOT = 10
 ADMISSION_ENV = "RELN_C5A377_ADMISSION_DECISION"
 REPO_ENV = "RELN_C5A377_REPO_ROOT"
 RUN_DIR_ENV = "RELN_C5A377_RUN_DIR"
+RUN_TOKEN_ENV = "RELN_C5A377_RUN_TOKEN"
+DRIVER_PID_ENV = "RELN_C5A377_DRIVER_PID"
 
 
 class RunInterrupted(Exception):
@@ -274,7 +288,26 @@ def verify_snapshot(repo_root: Path, receipt_path) -> tuple[bool, dict]:
     try:
         own = str(rp.relative_to(repo_root))
     except ValueError:
-        own = None
+        info["error"] = "receipt is outside the repository"
+        return False, info
+    info["receipt_path"] = own
+    if rec.get("kind") != "snapshot":
+        info["error"] = f"receipt kind {rec.get('kind')!r} is not 'snapshot'"
+        return False, info
+    if "archives" not in Path(own).parts:
+        info["error"] = "receipt is not under an archives/ directory"
+        return False, info
+    tracked = _git(repo_root, "ls-files", "--error-unmatch", "--", own)
+    rstat = _git(repo_root, "status", "--porcelain", "--", own)
+    if not tracked or rstat is None or rstat:
+        info["error"] = "receipt is not committed at HEAD and clean in git"
+        info["receipt_git_status"] = rstat
+        return False, info
+    head_blob = subprocess.run(["git", "-C", str(repo_root), "show", f"HEAD:{own}"], capture_output=True)
+    if head_blob.returncode != 0 or head_blob.stdout != rp.read_bytes():
+        info["error"] = "receipt content differs from HEAD"
+        return False, info
+    info["receipt_committed_at_head"] = True
     prefix = IMPL_REL + "/"
     for rel, want in sorted(pins.items()):
         if rel == own or not rel.startswith(prefix):
@@ -364,40 +397,57 @@ def _now():
     return dt.datetime.now(dt.timezone.utc).isoformat()
 
 
+def _kill_group(pgid: int) -> None:
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
 def run_cell(cmd: list, log_dir: Path, name: str, psutil, env=None) -> dict:
-    """Fresh process; per-child peak RSS via os.wait4; RSS watchdog at 8 GiB."""
+    """Fresh process in its own process group; per-child peak RSS via os.wait4;
+    RSS watchdog at 8 GiB. Reaping is tracked explicitly: if the loop is left
+    before the child was reaped (signal, exception), the whole group is killed
+    and the child is reaped before returning or re-raising."""
     if psutil is None:
         raise RuntimeError("memory watchdog unavailable (psutil missing); refusing to launch a cell")
     out = open(log_dir / f"{name}.stdout.log", "x")
     err = open(log_dir / f"{name}.stderr.log", "x")
     t0 = time.time()
-    proc = subprocess.Popen(cmd, stdout=out, stderr=err, cwd=str(HERE), env=env)
-    killed, peak_polled, status, ru = False, 0, None, None
+    proc = subprocess.Popen(cmd, stdout=out, stderr=err, cwd=str(HERE), env=env, start_new_session=True)
+    killed, peak_polled, status, ru, reaped = False, 0, None, None, False
     try:
         while True:
-            pid, status, ru = os.wait4(proc.pid, os.WNOHANG)
-            if pid:
+            pid, st, r = os.wait4(proc.pid, os.WNOHANG)
+            if pid == proc.pid:
+                status, ru, reaped = st, r, True
+                proc.returncode = os.waitstatus_to_exitcode(st)
                 break
             try:
                 rss = psutil.Process(proc.pid).memory_info().rss
                 peak_polled = max(peak_polled, rss)
                 if rss > MEMORY_LIMIT_BYTES:
-                    proc.kill()
+                    _kill_group(proc.pid)
                     killed = True
             except psutil.Error:
                 pass
             time.sleep(0.5)
     finally:
-        if status is None:
-            proc.kill()
-            proc.wait()
+        if not reaped:
+            _kill_group(proc.pid)
+            try:
+                _, st, _ = os.wait4(proc.pid, 0)
+                proc.returncode = os.waitstatus_to_exitcode(st)
+            except ChildProcessError:
+                pass
+        _kill_group(proc.pid)  # stray grandchildren, if any
         out.close()
         err.close()
     maxrss = ru.ru_maxrss if sys.platform == "darwin" else ru.ru_maxrss * 1024
     return {"returncode": os.waitstatus_to_exitcode(status), "peak_rss_bytes": maxrss,
             "peak_rss_polled_bytes": peak_polled, "killed_by_memory_watchdog": killed,
             "wall_seconds": time.time() - t0, "cpu_user_seconds": ru.ru_utime,
-            "cpu_system_seconds": ru.ru_stime}
+            "cpu_system_seconds": ru.ru_stime, "process_group": proc.pid}
 
 
 class Tee:
@@ -509,6 +559,31 @@ class RunRecord:
         os.replace(tmp, self.run_dir / "raw-result.json")
 
 
+def token_sha256(token: str) -> str:
+    import hashlib
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def write_stub_manifest(run_dir: Path, args, command: str, ns: str, dry, started: str, status: str,
+                        failure: str | None = None, failure_class: str | None = None) -> None:
+    """Minimal run: block, written before the environment probe (R-2) and, if
+    the full record never came into existence, rewritten as failed."""
+    import yaml
+    done = status != "running"
+    run = {"id": args.run_id, "experiment_id": ADMISSION_TARGET, "hypothesis_id": HYPOTHESIS_ID,
+           "protocol_version": PROTOCOL_VERSION, "status": status, "stub": True,
+           "stub_note": "written before the full run record existed",
+           "failure_class": failure_class, "failure_reason": failure,
+           "code": {"command": command},
+           "inputs": {"admission_decision": args.admission_decision, "namespace": ns, "dry_run": dry},
+           "timing": {"started_at": started, "finished_at": _now() if done else None},
+           "result": {"valid": False if done else None, "invalid_reason": failure,
+                      "certificate": {"kind": "decomposition", "verified": None}}}
+    tmp = run_dir / "manifest.yaml.tmp"
+    tmp.write_text(yaml.safe_dump({"run": run}, sort_keys=False))
+    os.replace(tmp, run_dir / "manifest.yaml")
+
+
 def _raise_signal(signum, frame):
     raise RunInterrupted(f"signal {signal.Signals(signum).name}")
 
@@ -537,20 +612,27 @@ def execute(args, plan, readings, decision_path, dry, command: str, binding: dic
             pass
     rec = None
     code = 0
+    started = _now()
+    token = secrets.token_hex(32)
     try:
         (run_dir / "command.txt").write_text(command + "\n")
+        write_stub_manifest(run_dir, args, command, ns, dry, started, "running")
         env_info = environment_info()
         (run_dir / "environment.json").write_text(json.dumps(env_info, indent=1))
         rec = RunRecord(run_dir, args, command, env_info, fixtures.sha256_file(args.plan), ns, dry, order,
                         readings, decision_path, binding, snapshot, git_state(Path(args.repo_root)))
+        rec.started = started
+        rec.run["inputs"]["driver_pid"] = os.getpid()
+        rec.run["inputs"]["run_token_sha256"] = None if dry else token_sha256(token)
         rec.write()
         child_env = dict(os.environ)
-        for k in (ADMISSION_ENV, REPO_ENV, RUN_DIR_ENV):
+        for k in (ADMISSION_ENV, REPO_ENV, RUN_DIR_ENV, RUN_TOKEN_ENV):
             child_env.pop(k, None)
+        child_env[DRIVER_PID_ENV] = str(os.getpid())
         if not dry:
             child_env.update({ADMISSION_ENV: args.admission_decision,
                               REPO_ENV: str(Path(args.repo_root).resolve()),
-                              RUN_DIR_ENV: str(run_dir.resolve())})
+                              RUN_DIR_ENV: str(run_dir.resolve()), RUN_TOKEN_ENV: token})
         for fid in order:
             r = fx_rows[fid]
             a1 = dry["a1"] if dry else r["A1"]
@@ -596,10 +678,14 @@ def execute(args, plan, readings, decision_path, dry, command: str, binding: dic
     except BaseException as e:  # exceptions and signals -> failed_infrastructure
         code = EXIT_INFRASTRUCTURE
         traceback.print_exc()
+        fclass = "signal" if isinstance(e, (RunInterrupted, KeyboardInterrupt)) else "exception"
         if rec is not None:
             rec.status = "failed_infrastructure"
-            rec.failure_class = "signal" if isinstance(e, (RunInterrupted, KeyboardInterrupt)) else "exception"
+            rec.failure_class = fclass
             rec.failure_reason = f"{type(e).__name__}: {e}"
+        else:
+            write_stub_manifest(run_dir, args, command, ns, dry, started, "failed_infrastructure",
+                                f"{type(e).__name__}: {e}", fclass)
     finally:
         if rec is not None:
             rec.finished = _now()
@@ -614,6 +700,27 @@ def execute(args, plan, readings, decision_path, dry, command: str, binding: dic
 
 def frozen_budgets(plan: dict) -> set:
     return {int(f[k]) for f in plan["fixtures"] for k in ("A1", "A2")}
+
+
+SMOKE_MARGIN = 1.25
+
+
+def smoke_budget_violations(plan: dict, fixture_id: str, budgets) -> list:
+    """FX-6 / OQ-24 (R-3): a smoke budget may not equal any frozen A1/A2 of any
+    fixture, nor lie within a factor SMOKE_MARGIN (inclusive) of the same
+    fixture's frozen A1 or A2."""
+    frozen = frozen_budgets(plan)
+    row = next((f for f in plan["fixtures"] if f["fixture_id"] == fixture_id), None)
+    same = [int(row[k]) for k in ("A1", "A2")] if row else []
+    out = []
+    for b in budgets:
+        b = int(b)
+        if b in frozen:
+            out.append(f"{b} equals a frozen A1/A2 budget")
+        for f in same:
+            if b <= 0 or max(b, f) / min(b, f) <= SMOKE_MARGIN:
+                out.append(f"{b} is within a factor {SMOKE_MARGIN} of {fixture_id} frozen budget {f}")
+    return out
 
 
 def main(argv=None) -> int:
@@ -660,17 +767,16 @@ def main(argv=None) -> int:
             print(f"REFUSED: unknown --dry-fixture {args.dry_fixture}", file=sys.stderr)
             return EXIT_REFUSED_PLAN
         frozen = frozen_budgets(plan)
-        clash = sorted({args.dry_a1, args.dry_a2} & frozen)
+        clash = smoke_budget_violations(plan, args.dry_fixture, (args.dry_a1, args.dry_a2))
         if clash:
-            print(f"REFUSED: smoke budgets {clash} equal a frozen A1/A2 budget (AMD-20260929-cc7226 FX-6)",
-                  file=sys.stderr)
+            print(f"REFUSED: smoke budgets violate FX-6 / OQ-24: {clash}", file=sys.stderr)
             return EXIT_REFUSED_PLAN
         snapshot = None
         if args.snapshot_receipt:
             _, snapshot = verify_snapshot(repo_root, args.snapshot_receipt)
         dry = {"fixtures": [args.dry_fixture], "a1": args.dry_a1, "a2": args.dry_a2,
                "replicates": args.dry_replicates, "rho_targets": args.dry_rho_targets,
-               "frozen_budgets_checked": sorted(frozen), "C7_not_enforced": {"ok": ok, "reasons": reasons}}
+               "frozen_budgets_checked": sorted(frozen), "same_fixture_margin": SMOKE_MARGIN, "C7_not_enforced": {"ok": ok, "reasons": reasons}}
         return execute(args, plan, readings, "smoke-dry-run (no admission decision)", dry, command,
                        binding, snapshot, psutil)
     print(json.dumps({"admission_readings_C7": readings}, indent=1))

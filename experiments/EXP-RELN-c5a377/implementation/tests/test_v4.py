@@ -343,13 +343,13 @@ def snap_repo(tmp_path, monkeypatch):
     _git(root, "init", "-q")
     monkeypatch.setattr(driver, "HERE", impl)
 
-    def receipt(extra=None, where=None):
+    def receipt(extra=None, where=None, kind="snapshot"):
         pins = {f"{driver.IMPL_REL}/{p}": fixtures.sha256_file(impl / p)
                 for p in ("a.py", "tests/test_a.py", "trial-plan-v2.json")}
-        rp = where or (root / "coordination" / "receipt.json")
+        rp = where or (root / "coordination" / "archives" / "TASK-x" / "snapshot-receipt.json")
         rp.parent.mkdir(parents=True, exist_ok=True)
         pins.update(extra or {})
-        rp.write_text(json.dumps({"task_id": "TASK-x", "path_sha256": pins}))
+        rp.write_text(json.dumps({"task_id": "TASK-x", "kind": kind, "path_sha256": pins}))
         return rp
     return root, impl, receipt
 
@@ -366,8 +366,8 @@ def test_fx5_snapshot_receipt_match_and_clean(snap_repo):
 
 def test_fx5_snapshot_receipt_excludes_itself(snap_repo):
     root, impl, receipt = snap_repo
-    rp = impl / "receipt.json"
-    receipt(extra={f"{driver.IMPL_REL}/receipt.json": "0" * 64}, where=rp)
+    rp = impl / "archives" / "receipt.json"
+    receipt(extra={f"{driver.IMPL_REL}/archives/receipt.json": "0" * 64}, where=rp)
     _git(root, "add", "-A")
     _git(root, "commit", "-qm", "x")
     ok, info = driver.verify_snapshot(root, rp)
@@ -410,7 +410,7 @@ def test_fx5_main_requires_snapshot_receipt(monkeypatch, tmp_path):
 
 
 def test_fx5_celltask_refuses_frozen_namespace_without_admitted_driver(monkeypatch, tmp_path):
-    for k in (driver.ADMISSION_ENV, driver.REPO_ENV, driver.RUN_DIR_ENV):
+    for k in (driver.ADMISSION_ENV, driver.REPO_ENV, driver.RUN_DIR_ENV, driver.RUN_TOKEN_ENV):
         monkeypatch.delenv(k, raising=False)
     assert celltask.admission_guard(labels.SMOKE_NS)[0]
     ok, why = celltask.admission_guard(labels.FROZEN_NS)
@@ -424,29 +424,77 @@ def test_fx5_celltask_refuses_frozen_namespace_without_admitted_driver(monkeypat
     monkeypatch.setenv(driver.ADMISSION_ENV, "DEC-20260929-7a62cc")
     monkeypatch.setenv(driver.REPO_ENV, str(REPO))
     monkeypatch.setenv(driver.RUN_DIR_ENV, str(tmp_path))
+    monkeypatch.setenv(driver.RUN_TOKEN_ENV, "tok")
     ok, why = celltask.admission_guard(labels.FROZEN_NS)
     assert not ok and "currently_admitted" in why
 
 
-def test_fx5_celltask_guard_accepts_running_admitted_manifest(monkeypatch, tmp_path):
+def _guard_env(monkeypatch, tmp_path, token="tok"):
     monkeypatch.setattr(driver, "check_decision", lambda root, d: (True, "synthetic"))
     monkeypatch.setenv(driver.ADMISSION_ENV, "DEC-20990101-aaaaaa")
     monkeypatch.setenv(driver.REPO_ENV, str(tmp_path))
     monkeypatch.setenv(driver.RUN_DIR_ENV, str(tmp_path))
+    monkeypatch.setenv(driver.RUN_TOKEN_ENV, token)
     man = {"run": {"id": "RUN-t", "status": "running",
-                   "inputs": {"admission_decision": "DEC-20990101-aaaaaa", "namespace": labels.FROZEN_NS}}}
+                   "inputs": {"admission_decision": "DEC-20990101-aaaaaa", "namespace": labels.FROZEN_NS,
+                              "driver_pid": os.getppid(), "run_token_sha256": driver.token_sha256("tok")}}}
     (tmp_path / "manifest.yaml").write_text(yaml.safe_dump(man))
+    return man
+
+
+def test_fx5_celltask_guard_accepts_running_admitted_manifest(monkeypatch, tmp_path):
+    man = _guard_env(monkeypatch, tmp_path)
+    monkeypatch.setattr(celltask, "parent_is_driver", lambda pid: (True, "stub"))
     assert celltask.admission_guard(labels.FROZEN_NS)[0]
     man["run"]["status"] = "completed_valid"
     (tmp_path / "manifest.yaml").write_text(yaml.safe_dump(man))
     assert not celltask.admission_guard(labels.FROZEN_NS)[0]
 
 
+def test_r5_celltask_guard_refuses_hand_written_manifest(monkeypatch, tmp_path):
+    _guard_env(monkeypatch, tmp_path)
+    ok, why = celltask.admission_guard(labels.FROZEN_NS)
+    assert not ok and "driver.py" in why          # parent (pytest's parent) is not driver.py
+    _guard_env(monkeypatch, tmp_path, token="forged")
+    monkeypatch.setattr(celltask, "parent_is_driver", lambda pid: (True, "stub"))
+    ok, why = celltask.admission_guard(labels.FROZEN_NS)
+    assert not ok and "token" in why
+    monkeypatch.delenv(driver.RUN_TOKEN_ENV)
+    assert not celltask.admission_guard(labels.FROZEN_NS)[0]
+
+
+def test_r5_parent_is_driver_checks_pid():
+    assert not celltask.parent_is_driver(os.getpid())[0]
+    assert not celltask.parent_is_driver(None)[0]
+    assert not celltask.parent_is_driver(os.getppid())[0]
+
+
+def test_r5_driver_passes_token_and_pid_to_child(tmp_path, monkeypatch, fast_env):
+    got = {}
+
+    def capture(cmd, log_dir, name, psutil, env=None):
+        got["env"] = env
+        got["man"] = yaml.safe_load((log_dir.parent / "manifest.yaml").read_text())
+        raise RuntimeError("stop before any frozen draw")
+    monkeypatch.setattr(driver, "run_cell", capture)
+    args = _args(tmp_path, run_id="RUN-token-test")
+    args.admission_decision = "DEC-20990101-aaaaaa"
+    code = driver.execute(args, PLAN, dict(PASSING), "synthetic", None, "cmd",
+                          driver.protocol_binding(REPO), None, object())
+    assert code == driver.EXIT_INFRASTRUCTURE
+    inp = got["man"]["run"]["inputs"]
+    assert inp["driver_pid"] == os.getpid()
+    assert inp["run_token_sha256"] == driver.token_sha256(got["env"][driver.RUN_TOKEN_ENV])
+    assert got["env"][driver.ADMISSION_ENV] == "DEC-20990101-aaaaaa"
+    assert not (tmp_path / "RUN-token-test" / "cells" / "b16-s11.json").exists()
+
+
 # ---------------------------------------------------------------- FX-6
 
 def test_fx6_driver_refuses_frozen_budgets():
     target = driver.HERE / "smoke" / "never"
-    for fid, a1, a2 in (("b16-s11", 249, 751), ("b16-s13", 10, 574), ("b16-s13", 3627, 5000)):
+    for fid, a1, a2 in (("b16-s11", 249, 751), ("b16-s13", 10, 574), ("b16-s13", 3627, 5000),
+                        ("b16-s13", 198, 573), ("b16-s13", 160, 1000), ("b16-s13", 10, 717)):
         code = driver.main(["--smoke-dry-run", "--run-id", "DRYRUN-x", "--runs-dir", str(target),
                             "--dry-fixture", fid, "--dry-a1", str(a1), "--dry-a2", str(a2)])
         assert code == driver.EXIT_REFUSED_PLAN
@@ -455,6 +503,221 @@ def test_fx6_driver_refuses_frozen_budgets():
 
 def test_fx6_smoke_configs_avoid_frozen_budgets():
     assert smoke.check_budgets(PLAN) == []
-    assert smoke.check_budgets(PLAN, {"X": (249, 751, 1, 1)}) == [("X", 249), ("X", 751)]
+    bad = smoke.check_budgets(PLAN, {"X": (249, 751, 1, 1)})
+    assert [v for _, v in bad] and all(r == "X" for r, _ in bad)
+    assert smoke.check_budgets(PLAN, {"X": (160, 5000, 1, 1)}) != []      # 199/160 = 1.244
+    assert smoke.check_budgets(PLAN, {"X": (159, 5000, 1, 1)}) == []      # 199/159 = 1.252
+
+
+def test_r3_margin_same_fixture():
+    v = driver.smoke_budget_violations(PLAN, "b16-s13", [198, 573])
+    assert len(v) == 2 and all("factor" in x for x in v)
+    assert driver.smoke_budget_violations(PLAN, "b16-s13", [64, 256, 400, 1500]) == []
+    assert driver.smoke_budget_violations(PLAN, "b16-s13", [int(199 * 1.25)]) != []   # 248: inclusive
     assert smoke.FIXTURE == min(PLAN["fixtures"], key=lambda f: f["q"])["fixture_id"]
     assert smoke.SMOKE_DIR != driver.HERE / "smoke"
+
+
+def test_r5_snapshot_receipt_must_be_committed_clean_snapshot(snap_repo, tmp_path):
+    root, impl, receipt = snap_repo
+    rp = receipt()
+    ok, info = driver.verify_snapshot(root, rp)
+    assert not ok and "committed" in info["error"]            # untracked receipt
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "x")
+    assert driver.verify_snapshot(root, rp)[0]
+    rp.write_text(rp.read_text().replace('"TASK-x"', '"TASK-y"'))
+    ok, info = driver.verify_snapshot(root, rp)
+    assert not ok and "committed" in info["error"]            # modified after commit
+    _git(root, "checkout", "--", ".")
+    rk = receipt(kind="ledger", where=root / "coordination" / "archives" / "TASK-k" / "r.json")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "k")
+    assert "kind" in driver.verify_snapshot(root, rk)[1]["error"]
+    ra = receipt(where=root / "coordination" / "other" / "r.json")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "a")
+    assert "archives" in driver.verify_snapshot(root, ra)[1]["error"]
+    outside = tmp_path / "archives" / "r.json"
+    outside.parent.mkdir()
+    outside.write_text(rp.read_text())
+    assert "outside" in driver.verify_snapshot(root, outside)[1]["error"]
+
+
+# ---------------------------------------------------------------- R-1 / R-2 with real children
+
+def _alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def _group_alive(pgid):
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _capture_popen(monkeypatch, after=None):
+    procs = []
+    real = driver.subprocess.Popen
+
+    def wrapped(*a, **k):
+        p = real(*a, **k)
+        cmd = a[0] if a else k.get("args")
+        if isinstance(cmd, list) and any(str(c).endswith("celltask.py") for c in cmd):
+            procs.append(p)
+            if after:
+                after(p)
+        return p
+    monkeypatch.setattr(driver.subprocess, "Popen", wrapped)
+    return procs
+
+
+def _snapshot_dir(rd):
+    return {str(p.relative_to(rd)): (p.stat().st_size, p.read_bytes() if p.name == "manifest.yaml" else None)
+            for p in rd.rglob("*") if p.is_file()}
+
+
+def _dry_long():
+    return {"fixtures": ["b16-s13"], "a1": 10, "a2": 10_000_000, "replicates": 1, "rho_targets": 1}
+
+
+def test_r1_signal_kills_and_reaps_real_child(tmp_path, monkeypatch, fast_env):
+    import threading
+    import psutil
+    timers = []
+
+    def arm(p):
+        t = threading.Timer(2.0, os.kill, (os.getpid(), signal.SIGTERM))
+        t.start()
+        timers.append(t)
+    procs = _capture_popen(monkeypatch, after=arm)
+    try:
+        code = driver.execute(_args(tmp_path), PLAN, dict(PASSING), "smoke", _dry_long(), "cmd",
+                              driver.protocol_binding(REPO), None, psutil)
+    finally:
+        for t in timers:
+            t.cancel()
+        for p in procs:
+            if _alive(p.pid):
+                driver._kill_group(p.pid)
+    assert code == driver.EXIT_INFRASTRUCTURE and len(procs) == 1
+    pid = procs[0].pid
+    assert not _alive(pid) and not _group_alive(pid)
+    rd = tmp_path / "DRYRUN-t"
+    run = yaml.safe_load((rd / "manifest.yaml").read_text())["run"]
+    assert run["status"] == "failed_infrastructure" and run["failure_class"] == "signal"
+    before = _snapshot_dir(rd)
+    import time as _t
+    _t.sleep(1.5)
+    assert _snapshot_dir(rd) == before
+    assert not (rd / "cells" / "b16-s13.json").exists()
+
+
+def test_r1_exception_kills_and_reaps_real_child(tmp_path, monkeypatch, fast_env):
+    import psutil as real_psutil
+    calls = {"n": 0}
+
+    def boom(pid):
+        calls["n"] += 1
+        if calls["n"] >= 2:
+            raise RuntimeError("injected watchdog failure")
+        return real_psutil.Process(pid)
+    fake = types.SimpleNamespace(Process=boom, Error=real_psutil.Error)
+    procs = _capture_popen(monkeypatch)
+    try:
+        code = driver.execute(_args(tmp_path), PLAN, dict(PASSING), "smoke", _dry_long(), "cmd",
+                              driver.protocol_binding(REPO), None, fake)
+    finally:
+        for p in procs:
+            if _alive(p.pid):
+                driver._kill_group(p.pid)
+    assert code == driver.EXIT_INFRASTRUCTURE
+    pid = procs[0].pid
+    assert not _alive(pid) and not _group_alive(pid)
+    rd = tmp_path / "DRYRUN-t"
+    run = yaml.safe_load((rd / "manifest.yaml").read_text())["run"]
+    assert run["status"] == "failed_infrastructure" and run["failure_class"] == "exception"
+    before = _snapshot_dir(rd)
+    import time as _t
+    _t.sleep(1.0)
+    assert _snapshot_dir(rd) == before and not (rd / "cells" / "b16-s13.json").exists()
+
+
+def test_r1_real_child_completes_in_own_group(tmp_path, monkeypatch, fast_env):
+    import psutil
+    procs = _capture_popen(monkeypatch)
+    dry = {"fixtures": ["b16-s13"], "a1": 3, "a2": 5, "replicates": 1, "rho_targets": 1}
+    code = driver.execute(_args(tmp_path), PLAN, dict(PASSING), "smoke", dry, "cmd",
+                          driver.protocol_binding(REPO), None, psutil)
+    assert code == 0
+    pid = procs[0].pid
+    assert not _alive(pid)
+    man = yaml.safe_load((tmp_path / "DRYRUN-t" / "manifest.yaml").read_text())
+    assert man["run"]["status"] == "completed_valid"
+    assert man["driver"]["cells"][0]["process_group"] == pid
+    assert man["run"]["inputs"]["driver_pid"] == os.getpid()
+
+
+def test_r2_exception_before_full_record_leaves_manifest(tmp_path, monkeypatch):
+    seen = []
+
+    def env_boom():
+        seen.append(yaml.safe_load((tmp_path / "DRYRUN-t" / "manifest.yaml").read_text())["run"]["status"])
+        raise RuntimeError("sage probe failed")
+    monkeypatch.setattr(driver, "environment_info", env_boom)
+    code = driver.execute(_args(tmp_path), PLAN, dict(PASSING), "smoke", _dry(), "cmd",
+                          driver.protocol_binding(REPO), None, object())
+    assert code == driver.EXIT_INFRASTRUCTURE and seen == ["running"]
+    run = yaml.safe_load((tmp_path / "DRYRUN-t" / "manifest.yaml").read_text())["run"]
+    assert run["status"] == "failed_infrastructure" and run["stub"] is True
+    assert run["failure_class"] == "exception" and "sage probe failed" in run["failure_reason"]
+    assert run["timing"]["finished_at"] and run["result"]["valid"] is False
+
+
+def test_r1_watch_parent_exits_on_reparent():
+    import time as _t
+    hits = []
+    seq = iter([100, 100, 1, 1, 1])
+    celltask.watch_parent(100, interval=0.01, exit_fn=lambda: hits.append(1), getppid=lambda: next(seq))
+    _t.sleep(0.3)
+    assert hits == [1]
+
+
+def test_r1_child_exits_when_driver_is_sigkilled(tmp_path):
+    """A stand-in driver launches a real celltask the way driver.run_cell does
+    (own session, driver pid in the environment) and then dies without cleanup."""
+    import sys
+    import time as _t
+    helper = tmp_path / "fake_driver.py"
+    out = tmp_path / "cells" / "b16-s13.json"
+    out.parent.mkdir()
+    helper.write_text(f"""
+import os, subprocess, sys, time
+env = dict(os.environ, {driver.DRIVER_PID_ENV}=str(os.getpid()))
+p = subprocess.Popen([sys.executable, {str(driver.HERE / 'celltask.py')!r}, '--bits', '16', '--seed', '13',
+                      '--ns', {labels.SMOKE_NS!r}, '--a1', '10', '--a2', '10000000', '--replicates', '1',
+                      '--rho-targets', '1', '--out', {str(out)!r}], env=env, start_new_session=True,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+print(p.pid, flush=True)
+time.sleep(1.0)
+os.kill(os.getpid(), 9)
+""")
+    r = subprocess.run([sys.executable, str(helper)], capture_output=True, text=True, timeout=60)
+    child = int(r.stdout.split()[0])
+    try:
+        deadline = _t.time() + 10
+        while _alive(child) and _t.time() < deadline:
+            _t.sleep(0.2)
+        assert not _alive(child)
+        assert not out.exists()
+    finally:
+        if _alive(child):
+            os.kill(child, 9)

@@ -1,4 +1,4 @@
-# EXP-RELN-c5a377 — protocol-v4 implementation (TASK-20260929-7e6ea7, repaired by TASK-20260929-b72e82)
+# EXP-RELN-c5a377 — protocol-v4 implementation (TASK-20260929-7e6ea7, repaired by TASK-20260929-b72e82 and TASK-20260929-b81ea5)
 
 Protocol version 4 = `specification.yaml` (v1) + `amendments/AMD-20260926-a7d25d.yaml`
 + `amendments/AMD-20260929-988139.yaml` (v3 rulings, `DEC-20260929-3d166b`)
@@ -7,7 +7,9 @@ Protocol version 4 = `specification.yaml` (v1) + `amendments/AMD-20260926-a7d25d
 scientific run, no `RUN-*` directory, no frozen label evaluated. Execution stays NOT
 admitted (`DEC-20260929-ee5b8a` and `DEC-20260929-7a62cc` both leave
 `currently_admitted` false and the driver refuses them). The v4 repair is itemised in
-`repair_report_v4.yaml`; the frozen trial plan `trial-plan-v2.json` is unchanged
+`repair_report_v4.yaml` and its second round (re-check TASK-20260929-2ec518 findings
+R-1, R-2, R-3, R-5) in `repair_report_v4b.yaml`, which supersedes by reference the false
+v4 claim "child process killed on interruption"; the frozen trial plan `trial-plan-v2.json` is unchanged
 (sha256 `7fb5e40d…29cf`).
 
 ## Files
@@ -31,7 +33,7 @@ admitted (`DEC-20260929-ee5b8a` and `DEC-20260929-7a62cc` both leave
 | `make_trial_plan.py` → `trial-plan-v2.json` | 9 fixtures × {A1, A2} = 18 cells, all control labels, protocol hashes |
 | `smoke.py` → `smoke/v4/` | two driver dry runs on b16-s13 (smallest q) in the smoke namespace at budgets that differ from every frozen A1/A2 + `smoke/v4/smoke_summary.json` (the v2 `smoke/dry/` and `smoke/smoke_summary.json` are immutable history) |
 | `make_report.py` → `implementation_report.yaml` | file hashes, tests, smoke, open questions |
-| `tests/` | 116 tests (`test_v4.py` covers FX-1..FX-7) |
+| `tests/` | 127 tests (`test_v4.py` covers FX-1..FX-7 and R-1, R-2, R-3, R-5) |
 
 ## What is implemented, mapped to the protocol
 
@@ -113,20 +115,37 @@ Refusal order: psutil, C-7, run id, decision, plan hashes, v4 protocol records
 (the v3/v4 amendments must carry the pinned sha256 that their decisions record in
 `amendment_sha256_at_decision`), snapshot receipt, existing run directory.
 
-**Snapshot receipt (FX-5).** A scientific run needs `--snapshot-receipt PATH`. Every
-receipt entry under `implementation/` must match the working tree (the receipt itself is
-excluded), every implementation `*.py`, `tests/*.py` and `trial-plan-v2.json` must be
-pinned, and `git status` of `implementation/` (untracked included) must be empty; otherwise
-exit 10. `celltask.py` refuses a namespace without `smoke` unless the admitted driver
-launched it: the driver passes the decision id, repository root and run directory in the
-environment, and the cell process re-checks the decision and that the run manifest is
-`running` for that decision and namespace.
+**Snapshot receipt (FX-5, R-5).** A scientific run needs `--snapshot-receipt PATH`. The
+receipt must be inside the repository, have `kind: snapshot`, sit under an `archives/`
+directory, and be tracked, clean and byte-equal to its `HEAD` blob. Every receipt entry
+under `implementation/` must match the working tree (the receipt itself is excluded),
+every implementation `*.py`, `tests/*.py` and `trial-plan-v2.json` must be pinned, and
+`git status` of `implementation/` (untracked included) must be empty; otherwise exit 10.
+`celltask.py` refuses a namespace without `smoke` unless the admitted driver launched it.
+The driver passes the decision id, repository root, run directory and a random per-run
+token in the environment, and records its pid and the token's sha256 in the running
+manifest. The cell process re-checks the decision, that the manifest is `running` for
+that decision and namespace, that the token matches, and that the manifest's
+`driver_pid` is its live parent running `driver.py` (OQ-28).
 
-**Run record (FX-1, FX-2, FX-7).** `manifest.yaml` has the repository's top-level `run:`
+**Cell processes (R-1).** Each cell starts in its own process group (`start_new_session`).
+Reaping is tracked explicitly: if the driver's wait loop is left by a signal or exception
+before the child was reaped, the whole group gets SIGKILL and the child is reaped before
+the final manifest is written, so no cell writes into a finalised run directory. The
+memory watchdog also kills the group. Every child gets the driver pid and exits (code 9)
+once re-parented, which covers an uncatchable SIGKILL of the driver (OQ-29). Tested with
+real `celltask.py` children: a SIGTERM to the driver mid-cell, an exception mid-cell, a
+normal completion, and a stand-in driver killed with SIGKILL. The signal test fails
+against the pre-fix `run_cell`.
+
+**Run record (FX-1, FX-2, FX-7, R-2).** `manifest.yaml` has the repository's top-level `run:`
 block (id, experiment_id, hypothesis_id, protocol_version 4, status, code, inference,
 environment, inputs, timing, resources, result, artifacts) and a `driver:` companion with
-per-cell details. It is written with status `running` before the first cell and rewritten
-atomically after each cell. `inputs.protocol` records the path and sha256 of the
+per-cell details. A stub `run:` manifest (status `running`, `stub: true`) is written right
+after `command.txt`, before the environment and Sage probe; if the full record never comes
+into existence, the stub is rewritten as `failed_infrastructure`. The full manifest is
+written with status `running` before the first cell and rewritten atomically after each
+cell. `inputs.protocol` records the path and sha256 of the
 specification, the three amendments, `DEC-20260929-3d166b`, `DEC-20260929-7a62cc`, the
 fixture JSON and the generator. The driver console is teed to `stdout.log` / `stderr.log`
 in the run directory. An exception or SIGTERM / SIGHUP / SIGINT is recorded as
@@ -139,8 +158,12 @@ the inference block from `AUTORESEARCH_*` only (unset → null / `unverified`).
 ## Smoke v4 (implementation check only, TASK-20260929-b72e82)
 
 Fixture b16-s13 (smallest q), namespace `smoke|EXP-RELN-c5a377/v2`, output under
-`smoke/v4/dry/`. Budgets 64/256 (`DRYRUN-v4-tiny`) and 400/1500 (`DRYRUN-v4-controls`)
-differ from all 18 frozen A1/A2 values; `smoke.py` and the driver refuse a clash (FX-6).
+`smoke/v4/dry/`, produced by the TASK-20260929-b72e82 code (snapshot TASK-20260929-3f7b98).
+Budgets 64/256 (`DRYRUN-v4-tiny`) and 400/1500 (`DRYRUN-v4-controls`) differ from all 18
+frozen A1/A2 values and lie more than a factor 1.25 from b16-s13's frozen 199/574 (nearest
+ratios 1.286 and 1.435). `smoke.py` and the driver now refuse both an exact clash and a
+same-fixture ratio ≤ 1.25 (FX-6, R-3, OQ-27). No new smoke directory was made in
+TASK-20260929-b81ea5; the real-child tests run cells in pytest temporary directories.
 Both runs exited 0 with status `completed_valid` and no procedure defect. Both manifests
 have the canonical `run:` block with protocol version 4, and all six run files are
 present. Every identity held. The known positive passed (|V| ≥ its gate minimum 5 for
@@ -185,9 +208,9 @@ below 8 GiB.
 
 ## Open questions (literal readings adopted; protocol unchanged)
 
-See `implementation_report.yaml` → `open_questions` (OQ-1 … OQ-26) for each ambiguity
-and the literal reading implemented. OQ-4, OQ-13 and OQ-14 now carry the v4 rulings.
-OQ-21 … OQ-26 are new readings of the v4 text. The reviewer-relevant ones:
+See `implementation_report.yaml` → `open_questions` (OQ-1 … OQ-29) for each ambiguity
+and the literal reading implemented. OQ-4, OQ-13, OQ-14 and OQ-24 now carry rulings.
+OQ-21 … OQ-26 are readings of the v4 text; OQ-27 … OQ-29 come from the second repair. The reviewer-relevant ones:
 - **OQ-4**: the ER-null clause of C-5 and the structural fact that G(|V|,|E|) shares
   `|E|-|V|` with the treatment graph.
 - **OQ-2 and OQ-3**: the CI and trend readings.

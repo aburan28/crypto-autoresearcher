@@ -7,9 +7,12 @@ audit; plus the rho baseline. Writes <out>.json and <out>.attempts.jsonl.
       --replicates 32 --rho-targets 64 --out PATH
 
 A namespace without 'smoke' (the frozen draws) is refused unless the process
-was launched by driver.py for an admitted run (AMD-20260929-cc7226 FX-5): the
-driver passes the decision id, repository root and run directory in the
-environment, and this process re-checks the decision and the run manifest.
+was launched by driver.py for an admitted run (AMD-20260929-cc7226 FX-5, R-5):
+the driver passes the decision id, repository root, run directory and a
+per-run random token in the environment; this process re-checks the decision,
+that the run manifest is running for that decision and namespace, that the
+token hashes to the manifest's run_token_sha256, and that the manifest's
+driver_pid is its live parent running driver.py.
 
 Known positive (AMD-20260929-cc7226 F-4): below the smallest |V| at which a
 planted graph of cycle rank ceil(|V|^1.5) can give delta_proof > 1/4 for the
@@ -97,6 +100,38 @@ def known_positive(n, L, ns, ctx, name, defects) -> dict:
     return {**row, "status": "pass" if passed else "FAIL", "exercised": True, "power_confirmed": passed}
 
 
+def parent_is_driver(pid) -> tuple[bool, str]:
+    """The manifest's driver pid must be this process's parent, alive, and
+    running driver.py."""
+    if not isinstance(pid, int) or pid != os.getppid():
+        return False, f"manifest driver_pid {pid!r} is not this process's parent {os.getppid()}"
+    try:
+        import psutil
+        cmd = psutil.Process(pid).cmdline()
+    except Exception as e:  # fail closed
+        return False, f"cannot inspect parent {pid}: {e}"
+    if not any(Path(c).name == "driver.py" for c in cmd):
+        return False, f"parent {pid} is not driver.py: {cmd[:3]}"
+    return True, "parent is the live driver"
+
+
+def watch_parent(expected_ppid: int, interval=1.0, exit_fn=None, getppid=os.getppid):
+    """Exit (code 9) as soon as the launching driver is gone (re-parenting),
+    e.g. after an uncatchable SIGKILL of the driver."""
+    import threading
+    exit_fn = exit_fn or (lambda: os._exit(9))
+
+    def loop():
+        while True:
+            if getppid() != expected_ppid:
+                exit_fn()
+                return
+            time.sleep(interval)
+    t = threading.Thread(target=loop, daemon=True, name="parent-watch")
+    t.start()
+    return t
+
+
 def admission_guard(ns: str) -> tuple[bool, str]:
     if labels.is_smoke_ns(ns):
         return True, "smoke namespace"
@@ -105,7 +140,8 @@ def admission_guard(ns: str) -> tuple[bool, str]:
     dec = os.environ.get(driver.ADMISSION_ENV)
     repo = os.environ.get(driver.REPO_ENV)
     run_dir = os.environ.get(driver.RUN_DIR_ENV)
-    if not (dec and repo and run_dir):
+    token = os.environ.get(driver.RUN_TOKEN_ENV)
+    if not (dec and repo and run_dir and token):
         return False, "not launched by the admitted driver (admission environment absent)"
     ok, why = driver.check_decision(Path(repo), dec)
     if not ok:
@@ -118,7 +154,12 @@ def admission_guard(ns: str) -> tuple[bool, str]:
     inp = run.get("inputs") or {}
     if run.get("status") != "running" or inp.get("admission_decision") != dec or inp.get("namespace") != ns:
         return False, f"run manifest {mp} is not a running admitted run for {dec} in namespace {ns}"
-    return True, f"admitted by {dec} for {run.get('id')}"
+    if inp.get("run_token_sha256") != driver.token_sha256(token):
+        return False, f"run token does not match run manifest {mp}"
+    ok, why = parent_is_driver(inp.get("driver_pid"))
+    if not ok:
+        return False, why
+    return True, f"admitted by {dec} for {run.get('id')} (driver pid {inp.get('driver_pid')})"
 
 
 def budget_block(gen, records, A, name, ns, replicates, horton_on, defects):
@@ -247,6 +288,13 @@ def main(argv=None):
     ap.add_argument("--horton-24", action="store_true")
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
+    import driver
+    dpid = os.environ.get(driver.DRIVER_PID_ENV)
+    if dpid:
+        if int(dpid) != os.getppid():
+            print(f"REFUSED: launching driver {dpid} is not this process's parent", file=sys.stderr)
+            return 9
+        watch_parent(int(dpid))
     if a.a1 > a.a2:
         print("a1 must be <= a2 (A2 is a prefix-continuation of A1)", file=sys.stderr)
         return 2
